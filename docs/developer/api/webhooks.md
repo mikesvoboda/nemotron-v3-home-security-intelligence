@@ -346,6 +346,28 @@ flowchart LR
     style TELEGRAM fill:#0088CC,color:#fff
 ```
 
+### Webhook Delivery Flow
+
+The delivery service uses exponential backoff for failed deliveries. After exhausting all retries, the delivery is marked as failed and can be manually retried via the API.
+
+```mermaid
+sequenceDiagram
+    participant Evt as New Event
+    participant WH as Webhook Service
+    participant EP as External Endpoint
+    participant DLQ as Dead Letter Queue
+    Evt->>WH: Event triggers webhook
+    WH->>EP: POST payload
+    alt Success (2xx)
+        EP-->>WH: 200 OK
+    else Failure
+        WH->>WH: Retry with exponential backoff
+        alt Max retries exceeded
+            WH->>DLQ: Move to dead letter queue
+        end
+    end
+```
+
 **Data Flow:**
 
 1. **Event occurs** - Security event, alert, or system health change

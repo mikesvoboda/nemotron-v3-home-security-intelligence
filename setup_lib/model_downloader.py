@@ -49,11 +49,11 @@ REQUIRED_MODELS: list[ModelSpec] = [
     ),
     # Florence-2 - vision-language model
     ModelSpec(
-        name="florence-2-large",
-        hf_repo="microsoft/Florence-2-large",
+        name="florence-2-base",
+        hf_repo="microsoft/Florence-2-base",
         phase=1,
-        size_mb=1200,
-        description="Florence-2 vision-language model for scene understanding",
+        size_mb=450,
+        description="Florence-2-base vision-language model (smaller, saves ~1.2GB VRAM)",
         required=True,
     ),
     # CLIP - embeddings for re-identification
@@ -234,7 +234,7 @@ def run_download_script(script_name: str, args: list[str] | None = None) -> bool
         cmd.extend(args)
 
     try:
-        result = subprocess.run(  # noqa: S603 - known script path
+        result = subprocess.run(
             cmd,
             check=True,
             capture_output=False,
@@ -395,7 +395,7 @@ def prompt_and_download_models(config: dict) -> None:
         print("! huggingface_hub not installed")
         print("  Installing: pip install huggingface_hub")
         try:
-            subprocess.run(  # noqa: S603 - known pip command
+            subprocess.run(
                 [sys.executable, "-m", "pip", "install", "huggingface_hub"],
                 check=True,
                 capture_output=True,

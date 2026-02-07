@@ -18,13 +18,29 @@ descriptions to prevent misclassification (e.g., bus -> police car hallucination
 
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_enrichment_model_duration,
+    record_enrichment_model_call,
+    record_enrichment_model_error,
+)
+from backend.core.telemetry import add_span_event
 from backend.services.bbox_validation import prepare_bbox_for_crop
-from backend.services.florence_client import FlorenceUnavailableError, get_florence_client
+from backend.services.florence_client import (
+    BatchExtractItem,
+    FlorenceUnavailableError,
+    SecurityObjectsResult,
+    get_florence_client,
+)
+from backend.services.florence_client import (
+    BoundingBox as FlorenceBoundingBox,
+)
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -769,6 +785,61 @@ class SceneAnalysis:
 
 
 @dataclass(slots=True)
+class FlorenceEnhancedScene:
+    """Enhanced scene context from Florence-2 advanced capabilities.
+
+    Aggregates results from security objects detection, dense captioning,
+    OCR with regions, phrase grounding, and security VQA queries.
+    These feed into the Nemotron prompt via format_florence_scene_context().
+
+    Attributes:
+        security_objects: Security-relevant objects detected via open vocabulary
+        dense_captions: Per-region descriptions with bounding boxes
+        text_regions: OCR text with spatial bounding box regions
+        phrase_grounding: Results of phrase grounding for security-relevant phrases
+        region_descriptions: Descriptions for YOLO detection regions
+        security_vqa: Security-focused VQA answers keyed by detection_id
+    """
+
+    security_objects: SecurityObjectsResult | None = None
+    dense_captions: list[dict[str, Any]] = field(default_factory=list)
+    text_regions: list[dict[str, Any]] = field(default_factory=list)
+    phrase_grounding: list[dict[str, Any]] = field(default_factory=list)
+    region_descriptions: dict[str, str] = field(default_factory=dict)
+    security_vqa: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        security_objs = None
+        if self.security_objects:
+            security_objs = {
+                "labels": [d.label for d in self.security_objects.detections],
+                "detections": [
+                    {
+                        "label": d.label,
+                        "bbox": d.bbox,
+                        "confidence": d.confidence,
+                    }
+                    for d in self.security_objects.detections
+                ],
+                "objects_queried": self.security_objects.objects_queried,
+            }
+        return {
+            "security_objects": security_objs,
+            "dense_captions": self.dense_captions,
+            "text_regions": {
+                "labels": [r.get("text", "") for r in self.text_regions],
+                "regions": self.text_regions,
+            }
+            if self.text_regions
+            else None,
+            "phrase_grounding": self.phrase_grounding,
+            "region_descriptions": self.region_descriptions,
+            "security_vqa": self.security_vqa,
+        }
+
+
+@dataclass(slots=True)
 class BatchExtractionResult:
     """Result of batch attribute extraction.
 
@@ -777,12 +848,16 @@ class BatchExtractionResult:
         person_attributes: Dict mapping detection_id to PersonAttributes
         scene_analysis: Scene analysis for the full frame
         environment_context: Environment context for the full frame
+        florence_enhanced: Enhanced Florence-2 scene context (security objects,
+            dense captions, OCR regions, phrase grounding, region descriptions,
+            security VQA)
     """
 
     vehicle_attributes: dict[str, VehicleAttributes] = field(default_factory=dict)
     person_attributes: dict[str, PersonAttributes] = field(default_factory=dict)
     scene_analysis: SceneAnalysis | None = None
     environment_context: EnvironmentContext | None = None
+    florence_enhanced: FlorenceEnhancedScene | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -796,6 +871,9 @@ class BatchExtractionResult:
             "scene_analysis": self.scene_analysis.to_dict() if self.scene_analysis else None,
             "environment_context": (
                 self.environment_context.to_dict() if self.environment_context else None
+            ),
+            "florence_enhanced": (
+                self.florence_enhanced.to_dict() if self.florence_enhanced else None
             ),
         }
 
@@ -937,6 +1015,45 @@ class VisionExtractor:
         except FlorenceUnavailableError as e:
             logger.warning(f"Florence service unavailable: {e}")
             return ""
+
+    async def _batch_query_florence(
+        self,
+        image: Image.Image,
+        prompts: list[str],
+    ) -> list[str]:
+        """Send multiple prompts for the same image in a single batch HTTP request.
+
+        This reduces HTTP overhead by batching N queries into 1 network round-trip.
+        Falls back to individual _query_florence() calls if the batch endpoint
+        is unavailable or fails. This fallback also maintains compatibility with
+        tests that mock _query_florence.
+
+        Args:
+            image: PIL Image to analyze
+            prompts: List of full Florence-2 prompts (e.g., "<CAPTION>", "<VQA>What color?")
+
+        Returns:
+            List of result strings in the same order as prompts.
+            Failed items return empty strings.
+        """
+        try:
+            batch_items = [BatchExtractItem(image=image, prompt=p) for p in prompts]
+            batch_results = await self._florence_client.batch_extract(batch_items)
+            return [r.result if not r.error else "" for r in batch_results]
+        except FlorenceUnavailableError:
+            logger.debug("Batch extraction unavailable, falling back to individual calls")
+        except Exception as e:
+            logger.debug(f"Batch extraction failed ({e}), falling back to individual calls")
+
+        # Fallback: issue individual _query_florence calls concurrently
+        # Split prompts back into (task, text_input) for _query_florence compatibility
+        async def _call_single(prompt: str) -> str:
+            if prompt.startswith(VQA_TASK) and len(prompt) > len(VQA_TASK):
+                return await self._query_florence(image, VQA_TASK, prompt[len(VQA_TASK) :])
+            return await self._query_florence(image, prompt)
+
+        results = await asyncio.gather(*(_call_single(p) for p in prompts))
+        return list(results)
 
     def _crop_image(self, image: Image.Image, bbox: tuple[int, int, int, int]) -> Image.Image:
         """Crop image to bounding box with padding.
@@ -1299,14 +1416,11 @@ class VisionExtractor:
         Returns:
             EnvironmentContext with time, lighting, and weather info
         """
-        time_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
-        )
-        light_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
-        )
-        weather_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
+        # Run all environment VQA queries concurrently
+        time_response, light_response, weather_response = await asyncio.gather(
+            self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]),
+            self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]),
+            self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]),
         )
 
         # Parse time of day
@@ -1359,6 +1473,14 @@ class VisionExtractor:
 
         This method processes all detections via the ai-florence HTTP service,
         which keeps the Florence-2 model loaded and ready for inference.
+
+        Wires up all Florence-2 capabilities:
+        1. Security objects detection (open vocabulary)
+        2. Dense captioning (per-region descriptions)
+        3. Region description for YOLO detections
+        4. OCR with region localization
+        5. Phrase grounding for threat validation
+        6. Security VQA queries for person detections
 
         Args:
             image: Full frame image
@@ -1423,11 +1545,260 @@ class VisionExtractor:
         # Extract environment context (full frame)
         result.environment_context = await self._extract_environment_internal(image)
 
+        # =====================================================================
+        # Enhanced Florence-2 Capabilities (parallel scene-level extraction)
+        # =====================================================================
+        result.florence_enhanced = await self._extract_florence_enhanced(
+            image, detections, person_dets
+        )
+
         logger.info(
             f"Extracted attributes: {len(result.vehicle_attributes)} vehicles, "
-            f"{len(result.person_attributes)} persons"
+            f"{len(result.person_attributes)} persons, "
+            f"enhanced={result.florence_enhanced is not None}"
         )
         return result
+
+    async def _extract_florence_enhanced(
+        self,
+        image: Image.Image,
+        all_detections: list[dict[str, Any]],
+        person_dets: list[dict[str, Any]],
+    ) -> FlorenceEnhancedScene | None:
+        """Extract enhanced Florence-2 scene context using all available capabilities.
+
+        Runs the following Florence-2 tasks in parallel where possible:
+        1. Security objects detection (open vocabulary)
+        2. Dense captioning (per-region descriptions)
+        3. OCR with region localization
+        4. Phrase grounding for security-relevant phrases
+        Then sequentially:
+        5. Region descriptions for each YOLO detection
+        6. Security VQA for person detections
+
+        Args:
+            image: Full frame image
+            all_detections: All YOLO detections
+            person_dets: Person detections for security VQA
+
+        Returns:
+            FlorenceEnhancedScene with all enhanced data, or None on total failure
+        """
+        record_enrichment_model_call("florence-enhanced")
+        overall_start = time.perf_counter()
+        enhanced = FlorenceEnhancedScene()
+        client = self._florence_client
+
+        add_span_event(
+            "florence_enhanced.start",
+            {"detection.count": len(all_detections), "person.count": len(person_dets)},
+        )
+
+        # Security-relevant phrases for phrase grounding
+        security_phrases = [
+            "person with tool",
+            "person near door",
+            "suspicious package",
+            "person wearing mask",
+            "person with weapon",
+            "person carrying bag",
+        ]
+
+        # Phase 1: Parallel scene-level tasks
+        # These are independent and can run concurrently
+        async def _detect_security_objects() -> SecurityObjectsResult | None:
+            try:
+                return await client.detect_security_objects(image)
+            except FlorenceUnavailableError:
+                logger.warning("Florence security objects detection unavailable")
+                return None
+            except Exception as e:
+                record_enrichment_model_error("florence-security-objects")
+                logger.warning(
+                    f"Florence security objects detection failed: {e}",
+                    extra={"service": "florence-security-objects", "error_type": type(e).__name__},
+                )
+                return None
+
+        async def _dense_caption() -> list[dict[str, Any]]:
+            try:
+                regions = await client.dense_caption(image)
+                return [{"caption": r.caption, "bbox": r.bbox} for r in regions]
+            except FlorenceUnavailableError:
+                logger.warning("Florence dense captioning unavailable")
+                return []
+            except Exception as e:
+                record_enrichment_model_error("florence-dense-caption")
+                logger.warning(
+                    f"Florence dense captioning failed: {e}",
+                    extra={"service": "florence-dense-caption", "error_type": type(e).__name__},
+                )
+                return []
+
+        async def _ocr_with_regions() -> list[dict[str, Any]]:
+            try:
+                regions = await client.ocr_with_regions(image)
+                return [{"text": r.text, "bbox": r.bbox} for r in regions]
+            except FlorenceUnavailableError:
+                logger.warning("Florence OCR with regions unavailable")
+                return []
+            except Exception as e:
+                record_enrichment_model_error("florence-ocr-regions")
+                logger.warning(
+                    f"Florence OCR with regions failed: {e}",
+                    extra={"service": "florence-ocr-regions", "error_type": type(e).__name__},
+                )
+                return []
+
+        async def _phrase_grounding() -> list[dict[str, Any]]:
+            try:
+                grounded = await client.phrase_grounding(image, security_phrases)
+                return [
+                    {
+                        "phrase": g.phrase,
+                        "bboxes": g.bboxes,
+                        "confidence_scores": g.confidence_scores,
+                        "matched": len(g.bboxes) > 0,
+                    }
+                    for g in grounded
+                ]
+            except FlorenceUnavailableError:
+                logger.warning("Florence phrase grounding unavailable")
+                return []
+            except Exception as e:
+                record_enrichment_model_error("florence-phrase-grounding")
+                logger.warning(
+                    f"Florence phrase grounding failed: {e}",
+                    extra={"service": "florence-phrase-grounding", "error_type": type(e).__name__},
+                )
+                return []
+
+        # Run all four scene-level tasks in parallel
+        (
+            security_objects_result,
+            dense_captions_result,
+            ocr_regions_result,
+            phrase_grounding_result,
+        ) = await asyncio.gather(
+            _detect_security_objects(),
+            _dense_caption(),
+            _ocr_with_regions(),
+            _phrase_grounding(),
+        )
+
+        enhanced.security_objects = security_objects_result
+        enhanced.dense_captions = dense_captions_result
+        enhanced.text_regions = ocr_regions_result
+        enhanced.phrase_grounding = phrase_grounding_result
+
+        # Phase 2: Region descriptions for YOLO detections (sequential per detection)
+        # Send each detection's bounding box to Florence-2 for a detailed description
+        region_boxes = []
+        region_det_ids: list[str] = []
+        for det in all_detections:
+            bbox = det.get("bbox")
+            if bbox and len(bbox) == 4:
+                x1, y1, x2, y2 = bbox
+                # Validate bbox has positive area
+                if x2 > x1 and y2 > y1:
+                    region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
+                    det_id = det.get("detection_id", str(len(region_det_ids)))
+                    region_det_ids.append(det_id)
+
+        if region_boxes:
+            try:
+                descriptions = await client.describe_regions(image, region_boxes)
+                for i, desc in enumerate(descriptions):
+                    if i < len(region_det_ids) and desc.caption:
+                        enhanced.region_descriptions[region_det_ids[i]] = desc.caption
+            except FlorenceUnavailableError:
+                logger.warning("Florence region description unavailable")
+            except Exception as e:
+                record_enrichment_model_error("florence-region-description")
+                logger.warning(
+                    f"Florence region description failed: {e}",
+                    extra={
+                        "service": "florence-region-description",
+                        "error_type": type(e).__name__,
+                    },
+                )
+
+        # Phase 3: Security VQA for person detections
+        for det in person_dets:
+            det_id = det.get("detection_id", "")
+            if not det_id:
+                continue
+
+            bbox = det.get("bbox")
+            bbox_tuple = None
+            if bbox:
+                bbox_tuple = tuple(bbox) if isinstance(bbox, list) else bbox
+
+            try:
+                vqa_answers = await self.extract_security_vqa(image, bbox=bbox_tuple)
+                if vqa_answers:
+                    enhanced.security_vqa[det_id] = vqa_answers
+            except Exception as e:
+                record_enrichment_model_error("florence-security-vqa")
+                logger.warning(
+                    f"Security VQA failed for detection {det_id}: {e}",
+                    extra={
+                        "service": "florence-security-vqa",
+                        "detection_id": det_id,
+                        "error_type": type(e).__name__,
+                    },
+                )
+
+        # Check if we got any enhanced data at all
+        has_data = (
+            enhanced.security_objects is not None
+            or enhanced.dense_captions
+            or enhanced.text_regions
+            or enhanced.phrase_grounding
+            or enhanced.region_descriptions
+            or enhanced.security_vqa
+        )
+
+        overall_duration = time.perf_counter() - overall_start
+        observe_enrichment_model_duration("florence-enhanced", overall_duration)
+
+        if not has_data:
+            record_enrichment_model_error("florence-enhanced")
+            logger.debug(
+                "No Florence enhanced data available",
+                extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
+            )
+            return None
+
+        security_obj_count = (
+            len(enhanced.security_objects.detections) if enhanced.security_objects else 0
+        )
+        phrase_match_count = sum(1 for p in enhanced.phrase_grounding if p.get("matched"))
+
+        add_span_event(
+            "florence_enhanced.complete",
+            {
+                "security_objects.count": security_obj_count,
+                "dense_captions.count": len(enhanced.dense_captions),
+                "text_regions.count": len(enhanced.text_regions),
+                "phrase_grounding.matched": phrase_match_count,
+                "region_descriptions.count": len(enhanced.region_descriptions),
+                "security_vqa.count": len(enhanced.security_vqa),
+                "duration_ms": int(overall_duration * 1000),
+            },
+        )
+
+        logger.info(
+            f"Florence enhanced: "
+            f"security_objects={security_obj_count}, "
+            f"dense_captions={len(enhanced.dense_captions)}, "
+            f"text_regions={len(enhanced.text_regions)}, "
+            f"phrase_grounding={phrase_match_count}, "
+            f"region_descriptions={len(enhanced.region_descriptions)}, "
+            f"security_vqa={len(enhanced.security_vqa)}",
+            extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
+        )
+        return enhanced
 
     async def _extract_vehicle_internal(
         self,
@@ -1452,11 +1823,20 @@ class VisionExtractor:
             NEM-5478: Florence vehicle type is cross-validated against YOLO
             detection to prevent misclassification (e.g., bus -> police car).
         """
-        caption = await self._query_florence(image, CAPTION_TASK)
-        color_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
-        vehicle_type_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
-        commercial_response = await self._query_florence(
-            image, VQA_TASK, VEHICLE_QUERIES["commercial"]
+        # Batch all vehicle queries into a single HTTP request to reduce overhead
+        # (4 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            CAPTION_TASK,
+            f"{VQA_TASK}{VEHICLE_QUERIES['color']}",
+            f"{VQA_TASK}{VEHICLE_QUERIES['type']}",
+            f"{VQA_TASK}{VEHICLE_QUERIES['commercial']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        caption, color_raw, vehicle_type_raw, commercial_response = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
         )
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
@@ -1528,13 +1908,23 @@ class VisionExtractor:
             NEM-3304: VQA responses are validated to reject garbage outputs
             like "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>".
         """
-        caption = await self._query_florence(image, CAPTION_TASK)
-        clothing_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
-        carrying_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
-        service_response = await self._query_florence(
-            image, VQA_TASK, PERSON_QUERIES["service_worker"]
+        # Batch all person queries into a single HTTP request to reduce overhead
+        # (5 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            CAPTION_TASK,
+            f"{VQA_TASK}{PERSON_QUERIES['clothing']}",
+            f"{VQA_TASK}{PERSON_QUERIES['carrying']}",
+            f"{VQA_TASK}{PERSON_QUERIES['service_worker']}",
+            f"{VQA_TASK}{PERSON_QUERIES['action']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        caption, clothing_raw, carrying_raw, service_response, action_raw = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
+            results[4],
         )
-        action_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
         clothing = validate_and_clean_vqa_output(clothing_raw)
@@ -1561,10 +1951,21 @@ class VisionExtractor:
         Returns:
             SceneAnalysis with detected unusual elements
         """
-        description = await self._query_florence(image, CAPTION_TASK)
-        unusual_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"])
-        tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
-        abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
+        # Batch all scene queries into a single HTTP request to reduce overhead
+        # (4 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            CAPTION_TASK,
+            f"{VQA_TASK}{SCENE_QUERIES['unusual']}",
+            f"{VQA_TASK}{SCENE_QUERIES['tools']}",
+            f"{VQA_TASK}{SCENE_QUERIES['abandoned']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        description, unusual_response, tools_response, abandoned_response = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
+        )
 
         # Clean VQA responses to remove Florence-2 artifacts
         unusual_cleaned = clean_vqa_output(unusual_response)
@@ -1602,14 +2003,18 @@ class VisionExtractor:
         Returns:
             EnvironmentContext with time, lighting, and weather info
         """
-        time_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
-        )
-        light_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
-        )
-        weather_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
+        # Batch all environment queries into a single HTTP request to reduce overhead
+        # (3 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            f"{VQA_TASK}{ENVIRONMENT_QUERIES['time_of_day']}",
+            f"{VQA_TASK}{ENVIRONMENT_QUERIES['artificial_light']}",
+            f"{VQA_TASK}{ENVIRONMENT_QUERIES['weather']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        time_response, light_response, weather_response = (
+            results[0],
+            results[1],
+            results[2],
         )
 
         time_lower = time_response.lower() if time_response else ""
@@ -1791,6 +2196,8 @@ def format_batch_extraction_result(
     Returns:
         Formatted string for prompt
     """
+    from backend.services.prompts import format_florence_scene_context
+
     sections = []
 
     # Format vehicle attributes
@@ -1816,6 +2223,13 @@ def format_batch_extraction_result(
     if include_environment and result.environment_context:
         env_section = "## Environment\n" + format_environment_context(result.environment_context)
         sections.append(env_section)
+
+    # Format Florence-2 enhanced scene context
+    if result.florence_enhanced:
+        enhanced_dict = result.florence_enhanced.to_dict()
+        enhanced_str = format_florence_scene_context(enhanced_dict)
+        if enhanced_str:
+            sections.append(enhanced_str)
 
     if not sections:
         return "No vision extraction data available."

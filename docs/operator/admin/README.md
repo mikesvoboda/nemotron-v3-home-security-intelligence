@@ -646,8 +646,8 @@ redis-cli ping                                   # Redis
 
 ## See Also
 
-- [Operator Hub](../) - Main operator documentation
-- [Deployment Guide](../deployment/) - Service setup
-- [Monitoring Guide](../monitoring/) - Health checks and metrics
+- [Operator Hub](../README.md) - Main operator documentation
+- [Deployment Guide](../deployment/README.md) - Service setup
+- [Monitoring Guide](../monitoring/README.md) - Health checks and metrics
 - [Backup and Recovery](../backup.md) - Database backup
 - [Redis Setup](../redis.md) - Redis configuration

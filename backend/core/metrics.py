@@ -465,6 +465,28 @@ EVENTS_BY_RISK_LEVEL = Counter(
     registry=_registry,
 )
 
+# =============================================================================
+# Score Distribution Monitoring & Calibration Drift (NEM-5535)
+# =============================================================================
+
+# Dedicated histogram for score distribution monitoring with same buckets as RISK_SCORE.
+# Used by CalibrationMonitor to track distribution drift over time.
+RISK_SCORE_DISTRIBUTION = Histogram(
+    "hsi_risk_score_distribution",
+    "Risk score distribution for calibration monitoring",
+    buckets=RISK_SCORE_BUCKETS,
+    registry=_registry,
+)
+
+# Counter per risk tier for calibration drift alerting.
+# Tiers: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
+RISK_TIER_TOTAL = Counter(
+    "hsi_risk_tier_total",
+    "Total events per risk tier for calibration monitoring",
+    labelnames=["tier"],
+    registry=_registry,
+)
+
 PROMPT_TEMPLATE_USED = Counter(
     "hsi_prompt_template_used_total",
     "Prompt template usage by template name",
@@ -582,6 +604,29 @@ ENRICHMENT_MODEL_ERRORS_TOTAL = Counter(
     "hsi_enrichment_model_errors_total",
     "Total number of enrichment model errors by model name",
     labelnames=["model"],
+    registry=_registry,
+)
+
+# Histogram for enrichment pipeline stage durations (NEM-5525)
+ENRICHMENT_PIPELINE_STAGE_DURATION = Histogram(
+    "hsi_enrichment_pipeline_stage_duration_seconds",
+    "Duration of enrichment pipeline stages",
+    labelnames=["stage"],
+    buckets=AI_REQUEST_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+# Counter for enrichment pipeline timeouts
+ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL = Counter(
+    "hsi_enrichment_pipeline_timeouts_total",
+    "Total number of enrichment pipeline hard timeouts",
+    registry=_registry,
+)
+
+# Gauge for enrichment quality level in use
+ENRICHMENT_QUALITY_LEVEL = Gauge(
+    "hsi_enrichment_quality_level",
+    "Current enrichment quality level (1=minimal, 2=standard, 3=full)",
     registry=_registry,
 )
 
@@ -1479,6 +1524,16 @@ class MetricsService:
         safe_level = sanitize_risk_level(level)
         EVENTS_BY_RISK_LEVEL.labels(level=safe_level).inc()
 
+    def observe_risk_score_distribution(self, score: int | float) -> None:
+        """Record a risk score in the distribution histogram and tier counter (NEM-5535).
+
+        Args:
+            score: Risk score from Nemotron analysis (0-100)
+        """
+        RISK_SCORE_DISTRIBUTION.observe(score)
+        tier = _score_to_tier(score)
+        RISK_TIER_TOTAL.labels(tier=tier).inc()
+
     def record_prompt_template_used(self, template: str) -> None:
         """Increment the prompt template usage counter.
 
@@ -2207,6 +2262,54 @@ def record_prompt_template_used(template: str) -> None:
 
 
 # =============================================================================
+# Score Distribution & Calibration Drift Helpers (NEM-5535)
+# =============================================================================
+
+
+def _score_to_tier(score: int | float) -> str:
+    """Map a risk score (0-100) to a calibration tier name.
+
+    Tier boundaries:
+        - low:      0-20
+        - elevated: 21-40
+        - moderate: 41-60
+        - high:     61-80
+        - critical: 81-100
+
+    Args:
+        score: Risk score from Nemotron analysis (0-100)
+
+    Returns:
+        Tier name string
+    """
+    if score <= 20:
+        return "low"
+    elif score <= 40:
+        return "elevated"
+    elif score <= 60:
+        return "moderate"
+    elif score <= 80:
+        return "high"
+    else:
+        return "critical"
+
+
+def observe_risk_score_distribution(score: int | float) -> None:
+    """Record a risk score in the distribution histogram and increment the tier counter.
+
+    This is the primary entry point for NEM-5535 calibration monitoring.
+    It records the score in the hsi_risk_score_distribution histogram and
+    increments the appropriate hsi_risk_tier_total counter.
+
+    Args:
+        score: Risk score from Nemotron analysis (0-100)
+    """
+    RISK_SCORE_DISTRIBUTION.observe(score)
+    tier = _score_to_tier(score)
+    RISK_TIER_TOTAL.labels(tier=tier).inc()
+
+
+# =============================================================================
 # Context Utilization Helpers (NEM-1666)
 # =============================================================================
 
@@ -2323,6 +2426,31 @@ def record_enrichment_model_error(model: str) -> None:
         model: Name of the enrichment model that errored
     """
     ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
+
+
+def observe_enrichment_pipeline_stage(stage: str, duration_seconds: float) -> None:
+    """Record the duration of an enrichment pipeline stage.
+
+    Args:
+        stage: Pipeline stage name (e.g., "phase1_and_florence", "phase2", "phase3", "total")
+        duration_seconds: Duration of the stage in seconds
+    """
+    ENRICHMENT_PIPELINE_STAGE_DURATION.labels(stage=stage).observe(duration_seconds)
+
+
+def record_enrichment_pipeline_timeout() -> None:
+    """Increment the counter for enrichment pipeline hard timeouts."""
+    ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL.inc()
+
+
+def set_enrichment_quality_level(level: str) -> None:
+    """Set the current enrichment quality level gauge.
+
+    Args:
+        level: Quality level string ("minimal", "standard", "full")
+    """
+    level_map = {"minimal": 1, "standard": 2, "full": 3}
+    ENRICHMENT_QUALITY_LEVEL.set(level_map.get(level, 3))
 
 
 def record_event_by_camera(camera_id: str, camera_name: str) -> None:
@@ -4896,3 +5024,83 @@ def update_process_memory_metrics(
     PROCESS_MEMORY_CONTAINER_USAGE_RATIO.set(
         container_usage_percent / 100.0 if container_usage_percent is not None else 0.0
     )
+
+
+# =============================================================================
+# Batch Coalescing Metrics (NEM-5530)
+# =============================================================================
+
+BATCH_COALESCED_TOTAL = Counter(
+    "hsi_batch_coalesced_total",
+    "Total batches that were merged via coalescing",
+    registry=_registry,
+)
+
+BATCH_COALESCE_DETECTIONS_MERGED_TOTAL = Counter(
+    "hsi_batch_coalesce_detections_merged_total",
+    "Total detections added to batches via coalescing merges",
+    registry=_registry,
+)
+
+BATCH_COALESCE_MERGE_RATE = Gauge(
+    "hsi_batch_coalesce_merge_rate",
+    "Rolling merge rate as percentage of batches that got merged (0-100)",
+    registry=_registry,
+)
+
+BATCH_COALESCE_CANDIDATES_TOTAL = Counter(
+    "hsi_batch_coalesce_candidates_total",
+    "Total candidates evaluated for coalescing merges",
+    registry=_registry,
+)
+
+BATCH_COALESCE_LLM_CALLS_SAVED_TOTAL = Counter(
+    "hsi_batch_coalesce_llm_calls_saved_total",
+    "Total LLM inference calls avoided via batch coalescing",
+    registry=_registry,
+)
+
+
+def record_batch_coalesced(count: int = 1) -> None:
+    """Record batches that were merged via coalescing.
+
+    Args:
+        count: Number of batches merged (default 1)
+    """
+    BATCH_COALESCED_TOTAL.inc(count)
+
+
+def record_batch_coalesce_detections_merged(count: int = 1) -> None:
+    """Record detections added via coalescing merges.
+
+    Args:
+        count: Number of detections merged (default 1)
+    """
+    BATCH_COALESCE_DETECTIONS_MERGED_TOTAL.inc(count)
+
+
+def set_batch_coalesce_merge_rate(rate: float) -> None:
+    """Set the rolling merge rate gauge.
+
+    Args:
+        rate: Merge rate as percentage (0-100)
+    """
+    BATCH_COALESCE_MERGE_RATE.set(rate)
+
+
+def record_batch_coalesce_candidates(count: int = 1) -> None:
+    """Record candidates evaluated for coalescing.
+
+    Args:
+        count: Number of candidates evaluated (default 1)
+    """
+    BATCH_COALESCE_CANDIDATES_TOTAL.inc(count)
+
+
+def record_batch_coalesce_llm_calls_saved(count: int = 1) -> None:
+    """Record LLM inference calls saved via coalescing.
+
+    Args:
+        count: Number of LLM calls saved (default 1)
+    """
+    BATCH_COALESCE_LLM_CALLS_SAVED_TOTAL.inc(count)

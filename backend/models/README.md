@@ -127,19 +127,20 @@ Tracks GPU performance metrics for AI inference monitoring.
 
 - `idx_gpu_stats_recorded_at`: For time-series queries
 
+The models directory contains 52+ model files. Key models not detailed above include: `camera_zone.py`, `analytics_zone.py`, `face_identity.py`, `household.py`, `plate_read.py`, `track.py`, `user.py`, `api_key.py`, `gpu_config.py`, `outbound_webhook.py`, `scheduled_report.py`, `llm_interaction.py`, `zone_anomaly.py`, `zone_baseline.py`, and others.
+
 ## Usage
 
 ```python
 from backend.models import Base, Camera, Detection, Event, GPUStats
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-# Create engine and tables (PostgreSQL)
-engine = create_engine("postgresql://security:password@localhost:5432/security")
-Base.metadata.create_all(engine)
+# Create async engine and tables (PostgreSQL)
+engine = create_async_engine("postgresql+asyncpg://security:password@localhost:5432/security")
+async_session = async_sessionmaker(engine, class_=AsyncSession)
 
 # Create session
-with Session(engine) as session:
+async with async_session() as session:
     # Create a camera
     camera = Camera(
         id="front_door",
@@ -147,10 +148,11 @@ with Session(engine) as session:
         folder_path="/export/foscam/front_door"
     )
     session.add(camera)
-    session.commit()
+    await session.commit()
 
     # Query cameras
-    cameras = session.query(Camera).all()
+    result = await session.execute(select(Camera))
+    cameras = result.scalars().all()
 ```
 
 ## Testing
@@ -185,7 +187,7 @@ When modifying models:
 
 ## Related Tasks
 
-- Phase 2, Task 1: ✓ Implement SQLite database models
-- Phase 2, Task 13: ✓ Write tests for database models (TDD)
-- Phase 2, Task 2: Connect to Redis (separate task)
-- Phase 2, Task 3: Initialize FastAPI with database (separate task)
+- Database Models: Implemented with PostgreSQL + SQLAlchemy 2.0 async
+- Model tests in `backend/tests/unit/models/`
+- Redis integration (separate module in `backend/core/redis.py`)
+- FastAPI initialization (see `backend/main.py`)

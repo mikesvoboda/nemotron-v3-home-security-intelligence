@@ -613,4 +613,4 @@ npx tsc --declaration --emitDeclarationOnly
 - [Contributing Guide](contributing.md) - Development workflow
 - [Testing Guide](testing.md) - Test strategy and patterns
 - [Setup Guide](setup.md) - Development environment setup
-- [CLAUDE.md](../../CLAUDE.md) - Project instructions
+- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions

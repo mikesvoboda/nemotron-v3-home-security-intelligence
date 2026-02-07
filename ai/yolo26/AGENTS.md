@@ -64,17 +64,18 @@ def _warmup(self, num_iterations: int = 3) -> None:
 ```python
 SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
-CLASS_CONFIDENCE_THRESHOLDS = {
-    "car": 0.70,  # Higher threshold to reduce false positives
+CLASS_CONFIDENCE_THRESHOLDS = {  # Tuned for home security asymmetric costs
+    "person": 0.45,   # Lower — favor recall, enrichment filters FPs
+    "car": 0.70,      # Higher — shadow/reflection false positives
     "truck": 0.70,
     "bus": 0.70,
-    "person": 0.50,
-    "bicycle": 0.60,
-    "motorcycle": 0.60,
-    "dog": 0.55,
+    "motorcycle": 0.65,
+    "bicycle": 0.65,
+    "dog": 0.55,      # Lower — reliable pet detection
     "cat": 0.55,
     "bird": 0.55,
 }
+# Configurable via YOLO26_CLASS_THRESHOLDS env var (JSON dict)
 ```
 
 **Security Features:**

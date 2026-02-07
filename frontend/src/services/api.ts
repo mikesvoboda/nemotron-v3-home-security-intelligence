@@ -257,7 +257,7 @@ import type {
   ReplayResponse,
   EventRegistryResponse,
 } from '../types/generated';
-import type { SummariesLatestResponse } from '../types/summary';
+import type { SummariesLatestResponse, SummaryDetail } from '../types/summary';
 
 // Re-export entity types for consumers of this module
 export type {
@@ -7953,6 +7953,87 @@ export async function fetchSummaries(): Promise<SummariesLatestResponse> {
   return {
     hourly: transformSummaryResponse(response.hourly),
     daily: transformSummaryResponse(response.daily),
+  };
+}
+
+/**
+ * Backend API response type for a timeline event in summary detail (snake_case).
+ * @internal
+ */
+interface BackendTimelineEventResponse {
+  event_id: number;
+  timestamp: string;
+  camera_name: string;
+  summary: string;
+  risk_score?: number | null;
+  risk_level?: string | null;
+  event_url?: string | null;
+}
+
+/**
+ * Backend API response type for summary detail (snake_case).
+ * @internal
+ */
+interface BackendSummaryDetailResponse {
+  id: number;
+  summary_type: string;
+  content: string;
+  event_count: number;
+  window_start: string;
+  window_end: string;
+  generated_at: string;
+  structured?: {
+    focus_areas?: string[];
+    dominant_patterns?: string[];
+    max_risk_score?: number | null;
+  } | null;
+  timeline: BackendTimelineEventResponse[];
+  export_formats: string[];
+}
+
+/**
+ * Fetch detailed summary data for the expandable detail panel.
+ *
+ * Returns full summary content with timeline of events and export options.
+ * The timeline includes all events that were included in the summary,
+ * sorted chronologically.
+ *
+ * @param summaryId - ID of the summary to retrieve
+ * @returns SummaryDetail with full detail data including timeline and export formats
+ *
+ * @example
+ * ```typescript
+ * const detail = await fetchSummaryDetail(42);
+ * console.log(`${detail.summaryType}: ${detail.eventCount} events`);
+ * detail.timeline.forEach(event => console.log(event.cameraName));
+ * ```
+ */
+export async function fetchSummaryDetail(summaryId: number): Promise<SummaryDetail> {
+  const response = await fetchApi<BackendSummaryDetailResponse>(
+    `/api/summaries/${summaryId}/detail`
+  );
+
+  return {
+    id: response.id,
+    summaryType: response.summary_type as 'hourly' | 'daily',
+    content: response.content,
+    eventCount: response.event_count,
+    windowStart: response.window_start,
+    windowEnd: response.window_end,
+    generatedAt: response.generated_at,
+    focusAreas: response.structured?.focus_areas,
+    maxRiskScore: response.structured?.max_risk_score ?? undefined,
+    dominantPatterns: response.structured?.dominant_patterns,
+    timeline: response.timeline.map((event) => ({
+      eventId: event.event_id,
+      timestamp: event.timestamp,
+      cameraName: event.camera_name,
+      summary: event.summary,
+      riskScore: event.risk_score ?? undefined,
+      riskLevel: event.risk_level ?? undefined,
+      eventUrl: event.event_url ?? undefined,
+    })),
+    exportFormats: response.export_formats,
   };
 }
 

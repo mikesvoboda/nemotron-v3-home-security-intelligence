@@ -673,4 +673,4 @@ The health check system uses circuit breakers to prevent cascading failures.
 
 - [Health Schemas](request-response-schemas.md#health-schemas) - Schema details
 - [Error Handling](error-handling.md) - Error response formats
-- [Background Services](../background-services/) - Worker documentation
+- [Background Services](../background-services/README.md) - Worker documentation

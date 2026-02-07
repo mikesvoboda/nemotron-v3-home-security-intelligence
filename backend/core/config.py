@@ -431,9 +431,10 @@ class Settings(BaseSettings):
     )
     database_pool_overflow: int = Field(
         default=30,
-        ge=0,
+        ge=5,
         le=100,
-        description="Additional connections beyond pool_size when under load",
+        description="Additional connections beyond pool_size when under load. "
+        "Minimum 5 to prevent latency degradation under concurrent request spikes.",
     )
     database_pool_timeout: int = Field(
         default=30,
@@ -1097,6 +1098,45 @@ class Settings(BaseSettings):
         "so longer timeout accommodates complex multi-model operations.",
     )
 
+    # Enrichment pipeline parallelization settings
+    enrichment_pipeline_timeout_seconds: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Hard timeout (seconds) for the entire enrichment pipeline. "
+        "If reached, returns whatever enrichment data has been collected so far. "
+        "Should be well below batch_window_seconds (90s) to leave time for "
+        "Nemotron analysis. Default: 30 seconds.",
+    )
+    enrichment_florence_concurrency: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum concurrent requests to Florence-2 service. "
+        "Limits GPU saturation when processing multiple detections.",
+    )
+    enrichment_clip_concurrency: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum concurrent requests to CLIP service. "
+        "Limits GPU saturation for embedding/classification requests.",
+    )
+    enrichment_service_concurrency: int = Field(
+        default=4,
+        ge=1,
+        le=10,
+        description="Maximum concurrent requests to enrichment HTTP services "
+        "(ai-enrichment, ai-enrichment-light). Limits GPU saturation.",
+    )
+    enrichment_quality_level: str = Field(
+        default="full",
+        description="Enrichment quality level controlling which models run. "
+        "Options: 'full' (all models), 'standard' (skip Florence enhanced + CLIP classify), "
+        "'minimal' (only detections + threat/pose/action). "
+        "Use lower levels when under load to stay within batch window.",
+    )
+
     # AI service retry settings
     detector_max_retries: int = Field(
         default=3,
@@ -1115,12 +1155,12 @@ class Settings(BaseSettings):
 
     # Nemotron context window settings (NEM-1723)
     nemotron_context_window: int = Field(
-        default=131072,
+        default=32768,
         ge=1000,
         le=131072,
+        validation_alias="CTX_SIZE",
         description="Nemotron context window size in tokens. "
-        "Production (Nemotron-3-Nano-30B-A3B): 131,072 tokens (128K). "
-        "Development (Nemotron Mini 4B): 4,096 tokens. "
+        "Reads from CTX_SIZE in .env (single source of truth, shared with llama.cpp). "
         "Prompts exceeding (context_window - max_output_tokens) will be truncated.",
     )
     nemotron_max_output_tokens: int = Field(
@@ -1592,9 +1632,34 @@ class Settings(BaseSettings):
     # Detection settings
     detection_confidence_threshold: float = Field(
         default=0.5,
-        description="Minimum confidence threshold for object detections (0.0-1.0)",
+        description="Minimum confidence threshold for object detections (0.0-1.0). "
+        "Used as fallback when no class-specific threshold is defined.",
         ge=0.0,
         le=1.0,
+    )
+
+    # Class-specific confidence thresholds for home security (NEM-4522)
+    # JSON dict mapping class names to thresholds.
+    # Classes not listed fall back to detection_confidence_threshold.
+    # Asymmetric cost: lower thresholds for person/pets (favor recall),
+    # higher for vehicles (favor precision — shadows/reflections cause FPs).
+    detection_class_thresholds: dict[str, float] = Field(
+        default={
+            "person": 0.45,
+            "car": 0.70,
+            "truck": 0.70,
+            "bus": 0.70,
+            "motorcycle": 0.65,
+            "bicycle": 0.65,
+            "dog": 0.55,
+            "cat": 0.55,
+            "bird": 0.55,
+            "backpack": 0.60,
+            "handbag": 0.60,
+            "suitcase": 0.60,
+        },
+        description="Per-class confidence thresholds (JSON dict). "
+        "Classes not listed use detection_confidence_threshold as fallback.",
     )
 
     # Violence detection threshold settings (NEM-5483)

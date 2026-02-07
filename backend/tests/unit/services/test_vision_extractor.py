@@ -2725,6 +2725,7 @@ class TestExtractBatchAttributesWithCrossValidation:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
     async def test_extract_batch_low_confidence_uses_florence(self) -> None:
         """Test extract_batch_attributes uses Florence when YOLO confidence is low."""
         from PIL import Image

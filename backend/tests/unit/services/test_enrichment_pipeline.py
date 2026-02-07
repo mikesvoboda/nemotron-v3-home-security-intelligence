@@ -41,6 +41,11 @@ from backend.services.vehicle_damage_loader import DamageDetection, VehicleDamag
 from backend.services.violence_loader import ViolenceDetectionResult
 from backend.services.weather_loader import WeatherResult
 
+# Enrichment pipeline tests need more time under parallel execution (xdist)
+# because the async mock setup is heavyweight. They pass in ~10-15s each
+# but the default 5s timeout causes worker crashes under parallel load.
+pytestmark = pytest.mark.timeout(30)
+
 # =============================================================================
 # Fixtures
 # =============================================================================

@@ -79,8 +79,8 @@ workflows/
 
 **Environment:**
 
-- Python 3.11
-- Node.js 20
+- Python 3.14
+- Node.js 22
 - PostgreSQL 16 (service container)
 - Redis 7 (service container for integration tests)
 - Coverage uploaded to Codecov
@@ -649,7 +649,7 @@ Backend Changes
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    python-version: '3.11'
+    python-version: '3.14'
     cache: 'pip'
     cache-dependency-path: pyproject.toml
 ```
@@ -659,7 +659,7 @@ Backend Changes
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: '20'
+    node-version: '22'
     cache: 'npm'
     cache-dependency-path: frontend/package-lock.json
 ```
@@ -732,7 +732,7 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 - NVIDIA RTX A5500 or compatible GPU
 - CUDA drivers installed
 - Docker (optional, for container tests)
-- Python 3.11+
+- Python 3.14+
 
 ## Troubleshooting
 

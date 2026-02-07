@@ -119,6 +119,46 @@ async def zones_redirect(request: Request, path: str = "") -> RedirectResponse:
 
 
 # ============================================================================
+# Root Endpoint - List All Zones Summary
+# ============================================================================
+
+
+@router.get(
+    "/",
+    summary="List analytics zone types",
+    responses={
+        200: {"description": "Available analytics zone endpoints"},
+    },
+)
+@router.get(
+    "",
+    summary="List analytics zone types",
+    include_in_schema=False,
+)
+async def list_analytics_zones_root() -> ORJSONResponse:
+    """Return available analytics zone endpoints.
+
+    This root endpoint provides discoverability for the analytics zones API.
+    Without it, GET /api/zones/ (which redirects here via 308) would produce
+    a 404, surfacing as an empty-body response in some HTTP client stacks.
+
+    Returns:
+        JSON object listing available sub-endpoints.
+    """
+    return ORJSONResponse(
+        {
+            "endpoints": {
+                "line_zones": "/api/analytics-zones/line-zones/camera/{camera_id}",
+                "polygon_zones": "/api/analytics-zones/polygon-zones/camera/{camera_id}",
+                "comparison": "/api/analytics-zones/comparison",
+                "entity_distribution": "/api/analytics-zones/entity-distribution",
+            },
+            "description": "Analytics zones API. Use camera-specific endpoints to list zones.",
+        }
+    )
+
+
+# ============================================================================
 # Line Zone Endpoints
 # ============================================================================
 

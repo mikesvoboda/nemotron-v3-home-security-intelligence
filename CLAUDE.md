@@ -20,9 +20,37 @@ cd frontend && bun install  # Sync frontend dependencies
 pre-commit install      # Install git hooks
 ```
 
+## Container Runtime
+
+This project uses **Podman** (not Docker). Use `podman` commands to inspect containers.
+
+```bash
+# List all containers with status
+podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.State}}"
+
+# View logs for a specific container
+podman logs <container-name>
+podman logs --tail=50 -f <container-name>   # Follow last 50 lines
+
+# Inspect a container (config, mounts, networking)
+podman inspect <container-name>
+
+# Execute a command inside a running container
+podman exec -it <container-name> /bin/sh
+
+# Check resource usage
+podman stats --no-stream
+
+# Compose operations (uses podman-compose → docker-compose plugin)
+podman compose -f docker-compose.prod.yml ps
+podman compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml logs <service-name>
+```
+
 ## Container Rebuilds
 
-**Always use `--no-cache` when rebuilding containers** - cached layers may contain stale code. See [Container Rebuild Guide](docs/development/container-rebuilds.md) for details.
+**Always use `--no-cache` when rebuilding containers** - cached layers may contain stale code. See **Container Rebuild Guide** (always use --no-cache when rebuilding).
 
 ## Infrastructure Verification
 
@@ -34,16 +62,16 @@ After modifying Docker Compose, Prometheus configs, or any infrastructure:
 
 ```bash
 # 1. Validate compose configuration
-docker compose -f docker-compose.prod.yml config -q
+podman compose -f docker-compose.prod.yml config -q
 
 # 2. Check all services are running
-docker compose -f docker-compose.prod.yml ps
+podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.State}}"
 
 # 3. Verify Prometheus targets (if applicable)
 curl -s localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health: .health}'
 
 # 4. Check API health
-curl -s localhost:8000/api/health | jq
+curl -s localhost:8000/api/system/health | jq
 ```
 
 ### Completion Criteria
@@ -53,7 +81,7 @@ A task involving infrastructure is **only complete** when:
 - [ ] All Docker Compose services show `Up` and `healthy`
 - [ ] All Prometheus targets show `health: "up"`
 - [ ] API health endpoint returns success
-- [ ] No error logs in `docker compose logs --tail=50`
+- [ ] No error logs in `podman compose logs --tail=50`
 
 **Use `/platform-healthcheck` skill** for standardized health verification.
 
@@ -80,7 +108,7 @@ pre-commit install && pre-commit install --hook-type pre-push
 
 - **Risk scoring:** LLM-determined (Nemotron assigns 0-100 score)
 - **Batch processing:** 90-second windows, 30-second idle timeout
-- **No auth:** Single-user local deployment
+- **Auth model:** Single-user local deployment. First-time admin registration required (SetupGuardMiddleware returns 503 until first user is created). After registration, API endpoints are open — no per-request login required. Network binding to `127.0.0.1` is the primary security boundary. Admin/destructive operations are protected by per-route dependencies (`verify_api_key`, `require_admin_access`). The global `AuthMiddleware` class exists for future multi-user support but is not active.
 - **Retention:** 30 days
 - **Deployment:** Containerized with GPU passthrough
 

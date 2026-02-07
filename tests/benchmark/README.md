@@ -195,8 +195,8 @@ When implementing the comparison tool (GREEN phase), ensure:
 
 ## Related Files
 
-- **Implementation**: `/home/msvoboda/.claude-squad/worktrees/msvoboda/dos13_18912c4692d904ee/scripts/benchmark/compare.py`
-- **Tests**: `/home/msvoboda/.claude-squad/worktrees/msvoboda/dos13_18912c4692d904ee/tests/benchmark/test_compare.py`
+- **Implementation**: `scripts/benchmark/compare.py`
+- **Tests**: `tests/benchmark/test_compare.py`
 
 ## Next Steps
 

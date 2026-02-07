@@ -14,7 +14,7 @@
 | ------------------------ | ------------------------------- | -------- | ---- | ------------ | ------------------- |
 | Nemotron-3-Nano-30B-A3B  | Risk reasoning (production)     | ~14.7 GB | 8091 | llama.cpp    | 131,072 tokens      |
 | Nemotron Mini 4B         | Risk reasoning (development)    | ~3 GB    | 8091 | llama.cpp    | 4,096 tokens        |
-| YOLO26m                  | Object detection                | ~0.1 GB  | 8090 | Ultralytics  | -                   |
+| YOLO26m                  | Object detection                | ~0.1 GB  | 8095 | Ultralytics  | -                   |
 | Florence-2-Large         | Dense captioning, OCR           | ~1.2 GB  | 8092 | HuggingFace  | -                   |
 | CLIP ViT-L               | Entity re-ID, anomaly detection | ~0.8 GB  | 8093 | HuggingFace  | 768-dim embedding   |
 | FashionSigLIP            | Clothing classification         | ~0.5 GB  | 8094 | OpenCLIP     | Zero-shot           |
@@ -123,7 +123,7 @@ Real-time object detection using CNN architecture optimized for speed with Tenso
 | **Architecture**   | YOLO26 (CNN-based, NMS-free)                              |
 | **Training Data**  | COCO                                                      |
 | **VRAM Required**  | ~0.1 GB (TensorRT FP16)                                   |
-| **Port**           | 8090                                                      |
+| **Port**           | 8095                                                      |
 | **Inference Time** | 5-6ms per image on RTX A5500 (TensorRT FP16)              |
 | **Framework**      | Ultralytics + TensorRT                                    |
 
@@ -158,7 +158,7 @@ SECURITY_CLASSES = {
 | `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
 | `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold |
 | `HOST`              | `0.0.0.0`                                    | Bind address             |
-| `PORT`              | `8090`                                       | Server port              |
+| `PORT`              | `8095`                                       | Server port              |
 
 ---
 
@@ -950,7 +950,7 @@ For manual downloads or air-gapped environments:
 | ---------------- | ----------------------- | --------------------------- |
 | `AI_MODELS_PATH` | `/export/ai_models`     | Base path for all models    |
 | `HF_HOME`        | `/cache/huggingface`    | HuggingFace cache directory |
-| `YOLO26_URL`     | `http://localhost:8090` | YOLO26 service URL          |
+| `YOLO26_URL`     | `http://localhost:8095` | YOLO26 service URL          |
 | `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service URL    |
 | `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 service URL      |
 | `CLIP_URL`       | `http://localhost:8093` | CLIP service URL            |

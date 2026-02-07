@@ -67,7 +67,6 @@ This document describes the complete data model for the Home Security Intelligen
 7. [Data Lifecycle](#data-lifecycle)
 8. [Indexes and Query Patterns](#indexes-and-query-patterns)
 9. [Retention and Cleanup](#retention-and-cleanup)
-10. [Image Generation Prompts](#image-generation-prompts)
 
 ---
 
@@ -561,6 +560,8 @@ erDiagram
 - Zone type provides semantic context (e.g., driveway vs sidewalk)
 - Used by `ZoneService` to determine which detections fall within zones
 - Zone context can influence risk assessment
+
+> **Note:** CameraZone (`camera_zones` table) uses types: `entry_point`, `driveway`, `sidewalk`, `yard`, `other`. AnalyticsZone/PolygonZone (from `backend/models/analytics_zone.py`) uses different types: `monitored`, `excluded`, `restricted`. These are separate models serving different purposes.
 
 ---
 
@@ -1230,126 +1231,4 @@ The cleanup API supports a dry-run mode (`GET /api/system/cleanup?dry_run=true`)
   "dry_run": true,
   "timestamp": "2025-12-27T10:30:00Z"
 }
-```
-
----
-
-## Image Generation Prompts
-
-### ERD Diagram Prompt
-
-```
-Create a professional database entity-relationship diagram (ERD) for a home security
-monitoring system.
-
-Style: Clean, technical documentation style with a white background. Use crow's foot
-notation for relationships. Include primary key (PK), foreign key (FK), and unique (UK)
-indicators.
-
-Entities to include:
-1. cameras (id PK, name, folder_path, status, created_at, last_seen_at)
-2. detections (id PK, camera_id FK, file_path, file_type, detected_at, object_type,
-   confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path)
-3. events (id PK, batch_id, camera_id FK, started_at, ended_at, risk_score, risk_level,
-   summary, reasoning, detection_ids, reviewed, notes, is_fast_path)
-4. gpu_stats (id PK, recorded_at, gpu_name, gpu_utilization, memory_used, memory_total,
-   temperature, power_usage, inference_fps)
-5. logs (id PK, timestamp, level, component, message, camera_id, event_id, request_id,
-   detection_id, duration_ms, extra, source, user_agent)
-6. api_keys (id PK, key_hash UK, name, created_at, is_active)
-
-Relationships:
-- cameras 1:N detections (cascade delete)
-- cameras 1:N events (cascade delete)
-- events contains detection_ids as JSON array (soft relationship, shown with dotted line)
-
-Color scheme: Blue headers for tables, white cells, gray borders.
-Font: Sans-serif, readable at small sizes.
-Dimensions: 1600x1200 pixels, high resolution for documentation.
-```
-
-### Data Flow Diagram Prompt
-
-```
-Create a technical data flow diagram showing the dual-storage architecture of a home
-security AI system.
-
-Style: Modern, clean diagram with clear separation between permanent (PostgreSQL) and
-ephemeral (Redis) storage. Use rounded rectangles for processes, cylinders for
-databases, and parallelograms for queues.
-
-Components to show:
-
-Left side (Data Sources):
-- Camera icon labeled "Foscam FTP Upload"
-- Arrow to FileWatcher process
-
-Center (Processing Pipeline):
-- FileWatcher -> detection_queue (Redis)
-- DetectionQueueWorker -> detections table (PostgreSQL)
-- BatchAggregator with batch state (Redis)
-- analysis_queue (Redis)
-- AnalysisQueueWorker -> events table (PostgreSQL)
-
-Right side (Storage):
-- PostgreSQL cylinder containing: cameras, detections, events, gpu_stats, logs
-- Redis cylinder containing: detection_queue, analysis_queue, dedupe:{hash},
-  batch:{id}:*, security_events channel
-
-Additional elements:
-- Dead letter queues (dlq:*) shown as secondary Redis storage
-- WebSocket broadcast arrow from events to frontend
-- GPU monitor arrow to gpu_stats
-
-Color coding:
-- PostgreSQL/permanent: Blue tones
-- Redis/ephemeral: Orange/red tones
-- Processing: Gray boxes
-- Data flow arrows: Dark gray with direction indicators
-
-Labels: Include queue depths, TTLs where relevant
-Dimensions: 1920x1080 pixels, presentation quality
-```
-
-### Retention Lifecycle Diagram Prompt
-
-```
-Create a timeline-based lifecycle diagram showing data retention and cleanup for a
-security monitoring system.
-
-Style: Horizontal timeline with stacked swim lanes for different data types.
-Clean, professional documentation style.
-
-Timeline (X-axis): Day 0 to Day 35, with markers at Day 7, Day 30
-
-Swim lanes (Y-axis):
-1. Events & Detections: Show data accumulating from Day 0, with cleanup at Day 30
-2. GPU Stats: Same pattern as events
-3. Logs: Show shorter retention, cleanup at Day 7
-4. Thumbnails: Tied to detections, deleted when parent is deleted
-5. Original Images: Show as "retained indefinitely" unless manual deletion
-
-Key events to mark:
-- Day 0: "Image captured, detection created, event generated"
-- Day 7: "Logs cleaned up (log_retention_days)"
-- Day 30: "Events, detections, GPU stats cleaned up (retention_days)"
-- Daily at 03:00: "CleanupService runs"
-
-Visual elements:
-- Green bars for active/retained data
-- Red markers for deletion points
-- Dotted lines showing cascade relationships
-- Clock icon at 03:00 cleanup time
-
-Statistics callout box:
-- Show example cleanup stats: "89 detections, 15 events, 2880 GPU stats, 524MB freed"
-
-Color scheme:
-- Active data: Green
-- Pending cleanup: Yellow
-- Deleted: Red/crossed out
-- Background: Light gray grid
-
-Dimensions: 1400x900 pixels, documentation quality
-Include legend explaining color coding and symbols
 ```

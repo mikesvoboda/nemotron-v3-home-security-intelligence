@@ -166,8 +166,8 @@ describe('Sidebar', () => {
   it('renders all navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    // 4 monitoring + 10 analytics + 7 operations + 7 admin = 28 items
-    expect(links).toHaveLength(28);
+    // 4 monitoring + 14 analytics + 8 operations + 8 admin = 34 items
+    expect(links).toHaveLength(34);
   });
 
   it('jobs link has correct href', () => {
@@ -410,8 +410,8 @@ describe('Sidebar', () => {
     });
 
     it('exports navItems as flattened list of all items', () => {
-      // 4 monitoring + 10 analytics + 7 operations + 7 admin = 28 items
-      expect(navItems).toHaveLength(28);
+      // 4 monitoring + 14 analytics + 8 operations + 8 admin = 34 items
+      expect(navItems).toHaveLength(34);
       expect(navItems.some((item) => item.id === 'dashboard')).toBe(true);
       expect(navItems.some((item) => item.id === 'settings')).toBe(true);
       expect(navItems.some((item) => item.id === 'data')).toBe(true);

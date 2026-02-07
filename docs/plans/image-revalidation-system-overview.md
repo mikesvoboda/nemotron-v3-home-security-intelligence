@@ -61,7 +61,7 @@ The original image showed horizontal bars with only a few technology icons and w
 
 **Frontend Layer (correctly shown):**
 
-- React 18.2 (with icon)
+- React 19 (with icon)
 - TypeScript 5.3 (with TS icon)
 - Tailwind CSS 3.4 (with icon)
 - Tremor 3.17 (labeled)

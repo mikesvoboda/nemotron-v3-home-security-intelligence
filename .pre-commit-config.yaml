@@ -37,6 +37,7 @@ repos:
         exclude: \.ambr$ # Syrupy snapshot files require trailing whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        exclude: mkdocs\.yml$ # mkdocs.yml uses Python tags (!!python/name:) that safe_load can't parse
       - id: check-json
         exclude: tsconfig.*\.json$
       - id: check-added-large-files

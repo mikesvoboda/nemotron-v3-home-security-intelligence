@@ -20,7 +20,7 @@
 ```bash
 # Check if service is listening
 ss -tlnp | grep 8000   # Backend
-ss -tlnp | grep 8090   # YOLO26
+ss -tlnp | grep 8095   # YOLO26
 ss -tlnp | grep 8091   # Nemotron
 ss -tlnp | grep 8092   # Florence-2 (optional)
 ss -tlnp | grep 8093   # CLIP (optional)
@@ -400,4 +400,4 @@ ping ai-server-hostname
 
 ---
 
-[Back to Operator Hub](../../operator/)
+[Back to Operator Hub](../../operator/README.md)

@@ -299,4 +299,4 @@ Before production deployment:
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

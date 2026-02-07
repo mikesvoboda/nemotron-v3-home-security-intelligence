@@ -6,13 +6,16 @@
  * - Statistics section
  * - Trends section
  * - Refresh button functionality
- * - Search placeholder
+ * - Search bar rendering
+ * - Results table rendering
+ * - Detail modal integration
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import PlateReadsPage from './PlateReadsPage';
+import * as usePlateSearchQueryModule from '../../hooks/usePlateSearchQuery';
 import * as usePlateStatisticsQueryModule from '../../hooks/usePlateStatisticsQuery';
 
 // Mock the hooks
@@ -22,6 +25,36 @@ vi.mock('../../hooks/usePlateStatisticsQuery', () => ({
     all: ['plate-reads', 'statistics'],
     current: () => ['plate-reads', 'statistics'],
   },
+}));
+
+vi.mock('../../hooks/usePlateSearchQuery', () => ({
+  usePlateSearchQuery: vi.fn(),
+  plateSearchQueryKeys: {
+    all: ['plate-reads'],
+    list: (filters?: Record<string, unknown>) =>
+      filters ? ['plate-reads', 'list', filters] : ['plate-reads', 'list'],
+    byText: (params: Record<string, unknown>) => ['plate-reads', 'search', params],
+  },
+}));
+
+vi.mock('../../hooks/useCamerasQuery', () => ({
+  useCamerasQuery: vi.fn(() => ({
+    cameras: [],
+    isLoading: false,
+    isRefetching: false,
+    error: null,
+    isError: false,
+    refetch: vi.fn(),
+  })),
+}));
+
+vi.mock('../../hooks/useVehicleMatchQuery', () => ({
+  useVehicleMatchQuery: vi.fn(() => ({
+    match: null,
+    isLoading: false,
+    isError: false,
+    error: null,
+  })),
 }));
 
 describe('PlateReadsPage', () => {
@@ -69,10 +102,26 @@ describe('PlateReadsPage', () => {
     );
   };
 
+  const mockSearchResults = {
+    plateReads: [],
+    total: 0,
+    page: 1,
+    pageSize: 25,
+    isLoading: false,
+    isRefetching: false,
+    error: null,
+    isError: false,
+    isPlaceholderData: false,
+    refetch: vi.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(usePlateStatisticsQueryModule.usePlateStatisticsQuery).mockReturnValue(
       mockStatistics
+    );
+    vi.mocked(usePlateSearchQueryModule.usePlateSearchQuery).mockReturnValue(
+      mockSearchResults
     );
   });
 
@@ -130,6 +179,9 @@ describe('PlateReadsPage', () => {
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({
           queryKey: ['plate-reads', 'statistics'],
         });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+          queryKey: ['plate-reads'],
+        });
       });
     });
   });
@@ -164,20 +216,36 @@ describe('PlateReadsPage', () => {
     });
   });
 
-  describe('search section placeholder', () => {
-    it('renders the search section placeholder', () => {
+  describe('search section', () => {
+    it('renders the search section', () => {
       renderWithProviders(<PlateReadsPage />);
 
       expect(screen.getByTestId('plate-reads-search-section')).toBeInTheDocument();
     });
 
-    it('displays coming soon message for search', () => {
+    it('renders the search bar with text input', () => {
       renderWithProviders(<PlateReadsPage />);
 
-      expect(screen.getByText('Plate Search Coming Soon')).toBeInTheDocument();
-      expect(
-        screen.getByText('Phase 2 will add search and filtering capabilities for plate reads')
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Search plate text')).toBeInTheDocument();
+    });
+
+    it('renders the exact match toggle', () => {
+      renderWithProviders(<PlateReadsPage />);
+
+      expect(screen.getByText('Exact match')).toBeInTheDocument();
+    });
+
+    it('renders the results table', () => {
+      renderWithProviders(<PlateReadsPage />);
+
+      // The table should render with its empty state since mockSearchResults has 0 results
+      expect(screen.getByText('No plate reads found')).toBeInTheDocument();
+    });
+
+    it('renders the filters toggle button', () => {
+      renderWithProviders(<PlateReadsPage />);
+
+      expect(screen.getByLabelText('Toggle advanced filters')).toBeInTheDocument();
     });
   });
 

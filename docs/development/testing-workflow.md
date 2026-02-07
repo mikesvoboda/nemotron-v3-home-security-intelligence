@@ -117,7 +117,7 @@ async def test_get_camera_not_found_returns_404(async_client: AsyncClient):
 ### Backend Services (pytest + mocking)
 
 ```python
-# backend/tests/unit/services/test_detection_service.py
+# backend/tests/unit/services/test_detector_client.py
 import pytest
 from unittest.mock import AsyncMock, patch
 from backend.services.detection import DetectionService

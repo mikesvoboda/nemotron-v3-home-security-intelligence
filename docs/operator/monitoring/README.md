@@ -694,8 +694,8 @@ open http://localhost:3002
 
 ## See Also
 
-- [Operator Hub](../) - Main operator documentation
-- [Deployment Guide](../deployment/) - Service setup
-- [Administration Guide](../admin/) - Configuration
+- [Operator Hub](../README.md) - Main operator documentation
+- [Deployment Guide](../deployment/README.md) - Service setup
+- [Administration Guide](../admin/README.md) - Configuration
 - [SLO Definitions](slos.md) - Detailed SLO specifications
 - [Prometheus Alerting](../prometheus-alerting.md) - Alert configuration

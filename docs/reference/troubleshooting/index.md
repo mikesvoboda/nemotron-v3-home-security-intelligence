@@ -41,18 +41,18 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 ## Symptom Quick Reference Table
 
-| Symptom                     | Likely Cause                                 | Quick Fix                   | Detailed Guide                                |
-| --------------------------- | -------------------------------------------- | --------------------------- | --------------------------------------------- |
-| Dashboard shows no events   | File watcher not running or AI services down | Restart backend             | [Events Not Appearing](#events-not-appearing) |
-| Risk gauge stuck at 0       | Nemotron service unavailable                 | Start Nemotron LLM          | [AI Issues](ai-issues.md#analysis-failing)    |
-| Camera shows offline        | Camera not uploading or folder path wrong    | Check FTP and folder config | [Camera Offline](#camera-shows-offline)       |
-| AI not responding           | Services not started or port conflicts       | Start AI services           | [AI Not Working](#ai-not-working)             |
-| WebSocket disconnected      | Backend down or network issues               | Check backend health        | [WebSocket Issues](#websocket-disconnected)   |
-| High CPU/memory usage       | Too many images or memory leak               | Check queue sizes           | [Performance Issues](#high-cpumemory-usage)   |
-| Disk space running out      | Retention not configured                     | Run cleanup                 | [Disk Space Issues](#disk-space-running-out)  |
-| Slow detection response     | GPU not being used                           | Check CUDA availability     | [Slow Performance](#slow-ai-inference)        |
-| "Connection refused" errors | Service not running                          | Start the service           | [Connection Issues](connection-issues.md)     |
-| CORS errors in browser      | Frontend/backend URL mismatch                | Update CORS_ORIGINS         | [CORS Errors](#cors-errors-in-browser)        |
+| Symptom                     | Likely Cause                                 | Quick Fix                   | Detailed Guide                                     |
+| --------------------------- | -------------------------------------------- | --------------------------- | -------------------------------------------------- |
+| Dashboard shows no events   | File watcher not running or AI services down | Restart backend             | [Events Not Appearing](#dashboard-shows-no-events) |
+| Risk gauge stuck at 0       | Nemotron service unavailable                 | Start Nemotron LLM          | [AI Issues](ai-issues.md#analysis-failing)         |
+| Camera shows offline        | Camera not uploading or folder path wrong    | Check FTP and folder config | [Camera Offline](#camera-shows-offline)            |
+| AI not responding           | Services not started or port conflicts       | Start AI services           | [AI Not Working](#ai-not-working)                  |
+| WebSocket disconnected      | Backend down or network issues               | Check backend health        | [WebSocket Issues](#websocket-disconnected)        |
+| High CPU/memory usage       | Too many images or memory leak               | Check queue sizes           | [Performance Issues](#high-cpumemory-usage)        |
+| Disk space running out      | Retention not configured                     | Run cleanup                 | [Disk Space Issues](#disk-space-running-out)       |
+| Slow detection response     | GPU not being used                           | Check CUDA availability     | [Slow Performance](#slow-ai-inference)             |
+| "Connection refused" errors | Service not running                          | Start the service           | [Connection Issues](connection-issues.md)          |
+| CORS errors in browser      | Frontend/backend URL mismatch                | Update CORS_ORIGINS         | [CORS Errors](#cors-errors-in-browser)             |
 
 ---
 
@@ -100,7 +100,7 @@ ls -lt /export/foscam/*/  # Should show recent files
 **3. Check AI service health:**
 
 ```bash
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 curl http://localhost:8092/health  # Florence-2 (optional)
 curl http://localhost:8093/health  # CLIP (optional)
@@ -252,14 +252,14 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 curl -s http://localhost:8000/api/system/health | jq '.services.ai'
 
 # Individual service checks
-curl http://localhost:8090/health  # Should return {"status": "ok", ...}
+curl http://localhost:8095/health  # Should return {"status": "ok", ...}
 curl http://localhost:8091/health  # Should return {"status": "ok"}
 ```
 
 ### Possible Causes (Most Likely First)
 
 1. **AI services not started** - Need to start them manually
-2. **Port conflicts** - Something else using 8090/8091
+2. **Port conflicts** - Something else using 8095/8091
 3. **GPU not available** - CUDA not initialized
 4. **Model files missing** - Models not downloaded
 
@@ -279,7 +279,7 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
 **2. Check for port conflicts:**
 
 ```bash
-lsof -i :8090  # YOLO26 port
+lsof -i :8095  # YOLO26 port
 lsof -i :8091  # Nemotron port
 ```
 
@@ -509,7 +509,7 @@ See: [Database Issues - Disk Space](database-issues.md#disk-space)
 nvidia-smi
 
 # Check device being used
-curl -s http://localhost:8090/health | jq '.device'
+curl -s http://localhost:8095/health | jq '.device'
 
 # Check pipeline latency
 curl -s http://localhost:8000/api/system/pipeline-latency | jq .
@@ -528,7 +528,7 @@ curl -s http://localhost:8000/api/system/pipeline-latency | jq .
 
 ```bash
 # YOLO26 should show "cuda" or "cuda:0"
-curl -s http://localhost:8090/health | jq '.device'
+curl -s http://localhost:8095/health | jq '.device'
 
 # Check GPU processes
 nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv

@@ -21,7 +21,7 @@ source_refs:
   - backend/services/clip_client.py:CLIPClient
   - backend/services/performance_collector.py:PerformanceCollector
   - backend/services/prompt_service.py:PromptService
-  - backend/services/audit_service.py:AuditService
+  - backend/services/audit_logger.py:AuditService
   - backend/services/notification.py:NotificationService
   - backend/services/scene_change_detector.py:SceneChangeDetector
   - backend/services/video_processor.py:VideoProcessor
@@ -104,7 +104,7 @@ flowchart TB
     end
 
     subgraph GPU["Containerized GPU Services"]
-        DET["YOLO26<br/>Object Detection<br/>:8090"]
+        DET["YOLO26<br/>Object Detection<br/>:8095"]
         FLO["Florence-2<br/>Vision extraction (optional)<br/>:8092"]
         CLIP["CLIP<br/>Re-identification (optional)<br/>:8093"]
         ENR["Enrichment API<br/>Model-zoo enrichment (optional)<br/>:8094"]
@@ -200,7 +200,7 @@ flowchart TB
 | **PerformanceCollector**  | `backend/services/performance_collector.py`  | AI pipeline performance metrics collection                |
 | **PromptService**         | `backend/services/prompt_service.py`         | Dynamic prompt template management                        |
 | **PromptVersionService**  | `backend/services/prompt_version_service.py` | Prompt versioning and A/B testing support                 |
-| **AuditService**          | `backend/services/audit_service.py`          | Security audit logging and compliance tracking            |
+| **AuditService**          | `backend/services/audit_logger.py`          | Security audit logging and compliance tracking            |
 | **NotificationService**   | `backend/services/notification.py`           | Alert delivery via multiple channels                      |
 | **SceneChangeDetector**   | `backend/services/scene_change_detector.py`  | Detect significant scene changes between frames           |
 | **SceneBaseline**         | `backend/services/scene_baseline.py`         | Maintain per-camera scene baselines for anomaly detection |
@@ -286,10 +286,7 @@ Used for: CRUD operations, data queries, configuration
 
 Used for: Real-time updates without polling
 
-| Channel    | Endpoint     | Message Type                         | Frequency         |
-| ---------- | ------------ | ------------------------------------ | ----------------- |
-| **Events** | `/ws/events` | Security events                      | On event creation |
-| **System** | `/ws/system` | System status (GPU, cameras, health) | Every 5 seconds   |
+--8<-- "docs/_includes/websocket-channels.md"
 
 **Message Format:**
 
@@ -349,13 +346,13 @@ Original Mermaid diagram preserved for reference:
 flowchart TB
     subgraph Host["Host Machine (with GPU)"]
         subgraph Docker["Docker Compose Network"]
-            FE["Frontend Container<br/>Node 20 Alpine<br/>Port 5173 (dev) / 80 (prod)"]
-            BE["Backend Container<br/>Python 3.11<br/>Port 8000"]
+            FE["Frontend Container<br/>Node 22 Alpine<br/>Port 5173 (dev) / 80 (prod)"]
+            BE["Backend Container<br/>Python 3.14<br/>Port 8000"]
             RD["Redis Container<br/>Redis 7 Alpine<br/>Port 6379"]
         end
 
         subgraph GPUContainers["Containerized GPU Services (CDI)"]
-            DET["YOLO26 Container<br/>PyTorch + Transformers<br/>Port 8090<br/>~3–4GB VRAM"]
+            DET["YOLO26 Container<br/>PyTorch + Transformers<br/>Port 8095<br/>~3–4GB VRAM"]
             FLO["Florence-2 Container<br/>Vision extraction (optional)<br/>Port 8092<br/>VRAM varies"]
             CLIP["CLIP Container<br/>Re-ID (optional)<br/>Port 8093<br/>VRAM varies"]
             ENR["Enrichment Container<br/>Model-zoo API (optional)<br/>Port 8094<br/>VRAM varies"]
@@ -374,7 +371,7 @@ flowchart TB
     FE <--> BE
 
     BE <--> RD
-    BE -->|localhost:8090| DET
+    BE -->|localhost:8095| DET
     BE -->|localhost:8092 (optional)| FLO
     BE -->|localhost:8093 (optional)| CLIP
     BE -->|localhost:8094 (optional)| ENR
@@ -410,7 +407,7 @@ flowchart TB
 | 80   | Frontend (prod) | HTTP     | Browser                      |
 | 8000 | Backend API     | HTTP/WS  | Browser, Frontend container  |
 | 6379 | Redis           | TCP      | Backend container only       |
-| 8090 | YOLO26       | HTTP     | Backend container, localhost |
+| 8095 | YOLO26       | HTTP     | Backend container, localhost |
 | 8092 | Florence-2      | HTTP     | Backend container, localhost |
 | 8093 | CLIP            | HTTP     | Backend container, localhost |
 | 8094 | Enrichment      | HTTP     | Backend container, localhost |
@@ -501,9 +498,7 @@ A single "person walks to door" scenario might generate 15 images over 30 second
 
 **Batch timing:**
 
-- **Window:** 90 seconds maximum per batch
-- **Idle timeout:** 30 seconds of no activity closes batch early
-- **Fast path:** High-confidence person detections (>90%) skip batching
+--8<-- "docs/\_includes/batching-config.md"
 
 ### Fast Path Flow
 
@@ -821,14 +816,7 @@ The `HealthMonitor` service:
 
 ## Security Model
 
-### Current State (MVP)
-
-| Aspect         | Implementation            | Rationale                            |
-| -------------- | ------------------------- | ------------------------------------ |
-| Authentication | Optional API key          | Single-user local deployment         |
-| Authorization  | None                      | Single-user, no roles needed         |
-| Media security | Path traversal prevention | Prevent escaping allowed directories |
-| Network        | Local/trusted only        | Not designed for internet exposure   |
+--8<-- "docs/\_includes/auth-model.md"
 
 ### Production Hardening (Recommended)
 
@@ -854,14 +842,15 @@ The `HealthMonitor` service:
 
 ### Resource Usage
 
-| Resource       | Typical Usage          |
-| -------------- | ---------------------- |
-| YOLO26 VRAM    | ~4GB                   |
-| Nemotron VRAM  | ~3GB                   |
-| Total GPU VRAM | ~7GB (fits 8GB+ cards) |
-| Backend RAM    | ~500MB                 |
-| Frontend RAM   | ~100MB                 |
-| Redis RAM      | ~50MB                  |
+--8<-- "docs/\_includes/vram-requirements.md"
+
+**Other resource usage:**
+
+| Resource     | Typical Usage |
+| ------------ | ------------- |
+| Backend RAM  | ~500MB        |
+| Frontend RAM | ~100MB        |
+| Redis RAM    | ~50MB         |
 
 ---
 
@@ -877,7 +866,7 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # p
 REDIS_URL=redis://localhost:6379/0
 
 # AI Services
-YOLO26_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8095
 NEMOTRON_URL=http://localhost:8091
 FLORENCE_URL=http://localhost:8092
 CLIP_URL=http://localhost:8093
@@ -914,184 +903,6 @@ RETENTION_DAYS=30
 | `backend/AGENTS.md`                      | Backend architecture details            |
 | `frontend/AGENTS.md`                     | Frontend architecture details           |
 | `ai/AGENTS.md`                           | AI pipeline details                     |
-
----
-
-## Image Generation Prompts
-
-The following prompts can be used with AI image generators (DALL-E, Midjourney, Stable Diffusion) to create professional diagrams for presentations or documentation.
-
-### Prompt 1: System Architecture Diagram
-
-**Dimensions:** 1600x900 (16:9 widescreen)
-
-**Style:** Professional technical documentation, clean white/light gray background, modern enterprise software aesthetic, subtle shadows and gradients
-
-**Prompt:**
-
-```
-Create a professional system architecture diagram for a home security AI system with the following components:
-
-LAYOUT: Left-to-right data flow, clean spacing, professional enterprise style
-
-LEFT SIDE - INPUT:
-- Icon cluster of 3-4 security cameras (modern IP camera style)
-- Arrow labeled "FTP Upload" pointing to a folder icon
-- Folder labeled "/export/foscam/"
-
-CENTER - PROCESSING LAYER (large rounded rectangle):
-- Title: "Docker Services"
-- Three boxes inside:
-  1. "Frontend" box with React logo, port 5173
-  2. "Backend" box with Python/FastAPI logo, port 8000
-  3. "Redis" box with Redis logo, port 6379
-- Show bidirectional arrows between Frontend and Backend
-- Show bidirectional arrow between Backend and Redis
-
-BOTTOM CENTER - AI SERVICES (separate rounded rectangle):
-- Title: "Native GPU Services"
-- GPU chip icon prominently displayed
-- Two boxes:
-  1. "YOLO26 Object Detection" port 8090
-  2. "Nemotron LLM Risk Analysis" port 8091
-- Dashed arrow from Backend to these services labeled "host.docker.internal"
-
-RIGHT SIDE - STORAGE:
-- Database cylinder icon labeled "PostgreSQL"
-- Folder icon labeled "Thumbnails"
-- Arrows from Backend to storage
-
-FAR RIGHT - OUTPUT:
-- Browser window icon labeled "Dashboard"
-- Show WebSocket connection from Frontend
-
-COLOR SCHEME:
-- NVIDIA Green (#76B900) for AI components
-- Blue (#3B82F6) for containers
-- Dark gray (#1A1A1A) for text
-- Light backgrounds with subtle gradients
-- Thin gray border lines connecting components
-
-Include a small legend in bottom-right corner explaining icons.
-```
-
-### Prompt 2: Deployment Topology Visualization
-
-**Dimensions:** 1400x800
-
-**Style:** Infrastructure diagram style, isometric or 2.5D perspective, professional data center aesthetic
-
-**Prompt:**
-
-```
-Create an isometric deployment topology diagram showing:
-
-MAIN ELEMENT - Server Machine:
-- Large server/workstation icon with visible GPU card
-- Label: "Host Machine (GPU Server)"
-- NVIDIA GPU prominently visible with green accent lighting
-
-WITHIN THE SERVER (nested containers):
-
-Docker Layer (blue container outline):
-- Three stacked containers:
-  1. Frontend container (React icon, port 5173/80)
-  2. Backend container (Python icon, port 8000)
-  3. Redis container (Redis icon, port 6379)
-- Shared network shown as connecting lines between containers
-
-Native Processes (green highlight, outside Docker):
-- YOLO26 process (port 8090) with arrow to GPU
-- Nemotron LLM process (port 8091) with arrow to GPU
-
-EXTERNAL CONNECTIONS:
-- Camera icons (3-4) on left side, connected via network lines
-- Browser icon on right side, connected to Frontend
-- Storage icons (database, folder) at bottom
-
-LABELS:
-- Clear port numbers on each component
-- "Docker Compose Network" label on container area
-- "CUDA/GPU Access" label on native processes
-- "host.docker.internal" label on connection between Docker and native
-
-STYLE:
-- Professional blues for Docker containers
-- NVIDIA green for GPU and AI components
-- Clean white/light background
-- Subtle shadows for depth
-- Modern tech company presentation style
-```
-
-### Prompt 3: Data Flow Visualization
-
-**Dimensions:** 1800x600 (panoramic)
-
-**Style:** Process flow diagram, clean infographic style with icons, timeline-based left-to-right flow
-
-**Prompt:**
-
-```
-Create a horizontal data flow infographic showing security camera processing pipeline:
-
-FLOW DIRECTION: Left to right, numbered steps
-
-STEP 1 - CAPTURE (far left):
-- Security camera icon
-- Small image frames showing motion
-- Label: "Camera FTP Upload"
-- Timestamp indicator
-
-STEP 2 - INGEST:
-- Folder icon with incoming arrow
-- Small "watching eye" icon
-- Label: "FileWatcher"
-- "0.5s debounce" indicator
-
-STEP 3 - QUEUE:
-- Redis logo with list icon
-- Label: "Detection Queue"
-- Small queue visualization (stacked items)
-
-STEP 4 - DETECT:
-- GPU chip icon glowing green
-- Bounding box overlay on sample image
-- Label: "YOLO26"
-- "30-50ms" timing indicator
-- Output: person, car, dog icons with confidence bars
-
-STEP 5 - BATCH (split path):
-- Timer/clock icon
-- Grouped detection thumbnails
-- Label: "BatchAggregator"
-- Two paths shown:
-  - Normal: "90s window"
-  - Fast: "High confidence bypass" (highlighted in orange)
-
-STEP 6 - ANALYZE:
-- Brain/AI chip icon (Nemotron)
-- Thought bubble with risk assessment
-- Label: "LLM Risk Analysis"
-- Output: Risk gauge showing score
-
-STEP 7 - NOTIFY (far right):
-- WebSocket waves icon
-- Dashboard preview
-- Label: "Real-time Dashboard"
-- Alert notification icon
-
-VISUAL STYLE:
-- Clean white background
-- Icons in consistent style (outline or filled)
-- NVIDIA green for AI processing steps
-- Blue for data movement/queues
-- Orange/red for high-risk indicators
-- Connecting arrows with timing annotations
-- Step numbers in circles above each stage
-- Subtle timeline bar at bottom
-
-Bottom of image: Key metrics bar showing "End-to-end: 3-6s (fast) / 30-120s (batched)"
-```
 
 ---
 

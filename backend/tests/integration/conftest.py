@@ -761,9 +761,9 @@ def integration_env(
         # Even serial test execution (-n0) can hit PostgreSQL's max_connections
         # limit (typically 100) because each test creates its own engine pool.
         # With default settings (pool_size=20, max_overflow=30), just 2-3 tests
-        # can exhaust the connection limit. Use pool_size=5, max_overflow=2.
+        # can exhaust the connection limit. Use pool_size=5, max_overflow=5.
         os.environ["DATABASE_POOL_SIZE"] = "5"
-        os.environ["DATABASE_POOL_OVERFLOW"] = "2"
+        os.environ["DATABASE_POOL_OVERFLOW"] = "5"
 
     get_settings.cache_clear()
 

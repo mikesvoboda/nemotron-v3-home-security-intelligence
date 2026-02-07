@@ -24,7 +24,7 @@ These ports are used for service-to-service communication and remain the same in
 | Backend API  | 8000 | FastAPI server   | Development: `localhost:8000` / Docker: `backend:8000`       |
 | PostgreSQL   | 5432 | Database         | Development: `localhost:5432` / Docker: `postgres:5432`      |
 | Redis        | 6379 | Cache & Queue    | Development: `localhost:6379` / Docker: `redis:6379`         |
-| YOLO26       | 8090 | Object Detection | Development: `localhost:8095` / Docker: `ai-yolo26:8095`     |
+| YOLO26       | 8095 | Object Detection | Development: `localhost:8095` / Docker: `ai-yolo26:8095`     |
 | Nemotron LLM | 8091 | LLM Reasoning    | Development: `localhost:8091` / Docker: `ai-llm:8091`        |
 | Florence-2   | 8092 | Vision-Language  | Development: `localhost:8092` / Docker: `ai-florence:8092`   |
 | CLIP         | 8093 | Embeddings       | Development: `localhost:8093` / Docker: `ai-clip:8093`       |
@@ -82,7 +82,7 @@ CLIP_URL=http://ai-clip:8093
 ENRICHMENT_URL=http://ai-enrichment:8094
 ```
 
-Notice: **Only the hostname changes, ports remain 5432, 6379, 8090, etc.**
+Notice: **Only the hostname changes, ports remain 5432, 6379, 8095, etc.**
 
 ## Configuration Files
 
@@ -116,7 +116,7 @@ The example environment file documents port standardization:
 #   Backend API:        8000
 #   PostgreSQL:         5432
 #   Redis:              6379
-#   YOLO26:          8090
+#   YOLO26:          8095
 #   Nemotron LLM:       8091
 #   Florence-2:         8092
 #   CLIP:               8093
@@ -137,7 +137,7 @@ SERVICES: dict[str, ServiceInfo] = {
     "backend": {"port": 8000, "category": "Core", "desc": "Backend API"},
     "postgres": {"port": 5432, "category": "Core", "desc": "PostgreSQL database"},
     "redis": {"port": 6379, "category": "Core", "desc": "Redis cache/queue"},
-    "yolo26": {"port": 8090, "category": "AI", "desc": "YOLO26 object detection"},
+    "yolo26": {"port": 8095, "category": "AI", "desc": "YOLO26 object detection"},
     # ... etc
 }
 ```
@@ -176,7 +176,7 @@ backend:
 
 ai-yolo26:
   ports:
-    - '8095:8095' # Host 8095 -> Container 8090 (internal standard)
+    - '8095:8095' # Host 8095 -> Container 8095 (internal standard)
 ```
 
 ## When Ports Are Standard vs. When They Can Vary
@@ -186,7 +186,7 @@ ai-yolo26:
 - **Backend API**: 8000 (internal communication between frontend/backend)
 - **PostgreSQL**: 5432 (internal communication with database)
 - **Redis**: 6379 (internal communication with cache)
-- **AI Services**: 8090-8094 (internal communication with detectors)
+- **AI Services**: 8091-8096 (internal communication with detectors)
 
 These ports are embedded in configuration and service discovery.
 
@@ -224,7 +224,7 @@ These ports are for external access only and are safely remappable.
 
 ### 4. docker-compose.prod.yml
 
-- Verified all internal container ports use standards (5432, 6379, 8090-8094)
+- Verified all internal container ports use standards (5432, 6379, 8091-8096)
 - Environment variables reference standard internal ports
 
 ### 5. docker-compose.override.yml
@@ -306,7 +306,7 @@ REDIS_URL=redis://redis.example.com:6379/0                     # Remote redis
 YOLO26_URL=http://ai-yolo26:8095                             # Docker network detector
 ```
 
-Note: Even in mixed environments, ports remain standard (5432, 6379, 8090).
+Note: Even in mixed environments, ports remain standard (5432, 6379, 8095).
 
 ## Troubleshooting
 
@@ -342,7 +342,7 @@ REDIS_URL=redis://redis:6379      # ✅ Correct for Docker
 If you see "Connection refused":
 
 1. Check hostname matches environment (localhost for dev, service names for docker)
-2. Verify port is standard (5432, 6379, 8090, not 5433, 6380, 8095)
+2. Verify port is standard (5432, 6379, 8095, not 5433, 6380, 8090)
 3. Confirm DATABASE_URL_in environment variables, not just .env.example
 
 ```bash

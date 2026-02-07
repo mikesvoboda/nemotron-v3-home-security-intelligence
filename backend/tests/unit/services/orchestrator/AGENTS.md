@@ -116,7 +116,7 @@ async def test_register_service():
     await registry.register(
         name="yolo26-1",
         service_type="detection",
-        endpoint="http://localhost:8090"
+        endpoint="http://localhost:8095"
     )
 
     services = await registry.find_by_type("detection")
@@ -126,13 +126,13 @@ async def test_register_service():
 @pytest.mark.asyncio
 async def test_load_balancing():
     registry = ServiceRegistry()
-    await registry.register("yolo26-1", "detection", "http://host1:8090")
-    await registry.register("yolo26-2", "detection", "http://host2:8090")
+    await registry.register("yolo26-1", "detection", "http://host1:8095")
+    await registry.register("yolo26-2", "detection", "http://host2:8095")
 
     # Should round-robin between instances
     endpoints = [await registry.get_endpoint("detection") for _ in range(4)]
-    assert endpoints.count("http://host1:8090") == 2
-    assert endpoints.count("http://host2:8090") == 2
+    assert endpoints.count("http://host1:8095") == 2
+    assert endpoints.count("http://host2:8095") == 2
 ```
 
 ## Related Documentation

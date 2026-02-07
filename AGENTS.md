@@ -45,7 +45,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | File           | Purpose                                  |
 | -------------- | ---------------------------------------- |
 | `README.md`    | Project overview and quick start guide   |
-| `LICENSE`      | Mozilla Public License 2.0               |
+| `LICENSE`      | Apache License 2.0                       |
 | `CHANGELOG.md` | Release history and notable changes      |
 | `llms.txt`     | LLM-readable project documentation index |
 
@@ -229,7 +229,7 @@ cd frontend && npm test
 
 ### 4. Code Quality Standards
 
-- **Coverage:** 93%+ required for unit tests (enforced by pytest)
+- **Coverage:** 85%+ required for unit tests (enforced by pytest)
 - **Type Hints:** Required for all backend functions (enforced by mypy)
 - **Line Length:** 100 characters (enforced by ruff)
 - **Testing:** TDD approach for tasks labeled `tdd`
@@ -239,7 +239,7 @@ cd frontend && npm test
 - **Database:** PostgreSQL (migrated from SQLite for concurrent write support)
 - **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
 - **Batch processing:** 90-second time windows with 30-second idle timeout
-- **No auth:** Single-user local deployment (MVP)
+- **Auth model:** Single-user local deployment. First-time admin registration required (SetupGuardMiddleware returns 503 until first user). After registration, API endpoints are open. Network binding to 127.0.0.1 is the primary security boundary.
 - **Retention:** 30 days
 - **Deployment:** Fully containerized (Podman) with GPU passthrough for AI models
 

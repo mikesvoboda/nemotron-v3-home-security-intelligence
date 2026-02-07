@@ -70,7 +70,7 @@ Templates include Mermaid diagram examples. Customize these for your specific do
 After creating documentation from templates, validate your work:
 
 ```bash
-python -m scripts.validate_docs docs/architecture/
+# Review docs manually or use project linting tools
 ```
 
 ## Related

@@ -76,10 +76,12 @@ import base64
 import binascii
 import io
 import logging
+import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -89,6 +91,17 @@ from PIL import Image
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field, field_validator
 from transformers import CLIPModel, CLIPProcessor
+
+# Add ai directory to path for shared utilities
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from gpu_oom_handler import (
+    GPUOOMHandler,
+    check_gpu_memory_health,
+    check_memory_available,
+)
 
 # =============================================================================
 # Surveillance-Specific Prompt Templates for Ensembling (NEM-3029)
@@ -159,6 +172,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# GPU OOM handler for this service (NEM-4996)
+_oom_handler = GPUOOMHandler(service_name="clip")
 
 # =============================================================================
 # Prometheus Metrics
@@ -433,6 +449,10 @@ class HealthResponse(BaseModel):
     embedding_dimension: int = EMBEDDING_DIMENSION
     backend: str = "pytorch"  # 'pytorch' or 'tensorrt'
     tensorrt_engine_path: str | None = None
+    gpu_memory_health: str | None = None
+    gpu_memory_allocated_mb: float | None = None
+    gpu_memory_total_mb: float | None = None
+    gpu_memory_utilization_pct: float | None = None
 
 
 class CLIPEmbeddingModel:
@@ -544,13 +564,16 @@ class CLIPEmbeddingModel:
                 logger.info(f"Step 1/2: ONNX model already exists: {onnx_path}")
 
             # Step 2: Convert to TensorRT
-            logger.info("Step 2/2: Converting ONNX to TensorRT FP16...")
+            trt_precision = os.environ.get("CLIP_TENSORRT_PRECISION", "fp16")
+            calibration_dir = os.environ.get("CLIP_CALIBRATION_DIR")
+            logger.info(f"Step 2/2: Converting ONNX to TensorRT {trt_precision.upper()}...")
             result_path = convert_to_tensorrt(
                 onnx_path=str(onnx_path),
                 output_path=str(engine_path),
-                precision="fp16",
+                precision=trt_precision,
                 max_batch_size=8,
-                workspace_gb=2,
+                workspace_gb=1,
+                calibration_dir=calibration_dir,
             )
 
             logger.info(f"TensorRT engine exported successfully: {result_path}")
@@ -743,22 +766,27 @@ class CLIPEmbeddingModel:
         inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
 
         # Generate embedding
-        with torch.inference_mode():
-            raw_features = self.model.get_image_features(**inputs)
-            image_features = self._extract_features_tensor(raw_features)
+        try:
+            with torch.inference_mode():
+                raw_features = self.model.get_image_features(**inputs)
+                image_features = self._extract_features_tensor(raw_features)
 
-            # Normalize embedding with epsilon to prevent division by zero (NEM-1100)
-            epsilon = 1e-8
-            image_features = image_features / (
-                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
-            )
+                # Normalize embedding with epsilon to prevent division by zero (NEM-1100)
+                epsilon = 1e-8
+                image_features = image_features / (
+                    torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
+                )
 
-        # Convert to list
-        embedding: list[float] = image_features[0].cpu().float().numpy().tolist()
+            # Convert to list
+            embedding: list[float] = image_features[0].cpu().float().numpy().tolist()
 
-        inference_time_ms = (time.perf_counter() - start_time) * 1000
+            inference_time_ms = (time.perf_counter() - start_time) * 1000
 
-        return embedding, inference_time_ms
+            return embedding, inference_time_ms
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("extract_embedding")
+            raise
 
     def compute_anomaly_score(
         self, image: Image.Image, baseline_embedding: list[float]
@@ -856,12 +884,17 @@ class CLIPEmbeddingModel:
         inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
 
         # Generate logits
-        with torch.inference_mode():
-            outputs = self.model(**inputs)
-            logits_per_image = outputs.logits_per_image
+        try:
+            with torch.inference_mode():
+                outputs = self.model(**inputs)
+                logits_per_image = outputs.logits_per_image
 
-            # Apply softmax to normalize scores
-            probs = torch.softmax(logits_per_image, dim=-1)
+                # Apply softmax to normalize scores
+                probs = torch.softmax(logits_per_image, dim=-1)
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("classify")
+            raise
 
         # Convert to dict
         scores_list = probs[0].cpu().float().numpy().tolist()
@@ -1034,23 +1067,28 @@ class CLIPEmbeddingModel:
         text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
 
         # Generate embeddings
-        with torch.inference_mode():
-            raw_image_features = self.model.get_image_features(**image_inputs)
-            raw_text_features = self.model.get_text_features(**text_inputs)
-            image_features = self._extract_features_tensor(raw_image_features)
-            text_features = self._extract_features_tensor(raw_text_features)
+        try:
+            with torch.inference_mode():
+                raw_image_features = self.model.get_image_features(**image_inputs)
+                raw_text_features = self.model.get_text_features(**text_inputs)
+                image_features = self._extract_features_tensor(raw_image_features)
+                text_features = self._extract_features_tensor(raw_text_features)
 
-            # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
-            epsilon = 1e-8
-            image_features = image_features / (
-                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
-            )
-            text_features = text_features / (
-                torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
-            )
+                # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
+                epsilon = 1e-8
+                image_features = image_features / (
+                    torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
+                )
+                text_features = text_features / (
+                    torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
+                )
 
-            # Compute cosine similarity
-            similarity = (image_features @ text_features.T)[0, 0].cpu().float().item()
+                # Compute cosine similarity
+                similarity = (image_features @ text_features.T)[0, 0].cpu().float().item()
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("compute_similarity")
+            raise
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -1135,6 +1173,46 @@ def get_vram_usage() -> float | None:
     return None
 
 
+def _validate_clip_prebuilt_engine(engine_path: str | None) -> bool:
+    """Validate a pre-built CLIP TensorRT engine at startup (NEM-4999).
+
+    If the pre-built engine is invalid for the current GPU (architecture or
+    TensorRT version mismatch), deletes it so the auto-export mechanism
+    rebuilds it for the correct GPU.
+
+    Args:
+        engine_path: Path to the TensorRT engine file, or None.
+
+    Returns:
+        True if engine is valid and can be loaded, False otherwise.
+    """
+    if not engine_path:
+        return False
+
+    try:
+        from tensorrt_prebuild import validate_prebuilt_engine
+
+        if not os.path.exists(engine_path):
+            return False
+
+        result = validate_prebuilt_engine(engine_path)
+        if result.is_valid:
+            logger.info(f"Pre-built CLIP TensorRT engine validated: {engine_path}")
+            return True
+        else:
+            logger.warning(f"Pre-built CLIP engine invalid: {result.reason}")
+            # Delete invalid engine so auto-export rebuilds it
+            try:
+                Path(engine_path).unlink()
+                logger.info(f"Deleted invalid pre-built engine: {engine_path}")
+            except OSError as e:
+                logger.warning(f"Failed to delete invalid engine: {e}")
+            return False
+    except ImportError:
+        # tensorrt_prebuild not available, skip validation
+        return os.path.exists(engine_path)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for FastAPI app."""
@@ -1146,6 +1224,16 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Load model configuration from environment or defaults
     model_path = os.environ.get("CLIP_MODEL_PATH", "/models/clip-vit-l")
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+    # NEM-4999: Validate pre-built TensorRT engine at startup
+    engine_path = os.environ.get("CLIP_ENGINE_PATH")
+    use_tensorrt = os.environ.get("CLIP_USE_TENSORRT", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    if use_tensorrt and engine_path:
+        _validate_clip_prebuilt_engine(engine_path)
 
     # NEM-4509: Use lock during model initialization to prevent race conditions
     with _model_lock:
@@ -1200,8 +1288,17 @@ async def health_check() -> HealthResponse:
     backend_type = model.backend_type if model is not None else "pytorch"
     engine_path = model.tensorrt_engine_path if model is not None else None
 
+    # NEM-4996: GPU memory health monitoring
+    gpu_health = check_gpu_memory_health()
+
+    # Determine status factoring in GPU memory health
+    if not model_loaded or gpu_health.status.value == "critical":
+        status = "degraded"
+    else:
+        status = "healthy"
+
     return HealthResponse(
-        status="healthy" if model_loaded else "degraded",
+        status=status,
         model="clip-vit-large-patch14",
         model_loaded=model_loaded,
         device=device,
@@ -1210,6 +1307,14 @@ async def health_check() -> HealthResponse:
         embedding_dimension=EMBEDDING_DIMENSION,
         backend=backend_type,
         tensorrt_engine_path=engine_path,
+        gpu_memory_health=gpu_health.status.value,
+        gpu_memory_allocated_mb=gpu_health.memory_stats.allocated_mb
+        if gpu_health.memory_stats
+        else None,
+        gpu_memory_total_mb=gpu_health.memory_stats.total_mb if gpu_health.memory_stats else None,
+        gpu_memory_utilization_pct=gpu_health.memory_stats.utilization_pct
+        if gpu_health.memory_stats
+        else None,
     )
 
 
@@ -1305,6 +1410,14 @@ async def embed(request: EmbedRequest) -> EmbedResponse:
     except HTTPException:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="embed", status="error").inc()
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        # NEM-4996: Handle GPU OOM gracefully with 503 + Retry-After
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="embed", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during embedding extraction. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="embed", status="error").inc()
         logger.error(f"Embedding extraction failed: {e}", exc_info=True)

@@ -509,17 +509,44 @@ class TestCandidateTracking:
         assert len(compatible) >= 0  # May find matches
 
     @pytest.mark.asyncio
-    async def test_remove_merged_candidates(self) -> None:
-        """Remove merged candidates from tracking."""
+    async def test_remove_merged_candidates_with_camera_id(self) -> None:
+        """Remove merged candidates from tracking when camera_id is provided."""
         from backend.services.batch_coalescer import BatchCoalescer
 
         mock_redis = AsyncMock()
         coalescer = BatchCoalescer(redis_client=mock_redis)
 
-        await coalescer.remove_candidates(["b1", "b2", "b3"])
+        await coalescer.remove_candidates(["b1", "b2", "b3"], camera_id="front")
 
-        # Should remove from sorted set
-        mock_redis.zrem.assert_called()
+        # Should delete candidate data keys
+        assert mock_redis.delete.call_count == 3
+        # Should remove from the camera-specific sorted set
+        mock_redis.zrem.assert_called_once_with("coalesce:candidates:front", "b1", "b2", "b3")
+
+    @pytest.mark.asyncio
+    async def test_remove_merged_candidates_reads_camera_from_redis(self) -> None:
+        """Remove merged candidates by reading camera_id from stored candidate data."""
+        from backend.services.batch_coalescer import BatchCoalescer, CoalesceCandidate
+
+        mock_redis = AsyncMock()
+
+        # Mock get() to return serialized candidate data with camera_id
+        candidate = CoalesceCandidate(
+            batch_id="b1",
+            camera_id="front",
+            detection_ids=[1],
+            object_types=["person"],
+            avg_confidence=0.85,
+            created_at=datetime.now(tz=UTC),
+        )
+        mock_redis.get.return_value = candidate.to_json()
+
+        coalescer = BatchCoalescer(redis_client=mock_redis)
+
+        await coalescer.remove_candidates(["b1"])
+
+        # Should remove from sorted set using camera_id from the stored data
+        mock_redis.zrem.assert_called_once_with("coalesce:candidates:front", "b1")
 
 
 class TestEdgeCases:

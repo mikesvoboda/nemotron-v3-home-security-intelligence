@@ -58,6 +58,9 @@ data/external/*/LICENSE.txt
 data/external/*/manifest.json
 data/external/kinetics/security_classes.json
 
+# Calibration data (generated locally, too large for git)
+data/calibration/
+
 # AI Models (large files)
 ai/rtdetr/weights/
 ai/nemotron/*.gguf
@@ -133,3 +136,4 @@ config/gpu-assignments.yml
 .ripgreprc
 .claude/*
 !.claude/skills/
+site/

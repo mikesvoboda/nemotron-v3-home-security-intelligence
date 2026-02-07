@@ -52,7 +52,7 @@ flowchart LR
 
     subgraph Detection["2. Object Detection"]
         DQ[(detection_queue)]
-        YOLO[YOLO26<br/>port 8091<br/>~30-50ms]
+        YOLO[YOLO26<br/>port 8095<br/>~30-50ms]
     end
 
     subgraph Batching["3. Batch Aggregation"]
@@ -101,13 +101,13 @@ flowchart LR
 6. **Risk Analysis**: Nemotron LLM evaluates the complete context
 7. **Event Creation**: Security events are created and broadcast via WebSocket
 
-### Always-Loaded Models (~2.65GB VRAM)
+### Always-Loaded Models (~4GB VRAM)
 
 These models are permanently loaded for real-time processing:
 
 | Model                | Purpose                       | VRAM   | Port |
 | -------------------- | ----------------------------- | ------ | ---- |
-| **YOLO26**           | Primary object detection      | ~650MB | 8091 |
+| **YOLO26**           | Primary object detection      | ~2GB   | 8095 |
 | **Florence-2-large** | Scene understanding, captions | ~1.2GB | 8092 |
 | **CLIP ViT-L/14**    | Anomaly detection baseline    | ~800MB | 8093 |
 
@@ -137,10 +137,10 @@ The primary object detector uses YOLO26 for fast, accurate detection:
 
 ```bash
 # Check detector health
-curl http://localhost:8091/health
+curl http://localhost:8095/health
 
 # Detection endpoint (internal use)
-POST http://localhost:8091/detect
+POST http://localhost:8095/detect
 Content-Type: multipart/form-data
 ```
 
@@ -609,7 +609,7 @@ curl -X POST "http://localhost:8094/models/preload?model_name=threat_detector"
 
 1. Check camera is uploading to correct directory
 2. Verify file watcher is running: `curl http://localhost:8000/api/system/pipeline`
-3. Check YOLO26 health: `curl http://localhost:8091/health`
+3. Check YOLO26 health: `curl http://localhost:8095/health`
 4. Review detection queue depth in system telemetry
 
 ### Slow Analysis

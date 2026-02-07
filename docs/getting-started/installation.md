@@ -47,7 +47,7 @@ cd home-security-intelligence
 
 ## Step 2: Run Setup Script
 
-The setup script ([`scripts/setup-hooks.sh`](../../scripts/setup-hooks.sh:1)) automates environment configuration:
+The setup script ([`scripts/setup-hooks.sh`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh)) automates environment configuration:
 
 ```bash
 ./scripts/setup-hooks.sh
@@ -55,7 +55,7 @@ The setup script ([`scripts/setup-hooks.sh`](../../scripts/setup-hooks.sh:1)) au
 
 ### What It Does
 
-1. **Creates Python virtual environment** ([lines 26-51](../../scripts/setup-hooks.sh:26))
+1. **Creates Python virtual environment** ([lines 26-51](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh#L26))
 
    ```bash
    # Creates .venv/ and installs all dependencies from pyproject.toml
@@ -65,13 +65,13 @@ The setup script ([`scripts/setup-hooks.sh`](../../scripts/setup-hooks.sh:1)) au
 
    **Note:** Dependencies are defined in `pyproject.toml` and locked in `uv.lock` for reproducible builds.
 
-2. **Installs Node.js dependencies** ([lines 54-67](../../scripts/setup-hooks.sh:54))
+2. **Installs Node.js dependencies** ([lines 54-67](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh#L54))
 
    ```bash
    cd frontend && npm install
    ```
 
-3. **Configures pre-commit hooks** ([lines 71-82](../../scripts/setup-hooks.sh:71))
+3. **Configures pre-commit hooks** ([lines 71-82](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh#L71))
 
    ```bash
    pre-commit install
@@ -100,7 +100,7 @@ Setup complete!
 
 ## Step 3: Download AI Models
 
-The model download script ([`ai/download_models.sh`](../../ai/download_models.sh:1)) fetches the required AI models:
+The model download script ([`ai/download_models.sh`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/download_models.sh)) fetches the required AI models:
 
 ```bash
 ./ai/download_models.sh
@@ -108,11 +108,11 @@ The model download script ([`ai/download_models.sh`](../../ai/download_models.sh
 
 ### Models Downloaded
 
-| Model                   | Size    | Purpose              | Location                                                        |
-| ----------------------- | ------- | -------------------- | --------------------------------------------------------------- |
-| **Nemotron-3-Nano-30B** | ~14.7GB | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`      |
-| **Nemotron Mini 4B**    | ~2.5GB  | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
-| **YOLO26**              | varies  | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
+| Model                   | Size    | Purpose              | Location                                                                                                                                   |
+| ----------------------- | ------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Nemotron-3-Nano-30B** | ~14.7GB | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`                                                                                 |
+| **Nemotron Mini 4B**    | ~2.5GB  | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/download_models.sh#L90)) |
+| **YOLO26**              | varies  | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service                                                                              |
 
 ### Using Pre-downloaded Models
 

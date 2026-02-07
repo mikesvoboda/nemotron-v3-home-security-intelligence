@@ -527,7 +527,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
     participant DW as DetectionQueueWorker
-    participant RT as YOLO26 (8090)
+    participant RT as YOLO26 (8095)
     participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant NEM as Nemotron LLM (8091)

@@ -1,6 +1,6 @@
 # Nemotron Analyzer
 
-The `NemotronAnalyzer` service uses the Nemotron 70B LLM (via llama.cpp server) to analyze detection batches and generate risk assessments with natural language reasoning.
+The `NemotronAnalyzer` service uses the Nemotron-3-Nano-30B-A3B (via llama.cpp server) to analyze detection batches and generate risk assessments with natural language reasoning.
 
 ## Source Files
 
@@ -65,14 +65,14 @@ class NemotronAnalyzer:
 
 ## Configuration
 
-| Setting                      | Default                   | Description                    |
-| ---------------------------- | ------------------------- | ------------------------------ |
-| `NEMOTRON_URL`               | `http://ai-nemotron:8091` | LLM service URL                |
-| `NEMOTRON_API_KEY`           | None                      | Optional API key               |
-| `NEMOTRON_MAX_RETRIES`       | 3                         | Maximum retry attempts         |
-| `AI_CONNECT_TIMEOUT`         | 10.0s                     | Connection timeout             |
-| `NEMOTRON_READ_TIMEOUT`      | 120.0s                    | Read timeout for LLM inference |
-| `NEMOTRON_MAX_OUTPUT_TOKENS` | 512                       | Maximum output tokens          |
+| Setting                      | Default              | Description                    |
+| ---------------------------- | -------------------- | ------------------------------ |
+| `NEMOTRON_URL`               | `http://ai-llm:8091` | LLM service URL                |
+| `NEMOTRON_API_KEY`           | None                 | Optional API key               |
+| `NEMOTRON_MAX_RETRIES`       | 3                    | Maximum retry attempts         |
+| `AI_CONNECT_TIMEOUT`         | 10.0s                | Connection timeout             |
+| `NEMOTRON_READ_TIMEOUT`      | 120.0s               | Read timeout for LLM inference |
+| `NEMOTRON_MAX_OUTPUT_TOKENS` | 512                  | Maximum output tokens          |
 
 ## Analysis Flow
 

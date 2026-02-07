@@ -14,9 +14,18 @@ Usage:
         --model-path /models/clip-vit-l \
         --onnx /models/clip-vit-l/vision_encoder.onnx
 
+    # Full pipeline with INT8 calibration
+    python export_onnx.py pipeline \
+        --model-path /models/clip-vit-l \
+        --output-dir /models/clip-vit-l \
+        --precision int8 \
+        --calibration-dir /data/calibration/clip
+
 Environment Variables:
     CLIP_MODEL_PATH: Default HuggingFace model path (default: /models/clip-vit-l)
     CLIP_ONNX_OPSET: ONNX opset version (default: 17)
+    CLIP_TENSORRT_PRECISION: TensorRT precision (default: fp16)
+    CLIP_CALIBRATION_DIR: Path to INT8 calibration images directory
 """
 
 import argparse
@@ -43,6 +52,231 @@ EMBEDDING_DIMENSION = 768
 
 # Default opset version for ONNX export
 DEFAULT_OPSET_VERSION = 17
+
+# Default TensorRT workspace size in GB (reduced from 2 to 1 for 4GB A400)
+DEFAULT_WORKSPACE_GB = 1
+
+# Supported image extensions for calibration dataset
+CALIBRATION_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+# Default calibration cache filename
+CALIBRATION_CACHE_FILE = "clip_int8_calibration.cache"
+
+
+class CLIPCalibrationDataset:
+    """Provides calibration data for INT8 TensorRT engine building.
+
+    Loads representative images from a directory, preprocesses them using
+    CLIP's image processor, and yields batches for TensorRT calibration.
+    Implements the ``trt.IInt8EntropyCalibrator2`` interface so TensorRT
+    can compute per-tensor dynamic ranges for INT8 quantization.
+
+    The calibration table is cached to disk to avoid recomputation on
+    subsequent engine builds with the same calibration data.
+
+    Attributes:
+        image_dir: Directory containing calibration images.
+        processor: CLIP image processor for preprocessing.
+        max_images: Maximum number of images to use for calibration.
+        batch_size: Number of images per calibration batch.
+        cache_file: Path to the calibration cache file.
+        image_paths: List of discovered image file paths.
+        current_index: Current position in the image list.
+    """
+
+    def __init__(
+        self,
+        image_dir: str,
+        processor: object,
+        max_images: int = 500,
+        batch_size: int = 1,
+        cache_file: str | None = None,
+    ) -> None:
+        """Initialize the calibration dataset.
+
+        Args:
+            image_dir: Directory containing JPEG/PNG images for calibration.
+            processor: CLIP image processor (from CLIPProcessor.from_pretrained).
+            max_images: Maximum number of images to load. Default: 500.
+            batch_size: Number of images per calibration batch. Default: 1.
+            cache_file: Path to calibration cache file. If None, defaults to
+                ``{image_dir}/clip_int8_calibration.cache``.
+
+        Raises:
+            FileNotFoundError: If image_dir does not exist.
+            ValueError: If no valid images are found in image_dir.
+        """
+        self.image_dir = Path(image_dir)
+        if not self.image_dir.exists():
+            raise FileNotFoundError(f"Calibration image directory not found: {image_dir}")
+
+        self.processor = processor
+        self.max_images = max_images
+        self.batch_size = batch_size
+        self.current_index = 0
+
+        # Set cache file path
+        if cache_file is None:
+            self.cache_file = str(self.image_dir / CALIBRATION_CACHE_FILE)
+        else:
+            self.cache_file = cache_file
+
+        # Discover calibration images
+        self.image_paths = self._discover_images()
+        if not self.image_paths:
+            raise ValueError(
+                f"No valid images found in {image_dir}. "
+                f"Supported formats: {', '.join(sorted(CALIBRATION_IMAGE_EXTENSIONS))}"
+            )
+
+        logger.info(f"Calibration dataset initialized: {len(self.image_paths)} images")
+        logger.info(f"  Source: {image_dir}")
+        logger.info(f"  Cache: {self.cache_file}")
+
+        # Pre-allocate device memory for calibration batch
+        # CLIP input: [batch_size, 3, 224, 224] as float32
+        self._device_input = np.zeros(
+            (self.batch_size, 3, CLIP_INPUT_SIZE[0], CLIP_INPUT_SIZE[1]),
+            dtype=np.float32,
+        )
+
+    def _discover_images(self) -> list[Path]:
+        """Discover and sort calibration images from the image directory.
+
+        Returns:
+            Sorted list of image file paths, limited to max_images.
+        """
+        image_paths: list[Path] = []
+        for ext in CALIBRATION_IMAGE_EXTENSIONS:
+            image_paths.extend(self.image_dir.glob(f"*{ext}"))
+            image_paths.extend(self.image_dir.glob(f"*{ext.upper()}"))
+
+        # Deduplicate (case-insensitive glob on case-insensitive filesystems)
+        image_paths = sorted(set(image_paths))
+
+        # Limit to max_images
+        if len(image_paths) > self.max_images:
+            # Sample evenly across the sorted list for diversity
+            step = len(image_paths) / self.max_images
+            image_paths = [image_paths[int(i * step)] for i in range(self.max_images)]
+
+        return image_paths
+
+    def _preprocess_image(self, image_path: Path) -> np.ndarray | None:
+        """Load and preprocess a single image for calibration.
+
+        Args:
+            image_path: Path to the image file.
+
+        Returns:
+            Preprocessed image as numpy array of shape (1, 3, 224, 224),
+            or None if the image could not be loaded.
+        """
+        try:
+            image = Image.open(image_path).convert("RGB")
+            inputs = self.processor(images=image, return_tensors="np")
+            pixel_values: np.ndarray = inputs["pixel_values"]
+            return pixel_values.astype(np.float32)
+        except Exception as e:
+            logger.warning(f"Failed to load calibration image {image_path}: {e}")
+            return None
+
+    def get_batch_size(self) -> int:
+        """Return the calibration batch size.
+
+        Required by TensorRT IInt8EntropyCalibrator2 interface.
+
+        Returns:
+            The batch size.
+        """
+        return self.batch_size
+
+    def get_batch(self, names: list[str] | None = None) -> list[np.ndarray] | None:  # noqa: ARG002
+        """Get the next batch of calibration data.
+
+        Required by TensorRT IInt8EntropyCalibrator2 interface.
+        Returns preprocessed image batches until all calibration images
+        have been consumed.
+
+        Args:
+            names: Input tensor names (provided by TensorRT, unused).
+
+        Returns:
+            List of numpy arrays (one per input binding) for the next batch,
+            or None when calibration is complete.
+        """
+        if self.current_index >= len(self.image_paths):
+            return None
+
+        # Collect batch
+        batch_images: list[np.ndarray] = []
+        while len(batch_images) < self.batch_size and self.current_index < len(self.image_paths):
+            image_path = self.image_paths[self.current_index]
+            self.current_index += 1
+
+            preprocessed = self._preprocess_image(image_path)
+            if preprocessed is not None:
+                batch_images.append(preprocessed)
+
+        if not batch_images:
+            return None
+
+        # Stack into batch array
+        batch = np.concatenate(batch_images, axis=0)
+
+        # Pad if batch is smaller than batch_size (last batch may be incomplete)
+        if batch.shape[0] < self.batch_size:
+            padding = np.zeros(
+                (self.batch_size - batch.shape[0], *batch.shape[1:]),
+                dtype=np.float32,
+            )
+            batch = np.concatenate([batch, padding], axis=0)
+
+        # Copy to pre-allocated array
+        np.copyto(self._device_input, batch)
+
+        if self.current_index % 50 == 0 or self.current_index >= len(self.image_paths):
+            logger.info(
+                f"  Calibration progress: {self.current_index}/{len(self.image_paths)} images"
+            )
+
+        return [self._device_input]
+
+    def read_calibration_cache(self) -> bytes | None:
+        """Read the calibration cache from disk if it exists.
+
+        Required by TensorRT IInt8EntropyCalibrator2 interface.
+        Returning cached calibration data avoids recomputing dynamic ranges.
+
+        Returns:
+            Cached calibration data as bytes, or None if no cache exists.
+        """
+        if Path(self.cache_file).exists():
+            logger.info(f"Reading calibration cache: {self.cache_file}")
+            with open(self.cache_file, "rb") as f:  # nosemgrep: path-traversal-open
+                return f.read()
+        return None
+
+    def write_calibration_cache(self, cache: bytes) -> None:
+        """Write calibration data to disk cache.
+
+        Required by TensorRT IInt8EntropyCalibrator2 interface.
+        The cache file allows subsequent engine builds to skip calibration.
+
+        Args:
+            cache: Calibration data bytes from TensorRT.
+        """
+        logger.info(f"Writing calibration cache: {self.cache_file}")
+        Path(self.cache_file).parent.mkdir(parents=True, exist_ok=True)
+        with open(self.cache_file, "wb") as f:  # nosemgrep: path-traversal-open
+            f.write(cache)
+
+    def reset(self) -> None:
+        """Reset the dataset iterator to the beginning.
+
+        Call this to reuse the dataset for another calibration run.
+        """
+        self.current_index = 0
 
 
 class CLIPVisionONNXExporter:
@@ -317,16 +551,26 @@ def convert_to_tensorrt(
     output_path: str | None = None,
     precision: str = "fp16",
     max_batch_size: int = 8,
-    workspace_gb: int = 2,
+    workspace_gb: int = DEFAULT_WORKSPACE_GB,
+    calibration_dir: str | None = None,
+    calibration_cache: str | None = None,
+    calibration_max_images: int = 500,
 ) -> str:
     """Convert ONNX model to TensorRT engine.
 
     Args:
         onnx_path: Path to ONNX model file.
         output_path: Output path for TensorRT engine. If None, auto-generated.
-        precision: Inference precision ('fp16' or 'fp32'). Default: 'fp16'.
+        precision: Inference precision ('fp16', 'fp32', or 'int8'). Default: 'fp16'.
+            INT8 requires a calibration dataset for best accuracy.
         max_batch_size: Maximum batch size for dynamic batching. Default: 8.
-        workspace_gb: TensorRT workspace size in GB. Default: 2.
+        workspace_gb: TensorRT workspace size in GB. Default: 1 (optimized for 4GB A400).
+        calibration_dir: Directory containing calibration images for INT8 quantization.
+            Only used when precision='int8'. If not provided with INT8 precision,
+            TensorRT uses default quantization (less accurate).
+        calibration_cache: Path to calibration cache file. If None, auto-generated
+            in the calibration_dir. Cached calibration data is reused across builds.
+        calibration_max_images: Maximum calibration images to use. Default: 500.
 
     Returns:
         Path to the generated TensorRT engine.
@@ -377,7 +621,45 @@ def convert_to_tensorrt(
     )
 
     # Set precision
-    if precision == "fp16" and builder.platform_has_fast_fp16:
+    if precision == "int8" and builder.platform_has_fast_int8:
+        logger.info("Enabling INT8 precision (with FP16 fallback for sensitive layers)")
+        config.set_flag(trt.BuilderFlag.INT8)
+        config.set_flag(trt.BuilderFlag.FP16)  # Mixed precision: INT8 + FP16
+
+        # Set up INT8 calibration if calibration directory is provided
+        if calibration_dir is not None:
+            logger.info(f"  Calibration dir: {calibration_dir}")
+            # Load CLIP processor for calibration image preprocessing
+            from transformers import CLIPProcessor
+
+            # Determine model path from environment or ONNX path parent
+            model_path = os.environ.get("CLIP_MODEL_PATH", "/models/clip-vit-l")
+            processor = CLIPProcessor.from_pretrained(model_path)
+
+            calibrator = CLIPCalibrationDataset(
+                image_dir=calibration_dir,
+                processor=processor,
+                max_images=calibration_max_images,
+                batch_size=1,
+                cache_file=calibration_cache,
+            )
+            config.int8_calibrator = calibrator
+            logger.info(
+                f"INT8 calibration: using {len(calibrator.image_paths)} images "
+                f"from {calibration_dir}"
+            )
+        else:
+            logger.warning(
+                "INT8 precision selected without calibration directory. "
+                "TensorRT will use default per-tensor symmetric quantization "
+                "which may reduce accuracy by 1-2%. For best results, provide "
+                "--calibration-dir with 200-500 representative images."
+            )
+    elif precision == "int8":
+        logger.warning("INT8 not supported on this platform, falling back to FP16")
+        if builder.platform_has_fast_fp16:
+            config.set_flag(trt.BuilderFlag.FP16)
+    elif precision == "fp16" and builder.platform_has_fast_fp16:
         logger.info("Enabling FP16 precision")
         config.set_flag(trt.BuilderFlag.FP16)
     elif precision == "fp16":
@@ -444,18 +726,31 @@ Examples:
       --model-path /models/clip-vit-l \\
       --onnx /models/clip-vit-l/vision_encoder.onnx
 
-  # Convert ONNX to TensorRT
+  # Convert ONNX to TensorRT (FP16)
   python export_onnx.py tensorrt \\
       --onnx /models/clip-vit-l/vision_encoder.onnx \\
       --output /models/clip-vit-l/vision_encoder_fp16.engine \\
       --precision fp16 \\
       --max-batch 8
 
-  # Full pipeline: export + validate + convert
+  # Convert ONNX to TensorRT (INT8 with calibration)
+  python export_onnx.py tensorrt \\
+      --onnx /models/clip-vit-l/vision_encoder.onnx \\
+      --precision int8 \\
+      --calibration-dir /data/calibration/clip
+
+  # Full pipeline: export + validate + convert (FP16)
   python export_onnx.py pipeline \\
       --model-path /models/clip-vit-l \\
       --output-dir /models/clip-vit-l \\
       --precision fp16
+
+  # Full pipeline with INT8 calibration
+  python export_onnx.py pipeline \\
+      --model-path /models/clip-vit-l \\
+      --output-dir /models/clip-vit-l \\
+      --precision int8 \\
+      --calibration-dir /data/calibration/clip
         """,
     )
 
@@ -523,7 +818,7 @@ Examples:
     )
     trt_parser.add_argument(
         "--precision",
-        choices=["fp16", "fp32"],
+        choices=["fp16", "fp32", "int8"],
         default="fp16",
         help="Inference precision (default: fp16)",
     )
@@ -536,8 +831,24 @@ Examples:
     trt_parser.add_argument(
         "--workspace",
         type=int,
-        default=2,
-        help="TensorRT workspace size in GB (default: 2)",
+        default=DEFAULT_WORKSPACE_GB,
+        help=f"TensorRT workspace size in GB (default: {DEFAULT_WORKSPACE_GB})",
+    )
+    trt_parser.add_argument(
+        "--calibration-dir",
+        default=os.environ.get("CLIP_CALIBRATION_DIR"),
+        help="Directory containing calibration images for INT8 quantization. "
+        "Only used when --precision=int8. Reads CLIP_CALIBRATION_DIR env var if not set.",
+    )
+    trt_parser.add_argument(
+        "--calibration-cache",
+        help="Path to calibration cache file (auto-generated if not specified)",
+    )
+    trt_parser.add_argument(
+        "--calibration-max-images",
+        type=int,
+        default=500,
+        help="Maximum number of calibration images to use (default: 500)",
     )
 
     # Pipeline subcommand (export + validate + convert)
@@ -556,7 +867,7 @@ Examples:
     )
     pipeline_parser.add_argument(
         "--precision",
-        choices=["fp16", "fp32"],
+        choices=["fp16", "fp32", "int8"],
         default="fp16",
         help="TensorRT precision (default: fp16)",
     )
@@ -570,6 +881,22 @@ Examples:
         "--skip-validation",
         action="store_true",
         help="Skip ONNX validation step",
+    )
+    pipeline_parser.add_argument(
+        "--calibration-dir",
+        default=os.environ.get("CLIP_CALIBRATION_DIR"),
+        help="Directory containing calibration images for INT8 quantization. "
+        "Only used when --precision=int8. Reads CLIP_CALIBRATION_DIR env var if not set.",
+    )
+    pipeline_parser.add_argument(
+        "--calibration-cache",
+        help="Path to calibration cache file (auto-generated if not specified)",
+    )
+    pipeline_parser.add_argument(
+        "--calibration-max-images",
+        type=int,
+        default=500,
+        help="Maximum number of calibration images to use (default: 500)",
     )
 
     args = parser.parse_args()
@@ -600,6 +927,9 @@ Examples:
             precision=args.precision,
             max_batch_size=args.max_batch,
             workspace_gb=args.workspace,
+            calibration_dir=args.calibration_dir,
+            calibration_cache=args.calibration_cache,
+            calibration_max_images=args.calibration_max_images,
         )
 
     elif args.command == "pipeline":
@@ -631,6 +961,9 @@ Examples:
             output_path=engine_path,
             precision=args.precision,
             max_batch_size=args.max_batch,
+            calibration_dir=args.calibration_dir,
+            calibration_cache=args.calibration_cache,
+            calibration_max_images=args.calibration_max_images,
         )
 
         logger.info("Pipeline complete!")

@@ -742,17 +742,37 @@ describe('CameraGrid', () => {
   });
 
   describe('Scene Change Activity Indicators (NEM-3126)', () => {
+    // Helper to create a CameraActivityState for testing
+    function makeActivityState(cameraId: string, cameraName: string, changeType = 'view_blocked') {
+      return {
+        cameraId,
+        cameraName,
+        lastActivityAt: new Date(),
+        lastChangeType: changeType,
+        isActive: true,
+      };
+    }
+
     it('should show scene change indicator when camera has activity (array)', () => {
       const cameras: CameraStatus[] = [
         { id: 'cam1', name: 'Front Door', status: 'online' },
         { id: 'cam2', name: 'Backyard', status: 'online' },
       ];
+      const activityMap = {
+        cam1: makeActivityState('cam1', 'Front Door'),
+      };
 
-      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />);
+      render(
+        <CameraGrid
+          cameras={cameras}
+          sceneChangeActivityIds={['cam1']}
+          cameraActivityMap={activityMap}
+        />
+      );
 
       expect(screen.getByTestId('scene-change-indicator-cam1')).toBeInTheDocument();
       expect(screen.queryByTestId('scene-change-indicator-cam2')).not.toBeInTheDocument();
-      expect(screen.getByText('Scene Change')).toBeInTheDocument();
+      expect(screen.getByText('View Blocked')).toBeInTheDocument();
     });
 
     it('should show scene change indicator when camera has activity (Set)', () => {
@@ -760,8 +780,17 @@ describe('CameraGrid', () => {
         { id: 'cam1', name: 'Front Door', status: 'online' },
         { id: 'cam2', name: 'Backyard', status: 'online' },
       ];
+      const activityMap = {
+        cam2: makeActivityState('cam2', 'Backyard', 'angle_changed'),
+      };
 
-      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={new Set(['cam2'])} />);
+      render(
+        <CameraGrid
+          cameras={cameras}
+          sceneChangeActivityIds={new Set(['cam2'])}
+          cameraActivityMap={activityMap}
+        />
+      );
 
       expect(screen.queryByTestId('scene-change-indicator-cam1')).not.toBeInTheDocument();
       expect(screen.getByTestId('scene-change-indicator-cam2')).toBeInTheDocument();
@@ -773,14 +802,24 @@ describe('CameraGrid', () => {
         { id: 'cam2', name: 'Backyard', status: 'online' },
         { id: 'cam3', name: 'Garage', status: 'online' },
       ];
+      const activityMap = {
+        cam1: makeActivityState('cam1', 'Front Door'),
+        cam3: makeActivityState('cam3', 'Garage'),
+      };
 
-      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1', 'cam3']} />);
+      render(
+        <CameraGrid
+          cameras={cameras}
+          sceneChangeActivityIds={['cam1', 'cam3']}
+          cameraActivityMap={activityMap}
+        />
+      );
 
       expect(screen.getByTestId('scene-change-indicator-cam1')).toBeInTheDocument();
       expect(screen.queryByTestId('scene-change-indicator-cam2')).not.toBeInTheDocument();
       expect(screen.getByTestId('scene-change-indicator-cam3')).toBeInTheDocument();
-      // Should show "Scene Change" text for both cameras
-      expect(screen.getAllByText('Scene Change')).toHaveLength(2);
+      // Should show "View Blocked" text for both cameras via SceneChangeIndicator
+      expect(screen.getAllByText('View Blocked')).toHaveLength(2);
     });
 
     it('should not show scene change indicator when sceneChangeActivityIds is undefined', () => {
@@ -801,13 +840,22 @@ describe('CameraGrid', () => {
 
     it('should apply pulsing animation to scene change indicator', () => {
       const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
+      const activityMap = {
+        cam1: makeActivityState('cam1', 'Front Door'),
+      };
 
-      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />);
+      render(
+        <CameraGrid
+          cameras={cameras}
+          sceneChangeActivityIds={['cam1']}
+          cameraActivityMap={activityMap}
+        />
+      );
 
       const indicator = screen.getByTestId('scene-change-indicator-cam1');
-      // The AlertTriangle icon should have animate-pulse class
-      const icon = indicator.querySelector('svg');
-      expect(icon).toHaveClass('animate-pulse');
+      // The SceneChangeIndicator renders with animate-pulse for high severity
+      const badge = indicator.querySelector('[data-testid="scene-change-indicator"]');
+      expect(badge).toHaveClass('animate-pulse');
     });
   });
 

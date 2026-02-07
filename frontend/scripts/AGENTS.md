@@ -158,7 +158,7 @@ From `frontend/package.json`:
 ## Dependencies
 
 ### generate-ws-types.py
-- Python 3.11+
+- Python 3.14+
 - Backend dependencies available (for importing Pydantic schemas)
 - Environment variables: `DATABASE_URL`, `REDIS_URL` (can be dummy values)
 

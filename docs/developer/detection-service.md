@@ -31,12 +31,12 @@ YOLO26 (Real-Time Detection Transformer v2) performs object detection on camera 
 
 ### Request
 
-**Endpoint:** `POST http://localhost:8090/detect`
+**Endpoint:** `POST http://localhost:8095/detect`
 
 **Multipart/form-data:**
 
 ```bash
-curl -X POST http://localhost:8090/detect \
+curl -X POST http://localhost:8095/detect \
   -F "file=@image.jpg"
 ```
 
@@ -160,7 +160,7 @@ Detections below threshold are discarded.
 ## Health Check
 
 ```bash
-curl http://localhost:8090/health
+curl http://localhost:8095/health
 ```
 
 ```json
@@ -183,7 +183,7 @@ The backend uses `DetectorClient` to communicate with YOLO26:
 # backend/services/detector_client.py
 
 class DetectorClient:
-    def __init__(self, base_url: str = "http://localhost:8090"):
+    def __init__(self, base_url: str = "http://localhost:8095"):
         self.base_url = base_url
         self.timeout = httpx.Timeout(30.0)
 

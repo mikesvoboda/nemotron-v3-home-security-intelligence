@@ -28,6 +28,17 @@ discovery.relabel "containers" {
     target_label  = "container"
   }
 
+  // Normalize container names to short form
+  // Compose-created containers use the pattern: <project>-<service>-<replica>
+  // e.g. "nemotron-v3-home-security-intelligence-ai-clip-1" -> "ai-clip"
+  // Standalone containers already use short names (e.g. "ai-clip") and pass through unchanged
+  rule {
+    source_labels = ["container"]
+    regex         = "nemotron-v3-home-security-intelligence-(.+)-\\d+$"
+    replacement   = "${1}"
+    target_label  = "container"
+  }
+
   // Keep image name
   rule {
     source_labels = ["__meta_docker_container_image"]

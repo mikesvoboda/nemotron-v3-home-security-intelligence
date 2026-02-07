@@ -367,7 +367,7 @@ from backend.services.event_broadcaster import get_event_broadcaster
 services = [
     ServiceConfig(
         name="yolo26",
-        health_url="http://localhost:8090/health",
+        health_url="http://localhost:8095/health",
         restart_cmd="docker restart yolo26",
         max_retries=5,
         backoff_base=5.0,

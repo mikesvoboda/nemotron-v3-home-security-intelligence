@@ -13,12 +13,18 @@ The pipeline can use either:
 - Remote HTTP service at ai-enrichment:8094 (for containerized deployments)
 
 Set use_enrichment_service=True to use the HTTP service for vehicle, pet,
-and clothing classification instead of loading models locally.
+clothing classification, pose estimation, action recognition, threat detection,
+demographics analysis, and person re-identification instead of loading models
+locally. Threat detection and re-ID route to ai-enrichment-light:8096, demographics
+and action route to ai-enrichment:8094 by default (configurable via
+ENRICHMENT_*_SERVICE env vars).
 """
 
 from __future__ import annotations
 
 __all__ = [
+    "CLIP_SCENE_LABELS",
+    "CLIP_THREAT_DESCRIPTIONS",
     "BoundingBox",
     "DetectionInput",
     "EnrichmentError",
@@ -59,9 +65,12 @@ from backend.core.exceptions import (
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_enrichment_model_duration,
+    observe_enrichment_pipeline_stage,
     record_enrichment_model_call,
     record_enrichment_model_error,
+    record_enrichment_pipeline_timeout,
     record_pipeline_error,
+    set_enrichment_quality_level,
 )
 from backend.core.mime_types import VIDEO_MIME_TYPES
 from backend.core.telemetry import add_span_event
@@ -72,8 +81,14 @@ from backend.services.depth_anything_loader import (
 
 # Import enrichment client for remote HTTP service
 from backend.services.enrichment_client import (
+    ActionClassificationResult as RemoteActionResult,
+)
+from backend.services.enrichment_client import (
     EnrichmentClient,
     get_enrichment_client,
+)
+from backend.services.enrichment_client import (
+    PoseAnalysisResult as RemotePoseResult,
 )
 from backend.services.fashion_clip_loader import (
     ClothingClassification,
@@ -119,6 +134,10 @@ from backend.services.scene_ocr_service import (
 from backend.services.segformer_loader import (
     ClothingSegmentationResult,
 )
+from backend.services.threat_detection_loader import (
+    ThreatDetection,
+    ThreatDetectionResult,
+)
 from backend.services.vehicle_classifier_loader import (
     VehicleClassificationResult,
     classify_vehicle,
@@ -137,6 +156,7 @@ from backend.services.vision_extractor import (
     get_vision_extractor,
 )
 from backend.services.vitpose_loader import (
+    Keypoint,
     PoseResult,
     extract_poses_batch,
 )
@@ -154,6 +174,46 @@ if TYPE_CHECKING:
     from backend.services.frame_buffer import FrameBuffer
 
 logger = get_logger(__name__)
+
+# =============================================================================
+# CLIP Zero-Shot Scene Classification Labels (NEM-5525)
+# =============================================================================
+# These labels are used by CLIP's /classify endpoint for surveillance-relevant
+# scene-level zero-shot classification. The results provide additional context
+# to Nemotron for more accurate threat analysis (+5-10% accuracy).
+
+CLIP_SCENE_LABELS: list[str] = [
+    "normal activity",
+    "person loitering",
+    "property intrusion",
+    "delivery in progress",
+    "service worker visiting",
+    "suspicious approach",
+    "person with tool or weapon",
+    "vehicle break-in attempt",
+    "package theft",
+    "trespassing",
+]
+
+# =============================================================================
+# CLIP Threat Pattern Descriptions (NEM-5525)
+# =============================================================================
+# These text descriptions are compared against the scene via CLIP's
+# /batch-similarity endpoint. High-scoring matches indicate threat patterns
+# that Nemotron should factor into risk assessment (+3-7% precision).
+
+CLIP_THREAT_DESCRIPTIONS: list[str] = [
+    "a person checking door handles",
+    "a person looking through windows",
+    "a person hiding their face from camera",
+    "a person carrying tools near a building",
+    "a delivery person leaving a package",
+    "a person walking a dog",
+    "a vehicle circling a neighborhood",
+    "a person crouching behind a car",
+    "a person attempting to break into a vehicle",
+    "a person stealing a package from a porch",
+]
 
 
 class EnrichmentStatus(str, Enum):
@@ -639,6 +699,17 @@ class EnrichmentResult:
     # These are generated during _run_reid and cached for reuse by downstream services
     # (NEM-5517/5518/5519: Embedding Caching)
     clip_embeddings: dict[str, list[float]] = field(default_factory=dict)
+    # CLIP zero-shot scene classification results (NEM-5525)
+    # Contains {label: score} dict and top_label from CLIP /classify endpoint
+    clip_scene_classification: dict[str, float] | None = None
+    clip_scene_top_label: str | None = None
+    # CLIP batch similarity threat pattern matching results (NEM-5525)
+    # Contains {threat_description: similarity_score} from CLIP /batch-similarity endpoint
+    clip_threat_matches: dict[str, float] | None = None
+    # CLIP visual anomaly detection score (NEM-5525)
+    # Anomaly score (0-1) comparing current frame against per-camera baseline embedding
+    clip_anomaly_score: float | None = None
+    clip_anomaly_similarity: float | None = None
     errors: list[str] = field(default_factory=list)
     structured_errors: list[EnrichmentError] = field(default_factory=list)
     processing_time_ms: float = 0.0
@@ -647,6 +718,14 @@ class EnrichmentResult:
     is_indoor_camera: bool = False  # Whether this is an indoor camera (weather N/A)
     event_timestamp: datetime | None = None  # Timestamp of the event for nighttime detection
     time_of_day: str | None = None  # Optional time context (dawn, dusk, etc.)
+    # Trajectory analysis results (NEM-5532)
+    # Keyed by track_id (int) for per-detection trajectory context
+    trajectory_analyses: dict[int, Any] = field(default_factory=dict)  # TrajectoryAnalysis
+
+    @property
+    def has_trajectory_analysis(self) -> bool:
+        """Check if any trajectory analyses are available (NEM-5532)."""
+        return bool(self.trajectory_analyses)
 
     @property
     def has_license_plates(self) -> bool:
@@ -869,6 +948,30 @@ class EnrichmentResult:
     def has_clip_embeddings(self) -> bool:
         """Check if any CLIP embeddings are available (NEM-5517/5518/5519)."""
         return bool(self.clip_embeddings)
+
+    @property
+    def has_clip_scene_classification(self) -> bool:
+        """Check if CLIP scene classification results are available (NEM-5525)."""
+        return self.clip_scene_classification is not None
+
+    @property
+    def has_clip_threat_matches(self) -> bool:
+        """Check if CLIP threat pattern matches are available (NEM-5525)."""
+        return self.clip_threat_matches is not None
+
+    @property
+    def has_clip_anomaly_score(self) -> bool:
+        """Check if CLIP anomaly score is available (NEM-5525)."""
+        return self.clip_anomaly_score is not None
+
+    @property
+    def has_clip_analysis(self) -> bool:
+        """Check if any CLIP analysis results are available (NEM-5525)."""
+        return (
+            self.has_clip_scene_classification
+            or self.has_clip_threat_matches
+            or self.has_clip_anomaly_score
+        )
 
     @property
     def has_weather(self) -> bool:
@@ -2015,8 +2118,9 @@ class EnrichmentPipeline:
                          If provided, frames are buffered per camera and X-CLIP runs on frame sequences
                          (8 frames) for better action recognition. If None, falls back to single-frame.
             redis_client: Redis client for re-id storage (optional)
-            use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
-                                    for vehicle, pet, and clothing classification
+            use_enrichment_service: Use HTTP service at ai-enrichment:8094 / ai-enrichment-light:8096
+                                    instead of local models for vehicle, pet, clothing classification,
+                                    pose estimation, and action recognition
             enrichment_client: Optional EnrichmentClient instance (uses global if not provided)
             reid_service: Optional ReIdentificationService instance with HybridEntityStorage
                          configured. When provided, entities will be persisted to PostgreSQL.
@@ -2068,6 +2172,19 @@ class EnrichmentPipeline:
         self._scene_detector = get_scene_change_detector()
         self._scene_ocr_service = get_scene_ocr_service() if scene_ocr_enabled else None
 
+        # Per-service concurrency semaphores to prevent GPU saturation
+        settings = get_settings()
+        self._florence_semaphore = asyncio.Semaphore(settings.enrichment_florence_concurrency)
+        self._clip_semaphore = asyncio.Semaphore(settings.enrichment_clip_concurrency)
+        self._enrichment_service_semaphore = asyncio.Semaphore(
+            settings.enrichment_service_concurrency
+        )
+        self._pipeline_timeout = settings.enrichment_pipeline_timeout_seconds
+        self._quality_level = settings.enrichment_quality_level
+
+        # Record quality level metric
+        set_enrichment_quality_level(self._quality_level)
+
         logger.info(
             f"EnrichmentPipeline initialized: "
             f"license_plate={license_plate_enabled}, "
@@ -2077,7 +2194,9 @@ class EnrichmentPipeline:
             f"reid={reid_enabled}, "
             f"scene_change={scene_change_enabled}, "
             f"household_matching={household_matching_enabled}, "
-            f"use_enrichment_service={use_enrichment_service}"
+            f"use_enrichment_service={use_enrichment_service}, "
+            f"quality_level={self._quality_level}, "
+            f"pipeline_timeout={self._pipeline_timeout}s"
         )
 
     def _get_enrichment_client(self) -> EnrichmentClient:
@@ -2165,29 +2284,36 @@ class EnrichmentPipeline:
         return error
 
     # ==========================================================================
-    # Phase 4: Parallel Enrichment Architecture (NEM-4234)
+    # Phase 4: Parallel Enrichment Architecture (NEM-4234, NEM-5525 optimized)
     # ==========================================================================
     #
-    # Two-phase parallel execution for reduced latency:
+    # Maximum parallelism with concurrency-limited execution:
     #
-    # Phase 1 (Parallel - asyncio.gather):
-    #   - Face Detection (yolo11-face)
-    #   - License Plate Detection (yolo11-license-plate)
-    #   - Violence Detection (violence-detection)
-    #   - Image Quality (brisque-quality)
-    #   - Weather Classification (weather-classification)
-    #   - Clothing Classification (fashion-clip)
-    #   - Pose Estimation (vitpose-small)
-    #   - Depth Estimation (depth-anything-v2-small)
-    #   - Action Recognition (xclip-base)
-    #   - Vehicle Classification (vehicle-segment-classification)
+    # Super-Phase (ALL run concurrently via asyncio.gather):
+    #   Phase 1 (local models + enrichment services) + Florence-2 Vision Extraction
     #
-    # Phase 2 (After Prerequisites):
-    #   - OCR (paddleocr) -> waits for License Plate Detection
-    #   - Face Re-ID -> waits for Face Detection
+    # Phase 2 (After Phase 1 + Florence complete):
+    #   OCR, Re-ID, Scene Change, Scene OCR Crop (parallel)
     #
-    # This reduces enrichment latency from 60-120s to 15-30s.
+    # Phase 3 (After Phase 2):
+    #   CLIP Anomaly Detection, Household Matching (parallel)
+    #
+    # Adaptive quality levels: full, standard, minimal
     # ==========================================================================
+
+    def _should_run_for_quality(self, tier: str) -> bool:
+        """Check if a model should run based on current quality level.
+
+        Args:
+            tier: The minimum quality tier needed ('minimal', 'standard', 'full')
+
+        Returns:
+            True if the model should run at the current quality level
+        """
+        level_order = {"minimal": 0, "standard": 1, "full": 2}
+        current = level_order.get(self._quality_level, 2)
+        required = level_order.get(tier, 2)
+        return current >= required
 
     async def _run_parallel_enrichment(
         self,
@@ -2197,13 +2323,7 @@ class EnrichmentPipeline:
         images: dict[int | None, Image.Image | Path | str],
         camera_id: str | None,
     ) -> None:
-        """Run Phase 1 enrichment models in parallel, then Phase 2 dependents.
-
-        This method implements the two-phase parallel enrichment architecture
-        to reduce total enrichment latency from 60-120s to 15-30s.
-
-        Phase 1 runs 10 independent models concurrently using asyncio.gather.
-        Phase 2 runs dependent models only after their prerequisites complete.
+        """Run enrichment models with maximum parallelism and concurrency control.
 
         Args:
             result: EnrichmentResult to populate
@@ -2212,40 +2332,53 @@ class EnrichmentPipeline:
             images: Dictionary mapping detection IDs to images
             camera_id: Camera ID for context-dependent operations
         """
-        # Categorize detections by type
         persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
         vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
         animals = [d for d in high_conf_detections if d.class_name in ANIMAL_CLASSES]
 
-        # =====================================================================
-        # Phase 1: Run independent models in parallel
-        # =====================================================================
+        super_phase_start = time.monotonic()
         phase1_tasks: dict[str, Any] = {}
 
-        # Face Detection (persons only)
+        # --- Core detections (minimal quality) ---
         if self.face_detection_enabled and persons:
             phase1_tasks["face_detection"] = self._safe_detect_faces(persons, images)
-
-        # License Plate Detection (vehicles only)
         if self.license_plate_enabled and vehicles:
             phase1_tasks["license_plate_detection"] = self._safe_detect_license_plates(
                 vehicles, images
             )
-
-        # Violence Detection (2+ persons)
         if self.violence_detection_enabled and len(persons) >= 2:
             phase1_tasks["violence_detection"] = self._safe_detect_violence(pil_image)
 
-        # Image Quality (full frame, CPU-based)
-        if self.image_quality_enabled:
+        # --- Threat/Pose/Action (minimal quality) ---
+        if self.pose_estimation_enabled and persons:
+            if self.use_enrichment_service:
+                phase1_tasks["pose_estimation"] = self._estimate_poses_via_service(
+                    persons, pil_image
+                )
+            else:
+                phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
+        if self.action_recognition_enabled and persons:
+            if self.use_enrichment_service:
+                phase1_tasks["action_recognition"] = self._recognize_actions_via_service(
+                    pil_image, camera_id
+                )
+            else:
+                phase1_tasks["action_recognition"] = self._safe_recognize_actions(
+                    pil_image, camera_id
+                )
+        if self.use_enrichment_service and persons:
+            phase1_tasks["threat_detection"] = self._detect_threats_via_service(pil_image)
+
+        # --- Standard quality models ---
+        if self.image_quality_enabled and self._should_run_for_quality("standard"):
             phase1_tasks["image_quality"] = self._safe_assess_image_quality(pil_image, camera_id)
-
-        # Weather Classification (full frame)
-        if self.weather_classification_enabled:
+        if self.weather_classification_enabled and self._should_run_for_quality("standard"):
             phase1_tasks["weather_classification"] = self._safe_classify_weather(pil_image)
-
-        # Clothing Classification (persons only)
-        if self.clothing_classification_enabled and persons:
+        if (
+            self.clothing_classification_enabled
+            and persons
+            and self._should_run_for_quality("standard")
+        ):
             if self.use_enrichment_service:
                 phase1_tasks["clothing_classification"] = self._classify_clothing_via_service(
                     persons, pil_image
@@ -2254,23 +2387,19 @@ class EnrichmentPipeline:
                 phase1_tasks["clothing_classification"] = self._safe_classify_person_clothing(
                     persons, pil_image
                 )
-
-        # Pose Estimation (persons only)
-        if self.pose_estimation_enabled and persons:
-            phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
-
-        # Depth Estimation (all detections)
-        if self.depth_estimation_enabled and high_conf_detections:
+        if (
+            self.depth_estimation_enabled
+            and high_conf_detections
+            and self._should_run_for_quality("standard")
+        ):
             phase1_tasks["depth_estimation"] = self._safe_analyze_depth(
                 high_conf_detections, pil_image
             )
-
-        # Action Recognition (persons only)
-        if self.action_recognition_enabled and persons:
-            phase1_tasks["action_recognition"] = self._safe_recognize_actions(pil_image, camera_id)
-
-        # Vehicle Classification (vehicles only)
-        if self.vehicle_classification_enabled and vehicles:
+        if (
+            self.vehicle_classification_enabled
+            and vehicles
+            and self._should_run_for_quality("standard")
+        ):
             if self.use_enrichment_service:
                 phase1_tasks["vehicle_classification"] = self._classify_vehicle_via_service(
                     vehicles, pil_image
@@ -2279,120 +2408,210 @@ class EnrichmentPipeline:
                 phase1_tasks["vehicle_classification"] = self._safe_classify_vehicle_types(
                     vehicles, pil_image
                 )
-
-        # Vehicle Damage Detection (vehicles only)
-        if self.vehicle_damage_detection_enabled and vehicles:
+        if (
+            self.vehicle_damage_detection_enabled
+            and vehicles
+            and self._should_run_for_quality("standard")
+        ):
             phase1_tasks["vehicle_damage"] = self._safe_detect_vehicle_damage(vehicles, pil_image)
-
-        # Pet Classification (animals only)
-        if self.pet_classification_enabled and animals:
+        if self.pet_classification_enabled and animals and self._should_run_for_quality("standard"):
             if self.use_enrichment_service:
                 phase1_tasks["pet_classification"] = self._classify_pets_via_service(
                     animals, pil_image
                 )
             else:
                 phase1_tasks["pet_classification"] = self._safe_classify_pets(animals, pil_image)
+        if self.use_enrichment_service and persons and self._should_run_for_quality("standard"):
+            phase1_tasks["demographics"] = self._analyze_demographics_via_service(
+                persons, pil_image
+            )
+        if self.scene_ocr_enabled and self._should_run_for_quality("standard"):
+            phase1_tasks["scene_ocr_frame"] = self._safe_run_scene_ocr_frame(pil_image)
 
-        # Clothing Segmentation (persons only)
-        if self.clothing_segmentation_enabled and persons:
+        # --- Full quality models ---
+        if self.clothing_segmentation_enabled and persons and self._should_run_for_quality("full"):
             phase1_tasks["clothing_segmentation"] = self._safe_segment_person_clothing(
                 persons, pil_image
             )
+        if self.reid_enabled and self._should_run_for_quality("full"):
+            phase1_tasks["clip_scene_classification"] = self._safe_clip_scene_classify(pil_image)
+        if self.reid_enabled and self._should_run_for_quality("full"):
+            phase1_tasks["clip_threat_matching"] = self._safe_clip_threat_match(pil_image)
 
-        # Scene OCR - Full Frame (Phase 1, runs in parallel)
-        # Extracts text from signs, house numbers, etc.
-        if self.scene_ocr_enabled:
-            phase1_tasks["scene_ocr_frame"] = self._safe_run_scene_ocr_frame(pil_image)
+        # Florence-2 Vision Extraction (runs IN PARALLEL with Phase 1)
+        florence_task = None
+        if (
+            self.vision_extraction_enabled
+            and pil_image
+            and self._should_run_for_quality("standard")
+        ):
+            det_dicts = [
+                {
+                    "class_name": d.class_name,
+                    "confidence": d.confidence,
+                    "bbox": d.bbox.to_tuple() if d.bbox else None,
+                    "detection_id": str(d.id) if d.id else str(i),
+                }
+                for i, d in enumerate(high_conf_detections)
+            ]
+            florence_task = self._vision_extractor.extract_batch_attributes(pil_image, det_dicts)
 
-        # Execute Phase 1 tasks in parallel
-        if phase1_tasks:
+        # Execute Super-Phase: Phase 1 + Florence-2 concurrently
+        phase1_start = time.monotonic()
+        if phase1_tasks or florence_task:
+            all_super_tasks: list[Any] = []
             phase1_keys = list(phase1_tasks.keys())
-            phase1_results = await asyncio.gather(
-                *phase1_tasks.values(),
-                return_exceptions=True,
+            all_super_tasks.extend(phase1_tasks.values())
+
+            # NEM-5525: Span event for super-phase parallel execution
+            add_span_event(
+                "enrichment_pipeline.super_phase_start",
+                {
+                    "phase1_task.count": len(phase1_keys),
+                    "phase1_tasks": ", ".join(phase1_keys),
+                    "florence_enabled": florence_task is not None,
+                    "use_enrichment_service": self.use_enrichment_service,
+                },
             )
+            if florence_task:
+                all_super_tasks.append(florence_task)
 
-            # Process Phase 1 results
-            phase1_dict = dict(zip(phase1_keys, phase1_results, strict=True))
-            self._process_phase1_results(result, phase1_dict)
+            super_results = await asyncio.gather(*all_super_tasks, return_exceptions=True)
 
-        # =====================================================================
-        # Phase 2: Run dependent models after prerequisites
-        # =====================================================================
+            phase1_count = len(phase1_keys)
+            phase1_results_list = super_results[:phase1_count]
+            florence_result = super_results[phase1_count] if florence_task else None
 
-        # OCR: Depends on License Plate Detection
+            if phase1_keys:
+                phase1_dict = dict(zip(phase1_keys, phase1_results_list, strict=True))
+                self._process_phase1_results(result, phase1_dict)
+
+            if florence_task:
+                if isinstance(florence_result, Exception):
+                    self._handle_enrichment_error("vision_extraction", florence_result, result)
+                elif florence_result is not None:
+                    result.vision_extraction = florence_result  # type: ignore[assignment]
+
+        phase1_duration = time.monotonic() - phase1_start
+        observe_enrichment_pipeline_stage("phase1_and_florence", phase1_duration)
+
+        # NEM-5525: Span event for super-phase completion
+        add_span_event(
+            "enrichment_pipeline.super_phase_complete",
+            {
+                "phase1_task.count": len(phase1_tasks),
+                "florence_enabled": florence_task is not None,
+                "duration_ms": int(phase1_duration * 1000),
+            },
+        )
+        logger.debug(
+            f"Phase 1 + Florence completed in {phase1_duration:.2f}s "
+            f"({len(phase1_tasks)} phase1 tasks{' + florence' if florence_task else ''})"
+        )
+
+        # Phase 2: Run dependent models in parallel
+        phase2_start = time.monotonic()
+        phase2_tasks: dict[str, Any] = {}
+
         if self.ocr_enabled and result.license_plates:
-            try:
+
+            async def _ocr_task() -> None:
                 await self._read_plates(result.license_plates, images)
-            except Exception as e:
-                self._handle_enrichment_error("ocr", e, result)
 
-        # Vision Extraction (Florence-2) - runs after Phase 1 for complete context
-        if self.vision_extraction_enabled and pil_image:
-            try:
-                det_dicts = [
-                    {
-                        "class_name": d.class_name,
-                        "confidence": d.confidence,
-                        "bbox": d.bbox.to_tuple() if d.bbox else None,
-                        "detection_id": str(d.id) if d.id else str(i),
-                    }
-                    for i, d in enumerate(high_conf_detections)
-                ]
-                result.vision_extraction = await self._vision_extractor.extract_batch_attributes(
-                    pil_image, det_dicts
-                )
-            except Exception as e:
-                self._handle_enrichment_error("vision_extraction", e, result)
+            phase2_tasks["ocr"] = _ocr_task()
 
-        # Re-ID: Depends on having face/person detections
-        if self.reid_enabled and self.redis_client and pil_image:
-            try:
-                await self._run_reid(high_conf_detections, pil_image, camera_id, result)
-            except Exception as e:
-                self._handle_enrichment_error("re_identification", e, result)
+        if self.reid_enabled and pil_image:
+            if self.use_enrichment_service:
 
-        # Scene Change Detection
+                async def _reid_svc_task() -> None:
+                    await self._compute_reid_via_service(high_conf_detections, pil_image, result)
+
+                phase2_tasks["re_identification"] = _reid_svc_task()
+            elif self.redis_client:
+
+                async def _reid_local_task() -> None:
+                    await self._run_reid(high_conf_detections, pil_image, camera_id, result)
+
+                phase2_tasks["re_identification"] = _reid_local_task()
+
         if self.scene_change_enabled and camera_id and pil_image:
-            try:
+
+            async def _scene_change_task() -> None:
                 import numpy as np
 
                 frame_array = np.array(pil_image)
                 result.scene_change = self._scene_detector.detect_changes(camera_id, frame_array)
-            except Exception as e:
-                self._handle_enrichment_error("scene_change_detection", e, result)
 
-        # Household Matching: Depends on person embeddings
-        if self.household_matching_enabled:
-            try:
-                await self._run_household_matching(high_conf_detections, result)
-            except Exception as e:
-                self._handle_enrichment_error("household_matching", e, result)
+            phase2_tasks["scene_change_detection"] = _scene_change_task()
 
-        # Scene OCR - Crop OCR (Phase 2, needs detections)
-        # Processes person/vehicle/package crops for uniform/vehicle text
-        if self.scene_ocr_enabled and high_conf_detections:
-            try:
-                # Get the frame-only result from Phase 1 (if available)
+        if (
+            self.scene_ocr_enabled
+            and high_conf_detections
+            and self._should_run_for_quality("standard")
+        ):
+
+            async def _scene_ocr_crop_task() -> None:
                 frame_ocr_result = result.scene_ocr
-                # Run crop OCR and merge with frame results
                 result.scene_ocr = await self._safe_run_scene_ocr_crops(
                     pil_image, high_conf_detections, frame_ocr_result
                 )
-                # Log scene OCR stats
-                if result.scene_ocr:
-                    scene_text_count = len(result.scene_ocr.scene_texts)
-                    detection_ocr_count = len(result.scene_ocr.detection_ocr)
-                    service_match_count = sum(
-                        1 for d in result.scene_ocr.detection_ocr.values() if d.service_match
-                    )
-                    logger.debug(
-                        f"Scene OCR complete: {scene_text_count} scene texts, "
-                        f"{detection_ocr_count} detection OCRs, "
-                        f"{service_match_count} service matches"
-                    )
-            except Exception as e:
-                self._handle_enrichment_error("scene_ocr", e, result)
+
+            phase2_tasks["scene_ocr_crop"] = _scene_ocr_crop_task()
+
+        if phase2_tasks:
+            phase2_keys = list(phase2_tasks.keys())
+            phase2_results = await asyncio.gather(*phase2_tasks.values(), return_exceptions=True)
+            for key, phase2_result in zip(phase2_keys, phase2_results, strict=True):
+                if isinstance(phase2_result, Exception):
+                    self._handle_enrichment_error(key, phase2_result, result)
+
+        phase2_duration = time.monotonic() - phase2_start
+        observe_enrichment_pipeline_stage("phase2", phase2_duration)
+
+        # Phase 3: Post-Phase 2 dependents
+        phase3_start = time.monotonic()
+        phase3_tasks: dict[str, Any] = {}
+
+        if (
+            self.reid_enabled
+            and pil_image
+            and camera_id
+            and self.redis_client
+            and self._should_run_for_quality("full")
+        ):
+
+            async def _clip_anomaly_task() -> None:
+                await self._run_clip_anomaly_detection(pil_image, camera_id, result)
+
+            phase3_tasks["clip_anomaly_detection"] = _clip_anomaly_task()
+
+        if self.household_matching_enabled and self._should_run_for_quality("standard"):
+
+            async def _household_task() -> None:
+                await self._run_household_matching(high_conf_detections, result)
+
+            phase3_tasks["household_matching"] = _household_task()
+
+        if phase3_tasks:
+            phase3_keys = list(phase3_tasks.keys())
+            phase3_results = await asyncio.gather(*phase3_tasks.values(), return_exceptions=True)
+            for key, phase3_result in zip(phase3_keys, phase3_results, strict=True):
+                if isinstance(phase3_result, Exception):
+                    self._handle_enrichment_error(key, phase3_result, result)
+
+        phase3_duration = time.monotonic() - phase3_start
+        observe_enrichment_pipeline_stage("phase3", phase3_duration)
+
+        total_duration = time.monotonic() - super_phase_start
+        observe_enrichment_pipeline_stage("total", total_duration)
+        logger.info(
+            f"Enrichment pipeline timing: "
+            f"phase1+florence={phase1_duration:.2f}s, "
+            f"phase2={phase2_duration:.2f}s, "
+            f"phase3={phase3_duration:.2f}s, "
+            f"total={total_duration:.2f}s, "
+            f"quality={self._quality_level}"
+        )
 
     def _process_phase1_results(
         self,
@@ -2523,6 +2742,45 @@ class EnrichmentPipeline:
             elif ocr_frame_result:
                 # Store partial result; Phase 2 will complete with crop OCR
                 result.scene_ocr = ocr_frame_result
+
+        # Threat Detection (via enrichment-light service)
+        if "threat_detection" in phase1_dict:
+            threat_result = phase1_dict["threat_detection"]
+            if isinstance(threat_result, Exception):
+                self._handle_enrichment_error("threat_detection", threat_result, result)
+            elif threat_result:
+                result.threat_detection = threat_result
+
+        # Demographics Analysis (via heavy enrichment service)
+        if "demographics" in phase1_dict:
+            demo_result = phase1_dict["demographics"]
+            if isinstance(demo_result, Exception):
+                self._handle_enrichment_error("demographics", demo_result, result)
+            elif demo_result:
+                # Unpack tuple of (age_classifications, gender_classifications)
+                age_cls, gender_cls = demo_result
+                if age_cls:
+                    result.age_classifications = age_cls
+                if gender_cls:
+                    result.gender_classifications = gender_cls
+
+        # CLIP Scene Classification (NEM-5525)
+        if "clip_scene_classification" in phase1_dict:
+            classify_result = phase1_dict["clip_scene_classification"]
+            if isinstance(classify_result, Exception):
+                self._handle_enrichment_error("clip_scene_classification", classify_result, result)
+            elif classify_result:
+                scores, top_label = classify_result
+                result.clip_scene_classification = scores
+                result.clip_scene_top_label = top_label
+
+        # CLIP Threat Pattern Matching (NEM-5525)
+        if "clip_threat_matching" in phase1_dict:
+            threat_result = phase1_dict["clip_threat_matching"]
+            if isinstance(threat_result, Exception):
+                self._handle_enrichment_error("clip_threat_matching", threat_result, result)
+            elif threat_result:
+                result.clip_threat_matches = threat_result
 
     # ==========================================================================
     # Safe wrapper methods for Phase 1 parallel execution
@@ -2714,6 +2972,202 @@ class EnrichmentPipeline:
             # Return the frame-only results if we have them
             return frame_ocr_result
 
+    # ==========================================================================
+    # CLIP Analysis Methods (NEM-5525)
+    # ==========================================================================
+
+    async def _safe_clip_scene_classify(
+        self,
+        image: Image.Image,
+    ) -> tuple[dict[str, float], str] | None:
+        """Classify the scene using CLIP zero-shot classification with surveillance labels.
+
+        Runs CLIP /classify with surveillance-relevant labels to provide scene-level
+        context for Nemotron threat analysis. Expected to improve accuracy by 5-10%.
+
+        Args:
+            image: Full frame PIL Image
+
+        Returns:
+            Tuple of (scores dict, top_label), or None on error
+        """
+        record_enrichment_model_call("clip-scene-classify")
+        start_time = time.perf_counter()
+        try:
+            from backend.services.clip_client import get_clip_client
+
+            clip_client = get_clip_client()
+            scores, top_label = await clip_client.classify(image, CLIP_SCENE_LABELS)
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("clip-scene-classify", duration)
+            logger.debug(
+                f"CLIP scene classification: top='{top_label}' ({scores.get(top_label, 0):.2f})",
+                extra={
+                    "service": "clip-scene-classify",
+                    "duration_ms": int(duration * 1000),
+                    "top_label": top_label,
+                },
+            )
+            return scores, top_label
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("clip-scene-classify", duration)
+            record_enrichment_model_error("clip-scene-classify")
+            logger.warning(
+                f"CLIP scene classification failed: {e}",
+                extra={
+                    "service": "clip-scene-classify",
+                    "error_type": type(e).__name__,
+                    "duration_ms": int(duration * 1000),
+                },
+            )
+            return None
+
+    async def _safe_clip_threat_match(
+        self,
+        image: Image.Image,
+    ) -> dict[str, float] | None:
+        """Match the scene against threat description patterns using CLIP batch similarity.
+
+        Runs CLIP /batch-similarity with a library of threat description texts.
+        High-scoring matches indicate visual similarity to known threat patterns.
+        Expected to improve precision by 3-7%.
+
+        Args:
+            image: Full frame PIL Image
+
+        Returns:
+            Dictionary mapping threat descriptions to similarity scores, or None on error
+        """
+        record_enrichment_model_call("clip-threat-match")
+        start_time = time.perf_counter()
+        try:
+            from backend.services.clip_client import get_clip_client
+
+            clip_client = get_clip_client()
+            similarities = await clip_client.batch_similarity(image, CLIP_THREAT_DESCRIPTIONS)
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("clip-threat-match", duration)
+            # Log top matches for debugging
+            if similarities:
+                top_matches = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:3]
+                top_str = ", ".join(f"'{desc}' ({score:.2f})" for desc, score in top_matches)
+                logger.debug(
+                    f"CLIP threat matches (top 3): {top_str}",
+                    extra={
+                        "service": "clip-threat-match",
+                        "duration_ms": int(duration * 1000),
+                        "match_count": len(similarities),
+                    },
+                )
+            return similarities
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("clip-threat-match", duration)
+            record_enrichment_model_error("clip-threat-match")
+            logger.warning(
+                f"CLIP threat matching failed: {e}",
+                extra={
+                    "service": "clip-threat-match",
+                    "error_type": type(e).__name__,
+                    "duration_ms": int(duration * 1000),
+                },
+            )
+            return None
+
+    async def _run_clip_anomaly_detection(
+        self,
+        image: Image.Image,
+        camera_id: str,
+        result: EnrichmentResult,
+    ) -> None:
+        """Run CLIP visual anomaly detection by comparing against per-camera baseline.
+
+        Uses the SceneBaselineService to compare the current frame against
+        a stored baseline embedding for the camera. Also updates the baseline
+        when the scene is normal (low anomaly score).
+
+        Expected to improve recall by 2-5%.
+
+        Args:
+            image: Full frame PIL Image
+            camera_id: Camera identifier for baseline lookup
+            result: EnrichmentResult to populate with anomaly score
+        """
+        record_enrichment_model_call("clip-anomaly-detect")
+        start_time = time.perf_counter()
+        try:
+            from backend.services.clip_client import get_clip_client
+            from backend.services.scene_baseline import (
+                BaselineNotFoundError,
+                get_scene_baseline_service,
+            )
+
+            clip_client = get_clip_client()
+            baseline_service = get_scene_baseline_service(self.redis_client, clip_client)  # type: ignore[arg-type]
+
+            # Check if baseline exists for this camera
+            has_baseline = await baseline_service.has_baseline(camera_id)
+
+            if has_baseline:
+                # Compute anomaly score against baseline
+                anomaly_score, similarity = await baseline_service.get_anomaly_score(
+                    camera_id, image
+                )
+                result.clip_anomaly_score = anomaly_score
+                result.clip_anomaly_similarity = similarity
+
+                observe_enrichment_model_duration(
+                    "clip-anomaly-detect", time.perf_counter() - start_time
+                )
+                logger.debug(
+                    f"CLIP anomaly detection for camera={camera_id}: "
+                    f"score={anomaly_score:.3f}, similarity={similarity:.3f}",
+                    extra={
+                        "service": "clip-anomaly-detect",
+                        "camera_id": camera_id,
+                        "anomaly_score": anomaly_score,
+                    },
+                )
+
+                # Update baseline with current frame if scene is normal
+                # (anomaly score < 0.3 indicates a normal scene)
+                if anomaly_score < 0.3:
+                    await baseline_service.update_baseline_from_image(camera_id, image)
+            else:
+                observe_enrichment_model_duration(
+                    "clip-anomaly-detect", time.perf_counter() - start_time
+                )
+                # No baseline yet - initialize with current frame
+                logger.info(
+                    f"No CLIP baseline for camera={camera_id}, initializing with current frame",
+                    extra={"service": "clip-anomaly-detect", "camera_id": camera_id},
+                )
+                await baseline_service.update_baseline_from_image(camera_id, image)
+                # Skip anomaly scoring on first frame (no reference point)
+
+        except BaselineNotFoundError:
+            observe_enrichment_model_duration(
+                "clip-anomaly-detect", time.perf_counter() - start_time
+            )
+            logger.debug(
+                f"No CLIP baseline for camera={camera_id}, skipping anomaly detection",
+                extra={"service": "clip-anomaly-detect", "camera_id": camera_id},
+            )
+        except Exception as e:
+            observe_enrichment_model_duration(
+                "clip-anomaly-detect", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("clip-anomaly-detect")
+            logger.warning(
+                f"CLIP anomaly detection failed for camera={camera_id}: {e}",
+                extra={
+                    "service": "clip-anomaly-detect",
+                    "camera_id": camera_id,
+                    "error_type": type(e).__name__,
+                },
+            )
+
     async def _classify_vehicle_via_service(
         self,
         vehicles: list[DetectionInput],
@@ -2734,9 +3188,11 @@ class EnrichmentPipeline:
             return results
 
         client = self._get_enrichment_client()
+        record_enrichment_model_call("vehicle-via-service")
 
         for i, vehicle in enumerate(vehicles):
             det_id = str(vehicle.id) if vehicle.id else str(i)
+            start_time = time.perf_counter()
 
             try:
                 # Crop vehicle from full frame
@@ -2747,6 +3203,9 @@ class EnrichmentPipeline:
                 # Call remote service
                 bbox_tuple = vehicle.bbox.to_tuple() if vehicle.bbox else None
                 remote_result = await client.classify_vehicle(vehicle_crop, bbox_tuple)
+
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("vehicle-via-service", duration)
 
                 if remote_result:
                     # Convert remote result to local VehicleClassificationResult
@@ -2761,7 +3220,12 @@ class EnrichmentPipeline:
 
                     logger.debug(
                         f"Vehicle {det_id} type (via service): {remote_result.vehicle_type} "
-                        f"({remote_result.confidence:.0%})"
+                        f"({remote_result.confidence:.0%})",
+                        extra={
+                            "service": "vehicle-via-service",
+                            "detection_id": det_id,
+                            "duration_ms": int(duration * 1000),
+                        },
                     )
 
             except (
@@ -2769,38 +3233,69 @@ class EnrichmentPipeline:
                 httpx.TimeoutException,
                 EnrichmentUnavailableError,
             ) as e:
-                # Transient error - log warning, continue to next vehicle
+                observe_enrichment_model_duration(
+                    "vehicle-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("vehicle-via-service")
                 logger.warning(
                     f"Enrichment service unavailable for vehicle {det_id}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    extra={
+                        "service": "vehicle-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                 )
             except httpx.HTTPStatusError as e:
+                observe_enrichment_model_duration(
+                    "vehicle-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("vehicle-via-service")
                 status_code = e.response.status_code
                 if 400 <= status_code < 500:
-                    # Client error - likely a bug, log with traceback
                     logger.error(
                         f"Vehicle classification client error for {det_id} (HTTP {status_code})",
-                        extra={"detection_id": det_id, "status_code": status_code},
+                        extra={
+                            "service": "vehicle-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
                         exc_info=True,
                     )
                 else:
-                    # Server error - transient, log warning
                     logger.warning(
                         f"Vehicle classification server error for {det_id} (HTTP {status_code})",
-                        extra={"detection_id": det_id, "status_code": status_code},
+                        extra={
+                            "service": "vehicle-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
                     )
             except (ValueError, KeyError, TypeError) as e:
-                # Parse error - log with details
+                observe_enrichment_model_duration(
+                    "vehicle-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("vehicle-via-service")
                 logger.error(
                     f"Vehicle classification parse error for {det_id}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    extra={
+                        "service": "vehicle-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                     exc_info=True,
                 )
             except Exception as e:
-                # Unexpected error - log with full details
+                observe_enrichment_model_duration(
+                    "vehicle-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("vehicle-via-service")
                 logger.error(
                     f"Vehicle classification unexpected error for {det_id}: {sanitize_error(e)}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    extra={
+                        "service": "vehicle-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                     exc_info=True,
                 )
 
@@ -2826,72 +3321,105 @@ class EnrichmentPipeline:
             return results
 
         client = self._get_enrichment_client()
+        record_enrichment_model_call("pet-via-service")
 
         for i, animal in enumerate(animals):
             det_id = str(animal.id) if animal.id else str(i)
+            start_time = time.perf_counter()
 
             try:
-                # Crop animal from full frame
                 animal_crop = await self._crop_to_bbox(image, animal.bbox)
                 if animal_crop is None:
                     continue
 
-                # Call remote service
                 bbox_tuple = animal.bbox.to_tuple() if animal.bbox else None
                 remote_result = await client.classify_pet(animal_crop, bbox_tuple)
 
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("pet-via-service", duration)
+
                 if remote_result:
-                    # Convert remote result to local PetClassificationResult
                     results[det_id] = PetClassificationResult(
                         animal_type=remote_result.pet_type,
                         confidence=remote_result.confidence,
-                        cat_score=0.0,  # Remote service doesn't return raw scores
+                        cat_score=0.0,
                         dog_score=0.0,
                         is_household_pet=remote_result.is_household_pet,
                     )
-
                     logger.debug(
                         f"Animal {det_id} classified (via service) as {remote_result.pet_type} "
-                        f"({remote_result.confidence:.0%} confidence)"
+                        f"({remote_result.confidence:.0%} confidence)",
+                        extra={
+                            "service": "pet-via-service",
+                            "detection_id": det_id,
+                            "duration_ms": int(duration * 1000),
+                        },
                     )
 
-            except (
-                httpx.ConnectError,
-                httpx.TimeoutException,
-                EnrichmentUnavailableError,
-            ) as e:
-                # Transient error - log warning, continue to next animal
+            except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+                observe_enrichment_model_duration(
+                    "pet-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pet-via-service")
                 logger.warning(
                     f"Enrichment service unavailable for animal {det_id}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    extra={
+                        "service": "pet-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                 )
             except httpx.HTTPStatusError as e:
+                observe_enrichment_model_duration(
+                    "pet-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pet-via-service")
                 status_code = e.response.status_code
                 if 400 <= status_code < 500:
-                    # Client error - likely a bug
                     logger.error(
                         f"Pet classification client error for {det_id} (HTTP {status_code})",
-                        extra={"detection_id": det_id, "status_code": status_code},
+                        extra={
+                            "service": "pet-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
                         exc_info=True,
                     )
                 else:
-                    # Server error - transient
                     logger.warning(
                         f"Pet classification server error for {det_id} (HTTP {status_code})",
-                        extra={"detection_id": det_id, "status_code": status_code},
+                        extra={
+                            "service": "pet-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
                     )
             except (ValueError, KeyError, TypeError) as e:
-                # Parse error
+                observe_enrichment_model_duration(
+                    "pet-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pet-via-service")
                 logger.error(
                     f"Pet classification parse error for {det_id}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    extra={
+                        "service": "pet-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                     exc_info=True,
                 )
             except Exception as e:
-                # Unexpected error
+                observe_enrichment_model_duration(
+                    "pet-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pet-via-service")
                 logger.error(
                     f"Pet classification unexpected error for {det_id}: {sanitize_error(e)}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    extra={
+                        "service": "pet-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                     exc_info=True,
                 )
 
@@ -3149,9 +3677,139 @@ class EnrichmentPipeline:
             return results
 
         client = self._get_enrichment_client()
+        record_enrichment_model_call("clothing-via-service")
 
         for i, person in enumerate(persons):
             det_id = str(person.id) if person.id else str(i)
+            start_time = time.perf_counter()
+
+            try:
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result = await client.classify_clothing(person_crop, bbox_tuple)
+
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("clothing-via-service", duration)
+
+                if remote_result:
+                    results[det_id] = ClothingClassification(
+                        top_category=remote_result.top_category,
+                        confidence=remote_result.confidence,
+                        all_scores={},
+                        is_suspicious=remote_result.is_suspicious,
+                        is_service_uniform=remote_result.is_service_uniform,
+                        raw_description=remote_result.description,
+                    )
+                    logger.debug(
+                        f"Person {det_id} clothing (via service): {remote_result.description} "
+                        f"({remote_result.confidence:.0%})",
+                        extra={
+                            "service": "clothing-via-service",
+                            "detection_id": det_id,
+                            "duration_ms": int(duration * 1000),
+                        },
+                    )
+
+            except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+                observe_enrichment_model_duration(
+                    "clothing-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("clothing-via-service")
+                logger.warning(
+                    f"Enrichment service unavailable for person {det_id}",
+                    extra={
+                        "service": "clothing-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                )
+            except httpx.HTTPStatusError as e:
+                observe_enrichment_model_duration(
+                    "clothing-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("clothing-via-service")
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    logger.error(
+                        f"Clothing classification client error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "clothing-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
+                        exc_info=True,
+                    )
+                else:
+                    logger.warning(
+                        f"Clothing classification server error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "clothing-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                observe_enrichment_model_duration(
+                    "clothing-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("clothing-via-service")
+                logger.error(
+                    f"Clothing classification parse error for {det_id}",
+                    extra={
+                        "service": "clothing-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                    exc_info=True,
+                )
+            except Exception as e:
+                observe_enrichment_model_duration(
+                    "clothing-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("clothing-via-service")
+                logger.error(
+                    f"Clothing classification unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={
+                        "service": "clothing-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                    exc_info=True,
+                )
+
+        return results
+
+    async def _estimate_poses_via_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PoseResult]:
+        """Estimate poses using the remote enrichment HTTP service.
+
+        Routes to the appropriate service (heavy or light) based on
+        ENRICHMENT_POSE_SERVICE configuration.
+
+        Args:
+            persons: List of person detections with bounding boxes
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to PoseResult
+        """
+        results: dict[str, PoseResult] = {}
+
+        if not persons:
+            return results
+
+        client = self._get_enrichment_client()
+        record_enrichment_model_call("pose-via-service")
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+            start_time = time.perf_counter()
 
             try:
                 # Crop person from full frame
@@ -3161,65 +3819,640 @@ class EnrichmentPipeline:
 
                 # Call remote service
                 bbox_tuple = person.bbox.to_tuple() if person.bbox else None
-                remote_result = await client.classify_clothing(person_crop, bbox_tuple)
+                remote_result: RemotePoseResult | None = await client.analyze_pose(
+                    person_crop, bbox_tuple
+                )
+
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("pose-via-service", duration)
 
                 if remote_result:
-                    # Convert remote result to local ClothingClassification
-                    results[det_id] = ClothingClassification(
-                        top_category=remote_result.top_category,
-                        confidence=remote_result.confidence,
-                        all_scores={},  # Remote service only returns top category
-                        is_suspicious=remote_result.is_suspicious,
-                        is_service_uniform=remote_result.is_service_uniform,
-                        raw_description=remote_result.description,
+                    # Convert remote PoseAnalysisResult to local PoseResult
+                    # Remote keypoints are a list of KeypointData; local expects dict[str, Keypoint]
+                    keypoints_dict: dict[str, Keypoint] = {}
+                    for kp in remote_result.keypoints:
+                        keypoints_dict[kp.name] = Keypoint(
+                            x=kp.x,
+                            y=kp.y,
+                            confidence=kp.confidence,
+                            name=kp.name,
+                        )
+
+                    # Map posture to pose_class and compute confidence from keypoints
+                    avg_confidence = (
+                        sum(kp.confidence for kp in remote_result.keypoints)
+                        / len(remote_result.keypoints)
+                        if remote_result.keypoints
+                        else 0.0
+                    )
+
+                    results[det_id] = PoseResult(
+                        keypoints=keypoints_dict,
+                        pose_class=remote_result.posture,
+                        pose_confidence=avg_confidence,
+                        bbox=list(bbox_tuple) if bbox_tuple else None,
                     )
 
                     logger.debug(
-                        f"Person {det_id} clothing (via service): {remote_result.description} "
-                        f"({remote_result.confidence:.0%})"
+                        f"Person {det_id} pose (via service): {remote_result.posture} "
+                        f"({avg_confidence:.0%} confidence, {len(remote_result.keypoints)} keypoints)",
+                        extra={
+                            "service": "pose-via-service",
+                            "detection_id": det_id,
+                            "duration_ms": int(duration * 1000),
+                        },
                     )
 
-            except (
-                httpx.ConnectError,
-                httpx.TimeoutException,
-                EnrichmentUnavailableError,
-            ) as e:
-                # Transient error - log warning, continue to next person
+            except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+                observe_enrichment_model_duration(
+                    "pose-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pose-via-service")
                 logger.warning(
-                    f"Enrichment service unavailable for person {det_id}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    f"Enrichment service unavailable for pose estimation {det_id}",
+                    extra={
+                        "service": "pose-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                 )
             except httpx.HTTPStatusError as e:
+                observe_enrichment_model_duration(
+                    "pose-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pose-via-service")
                 status_code = e.response.status_code
                 if 400 <= status_code < 500:
-                    # Client error - likely a bug
                     logger.error(
-                        f"Clothing classification client error for {det_id} (HTTP {status_code})",
-                        extra={"detection_id": det_id, "status_code": status_code},
+                        f"Pose estimation client error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "pose-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
                         exc_info=True,
                     )
                 else:
-                    # Server error - transient
                     logger.warning(
-                        f"Clothing classification server error for {det_id} (HTTP {status_code})",
-                        extra={"detection_id": det_id, "status_code": status_code},
+                        f"Pose estimation server error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "pose-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
                     )
             except (ValueError, KeyError, TypeError) as e:
-                # Parse error
+                observe_enrichment_model_duration(
+                    "pose-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pose-via-service")
                 logger.error(
-                    f"Clothing classification parse error for {det_id}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    f"Pose estimation parse error for {det_id}",
+                    extra={
+                        "service": "pose-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                     exc_info=True,
                 )
             except Exception as e:
-                # Unexpected error
+                observe_enrichment_model_duration(
+                    "pose-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("pose-via-service")
                 logger.error(
-                    f"Clothing classification unexpected error for {det_id}: {sanitize_error(e)}",
-                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    f"Pose estimation unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={
+                        "service": "pose-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
                     exc_info=True,
                 )
 
         return results
+
+    async def _recognize_actions_via_service(  # noqa: PLR0911
+        self,
+        image: Image.Image,
+        camera_id: str | None,
+    ) -> dict[str, Any] | None:
+        """Recognize actions using the remote enrichment HTTP service.
+
+        Routes to the appropriate service (heavy or light) based on
+        ENRICHMENT_ACTION_SERVICE configuration. Collects frames from
+        the frame buffer (if available) for temporal action recognition.
+
+        Args:
+            image: Full frame image (current frame)
+            camera_id: Camera ID for looking up buffered frames
+
+        Returns:
+            Dictionary with detected_action, confidence, top_actions, all_scores
+            or None if recognition fails
+        """
+        # Collect frames for temporal analysis (same as local path)
+        frames = await self._get_action_frames(camera_id, image)
+        if not frames:
+            return None
+
+        client = self._get_enrichment_client()
+        record_enrichment_model_call("action-via-service")
+        start_time = time.perf_counter()
+
+        try:
+            # Call remote service with frame sequence
+            remote_result: RemoteActionResult | None = await client.classify_action(frames)
+
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("action-via-service", duration)
+
+            if remote_result:
+                # Convert remote ActionClassificationResult to local dict format
+                # that matches the output of xclip_loader.classify_actions()
+                result: dict[str, Any] = {
+                    "detected_action": remote_result.action,
+                    "confidence": remote_result.confidence,
+                    "top_actions": sorted(
+                        remote_result.all_scores.items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:5],
+                    "all_scores": remote_result.all_scores,
+                }
+
+                logger.debug(
+                    f"Action recognition (via service): {remote_result.action} "
+                    f"({remote_result.confidence:.0%} confidence, "
+                    f"suspicious={remote_result.is_suspicious})",
+                    extra={
+                        "service": "action-via-service",
+                        "camera_id": camera_id,
+                        "duration_ms": int(duration * 1000),
+                    },
+                )
+                return result
+
+            return None
+
+        except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+            observe_enrichment_model_duration(
+                "action-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("action-via-service")
+            logger.warning(
+                "Enrichment service unavailable for action recognition",
+                extra={
+                    "service": "action-via-service",
+                    "error_type": type(e).__name__,
+                    "camera_id": camera_id,
+                },
+            )
+            return None
+        except httpx.HTTPStatusError as e:
+            observe_enrichment_model_duration(
+                "action-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("action-via-service")
+            status_code = e.response.status_code
+            if 400 <= status_code < 500:
+                logger.error(
+                    f"Action recognition client error (HTTP {status_code})",
+                    extra={
+                        "service": "action-via-service",
+                        "camera_id": camera_id,
+                        "status_code": status_code,
+                    },
+                    exc_info=True,
+                )
+            else:
+                logger.warning(
+                    f"Action recognition server error (HTTP {status_code})",
+                    extra={
+                        "service": "action-via-service",
+                        "camera_id": camera_id,
+                        "status_code": status_code,
+                    },
+                )
+            return None
+        except (ValueError, KeyError, TypeError) as e:
+            observe_enrichment_model_duration(
+                "action-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("action-via-service")
+            logger.error(
+                "Action recognition parse error",
+                extra={
+                    "service": "action-via-service",
+                    "error_type": type(e).__name__,
+                    "camera_id": camera_id,
+                },
+                exc_info=True,
+            )
+            return None
+        except Exception as e:
+            observe_enrichment_model_duration(
+                "action-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("action-via-service")
+            logger.error(
+                f"Action recognition unexpected error: {sanitize_error(e)}",
+                extra={
+                    "service": "action-via-service",
+                    "error_type": type(e).__name__,
+                    "camera_id": camera_id,
+                },
+                exc_info=True,
+            )
+            return None
+
+    async def _detect_threats_via_service(
+        self,
+        image: Image.Image,
+    ) -> ThreatDetectionResult | None:
+        """Detect threats/weapons using the remote enrichment HTTP service.
+
+        Routes to enrichment-light service (/threat-detect endpoint).
+        Scans the full frame for weapons and threatening objects.
+
+        Args:
+            image: Full frame PIL Image to scan for threats
+
+        Returns:
+            ThreatDetectionResult or None if detection fails
+        """
+        client = self._get_enrichment_client()
+        record_enrichment_model_call("threat-via-service")
+        start_time = time.perf_counter()
+
+        try:
+            remote_result: Any | None = await client.detect_threats(image)
+
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("threat-via-service", duration)
+
+            if remote_result:
+                # Convert remote ThreatDetectionClientResult to local ThreatDetectionResult
+                threats = []
+                for t in remote_result.threats_detected:
+                    threat_class = t.get("class_name", t.get("type", "unknown"))
+                    threats.append(
+                        ThreatDetection(
+                            class_name=threat_class,
+                            confidence=t.get("confidence", 0.0),
+                            bbox=tuple(t["bbox"]) if "bbox" in t else (0.0, 0.0, 0.0, 0.0),
+                            is_high_priority=threat_class.lower()
+                            in {
+                                "gun",
+                                "pistol",
+                                "rifle",
+                                "firearm",
+                                "handgun",
+                                "knife",
+                                "machete",
+                                "sword",
+                            },
+                        )
+                    )
+
+                result = ThreatDetectionResult(threats=threats)
+
+                logger.info(
+                    f"Threat detection (via service): "
+                    f"has_threats={result.has_threats}, "
+                    f"has_high_priority={result.has_high_priority}, "
+                    f"count={len(threats)}",
+                    extra={
+                        "service": "threat-via-service",
+                        "duration_ms": int(duration * 1000),
+                        "threat_count": len(threats),
+                    },
+                )
+                return result
+
+            return None
+
+        except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+            observe_enrichment_model_duration(
+                "threat-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("threat-via-service")
+            logger.warning(
+                "Enrichment service unavailable for threat detection",
+                extra={"service": "threat-via-service", "error_type": type(e).__name__},
+            )
+            return None
+        except httpx.HTTPStatusError as e:
+            observe_enrichment_model_duration(
+                "threat-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("threat-via-service")
+            status_code = e.response.status_code
+            if 400 <= status_code < 500:
+                logger.error(
+                    f"Threat detection client error (HTTP {status_code})",
+                    extra={"service": "threat-via-service", "status_code": status_code},
+                    exc_info=True,
+                )
+            else:
+                logger.warning(
+                    f"Threat detection server error (HTTP {status_code})",
+                    extra={"service": "threat-via-service", "status_code": status_code},
+                )
+            return None
+        except (ValueError, KeyError, TypeError) as e:
+            observe_enrichment_model_duration(
+                "threat-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("threat-via-service")
+            logger.error(
+                "Threat detection parse error",
+                extra={"service": "threat-via-service", "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return None
+        except Exception as e:
+            observe_enrichment_model_duration(
+                "threat-via-service", time.perf_counter() - start_time
+            )
+            record_enrichment_model_error("threat-via-service")
+            logger.error(
+                f"Threat detection unexpected error: {sanitize_error(e)}",
+                extra={"service": "threat-via-service", "error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return None
+
+    async def _analyze_demographics_via_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Analyze demographics using the remote enrichment HTTP service.
+
+        Routes to the heavy enrichment service (/demographics endpoint).
+        Extracts age and gender estimates for each person detection.
+
+        Args:
+            persons: List of person detections with bounding boxes
+            image: Full frame image to crop persons from
+
+        Returns:
+            Tuple of (age_classifications, gender_classifications) dictionaries
+            keyed by detection ID
+        """
+        age_results: dict[str, Any] = {}
+        gender_results: dict[str, Any] = {}
+
+        if not persons:
+            return age_results, gender_results
+
+        client = self._get_enrichment_client()
+        record_enrichment_model_call("demographics-via-service")
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+            start_time = time.perf_counter()
+
+            try:
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result: Any | None = await client.analyze_demographics(
+                    person_crop, bbox_tuple
+                )
+
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("demographics-via-service", duration)
+
+                if remote_result:
+                    # Use SimpleNamespace so getattr/hasattr works in to_context_string()
+                    from types import SimpleNamespace
+
+                    is_minor = remote_result.age_range in (
+                        "0-10",
+                        "11-20",
+                        "child",
+                        "teenager",
+                    )
+                    age_results[det_id] = SimpleNamespace(
+                        age_group=remote_result.age_range,
+                        display_name=remote_result.age_range,
+                        confidence=remote_result.age_confidence,
+                        is_minor=is_minor,
+                    )
+
+                    gender_results[det_id] = SimpleNamespace(
+                        gender=remote_result.gender,
+                        confidence=remote_result.gender_confidence,
+                    )
+
+                    logger.debug(
+                        f"Person {det_id} demographics (via service): "
+                        f"age={remote_result.age_range} ({remote_result.age_confidence:.0%}), "
+                        f"gender={remote_result.gender} ({remote_result.gender_confidence:.0%})",
+                        extra={
+                            "service": "demographics-via-service",
+                            "detection_id": det_id,
+                            "duration_ms": int(duration * 1000),
+                        },
+                    )
+
+            except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+                observe_enrichment_model_duration(
+                    "demographics-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("demographics-via-service")
+                logger.warning(
+                    f"Enrichment service unavailable for demographics {det_id}",
+                    extra={
+                        "service": "demographics-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                )
+            except httpx.HTTPStatusError as e:
+                observe_enrichment_model_duration(
+                    "demographics-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("demographics-via-service")
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    logger.error(
+                        f"Demographics client error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "demographics-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
+                        exc_info=True,
+                    )
+                else:
+                    logger.warning(
+                        f"Demographics server error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "demographics-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                observe_enrichment_model_duration(
+                    "demographics-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("demographics-via-service")
+                logger.error(
+                    f"Demographics parse error for {det_id}",
+                    extra={
+                        "service": "demographics-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                    exc_info=True,
+                )
+            except Exception as e:
+                observe_enrichment_model_duration(
+                    "demographics-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("demographics-via-service")
+                logger.error(
+                    f"Demographics unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={
+                        "service": "demographics-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                    exc_info=True,
+                )
+
+        return age_results, gender_results
+
+    async def _compute_reid_via_service(
+        self,
+        detections: list[DetectionInput],
+        image: Image.Image,
+        result: EnrichmentResult,
+    ) -> None:
+        """Compute person re-ID embeddings using the remote enrichment HTTP service.
+
+        Routes to enrichment-light service (/person-reid endpoint).
+        Extracts OSNet embeddings for each person detection and stores
+        them in the EnrichmentResult for downstream matching.
+
+        Args:
+            detections: List of detections to extract embeddings for
+            image: Full frame image to crop persons from
+            result: EnrichmentResult to populate with embeddings
+        """
+        client = self._get_enrichment_client()
+        record_enrichment_model_call("reid-via-service")
+
+        persons = [d for d in detections if d.class_name == PERSON_CLASS]
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+            start_time = time.perf_counter()
+
+            try:
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result: Any | None = await client.compute_reid_embedding(
+                    person_crop, bbox_tuple
+                )
+
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("reid-via-service", duration)
+
+                if remote_result and remote_result.embedding:
+                    # Store the embedding in person_embeddings for context generation
+                    result.person_embeddings[det_id] = {
+                        "embedding": remote_result.embedding,
+                        "embedding_dim": remote_result.embedding_dim,
+                        "detection_id": det_id,
+                    }
+
+                    logger.debug(
+                        f"Person {det_id} re-ID embedding (via service): "
+                        f"dim={remote_result.embedding_dim}",
+                        extra={
+                            "service": "reid-via-service",
+                            "detection_id": det_id,
+                            "duration_ms": int(duration * 1000),
+                        },
+                    )
+
+            except (httpx.ConnectError, httpx.TimeoutException, EnrichmentUnavailableError) as e:
+                observe_enrichment_model_duration(
+                    "reid-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("reid-via-service")
+                logger.warning(
+                    f"Enrichment service unavailable for re-ID {det_id}",
+                    extra={
+                        "service": "reid-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                )
+            except httpx.HTTPStatusError as e:
+                observe_enrichment_model_duration(
+                    "reid-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("reid-via-service")
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    logger.error(
+                        f"Re-ID client error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "reid-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
+                        exc_info=True,
+                    )
+                else:
+                    logger.warning(
+                        f"Re-ID server error for {det_id} (HTTP {status_code})",
+                        extra={
+                            "service": "reid-via-service",
+                            "detection_id": det_id,
+                            "status_code": status_code,
+                        },
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                observe_enrichment_model_duration(
+                    "reid-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("reid-via-service")
+                logger.error(
+                    f"Re-ID parse error for {det_id}",
+                    extra={
+                        "service": "reid-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                    exc_info=True,
+                )
+            except Exception as e:
+                observe_enrichment_model_duration(
+                    "reid-via-service", time.perf_counter() - start_time
+                )
+                record_enrichment_model_error("reid-via-service")
+                logger.error(
+                    f"Re-ID unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={
+                        "service": "reid-via-service",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                    },
+                    exc_info=True,
+                )
 
     async def enrich_batch(
         self,
@@ -3278,16 +4511,35 @@ class EnrichmentPipeline:
         if not high_conf_detections:
             return result
 
-        # Run parallel enrichment pipeline (NEM-4234: Phase 4)
-        # This runs Phase 1 models in parallel, then Phase 2 dependents
+        # Run parallel enrichment pipeline (NEM-4234: Phase 4, NEM-5525 optimized)
+        # This runs Phase 1 + Florence-2 concurrently, then Phase 2/3 dependents
+        # Hard timeout ensures we don't blow the 90s batch window
         if pil_image:
-            await self._run_parallel_enrichment(
-                result=result,
-                pil_image=pil_image,
-                high_conf_detections=high_conf_detections,
-                images=images,
-                camera_id=camera_id,
-            )
+            try:
+                async with asyncio.timeout(self._pipeline_timeout):
+                    await self._run_parallel_enrichment(
+                        result=result,
+                        pil_image=pil_image,
+                        high_conf_detections=high_conf_detections,
+                        images=images,
+                        camera_id=camera_id,
+                    )
+            except TimeoutError:
+                elapsed = (time.monotonic() - start_time) * 1000
+                record_enrichment_pipeline_timeout()
+                logger.warning(
+                    f"Enrichment pipeline hard timeout after {self._pipeline_timeout}s "
+                    f"({elapsed:.0f}ms elapsed), returning partial results",
+                    extra={
+                        "camera_id": camera_id or "unknown",
+                        "timeout_seconds": self._pipeline_timeout,
+                        "elapsed_ms": elapsed,
+                        "error_count": len(result.errors),
+                    },
+                )
+                result.errors.append(
+                    f"pipeline_timeout: exceeded {self._pipeline_timeout}s hard limit"
+                )
 
         # Handle quality change tracking (needs to happen after image_quality is set)
         if self.image_quality_enabled and result.image_quality and camera_id:
@@ -3328,6 +4580,9 @@ class EnrichmentPipeline:
                 "image_quality.assessed": result.image_quality is not None,
                 "household_person_match.count": len(result.person_household_matches),
                 "household_vehicle_match.count": len(result.vehicle_household_matches),
+                "clip_scene_classification.available": result.has_clip_scene_classification,
+                "clip_threat_matches.available": result.has_clip_threat_matches,
+                "clip_anomaly_score.available": result.has_clip_anomaly_score,
                 "error.count": len(result.errors),
                 "processing.duration_ms": int(result.processing_time_ms),
             },
@@ -3349,7 +4604,10 @@ class EnrichmentPipeline:
             f"action={'yes' if result.action_results else 'no'}, "
             f"quality={'yes' if result.image_quality else 'no'}, "
             f"household_persons={len(result.person_household_matches)}, "
-            f"household_vehicles={len(result.vehicle_household_matches)} "
+            f"household_vehicles={len(result.vehicle_household_matches)}, "
+            f"clip_scene={'yes' if result.has_clip_scene_classification else 'no'}, "
+            f"clip_threats={'yes' if result.has_clip_threat_matches else 'no'}, "
+            f"clip_anomaly={'yes' if result.has_clip_anomaly_score else 'no'} "
             f"in {result.processing_time_ms:.1f}ms"
         )
 

@@ -11,21 +11,21 @@ Combined enrichment service providing on-demand model loading for comprehensive 
 ## Architecture
 
 - **On-Demand Loading**: Models loaded when needed, evicted via LRU when VRAM budget is exceeded
-- **VRAM Budget**: Configurable via `VRAM_BUDGET_GB` environment variable (default: 6.8GB)
+- **VRAM Budget**: Configurable via `VRAM_BUDGET_GB` environment variable (default: 6.0GB)
 - **Priority System**: CRITICAL > HIGH > MEDIUM > LOW (lower priority models evicted first)
 - **Thread-Safe**: All model loading/unloading protected by asyncio locks
 
 ## Port and Resources
 
 - **Port**: 8094 (configurable via `PORT`)
-- **Total VRAM Budget**: ~6.8 GB (configurable)
+- **Total VRAM Budget**: ~6.0 GB (configurable)
 
 | Model                  | VRAM    | Priority | Purpose                                 |
 | ---------------------- | ------- | -------- | --------------------------------------- |
 | Threat Detector        | ~400 MB | CRITICAL | Weapon detection (gun, knife)           |
 | Pose Estimator         | ~300 MB | HIGH     | Body posture analysis                   |
 | Demographics           | ~500 MB | HIGH     | Age/gender estimation                   |
-| FashionSigLIP          | ~800 MB | HIGH     | Clothing attributes (57% more accurate) |
+| FashionSigLIP          | ~800 MB | MEDIUM   | Clothing attributes (57% more accurate) |
 | Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.)         |
 | Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification                  |
 | Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings                  |
@@ -113,7 +113,7 @@ VRAM-aware model manager implementing LRU eviction with priority ordering.
 
 **Key Features:**
 
-- Configurable VRAM budget (default: 6.8GB)
+- Configurable VRAM budget (default: 6.0GB)
 - Priority-based eviction (CRITICAL models evicted last)
 - Async-safe with asyncio locks
 - Automatic CUDA cache clearing on unload
@@ -121,7 +121,7 @@ VRAM-aware model manager implementing LRU eviction with priority ordering.
 **Public API:**
 
 ```python
-manager = OnDemandModelManager(vram_budget_gb=6.8)
+manager = OnDemandModelManager(vram_budget_gb=6.0)
 manager.register_model(ModelConfig(
     name="vehicle",
     vram_mb=1500,
@@ -145,7 +145,7 @@ Defines model configurations and the `create_model_registry()` factory function.
 
 | Model Name         | VRAM   | Priority | Trigger Conditions                |
 | ------------------ | ------ | -------- | --------------------------------- |
-| fashion_clip       | 800 MB | HIGH     | Person detected                   |
+| fashion_clip       | 800 MB | MEDIUM   | Person detected                   |
 | vehicle_classifier | 1.5 GB | MEDIUM   | Vehicle detected                  |
 | pet_classifier     | 200 MB | MEDIUM   | Cat/dog detected                  |
 | depth_estimator    | 150 MB | LOW      | Any detection                     |
@@ -448,10 +448,10 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 | ------------------------------ | ---------------------------------------- | -------------------------------------- |
 | `HOST`                         | `0.0.0.0`                                | Bind address                           |
 | `PORT`                         | `8094`                                   | Listen port                            |
-| `VRAM_BUDGET_GB`               | `6.8`                                    | VRAM budget for on-demand models       |
+| `VRAM_BUDGET_GB`               | `6.0`                                    | VRAM budget for on-demand models       |
 | `VEHICLE_MODEL_PATH`           | `/models/vehicle-segment-classification` | Vehicle classifier path                |
 | `PET_MODEL_PATH`               | `/models/pet-classifier`                 | Pet classifier path                    |
-| `CLOTHING_MODEL_PATH`          | `/models/fashion-siglip`                 | FashionSigLIP model path               |
+| `CLOTHING_MODEL_PATH`          | `/models/fashion-clip`                   | FashionCLIP/FashionSigLIP model path   |
 | `DEPTH_MODEL_PATH`             | `/models/depth-anything-v2-small`        | Depth estimator path                   |
 | `POSE_MODEL_PATH`              | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path                |
 | `POSE_USE_TENSORRT`            | `false`                                  | Enable TensorRT for pose (2-3x faster) |

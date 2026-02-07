@@ -6,13 +6,13 @@
 
 ## Quick Start
 
-| Task                           | Link                                |
-| ------------------------------ | ----------------------------------- |
-| Set up development environment | [Local Setup](local-setup.md)       |
-| Explore the codebase           | [Codebase Tour](codebase-tour.md)   |
-| Understand the architecture    | [Architecture](architecture/)       |
-| Learn the patterns             | [Patterns & Testing](patterns/)     |
-| Contribute code                | [Contributing Guide](contributing/) |
+| Task                           | Link                                         |
+| ------------------------------ | -------------------------------------------- |
+| Set up development environment | [Local Setup](local-setup.md)                |
+| Explore the codebase           | [Codebase Tour](codebase-tour.md)            |
+| Understand the architecture    | [Architecture](architecture/README.md)       |
+| Learn the patterns             | [Patterns & Testing](patterns/README.md)     |
+| Contribute code                | [Contributing Guide](contributing/README.md) |
 
 **Interactive API Docs:** Available at `/docs` (Swagger UI) when the backend is running.
 
@@ -22,11 +22,11 @@
 
 System design, data flow, and technology decisions.
 
-| Document                                     | Description                                    |
-| -------------------------------------------- | ---------------------------------------------- |
-| [Architecture Overview](architecture/)       | High-level system design and component diagram |
-| [Data Model](data-model.md)                  | PostgreSQL schemas and entity relationships    |
-| [AI Pipeline Overview](pipeline-overview.md) | FileWatcher -> YOLO26 -> Nemotron flow         |
+| Document                                        | Description                                    |
+| ----------------------------------------------- | ---------------------------------------------- |
+| [Architecture Overview](architecture/README.md) | High-level system design and component diagram |
+| [Data Model](data-model.md)                     | PostgreSQL schemas and entity relationships    |
+| [AI Pipeline Overview](pipeline-overview.md)    | FileWatcher -> YOLO26 -> Nemotron flow         |
 
 **AI Pipeline Deep Dives:**
 
@@ -75,7 +75,7 @@ Everything you need to contribute to the project.
 
 | Document                                             | Description                   |
 | ---------------------------------------------------- | ----------------------------- |
-| [Contributing Guide](contributing/)                  | Full contributor workflow     |
+| [Contributing Guide](contributing/README.md)         | Full contributor workflow     |
 | [Code Quality Tools](../development/code-quality.md) | Linting, formatting, analysis |
 | [Pre-commit Hooks](../development/hooks.md)          | Hook configuration and usage  |
 
@@ -110,7 +110,7 @@ gh pr create --title "feat: my feature"
 | Backend API | 8000 | HTTP/WS  |
 | PostgreSQL  | 5432 | TCP      |
 | Redis       | 6379 | TCP      |
-| YOLO26      | 8090 | HTTP     |
+| YOLO26      | 8095 | HTTP     |
 | Nemotron    | 8091 | HTTP     |
 
 ### AGENTS.md Navigation

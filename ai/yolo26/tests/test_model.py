@@ -260,7 +260,7 @@ class TestYOLO26Model:
         mock_boxes = MagicMock()
 
         # Create mock detections with proper tensor-like xyxy
-        # 1. Person at 0.55 - should pass (threshold 0.50)
+        # 1. Person at 0.55 - should pass (threshold 0.45)
         mock_person = MagicMock()
         mock_person.cls.item.return_value = 0  # person
         mock_person.conf.item.return_value = 0.55
@@ -328,7 +328,7 @@ class TestYOLO26Model:
         car_conf = next(d["confidence"] for d in detections if d["class"] == "car")
         dog_conf = next(d["confidence"] for d in detections if d["class"] == "dog")
 
-        assert person_conf == 0.55  # Passed with 0.50 threshold
+        assert person_conf == 0.55  # Passed with 0.45 threshold
         assert car_conf == 0.75  # High confidence car passed (0.65 car filtered)
         assert dog_conf == 0.60  # High confidence dog passed (0.52 dog filtered)
 
@@ -947,10 +947,12 @@ class TestMagicByteValidation:
 
 
 class TestClassConfidenceThresholds:
-    """Tests for class-specific confidence thresholds (NEM-4522).
+    """Tests for class-specific confidence thresholds tuned for home security (NEM-4522).
 
     These tests verify that different object classes use appropriate
-    confidence thresholds to reduce false positives.
+    confidence thresholds with asymmetric cost model:
+    - Lower thresholds for person/pets (favor recall; enrichment filters FPs)
+    - Higher thresholds for vehicles (favor precision; shadow/reflection FPs)
     """
 
     def test_class_confidence_thresholds_defined(self):
@@ -966,10 +968,22 @@ class TestClassConfidenceThresholds:
         assert CLASS_CONFIDENCE_THRESHOLDS.get("truck") == 0.70
         assert CLASS_CONFIDENCE_THRESHOLDS.get("bus") == 0.70
 
-    def test_person_has_reasonable_threshold(self):
-        """Test that person detection uses reasonable threshold."""
-        # Person should have 0.50 threshold (same as default)
-        assert CLASS_CONFIDENCE_THRESHOLDS.get("person") == 0.50
+    def test_person_has_lower_threshold_for_recall(self):
+        """Test that person detection uses lower threshold to favor recall."""
+        # Person should have 0.45 — catch potential threats, FPs filtered by enrichment
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("person") == 0.45
+
+    def test_motorcycle_bicycle_medium_thresholds(self):
+        """Test that motorcycle and bicycle use medium thresholds."""
+        # 0.65 — fewer shadow FPs than cars but still common
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("motorcycle") == 0.65
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("bicycle") == 0.65
+
+    def test_pet_classes_have_lower_thresholds(self):
+        """Test that pet classes use lower thresholds for reliable detection."""
+        # 0.55 — household pets should be reliably detected
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("dog") == 0.55
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("cat") == 0.55
 
     def test_all_security_classes_covered(self):
         """Test that all security-relevant classes have defined thresholds."""
@@ -981,8 +995,18 @@ class TestClassConfidenceThresholds:
         """Test that all threshold values are in reasonable range."""
         for cls, threshold in CLASS_CONFIDENCE_THRESHOLDS.items():
             assert 0.0 <= threshold <= 1.0, f"Threshold for {cls} out of range: {threshold}"
-            # Should be at least 0.5 for production use
-            assert threshold >= 0.5, f"Threshold for {cls} too low: {threshold}"
+            # Minimum 0.40 for any class in production (person at 0.45 is lowest)
+            assert threshold >= 0.40, f"Threshold for {cls} too low: {threshold}"
+
+    def test_person_threshold_lower_than_vehicles(self):
+        """Test that person threshold is lower than vehicle thresholds (asymmetric cost)."""
+        person_threshold = CLASS_CONFIDENCE_THRESHOLDS.get("person", 1.0)
+        for vehicle_class in ("car", "truck", "bus"):
+            vehicle_threshold = CLASS_CONFIDENCE_THRESHOLDS.get(vehicle_class, 0.0)
+            assert person_threshold < vehicle_threshold, (
+                f"Person threshold ({person_threshold}) should be lower than "
+                f"{vehicle_class} threshold ({vehicle_threshold})"
+            )
 
 
 class TestFileExtensionValidation:

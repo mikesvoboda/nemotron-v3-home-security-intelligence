@@ -83,7 +83,7 @@ ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 curl http://localhost:8000/api/system/health | jq .services
 
 # Check individual AI services
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 curl http://localhost:8092/health  # Florence-2 (optional)
 curl http://localhost:8093/health  # CLIP (optional)
@@ -547,4 +547,4 @@ Circuit opened because service repeatedly failed. Check:
 
 ---
 
-[Back to Operator Hub](../../operator/)
+[Back to Operator Hub](../../operator/README.md)

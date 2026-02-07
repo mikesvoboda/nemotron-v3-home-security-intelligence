@@ -180,6 +180,14 @@ if get_settings().idempotency_enabled:
     app.add_middleware(IdempotencyMiddleware)
 ```
 
+## Additional Middleware
+
+The middleware directory contains 25 modules. Key middleware not detailed here include: `setup_guard.py` (SetupGuardMiddleware - blocks API with 503 until admin setup is complete), `etag.py` (ETag caching), `profiling.py` (request profiling), `prometheus.py` (metrics), `baggage.py` (context propagation).
+
+### SetupGuardMiddleware
+
+The `SetupGuardMiddleware` (`backend/api/middleware/setup_guard.py`) is a critical middleware that returns 503 for all API requests until the first admin user has been registered. This ensures the system is properly initialized before accepting traffic. It should be considered part of the execution order, running before `AuthMiddleware`.
+
 ## Related Hubs
 
 - [API Reference](../api-reference/README.md) - Endpoint documentation

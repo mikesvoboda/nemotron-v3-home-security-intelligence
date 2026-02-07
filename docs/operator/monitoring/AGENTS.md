@@ -56,7 +56,7 @@ This directory contains monitoring documentation for operators, covering health 
 ## Related Resources
 
 - **Parent**: [Operator Documentation](../AGENTS.md)
-- **Deployment**: [Deployment Guide](../deployment/)
-- **Administration**: [Admin Guide](../admin/)
-- **Architecture**: [System Architecture](../../architecture/)
+- **Deployment**: [Deployment Guide](../deployment/README.md)
+- **Administration**: [Admin Guide](../admin/README.md)
+- **Architecture**: [System Architecture](../../architecture/README.md)
 - **Prometheus Stack**: Enable with `docker compose --profile monitoring`

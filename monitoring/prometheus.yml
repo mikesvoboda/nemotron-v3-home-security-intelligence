@@ -4,8 +4,8 @@
 # Environment variables with defaults are substituted before Prometheus loads this config.
 #
 # Variable substitution:
-#   - 8082: Port for cAdvisor metrics (default: 8082)
-#   - 9400: Port for DCGM GPU metrics (default: 9400)
+#   - 8083: Port for cAdvisor metrics (default: 8083)
+#   - 9401: Port for DCGM GPU metrics (default: 9401)
 #
 # PORT CONFIGURATION NOTE:
 # Internal Docker service names (e.g., backend:8000, alertmanager:9093) use FIXED
@@ -30,6 +30,7 @@ rule_files:
   - 'profiling-recording-rules.yml'
   - 'profiling-regression-alerts.yml'
   - 'gpu-alerts.yml'
+  - 'ai-pipeline-alerts.yml'
 
 # Alertmanager configuration for alert delivery
 alerting:
@@ -161,6 +162,24 @@ scrape_configs:
           - 'ai-enrichment:8094'
         labels:
           service: enrichment
+          model_type: classification
+    honor_labels: true
+
+  # Enrichment Light Service metrics (ai-enrichment-light)
+  # Lightweight enrichment for pose, threat, reid, pet, depth models (~1.2GB total)
+  # Key metrics:
+  # - enrichment_inference_requests_total: Total requests by endpoint/status
+  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
+  # - enrichment_gpu_memory_used_gb: GPU memory usage
+  - job_name: 'ai-enrichment-light-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-enrichment-light:8096'
+        labels:
+          service: enrichment-light
           model_type: classification
     honor_labels: true
 
@@ -461,7 +480,7 @@ scrape_configs:
       # while prometheus runs in rootless podman - separate network namespaces
       # Port is configurable via CADVISOR_PORT environment variable
       - targets:
-          - 'host.containers.internal:8082'
+          - 'host.containers.internal:8083'
     # Filter to only include containers from this compose project
     # and add helpful labels
     relabel_configs:
@@ -521,6 +540,6 @@ scrape_configs:
       # Use host.containers.internal because dcgm-exporter runs in rootful podman (sudo)
       # while prometheus runs in rootless podman - separate network namespaces
       # Port is configurable via DCGM_EXPORTER_PORT environment variable
-      - targets: ['host.containers.internal:9400']
+      - targets: ['host.containers.internal:9401']
     scrape_interval: 15s
     scrape_timeout: 10s

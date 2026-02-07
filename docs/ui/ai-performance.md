@@ -319,7 +319,7 @@ To access Grafana directly with full editing capabilities, click the "Open in Gr
 
 | Setting              | Environment Variable             | Default                 | Description                           |
 | -------------------- | -------------------------------- | ----------------------- | ------------------------------------- |
-| YOLO26 URL           | `YOLO26_URL`                     | `http://localhost:8090` | Detection service endpoint            |
+| YOLO26 URL           | `YOLO26_URL`                     | `http://localhost:8095` | Detection service endpoint            |
 | Nemotron URL         | `NEMOTRON_URL`                   | `http://localhost:8091` | LLM analysis endpoint                 |
 | Detection Confidence | `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum confidence to store detection |
 | Batch Window         | `BATCH_WINDOW_SECONDS`           | `90`                    | Maximum batch duration                |
@@ -351,7 +351,7 @@ The AI Performance page relies on Grafana's built-in refresh mechanism. The dash
 
 **YOLO26:**
 
-1. Check if the detection server is running: `curl http://localhost:8090/health`
+1. Check if the detection server is running: `curl http://localhost:8095/health`
 2. Verify GPU is available: `nvidia-smi`
 3. Check container logs: `docker logs yolo26`
 4. VRAM exhaustion may require restarting the service
@@ -522,7 +522,7 @@ FileWatcher (inotify/FSEvents)
 detection_queue (Redis)
         |
         v
-YOLO26 Server (Port 8090)
+YOLO26 Server (Port 8095)
         |
         v
 BatchAggregator
@@ -593,7 +593,7 @@ Event Creation + WebSocket Broadcast
 
 | Service                 | Model                     | VRAM         | Port | Context Window |
 | ----------------------- | ------------------------- | ------------ | ---- | -------------- |
-| YOLO26                  | yolo26_v2_r101vd          | ~4 GB        | 8090 | N/A            |
+| YOLO26                  | yolo26_v2_r101vd          | ~4 GB        | 8095 | N/A            |
 | Nemotron (Prod)         | Nemotron-3-Nano-30B-A3B   | ~14.7 GB     | 8091 | 128K tokens    |
 | Nemotron (Dev)          | Nemotron Mini 4B Instruct | ~3 GB        | 8091 | 4K tokens      |
 | **Total (Production)**  |                           | **~18.7 GB** |      |                |

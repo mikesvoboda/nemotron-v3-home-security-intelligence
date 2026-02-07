@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, Index, Integer, String
+from sqlalchemy import DateTime, Float, Index, Integer, String, desc
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .camera import Base
@@ -77,12 +77,20 @@ class GPUStats(Base):
     bar1_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Indexes for time-series queries
-    # BRIN index is more efficient for time-series data (monotonically increasing timestamps)
+    # BRIN index is efficient for range scans on monotonically increasing timestamps.
+    # B-tree index is needed for ORDER BY recorded_at DESC LIMIT N queries
+    # (e.g., get_latest_gpu_stats, gpu/history endpoint) since BRIN does not
+    # support ordered scans. Without this, PostgreSQL performs sequential scans
+    # reading millions of tuples.
     __table_args__ = (
         Index(
             "ix_gpu_stats_recorded_at_brin",
             "recorded_at",
             postgresql_using="brin",
+        ),
+        Index(
+            "ix_gpu_stats_recorded_at_btree",
+            desc("recorded_at"),
         ),
     )
 

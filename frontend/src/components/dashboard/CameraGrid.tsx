@@ -1,7 +1,6 @@
 import { clsx } from 'clsx';
 import {
   AlertCircle,
-  AlertTriangle,
   Camera,
   Circle,
   Clock,
@@ -15,7 +14,9 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCameraStatusWebSocket } from '../../hooks/useCameraStatusWebSocket';
 import { refreshCameraSnapshot } from '../../services/api';
+import { SceneChangeIndicator } from '../cameras';
 
+import type { CameraActivityState } from '../../hooks/useSceneChangeEvents';
 import type { CameraStatusEventPayload, CameraStatusValue } from '../../types/websocket-events';
 
 /**
@@ -53,6 +54,12 @@ export interface CameraGridProps {
    * Cameras in this set will show a pulsing activity indicator.
    */
   sceneChangeActivityIds?: Set<string> | string[];
+  /**
+   * Map of camera ID to activity state for SceneChangeIndicator (NEM-3575).
+   * When provided, camera cards use the richer SceneChangeIndicator component
+   * instead of the basic inline badge.
+   */
+  cameraActivityMap?: Record<string, CameraActivityState>;
   /**
    * Enable snapshot refresh button on camera cards (NEM-4947).
    * When enabled, a refresh button appears to manually refresh snapshots.
@@ -215,6 +222,11 @@ interface CameraCardProps {
    */
   hasSceneChangeActivity?: boolean;
   /**
+   * Activity state for the SceneChangeIndicator component (NEM-3575).
+   * When provided, replaces the basic inline badge with the richer indicator.
+   */
+  sceneChangeActivityState?: CameraActivityState;
+  /**
    * Whether to show snapshot refresh button (NEM-4947).
    */
   enableSnapshotRefresh?: boolean;
@@ -233,6 +245,7 @@ const CameraCard = memo(function CameraCard({
   onClick,
   recentlyChanged = false,
   hasSceneChangeActivity = false,
+  sceneChangeActivityState,
   enableSnapshotRefresh = true,
   onRefresh,
 }: CameraCardProps) {
@@ -368,14 +381,17 @@ const CameraCard = memo(function CameraCard({
           <span className="text-xs font-medium text-white">{getStatusLabel(camera.status)}</span>
         </div>
 
-        {/* Scene change activity indicator - top-left corner (NEM-3126) */}
+        {/* Scene change activity indicator - top-left corner (NEM-3126, NEM-3575) */}
         {hasSceneChangeActivity && (
           <div
-            className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-1 backdrop-blur-sm"
+            className="absolute left-2 top-2"
             data-testid={`scene-change-indicator-${camera.id}`}
           >
-            <AlertTriangle className="h-3 w-3 animate-pulse text-white" aria-hidden="true" />
-            <span className="text-xs font-medium text-white">Scene Change</span>
+            <SceneChangeIndicator
+              activityState={sceneChangeActivityState}
+              showDetails
+              className="backdrop-blur-sm"
+            />
           </div>
         )}
 
@@ -445,6 +461,7 @@ export default function CameraGrid({
   enableWebSocketUpdates = false,
   onCameraStatusChange,
   sceneChangeActivityIds,
+  cameraActivityMap,
   enableSnapshotRefresh = true,
   onSnapshotRefresh,
 }: CameraGridProps) {
@@ -574,6 +591,7 @@ export default function CameraGrid({
           onClick={onCameraClick ? () => onCameraClick(camera.id) : undefined}
           recentlyChanged={recentlyChangedCameras.has(camera.id)}
           hasSceneChangeActivity={sceneChangeActivitySet.has(camera.id)}
+          sceneChangeActivityState={cameraActivityMap?.[camera.id]}
           enableSnapshotRefresh={enableSnapshotRefresh}
           onRefresh={onSnapshotRefresh ? () => onSnapshotRefresh(camera.id) : undefined}
         />

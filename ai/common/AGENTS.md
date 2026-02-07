@@ -18,6 +18,8 @@ ai/common/
     └── test_tensorrt_inference.py  # Inference base class tests
 ```
 
+> **Note**: The `test_model.py` and `requirements.txt` files previously listed in `ai/AGENTS.md` under the `common/` tree do not exist in this directory. Tests are in `tests/` and dependencies are managed at the project level.
+
 ## Key Components
 
 ### tensorrt_utils.py

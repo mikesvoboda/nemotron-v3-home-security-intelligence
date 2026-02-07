@@ -352,17 +352,14 @@ cd ai/clip && python model.py
 The CLIP server is an optional service. When enabled, it can be used by the enrichment pipeline for entity tracking:
 
 ```python
-# Example integration (not yet implemented in backend)
-from httpx import AsyncClient
+# Backend integration via clip_client.py
+from backend.services.clip_client import get_clip_client
 
-async def get_embedding(image_base64: str) -> list[float]:
-    async with AsyncClient() as client:
-        response = await client.post(
-            "http://localhost:8093/embed",
-            json={"image": image_base64}
-        )
-        return response.json()["embedding"]
+client = get_clip_client()
+embedding = await client.get_embedding(image_base64)
 ```
+
+**Note**: CLIP backend integration is implemented in `backend/services/clip_client.py`.
 
 ## Entry Points
 

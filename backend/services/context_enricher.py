@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -591,8 +591,20 @@ class ContextEnricher:
 
         return cross_camera
 
+    # Zone type to sensitivity label mapping for Nemotron context
+    _ZONE_SENSITIVITY_LABELS: ClassVar[dict[str, str]] = {
+        "entry_point": "high sensitivity - direct access to home",
+        "driveway": "medium sensitivity - private property access",
+        "yard": "medium sensitivity - private outdoor area",
+        "sidewalk": "low sensitivity - public area",
+        "other": "low sensitivity - general area",
+    }
+
     def format_zone_analysis(self, zones: list[ZoneContext]) -> str:
         """Format zone context for prompt inclusion.
+
+        Includes zone type sensitivity labels so Nemotron understands the
+        security significance of each zone (e.g., entry_point = high sensitivity).
 
         Args:
             zones: List of zone contexts
@@ -611,8 +623,11 @@ class ContextEnricher:
         for zone in zones:
             # Sanitize zone_name to prevent prompt injection (NEM-1722)
             safe_zone_name = sanitize_zone_name(zone.zone_name)
+            sensitivity = self._ZONE_SENSITIVITY_LABELS.get(
+                zone.zone_type, "low sensitivity - general area"
+            )
             lines.append(
-                f"- {safe_zone_name} ({zone.zone_type}): "
+                f"- {safe_zone_name} ({zone.zone_type} - {sensitivity}): "
                 f"{zone.detection_count} detection(s), risk weight: {zone.risk_weight}"
             )
 

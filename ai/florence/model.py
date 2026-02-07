@@ -40,6 +40,11 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
+from gpu_oom_handler import (
+    GPUOOMHandler,
+    check_gpu_memory_health,
+    check_memory_available,
+)
 from torch_optimizations import (
     BatchConfig,
     BatchProcessor,
@@ -54,6 +59,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# GPU OOM handler for this service (NEM-4996)
+_oom_handler = GPUOOMHandler(service_name="florence")
 
 # =============================================================================
 # Prometheus Metrics
@@ -243,6 +251,46 @@ class SecurityObjectsResponse(BaseModel):
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
 
 
+class BatchExtractItem(BaseModel):
+    """A single item in a batch extraction request."""
+
+    image: str = Field(..., description="Base64 encoded image")
+    prompt: str = Field(
+        ...,
+        description="Florence-2 prompt (e.g., <CAPTION>, <VQA>What color is this?)",
+    )
+
+
+class BatchExtractRequest(BaseModel):
+    """Request format for batch extraction endpoint."""
+
+    items: list[BatchExtractItem] = Field(
+        ...,
+        min_length=1,
+        max_length=32,
+        description="List of image+prompt pairs to process (max 32)",
+    )
+
+
+class BatchExtractResultItem(BaseModel):
+    """A single result from batch extraction."""
+
+    result: str = Field(..., description="Florence-2 generated text response")
+    prompt_used: str = Field(..., description="The prompt that was used")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+    error: str | None = Field(default=None, description="Error message if this item failed")
+
+
+class BatchExtractResponse(BaseModel):
+    """Response format for batch extraction endpoint."""
+
+    results: list[BatchExtractResultItem] = Field(
+        ..., description="Results in same order as input items"
+    )
+    total_inference_time_ms: float = Field(..., description="Total wall-clock time for the batch")
+    batch_size: int = Field(..., description="Number of items processed")
+
+
 class SceneAnalysisRequest(BaseModel):
     """Request format for comprehensive scene analysis endpoint."""
 
@@ -278,6 +326,10 @@ class HealthResponse(BaseModel):
     device: str
     cuda_available: bool
     vram_used_gb: float | None = None
+    gpu_memory_health: str | None = None
+    gpu_memory_allocated_mb: float | None = None
+    gpu_memory_total_mb: float | None = None
+    gpu_memory_utilization_pct: float | None = None
 
 
 # =============================================================================
@@ -563,16 +615,21 @@ class Florence2Model:
         # Run inference using greedy decoding with cache disabled
         # The Florence-2 model's prepare_inputs_for_generation has a bug with past_key_values
         # Disabling cache avoids the issue
-        with torch.inference_mode():
-            generated_ids = self.model.generate(
-                input_ids=inputs["input_ids"],
-                pixel_values=inputs["pixel_values"],
-                max_new_tokens=1024,
-                early_stopping=False,
-                do_sample=False,
-                num_beams=1,
-                use_cache=False,  # Disable KV cache to avoid past_key_values bug
-            )
+        try:
+            with torch.inference_mode():
+                generated_ids = self.model.generate(
+                    input_ids=inputs["input_ids"],
+                    pixel_values=inputs["pixel_values"],
+                    max_new_tokens=1024,
+                    early_stopping=False,
+                    do_sample=False,
+                    num_beams=1,
+                    use_cache=False,  # Disable KV cache to avoid past_key_values bug
+                )
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("extract", extra_context={"prompt": prompt})
+            raise
 
         # Decode the generated text
         generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
@@ -638,16 +695,21 @@ class Florence2Model:
         inputs = inputs.to(self.device, model_dtype)
 
         # Run inference
-        with torch.inference_mode():
-            generated_ids = self.model.generate(
-                input_ids=inputs["input_ids"],
-                pixel_values=inputs["pixel_values"],
-                max_new_tokens=1024,
-                early_stopping=False,
-                do_sample=False,
-                num_beams=1,
-                use_cache=False,
-            )
+        try:
+            with torch.inference_mode():
+                generated_ids = self.model.generate(
+                    input_ids=inputs["input_ids"],
+                    pixel_values=inputs["pixel_values"],
+                    max_new_tokens=1024,
+                    early_stopping=False,
+                    do_sample=False,
+                    num_beams=1,
+                    use_cache=False,
+                )
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("extract_raw", extra_context={"prompt": prompt})
+            raise
 
         # Decode the generated text
         generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
@@ -733,7 +795,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     logger.info("Starting Florence-2 Vision-Language Server...")
 
     # Load model configuration from environment or defaults
-    model_path = os.environ.get("FLORENCE_MODEL_PATH", "/models/florence-2-large")
+    model_path = os.environ.get("FLORENCE_MODEL_PATH", "/models/florence-2-base")
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     # torch.compile settings (NEM-3375)
@@ -783,18 +845,38 @@ app = FastAPI(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    Includes GPU memory health monitoring (NEM-4996).
+    """
     cuda_available = torch.cuda.is_available()
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage() if cuda_available else None
 
+    # NEM-4996: GPU memory health monitoring
+    gpu_health = check_gpu_memory_health()
+    model_loaded = model is not None and model.model is not None
+
+    if not model_loaded or gpu_health.status.value == "critical":
+        status = "degraded"
+    else:
+        status = "healthy"
+
     return HealthResponse(
-        status="healthy" if model is not None and model.model is not None else "degraded",
+        status=status,
         model="florence-2-large",
-        model_loaded=model is not None and model.model is not None,
+        model_loaded=model_loaded,
         device=device,
         cuda_available=cuda_available,
         vram_used_gb=vram_used,
+        gpu_memory_health=gpu_health.status.value,
+        gpu_memory_allocated_mb=gpu_health.memory_stats.allocated_mb
+        if gpu_health.memory_stats
+        else None,
+        gpu_memory_total_mb=gpu_health.memory_stats.total_mb if gpu_health.memory_stats else None,
+        gpu_memory_utilization_pct=gpu_health.memory_stats.utilization_pct
+        if gpu_health.memory_stats
+        else None,
     )
 
 
@@ -902,6 +984,14 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
     except HTTPException:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="extract", status="error").inc()
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        # NEM-4996: Handle GPU OOM gracefully with 503 + Retry-After
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="extract", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during extraction. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="extract", status="error").inc()
         logger.error(f"Extraction failed: {e}", exc_info=True)
@@ -1467,6 +1557,105 @@ async def phrase_grounding(request: PhraseGroundingRequest) -> PhraseGroundingRe
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="phrase_grounding", status="error").inc()
         logger.error(f"Phrase grounding failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Phrase grounding failed: {e!s}") from e
+
+
+@app.post("/batch-extract", response_model=BatchExtractResponse)
+async def batch_extract(request: BatchExtractRequest) -> BatchExtractResponse:
+    """Process multiple image+prompt pairs in a single request.
+
+    This endpoint reduces HTTP overhead by accepting multiple extraction requests
+    in a single call. Each item can have a different image and/or prompt.
+
+    The items are processed sequentially through the model (Florence-2 does not
+    support true GPU batching for heterogeneous prompts), but the single HTTP
+    round-trip eliminates N-1 network calls that would otherwise be needed.
+
+    Items that fail are returned with an error field set and an empty result,
+    rather than failing the entire batch.
+
+    Args:
+        request: BatchExtractRequest with list of image+prompt items
+
+    Returns:
+        BatchExtractResponse with results in the same order as inputs
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    batch_start = time.perf_counter()
+    results: list[BatchExtractResultItem] = []
+
+    # Use the BatchProcessor to process items in optimal sub-batches
+    batch_processor = model.batch_processor
+    items_list = list(request.items)
+
+    for batch in batch_processor.create_batches(items_list):
+        for item in batch:
+            try:
+                # Validate prompt
+                normalized_prompt = item.prompt.upper()
+                is_vqa_prompt = normalized_prompt.startswith(VQA_PROMPT_PREFIX.upper())
+                normalized_supported = {p.upper() for p in SUPPORTED_PROMPTS}
+                if not is_vqa_prompt and normalized_prompt not in normalized_supported:
+                    results.append(
+                        BatchExtractResultItem(
+                            result="",
+                            prompt_used=item.prompt,
+                            inference_time_ms=0.0,
+                            error=f"Unsupported prompt: {item.prompt}",
+                        )
+                    )
+                    continue
+
+                # Decode image
+                image = _decode_image(item.image)
+
+                # Run extraction
+                result_text, inference_time_ms = model.extract(image, item.prompt)
+
+                results.append(
+                    BatchExtractResultItem(
+                        result=result_text,
+                        prompt_used=item.prompt,
+                        inference_time_ms=inference_time_ms,
+                    )
+                )
+
+            except HTTPException as e:
+                results.append(
+                    BatchExtractResultItem(
+                        result="",
+                        prompt_used=item.prompt,
+                        inference_time_ms=0.0,
+                        error=str(e.detail),
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Batch item extraction failed: {e}", exc_info=True)
+                results.append(
+                    BatchExtractResultItem(
+                        result="",
+                        prompt_used=item.prompt,
+                        inference_time_ms=0.0,
+                        error=f"Extraction failed: {e!s}",
+                    )
+                )
+
+    total_time_ms = (time.perf_counter() - batch_start) * 1000
+
+    # Record metrics
+    INFERENCE_LATENCY_SECONDS.labels(endpoint="batch_extract").observe(total_time_ms / 1000)
+    success_count = sum(1 for r in results if r.error is None)
+    error_count = len(results) - success_count
+    INFERENCE_REQUESTS_TOTAL.labels(endpoint="batch_extract", status="success").inc(success_count)
+    if error_count > 0:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="batch_extract", status="error").inc(error_count)
+
+    return BatchExtractResponse(
+        results=results,
+        total_inference_time_ms=total_time_ms,
+        batch_size=len(results),
+    )
 
 
 if __name__ == "__main__":

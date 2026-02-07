@@ -61,14 +61,14 @@ async def test_detector_service_health_check():
 
 | Variable       | Default                 | Description              |
 | -------------- | ----------------------- | ------------------------ |
-| `YOLO26_URL`   | `http://localhost:8090` | YOLO26 service URL       |
+| `YOLO26_URL`   | `http://localhost:8095` | YOLO26 service URL       |
 | `NEMOTRON_URL` | `http://localhost:8091` | Nemotron LLM service URL |
 
 ### Helper Functions
 
 ```python
 def get_detector_url() -> str:
-    return os.environ.get("YOLO26_URL", "http://localhost:8090")
+    return os.environ.get("YOLO26_URL", "http://localhost:8095")
 
 def get_nemotron_url() -> str:
     return os.environ.get("NEMOTRON_URL", "http://localhost:8091")

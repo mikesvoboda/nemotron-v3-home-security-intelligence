@@ -56,7 +56,7 @@ cd home_security_intelligence
 ./scripts/setup.sh
 ```
 
-This script ([scripts/setup.sh](../../scripts/setup.sh:1)) automatically:
+This script ([scripts/setup.sh](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup.sh)) automatically:
 
 1. Checks all prerequisites
 2. Creates a Python virtual environment (`.venv`)
@@ -115,7 +115,7 @@ pre-commit install
 pre-commit install --hook-type pre-push
 ```
 
-The pre-commit configuration ([.pre-commit-config.yaml](../../.pre-commit-config.yaml:1)) includes:
+The pre-commit configuration ([.pre-commit-config.yaml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.pre-commit-config.yaml)) includes:
 
 | Hook                  | Stage      | Purpose                       |
 | --------------------- | ---------- | ----------------------------- |
@@ -151,7 +151,7 @@ REDIS_URL=redis://localhost:6379/0
 FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints (optional for dev)
-YOLO26_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8095
 NEMOTRON_URL=http://localhost:8091
 ```
 
@@ -177,7 +177,7 @@ Run the verification script:
 ./scripts/validate.sh
 ```
 
-This runs ([scripts/validate.sh](../../scripts/validate.sh:1)):
+This runs ([scripts/validate.sh](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/validate.sh)):
 
 1. **Ruff linting** - Python code style
 2. **Ruff formatting** - Python code formatting
@@ -353,6 +353,6 @@ Access at `https://localhost:443`. See [SSL/HTTPS Configuration](ssl-https.md) f
 
 ## Related Documentation
 
-- [CLAUDE.md](../../CLAUDE.md) - Project instructions and rules
-- [Backend AGENTS.md](../../backend/AGENTS.md) - Backend architecture overview
-- [Frontend AGENTS.md](../../frontend/AGENTS.md) - Frontend architecture overview
+- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions and rules
+- [Backend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) - Backend architecture overview
+- [Frontend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/AGENTS.md) - Frontend architecture overview

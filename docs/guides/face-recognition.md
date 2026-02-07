@@ -11,6 +11,8 @@ Home Security Intelligence includes face detection capabilities that work alongs
 - **Unknown Person Alerts**: Get notified when unfamiliar faces are detected
 - **Demographics Analysis**: Estimate age and gender for identification context
 
+![Multi-Camera Person Tracking](../images/concepts/multi-camera-tracking.png)
+
 ---
 
 ## Architecture

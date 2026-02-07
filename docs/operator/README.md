@@ -8,11 +8,11 @@ This hub is for **sysadmins, DevOps engineers, and technically savvy users** who
 
 ## Quick Navigation
 
-| Section            | Description                                       | Link                       |
-| ------------------ | ------------------------------------------------- | -------------------------- |
-| **Deployment**     | Docker/Podman setup, GPU passthrough, AI services | [deployment/](deployment/) |
-| **Monitoring**     | Health checks, GPU metrics, SLOs, alerting        | [monitoring/](monitoring/) |
-| **Administration** | Configuration, secrets, security                  | [admin/](admin/)           |
+| Section            | Description                                       | Link                                |
+| ------------------ | ------------------------------------------------- | ----------------------------------- |
+| **Deployment**     | Docker/Podman setup, GPU passthrough, AI services | [deployment/](deployment/README.md) |
+| **Monitoring**     | Health checks, GPU metrics, SLOs, alerting        | [monitoring/](monitoring/README.md) |
+| **Administration** | Configuration, secrets, security                  | [admin/](admin/README.md)           |
 
 ---
 
@@ -24,7 +24,7 @@ This hub is for **sysadmins, DevOps engineers, and technically savvy users** who
 # 1. Clone and setup
 git clone https://github.com/your-org/home-security-intelligence.git
 cd home-security-intelligence
-./setup.sh              # Quick mode - generates .env with secure passwords
+python setup.py         # Quick mode - generates .env with secure passwords
 
 # 2. Download AI models (~2.7GB)
 ./ai/download_models.sh
@@ -44,15 +44,13 @@ curl http://localhost:8000/api/system/health/ready
 | ----------- | --------------- | ----------------- |
 | **GPU**     | NVIDIA 8GB VRAM | NVIDIA 12GB+ VRAM |
 | **CPU**     | 4 cores         | 8+ cores          |
-| **RAM**     | 8GB             | 16GB+             |
+| **RAM**     | 16GB            | 32GB+             |
 | **Storage** | 50GB            | 100GB+ SSD        |
 | **CUDA**    | 11.8+           | 12.x              |
 
 **AI VRAM Usage (Production):**
 
-- YOLO26 (object detection): ~4GB
-- Nemotron-3-Nano-30B (risk analysis): ~14.7GB
-- **Total required:** ~19GB concurrent (dev: ~7GB with Mini 4B)
+--8<-- "docs/\_includes/vram-requirements.md"
 
 **Supported GPUs:** RTX 30/40 series, RTX A-series, Tesla/V100/A100
 
@@ -165,6 +163,35 @@ flowchart TB
     BE -->|"OTLP"| ALLOY
 ```
 
+### MQTT Integration
+
+The backend publishes detection events to an MQTT broker, enabling integration with Home Assistant, Node-RED, and custom automation scripts. Home Assistant auto-discovery is supported via the `homeassistant/discovery` topic.
+
+```mermaid
+flowchart TB
+    subgraph Backend["Backend Services"]
+        PUB["MQTT Publisher"]
+        CMD["Command Handler"]
+        HA["Home Assistant<br/>Auto-Discovery"]
+    end
+    subgraph Broker["MQTT Broker"]
+        T1["events/detections"]
+        T2["commands/#"]
+        T3["homeassistant/discovery"]
+    end
+    subgraph External["External Consumers"]
+        HASS["Home Assistant"]
+        NR["Node-RED"]
+        CUSTOM["Custom Scripts"]
+    end
+    PUB --> T1
+    T2 --> CMD
+    HA --> T3
+    T1 --> HASS & NR & CUSTOM
+    T3 --> HASS
+    HASS -->|Commands| T2
+```
+
 **Network:** All services connect via the `security-net` bridge network for internal DNS resolution.
 
 **Volume Mounts:**
@@ -188,18 +215,19 @@ flowchart TB
 
 ### Ports Reference
 
-| Service    | Port | Purpose                               |
-| ---------- | ---- | ------------------------------------- |
-| Frontend   | 80   | Web dashboard (production)            |
-| Frontend   | 5173 | Web dashboard (development)           |
-| Backend    | 8000 | REST API + WebSocket                  |
-| YOLO26     | 8095 | Object detection service              |
-| Nemotron   | 8091 | LLM risk analysis service             |
-| Florence-2 | 8092 | Vision extraction (optional)          |
-| CLIP       | 8093 | Re-identification (optional)          |
-| Enrichment | 8094 | Vehicle/pet classification (optional) |
-| PostgreSQL | 5432 | Database                              |
-| Redis      | 6379 | Cache + message broker                |
+| Service          | Port | Purpose                               |
+| ---------------- | ---- | ------------------------------------- |
+| Frontend         | 80   | Web dashboard (production)            |
+| Frontend         | 5173 | Web dashboard (development)           |
+| Backend          | 8000 | REST API + WebSocket                  |
+| YOLO26           | 8095 | Object detection service              |
+| Nemotron         | 8091 | LLM risk analysis service             |
+| Florence-2       | 8092 | Vision extraction (optional)          |
+| CLIP             | 8093 | Re-identification (optional)          |
+| Enrichment       | 8094 | Vehicle/pet classification (optional) |
+| Enrichment Light | 8096 | Lightweight enrichment (optional)     |
+| PostgreSQL       | 5432 | Database                              |
+| Redis            | 6379 | Cache + message broker                |
 
 ---
 
@@ -226,7 +254,7 @@ docker compose -f docker-compose.prod.yml restart backend
 
 ```bash
 # System health
-curl http://localhost:8000/api/system/health
+curl http://localhost:8000/api/system/health/ready
 
 # Full health with circuit breakers
 curl http://localhost:8000/api/system/health/full
@@ -261,20 +289,20 @@ fuser -k /dev/nvidia*
 
 ### Deployment
 
-- [Complete Deployment Guide](deployment/) - Docker/Podman setup, compose files, GHCR images
+- [Complete Deployment Guide](deployment/README.md) - Docker/Podman setup, compose files, GHCR images
 - [GPU Setup Guide](gpu-setup.md) - NVIDIA drivers, container toolkit, CDI
 - [AI Services Guide](ai-overview.md) - YOLO26, Nemotron, optional services
 - [Deployment Modes](deployment-modes.md) - AI networking for different setups
 
 ### Monitoring
 
-- [Monitoring Guide](monitoring/) - Health checks, GPU metrics, DLQ
+- [Monitoring Guide](monitoring/README.md) - Health checks, GPU metrics, DLQ
 - [Prometheus Alerting](prometheus-alerting.md) - Alert rules, Alertmanager
-- [Service Level Objectives](monitoring/) - SLIs, SLOs, error budgets
+- [Service Level Objectives](monitoring/README.md) - SLIs, SLOs, error budgets
 
 ### Administration
 
-- [Administration Guide](admin/) - Configuration, secrets, security
+- [Administration Guide](admin/README.md) - Configuration, secrets, security
 - [Backup and Recovery](backup.md) - Database backup, disaster recovery
 - [Redis Setup](redis.md) - Authentication, persistence
 
@@ -334,5 +362,5 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 
 - [User Hub](../user/README.md) - End-user documentation
 - [Developer Hub](../developer/README.md) - Development and contribution
-- [API Reference](../developer/api/) - REST and WebSocket APIs
+- [API Reference](../developer/api/README.md) - REST and WebSocket APIs
 - [Architecture Overview](../architecture/overview.md) - System design

@@ -375,6 +375,26 @@ The household member system integrates with the face recognition pipeline:
 4. **Matching** - Embeddings compared against household members
 5. **Alert Decision** - Trust level determines alert behavior
 
+### Household Matching Flow
+
+![Household Matching](../images/concepts/household-matching.png)
+
+The system uses multiple identification methods -- face recognition, person re-identification, and vehicle plate OCR -- to match detections against registered household members and vehicles. A successful match lowers the risk score based on the member's trust level.
+
+```mermaid
+flowchart TB
+    D[Person Detection] --> FR[Face Recognition]
+    D --> RE[Person Re-ID]
+    D --> VP[Vehicle Plate OCR]
+    FR --> M{Match Found?}
+    RE --> M
+    VP --> M
+    M -->|Yes| HM[Household Member Identified]
+    M -->|No| UK[Unknown Person/Vehicle]
+    HM --> LOW[Lower Risk Score]
+    UK --> NORM[Normal Risk Assessment]
+```
+
 For detailed face recognition documentation, see [Face Recognition Guide](face-recognition.md).
 
 ---

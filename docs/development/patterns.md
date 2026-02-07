@@ -18,7 +18,7 @@ This document covers key patterns used throughout the codebase. Understanding th
 
 ### Settings Management
 
-The application uses a cached singleton pattern for settings ([backend/core/config.py](../../backend/core/config.py:1)):
+The application uses a cached singleton pattern for settings ([backend/core/config.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/config.py)):
 
 ```python
 from functools import lru_cache
@@ -64,7 +64,7 @@ def test_something():
 
 #### Dependency Injection (API Routes)
 
-Use FastAPI's dependency injection for API routes ([backend/core/database.py](../../backend/core/database.py:1)):
+Use FastAPI's dependency injection for API routes ([backend/core/database.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/database.py)):
 
 ```python
 from fastapi import Depends
@@ -562,5 +562,5 @@ async def unreliable_operation():
 - [Setup Guide](setup.md) - Development environment setup
 - [Testing Guide](testing.md) - Test strategy and running tests
 - [Contributing Guide](contributing.md) - PR process and code standards
-- [Backend AGENTS.md](../../backend/AGENTS.md) - Backend architecture
-- [Services AGENTS.md](../../backend/services/AGENTS.md) - Service layer patterns
+- [Backend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) - Backend architecture
+- [Services AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/AGENTS.md) - Service layer patterns

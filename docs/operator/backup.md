@@ -3,7 +3,7 @@
 > Comprehensive guide for protecting your security data and recovering from failures.
 
 **Time to read:** ~10 min
-**Prerequisites:** [Container Setup](deployment/)
+**Prerequisites:** [Container Setup](deployment/README.md)
 
 ---
 
@@ -295,4 +295,4 @@ rsync -avz /opt/hsi-backup/ user@remote:/backups/hsi/
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

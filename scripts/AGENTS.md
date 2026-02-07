@@ -586,7 +586,7 @@ python scripts/benchmark_model_zoo.py --output results.md    # Custom output
 
 **Services Tested:**
 
-1. YOLO26 (port 8090) - object detection
+1. YOLO26 (port 8095) - object detection
 2. Florence-2 (port 8092) - dense captioning
 3. CLIP (port 8093) - entity embeddings
 4. Enrichment (port 8094) - vehicle/pet/clothing

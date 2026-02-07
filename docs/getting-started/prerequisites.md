@@ -34,7 +34,7 @@ no text overlays"
 
 The system runs two AI models simultaneously:
 
-- **YOLO26** (object detection): ~4GB VRAM ([`ai/start_detector.sh:6-7`](../../ai/start_detector.sh:6))
+- **YOLO26** (object detection): ~4GB VRAM ([`ai/start_detector.sh:6-7`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/start_detector.sh#L6))
 - **Nemotron** (risk analysis): ~14.7GB VRAM production (Nemotron-3-Nano-30B) or ~3GB development (Mini 4B)
 
 **Supported GPUs:**
@@ -58,7 +58,7 @@ The system runs two AI models simultaneously:
 
 - Cameras must be able to FTP upload to the server
 - Local network access (no internet required after setup)
-- Default ports: 80 (web), 8000 (API), 8090 (detection), 8091 (LLM)
+- Default ports: 80 (web), 8000 (API), 8095 (detection), 8091 (LLM)
 
 ---
 
@@ -91,9 +91,9 @@ nvidia-smi
 
 ### Python
 
-| Requirement | Version                                              |
-| ----------- | ---------------------------------------------------- |
-| **Python**  | 3.10+ ([`pyproject.toml:5`](../../pyproject.toml:5)) |
+| Requirement | Version                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Python**  | 3.10+ ([`pyproject.toml:5`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L5)) |
 
 ```bash
 # Verify Python version
@@ -115,10 +115,10 @@ brew install python@3.10
 
 ### Node.js
 
-| Requirement | Version                                                                   |
-| ----------- | ------------------------------------------------------------------------- |
-| **Node.js** | 20.19+ or 22.12+ ([`frontend/package.json`](../../frontend/package.json)) |
-| **npm**     | 10+                                                                       |
+| Requirement | Version                                                                                                                                             |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Node.js** | 20.19+ or 22.12+ ([`frontend/package.json`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/package.json)) |
+| **npm**     | 10+                                                                                                                                                 |
 
 > **Note:** Vite 7 requires Node.js 20.19+ or 22.12+ for native ESM support. Node.js 18 is NOT supported.
 

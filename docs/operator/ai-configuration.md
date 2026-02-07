@@ -322,4 +322,4 @@ NEMOTRON_READ_TIMEOUT=120.0
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

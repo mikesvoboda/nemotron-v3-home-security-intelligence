@@ -581,4 +581,4 @@ podman-compose -f docker-compose.prod.yml logs -f ai-llm
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

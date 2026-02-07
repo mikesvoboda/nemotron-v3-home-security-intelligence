@@ -185,13 +185,13 @@ Models are assigned priorities that control eviction order:
 
 ```bash
 # Download all models (~15GB total)
-./scripts/download_models.sh
+./ai/download_models.sh
 
 # Or using Python
 python scripts/download_models.py
 
 # Set custom models directory
-MODELS_DIR=/path/to/models ./scripts/download_models.sh
+MODELS_DIR=/path/to/models ./ai/download_models.sh
 ```
 
 ### VRAM Requirements
@@ -384,7 +384,7 @@ Common settings:
 
 This MVP is designed for **single-user, trusted LAN** deployments.
 
-- Authentication is **off by default**
+- First-time admin registration is required via SetupGuardMiddleware. After setup, API endpoints are open for the local network.
 - Rate limiting is **on by default**
 - Do **not** expose to the public internet without hardening
 

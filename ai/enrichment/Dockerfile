@@ -64,6 +64,7 @@ COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 COPY ai/enrichment/*.py ./
 COPY ai/enrichment/models/ ./models/
 COPY ai/enrichment/utils/ ./utils/
+COPY ai/gpu_oom_handler.py .
 
 # =============================================================================
 # Stage 2: Runtime - Minimal image without build dependencies

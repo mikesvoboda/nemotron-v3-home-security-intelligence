@@ -7,7 +7,7 @@ This hub documents the AI model infrastructure that powers the home security int
 | Model              | Port | Container       | VRAM            | Purpose                     |
 | ------------------ | ---- | --------------- | --------------- | --------------------------- |
 | YOLO26             | 8095 | `ai-yolo26`     | ~650MB          | Primary object detection    |
-| Nemotron 30B       | 8091 | `ai-nemotron`   | ~14.7GB         | Risk analysis and reasoning |
+| Nemotron 30B       | 8091 | `ai-llm`        | ~14.7GB         | Risk analysis and reasoning |
 | Florence-2         | 8092 | `ai-florence`   | ~1.2GB          | Vision-language captioning  |
 | Enrichment Service | 8094 | `ai-enrichment` | ~6.8GB (budget) | Multi-model enrichment      |
 
@@ -43,7 +43,7 @@ flowchart TB
 
     subgraph AI["AI Services"]
         YOLO["YOLO26<br/>Port 8095<br/>Object Detection"]
-        NEM["Nemotron 70B<br/>Port 8091<br/>Risk Analysis"]
+        NEM["Nemotron-3-Nano-30B-A3B<br/>Port 8091<br/>Risk Analysis"]
         ENR["Enrichment Svc<br/>Port 8094<br/>Multi-model Zoo"]
     end
 
@@ -61,11 +61,11 @@ flowchart TB
 
 Total GPU VRAM: ~24GB (RTX 3090/4090)
 
-| Component                      | VRAM      | Notes                               |
-| ------------------------------ | --------- | ----------------------------------- |
-| Nemotron 70B (4-bit quantized) | 21,700 MB | Always loaded via llama.cpp         |
-| YOLO26                         | 650 MB    | Always loaded                       |
-| Enrichment Model Zoo           | 1,650 MB  | On-demand loading with LRU eviction |
+| Component                        | VRAM       | Notes                               |
+| -------------------------------- | ---------- | ----------------------------------- |
+| Nemotron-3-Nano-30B-A3B (Q4_K_M) | ~14,700 MB | Always loaded via llama.cpp         |
+| YOLO26                           | 650 MB     | Always loaded                       |
+| Enrichment Model Zoo             | 1,650 MB   | On-demand loading with LRU eviction |
 
 The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction for its internal models. See [model-zoo.md](./model-zoo.md) for details.
 

@@ -24,15 +24,22 @@ ai/
 ├── compile_utils.py       # torch.compile() utilities (NEM-3773)
 ├── batch_utils.py         # Batch processing utilities (NEM-3377)
 ├── torch_optimizations.py # General PyTorch optimization utilities
+├── cpu_offloading.py      # CPU offloading utilities
+├── cuda_graph_manager.py  # CUDA graph management
+├── flash_attention_config.py # FlashAttention configuration
+├── gpu_memory_pool.py     # GPU memory pool management
+├── hub_cache_config.py    # HuggingFace hub cache configuration
+├── quantization_config.py # Quantization configuration
+├── static_kv_cache.py     # Static KV cache for inference
+├── warmup_utils.py        # Model warmup utilities
+├── shared/                # Shared utilities (gpu_profiler.py)
 ├── common/                # Shared TensorRT optimization infrastructure (NEM-3838)
 │   ├── AGENTS.md          # TensorRT infrastructure documentation
 │   ├── __init__.py        # Package exports
 │   ├── tensorrt_utils.py  # ONNX-to-TensorRT conversion, engine management
 │   ├── tensorrt_inference.py  # Base classes for TensorRT-accelerated models
 │   └── tests/             # Unit tests
-│   ├── test_model.py      # Unit tests (pytest)
-│   ├── requirements.txt   # Python dependencies
-│   └── __init__.py        # Package init
+│       └── __init__.py    # Package init
 ├── nemotron/              # Nemotron LLM model files
 │   ├── AGENTS.md          # Nemotron documentation
 │   ├── Dockerfile         # Multi-stage build for llama.cpp
@@ -51,7 +58,8 @@ ai/
 │   ├── test_model.py      # Unit tests (pytest)
 │   ├── requirements.txt   # Python dependencies
 │   └── tests/             # Additional tests directory
-├── enrichment/            # Combined enrichment service (Model Zoo)
+├── enrichment/            # Combined enrichment service (Model Zoo) - port 8094 (ENRICHMENT_PORT)
+├── enrichment-light/      # Lightweight enrichment service - port 8096 (ENRICHMENT_LIGHT_PORT)
 │   ├── AGENTS.md          # Enrichment documentation
 │   ├── Dockerfile         # Container build
 │   ├── __init__.py        # Package init
@@ -87,7 +95,7 @@ The Enrichment service implements an on-demand **Model Zoo** architecture for VR
 | Threat Detector    | 400 MB | CRITICAL | Weapon detection (gun, knife)    | Always checked for security       |
 | Pose Estimator     | 300 MB | HIGH     | Body posture (17 COCO keypoints) | Person detected                   |
 | Demographics       | 500 MB | HIGH     | Age/gender estimation            | Person with face detected         |
-| FashionCLIP        | 800 MB | HIGH     | Clothing attributes              | Person detected                   |
+| FashionCLIP        | 800 MB | MEDIUM   | Clothing attributes              | Person detected                   |
 | Vehicle Classifier | 1.5 GB | MEDIUM   | Vehicle type (11 classes)        | Vehicle detected                  |
 | Pet Classifier     | 200 MB | MEDIUM   | Cat/dog classification           | Cat/dog detected                  |
 | Person ReID        | 100 MB | MEDIUM   | OSNet re-ID embeddings (512-dim) | Person detected for tracking      |
@@ -105,7 +113,7 @@ Models are evicted in priority order when VRAM budget is exceeded:
 
 ### VRAM Budget
 
-- Default budget: **6.8 GB** (configurable via `VRAM_BUDGET_GB`)
+- Default budget: **6.0 GB** (configurable via `VRAM_BUDGET_GB`)
 - Models load on-demand when `/enrich` endpoint is called
 - LRU eviction with priority ordering when budget exceeded
 - Automatic CUDA cache clearing on model unload
@@ -214,7 +222,7 @@ The backend communicates with AI services via HTTP clients:
 
 | Variable              | Default                                  | Description                      |
 | --------------------- | ---------------------------------------- | -------------------------------- |
-| `VRAM_BUDGET_GB`      | `6.8`                                    | VRAM budget for on-demand models |
+| `VRAM_BUDGET_GB`      | `6.0`                                    | VRAM budget for on-demand models |
 | `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path          |
 | `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path              |
 | `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path           |
@@ -259,11 +267,11 @@ The enrichment service provides structured context to Nemotron for better risk a
 - **GPU**: NVIDIA with CUDA support (tested on RTX A5500 24GB + RTX A400 4GB)
 - **Container Runtime**: Docker or Podman with NVIDIA Container Toolkit
 - **Total VRAM**: ~22 GB for all services running simultaneously
-  - YOLO26: ~100 MB (TensorRT FP16)
+  - YOLO26: ~2 GB (TensorRT FP16)
   - Nemotron: ~14.7 GB
   - Florence-2: ~1.5 GB
   - CLIP: ~1.2 GB
-  - Enrichment (Model Zoo): ~6.8 GB budget
+  - Enrichment (Model Zoo): ~6.0 GB budget
 
 ### Multi-GPU Support
 
@@ -511,3 +519,11 @@ For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migrat
    - torch.compile: `compile_utils.py` (NEM-3773)
    - Batch processing: `batch_utils.py` (NEM-3377)
    - General optimizations: `torch_optimizations.py`
+   - CPU offloading: `cpu_offloading.py`
+   - CUDA graphs: `cuda_graph_manager.py`
+   - FlashAttention: `flash_attention_config.py`
+   - GPU memory pool: `gpu_memory_pool.py`
+   - Hub cache: `hub_cache_config.py`
+   - Quantization: `quantization_config.py`
+   - Static KV cache: `static_kv_cache.py`
+   - Warmup utilities: `warmup_utils.py`

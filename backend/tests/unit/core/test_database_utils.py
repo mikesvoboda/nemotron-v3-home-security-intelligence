@@ -6,6 +6,8 @@ Tests cover:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from backend.core.database import escape_ilike_pattern
 
 
@@ -207,8 +209,8 @@ class TestDatabasePoolConfiguration:
         assert settings.database_pool_size >= 5
         assert settings.database_pool_size <= 100
 
-        # Overflow should allow burst capacity
-        assert settings.database_pool_overflow >= 0
+        # Overflow should allow burst capacity (min 5 to prevent latency degradation)
+        assert settings.database_pool_overflow >= 5
         assert settings.database_pool_overflow <= 100
 
         # Timeout should be reasonable (5-120 seconds)
@@ -258,7 +260,7 @@ class TestDatabasePoolConfiguration:
         init_source_file = database.__file__
         assert init_source_file is not None
 
-        with open(init_source_file) as f:
+        with open(Path(init_source_file).resolve()) as f:  # nosemgrep: path-traversal-open
             source_code = f.read()
 
         # Verify the engine_kwargs uses settings attributes, not hardcoded values

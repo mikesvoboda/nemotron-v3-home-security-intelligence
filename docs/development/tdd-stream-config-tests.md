@@ -23,7 +23,7 @@ This document summarizes the TDD tests written for Phase 3: Stream Settings Cont
 
 ### 1. Backend Schema Tests
 
-**File:** `/home/msvoboda/.claude-squad/worktrees/msvoboda/fine6_188f60b28b5145a6/backend/tests/unit/api/schemas/test_stream_config.py`
+**File:** `backend/tests/unit/api/schemas/test_stream_config.py`
 
 **Purpose:** Validate Pydantic schemas for stream configuration API requests/responses.
 
@@ -66,7 +66,7 @@ This document summarizes the TDD tests written for Phase 3: Stream Settings Cont
 
 ### 2. Backend Service Tests
 
-**File:** `/home/msvoboda/.claude-squad/worktrees/msvoboda/fine6_188f60b28b5145a6/backend/tests/unit/services/test_stream_config_service.py`
+**File:** `backend/tests/unit/services/test_stream_config_service.py`
 
 **Purpose:** Test stream configuration service logic that interacts with ONVIF cameras.
 
@@ -101,7 +101,7 @@ This document summarizes the TDD tests written for Phase 3: Stream Settings Cont
 
 ### 3. Backend Integration Tests
 
-**File:** `/home/msvoboda/.claude-squad/worktrees/msvoboda/fine6_188f60b28b5145a6/backend/tests/integration/test_stream_config_api.py`
+**File:** `backend/tests/integration/test_stream_config_api.py`
 
 **Purpose:** Test complete API flow with FastAPI endpoints and database.
 
@@ -134,7 +134,7 @@ This document summarizes the TDD tests written for Phase 3: Stream Settings Cont
 
 ### 4. Frontend Component Tests
 
-**File:** `/home/msvoboda/.claude-squad/worktrees/msvoboda/fine6_188f60b28b5145a6/frontend/src/components/settings/__tests__/StreamSettingsForm.test.tsx`
+**File:** `frontend/src/components/settings/__tests__/StreamSettingsForm.test.tsx`
 
 **Purpose:** Test StreamSettingsForm React component UI and user interactions.
 

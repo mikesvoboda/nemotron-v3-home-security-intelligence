@@ -455,7 +455,7 @@ GPU-accelerated AI inference services:
 
 | Service       | Display Name | Port | Grace Period | VRAM                                |
 | ------------- | ------------ | ---- | ------------ | ----------------------------------- |
-| ai-yolo26     | YOLO26       | 8090 | 60s          | ~4GB                                |
+| ai-yolo26     | YOLO26       | 8095 | 60s          | ~4GB                                |
 | ai-llm        | Nemotron     | 8091 | 120s         | ~3GB (Mini 4B) / ~14.7GB (30B prod) |
 | ai-florence   | Florence-2   | 8092 | 60s          | ~2GB                                |
 | ai-clip       | CLIP         | 8093 | 60s          | ~2GB                                |
@@ -573,7 +573,7 @@ Service status changes are broadcast via WebSocket:
     "enabled": true,
     "container_id": "abc123def456",
     "image": "security-ai-yolo26:latest",
-    "port": 8090,
+    "port": 8095,
     "failure_count": 0,
     "restart_count": 2,
     "last_restart_at": "2024-01-15T10:30:00Z",
@@ -781,7 +781,7 @@ curl http://localhost:2375/v1.40/containers/json
 - [Monitoring Guide](../operator/monitoring/README.md) - Observability setup
 - [AI Services](../operator/ai-services.md) - AI service configuration
 - [Service Control](../operator/service-control.md) - Manual service management
-- [Troubleshooting](../reference/troubleshooting/README.md) - General troubleshooting
+- [Troubleshooting](../reference/troubleshooting/index.md) - General troubleshooting
 
 ---
 

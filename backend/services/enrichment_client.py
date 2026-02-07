@@ -707,6 +707,100 @@ class PoseAnalysisResult:
         return len(self.alerts) > 0
 
 
+@dataclass(slots=True)
+class ThreatDetectionClientResult:
+    """Result from threat detection via HTTP service.
+
+    Attributes:
+        threats_detected: List of detected threats with type, confidence, bbox
+        is_threat: Whether any threat was detected
+        max_confidence: Maximum confidence among detected threats
+        inference_time_ms: Inference time in milliseconds
+    """
+
+    threats_detected: list[dict[str, Any]]
+    is_threat: bool
+    max_confidence: float
+    inference_time_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "threats_detected": self.threats_detected,
+            "is_threat": self.is_threat,
+            "max_confidence": self.max_confidence,
+            "inference_time_ms": self.inference_time_ms,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        if not self.is_threat:
+            return "Threat scan: No weapons or threatening objects detected"
+        threat_types = [
+            t.get("class_name", t.get("type", "unknown")) for t in self.threats_detected
+        ]
+        return f"THREAT DETECTED: {', '.join(threat_types)} (max confidence: {self.max_confidence:.0%})"
+
+
+@dataclass(slots=True)
+class DemographicsClientResult:
+    """Result from demographics analysis via HTTP service.
+
+    Attributes:
+        age_range: Estimated age range (e.g., "25-35", "child", "senior")
+        age_confidence: Confidence in age estimation (0-1)
+        gender: Estimated gender ("male", "female", "unknown")
+        gender_confidence: Confidence in gender estimation (0-1)
+        inference_time_ms: Inference time in milliseconds
+    """
+
+    age_range: str
+    age_confidence: float
+    gender: str
+    gender_confidence: float
+    inference_time_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "age_range": self.age_range,
+            "age_confidence": self.age_confidence,
+            "gender": self.gender,
+            "gender_confidence": self.gender_confidence,
+            "inference_time_ms": self.inference_time_ms,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        return (
+            f"Demographics: {self.gender} ({self.gender_confidence:.0%}), "
+            f"age {self.age_range} ({self.age_confidence:.0%})"
+        )
+
+
+@dataclass(slots=True)
+class ReIDEmbeddingClientResult:
+    """Result from person re-identification embedding extraction via HTTP service.
+
+    Attributes:
+        embedding: Embedding vector (typically 512-dimensional)
+        embedding_dim: Dimensionality of the embedding
+        inference_time_ms: Inference time in milliseconds
+    """
+
+    embedding: list[float]
+    embedding_dim: int
+    inference_time_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "embedding": self.embedding,
+            "embedding_dim": self.embedding_dim,
+            "inference_time_ms": self.inference_time_ms,
+        }
+
+
 class EnrichmentClient:
     """Client for interacting with combined enrichment classification service.
 
@@ -2386,6 +2480,496 @@ class EnrichmentClient:
         # All retries exhausted
         raise EnrichmentUnavailableError(
             f"Enrichment action classification failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
+
+    async def detect_threats(
+        self,
+        image: Image.Image,
+        bbox: tuple[float, float, float, float] | None = None,
+    ) -> ThreatDetectionClientResult | None:
+        """Detect weapons and threats in an image.
+
+        Routes to the appropriate service (heavy or light) based on
+        ENRICHMENT_THREAT_SERVICE configuration. Default: enrichment-light.
+
+        Includes retry logic with exponential backoff for transient failures.
+
+        Args:
+            image: PIL Image to scan for threats
+            bbox: Optional bounding box (x1, y1, x2, y2) to crop before detection
+
+        Returns:
+            ThreatDetectionClientResult or None on error
+
+        Raises:
+            EnrichmentUnavailableError: If the service is unavailable after retries
+        """
+        service_url, circuit_breaker = self._get_service_for_model("threat")
+
+        if not circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
+        start_time = time.time()
+        endpoint = "threat-detect"
+        endpoint_name = "threat"
+        last_error: Exception | None = None
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
+
+        logger.debug("Sending threat detection request to %s", service_url)
+
+        image_b64 = self._encode_image_to_base64(image)
+
+        # Build request payload (enrichment-light uses image_base64 field name)
+        payload: dict[str, Any] = {"image_base64": image_b64}
+        if bbox:
+            payload["bbox"] = list(bbox)
+
+        for attempt in range(self._max_retries):
+            try:
+                ai_start_time = time.time()
+
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{service_url}/{endpoint}",
+                        json=payload,
+                        headers=self._get_headers(),
+                    )
+                    response.raise_for_status()
+
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_threat", ai_duration)
+
+                result = response.json()
+                circuit_breaker.record_success()
+
+                return ThreatDetectionClientResult(
+                    threats_detected=result.get("threats_detected", []),
+                    is_threat=result.get("is_threat", False),
+                    max_confidence=result.get("max_confidence", 0.0),
+                    inference_time_ms=result.get("inference_time_ms", 0.0),
+                )
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_threat_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
+
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_threat_server_error")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error(f"enrichment_threat_{error_type}")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except TimeoutError as e:
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_threat_asyncio_timeout")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_threat_unexpected_error")
+                circuit_breaker.record_failure()
+                logger.error(
+                    f"Unexpected error during threat detection: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
+                    exc_info=True,
+                )
+                raise EnrichmentUnavailableError(
+                    f"Unexpected error during threat detection: {sanitize_error(e)}",
+                    original_error=e,
+                ) from e
+
+        raise EnrichmentUnavailableError(
+            f"Enrichment threat detection failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
+
+    async def analyze_demographics(
+        self,
+        image: Image.Image,
+        bbox: tuple[float, float, float, float] | None = None,
+    ) -> DemographicsClientResult | None:
+        """Analyze demographics (age, gender) from a person/face crop.
+
+        Routes to heavy service based on ENRICHMENT_DEMOGRAPHICS_SERVICE config.
+
+        Args:
+            image: PIL Image containing person or face crop
+            bbox: Optional bounding box (x1, y1, x2, y2) to crop before analysis
+
+        Returns:
+            DemographicsClientResult or None on error
+
+        Raises:
+            EnrichmentUnavailableError: If the service is unavailable after retries
+        """
+        service_url, circuit_breaker = self._get_service_for_model("demographics")
+
+        if not circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
+        start_time = time.time()
+        endpoint = "demographics"
+        endpoint_name = "demographics"
+        last_error: Exception | None = None
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
+
+        logger.debug("Sending demographics analysis request to %s", service_url)
+
+        image_b64 = self._encode_image_to_base64(image)
+
+        # Build request payload (heavy service uses 'image' field name)
+        payload: dict[str, Any] = {"image": image_b64}
+        if bbox:
+            payload["bbox"] = list(bbox)
+
+        for attempt in range(self._max_retries):
+            try:
+                ai_start_time = time.time()
+
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{service_url}/{endpoint}",
+                        json=payload,
+                        headers=self._get_headers(),
+                    )
+                    response.raise_for_status()
+
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_demographics", ai_duration)
+
+                result = response.json()
+                circuit_breaker.record_success()
+
+                return DemographicsClientResult(
+                    age_range=result.get("age_range", "unknown"),
+                    age_confidence=result.get("age_confidence", 0.0),
+                    gender=result.get("gender", "unknown"),
+                    gender_confidence=result.get("gender_confidence", 0.0),
+                    inference_time_ms=result.get("inference_time_ms", 0.0),
+                )
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_demographics_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
+
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_demographics_server_error")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error(f"enrichment_demographics_{error_type}")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except TimeoutError as e:
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_demographics_asyncio_timeout")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_demographics_unexpected_error")
+                circuit_breaker.record_failure()
+                logger.error(
+                    f"Unexpected error during demographics analysis: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
+                    exc_info=True,
+                )
+                raise EnrichmentUnavailableError(
+                    f"Unexpected error during demographics analysis: {sanitize_error(e)}",
+                    original_error=e,
+                ) from e
+
+        raise EnrichmentUnavailableError(
+            f"Enrichment demographics analysis failed after {self._max_retries} retries",
+            original_error=last_error,
+        )
+
+    async def compute_reid_embedding(
+        self,
+        image: Image.Image,
+        bbox: tuple[float, float, float, float] | None = None,
+    ) -> ReIDEmbeddingClientResult | None:
+        """Extract person re-identification embedding from an image.
+
+        Routes to enrichment-light based on ENRICHMENT_REID_SERVICE config.
+
+        Args:
+            image: PIL Image containing person
+            bbox: Optional bounding box (x1, y1, x2, y2) to crop before embedding
+
+        Returns:
+            ReIDEmbeddingClientResult or None on error
+
+        Raises:
+            EnrichmentUnavailableError: If the service is unavailable after retries
+        """
+        service_url, circuit_breaker = self._get_service_for_model("reid")
+
+        if not circuit_breaker.allow_request():
+            record_pipeline_error("enrichment_circuit_open")
+            raise EnrichmentUnavailableError(
+                "Enrichment service circuit open - requests temporarily blocked"
+            )
+
+        start_time = time.time()
+        endpoint = "person-reid"
+        endpoint_name = "reid"
+        last_error: Exception | None = None
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
+
+        logger.debug("Sending person re-ID request to %s", service_url)
+
+        image_b64 = self._encode_image_to_base64(image)
+
+        # Build request payload (enrichment-light uses image_base64 field name)
+        payload: dict[str, Any] = {"image_base64": image_b64}
+        if bbox:
+            payload["bbox"] = list(bbox)
+
+        for attempt in range(self._max_retries):
+            try:
+                ai_start_time = time.time()
+
+                async with asyncio.timeout(explicit_timeout):
+                    response = await self._http_client.post(
+                        f"{service_url}/{endpoint}",
+                        json=payload,
+                        headers=self._get_headers(),
+                    )
+                    response.raise_for_status()
+
+                ai_duration = time.time() - ai_start_time
+                observe_ai_request_duration("enrichment_reid", ai_duration)
+
+                result = response.json()
+                circuit_breaker.record_success()
+
+                embedding = result.get("embedding", [])
+                return ReIDEmbeddingClientResult(
+                    embedding=embedding,
+                    embedding_dim=result.get("embedding_dim", len(embedding)),
+                    inference_time_ms=result.get("inference_time_ms", 0.0),
+                )
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code < 500:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_reid_client_error")
+                    logger.error(
+                        f"Enrichment returned client error: {e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+                    return None
+
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after server error {e.response.status_code}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_reid_server_error")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment returned server error after {self._max_retries} retries: "
+                        f"{e.response.status_code} - {e}",
+                        extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+                        exc_info=True,
+                    )
+
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_error = e
+                error_type = "connection_error" if isinstance(e, httpx.ConnectError) else "timeout"
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} retry {attempt + 1}/{self._max_retries}, "
+                        f"waiting {delay:.1f}s after {error_type}"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error(f"enrichment_reid_{error_type}")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
+                        extra={"duration_ms": duration_ms},
+                        exc_info=True,
+                    )
+
+            except TimeoutError as e:
+                last_error = e
+                if attempt < self._max_retries - 1:
+                    delay = self._calculate_backoff_delay(attempt)
+                    increment_enrichment_retry(endpoint_name)
+                    logger.warning(
+                        f"Enrichment {endpoint_name} asyncio timeout "
+                        f"(attempt {attempt + 1}/{self._max_retries}), "
+                        f"waiting {delay:.1f}s: request timed out after {explicit_timeout}s"
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    record_pipeline_error("enrichment_reid_asyncio_timeout")
+                    circuit_breaker.record_failure()
+                    logger.error(
+                        f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
+                        f"request timed out after {explicit_timeout}s",
+                        extra={"duration_ms": duration_ms, "explicit_timeout": explicit_timeout},
+                        exc_info=True,
+                    )
+
+            except Exception as e:
+                duration_ms = int((time.time() - start_time) * 1000)
+                record_pipeline_error("enrichment_reid_unexpected_error")
+                circuit_breaker.record_failure()
+                logger.error(
+                    f"Unexpected error during person re-ID: {sanitize_error(e)}",
+                    extra={"duration_ms": duration_ms},
+                    exc_info=True,
+                )
+                raise EnrichmentUnavailableError(
+                    f"Unexpected error during person re-ID: {sanitize_error(e)}",
+                    original_error=e,
+                ) from e
+
+        raise EnrichmentUnavailableError(
+            f"Enrichment person re-ID failed after {self._max_retries} retries",
             original_error=last_error,
         )
 

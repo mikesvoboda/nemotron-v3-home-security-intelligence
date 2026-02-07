@@ -50,6 +50,6 @@ For detailed component navigation, patterns, and architecture, see [AGENTS.md](.
 
 ## Related Documentation
 
-- [Frontend Architecture](../developer/architecture/frontend.md)
+- [Frontend Architecture](../architecture/frontend/README.md)
 - [Testing Patterns](../developer/patterns/AGENTS.md)
-- [API Client Documentation](../api/)
+- [API Client Documentation](../api/DEPRECATION_POLICY.md)

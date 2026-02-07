@@ -95,7 +95,7 @@ _Full-stack prompt management flow from UI to database to AI inference._
 
 ### PromptVersion Model
 
-**Source:** [`backend/models/prompt_version.py`](../../backend/models/prompt_version.py)
+**Source:** [`backend/models/prompt_version.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/models/prompt_version.py)
 
 ```python
 class PromptVersion(Base):
@@ -177,7 +177,7 @@ class PromptVersion(Base):
 
 ### Core Endpoints
 
-**Source:** [`backend/api/routes/prompt_management.py`](../../backend/api/routes/prompt_management.py)
+**Source:** [`backend/api/routes/prompt_management.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/routes/prompt_management.py)
 
 | Method | Endpoint                               | Description                      | Rate Limited |
 | ------ | -------------------------------------- | -------------------------------- | ------------ |
@@ -193,7 +193,7 @@ class PromptVersion(Base):
 
 ### Request/Response Schemas
 
-**Source:** [`backend/api/schemas/prompt_management.py`](../../backend/api/schemas/prompt_management.py)
+**Source:** [`backend/api/schemas/prompt_management.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/schemas/prompt_management.py)
 
 **PromptUpdateRequest:**
 
@@ -228,7 +228,7 @@ Validation checks:
 
 ### PromptService
 
-**Source:** [`backend/services/prompt_service.py`](../../backend/services/prompt_service.py)
+**Source:** [`backend/services/prompt_service.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/prompt_service.py)
 
 The main service for CRUD operations on prompts.
 
@@ -467,7 +467,7 @@ class PromptEvaluator:
 
 ### PromptPlayground
 
-**Source:** [`frontend/src/components/ai/PromptPlayground.tsx`](../../frontend/src/components/ai/PromptPlayground.tsx)
+**Source:** [`frontend/src/components/ai/PromptPlayground.tsx`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/ai/PromptPlayground.tsx)
 
 Main slide-out panel for prompt editing and testing.
 
@@ -507,7 +507,7 @@ const [isRunningABTest, setIsRunningABTest] = useState(false);
 
 ### PromptABTest
 
-**Source:** [`frontend/src/components/ai/PromptABTest.tsx`](../../frontend/src/components/ai/PromptABTest.tsx)
+**Source:** [`frontend/src/components/ai/PromptABTest.tsx`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/ai/PromptABTest.tsx)
 
 Split-view A/B testing component.
 
@@ -533,7 +533,7 @@ interface PromptABTestProps {
 
 ### ABTestStats
 
-**Source:** [`frontend/src/components/ai/ABTestStats.tsx`](../../frontend/src/components/ai/ABTestStats.tsx)
+**Source:** [`frontend/src/components/ai/ABTestStats.tsx`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/ai/ABTestStats.tsx)
 
 Calculate and display A/B test statistics.
 
@@ -549,7 +549,7 @@ export function calculateStats(results: ABTestResult[]): ABTestStats {
 
 ### Prompt Diff Utilities
 
-**Source:** [`frontend/src/utils/promptDiff.ts`](../../frontend/src/utils/promptDiff.ts)
+**Source:** [`frontend/src/utils/promptDiff.ts`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/utils/promptDiff.ts)
 
 Functions for generating diffs and applying suggestions.
 
@@ -575,7 +575,7 @@ export function isSuggestionApplied(prompt: string, suggestion: EnrichedSuggesti
 
 ## A/B Testing Service
 
-**Source:** [`frontend/src/services/abTestService.ts`](../../frontend/src/services/abTestService.ts)
+**Source:** [`frontend/src/services/abTestService.ts`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/services/abTestService.ts)
 
 Frontend service for executing A/B tests.
 
@@ -794,16 +794,16 @@ Key test scenarios:
 
 ## Source Files
 
-| File                                                                                                       | Description        |
-| ---------------------------------------------------------------------------------------------------------- | ------------------ |
-| [`backend/models/prompt_version.py`](../../backend/models/prompt_version.py)                               | Database model     |
-| [`backend/api/routes/prompt_management.py`](../../backend/api/routes/prompt_management.py)                 | API routes         |
-| [`backend/api/schemas/prompt_management.py`](../../backend/api/schemas/prompt_management.py)               | Pydantic schemas   |
-| [`backend/services/prompt_service.py`](../../backend/services/prompt_service.py)                           | Service layer      |
-| [`frontend/src/components/ai/PromptPlayground.tsx`](../../frontend/src/components/ai/PromptPlayground.tsx) | Main UI component  |
-| [`frontend/src/components/ai/PromptABTest.tsx`](../../frontend/src/components/ai/PromptABTest.tsx)         | A/B test component |
-| [`frontend/src/services/abTestService.ts`](../../frontend/src/services/abTestService.ts)                   | A/B test service   |
-| [`frontend/src/utils/promptDiff.ts`](../../frontend/src/utils/promptDiff.ts)                               | Diff utilities     |
+| File                                                                                                                                                                                 | Description        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| [`backend/models/prompt_version.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/models/prompt_version.py)                               | Database model     |
+| [`backend/api/routes/prompt_management.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/routes/prompt_management.py)                 | API routes         |
+| [`backend/api/schemas/prompt_management.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/schemas/prompt_management.py)               | Pydantic schemas   |
+| [`backend/services/prompt_service.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/prompt_service.py)                           | Service layer      |
+| [`frontend/src/components/ai/PromptPlayground.tsx`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/ai/PromptPlayground.tsx) | Main UI component  |
+| [`frontend/src/components/ai/PromptABTest.tsx`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/ai/PromptABTest.tsx)         | A/B test component |
+| [`frontend/src/services/abTestService.ts`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/services/abTestService.ts)                   | A/B test service   |
+| [`frontend/src/utils/promptDiff.ts`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/utils/promptDiff.ts)                               | Diff utilities     |
 
 ---
 

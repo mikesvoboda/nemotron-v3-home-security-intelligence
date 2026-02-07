@@ -57,14 +57,30 @@ COPY --from=builder /build/llama.cpp/build/bin/*.so* /usr/local/lib/
 RUN chmod +x /usr/local/bin/llama-server && ldconfig
 
 # Environment variables for configuration
+# NEM-5528: MODEL_PATH is overridden at runtime via docker-compose environment.
+# docker-compose.prod.yml passes: MODEL_PATH=${LLM_MODEL_PATH:-/models/...}
+# This allows swapping quantizations (e.g., IQ4_XS vs Q4_K_M) without rebuilding.
+# Set LLM_MODEL_PATH in .env to change the active quantization.
 ENV MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ENV PORT=8091
 ENV GPU_LAYERS=35
 # NEM-5369: Reduced default context size from 131072 to 32768 to save ~4GB VRAM
 ENV CTX_SIZE=32768
-ENV PARALLEL=1
+ENV PARALLEL=2
 # NEM-5369: Flash attention enabled by default to reduce VRAM usage
 ENV FLASH_ATTENTION=true
+# Thread count for CPU-offloaded layers (match container CPU limit)
+ENV THREADS=4
+# Batch sizes for prompt processing throughput
+ENV BATCH_SIZE=2048
+ENV UBATCH_SIZE=512
+# KV cache quantization (Q8_0 saves ~50% KV memory with negligible quality loss)
+# Only 6 of 52 layers are attention (rest are Mamba), so savings are modest (~192MB)
+ENV CACHE_TYPE_K=q8_0
+ENV CACHE_TYPE_V=q8_0
+# MoE expert offloading: keep attention+Mamba on GPU, offload MoE FFN experts to CPU
+# Experts are activated 6-of-128 per token, so CPU latency is minimal
+ENV MOE_OFFLOAD_PATTERN=
 
 # Expose the service port
 EXPOSE 8091
@@ -87,6 +103,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
 # NEM-5369: Conditionally enable flash attention for VRAM savings
 CMD ["sh", "-c", "FLASH_ARGS=''; \
     if [ \"${FLASH_ATTENTION}\" = 'true' ]; then FLASH_ARGS='--flash-attn on'; fi; \
+    MOE_ARGS=''; \
+    if [ -n \"${MOE_OFFLOAD_PATTERN}\" ]; then MOE_ARGS=\"--override-tensor ${MOE_OFFLOAD_PATTERN}=CPU\"; fi; \
     llama-server \
     --model ${MODEL_PATH} \
     --host 0.0.0.0 \
@@ -94,6 +112,13 @@ CMD ["sh", "-c", "FLASH_ARGS=''; \
     --n-gpu-layers ${GPU_LAYERS} \
     --ctx-size ${CTX_SIZE} \
     --parallel ${PARALLEL} \
+    --threads ${THREADS} \
+    --threads-batch ${THREADS} \
+    --batch-size ${BATCH_SIZE} \
+    --ubatch-size ${UBATCH_SIZE} \
+    --cache-type-k ${CACHE_TYPE_K} \
+    --cache-type-v ${CACHE_TYPE_V} \
     --cont-batching \
     --metrics \
-    ${FLASH_ARGS}"]
+    ${FLASH_ARGS} \
+    ${MOE_ARGS}"]

@@ -30,7 +30,7 @@
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 999 = all layers on GPU)
-#   - CTX_SIZE: LLM context window size (default: 65536)
+#   - CTX_SIZE: LLM context window size (default: 32768, defined in .env)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
@@ -148,7 +148,7 @@ services:
       - CUDA_VISIBLE_DEVICES=${GPU_YOLO26:-1}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
       # Use .pt file to auto-rebuild TensorRT engine for target GPU (A400)
       - YOLO26_MODEL_PATH=/models/yolo26/yolo26m.pt
@@ -210,13 +210,27 @@ services:
       - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
+      # NEM-5528: Model path configurable via .env to swap quantizations without rebuild
+      - MODEL_PATH=${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}
       # All layers on GPU - other AI services moved to GPU 1 (A400) to free up A5500 for LLM
       # With dual-GPU setup, Nemotron can use all 53 layers on GPU 0
       - GPU_LAYERS=${GPU_LAYERS:-999}
       # NEM-5369: Reduced context for home security analysis (was 65536, saves ~4GB VRAM)
       # 32768 tokens is sufficient for security event analysis prompts
       - CTX_SIZE=${CTX_SIZE:-32768}
+      # 2 parallel slots (16K each) for concurrent batch processing
+      - PARALLEL=${PARALLEL:-2}
+      # Thread count for CPU-offloaded layers
+      - THREADS=${LLM_THREADS:-4}
+      # Batch sizes for prompt processing
+      - BATCH_SIZE=${LLM_BATCH_SIZE:-2048}
+      - UBATCH_SIZE=${LLM_UBATCH_SIZE:-512}
+      # KV cache quantization (Q8_0 saves ~50% KV memory, negligible quality loss)
+      - CACHE_TYPE_K=${LLM_CACHE_TYPE_K:-q8_0}
+      - CACHE_TYPE_V=${LLM_CACHE_TYPE_V:-q8_0}
+      # MoE expert offloading pattern (empty = disabled, set to regex matching expert FFN weights)
+      - MOE_OFFLOAD_PATTERN=${LLM_MOE_OFFLOAD_PATTERN:-}
       # NEM-5369: Enable flash attention to reduce VRAM usage with minimal performance impact
       - FLASH_ATTENTION=${FLASH_ATTENTION:-true}
     healthcheck:
@@ -349,7 +363,7 @@ services:
       - CUDA_VISIBLE_DEVICES=${GPU_FLORENCE:-0}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - MODEL_PATH=/models/florence-2-large
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
@@ -413,7 +427,7 @@ services:
       - CUDA_VISIBLE_DEVICES=${GPU_CLIP:-1}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - CLIP_MODEL_PATH=/models/clip-vit-l
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
@@ -481,7 +495,7 @@ services:
       - GPU_TIER=light
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       # Model assignment configuration (which models this service loads)
       # Set to 'light' to load on this service, 'heavy' to skip
       - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
@@ -565,7 +579,7 @@ services:
       - GPU_TIER=heavy
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       # Heavy models only (light models on ai-enrichment-light)
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
       - CLOTHING_MODEL_PATH=/models/fashion-clip
@@ -1086,7 +1100,7 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: ${ES_MEMORY_LIMIT:-4G}
+          memory: ${ES_MEMORY_LIMIT:-6G}
 
   # Jaeger all-in-one for distributed tracing (NEM-1629, NEM-3053)
   # Provides trace collection, storage, and visualization for cross-service request correlation
@@ -1242,7 +1256,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 256M
+          memory: 512M
 
   redis-exporter:
     # Security hardening: Drop all capabilities, prevent privilege escalation
@@ -1398,7 +1412,7 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 512M
+          memory: 1G
 
   # Pyroscope for continuous profiling (NEM-3097)
   # Custom image with busybox/wget for health checks (the official image is scratch-based)

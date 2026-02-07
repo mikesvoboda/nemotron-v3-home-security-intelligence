@@ -750,8 +750,8 @@ describe('ActivityHeatmap', () => {
 
 ## Related Documentation
 
-- [Dashboard AGENTS.md](../../frontend/src/components/dashboard/AGENTS.md) - Component details
-- [Analytics AGENTS.md](../../frontend/src/components/analytics/AGENTS.md) - Analytics components
+- [Dashboard AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/dashboard/AGENTS.md) - Component details
+- [Analytics AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/analytics/AGENTS.md) - Analytics components
 - [Frontend Hooks](../architecture/frontend-hooks.md) - Data fetching hooks
 - [API Reference](api/core-resources.md) - Analytics API endpoints
 

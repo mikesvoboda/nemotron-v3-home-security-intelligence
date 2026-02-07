@@ -413,14 +413,17 @@ async def _run_loop(self) -> None:
 
 ## Configuration
 
-| Setting                          | Default      | Description                     |
-| -------------------------------- | ------------ | ------------------------------- |
-| `batch_window_seconds`           | `90`         | Max time for batch to stay open |
-| `batch_idle_timeout_seconds`     | `30`         | Close batch after idle period   |
-| `batch_max_detections`           | `50`         | Max detections per batch        |
-| `fast_path_confidence_threshold` | `0.9`        | Min confidence for fast path    |
-| `fast_path_object_types`         | `["person"]` | Object types for fast path      |
-| `batch_check_interval_seconds`   | `5`          | Timeout check frequency         |
+Batching timing parameters (also documented in the [AI Pipeline Architecture](../ai-pipeline.md#timing-parameters)):
+
+--8<-- "docs/\_includes/batching-config.md"
+
+Additional batch-aggregator settings:
+
+| Setting                          | Default      | Description                  |
+| -------------------------------- | ------------ | ---------------------------- |
+| `batch_max_detections`           | `50`         | Max detections per batch     |
+| `fast_path_confidence_threshold` | `0.9`        | Min confidence for fast path |
+| `fast_path_object_types`         | `["person"]` | Object types for fast path   |
 
 ## Metrics
 

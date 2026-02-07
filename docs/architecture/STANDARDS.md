@@ -25,7 +25,7 @@ When referencing multiple files, list each on its own line:
 ```
 **Key Files:**
 - `backend/services/file_watcher.py:67-89` - File watching implementation
-- `backend/services/detection_service.py:45-102` - Detection processing
+- `backend/services/detector_client.py:45-102` - Detection processing
 - `backend/api/routes/events.py:23-45` - Event API endpoints
 ```
 
@@ -157,7 +157,7 @@ See the [FastAPI documentation](https://fastapi.tiangolo.com/) for framework det
 - Reference the source file
 
 ```python
-# From backend/services/detection_service.py:45-52
+# From backend/services/detector_client.py:45-52
 async def process_detection(self, image_path: str) -> Detection:
     """Process a single image through the detection pipeline."""
     # Validate image exists
@@ -181,10 +181,10 @@ async def process_detection(self, image_path: str) -> Detection:
 ### Component Reference Table
 
 ```markdown
-| Component        | File                                       | Purpose                  |
-| ---------------- | ------------------------------------------ | ------------------------ |
-| FileWatcher      | `backend/services/file_watcher.py:15`      | Monitor camera directory |
-| DetectionService | `backend/services/detection_service.py:23` | Process detections       |
+| Component        | File                                     | Purpose                  |
+| ---------------- | ---------------------------------------- | ------------------------ |
+| FileWatcher      | `backend/services/file_watcher.py:15`    | Monitor camera directory |
+| DetectionService | `backend/services/detector_client.py:23` | Process detections       |
 ```
 
 ## File Naming
@@ -211,7 +211,7 @@ Before committing documentation:
 - [ ] Document follows required section structure
 - [ ] No broken cross-references
 - [ ] Spelling and grammar checked
-- [ ] Run `python -m scripts.validate_docs docs/architecture/`
+- [ ] Manually verify code citations reference existing files
 
 ## Version History
 

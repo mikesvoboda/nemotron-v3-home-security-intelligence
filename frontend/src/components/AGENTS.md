@@ -25,6 +25,10 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **alerts/**           | Alert management and rule configuration          | AlertsPage, AlertCard, AlertActions, AlertFilters, AlertForm, AlertRuleForm                                                                                                                                                         |
 | **analytics/**        | Analytics and baseline monitoring                | AnalyticsPage, ActivityHeatmap, ClassFrequencyChart, AnomalyConfigPanel, PipelineLatencyPanel, SceneChangePanel                                                                                                                     |
 | **audit/**            | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards, EventAuditDetail                                                                                                                                         |
+| **backup/**           | Database backup and restore operations           | BackupPage, BackupList, BackupActions                                                                                                                                                                                               |
+| **batch/**            | Batch processing statistics and lifecycle        | BatchStats, BatchTimeline                                                                                                                                                                                                           |
+| **cameras/**          | Camera scene change and anomaly detection        | SceneChangeDetection, AnomalyTimeline, CameraSelector                                                                                                                                                                              |
+| **charts/**           | Reusable chart and data visualization components | MiniBarChart, RiskDistributionChart                                                                                                                                                                                                 |
 | **common/**           | Shared UI components used across the application | ErrorBoundary, ChunkLoadErrorBoundary, RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox, SecureContextWarning, ScheduleSelector, TruncatedText, EmptyState, LoadingSpinner, RouteLoadingFallback, AlertBadge, AlertDrawer, BottomSheet, IconButton, WorkerStatusIndicator |
 | **dashboard/**        | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow, PipelineQueues, PipelineTelemetry, DashboardConfigModal, DashboardLayout, ExpandableSummary, SeverityBadge, SummaryCards, SummaryBulletList, SummaryCardEmpty, SummaryCardError, SummaryCardSkeleton |
 | **detection/**        | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                                                                                                              |
@@ -32,17 +36,27 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **entities/**         | Entity tracking and re-identification            | EntitiesPage, EntityCard, EntityTimeline, EntityDetailModal, ReidHistoryPanel                                                                                                                                                      |
 | **events/**           | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                                                                                                             |
 | **exports/**          | Export functionality components                  | ExportModal, ExportProgress                                                                                                                                                                                                         |
+| **face-recognition/** | Face recognition and person identification       | FaceRecognitionPage, FaceGallery, FaceMatchPanel                                                                                                                                                                                    |
 | **feedback/**         | User feedback components                         | FeedbackPanel                                                                                                                                                                                                                       |
+| **forms/**            | React 19 form components and patterns            | FormField, FormSection                                                                                                                                                                                                              |
 | **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobActions, JobHeader, JobDetailPanel, JobHistoryTimeline, JobLogsViewer, JobMetadata, ConnectionIndicator, ConfirmDialog, LogLine, StatusDot, TimelineEntry       |
 | **layout/**           | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                             |
 | **logs/**             | System logs via Grafana/Loki embed               | LogsPage                                                                                                                                                                                                                            |
+| **notifications/**    | Notification delivery history and management     | NotificationHistoryPage, NotificationList                                                                                                                                                                                           |
 | **performance/**      | Performance monitoring dashboard                 | PerformanceDashboard, PerformanceCharts, PerformanceAlerts                                                                                                                                                                          |
+| **plate-reads/**      | License plate recognition UI                     | PlateReadsPage, PlateReadsList                                                                                                                                                                                                      |
+| **ptz/**              | PTZ camera controls (pan-tilt-zoom)              | PTZControls, PTZDPad, PresetSelector                                                                                                                                                                                                |
+| **pwa/**              | Progressive Web App install and offline support  | InstallPrompt, OfflineBanner                                                                                                                                                                                                        |
+| **pyroscope/**        | Continuous profiling via Grafana/Pyroscope       | PyroscopePage                                                                                                                                                                                                                       |
+| **reid/**             | Cross-camera re-identification dashboard         | ReIDDashboard, EntityJourneyTimeline                                                                                                                                                                                                |
+| **reports/**          | Scheduled security report management             | ScheduledReportsPage, ReportForm                                                                                                                                                                                                    |
 | **search/**           | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                                                                                                     |
 | **settings/**         | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                                                                                                             |
 | **status/**           | AI service health status components              | AIServiceStatus                                                                                                                                                                                                                      |
 | **system/**           | System monitoring page                           | SystemMonitoringPage, SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, ModelZooPanel, PipelineMetricsPanel, CircuitBreakerPanel, SeverityConfigPanel, PerformanceAlerts, TimeRangeSelector |
 | **tracing/**          | Distributed tracing visualization page           | TracingPage                                                                                                                                                                                                                         |
 | **video/**            | Video playback components                        | VideoPlayer                                                                                                                                                                                                                         |
+| **webhooks/**         | Webhook management and testing                   | WebhooksPage, WebhookForm, WebhookTestPanel                                                                                                                                                                                        |
 | **zones/**            | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                                                                                                          |
 
 ## Component Hierarchy
@@ -475,19 +489,37 @@ Each subdirectory contains its own `AGENTS.md` with detailed component documenta
 - `alerts/AGENTS.md` - Alert management, modular architecture, and rule configuration
 - `analytics/AGENTS.md` - Analytics, baseline monitoring, and anomaly detection (NEW)
 - `audit/AGENTS.md` - Audit log viewing and filtering
+- `backup/AGENTS.md` - Database backup and restore operations
+- `batch/AGENTS.md` - Batch processing statistics and lifecycle
+- `cameras/AGENTS.md` - Camera scene change and anomaly detection
+- `charts/AGENTS.md` - Reusable chart and data visualization components
 - `common/AGENTS.md` - Shared component patterns and APIs (updated with loading/error boundaries)
 - `dashboard/AGENTS.md` - Dashboard widget details and data flow
 - `detection/AGENTS.md` - Bounding box overlays and detection visualization
 - `entities/AGENTS.md` - Entity tracking and re-identification (updated with ReidHistoryPanel)
 - `events/AGENTS.md` - Event cards, timeline, and detail modals
+- `exports/AGENTS.md` - Export modal and progress components
+- `face-recognition/AGENTS.md` - Face recognition and person identification
+- `feedback/AGENTS.md` - User feedback panel
+- `forms/AGENTS.md` - React 19 form components and patterns
+- `jobs/AGENTS.md` - Background job monitoring components
 - `layout/AGENTS.md` - Application shell and navigation (Layout, Header, Sidebar)
 - `logs/AGENTS.md` - Log viewing and filtering dashboard
+- `notifications/AGENTS.md` - Notification delivery history and management
+- `performance/AGENTS.md` - Performance monitoring dashboard
+- `plate-reads/AGENTS.md` - License plate recognition UI
+- `ptz/AGENTS.md` - PTZ camera controls (pan-tilt-zoom)
+- `pwa/AGENTS.md` - Progressive Web App install and offline support
+- `pyroscope/AGENTS.md` - Continuous profiling via Grafana/Pyroscope
+- `reid/AGENTS.md` - Cross-camera re-identification dashboard
+- `reports/AGENTS.md` - Scheduled security report management
 - `search/AGENTS.md` - Full-text search components
 - `settings/AGENTS.md` - Configuration pages and settings
 - `status/AGENTS.md` - AI service health status and degradation display
 - `system/AGENTS.md` - System monitoring components with redesigned page
 - `tracing/AGENTS.md` - Distributed tracing and trace visualization
 - `video/AGENTS.md` - Video playback components
+- `webhooks/AGENTS.md` - Webhook management and testing
 - `zones/AGENTS.md` - Zone management and configuration
 
 ## Entry Points

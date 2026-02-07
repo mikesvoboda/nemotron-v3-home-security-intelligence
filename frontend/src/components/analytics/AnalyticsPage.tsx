@@ -17,6 +17,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import CameraAnalyticsDetail from './CameraAnalyticsDetail';
 import CameraAnalyticsSelector from './CameraAnalyticsSelector';
 import CameraUptimeCard from './CameraUptimeCard';
+import CostAnalyticsDashboard from './CostAnalyticsDashboard';
 import DetectionTrendsCard from './DetectionTrendsCard';
 import ObjectDistributionCard from './ObjectDistributionCard';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
@@ -30,7 +31,7 @@ import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 
 /** View mode for analytics display */
-type ViewMode = 'grafana' | 'native';
+type ViewMode = 'grafana' | 'native' | 'cost';
 
 /**
  * AnalyticsPage - Grafana iframe embed for analytics metrics
@@ -170,6 +171,17 @@ export default function AnalyticsPage() {
             >
               Native
             </button>
+            <button
+              onClick={() => setViewMode('cost')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'cost'
+                  ? 'bg-[#76B900] text-black'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+              data-testid="view-mode-cost"
+            >
+              Cost
+            </button>
           </div>
 
           {/* External Grafana Link - only show in Grafana view */}
@@ -224,6 +236,9 @@ export default function AnalyticsPage() {
           onError={handleIframeError}
         />
       )}
+
+      {/* Cost analytics view */}
+      {viewMode === 'cost' && <CostAnalyticsDashboard />}
 
       {/* Native analytics components */}
       {viewMode === 'native' && (

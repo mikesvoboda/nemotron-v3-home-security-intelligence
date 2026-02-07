@@ -66,7 +66,9 @@ from backend.core.logging import get_logger, log_context, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
     observe_risk_score,
+    observe_risk_score_distribution,
     observe_stage_duration,
+    record_batch_coalesce_llm_calls_saved,
     record_event_by_camera,
     record_event_by_risk_level,
     record_event_created,
@@ -127,19 +129,27 @@ from backend.services.prompts import (
     RISK_ANALYSIS_PROMPT,
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
     format_action_recognition_context,
+    format_age_classification_context,
     format_camera_health_context,
+    format_clip_analysis_context,
     format_clothing_analysis_context,
+    format_confidence_quality_summary,
+    format_cross_camera_person_tracking,
     format_depth_context,
     format_detections_with_all_enrichment,
+    format_gender_classification_context,
     format_household_context_by_detection,
     format_image_quality_context,
     format_pet_classification_context,
     format_pose_analysis_context,
+    format_scene_ocr_context,
+    format_trajectory_context,
     format_vehicle_classification_context,
     format_vehicle_damage_context,
     format_violence_context,
     format_weather_context,
 )
+from backend.services.trajectory_analyzer import TrajectoryAnalyzer
 from backend.services.webhook_service import get_webhook_service
 
 # Pre-compiled regex patterns for LLM response parsing
@@ -704,7 +714,8 @@ class NemotronAnalyzer:
         result = await coalescer.merge_batches(all_batches)
 
         # Clean up merged candidates from Redis
-        await coalescer.remove_candidates(result.source_batch_ids)
+        # Pass camera_id from the candidate since all coalesced batches share the same camera
+        await coalescer.remove_candidates(result.source_batch_ids, camera_id=candidate.camera_id)
 
         logger.info(
             "Coalesced batches for inference",
@@ -1860,6 +1871,126 @@ class NemotronAnalyzer:
             current_time=current_time,
         )
 
+    async def _enrich_with_trajectory_analysis(
+        self,
+        detections_data: list[dict[str, Any]],
+        enrichment_result: EnrichmentResult | None,
+        camera_id: str | None,
+    ) -> None:
+        """Run trajectory analysis for detections with track IDs (NEM-5532).
+
+        Queries the track service for trajectory data for each detection that
+        has a track_id, analyzes movement patterns, and stores the results
+        in the enrichment_result.trajectory_analyses dict.
+
+        Also queries camera zones for zone transition detection and entry
+        point approach analysis.
+
+        Args:
+            detections_data: List of detection data dicts (must include track_id, camera_id)
+            enrichment_result: EnrichmentResult to populate with trajectory analyses.
+                If None, a warning is logged and the method returns early.
+            camera_id: Camera ID for zone lookup
+        """
+        if enrichment_result is None:
+            logger.debug("No enrichment result available for trajectory analysis")
+            return
+
+        # Collect detections that have track IDs
+        trackable_detections = [d for d in detections_data if d.get("track_id") is not None]
+
+        if not trackable_detections:
+            logger.debug("No detections with track IDs for trajectory analysis")
+            return
+
+        # Query track data and camera zones in a short DB session
+        from backend.models.camera_zone import CameraZone
+        from backend.models.track import Track
+
+        async with get_session() as session:
+            # Fetch trajectory data for all track IDs
+            track_ids_camera_pairs = [
+                (d["track_id"], d.get("camera_id", camera_id)) for d in trackable_detections
+            ]
+
+            tracks_by_key: dict[tuple[int, str], Track] = {}
+            for track_id, cam_id in track_ids_camera_pairs:
+                if cam_id is None:
+                    continue
+                stmt = select(Track).where(
+                    Track.track_id == track_id,
+                    Track.camera_id == cam_id,
+                )
+                result = await session.execute(stmt)
+                track = result.scalar_one_or_none()
+                if track:
+                    tracks_by_key[(track_id, cam_id)] = track
+
+            # Fetch camera zones for zone transition analysis
+            zones_data: list[dict[str, Any]] = []
+            if camera_id:
+                zone_stmt = select(CameraZone).where(
+                    CameraZone.camera_id == camera_id,
+                    CameraZone.enabled.is_(True),
+                )
+                zone_result = await session.execute(zone_stmt)
+                camera_zones = zone_result.scalars().all()
+                zones_data = [
+                    {
+                        "name": z.name,
+                        "zone_type": z.zone_type.value
+                        if hasattr(z.zone_type, "value")
+                        else str(z.zone_type),
+                        "coordinates": z.coordinates,
+                    }
+                    for z in camera_zones
+                ]
+
+        # Run trajectory analysis for each detection (CPU-only, no DB needed)
+        analyzer = TrajectoryAnalyzer()
+        for det_data in trackable_detections:
+            track_id = det_data["track_id"]
+            cam_id = det_data.get("camera_id", camera_id)
+            det_id = det_data.get("id")
+
+            if cam_id is None or det_id is None:
+                continue
+
+            track = tracks_by_key.get((track_id, cam_id))
+            if not track or not track.trajectory:
+                continue
+
+            try:
+                analysis = analyzer.analyze_trajectory(
+                    track_id=track_id,
+                    track_points=track.trajectory,
+                    zones=zones_data if zones_data else None,
+                    object_class=det_data.get("object_type", "unknown") or "unknown",
+                    video_width=det_data.get("video_width"),
+                    video_height=det_data.get("video_height"),
+                )
+                enrichment_result.trajectory_analyses[track_id] = analysis
+
+                logger.debug(
+                    f"Trajectory analysis for track {track_id}: "
+                    f"pattern={analysis.movement_pattern}, "
+                    f"dwell={analysis.dwell_seconds:.1f}s, "
+                    f"speed={analysis.speed_estimate:.1f}px/s",
+                    extra={
+                        "track_id": track_id,
+                        "detection_id": det_id,
+                        "movement_pattern": analysis.movement_pattern,
+                        "dwell_seconds": analysis.dwell_seconds,
+                        "speed_estimate": analysis.speed_estimate,
+                        "is_approaching_entry": analysis.is_approaching_entry,
+                    },
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed trajectory analysis for track {track_id}: {e}",
+                    extra={"track_id": track_id, "detection_id": det_id},
+                )
+
     async def _get_enrichment_result(
         self,
         batch_id: str,
@@ -2363,6 +2494,9 @@ class NemotronAnalyzer:
                     "video_height": d.video_height,
                     # NEM-5512/5513/5514: Add detected_at for household context isolation
                     "detected_at": d.detected_at,
+                    # NEM-5532: Track ID for trajectory analysis
+                    "track_id": d.track_id,
+                    "camera_id": d.camera_id,
                 }
                 for d in detections
             ]
@@ -2427,7 +2561,10 @@ class NemotronAnalyzer:
         # =========================================================================
         # BATCH COALESCING (NEM-5464 Phase 5)
         # Register this batch as a coalesce candidate and attempt to merge with
-        # compatible pending batches to reduce inference calls
+        # compatible pending batches to reduce inference calls.
+        # When batches are coalesced, we fetch the additional detections from
+        # merged batches and include them in the LLM call, avoiding redundant
+        # inference for similar/duplicate detections.
         # =========================================================================
         coalesced_batch_ids: list[str] = [batch_id]
         if self._coalescing_enabled:
@@ -2442,11 +2579,60 @@ class NemotronAnalyzer:
                 )
 
                 # Attempt to find and merge compatible batches
-                # Note: This is a best-effort optimization. If coalescing fails,
-                # we proceed with the original batch. The actual detection data
-                # has already been fetched, so coalescing here primarily helps
-                # with tracking and metrics rather than reducing DB queries.
-                _, coalesced_batch_ids = await self.try_coalesce_batch(candidate)
+                coalesced_detection_ids, coalesced_batch_ids = await self.try_coalesce_batch(
+                    candidate
+                )
+
+                # If coalescing found additional detections from other batches,
+                # fetch them from the DB and merge into the current analysis
+                new_detection_ids = [
+                    d for d in coalesced_detection_ids if d not in set(int_detection_ids)
+                ]
+                if new_detection_ids:
+                    async with get_session() as coalesce_session:
+                        additional_detections = await self._get_facade().fetch_detections(
+                            coalesce_session, new_detection_ids
+                        )
+                    if additional_detections:
+                        # Extend the detection data used for the LLM call
+                        detections.extend(additional_detections)
+                        int_detection_ids.extend(new_detection_ids)
+                        detections_list = self._format_detections(detections)
+
+                        # Extend enrichment data for the additional detections
+                        detections_for_enrichment.extend(
+                            [
+                                {
+                                    "id": d.id,
+                                    "object_type": d.object_type,
+                                    "confidence": d.confidence,
+                                    "file_path": d.file_path,
+                                    "bounding_box": {
+                                        "bbox_x": d.bbox_x,
+                                        "bbox_y": d.bbox_y,
+                                        "bbox_width": d.bbox_width,
+                                        "bbox_height": d.bbox_height,
+                                    }
+                                    if d.bbox_x is not None
+                                    else None,
+                                    "video_width": d.video_width,
+                                    "video_height": d.video_height,
+                                    "detected_at": d.detected_at,
+                                }
+                                for d in additional_detections
+                            ]
+                        )
+
+                        logger.info(
+                            "Coalesced additional detections into batch for LLM analysis",
+                            extra={
+                                "batch_id": batch_id,
+                                "original_count": len(int_detection_ids) - len(new_detection_ids),
+                                "additional_count": len(additional_detections),
+                                "total_count": len(int_detection_ids),
+                                "coalesced_batch_ids": coalesced_batch_ids,
+                            },
+                        )
 
                 add_span_event(
                     "batch_coalescing.attempted",
@@ -2456,12 +2642,47 @@ class NemotronAnalyzer:
                         "coalesced_batch_ids_sample": ",".join(coalesced_batch_ids[:5]),
                     },
                 )
+
+                # NEM-5530: Record LLM calls saved and emit coalescing summary
+                llm_calls_saved = len(coalesced_batch_ids) - 1
+                additional_det_count = len(new_detection_ids) if new_detection_ids else 0
+                if llm_calls_saved > 0:
+                    record_batch_coalesce_llm_calls_saved(llm_calls_saved)
+                    logger.info(
+                        "Batch coalescing: merged %d batches (%d additional detections), "
+                        "saved %d LLM calls",
+                        len(coalesced_batch_ids),
+                        additional_det_count,
+                        llm_calls_saved,
+                        extra={
+                            "batch_id": batch_id,
+                            "merged_batch_count": len(coalesced_batch_ids),
+                            "additional_detections": additional_det_count,
+                            "llm_calls_saved": llm_calls_saved,
+                        },
+                    )
             except Exception as e:
                 # Coalescing is optional - don't fail the pipeline if it errors
                 logger.warning(
                     "Failed to perform batch coalescing",
                     extra={"batch_id": batch_id, "error": str(e)},
                 )
+
+        # =========================================================================
+        # TRAJECTORY ANALYSIS (NEM-5532): Analyze track trajectories for
+        # movement patterns, zone transitions, and behavioral context.
+        # Uses a short DB session to look up trajectory data from track service.
+        # =========================================================================
+        try:
+            await self._enrich_with_trajectory_analysis(
+                detections_for_enrichment, enrichment_result, camera_id
+            )
+        except Exception as e:
+            # Trajectory analysis is optional - don't fail the pipeline if it errors
+            logger.warning(
+                "Failed to perform trajectory analysis",
+                extra={"batch_id": batch_id, "error": str(e)},
+            )
 
         # Call LLM for risk analysis (can take 60-120+ seconds)
         llm_start = time.time()
@@ -2483,6 +2704,16 @@ class NemotronAnalyzer:
         )
 
         try:
+            # Build detection dicts for confidence quality summary (NEM-5525)
+            _det_dicts = [
+                {
+                    "confidence": d.confidence,
+                    "class_name": d.object_type or "unknown",
+                }
+                for d in detections
+                if d.confidence is not None
+            ]
+
             risk_data = await self._call_llm(
                 camera_name=camera_name,
                 start_time=start_time.isoformat(),
@@ -2493,6 +2724,7 @@ class NemotronAnalyzer:
                 camera_health_context=camera_health_context,
                 auto_tuning_context=auto_tuning_context,
                 household_context=household_context,
+                detection_dicts=_det_dicts,
             )
             llm_duration_ms = int((time.time() - llm_start) * 1000)
             llm_duration_seconds = time.time() - llm_start
@@ -2611,6 +2843,13 @@ class NemotronAnalyzer:
                 # Store idempotency key (NEM-1725) to prevent duplicates on retry
                 # Note: This is stored in Redis, not the database transaction
                 await self._set_idempotency(batch_id, event.id)
+                # Also mark all coalesced source batches as processed (NEM-5464)
+                # This prevents redundant LLM calls when merged batches arrive
+                # from the analysis queue after they've already been included
+                # in this batch's inference call
+                for coalesced_id in coalesced_batch_ids:
+                    if coalesced_id != batch_id:
+                        await self._set_idempotency(coalesced_id, event.id)
 
                 # Create partial audit record for model contribution tracking
                 try:
@@ -2962,6 +3201,18 @@ class NemotronAnalyzer:
         # Call LLM for risk analysis (can take 60-120+ seconds)
         llm_start = time.time()
         try:
+            # Build detection dicts for confidence quality summary (NEM-5525)
+            _fp_det_dicts = (
+                [
+                    {
+                        "confidence": detection.confidence,
+                        "class_name": detection.object_type or "unknown",
+                    }
+                ]
+                if detection.confidence is not None
+                else []
+            )
+
             risk_data = await self._call_llm(
                 camera_name=camera_name,
                 start_time=detection_time.isoformat(),
@@ -2970,6 +3221,7 @@ class NemotronAnalyzer:
                 enriched_context=enriched_context,
                 enrichment_result=enrichment_result,
                 camera_health_context=camera_health_context,
+                detection_dicts=_fp_det_dicts,
             )
             llm_duration_ms = int((time.time() - llm_start) * 1000)
             llm_duration_seconds = time.time() - llm_start
@@ -3270,17 +3522,26 @@ class NemotronAnalyzer:
     def _format_detections(self, detections: list[Detection]) -> str:
         """Format detections into a human-readable list for the prompt.
 
+        Includes confidence quality tier inline for each detection (NEM-5525)
+        so the LLM can assess detection reliability.
+
         Args:
             detections: List of Detection objects
 
         Returns:
-            Formatted string with detection details
+            Formatted string with detection details and quality tiers
         """
+        from backend.services.prompts import _compute_confidence_quality
+
         lines = []
         for i, det in enumerate(detections, 1):
             time_str = det.detected_at.strftime("%H:%M:%S")
             obj_type = det.object_type or "unknown"
-            confidence = f"{det.confidence:.2f}" if det.confidence else "N/A"
+            if det.confidence is not None:
+                quality = _compute_confidence_quality(det.confidence)
+                confidence = f"{det.confidence:.2f} {quality.value.upper()}"
+            else:
+                confidence = "N/A"
             lines.append(f"  {i}. {time_str} - {obj_type} (confidence: {confidence})")
 
         return "\n".join(lines)
@@ -3365,6 +3626,42 @@ class NemotronAnalyzer:
 
         return tracking_result
 
+    @staticmethod
+    def _build_ondemand_enrichment_context(
+        enrichment_result: EnrichmentResult,
+    ) -> str:
+        """Build on-demand enrichment context string from available data.
+
+        Assembles age classification, gender classification, and scene OCR
+        contexts into a single formatted string for the Nemotron prompt.
+
+        Args:
+            enrichment_result: The enrichment pipeline result containing
+                age_classifications, gender_classifications, and scene_ocr data.
+
+        Returns:
+            Formatted string combining all on-demand enrichment sections,
+            or empty string if no meaningful data exists.
+        """
+        sections: list[str] = []
+
+        # Age classification context
+        age_text = format_age_classification_context(enrichment_result.age_classifications)
+        if age_text and age_text != "Age estimation: No persons analyzed":
+            sections.append(f"### Age Estimation\n{age_text}")
+
+        # Gender classification context
+        gender_text = format_gender_classification_context(enrichment_result.gender_classifications)
+        if gender_text and gender_text != "Gender estimation: No persons analyzed":
+            sections.append(f"### Gender Estimation\n{gender_text}")
+
+        # Scene OCR context (text from uniforms, vehicles, signs)
+        ocr_text = format_scene_ocr_context(enrichment_result.scene_ocr)
+        if ocr_text:
+            sections.append(f"### Scene Text (OCR)\n{ocr_text}")
+
+        return "\n\n".join(sections)
+
     async def _call_llm(
         self,
         camera_name: str,
@@ -3376,6 +3673,7 @@ class NemotronAnalyzer:
         camera_health_context: str = "",
         auto_tuning_context: str = "",
         household_context: str = "",
+        detection_dicts: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Call Nemotron LLM for risk analysis.
 
@@ -3391,6 +3689,8 @@ class NemotronAnalyzer:
                 analysis (NEM-3015). Injected into prompt to improve analysis quality.
             household_context: Optional household matching context (NEM-3024).
                 Contains known person/vehicle matches that should reduce risk scores.
+            detection_dicts: Optional list of detection dicts with confidence/class_name
+                for computing confidence quality summary (NEM-5525).
 
         Returns:
             Dictionary with risk_score, risk_level, summary, and reasoning
@@ -3421,7 +3721,7 @@ class NemotronAnalyzer:
             enrichment_result is not None and enrichment_result.has_vision_extraction
         )
 
-        # Check for full model zoo enrichment (clothing, violence, vehicle analysis, etc.)
+        # Check for full model zoo enrichment (clothing, violence, vehicle analysis, CLIP, etc.)
         has_model_zoo_enrichment = enrichment_result is not None and (
             enrichment_result.has_violence
             or enrichment_result.has_clothing_classifications
@@ -3429,6 +3729,7 @@ class NemotronAnalyzer:
             or enrichment_result.has_vehicle_damage
             or enrichment_result.has_pet_classifications
             or enrichment_result.has_image_quality
+            or enrichment_result.has_clip_analysis
         )
 
         # Track which template is used for metrics
@@ -3495,6 +3796,8 @@ class NemotronAnalyzer:
                 )
                 if enrichment_result.vision_extraction
                 else enrichment_result.to_context_string(),
+                # Confidence quality summary (NEM-5525)
+                confidence_quality_summary=format_confidence_quality_summary(detection_dicts or []),
                 # Violence analysis
                 violence_context=format_violence_context(enrichment_result.violence_detection),
                 # Behavioral analysis (ViTPose pose estimation, X-CLIP action recognition)
@@ -3514,6 +3817,8 @@ class NemotronAnalyzer:
                     if enrichment_result.action_results
                     else None
                 ),
+                # Trajectory analysis (NEM-5532)
+                trajectory_context=format_trajectory_context(enrichment_result.trajectory_analyses),
                 # Vehicle analysis
                 vehicle_classification_context=format_vehicle_classification_context(
                     enrichment_result.vehicle_classifications
@@ -3535,6 +3840,13 @@ class NemotronAnalyzer:
                 depth_context=format_depth_context(enrichment_result.depth_analysis),
                 # Re-identification
                 reid_context=reid_text,
+                # Cross-camera person tracking narrative (NEM-5525)
+                cross_camera_person_tracking=format_cross_camera_person_tracking(
+                    person_reid_matches=enrichment_result.person_reid_matches,
+                    vehicle_reid_matches=enrichment_result.vehicle_reid_matches,
+                    current_camera_id=enriched_context.camera_id,
+                    zone_context=enriched_context.zones,
+                ),
                 # Zone, baseline, cross-camera
                 zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
                 baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
@@ -3543,8 +3855,12 @@ class NemotronAnalyzer:
                     enriched_context.cross_camera
                 ),
                 scene_analysis=scene_text,
-                # On-demand enrichment (future: will contain threat/pose/demographics)
-                ondemand_enrichment_context="",
+                # On-demand enrichment: age, gender, scene OCR
+                ondemand_enrichment_context=self._build_ondemand_enrichment_context(
+                    enrichment_result
+                ),
+                # CLIP scene intelligence (NEM-5525)
+                clip_analysis_context=format_clip_analysis_context(enrichment_result),
             )
         elif has_vision_extraction and has_enriched_context:
             # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis
@@ -3588,6 +3904,13 @@ class NemotronAnalyzer:
                 camera_health_context=camera_health_context,
                 detections_with_attributes=enrichment_result.to_context_string(),
                 reid_context=reid_text,
+                # Cross-camera person tracking narrative (NEM-5525)
+                cross_camera_person_tracking=format_cross_camera_person_tracking(
+                    person_reid_matches=enrichment_result.person_reid_matches,
+                    vehicle_reid_matches=enrichment_result.vehicle_reid_matches,
+                    current_camera_id=enriched_context.camera_id,
+                    zone_context=enriched_context.zones,
+                ),
                 zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
                 baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
                 deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
@@ -4056,6 +4379,23 @@ class NemotronAnalyzer:
         observe_risk_score(risk_data["risk_score"])
         record_event_by_risk_level(risk_data["risk_level"])
         record_prompt_template_used(template_name)
+
+        # Record score distribution for calibration drift monitoring (NEM-5535)
+        observe_risk_score_distribution(risk_data["risk_score"])
+
+        # Record score in Redis for rolling window calibration monitoring (NEM-5535)
+        from backend.services.calibration_monitor import get_calibration_monitor
+
+        cal_monitor = get_calibration_monitor()
+        if cal_monitor is not None:
+            try:
+                await cal_monitor.record_score(risk_data["risk_score"])
+            except Exception:
+                # Calibration monitoring is non-critical; don't fail the analysis
+                logger.debug(
+                    "Failed to record calibration score",
+                    exc_info=True,
+                )
 
         # Include the prompt in the response for debugging/improvement
         risk_data["llm_prompt"] = prompt

@@ -169,11 +169,27 @@ class MockPersonAttributes:
 
 
 @dataclass
+class MockFlorenceEnhancedScene:
+    """Mock FlorenceEnhancedScene for testing.
+
+    Represents enhanced scene context from Florence-2 advanced capabilities.
+    """
+
+    security_objects: Any | None = None
+    dense_captions: list[dict[str, Any]] = field(default_factory=list)
+    text_regions: list[dict[str, Any]] = field(default_factory=list)
+    phrase_grounding: list[dict[str, Any]] = field(default_factory=list)
+    region_descriptions: dict[str, str] = field(default_factory=dict)
+    security_vqa: dict[str, dict[str, str]] = field(default_factory=dict)
+
+
+@dataclass
 class MockBatchExtractionResult:
     """Mock BatchExtractionResult from vision_extractor."""
 
     vehicle_attributes: dict[str, MockVehicleAttributes] = field(default_factory=dict)
     person_attributes: dict[str, MockPersonAttributes] = field(default_factory=dict)
+    florence_enhanced: MockFlorenceEnhancedScene | None = None
 
 
 @dataclass
@@ -7933,3 +7949,313 @@ class TestFormatDetectionsWithQualitySignature:
 # - compute_spatial_context() position/size/boundary detection
 # - EnhancedDetection dataclass and to_prompt_context()
 # - enhance_detections() helper function
+
+
+# =============================================================================
+# Cross-Camera Person Tracking Tests (NEM-5525)
+# =============================================================================
+
+
+from backend.services.prompts import (  # noqa: E402
+    _build_tracking_narratives,
+    _format_time_gap,
+    _infer_movement_pattern,
+    format_cross_camera_person_tracking,
+)
+
+
+@dataclass
+class MockEntityEmbedding:
+    """Mock EntityEmbedding for cross-camera tracking tests."""
+
+    camera_id: str
+    timestamp: datetime
+    detection_id: str
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MockEntityMatch:
+    """Mock EntityMatch for cross-camera tracking tests."""
+
+    entity: MockEntityEmbedding
+    similarity: float
+    time_gap_seconds: float
+
+
+@dataclass
+class MockZoneContext:
+    """Mock ZoneContext for cross-camera tracking tests."""
+
+    zone_name: str
+    zone_type: str
+    zone_id: str = ""
+    risk_weight: str = "low"
+    detection_count: int = 1
+
+
+class TestFormatCrossCameraPersonTracking:
+    """Tests for format_cross_camera_person_tracking."""
+
+    def test_none_matches_returns_no_tracking(self):
+        """None matches should return no tracking message."""
+        result = format_cross_camera_person_tracking(None)
+        assert "No cross-camera movement detected" in result
+
+    def test_empty_matches_returns_no_tracking(self):
+        """Empty matches dict should return no tracking message."""
+        result = format_cross_camera_person_tracking({})
+        assert "No cross-camera movement detected" in result
+
+    def test_cross_camera_match_produces_narrative(self):
+        """A match on a different camera should produce a cross-camera narrative."""
+        entity = MockEntityEmbedding(
+            camera_id="driveway",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_1",
+            attributes={"clothing": "blue jacket"},
+        )
+        match = MockEntityMatch(entity=entity, similarity=0.91, time_gap_seconds=180.0)
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"42": [match]},
+            current_camera_id="front_door",
+        )
+
+        assert "## Cross-Camera Person Tracking" in result
+        assert "SAME PERSON" in result
+        assert "driveway" in result
+        assert "3 minutes ago" in result
+        assert "91%" in result
+        assert "blue jacket" in result
+
+    def test_same_camera_match_shows_no_cross_camera(self):
+        """A match on the same camera should note no cross-camera movement."""
+        entity = MockEntityEmbedding(
+            camera_id="front_door",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_1",
+        )
+        match = MockEntityMatch(entity=entity, similarity=0.88, time_gap_seconds=60.0)
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"42": [match]},
+            current_camera_id="front_door",
+        )
+
+        assert "Previously seen on this same camera" in result
+        assert "No cross-camera movement" in result
+
+    def test_empty_match_list_shows_first_time(self):
+        """Detection with empty match list should show first time seen."""
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"42": []},
+        )
+        assert "First time seen" in result
+
+    def test_cross_camera_with_zone_context(self):
+        """Cross-camera match with zone context should include zone info."""
+        entity = MockEntityEmbedding(
+            camera_id="driveway",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_1",
+        )
+        match = MockEntityMatch(entity=entity, similarity=0.92, time_gap_seconds=120.0)
+        zone = MockZoneContext(zone_name="Front Door", zone_type="entry_point")
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"42": [match]},
+            current_camera_id="front_door",
+            zone_context=[zone],
+        )
+
+        assert "Front Door" in result
+        assert "entry_point" in result
+        assert "entry point" in result.lower()
+
+    def test_vehicle_cross_camera_match(self):
+        """Vehicle cross-camera match should produce vehicle-labeled narrative."""
+        entity = MockEntityEmbedding(
+            camera_id="street",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_v1",
+            attributes={"color": "red", "vehicle_type": "sedan"},
+        )
+        match = MockEntityMatch(entity=entity, similarity=0.89, time_gap_seconds=300.0)
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches=None,
+            vehicle_reid_matches={"v10": [match]},
+            current_camera_id="driveway",
+        )
+
+        assert "SAME VEHICLE" in result
+        assert "street" in result
+        assert "red" in result
+        assert "sedan" in result
+
+    def test_both_person_and_vehicle_matches(self):
+        """Both person and vehicle matches should both appear in output."""
+        person_entity = MockEntityEmbedding(
+            camera_id="backyard",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_p1",
+        )
+        person_match = MockEntityMatch(entity=person_entity, similarity=0.90, time_gap_seconds=60.0)
+
+        vehicle_entity = MockEntityEmbedding(
+            camera_id="street",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_v1",
+        )
+        vehicle_match = MockEntityMatch(
+            entity=vehicle_entity, similarity=0.87, time_gap_seconds=120.0
+        )
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"p1": [person_match]},
+            vehicle_reid_matches={"v1": [vehicle_match]},
+            current_camera_id="front_door",
+        )
+
+        assert "SAME PERSON" in result
+        assert "SAME VEHICLE" in result
+
+    def test_multiple_cross_camera_sightings_noted(self):
+        """Multiple cross-camera matches on different cameras should note count."""
+        entity1 = MockEntityEmbedding(
+            camera_id="driveway",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_1",
+        )
+        entity2 = MockEntityEmbedding(
+            camera_id="backyard",
+            timestamp=datetime(2024, 1, 1, 11, 55),
+            detection_id="prev_2",
+        )
+        match1 = MockEntityMatch(entity=entity1, similarity=0.92, time_gap_seconds=180.0)
+        match2 = MockEntityMatch(entity=entity2, similarity=0.88, time_gap_seconds=480.0)
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"42": [match1, match2]},
+            current_camera_id="front_door",
+        )
+
+        assert "2 other camera(s)" in result
+
+    def test_guidance_text_included(self):
+        """Output with cross-camera matches should include LLM guidance text."""
+        entity = MockEntityEmbedding(
+            camera_id="driveway",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_1",
+        )
+        match = MockEntityMatch(entity=entity, similarity=0.92, time_gap_seconds=180.0)
+
+        result = format_cross_camera_person_tracking(
+            person_reid_matches={"42": [match]},
+            current_camera_id="front_door",
+        )
+
+        assert "perimeter" in result.lower() or "entry point" in result.lower()
+        assert "more concerning" in result.lower()
+
+
+class TestFormatTimeGap:
+    """Tests for _format_time_gap helper."""
+
+    def test_seconds(self):
+        assert _format_time_gap(30) == "30 seconds ago"
+
+    def test_minutes(self):
+        assert _format_time_gap(180) == "3 minutes ago"
+
+    def test_hours(self):
+        assert _format_time_gap(7200) == "2.0 hours ago"
+
+    def test_under_one_minute(self):
+        result = _format_time_gap(45)
+        assert "seconds ago" in result
+
+    def test_fractional_hours(self):
+        result = _format_time_gap(5400)  # 1.5 hours
+        assert "1.5 hours ago" in result
+
+
+class TestInferMovementPattern:
+    """Tests for _infer_movement_pattern helper."""
+
+    def test_no_cameras_returns_empty(self):
+        result = _infer_movement_pattern(None, None, None, 60.0)
+        assert result == ""
+
+    def test_basic_camera_transition(self):
+        result = _infer_movement_pattern("driveway", "front_door", None, 180.0)
+        assert "moved from driveway to front_door" in result
+        assert "3 minutes" in result
+
+    def test_rapid_transition(self):
+        result = _infer_movement_pattern("driveway", "front_door", None, 60.0)
+        assert "rapid succession" in result
+
+    def test_extended_presence(self):
+        result = _infer_movement_pattern("driveway", "front_door", None, 900.0)
+        assert "extended presence" in result
+
+    def test_entry_point_zone_detection(self):
+        zone = MockZoneContext(zone_name="Front Door", zone_type="entry_point")
+        result = _infer_movement_pattern("driveway", "front_door", [zone], 180.0)
+        assert "entry point" in result
+
+    def test_driveway_zone_detection(self):
+        zone = MockZoneContext(zone_name="Driveway", zone_type="driveway")
+        result = _infer_movement_pattern("street", "driveway_cam", [zone], 180.0)
+        assert "driveway" in result.lower()
+
+    def test_yard_zone_detection(self):
+        zone = MockZoneContext(zone_name="Back Yard", zone_type="yard")
+        result = _infer_movement_pattern("street", "backyard_cam", [zone], 180.0)
+        assert "yard" in result.lower()
+
+
+class TestBuildTrackingNarratives:
+    """Tests for _build_tracking_narratives helper."""
+
+    def test_none_matches_returns_empty(self):
+        result = _build_tracking_narratives(None, "Person", "cam1", None)
+        assert result == []
+
+    def test_empty_matches_returns_empty(self):
+        result = _build_tracking_narratives({}, "Person", "cam1", None)
+        assert result == []
+
+    def test_empty_match_list_shows_first_time(self):
+        result = _build_tracking_narratives({"42": []}, "Person", "cam1", None)
+        assert len(result) == 1
+        assert "First time seen" in result[0]
+
+    def test_cross_camera_match_produces_narrative(self):
+        entity = MockEntityEmbedding(
+            camera_id="other_cam",
+            timestamp=datetime(2024, 1, 1, 12, 0),
+            detection_id="prev_1",
+        )
+        match = MockEntityMatch(entity=entity, similarity=0.9, time_gap_seconds=120.0)
+        result = _build_tracking_narratives({"42": [match]}, "Person", "current_cam", None)
+        assert len(result) == 1
+        assert "SAME PERSON" in result[0]
+
+
+class TestPromptTemplatesContainCrossCamera:
+    """Verify prompt templates include the cross-camera person tracking placeholder."""
+
+    def test_model_zoo_enhanced_has_placeholder(self):
+        assert "{cross_camera_person_tracking}" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+
+    def test_vision_enhanced_has_placeholder(self):
+        assert "{cross_camera_person_tracking}" in VISION_ENHANCED_RISK_ANALYSIS_PROMPT
+
+    def test_model_zoo_enhanced_has_risk_guide_section(self):
+        """The risk interpretation guide should include cross-camera tracking guidance."""
+        assert "Cross-Camera Person Tracking" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+        assert "perimeter" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.lower()

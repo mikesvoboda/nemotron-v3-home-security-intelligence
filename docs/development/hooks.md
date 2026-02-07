@@ -1398,4 +1398,4 @@ npm run typecheck
 - [Code Quality Tools](code-quality.md) - Comprehensive tool documentation
 - [Contributing Guide](contributing.md) - Development workflow
 - [Testing Guide](testing.md) - Test strategy and patterns
-- [CLAUDE.md](../../CLAUDE.md) - Project instructions
+- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions
