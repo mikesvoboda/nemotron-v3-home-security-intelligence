@@ -136,6 +136,7 @@ class BatchExtractResult:
     error: str | None = None
 
 
+
 logger = get_logger(__name__)
 
 # Timeout configuration for Florence-2 service
