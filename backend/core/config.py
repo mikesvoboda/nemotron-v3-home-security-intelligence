@@ -1930,12 +1930,12 @@ class Settings(BaseSettings):
         description="Successful DLQ writes needed to close circuit from half-open state",
     )
 
-    # Enrichment circuit breaker settings
+    # Enrichment circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
     enrichment_cb_failure_threshold: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=50,
-        description="Number of Enrichment service failures before opening circuit breaker",
+        description="Number of Enrichment service failures before opening circuit breaker (per-endpoint)",
     )
     enrichment_cb_recovery_timeout: float = Field(
         default=60.0,
@@ -1950,12 +1950,12 @@ class Settings(BaseSettings):
         description="Maximum test calls allowed when Enrichment circuit is half-open",
     )
 
-    # CLIP circuit breaker settings
+    # CLIP circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
     clip_cb_failure_threshold: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=50,
-        description="Number of CLIP service failures before opening circuit breaker",
+        description="Number of CLIP service failures before opening circuit breaker (per-endpoint)",
     )
     clip_cb_recovery_timeout: float = Field(
         default=60.0,
@@ -1970,12 +1970,12 @@ class Settings(BaseSettings):
         description="Maximum test calls allowed when CLIP circuit is half-open",
     )
 
-    # Florence circuit breaker settings
+    # Florence circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
     florence_cb_failure_threshold: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=50,
-        description="Number of Florence service failures before opening circuit breaker",
+        description="Number of Florence service failures before opening circuit breaker (per-endpoint)",
     )
     florence_cb_recovery_timeout: float = Field(
         default=60.0,

@@ -4,10 +4,10 @@ Tracks rolling risk score distribution over a configurable time window
 and detects when tier percentages drift beyond acceptable thresholds.
 
 Target distribution:
-    - 85% LOW      (0-20)
-    - 10% ELEVATED (21-40)
-    - 4%  MODERATE (41-60) + HIGH (61-80)
-    - 1%  CRITICAL (81-100)
+    - 85% LOW      (0-29)
+    - 10% MEDIUM   (30-59)
+    - 4%  HIGH     (60-84)
+    - 1%  CRITICAL (85-100)
 
 Uses Redis sorted sets keyed by timestamp for efficient windowed queries.
 Scores are stored as ``<timestamp>:<score>`` members with the timestamp
@@ -42,19 +42,17 @@ DEFAULT_DRIFT_THRESHOLD_PCT = 5.0
 # Target tier percentages
 TARGET_DISTRIBUTION: dict[str, float] = {
     "low": 85.0,
-    "elevated": 10.0,
-    "moderate": 3.0,
-    "high": 1.0,
+    "medium": 10.0,
+    "high": 4.0,
     "critical": 1.0,
 }
 
 # Tier score boundaries (inclusive upper bound)
 TIER_BOUNDARIES: list[tuple[str, int, int]] = [
-    ("low", 0, 20),
-    ("elevated", 21, 40),
-    ("moderate", 41, 60),
-    ("high", 61, 80),
-    ("critical", 81, 100),
+    ("low", 0, 29),
+    ("medium", 30, 59),
+    ("high", 60, 84),
+    ("critical", 85, 100),
 ]
 
 

@@ -119,7 +119,22 @@ class TestCircuitBreakerInitialization:
         """Test that circuit breaker has correct service name."""
         with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
             client = EnrichmentClient()
-            assert client._circuit_breaker._name == "enrichment"
+            assert client._circuit_breaker._name == "enrichment_unified"
+
+    def test_per_endpoint_breakers_initialized(self, mock_settings: MagicMock) -> None:
+        """Test that per-endpoint breakers are initialized."""
+        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+            client = EnrichmentClient()
+            assert "vehicle" in client._breakers
+            assert "clothing" in client._breakers
+            assert "pose" in client._breakers
+            assert "threat" in client._breakers
+            assert "reid" in client._breakers
+            assert "pet" in client._breakers
+            assert "depth" in client._breakers
+            assert "action" in client._breakers
+            assert "demographics" in client._breakers
+            assert "enrich" in client._breakers
 
 
 # =============================================================================
@@ -134,7 +149,7 @@ class TestCircuitBreakerStateTransitions:
     async def test_circuit_opens_after_consecutive_failures(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that circuit opens after failure threshold is reached."""
+        """Test that per-endpoint circuit opens after failure threshold is reached."""
         # Simulate connection failures on persistent HTTP client
         client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
@@ -145,19 +160,19 @@ class TestCircuitBreakerStateTransitions:
                 with pytest.raises(EnrichmentUnavailableError):
                     await client.classify_vehicle(sample_image)
 
-        # Circuit should now be OPEN
-        assert client._circuit_breaker.get_state() == CircuitState.OPEN
+        # Per-endpoint vehicle circuit should now be OPEN
+        assert client._breakers["vehicle"].get_state() == CircuitState.OPEN
 
     @pytest.mark.asyncio
     async def test_requests_rejected_when_circuit_is_open(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that requests are rejected when circuit is open."""
-        # Force circuit to open
+        """Test that requests are rejected when per-endpoint circuit is open."""
+        # Force vehicle circuit to open
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
-        assert client._circuit_breaker.get_state() == CircuitState.OPEN
+        assert client._breakers["vehicle"].get_state() == CircuitState.OPEN
 
         # Attempt to make a request - should be rejected without making HTTP call
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
@@ -169,12 +184,12 @@ class TestCircuitBreakerStateTransitions:
     async def test_circuit_transitions_to_half_open_after_recovery(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that circuit transitions to HALF_OPEN after recovery timeout."""
-        # Force circuit to open
+        """Test that per-endpoint circuit transitions to HALF_OPEN after recovery timeout."""
+        # Force vehicle circuit to open
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
-        assert client._circuit_breaker.get_state() == CircuitState.OPEN
+        assert client._breakers["vehicle"].get_state() == CircuitState.OPEN
 
         # Mock time to simulate recovery timeout
         original_monotonic = time.monotonic
@@ -182,46 +197,46 @@ class TestCircuitBreakerStateTransitions:
 
         with patch("time.monotonic", return_value=mock_time):
             # allow_request should transition to HALF_OPEN
-            assert client._circuit_breaker.allow_request() is True
-            assert client._circuit_breaker.get_state() == CircuitState.HALF_OPEN
+            assert client._breakers["vehicle"].allow_request() is True
+            assert client._breakers["vehicle"].get_state() == CircuitState.HALF_OPEN
 
     @pytest.mark.asyncio
     async def test_circuit_closes_on_success_in_half_open(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that circuit closes on successful requests in HALF_OPEN state."""
-        # Force circuit to open
+        """Test that per-endpoint circuit closes on successful requests in HALF_OPEN state."""
+        # Force vehicle circuit to open
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
         # Mock time to trigger HALF_OPEN
         original_time = time.monotonic()
 
         with patch("time.monotonic", return_value=original_time + 35.0):
             # Transition to HALF_OPEN
-            client._circuit_breaker.allow_request()
-            assert client._circuit_breaker.get_state() == CircuitState.HALF_OPEN
+            client._breakers["vehicle"].allow_request()
+            assert client._breakers["vehicle"].get_state() == CircuitState.HALF_OPEN
 
             # Record successes - default success_threshold is 2
-            client._circuit_breaker.record_success()
-            client._circuit_breaker.record_success()
+            client._breakers["vehicle"].record_success()
+            client._breakers["vehicle"].record_success()
 
             # Circuit should now be CLOSED
-            assert client._circuit_breaker.get_state() == CircuitState.CLOSED
+            assert client._breakers["vehicle"].get_state() == CircuitState.CLOSED
 
     @pytest.mark.asyncio
     async def test_successful_request_resets_failure_count(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that successful request resets failure count."""
+        """Test that successful request resets failure count on per-endpoint breaker."""
         # Add some failures but don't reach threshold
-        client._circuit_breaker.record_failure()
-        client._circuit_breaker.record_failure()
-        assert client._circuit_breaker._failure_count == 2
+        client._breakers["vehicle"].record_failure()
+        client._breakers["vehicle"].record_failure()
+        assert client._breakers["vehicle"]._failure_count == 2
 
         # Successful request should reset
-        client._circuit_breaker.record_success()
-        assert client._circuit_breaker._failure_count == 0
+        client._breakers["vehicle"].record_success()
+        assert client._breakers["vehicle"]._failure_count == 0
 
 
 # =============================================================================
@@ -252,14 +267,14 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
         client._http_client.post = AsyncMock(return_value=mock_response)
 
         # Add a failure first
-        client._circuit_breaker.record_failure()
-        assert client._circuit_breaker._failure_count == 1
+        client._breakers["vehicle"].record_failure()
+        assert client._breakers["vehicle"]._failure_count == 1
 
         # Successful call should reset failure count
         result = await client.classify_vehicle(sample_image)
 
         assert result is not None
-        assert client._circuit_breaker._failure_count == 0
+        assert client._breakers["vehicle"]._failure_count == 0
 
     @pytest.mark.asyncio
     async def test_classify_pet_records_failure(
@@ -272,16 +287,16 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
         with pytest.raises(EnrichmentUnavailableError):
             await client.classify_pet(sample_image)
 
-        assert client._circuit_breaker._failure_count == 1
+        assert client._breakers["pet"]._failure_count == 1
 
     @pytest.mark.asyncio
     async def test_classify_clothing_respects_circuit_breaker(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that clothing classification respects circuit breaker state."""
-        # Open the circuit
+        """Test that clothing classification respects per-endpoint circuit breaker state."""
+        # Open the clothing circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["clothing"].record_failure()
 
         # Request should be rejected without making HTTP call
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
@@ -293,10 +308,10 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
     async def test_estimate_depth_respects_circuit_breaker(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that depth estimation respects circuit breaker state."""
-        # Open the circuit
+        """Test that depth estimation respects per-endpoint circuit breaker state."""
+        # Open the depth circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["depth"].record_failure()
 
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
             await client.estimate_depth(sample_image)
@@ -307,10 +322,10 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
     async def test_estimate_object_distance_respects_circuit_breaker(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that object distance estimation respects circuit breaker state."""
-        # Open the circuit
+        """Test that object distance estimation respects per-endpoint circuit breaker state."""
+        # Open the depth circuit (object distance uses depth endpoint)
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["depth"].record_failure()
 
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
             await client.estimate_object_distance(sample_image, bbox=(10.0, 10.0, 90.0, 90.0))
@@ -321,10 +336,10 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
     async def test_analyze_pose_respects_circuit_breaker(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that pose analysis respects circuit breaker state."""
-        # Open the circuit
+        """Test that pose analysis respects per-endpoint circuit breaker state."""
+        # Open the pose circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["pose"].record_failure()
 
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
             await client.analyze_pose(sample_image)
@@ -333,12 +348,12 @@ class TestEnrichmentClientMethodsWithCircuitBreaker:
 
     @pytest.mark.asyncio
     async def test_classify_action_respects_circuit_breaker(self, client: EnrichmentClient) -> None:
-        """Test that action classification respects circuit breaker state."""
+        """Test that action classification respects per-endpoint circuit breaker state."""
         frames = [Image.new("RGB", (100, 100), color="blue") for _ in range(8)]
 
-        # Open the circuit
+        # Open the action circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["action"].record_failure()
 
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
             await client.classify_action(frames)
@@ -355,37 +370,73 @@ class TestCircuitBreakerStateAPI:
     """Tests for circuit breaker state access methods."""
 
     def test_get_circuit_breaker_state(self, client: EnrichmentClient) -> None:
-        """Test get_circuit_breaker_state method."""
+        """Test get_circuit_breaker_state method returns worst state across all breakers."""
         assert client.get_circuit_breaker_state() == CircuitState.CLOSED
 
-        # Open circuit
+        # Open one per-endpoint circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
+        # Aggregate should report OPEN if any breaker is open
         assert client.get_circuit_breaker_state() == CircuitState.OPEN
+
+    def test_get_circuit_breaker_state_per_endpoint(self, client: EnrichmentClient) -> None:
+        """Test get_circuit_breaker_state with specific endpoint."""
+        assert client.get_circuit_breaker_state("vehicle") == CircuitState.CLOSED
+
+        for _ in range(3):
+            client._breakers["vehicle"].record_failure()
+
+        assert client.get_circuit_breaker_state("vehicle") == CircuitState.OPEN
+        # Other endpoints should still be closed
+        assert client.get_circuit_breaker_state("pose") == CircuitState.CLOSED
+
+    def test_get_all_circuit_breaker_states(self, client: EnrichmentClient) -> None:
+        """Test get_all_circuit_breaker_states returns dict of all states."""
+        states = client.get_all_circuit_breaker_states()
+        assert isinstance(states, dict)
+        assert "vehicle" in states
+        assert "pose" in states
+        assert all(s == "closed" for s in states.values())
 
     def test_is_circuit_open(self, client: EnrichmentClient) -> None:
         """Test is_circuit_open method."""
         assert client.is_circuit_open() is False
 
-        # Open circuit
+        # Open one per-endpoint circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
         assert client.is_circuit_open() is True
+        assert client.is_circuit_open("vehicle") is True
+        assert client.is_circuit_open("pose") is False
 
     def test_reset_circuit_breaker(self, client: EnrichmentClient) -> None:
-        """Test reset_circuit_breaker method."""
-        # Open circuit
+        """Test reset_circuit_breaker resets all breakers."""
+        # Open multiple circuits
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
+            client._breakers["pose"].record_failure()
         assert client.get_circuit_breaker_state() == CircuitState.OPEN
 
-        # Reset
+        # Reset all
         client.reset_circuit_breaker()
 
         assert client.get_circuit_breaker_state() == CircuitState.CLOSED
-        assert client._circuit_breaker._failure_count == 0
+        assert client._breakers["vehicle"]._failure_count == 0
+        assert client._breakers["pose"]._failure_count == 0
+
+    def test_reset_circuit_breaker_single_endpoint(self, client: EnrichmentClient) -> None:
+        """Test reset_circuit_breaker with specific endpoint."""
+        for _ in range(3):
+            client._breakers["vehicle"].record_failure()
+            client._breakers["pose"].record_failure()
+
+        # Reset only vehicle
+        client.reset_circuit_breaker("vehicle")
+
+        assert client.get_circuit_breaker_state("vehicle") == CircuitState.CLOSED
+        assert client.get_circuit_breaker_state("pose") == CircuitState.OPEN
 
 
 # =============================================================================
@@ -415,10 +466,10 @@ class TestCircuitBreakerHealthCheck:
 
     @pytest.mark.asyncio
     async def test_health_check_shows_open_circuit(self, client: EnrichmentClient) -> None:
-        """Test that health check shows circuit open state."""
-        # Open circuit
+        """Test that health check shows circuit open state when any breaker is open."""
+        # Open one per-endpoint circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "healthy", "models": []}
@@ -430,13 +481,16 @@ class TestCircuitBreakerHealthCheck:
         result = await client.check_health()
 
         assert result["circuit_breaker_state"] == "open"
+        assert "circuit_breaker_states" in result
+        assert result["circuit_breaker_states"]["vehicle"] == "open"
+        assert result["circuit_breaker_states"]["pose"] == "closed"
 
     @pytest.mark.asyncio
     async def test_is_healthy_false_when_circuit_open(self, client: EnrichmentClient) -> None:
-        """Test that is_healthy returns False when circuit is open."""
-        # Open circuit
+        """Test that is_healthy returns False when any circuit is open."""
+        # Open one per-endpoint circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
         # Even if service health check would pass, circuit being open = unhealthy
         assert await client.is_healthy() is False
@@ -454,10 +508,10 @@ class TestGracefulDegradation:
     async def test_no_http_call_when_circuit_open(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that no HTTP call is made when circuit is open."""
-        # Open circuit
+        """Test that no HTTP call is made when per-endpoint circuit is open."""
+        # Open vehicle circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
         # Setup mock on persistent HTTP client
         client._http_client.post = AsyncMock()
@@ -472,10 +526,10 @@ class TestGracefulDegradation:
     async def test_metrics_recorded_when_circuit_open(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that metrics are recorded when requests are rejected by circuit."""
-        # Open circuit
+        """Test that metrics are recorded when requests are rejected by per-endpoint circuit."""
+        # Open vehicle circuit
         for _ in range(3):
-            client._circuit_breaker.record_failure()
+            client._breakers["vehicle"].record_failure()
 
         with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
             with pytest.raises(EnrichmentUnavailableError):

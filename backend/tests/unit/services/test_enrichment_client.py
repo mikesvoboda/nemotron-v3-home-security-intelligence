@@ -1876,11 +1876,11 @@ class TestEnrichmentClientCircuitBreaker:
     async def test_circuit_breaker_blocks_requests_when_open(
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
-        """Test that circuit breaker blocks requests when open."""
+        """Test that per-endpoint circuit breaker blocks requests when open."""
         from backend.services.circuit_breaker import CircuitState
 
-        # Manually open the circuit
-        client._circuit_breaker._state = CircuitState.OPEN
+        # Manually open the vehicle per-endpoint circuit breaker
+        client._breakers["vehicle"]._state = CircuitState.OPEN
 
         with pytest.raises(EnrichmentUnavailableError) as exc_info:
             await client.classify_vehicle(sample_image)

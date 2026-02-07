@@ -2269,12 +2269,11 @@ def record_prompt_template_used(template: str) -> None:
 def _score_to_tier(score: int | float) -> str:
     """Map a risk score (0-100) to a calibration tier name.
 
-    Tier boundaries:
-        - low:      0-20
-        - elevated: 21-40
-        - moderate: 41-60
-        - high:     61-80
-        - critical: 81-100
+    Tier boundaries match the DB severity taxonomy:
+        - low:      0-29
+        - medium:   30-59
+        - high:     60-84
+        - critical: 85-100
 
     Args:
         score: Risk score from Nemotron analysis (0-100)
@@ -2282,13 +2281,11 @@ def _score_to_tier(score: int | float) -> str:
     Returns:
         Tier name string
     """
-    if score <= 20:
+    if score <= 29:
         return "low"
-    elif score <= 40:
-        return "elevated"
-    elif score <= 60:
-        return "moderate"
-    elif score <= 80:
+    elif score <= 59:
+        return "medium"
+    elif score <= 84:
         return "high"
     else:
         return "critical"

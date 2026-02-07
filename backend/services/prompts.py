@@ -78,17 +78,16 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION GUIDELINES:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 DISTRIBUTION: In a typical day, expect:
-- 85% of events to be LOW (0-20): Normal household activity
-- 10% to be ELEVATED (21-40): Worth noting but not alarming
-- 4% to be MODERATE/HIGH (41-80): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (81-100): Immediate threats only
+- 85% of events to be LOW (0-29): Normal household activity
+- 10% to be MEDIUM (30-59): Worth noting but not alarming
+- 4% to be HIGH (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS HIGH/CRITICAL (60+).
@@ -114,17 +113,18 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION GUIDELINES:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+
+RISK LEVELS: low, medium, high, critical
 
 DISTRIBUTION: In a typical day, expect:
-- 85% of events to be LOW (0-20): Normal household activity
-- 10% to be ELEVATED (21-40): Worth noting but not alarming
-- 4% to be MODERATE/HIGH (41-80): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (81-100): Immediate threats only
+- 85% of events to be LOW (0-29): Normal household activity
+- 10% to be MEDIUM (30-59): Worth noting but not alarming
+- 4% to be HIGH (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS HIGH/CRITICAL (60+).
@@ -698,11 +698,10 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
@@ -752,9 +751,9 @@ Time: {start_time} to {end_time}
 2. Adjust based on ACTUAL threat indicators present
 3. Do NOT flag trees, timestamps, or normal presence as risk factors
 4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-20)
+5. Remember: most events should score LOW (0-29)
 
-Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output JSON:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-sentence explanation of factors considered and why this risk level was assigned"}}<|im_end|>
@@ -770,11 +769,10 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
@@ -843,9 +841,9 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 2. Adjust based on ACTUAL threat indicators present
 3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
 4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-20)
+5. Remember: most events should score LOW (0-29)
 
-Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
 <|im_start|>assistant
@@ -861,11 +859,10 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
@@ -938,9 +935,9 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 2. Adjust based on ACTUAL threat indicators present
 3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
 4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-20)
+5. Remember: most events should score LOW (0-29)
 
-Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
 <|im_start|>assistant
@@ -956,11 +953,10 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
@@ -1042,9 +1038,9 @@ Deviation score: {deviation_score}
 2. Adjust based on ACTUAL threat indicators present
 3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
 4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-20)
+5. Remember: most events should score LOW (0-29)
 
-Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output JSON:
 {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "detailed explanation", "entities": [{{"type": "person|vehicle", "description": "text", "threat_level": "low|medium|high"}}], "recommended_action": "text"}}<|im_end|>
@@ -1074,11 +1070,10 @@ delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
 SCORE CALIBRATION:
-- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
-- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
+- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
+- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
@@ -1143,15 +1138,15 @@ Reasoning: Service worker attire, marked commercial vehicle, business hours, exp
 Monday 3:30 PM. Front yard camera. One person detected (unknown, no face match). Walking on public sidewalk past property, never entered private zone. CLIP scene: 'normal activity' (0.78). Pose: upright walking. Duration in frame: 15 seconds. Zone: sidewalk (public).
 Reasoning: Person remained on public sidewalk, transient presence, no approach to property — ordinary pedestrian. Score: 12.
 
-**Example 6 — Score: 25 (ELEVATED)**
+**Example 6 — Score: 25 (LOW)**
 Sunday 4:10 PM. Front door camera. One person detected (unknown, no face match, no household re-ID). Approached front porch and rang doorbell. Wearing casual clothing (Florence-2: "person in jeans and blue jacket"). Pose: standing upright at door. No suspicious items. CLIP scene: 'person at door' (0.72). Zone: porch (entry point). Duration: 45 seconds then departed.
 Reasoning: Unknown visitor but used doorbell, daytime, reasonable hour, no concealment or suspicious behavior — likely solicitor or neighbor. Score: 25.
 
-**Example 7 — Score: 32 (ELEVATED)**
+**Example 7 — Score: 32 (MEDIUM)**
 Saturday 2:00 PM. Street camera. Unfamiliar dark sedan parked on street near property for 20 minutes. No vehicle match in household database. No persons exited vehicle during observation. CLIP scene: 'parked vehicle on street' (0.65). Zone: street (public). Departed without incident.
 Reasoning: Unknown vehicle but on public street, daytime, no persons approached property, short duration — unusual but benign. Score: 32.
 
-**Example 8 — Score: 50 (MODERATE)**
+**Example 8 — Score: 50 (MEDIUM)**
 Wednesday 7:30 PM. Front door camera. One person detected (unknown, no face match). Approached front door but did NOT ring doorbell. Stood at door for 35 seconds, looked through side window (action: looking through window). Casual dark clothing (Florence-2: "person in dark hoodie and jeans"). CLIP scene: 'person loitering' (0.58). Zone: porch (entry point). Departed after 50 seconds total.
 Reasoning: Unknown person at entry point, no doorbell ring, peering through window suggests possible casing behavior, but short duration and evening (not late night) temper concern. Score: 50.
 
@@ -1249,7 +1244,7 @@ Deviation score: {deviation_score}
 - Dark hoodie + gloves at night = suspicious, warrant attention
 - High-visibility vest or delivery uniform = service worker, score 0-15
 - Any delivery/postal uniform = routine activity, score 0-15
-- SegFormer face_covered + suspicious items = elevated risk
+- SegFormer face_covered + suspicious items = increased risk
 
 ### Vehicle Analysis
 - Work van during business hours = likely delivery (lower risk)
@@ -1350,18 +1345,17 @@ Property crimes are CRIMINAL ACTS, not just suspicious behavior:
 - Weekend + unknown vehicle = note but lower concern
 
 ### Risk Levels
-- low (0-20): Normal activity, no action needed
-- elevated (21-40): Notable activity, worth reviewing
-- moderate (41-60): Suspicious, requires attention
-- high (61-80): Clear threat indicators, recommend alert
-- critical (81-100): Immediate threat, urgent action required
+- low (0-29): Normal activity, no action needed
+- medium (30-59): Notable activity, worth reviewing
+- high (60-84): Clear threat indicators, recommend alert
+- critical (85-100): Immediate threat, urgent action required
 
 ## YOUR TASK
 1. Start from the scoring reference above
 2. Adjust based on ACTUAL threat indicators present
 3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
 4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-20)
+5. Remember: most events should score LOW (0-29)
 
 Output JSON with comprehensive analysis:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-paragraph explanation of all factors considered", "entities": [{{"type": "person|vehicle|pet", "description": "detailed description with attributes", "threat_level": "low|medium|high"}}], "flags": [{{"type": "violence|suspicious_attire|vehicle_damage|unusual_behavior|quality_issue", "description": "text", "severity": "warning|alert|critical"}}], "recommended_action": "specific action to take", "confidence_factors": {{"detection_quality": "good|fair|poor", "weather_impact": "none|minor|significant", "enrichment_coverage": "full|partial|minimal"}}}}<|im_end|>

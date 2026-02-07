@@ -1396,8 +1396,8 @@ class TestCircuitBreakerIntegration:
         assert client._circuit_breaker._failure_count == 0
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_applies_to_all_methods(self, client, sample_image) -> None:
-        """Test that circuit breaker applies to all Florence client methods."""
+    async def test_per_endpoint_circuit_breaker_isolation(self, client, sample_image) -> None:
+        """Test that per-endpoint circuit breakers are isolated -- opening one does not block others."""
         client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
         # Open circuit via extract - need 5 failures (fixture default)
@@ -1405,18 +1405,17 @@ class TestCircuitBreakerIntegration:
             with pytest.raises(FlorenceUnavailableError):
                 await client.extract(sample_image, "<CAPTION>")
 
-        # All other methods should also be blocked
+        # Extract should be blocked (its breaker is open)
         with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+            await client.extract(sample_image, "<CAPTION>")
+
+        # Other methods should NOT be blocked -- they have their own breakers.
+        # They will fail with ConnectError, not circuit breaker error.
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]onnect"):
             await client.ocr(sample_image)
 
-        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
+        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]onnect"):
             await client.detect(sample_image)
-
-        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-            await client.dense_caption(sample_image)
-
-        with pytest.raises(FlorenceUnavailableError, match=r"[Cc]ircuit"):
-            await client.ocr_with_regions(sample_image)
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_health_check_reflects_state(self, client) -> None:

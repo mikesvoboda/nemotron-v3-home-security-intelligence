@@ -420,24 +420,17 @@ class CalibrationResponse(BaseModel):
                         "is_drifting": False,
                     },
                     {
-                        "tier": "elevated",
+                        "tier": "medium",
                         "actual_pct": 11.2,
                         "target_pct": 10.0,
                         "deviation_pct": 1.2,
                         "is_drifting": False,
                     },
                     {
-                        "tier": "moderate",
-                        "actual_pct": 3.1,
-                        "target_pct": 3.0,
-                        "deviation_pct": 0.1,
-                        "is_drifting": False,
-                    },
-                    {
                         "tier": "high",
-                        "actual_pct": 1.2,
-                        "target_pct": 1.0,
-                        "deviation_pct": 0.2,
+                        "actual_pct": 4.3,
+                        "target_pct": 4.0,
+                        "deviation_pct": 0.3,
                         "is_drifting": False,
                     },
                     {

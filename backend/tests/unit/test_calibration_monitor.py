@@ -39,17 +39,14 @@ class TestScoreToTier:
         [
             (0, "low"),
             (10, "low"),
-            (20, "low"),
-            (21, "elevated"),
-            (30, "elevated"),
-            (40, "elevated"),
-            (41, "moderate"),
-            (50, "moderate"),
-            (60, "moderate"),
-            (61, "high"),
-            (70, "high"),
-            (80, "high"),
-            (81, "critical"),
+            (29, "low"),
+            (30, "medium"),
+            (45, "medium"),
+            (59, "medium"),
+            (60, "high"),
+            (72, "high"),
+            (84, "high"),
+            (85, "critical"),
             (90, "critical"),
             (100, "critical"),
         ],
@@ -62,14 +59,12 @@ class TestScoreToTier:
         ("score", "expected_tier"),
         [
             (0, "low"),
-            (20, "low"),
-            (21, "elevated"),
-            (40, "elevated"),
-            (41, "moderate"),
-            (60, "moderate"),
-            (61, "high"),
-            (80, "high"),
-            (81, "critical"),
+            (29, "low"),
+            (30, "medium"),
+            (59, "medium"),
+            (60, "high"),
+            (84, "high"),
+            (85, "critical"),
             (100, "critical"),
         ],
     )
@@ -145,7 +140,7 @@ class TestCalibrationMonitor:
         status = await monitor.check_calibration()
 
         assert status.total_scores == 0
-        assert len(status.tiers) == 5
+        assert len(status.tiers) == 4
         # All tiers should show 0% actual
         for tier in status.tiers:
             assert tier.actual_pct == 0.0
@@ -157,16 +152,14 @@ class TestCalibrationMonitor:
         now = time.time()
 
         # Create 100 scores matching the target distribution:
-        # 85 low (0-20), 10 elevated (21-40), 3 moderate (41-60),
-        # 1 high (61-80), 1 critical (81-100)
+        # 85 low (0-29), 10 medium (30-59), 4 high (60-84), 1 critical (85-100)
         members = []
         for i in range(85):
             members.append(f"{now + i}:{10}")  # low
         for i in range(10):
-            members.append(f"{now + 85 + i}:{30}")  # elevated
-        for i in range(3):
-            members.append(f"{now + 95 + i}:{50}")  # moderate
-        members.append(f"{now + 98}:{70}")  # high
+            members.append(f"{now + 85 + i}:{40}")  # medium
+        for i in range(4):
+            members.append(f"{now + 95 + i}:{70}")  # high
         members.append(f"{now + 99}:{90}")  # critical
 
         redis.zrangebyscore = AsyncMock(return_value=members)
@@ -181,9 +174,8 @@ class TestCalibrationMonitor:
         # Check tier percentages
         tier_map = {t.tier: t for t in status.tiers}
         assert tier_map["low"].actual_pct == 85.0
-        assert tier_map["elevated"].actual_pct == 10.0
-        assert tier_map["moderate"].actual_pct == 3.0
-        assert tier_map["high"].actual_pct == 1.0
+        assert tier_map["medium"].actual_pct == 10.0
+        assert tier_map["high"].actual_pct == 4.0
         assert tier_map["critical"].actual_pct == 1.0
 
     @pytest.mark.asyncio
@@ -197,13 +189,11 @@ class TestCalibrationMonitor:
         for i in range(50):
             members.append(f"{now + i}:{10}")  # low
         for i in range(30):
-            members.append(f"{now + 50 + i}:{30}")  # elevated (30% vs 10% target)
+            members.append(f"{now + 50 + i}:{40}")  # medium (30% vs 10% target)
         for i in range(15):
-            members.append(f"{now + 80 + i}:{50}")  # moderate (15% vs 3% target)
-        for i in range(3):
-            members.append(f"{now + 95 + i}:{70}")  # high (3% vs 1% target)
-        for i in range(2):
-            members.append(f"{now + 98 + i}:{90}")  # critical (2% vs 1% target)
+            members.append(f"{now + 80 + i}:{70}")  # high (15% vs 4% target)
+        for i in range(5):
+            members.append(f"{now + 95 + i}:{90}")  # critical (5% vs 1% target)
 
         redis.zrangebyscore = AsyncMock(return_value=members)
         monitor = CalibrationMonitor(redis_client=redis)
@@ -214,10 +204,10 @@ class TestCalibrationMonitor:
         assert status.is_drifting
         # low tier has 50% vs 85% target = 35% deviation
         assert "low" in status.drifting_tiers
-        # elevated tier has 30% vs 10% target = 20% deviation
-        assert "elevated" in status.drifting_tiers
-        # moderate tier has 15% vs 3% target = 12% deviation
-        assert "moderate" in status.drifting_tiers
+        # medium tier has 30% vs 10% target = 20% deviation
+        assert "medium" in status.drifting_tiers
+        # high tier has 15% vs 4% target = 11% deviation
+        assert "high" in status.drifting_tiers
 
     @pytest.mark.asyncio
     async def test_is_drifting_returns_bool(self) -> None:
@@ -240,28 +230,22 @@ class TestCalibrationMonitor:
         redis = self._make_redis_mock()
         now = time.time()
 
-        # 90 low, 10 elevated => low is at 90% vs 85% target = 5% deviation
+        # 90 low, 10 medium => low is at 90% vs 85% target = 5% deviation
         members = []
         for i in range(90):
             members.append(f"{now + i}:{10}")
         for i in range(10):
-            members.append(f"{now + 90 + i}:{30}")
+            members.append(f"{now + 90 + i}:{40}")
 
         redis.zrangebyscore = AsyncMock(return_value=members)
-
-        # With default threshold of 5%, low (5% dev) is right at boundary
-        # and other tiers (moderate=0% vs 3%, high=0% vs 1%, critical=0% vs 1%)
-        # would not drift since they are small deviations
-        # But moderate/high/critical deviations are < 5%, so only the zero vs non-zero matters
 
         # With threshold of 10%, 5% deviation is not drifting
         monitor = CalibrationMonitor(redis_client=redis, drift_threshold_pct=10.0)
         status = await monitor.check_calibration()
 
         # low: 90% vs 85% = 5% deviation < 10% threshold -> not drifting
-        # elevated: 10% vs 10% = 0% deviation -> not drifting
-        # moderate: 0% vs 3% = 3% deviation < 10% threshold -> not drifting
-        # high: 0% vs 1% = 1% deviation < 10% threshold -> not drifting
+        # medium: 10% vs 10% = 0% deviation -> not drifting
+        # high: 0% vs 4% = 4% deviation < 10% threshold -> not drifting
         # critical: 0% vs 1% = 1% deviation < 10% threshold -> not drifting
         assert not status.is_drifting
 
@@ -339,8 +323,7 @@ class TestCalibrationMonitor:
         pcts = monitor._compute_tier_percentages(scores)
 
         assert pcts["low"] == 100.0
-        assert pcts["elevated"] == 0.0
-        assert pcts["moderate"] == 0.0
+        assert pcts["medium"] == 0.0
         assert pcts["high"] == 0.0
         assert pcts["critical"] == 0.0
 
@@ -349,15 +332,14 @@ class TestCalibrationMonitor:
         redis = self._make_redis_mock()
         monitor = CalibrationMonitor(redis_client=redis)
 
-        # 2 low, 2 elevated, 2 moderate, 2 high, 2 critical = 10 total
-        scores = [10.0, 15.0, 25.0, 35.0, 45.0, 55.0, 65.0, 75.0, 85.0, 95.0]
+        # 2 low, 2 medium, 2 high, 2 critical = 8 total
+        scores = [10.0, 20.0, 35.0, 50.0, 65.0, 75.0, 90.0, 95.0]
         pcts = monitor._compute_tier_percentages(scores)
 
-        assert pcts["low"] == 20.0
-        assert pcts["elevated"] == 20.0
-        assert pcts["moderate"] == 20.0
-        assert pcts["high"] == 20.0
-        assert pcts["critical"] == 20.0
+        assert pcts["low"] == 25.0
+        assert pcts["medium"] == 25.0
+        assert pcts["high"] == 25.0
+        assert pcts["critical"] == 25.0
 
 
 # =============================================================================
@@ -422,21 +404,21 @@ class TestCalibrationStatus:
                     is_drifting=False,
                 ),
                 TierStatus(
-                    tier="elevated",
+                    tier="medium",
                     actual_pct=20.0,
                     target_pct=10.0,
                     deviation_pct=10.0,
                     is_drifting=True,
                 ),
             ],
-            drifting_tiers=["elevated"],
+            drifting_tiers=["medium"],
         )
 
         d = status.to_dict()
 
         assert d["total_scores"] == 100
         assert d["is_drifting"] is True
-        assert d["drifting_tiers"] == ["elevated"]
+        assert d["drifting_tiers"] == ["medium"]
         assert len(d["tiers"]) == 2
         assert d["tiers"][0]["tier"] == "low"
         assert d["tiers"][1]["is_drifting"] is True
@@ -457,7 +439,7 @@ class TestRiskScoreDistributionMetrics:
         observe_risk_score_distribution(50)
         observe_risk_score_distribution(100)
 
-    @pytest.mark.parametrize("score", [0, 20, 21, 40, 41, 60, 61, 80, 81, 100])
+    @pytest.mark.parametrize("score", [0, 29, 30, 59, 60, 84, 85, 100])
     def test_observe_risk_score_distribution_boundary_scores(self, score: int) -> None:
         """Test that boundary scores are recorded without error."""
         observe_risk_score_distribution(score)

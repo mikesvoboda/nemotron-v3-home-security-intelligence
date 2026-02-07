@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-07T13:07:39.482310+00:00",
+  "generated_at": "2026-02-07T21:26:24.816033+00:00",
   "summary": {
     "total_scenarios": 30,
     "passed": 0,
@@ -25,31 +25,31 @@
   },
   "enrichment_accuracy": {
     "pose": {
-      "tested": 20,
+      "tested": 30,
       "passed": 0,
-      "failed": 20
+      "failed": 30
     },
     "reid": {
-      "tested": 20,
+      "tested": 30,
       "passed": 0,
-      "failed": 20
+      "failed": 30
     },
     "action": {
-      "tested": 20,
+      "tested": 30,
       "passed": 0,
-      "failed": 20
+      "failed": 30
     },
     "demographics": {
-      "tested": 15,
+      "tested": 25,
       "passed": 0,
-      "failed": 15
+      "failed": 25
     }
   },
   "risk_calibration": [
     {
       "scenario": "E01",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -57,7 +57,7 @@
     {
       "scenario": "E02",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -65,7 +65,7 @@
     {
       "scenario": "E03",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -73,7 +73,7 @@
     {
       "scenario": "E04",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -81,7 +81,7 @@
     {
       "scenario": "E05",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -89,7 +89,7 @@
     {
       "scenario": "E06",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -97,7 +97,7 @@
     {
       "scenario": "E07",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -105,7 +105,7 @@
     {
       "scenario": "E08",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -113,7 +113,7 @@
     {
       "scenario": "E09",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
       "in_range": true
@@ -121,9 +121,89 @@
     {
       "scenario": "E10",
       "category": "normal",
-      "actual": 0,
+      "actual": 25,
       "expected_min": 0,
       "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "C01",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C02",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C03",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C04",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C05",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C06",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C07",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C08",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C09",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C10",
+      "category": "suspicious",
+      "actual": 55,
+      "expected_min": 26,
+      "expected_max": 60,
       "in_range": true
     },
     {
@@ -271,7 +351,9 @@
       "scenario": "E05",
       "name": "Doordash Delivery",
       "category": "normal",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -283,7 +365,9 @@
       "scenario": "E06",
       "name": "Instacart Delivery",
       "category": "normal",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -309,7 +393,9 @@
       "scenario": "E08",
       "name": "Landscaper",
       "category": "normal",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -320,7 +406,9 @@
       "scenario": "E09",
       "name": "Pool Cleaner",
       "category": "normal",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -331,7 +419,9 @@
       "scenario": "E10",
       "name": "House Cleaner",
       "category": "normal",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -342,77 +432,139 @@
       "scenario": "C01",
       "name": "Night Rain Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C01"],
-      "enrichment_errors": []
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C02",
       "name": "Snowfall Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C02"],
-      "enrichment_errors": []
+      "errors": [],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C03",
       "name": "Fog Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C03"],
-      "enrichment_errors": []
+      "errors": [],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C04",
       "name": "Day Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C04"],
-      "enrichment_errors": []
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C05",
       "name": "Windy Day Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C05"],
-      "enrichment_errors": []
+      "errors": [],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C06",
       "name": "Backlight Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C06"],
-      "enrichment_errors": []
+      "errors": [],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C07",
       "name": "Headlight Sweep",
       "category": "suspicious",
-      "errors": ["No matching event found for C07"],
-      "enrichment_errors": []
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C08",
       "name": "Side Yard Night",
       "category": "suspicious",
-      "errors": ["No matching event found for C08"],
-      "enrichment_errors": []
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C09",
       "name": "Driveway Night",
       "category": "suspicious",
-      "errors": ["No matching event found for C09"],
-      "enrichment_errors": []
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "C10",
       "name": "Garage Approach",
       "category": "suspicious",
-      "errors": ["No matching event found for C10"],
-      "enrichment_errors": []
+      "errors": [],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "P07",
       "name": "Crouching",
       "category": "threats",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -424,7 +576,9 @@
       "scenario": "P08",
       "name": "Tool Visible",
       "category": "threats",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -436,7 +590,9 @@
       "scenario": "P09",
       "name": "Forced Entry",
       "category": "threats",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -505,7 +661,9 @@
       "scenario": "R04",
       "name": "Vehicle Break-in",
       "category": "threats",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -517,7 +675,9 @@
       "scenario": "R05",
       "name": "Car Handle Check",
       "category": "threats",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",
@@ -529,7 +689,9 @@
       "scenario": "R06",
       "name": "Vehicle Theft",
       "category": "threats",
-      "errors": ["Expected detection class 'vehicle' not found"],
+      "errors": [
+        "Expected detection class 'vehicle' not found"
+      ],
       "enrichment_errors": [
         "No pose results found for detections",
         "No re-ID embeddings for person detections",

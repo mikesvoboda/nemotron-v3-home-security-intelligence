@@ -257,12 +257,11 @@ class TestRiskAnalysisPromptTemplate:
         assert '"reasoning"' in RISK_ANALYSIS_PROMPT
 
     def test_template_has_risk_level_guidance(self) -> None:
-        """Test that the template provides risk level ranges (NEM-3880 calibrated)."""
-        assert "low (0-20)" in RISK_ANALYSIS_PROMPT
-        assert "elevated (21-40)" in RISK_ANALYSIS_PROMPT
-        assert "moderate (41-60)" in RISK_ANALYSIS_PROMPT
-        assert "high (61-80)" in RISK_ANALYSIS_PROMPT
-        assert "critical (81-100)" in RISK_ANALYSIS_PROMPT
+        """Test that the template provides risk level ranges matching DB taxonomy."""
+        assert "low (0-29)" in RISK_ANALYSIS_PROMPT
+        assert "medium (30-59)" in RISK_ANALYSIS_PROMPT
+        assert "high (60-84)" in RISK_ANALYSIS_PROMPT
+        assert "critical (85-100)" in RISK_ANALYSIS_PROMPT
 
     def test_template_variable_substitution(self) -> None:
         """Test that template variables can be properly substituted."""
@@ -547,10 +546,9 @@ class TestCalibrationGuidelines:
     """
 
     def test_calibrated_system_prompt_has_score_ranges(self) -> None:
-        """Test that CALIBRATED_SYSTEM_PROMPT has explicit score ranges."""
-        assert "0-20" in CALIBRATED_SYSTEM_PROMPT
-        has_elevated = "21-40" in CALIBRATED_SYSTEM_PROMPT or "ELEVATED" in CALIBRATED_SYSTEM_PROMPT
-        assert has_elevated
+        """Test that CALIBRATED_SYSTEM_PROMPT has explicit score ranges matching DB taxonomy."""
+        assert "0-29" in CALIBRATED_SYSTEM_PROMPT
+        assert "MEDIUM" in CALIBRATED_SYSTEM_PROMPT or "30-59" in CALIBRATED_SYSTEM_PROMPT
         assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_mentions_delivery_drivers(self) -> None:
@@ -595,7 +593,7 @@ class TestCalibrationGuidelines:
             assert has_tree or has_header, f"{name} should mention non-risk factors"
 
     def test_all_prompts_have_calibrated_score_ranges(self) -> None:
-        """Test that all prompt templates have calibrated score ranges."""
+        """Test that all prompt templates have calibrated score ranges matching DB taxonomy."""
         prompts_to_check = [
             ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
             ("ENRICHED_RISK_ANALYSIS_PROMPT", ENRICHED_RISK_ANALYSIS_PROMPT),
@@ -604,9 +602,9 @@ class TestCalibrationGuidelines:
             ("MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT", MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT),
         ]
         for name, prompt in prompts_to_check:
-            # Each prompt should have the new calibrated LOW range (0-20)
-            has_range = "0-20" in prompt or "(0-20)" in prompt
-            assert has_range, f"{name} should have calibrated LOW range (0-20)"
+            # Each prompt should have the calibrated LOW range (0-29)
+            has_range = "0-29" in prompt or "(0-29)" in prompt
+            assert has_range, f"{name} should have calibrated LOW range (0-29)"
 
     def test_prompts_emphasize_lower_scores_as_default(self) -> None:
         """Test that prompts emphasize defaulting to lower scores."""
@@ -4350,19 +4348,16 @@ class TestCalibratedSystemPrompt:
         assert "1%" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_has_risk_level_ranges(self) -> None:
-        """Test that the prompt includes risk level score ranges."""
+        """Test that the prompt includes risk level score ranges matching DB taxonomy."""
         assert "LOW" in CALIBRATED_SYSTEM_PROMPT
-        # NEM-3880: Updated to use ELEVATED and MODERATE instead of MEDIUM
-        has_elevated = "ELEVATED" in CALIBRATED_SYSTEM_PROMPT
-        has_moderate = "MODERATE" in CALIBRATED_SYSTEM_PROMPT
-        assert has_elevated or has_moderate
+        assert "MEDIUM" in CALIBRATED_SYSTEM_PROMPT
         assert "HIGH" in CALIBRATED_SYSTEM_PROMPT
         assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
-        # Score ranges - updated per NEM-3880
-        assert "0-20" in CALIBRATED_SYSTEM_PROMPT
-        assert "21-40" in CALIBRATED_SYSTEM_PROMPT
-        assert "61-80" in CALIBRATED_SYSTEM_PROMPT
-        assert "81-100" in CALIBRATED_SYSTEM_PROMPT
+        # Score ranges aligned with DB severity thresholds
+        assert "0-29" in CALIBRATED_SYSTEM_PROMPT
+        assert "30-59" in CALIBRATED_SYSTEM_PROMPT
+        assert "60-84" in CALIBRATED_SYSTEM_PROMPT
+        assert "85-100" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_has_miscalibration_warning(self) -> None:
         """Test that the prompt warns about miscalibration."""
