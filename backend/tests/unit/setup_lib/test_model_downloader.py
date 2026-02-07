@@ -39,7 +39,7 @@ class TestModelSpecConstants:
 
         model_names = [m.name for m in REQUIRED_MODELS]
         # Florence-2 and CLIP are essential for the AI pipeline
-        assert "florence-2-large" in model_names
+        assert "florence-2-base" in model_names
         assert "clip-vit-l" in model_names
 
     def test_phase1_models_exists(self) -> None:
@@ -634,9 +634,9 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should have downloaded florence-2-large and clip-vit-l
+            # Should have downloaded florence-2-base and clip-vit-l
             # (yolo26 is skipped because it has no hf_repo)
-            assert "florence-2-large" in downloaded_models
+            assert "florence-2-base" in downloaded_models
             assert "clip-vit-l" in downloaded_models
 
     def test_uses_default_path_when_not_provided(self) -> None:
@@ -834,8 +834,8 @@ class TestPromptAndDownloadModels:
             return True
 
         def mock_check_exists(path: Path, name: str) -> bool:
-            # florence-2-large already exists
-            return name == "florence-2-large"
+            # florence-2-base already exists
+            return name == "florence-2-base"
 
         with (
             patch(
@@ -853,8 +853,8 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # florence-2-large should not be in downloaded list
-            assert "florence-2-large" not in downloaded_models
+            # florence-2-base should not be in downloaded list
+            assert "florence-2-base" not in downloaded_models
 
     def test_default_option_is_1(self) -> None:
         """Should default to option 1 when empty input provided."""
@@ -880,7 +880,7 @@ class TestPromptAndDownloadModels:
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
             # Should download required models (option 1 is default)
-            assert "florence-2-large" in downloaded_models
+            assert "florence-2-base" in downloaded_models
             assert "clip-vit-l" in downloaded_models
 
 

@@ -169,11 +169,27 @@ class MockPersonAttributes:
 
 
 @dataclass
+class MockFlorenceEnhancedScene:
+    """Mock FlorenceEnhancedScene for testing.
+
+    Represents enhanced scene context from Florence-2 advanced capabilities.
+    """
+
+    security_objects: Any | None = None
+    dense_captions: list[dict[str, Any]] = field(default_factory=list)
+    text_regions: list[dict[str, Any]] = field(default_factory=list)
+    phrase_grounding: list[dict[str, Any]] = field(default_factory=list)
+    region_descriptions: dict[str, str] = field(default_factory=dict)
+    security_vqa: dict[str, dict[str, str]] = field(default_factory=dict)
+
+
+@dataclass
 class MockBatchExtractionResult:
     """Mock BatchExtractionResult from vision_extractor."""
 
     vehicle_attributes: dict[str, MockVehicleAttributes] = field(default_factory=dict)
     person_attributes: dict[str, MockPersonAttributes] = field(default_factory=dict)
+    florence_enhanced: MockFlorenceEnhancedScene | None = None
 
 
 @dataclass
