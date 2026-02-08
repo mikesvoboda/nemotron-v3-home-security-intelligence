@@ -100,6 +100,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
 
 # Run llama-server with configuration
 # Model is expected to be mounted at /models/
+# --cache-prompt: Reuses KV cache for common prompt prefixes across requests.
+#   The ~3K-token static system prompt (scoring reference, examples, risk guide)
+#   is cached after the first request, reducing TTFT by 30-50% for subsequent calls.
 # NEM-5369: Conditionally enable flash attention for VRAM savings
 CMD ["sh", "-c", "FLASH_ARGS=''; \
     if [ \"${FLASH_ATTENTION}\" = 'true' ]; then FLASH_ARGS='--flash-attn on'; fi; \
@@ -119,6 +122,7 @@ CMD ["sh", "-c", "FLASH_ARGS=''; \
     --cache-type-k ${CACHE_TYPE_K} \
     --cache-type-v ${CACHE_TYPE_V} \
     --cont-batching \
+    --cache-prompt \
     --metrics \
     ${FLASH_ARGS} \
     ${MOE_ARGS}"]
