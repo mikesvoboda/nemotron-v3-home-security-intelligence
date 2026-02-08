@@ -569,7 +569,15 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
+      # X-CLIP deprecated — replaced by ST-GCN++ on ai-enrichment-light (NEM-5563)
+      # Kept for backward compatibility until fully removed
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
+      # Smoke/fire detection (NEM-5566, CRITICAL safety model)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/smoke-fire-yolov8n:/models/smoke-fire-yolov8n:ro
+      # YOLO-World open-vocabulary detection (NEM-5566)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo-world-s:/models/yolo-world-s:ro
+      # Zero-DCE++ low-light enhancement (NEM-5567)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/zero-dce-plus-plus:/models/zero-dce-plus-plus:ro
       # INT8 quantized model files (NEM-5550)
       - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       # Persistent HuggingFace cache volume (NEM-3812)
@@ -589,7 +597,7 @@ services:
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - ACTION_MODEL_PATH=/models/xclip-base-patch32
+      - ACTION_MODEL_PATH=/models/xclip-base-patch32 # Legacy X-CLIP, ST-GCN++ is on ai-enrichment-light
       # INT8 quantized model configuration (NEM-5550)
       # Run ai/enrichment/scripts/quantize_models.py to generate INT8 .pt files
       - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}

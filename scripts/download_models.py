@@ -16,26 +16,30 @@ MODELS = {
         "repo": "depth-anything/Depth-Anything-V2-Tiny",
         "type": "huggingface",
     },
-    # X-CLIP 16-frame patch16 model for improved action recognition accuracy (NEM-3908)
-    "xclip-base-patch16-16-frames": {
-        "repo": "microsoft/xclip-base-patch16-16-frames",
-        "type": "huggingface",
-    },
     "vit-age-classifier": {"repo": "nateraw/vit-age-classifier", "type": "huggingface"},
     "yolov8n-pose": {"repo": "yolov8n-pose.pt", "type": "ultralytics"},
     "osnet-ain-x1-0": {"repo": "osnet_ain_x1_0", "type": "torchreid"},
     # Threat detection model for weapon/dangerous object detection
-    # Reference: https://huggingface.co/Subh775/Threat-Detection-YOLOv8n
     "threat-detection-yolov8n": {
         "repo": "Subh775/Threat-Detection-YOLOv8n",
         "type": "huggingface",
     },
-    # Gender classifier (reserved for future demographics enhancement)
-    # Reference: https://huggingface.co/rizvandwiki/gender-classification
     "vit-gender-classifier": {
         "repo": "rizvandwiki/gender-classification",
         "type": "huggingface",
     },
+    # SigLIP 2 Base - replaces CLIP ViT-L for re-identification (NEM-5561)
+    "siglip2-base-patch16-224": {
+        "repo": "onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
+        "type": "huggingface",
+    },
+    # Smoke/fire detection - CRITICAL safety model (NEM-5566)
+    "smoke-fire-yolov8n": {
+        "repo": "luminous0219/fire-and-smoke-detection-yolov8",
+        "type": "huggingface",
+    },
+    # YOLO-World open-vocabulary detection (NEM-5566)
+    "yolo-world-s": {"repo": "yolov8s-worldv2.pt", "type": "ultralytics"},
 }
 
 

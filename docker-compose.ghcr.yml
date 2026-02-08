@@ -335,6 +335,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-ain-x1-0:/models/osnet-ain-x1-0:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/stgcn-plus-plus:/models/stgcn-plus-plus:ro
       - enrichment-light-tensorrt-cache:/cache/tensorrt
       - pytorch-profiles:/tmp/profiles
     environment:
@@ -393,7 +394,16 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
+      # X-CLIP deprecated — replaced by ST-GCN++ on ai-enrichment-light (NEM-5563)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
+      # Smoke/fire detection (NEM-5566, CRITICAL safety model)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/smoke-fire-yolov8n:/models/smoke-fire-yolov8n:ro
+      # YOLO-World open-vocabulary detection (NEM-5566)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo-world-s:/models/yolo-world-s:ro
+      # Zero-DCE++ low-light enhancement (NEM-5567)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/zero-dce-plus-plus:/models/zero-dce-plus-plus:ro
+      # INT8 quantized model files (NEM-5550)
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       - hf_cache:/cache/huggingface:U
       - pytorch-profiles:/tmp/profiles
     environment:
@@ -406,7 +416,11 @@ services:
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - ACTION_MODEL_PATH=/models/xclip-base-patch32
+      - ACTION_MODEL_PATH=/models/xclip-base-patch32 # Legacy X-CLIP, ST-GCN++ is on ai-enrichment-light
+      # INT8 quantized model configuration (NEM-5550)
+      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
+      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
+      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
       - VRAM_BUDGET_GB=6.0
       - MODEL_LOAD_TIMEOUT=30
       - HF_HOME=/cache/huggingface

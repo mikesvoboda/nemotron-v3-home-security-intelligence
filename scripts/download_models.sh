@@ -31,19 +31,19 @@ echo "[3/9] Downloading YOLOv8n-pose..."
 mkdir -p "$MODELS_DIR/yolov8n-pose"
 python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt')" && mv yolov8n-pose.pt "$MODELS_DIR/yolov8n-pose/"
 
-# X-CLIP 16-frame patch16 model (NEM-3908: upgraded for +4% accuracy)
+# SigLIP 2 Base - replaces CLIP ViT-L for re-identification (NEM-5561)
 echo ""
-echo "[4/9] Downloading X-CLIP base-patch16-16-frames..."
-huggingface-cli download microsoft/xclip-base-patch16-16-frames --local-dir "$MODELS_DIR/xclip-base-patch16-16-frames" --local-dir-use-symlinks False
+echo "[4/12] Downloading SigLIP 2 Base ONNX..."
+huggingface-cli download onnx-community/siglip2-base-patch16-224-ONNX --local-dir "$MODELS_DIR/siglip2-base-patch16-224" --local-dir-use-symlinks False
 
 # Age Classifier
 echo ""
-echo "[5/9] Downloading Age Classifier..."
+echo "[5/12] Downloading Age Classifier..."
 huggingface-cli download nateraw/vit-age-classifier --local-dir "$MODELS_DIR/vit-age-classifier" --local-dir-use-symlinks False
 
 # OSNet-AIN x1.0 Re-ID (NEM-5562: upgraded from x0.25 for 4x better accuracy)
 echo ""
-echo "[6/9] Downloading OSNet-AIN x1.0 Re-ID..."
+echo "[6/12] Downloading OSNet-AIN x1.0 Re-ID..."
 python -c "
 import torchreid
 import os
@@ -54,24 +54,38 @@ torch.save(model.state_dict(), '$MODELS_DIR/osnet-ain-x1-0/osnet_ain_x1_0_msmt17
 print('OSNet-AIN x1.0 saved successfully')
 "
 
-# Vehicle Classifier (if exists on HF, otherwise note manual download)
+# Vehicle Classifier
 echo ""
-echo "[7/9] Vehicle Classifier..."
+echo "[7/12] Vehicle Classifier..."
 echo "Note: Vehicle classifier may require manual download or training"
 mkdir -p "$MODELS_DIR/vehicle-segment-classification"
 
 # Pet Classifier
 echo ""
-echo "[8/9] Pet Classifier..."
+echo "[8/12] Pet Classifier..."
 echo "Note: Pet classifier may require manual download or training"
 mkdir -p "$MODELS_DIR/pet-classifier"
 
-# Threat Detection (placeholder - need to find suitable model)
+# Threat Detection
 echo ""
-echo "[9/9] Threat Detection..."
-echo "Note: Threat detection model requires selection from available options"
-echo "Suggested: Search HuggingFace for 'weapon detection yolov8'"
-mkdir -p "$MODELS_DIR/threat-detection-yolov8n"
+echo "[9/12] Downloading Threat Detection..."
+huggingface-cli download Subh775/Threat-Detection-YOLOv8n --local-dir "$MODELS_DIR/threat-detection-yolov8n" --local-dir-use-symlinks False
+
+# Smoke/fire detection - CRITICAL safety model (NEM-5566)
+echo ""
+echo "[10/12] Downloading Smoke/Fire Detection..."
+huggingface-cli download luminous0219/fire-and-smoke-detection-yolov8 --local-dir "$MODELS_DIR/smoke-fire-yolov8n" --local-dir-use-symlinks False
+
+# YOLO-World open-vocabulary detection (NEM-5566)
+echo ""
+echo "[11/12] Downloading YOLO-World..."
+mkdir -p "$MODELS_DIR/yolo-world-s"
+python -c "from ultralytics import YOLOWorld; YOLOWorld('yolov8s-worldv2.pt')" && mv yolov8s-worldv2.pt "$MODELS_DIR/yolo-world-s/" 2>/dev/null || echo "  Note: YOLO-World download via ultralytics"
+
+# Gender Classifier (NEM-5566)
+echo ""
+echo "[12/12] Downloading Gender Classifier..."
+huggingface-cli download rizvandwiki/gender-classification --local-dir "$MODELS_DIR/vit-gender-classifier" --local-dir-use-symlinks False
 
 echo ""
 echo "============================================"
