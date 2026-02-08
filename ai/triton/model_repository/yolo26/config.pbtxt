@@ -1,10 +1,14 @@
 # YOLO26m Object Detection - ONNX Runtime
 # Input: image tensor [1, 3, 640, 640] FP32 (static batch=1 from Ultralytics export)
-# Output: raw YOLO tensor [1, 84, 8400] FP32 (84 = 4 box + 80 COCO class scores)
+# Output: post-NMS detections [1, 300, 6] FP32 (300 max detections, 6 = x1,y1,x2,y2,score,class)
 # Source: ai/yolo26/model.py (imgsz=640, 80 COCO classes)
 #
+# ONNX Runtime with CUDA EP is used instead of TensorRT because the
+# RTX A400 (4 GB) does not have enough workspace memory for TensorRT
+# engine building.  ONNX Runtime provides near-TensorRT performance.
+#
 # The gateway adapter (ai/gateway/adapters/yolo26.py) handles letterbox
-# preprocessing, NMS, and coordinate rescaling on the raw output.
+# preprocessing and coordinate rescaling on the post-NMS output.
 
 name: "yolo26"
 backend: "onnxruntime"
@@ -22,7 +26,7 @@ output [
   {
     name: "output0"
     data_type: TYPE_FP32
-    dims: [ 1, 84, 8400 ]
+    dims: [ 1, 300, 6 ]
   }
 ]
 
@@ -36,4 +40,4 @@ instance_group [
 
 # YOLO26m ONNX model exported via Ultralytics .export(format='onnx')
 # Static batch=1: max_batch_size=0, full shape including batch dim in dims
-# 80 COCO detection classes, 8400 prediction anchors at 640x640 input
+# 80 COCO detection classes, post-NMS output with up to 300 detections
