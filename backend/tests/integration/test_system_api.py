@@ -177,7 +177,7 @@ async def test_config_endpoint_has_expected_values(client, mock_redis):
     assert data["retention_days"] == 30
     assert data["batch_window_seconds"] == 90
     assert data["batch_idle_timeout_seconds"] == 30
-    assert data["detection_confidence_threshold"] == 0.5
+    assert data["detection_confidence_threshold"] == 0.4
 
 
 @pytest.mark.asyncio

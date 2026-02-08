@@ -27,6 +27,7 @@ expects JSON responses matching the current ai-florence service format.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any
@@ -240,6 +241,18 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     else:
         text_result = str(raw_output[0])
 
+    # Unwrap JSON envelope from the Triton Python backend.
+    # The backend returns {"result": ..., "prompt": ...} as a JSON string.
+    # We need to extract just the "result" value.
+    try:
+        envelope = json.loads(text_result)
+        if isinstance(envelope, dict) and "result" in envelope:
+            text_result = envelope["result"]
+            if not isinstance(text_result, str):
+                text_result = json.dumps(text_result)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
     inference_time_ms = (time.monotonic() - start) * 1000
     return text_result, inference_time_ms
 
@@ -249,8 +262,6 @@ def _parse_json_output(text: str) -> Any:
 
     Florence Python backend may return JSON-serialized structured results.
     """
-    import json
-
     try:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError):
