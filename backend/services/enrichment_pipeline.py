@@ -2392,6 +2392,25 @@ class EnrichmentPipeline:
                 phase1_tasks["unified_animal_enrichment"] = (
                     self._enrich_animals_via_unified_service(animals, pil_image, result)
                 )
+
+            # ================================================================
+            # ENRICHMENT-LIGHT SERVICE CALLS: Individual calls for models
+            # hosted on ai-enrichment-light:8096 (pose, threat, reid).
+            # The unified /enrich endpoint only reaches the heavy service,
+            # so these models must be called individually via the light
+            # service. EnrichmentClient._get_service_for_model() routes
+            # each call to the correct service based on config.
+            # ================================================================
+            if self.pose_estimation_enabled and persons:
+                phase1_tasks["pose_estimation"] = self._estimate_poses_via_service(
+                    persons, pil_image
+                )
+            if persons:
+                phase1_tasks["threat_detection"] = self._detect_threats_via_service(pil_image)
+            if self.reid_enabled and persons:
+                phase1_tasks["reid_via_service"] = self._compute_reid_via_service(
+                    high_conf_detections, pil_image, result
+                )
         else:
             # ================================================================
             # LOCAL MODEL PATH: Individual model loading (existing behavior)
@@ -2806,6 +2825,12 @@ class EnrichmentPipeline:
                 self._handle_enrichment_error("clip_threat_matching", threat_result, result)
             elif threat_result:
                 result.clip_threat_matches = threat_result
+
+        # Re-ID via enrichment-light service (populates result directly)
+        if "reid_via_service" in phase1_dict:
+            reid_result = phase1_dict["reid_via_service"]
+            if isinstance(reid_result, Exception):
+                self._handle_enrichment_error("reid_via_service", reid_result, result)
 
         # Unified Enrichment tasks (NEM-5525)
         # These tasks populate `result` directly via _map_unified_to_enrichment_result,

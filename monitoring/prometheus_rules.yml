@@ -198,7 +198,7 @@ groups:
           summary: 'Dead letter queue has failed messages'
           description: 'The DLQ {{ $labels.queue_name }} has {{ $value | printf "%.0f" }} failed messages. These messages failed after exhausting all retries and require operator attention.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidlqhasmessages'
-          dashboard_url: 'http://localhost:3002/settings#dlq'
+          dashboard_url: 'http://localhost:3003/settings#dlq'
 
       - alert: AIDLQGrowing
         expr: |

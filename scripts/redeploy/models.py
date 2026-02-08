@@ -350,7 +350,7 @@ class DeployConfig(BaseSettings):
     # GPU assignments
     gpu_ai_services: int = Field(default=1, alias="GPU_AI_SERVICES")
     gpu_llm: int = Field(default=0, alias="GPU_LLM")
-    gpu_florence: int = Field(default=0, alias="GPU_FLORENCE")
+    gpu_florence: int = Field(default=1, alias="GPU_FLORENCE")
     gpu_clip: int = Field(default=1, alias="GPU_CLIP")
     gpu_enrichment: int = Field(default=1, alias="GPU_ENRICHMENT")
 

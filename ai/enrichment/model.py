@@ -2173,6 +2173,54 @@ async def lifespan(_app: FastAPI):
         )
     )
 
+    # Threat Detector (~400MB) - YOLOv8 weapon/dangerous object detection
+    threat_model_path = os.environ.get(
+        "THREAT_MODEL_PATH", "/models/threat-detection-yolov8n"
+    )
+
+    def _create_threat_detector(threat_path: str, dev: str) -> Any:
+        from models.threat_detector import ThreatDetector
+
+        detector = ThreatDetector(model_path=threat_path, device=dev)
+        detector.load_model()
+        return detector
+
+    model_manager.register_model(
+        ModelConfig(
+            name="threat_detector",
+            vram_mb=400,
+            priority=ModelPriority.CRITICAL,
+            loader_fn=lambda path=threat_model_path, dev=device: _create_threat_detector(
+                path, dev
+            ),
+            unloader_fn=_unload_model,
+        )
+    )
+
+    # Person Re-ID (~100MB) - OSNet-x0.25 person re-identification embeddings
+    reid_model_path = os.environ.get(
+        "REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth"
+    )
+
+    def _create_person_reid(reid_path: str, dev: str) -> Any:
+        from models.person_reid import PersonReID
+
+        reid = PersonReID(model_path=reid_path, device=dev)
+        reid.load_model()
+        return reid
+
+    model_manager.register_model(
+        ModelConfig(
+            name="person_reid",
+            vram_mb=100,
+            priority=ModelPriority.HIGH,
+            loader_fn=lambda path=reid_model_path, dev=device: _create_person_reid(
+                path, dev
+            ),
+            unloader_fn=_unload_model,
+        )
+    )
+
     logger.info(
         f"OnDemandModelManager initialized with {vram_budget_gb}GB VRAM budget. "
         f"Registered {len(model_manager.model_registry)} models for on-demand loading."
@@ -3104,6 +3152,114 @@ async def _run_depth_estimation(full_image: Image.Image, bbox: list[float]) -> D
         return None
 
 
+async def _run_threat_detection(
+    full_image: Image.Image,
+) -> ThreatResult | None:
+    """Run threat/weapon detection on the full image.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        detector = await model_manager.get_model("threat_detector")
+        result = await asyncio.to_thread(detector.detect_threats, full_image)
+        return ThreatResult(
+            threats=[t.to_dict() for t in result.threats],
+            has_threat=result.has_threat,
+        )
+    except ValueError:
+        # Model not registered (e.g., ThreatDetector not available)
+        return None
+    except Exception as e:
+        logger.warning(f"Threat detection failed: {e}")
+        return None
+
+
+async def _run_reid_embedding(
+    cropped_image: Image.Image,
+) -> list[float] | None:
+    """Extract person re-identification embedding from a cropped person image.
+
+    Uses on-demand model loading via the model manager.
+
+    Returns:
+        List of floats representing the 512-dim embedding, or None on failure.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        reid_model = await model_manager.get_model("person_reid")
+        result = await asyncio.to_thread(reid_model.extract_embedding, cropped_image)
+        embedding = result.embedding if hasattr(result, "embedding") else result.get("embedding", [])
+        return embedding if embedding else None
+    except ValueError:
+        # Model not registered (e.g., PersonReID not available)
+        return None
+    except Exception as e:
+        logger.warning(f"Re-ID embedding extraction failed: {e}")
+        return None
+
+
+async def _run_action_recognition(
+    frames: list[str],
+    labels: list[str] | None = None,
+) -> dict | None:
+    """Run action recognition on a sequence of video frames.
+
+    Uses on-demand model loading via the model manager.
+
+    Args:
+        frames: List of base64 encoded video frames.
+        labels: Optional custom action labels for zero-shot classification.
+
+    Returns:
+        Dictionary with action, confidence, is_suspicious, risk_weight, and all_scores.
+    """
+    if model_manager is None:
+        return None
+
+    if not frames:
+        return None
+
+    try:
+        # Decode all frames
+        decoded_frames = []
+        for frame_b64 in frames:
+            frame_image = decode_and_crop_image(frame_b64)
+            decoded_frames.append(frame_image)
+
+        if not decoded_frames:
+            return None
+
+        recognizer = await model_manager.get_model("action_recognizer")
+        result = await asyncio.to_thread(
+            recognizer.recognize_action,
+            decoded_frames,
+            labels,
+        )
+
+        # Calculate risk weight using same logic as /action-classify endpoint
+        default_weight = 0.5 if result.is_suspicious else 0.1
+        risk_weight = _ACTION_RISK_WEIGHTS.get(result.action, default_weight)
+
+        return {
+            "action": result.action,
+            "confidence": result.confidence,
+            "is_suspicious": result.is_suspicious,
+            "risk_weight": risk_weight,
+            "all_scores": result.all_scores,
+        }
+    except ValueError:
+        # Model not registered (e.g., ActionRecognizer not available)
+        return None
+    except Exception as e:
+        logger.warning(f"Action recognition failed: {e}")
+        return None
+
+
 @app.post("/enrich", response_model=EnrichmentResponse)
 async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     """Unified endpoint that runs appropriate models based on detection type.
@@ -3112,7 +3268,8 @@ async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     by automatically selecting appropriate models based on detection type.
 
     Detection types and their models:
-    - person: pose, clothing, depth (threat and demographics are placeholders)
+    - person: pose, clothing, demographics, threat, re-id, depth,
+              action (if frames provided)
     - vehicle: vehicle classification, depth
     - animal: pet classification, depth
     - object: depth only
@@ -3120,7 +3277,10 @@ async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     Options:
     - include_depth: Run depth estimation (default: False for person, True for others)
     - include_pose: Run pose estimation for person (default: True)
-    - action_recognition: Run action recognition if frames provided (not yet implemented)
+    - include_demographics: Run demographics estimation for person (default: True)
+    - include_threat: Run threat/weapon detection for person (default: True)
+    - include_reid: Run re-identification embedding for person (default: True)
+    - action_recognition: Run action recognition if frames provided (default: True)
     """
     start_time = time.perf_counter()
 
@@ -3151,6 +3311,22 @@ async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
 
             # Clothing analysis (always run for person)
             tasks.append(("clothing", _run_clothing_classification(cropped_image)))
+
+            # Demographics estimation (default: on)
+            if request.options.get("include_demographics", True):
+                tasks.append(("demographics", _run_demographics_estimation(cropped_image)))
+
+            # Threat/weapon detection (default: on) - runs on full image
+            if request.options.get("include_threat", True):
+                tasks.append(("threat", _run_threat_detection(full_image)))
+
+            # Re-ID embedding (default: on) - for person tracking across cameras
+            if request.options.get("include_reid", True):
+                tasks.append(("reid_embedding", _run_reid_embedding(cropped_image)))
+
+            # Action recognition (if frames provided and enabled)
+            if request.frames and request.options.get("action_recognition", True):
+                tasks.append(("action", _run_action_recognition(request.frames)))
 
             # Depth estimation (optional for person)
             if request.options.get("include_depth", False):

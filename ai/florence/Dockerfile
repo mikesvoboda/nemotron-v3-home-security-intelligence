@@ -108,7 +108,7 @@ COPY --from=builder --chmod=755 /usr/local/bin/ai-entrypoint.sh /usr/local/bin/a
 # Environment variables
 ENV HOST=0.0.0.0
 ENV PORT=8092
-ENV FLORENCE_MODEL_PATH=/models/florence-2-large
+ENV FLORENCE_MODEL_PATH=/models/florence-2-base
 # HuggingFace cache configuration (NEM-3812)
 # HF_HOME is the root directory, others are derived for backward compatibility
 ENV HF_HOME=/cache/huggingface
