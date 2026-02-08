@@ -43,7 +43,7 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.services.bbox_validation import is_valid_bbox, validate_and_clamp_bbox
-from backend.services.circuit_breaker import CircuitBreaker, CircuitState
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -847,13 +847,14 @@ class EnrichmentClient:
         self._settings = get_settings()
 
         # Use provided URL, or AI Gateway, or settings for heavy service
+        _gw_url = getattr(self._settings, "ai_gateway_url", None)
         _use_gw = getattr(self._settings, "use_ai_gateway", False) is True and isinstance(
-            getattr(self._settings, "ai_gateway_url", None), str
+            _gw_url, str
         )
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
-        elif _use_gw:
-            self._base_url = f"{self._settings.ai_gateway_url.rstrip('/')}/enrichment"
+        elif _use_gw and isinstance(_gw_url, str):
+            self._base_url = f"{_gw_url.rstrip('/')}/enrichment"
         else:
             self._base_url = getattr(
                 self._settings, "enrichment_url", DEFAULT_ENRICHMENT_URL
@@ -862,8 +863,8 @@ class EnrichmentClient:
         # Use provided URL, or AI Gateway, or settings for light service
         if light_base_url is not None:
             self._light_base_url = light_base_url.rstrip("/")
-        elif _use_gw:
-            self._light_base_url = f"{self._settings.ai_gateway_url.rstrip('/')}/enrich-lt"
+        elif _use_gw and isinstance(_gw_url, str):
+            self._light_base_url = f"{_gw_url.rstrip('/')}/enrich-lt"
         else:
             self._light_base_url = getattr(
                 self._settings, "enrichment_light_url", DEFAULT_ENRICHMENT_LIGHT_URL
@@ -887,22 +888,22 @@ class EnrichmentClient:
         # Initialize per-endpoint circuit breakers.
         # Each enrichment endpoint gets its own breaker so that failures on one
         # endpoint (e.g. pose) do not block unrelated endpoints (e.g. vehicle).
-        _cb_kwargs = dict(
+        _cb_config = CircuitBreakerConfig(
             failure_threshold=self._settings.enrichment_cb_failure_threshold,
             recovery_timeout=self._settings.enrichment_cb_recovery_timeout,
             half_open_max_calls=self._settings.enrichment_cb_half_open_max_calls,
         )
         self._breakers: dict[str, CircuitBreaker] = {
-            "vehicle": CircuitBreaker(name="enrichment_vehicle", **_cb_kwargs),
-            "clothing": CircuitBreaker(name="enrichment_clothing", **_cb_kwargs),
-            "demographics": CircuitBreaker(name="enrichment_demographics", **_cb_kwargs),
-            "action": CircuitBreaker(name="enrichment_action", **_cb_kwargs),
-            "pose": CircuitBreaker(name="enrichment_pose", **_cb_kwargs),
-            "threat": CircuitBreaker(name="enrichment_threat", **_cb_kwargs),
-            "reid": CircuitBreaker(name="enrichment_reid", **_cb_kwargs),
-            "pet": CircuitBreaker(name="enrichment_pet", **_cb_kwargs),
-            "depth": CircuitBreaker(name="enrichment_depth", **_cb_kwargs),
-            "enrich": CircuitBreaker(name="enrichment_unified", **_cb_kwargs),
+            "vehicle": CircuitBreaker(name="enrichment_vehicle", config=_cb_config),
+            "clothing": CircuitBreaker(name="enrichment_clothing", config=_cb_config),
+            "demographics": CircuitBreaker(name="enrichment_demographics", config=_cb_config),
+            "action": CircuitBreaker(name="enrichment_action", config=_cb_config),
+            "pose": CircuitBreaker(name="enrichment_pose", config=_cb_config),
+            "threat": CircuitBreaker(name="enrichment_threat", config=_cb_config),
+            "reid": CircuitBreaker(name="enrichment_reid", config=_cb_config),
+            "pet": CircuitBreaker(name="enrichment_pet", config=_cb_config),
+            "depth": CircuitBreaker(name="enrichment_depth", config=_cb_config),
+            "enrich": CircuitBreaker(name="enrichment_unified", config=_cb_config),
         }
         # Keep backward-compatible aliases for code that references the old attributes
         self._circuit_breaker = self._breakers["enrich"]

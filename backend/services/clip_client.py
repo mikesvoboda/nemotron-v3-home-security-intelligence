@@ -34,7 +34,7 @@ from backend.api.middleware.correlation import get_correlation_headers
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
-from backend.services.circuit_breaker import CircuitBreaker
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -106,12 +106,11 @@ class CLIPClient:
         settings = get_settings()
 
         # Use provided URL, or AI Gateway, or settings
+        gw_url = getattr(settings, "ai_gateway_url", None)
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
-        elif getattr(settings, "use_ai_gateway", False) is True and isinstance(
-            getattr(settings, "ai_gateway_url", None), str
-        ):
-            self._base_url = f"{settings.ai_gateway_url.rstrip('/')}/clip"
+        elif getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str):
+            self._base_url = f"{gw_url.rstrip('/')}/clip"
         else:
             self._base_url = settings.clip_url.rstrip("/")
 
@@ -133,17 +132,17 @@ class CLIPClient:
         # Initialize per-endpoint circuit breakers for CLIP service.
         # Each endpoint gets its own breaker so that failures on one endpoint
         # (e.g. embed) do not block unrelated endpoints (e.g. classify).
-        _cb_kwargs = dict(
+        _cb_config = CircuitBreakerConfig(
             failure_threshold=settings.clip_cb_failure_threshold,
             recovery_timeout=settings.clip_cb_recovery_timeout,
             half_open_max_calls=settings.clip_cb_half_open_max_calls,
         )
         self._breakers: dict[str, CircuitBreaker] = {
-            "embed": CircuitBreaker(name="clip_embed", **_cb_kwargs),
-            "anomaly_score": CircuitBreaker(name="clip_anomaly_score", **_cb_kwargs),
-            "classify": CircuitBreaker(name="clip_classify", **_cb_kwargs),
-            "similarity": CircuitBreaker(name="clip_similarity", **_cb_kwargs),
-            "batch_similarity": CircuitBreaker(name="clip_batch_similarity", **_cb_kwargs),
+            "embed": CircuitBreaker(name="clip_embed", config=_cb_config),
+            "anomaly_score": CircuitBreaker(name="clip_anomaly_score", config=_cb_config),
+            "classify": CircuitBreaker(name="clip_classify", config=_cb_config),
+            "similarity": CircuitBreaker(name="clip_similarity", config=_cb_config),
+            "batch_similarity": CircuitBreaker(name="clip_batch_similarity", config=_cb_config),
         }
         # Backward-compatible alias
         self._circuit_breaker = self._breakers["embed"]
@@ -207,7 +206,7 @@ class CLIPClient:
         """
         return self._breakers.get(endpoint, self._circuit_breaker)
 
-    def get_circuit_breaker_state(self, endpoint: str | None = None) -> "CircuitState":
+    def get_circuit_breaker_state(self, endpoint: str | None = None) -> CircuitState:
         """Get current circuit breaker state.
 
         Args:
@@ -216,16 +215,14 @@ class CLIPClient:
         Returns:
             Current CircuitState (CLOSED, OPEN, or HALF_OPEN)
         """
-        from backend.services.circuit_breaker import CircuitState as _CS
-
         if endpoint is not None:
             return self._get_breaker(endpoint).get_state()
         states = [b.get_state() for b in self._breakers.values()]
-        if _CS.OPEN in states:
-            return _CS.OPEN
-        if _CS.HALF_OPEN in states:
-            return _CS.HALF_OPEN
-        return _CS.CLOSED
+        if CircuitState.OPEN in states:
+            return CircuitState.OPEN
+        if CircuitState.HALF_OPEN in states:
+            return CircuitState.HALF_OPEN
+        return CircuitState.CLOSED
 
     def get_all_circuit_breaker_states(self) -> dict[str, str]:
         """Get the state of every per-endpoint circuit breaker.

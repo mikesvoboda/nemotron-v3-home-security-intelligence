@@ -278,10 +278,9 @@ class DetectorClient:
         self._detector_type = "yolo26"
         self._model_version = "yolo26m"  # YOLO26 medium model
         # AI Gateway support: route through unified gateway if configured
-        if getattr(settings, "use_ai_gateway", False) is True and isinstance(
-            getattr(settings, "ai_gateway_url", None), str
-        ):
-            self._detector_url = f"{settings.ai_gateway_url.rstrip('/')}/yolo26"
+        gw_url = getattr(settings, "ai_gateway_url", None)
+        if getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str):
+            self._detector_url = f"{gw_url.rstrip('/')}/yolo26"
         else:
             self._detector_url = settings.yolo26_url
         self._api_key = settings.yolo26_api_key

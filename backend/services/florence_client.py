@@ -38,7 +38,7 @@ from backend.core.metrics import (
     record_florence_task,
     record_pipeline_error,
 )
-from backend.services.circuit_breaker import CircuitBreaker, CircuitState
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -209,12 +209,11 @@ class FlorenceClient:
         settings = get_settings()
 
         # Use provided URL, or AI Gateway, or settings
+        gw_url = getattr(settings, "ai_gateway_url", None)
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
-        elif getattr(settings, "use_ai_gateway", False) is True and isinstance(
-            getattr(settings, "ai_gateway_url", None), str
-        ):
-            self._base_url = f"{settings.ai_gateway_url.rstrip('/')}/florence"
+        elif getattr(settings, "use_ai_gateway", False) is True and isinstance(gw_url, str):
+            self._base_url = f"{gw_url.rstrip('/')}/florence"
         else:
             # Use florence_url from settings (configured in config.py with proper default)
             self._base_url = settings.florence_url.rstrip("/")
@@ -236,21 +235,23 @@ class FlorenceClient:
         # Initialize per-endpoint circuit breakers for Florence service.
         # Each endpoint gets its own breaker so that failures on one endpoint
         # (e.g. OCR) do not block unrelated endpoints (e.g. detect).
-        _cb_kwargs = dict(
+        _cb_config = CircuitBreakerConfig(
             failure_threshold=getattr(settings, "florence_cb_failure_threshold", 10),
             recovery_timeout=getattr(settings, "florence_cb_recovery_timeout", 60.0),
             half_open_max_calls=getattr(settings, "florence_cb_half_open_max_calls", 3),
         )
         self._breakers: dict[str, CircuitBreaker] = {
-            "extract": CircuitBreaker(name="florence_extract", **_cb_kwargs),
-            "batch_extract": CircuitBreaker(name="florence_batch_extract", **_cb_kwargs),
-            "ocr": CircuitBreaker(name="florence_ocr", **_cb_kwargs),
-            "ocr_with_regions": CircuitBreaker(name="florence_ocr_with_regions", **_cb_kwargs),
-            "detect": CircuitBreaker(name="florence_detect", **_cb_kwargs),
-            "dense_caption": CircuitBreaker(name="florence_dense_caption", **_cb_kwargs),
-            "describe_region": CircuitBreaker(name="florence_describe_region", **_cb_kwargs),
-            "phrase_grounding": CircuitBreaker(name="florence_phrase_grounding", **_cb_kwargs),
-            "detect_security_objects": CircuitBreaker(name="florence_detect_security_objects", **_cb_kwargs),
+            "extract": CircuitBreaker(name="florence_extract", config=_cb_config),
+            "batch_extract": CircuitBreaker(name="florence_batch_extract", config=_cb_config),
+            "ocr": CircuitBreaker(name="florence_ocr", config=_cb_config),
+            "ocr_with_regions": CircuitBreaker(name="florence_ocr_with_regions", config=_cb_config),
+            "detect": CircuitBreaker(name="florence_detect", config=_cb_config),
+            "dense_caption": CircuitBreaker(name="florence_dense_caption", config=_cb_config),
+            "describe_region": CircuitBreaker(name="florence_describe_region", config=_cb_config),
+            "phrase_grounding": CircuitBreaker(name="florence_phrase_grounding", config=_cb_config),
+            "detect_security_objects": CircuitBreaker(
+                name="florence_detect_security_objects", config=_cb_config
+            ),
         }
         # Backward-compatible alias
         self._circuit_breaker = self._breakers["extract"]
