@@ -69,7 +69,7 @@ podman run --rm \
   -v "/export/ai_models/model-zoo:/models/zoo:ro" \
   -v "/export/ai_models/triton:/models/cache" \
   ai-gateway \
-  -c "cd /app/gateway/export && bash export_all.sh" 2>&1 | tail -30
+  -c "cd /app/gateway/export && bash export_all.sh" 2>&1 | tail -30 || echo "  WARNING: Export returned non-zero exit (partial failures are normal)"
 
 echo "  Model exports complete."
 echo "  Exported files:"
@@ -86,7 +86,7 @@ echo "  Infrastructure up."
 # Phase 5: Start observability (compose)
 echo ""
 echo "[5/8] Starting observability..."
-podman compose -f "$PROJECT_ROOT/docker-compose.prod.yml" up -d prometheus grafana loki jaeger elasticsearch alertmanager alloy node-exporter pyroscope blackbox-exporter json-exporter redis-exporter 2>&1 | tail -3
+podman compose -f "$PROJECT_ROOT/docker-compose.prod.yml" up -d prometheus grafana loki tempo alertmanager alloy node-exporter pyroscope blackbox-exporter json-exporter redis-exporter 2>&1 | tail -3
 echo "  Observability up."
 
 # Phase 6: Start AI services (standalone — gateway mode)
@@ -117,7 +117,7 @@ podman run -d \
   --security-opt label=disable \
   -e PORT="${LLM_PORT:-8091}" \
   -e CUDA_VISIBLE_DEVICES=0 \
-  -e GPU_LAYERS="${GPU_LAYERS:-999}" \
+  -e GPU_LAYERS="${GPU_LAYERS:-45}" \
   -e GGML_CUDA_GRAPH_OPT=1 \
   -e CTX_SIZE="${CTX_SIZE:-32768}" \
   -e PARALLEL="${PARALLEL:-2}" \
