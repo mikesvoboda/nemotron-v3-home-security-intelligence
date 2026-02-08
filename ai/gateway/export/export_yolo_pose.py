@@ -114,7 +114,7 @@ def export_to_tensorrt(
         logger.info(f"Copying engine to output: {engine_path} -> {output_path}")
         shutil.copy2(str(engine_path), output_path)
 
-    file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+    file_size_mb = Path(output_path).stat().st_size / (1024 * 1024)
     logger.info(f"TensorRT engine saved: {output_path} ({file_size_mb:.1f} MB)")
 
 

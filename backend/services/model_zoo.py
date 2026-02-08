@@ -156,7 +156,7 @@ async def load_yolo_model(model_path: str) -> Any:
         RuntimeError: If model loading fails or model file is missing
     """
     try:
-        import os
+        from pathlib import Path
 
         # Attempt to import ultralytics for YOLO support
         from ultralytics import YOLO
@@ -167,12 +167,14 @@ async def load_yolo_model(model_path: str) -> Any:
         # This catches missing model files early with a clear error message
         # instead of letting ultralytics raise a cryptic FileNotFoundError
         if "/" in model_path and not model_path.startswith("http"):
-            if not os.path.exists(model_path):
+            if not Path(model_path).exists():
                 # Check if this is a .pt file path vs a directory
-                parent_dir = os.path.dirname(model_path)
-                if os.path.isdir(parent_dir):
+                parent_dir = str(Path(model_path).parent)
+                if Path(parent_dir).is_dir():
                     available_files = [
-                        f for f in os.listdir(parent_dir) if f.endswith((".pt", ".pth", ".onnx"))
+                        f.name
+                        for f in Path(parent_dir).iterdir()
+                        if f.name.endswith((".pt", ".pth", ".onnx"))
                     ]
                     logger.warning(
                         f"Model file not found: {model_path}. "

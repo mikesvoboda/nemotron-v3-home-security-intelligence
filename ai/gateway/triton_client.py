@@ -201,7 +201,7 @@ class TritonClient:
         except TimeoutError:
             raise TritonClientError(
                 f"Inference timed out for model {model_name} after {effective_timeout}s"
-            )
+            ) from None
         except TritonClientError:
             raise
         except Exception as e:

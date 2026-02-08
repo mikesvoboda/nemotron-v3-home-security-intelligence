@@ -428,7 +428,7 @@ async def describe_region(request: RegionDescriptionRequest) -> RegionDescriptio
         bbox = [region.x1, region.y1, region.x2, region.y2]
         # Florence-2 expects <REGION_TO_DESCRIPTION><loc_x1><loc_y1><loc_x2><loc_y2>
         # The Python backend handles coordinate normalization internally
-        prompt = f"<REGION_TO_DESCRIPTION>{region.x1},{region.y1},{region.x2},{region.y2}"
+        prompt = f"<REGION_TO_DESCRIPTION>{region.x1},{region.y1},{region.x2},{region.y2}"  # nosemgrep: python.django.security.injection.raw-html-format.raw-html-format
 
         text, _ = await _florence_infer(request.image, prompt)
         descriptions.append(CaptionedRegion(caption=text, bbox=bbox))
@@ -448,7 +448,7 @@ async def phrase_grounding(request: PhraseGroundingRequest) -> PhraseGroundingRe
     grounded_phrases: list[GroundedPhrase] = []
 
     for phrase in request.phrases:
-        prompt = f"<CAPTION_TO_PHRASE_GROUNDING>{phrase}"
+        prompt = f"<CAPTION_TO_PHRASE_GROUNDING>{phrase}"  # nosemgrep: python.django.security.injection.raw-html-format.raw-html-format
         text, _ = await _florence_infer(request.image, prompt)
 
         parsed = _parse_json_output(text)

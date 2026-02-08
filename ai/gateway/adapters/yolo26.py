@@ -151,7 +151,7 @@ def _postprocess_yolo(
     if preds.shape[0] < preds.shape[1]:
         preds = preds.T
 
-    num_classes = preds.shape[1] - 4
+    _num_classes = preds.shape[1] - 4
 
     # Extract boxes (cx, cy, w, h) and class scores
     boxes_cxcywh = preds[:, :4]
@@ -406,7 +406,7 @@ async def segment(file: UploadFile = File(...)) -> dict[str, Any]:
             if "output1" in output_names:
                 outputs_list.append("output1")
         except Exception:
-            pass
+            logger.debug("Could not fetch model metadata for segmentation check")
 
         result = await triton.infer(
             model_name=model,

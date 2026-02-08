@@ -203,7 +203,7 @@ async def load_depth_model(model_path: str) -> Any:
         RuntimeError: If model loading fails (missing files, bad format, etc.)
     """
     try:
-        import os
+        from pathlib import Path
 
         import torch
         from transformers import AutoImageProcessor, AutoModelForDepthEstimation, pipeline
@@ -213,10 +213,12 @@ async def load_depth_model(model_path: str) -> Any:
         # Validate local model path has required files when directory exists
         # (only fires in container where /models/model-zoo/ is mounted;
         # unit tests with fake paths skip this check gracefully)
-        if os.path.isdir(model_path):
-            preprocessor_path = os.path.join(model_path, "preprocessor_config.json")
-            if not os.path.isfile(preprocessor_path):
-                available = [f for f in os.listdir(model_path) if not f.startswith(".")]
+        if Path(model_path).is_dir():
+            preprocessor_path = str(Path(model_path) / "preprocessor_config.json")
+            if not Path(preprocessor_path).is_file():
+                available = [
+                    f.name for f in Path(model_path).iterdir() if not f.name.startswith(".")
+                ]
                 raise RuntimeError(
                     f"Depth Anything V2 model missing preprocessor_config.json at {model_path}. "
                     f"Available files: {available}. Model may need re-downloading."
@@ -240,7 +242,7 @@ async def load_depth_model(model_path: str) -> Any:
             #   "Repo id must be in the form 'repo_name' or 'namespace/repo_name'"
             # To avoid this, load the model and processor explicitly and hand
             # them to the pipeline.
-            is_local = os.path.isdir(model_path)
+            is_local = Path(model_path).is_dir()
 
             if is_local:
                 logger.info(f"Loading Depth Anything V2 from local path: {model_path}")

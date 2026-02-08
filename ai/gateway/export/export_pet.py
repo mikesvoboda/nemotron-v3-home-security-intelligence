@@ -137,7 +137,7 @@ def export_to_onnx(
         dynamic_axes=dynamic_axes,
     )
 
-    file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+    file_size_mb = Path(output_path).stat().st_size / (1024 * 1024)
     logger.info(f"ONNX model saved: {output_path} ({file_size_mb:.1f} MB)")
     logger.info(
         f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)"
@@ -147,7 +147,7 @@ def export_to_onnx(
 def validate_onnx(
     pytorch_model: torch.nn.Module,
     onnx_path: str,
-    num_classes: int,
+    _num_classes: int,
 ) -> bool:
     """Validate the ONNX model by comparing outputs against PyTorch.
 

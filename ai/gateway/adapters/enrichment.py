@@ -215,7 +215,7 @@ async def _infer_clothing(image_b64: str) -> dict[str, Any]:
         outputs=["output"],
     )
 
-    embedding = result["output"][0]
+    _embedding = result["output"][0]
     inference_time_ms = (time.monotonic() - start) * 1000
 
     # Return basic clothing result - full classification requires text prompts

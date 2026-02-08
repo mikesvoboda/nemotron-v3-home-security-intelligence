@@ -291,9 +291,9 @@ class ContainerManager:
         self.kill_port_holders()
 
         # Give processes time to die
-        import time
+        import asyncio
 
-        time.sleep(2)
+        await asyncio.sleep(2)
 
         # Final check
         status = self.verify_ports_available()

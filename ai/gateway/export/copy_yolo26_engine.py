@@ -152,7 +152,7 @@ def validate_engine(engine_path: str) -> bool:
     # Read first few bytes to check for TensorRT serialized format
     # TensorRT engines typically start with specific magic bytes, but
     # the exact format varies by version.  Just check it's not all zeros.
-    with open(engine_path, "rb") as f:
+    with open(engine_path, "rb") as f:  # nosemgrep: path-traversal-open
         header = f.read(64)
         if header == b"\x00" * 64:
             logger.error("Engine file appears to be empty/zeroed")
@@ -184,11 +184,11 @@ def copy_engine(
         if dest.exists() or dest.is_symlink():
             dest.unlink()
 
-        os.symlink(os.path.abspath(source), output_path)
+        os.symlink(Path(source).resolve(), output_path)
         logger.info(f"Created symlink: {output_path} -> {source}")
     else:
         shutil.copy2(source, output_path)
-        file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+        file_size_mb = Path(output_path).stat().st_size / (1024 * 1024)
         logger.info(f"Copied engine: {source} -> {output_path} ({file_size_mb:.1f} MB)")
 
 

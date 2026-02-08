@@ -457,7 +457,7 @@ def _run_trtexec(
 
     logger.info("Running trtexec: %s", " ".join(cmd))
     t0 = time.time()
-    result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=600)  # noqa: S603
     elapsed = time.time() - t0
 
     if result.returncode != 0:
@@ -493,7 +493,7 @@ def _build_engine_python(
     network = builder.create_network(network_flags)
 
     parser = trt.OnnxParser(network, trt_logger)
-    with open(onnx_path, "rb") as f:
+    with open(onnx_path, "rb") as f:  # nosemgrep: path-traversal-open
         if not parser.parse(f.read()):
             for i in range(parser.num_errors):
                 logger.error("ONNX parse error: %s", parser.get_error(i))
@@ -527,7 +527,7 @@ def _build_engine_python(
     elapsed = time.time() - t0
 
     Path(engine_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(engine_path, "wb") as f:
+    with open(engine_path, "wb") as f:  # nosemgrep: path-traversal-open
         f.write(serialized)
 
     size_mb = Path(engine_path).stat().st_size / (1024 * 1024)

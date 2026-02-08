@@ -84,7 +84,7 @@ _ACTION_RISK_WEIGHTS = {
 class TritonPythonModel:
     """Triton Python backend for X-CLIP temporal action recognition."""
 
-    def initialize(self, args):
+    def initialize(self, _args):
         """Load X-CLIP model and processor onto GPU.
 
         Called once when Triton loads this model. The model expects
@@ -158,8 +158,10 @@ class TritonPythonModel:
         rgb_frames = []
         for frame in frames:
             if frame.mode != "RGB":
-                frame = frame.convert("RGB")
-            rgb_frames.append(frame)
+                rgb_frame = frame.convert("RGB")
+            else:
+                rgb_frame = frame
+            rgb_frames.append(rgb_frame)
 
         if len(rgb_frames) <= num_frames:
             result = rgb_frames.copy()
@@ -246,7 +248,7 @@ class TritonPythonModel:
                     continue
 
                 frames_raw = frames_tensor.as_numpy().flat[0]
-                if isinstance(frames_raw, (bytes, np.bytes_)):
+                if isinstance(frames_raw, bytes | np.bytes_):
                     frames_str = bytes(frames_raw).decode("utf-8")
                 else:
                     frames_str = str(frames_raw)
@@ -296,7 +298,7 @@ class TritonPythonModel:
                 labels_tensor = pb_utils.get_input_tensor_by_name(request, "labels")
                 if labels_tensor is not None:
                     labels_raw = labels_tensor.as_numpy().flat[0]
-                    if isinstance(labels_raw, (bytes, np.bytes_)):
+                    if isinstance(labels_raw, bytes | np.bytes_):
                         labels_str = bytes(labels_raw).decode("utf-8")
                     else:
                         labels_str = str(labels_raw)

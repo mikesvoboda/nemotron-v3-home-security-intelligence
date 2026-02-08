@@ -43,7 +43,7 @@ logger = logging.getLogger("triton.florence2")
 class TritonPythonModel:
     """Triton Python backend for Florence-2 vision-language model."""
 
-    def initialize(self, args):
+    def initialize(self, _args):
         """Load Florence-2 model and processor onto GPU.
 
         Called once when Triton loads this model. Uses FP16/BF16
@@ -182,7 +182,7 @@ class TritonPythonModel:
                     continue
 
                 image_raw = image_tensor.as_numpy().flat[0]
-                if isinstance(image_raw, (bytes, np.bytes_)):
+                if isinstance(image_raw, bytes | np.bytes_):
                     image_b64 = bytes(image_raw)
                 else:
                     image_b64 = image_raw.encode("utf-8")
@@ -218,7 +218,7 @@ class TritonPythonModel:
                     continue
 
                 prompt_raw = prompt_tensor.as_numpy().flat[0]
-                if isinstance(prompt_raw, (bytes, np.bytes_)):
+                if isinstance(prompt_raw, bytes | np.bytes_):
                     prompt = bytes(prompt_raw).decode("utf-8")
                 else:
                     prompt = str(prompt_raw)

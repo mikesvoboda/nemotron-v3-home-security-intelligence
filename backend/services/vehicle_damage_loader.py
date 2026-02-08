@@ -248,7 +248,7 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
         RuntimeError: If model loading fails
     """
     try:
-        import os
+        from pathlib import Path
 
         import torch
         from ultralytics import YOLO
@@ -259,8 +259,12 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
         # (parent directory /models/model-zoo must exist for validation to fire,
         # so unit tests with fake paths like /models/model-zoo/... skip this check)
         weights_path = f"{model_path}/best.pt"
-        if os.path.isdir(model_path) and not os.path.isfile(weights_path):
-            available = [f for f in os.listdir(model_path) if f.endswith((".pt", ".pth", ".onnx"))]
+        if Path(model_path).is_dir() and not Path(weights_path).is_file():
+            available = [
+                f.name
+                for f in Path(model_path).iterdir()
+                if f.name.endswith((".pt", ".pth", ".onnx"))
+            ]
             raise RuntimeError(
                 f"Vehicle damage weights not found: {weights_path}. "
                 f"Available files: {available}. "
