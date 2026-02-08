@@ -691,10 +691,11 @@ services:
       - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      # Triton loads 13 models — allow 3 minutes for all to initialize
+      start_period: 180s
     restart: unless-stopped
     networks:
       - security-net
