@@ -20,6 +20,21 @@ class StorageManager:
         self.runtime = runtime
         self.config = config
 
+    def prune_unused_images(self) -> None:
+        """Aggressively prune all unused images to reclaim disk space.
+
+        Removes all images not associated with running containers.
+        Safe to run after containers are started — only removes stale images.
+        """
+        output.step("Pruning unused images...")
+
+        if self.config.dry_run:
+            output.dry_run("Would prune all unused images")
+            return
+
+        self.runtime.prune_images(all=True, force=True)
+        output.success("Unused images pruned")
+
     def prune_build_artifacts(self) -> None:
         """Prune dangling images and build cache.
 

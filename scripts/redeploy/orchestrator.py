@@ -89,6 +89,9 @@ class DeployOrchestrator:
             # Phase 6: Verify deployment
             await self._verify_phase()
 
+            # Phase 7: Prune unused images (after containers started)
+            self.storage.prune_unused_images()
+
             duration = time.monotonic() - start
             self._print_success(duration)
 
@@ -131,11 +134,19 @@ class DeployOrchestrator:
             DeployMode.GHCR: "GHCR only (no AI)",
         }
 
-        service_count = {
-            DeployMode.LOCAL: 9,
-            DeployMode.HYBRID: 9,
-            DeployMode.GHCR: 4,
-        }
+        # Gateway mode reduces AI containers from 6 to 2 (gateway + llm)
+        if self.config.use_ai_gateway:
+            service_count = {
+                DeployMode.LOCAL: 5,   # postgres, redis, ai-gateway, ai-llm, backend, frontend -> but banner shows AI+core
+                DeployMode.HYBRID: 5,
+                DeployMode.GHCR: 4,
+            }
+        else:
+            service_count = {
+                DeployMode.LOCAL: 9,
+                DeployMode.HYBRID: 9,
+                DeployMode.GHCR: 4,
+            }
 
         output.banner(
             title="Home Security Intelligence Redeploy",
@@ -293,9 +304,10 @@ class DeployOrchestrator:
 
         # Phase 2: AI services
         if self.config.mode != DeployMode.GHCR:
-            output.step("Phase 2: Starting AI services...")
+            ai_mode = "gateway" if self.config.use_ai_gateway else "legacy"
+            output.step(f"Phase 2: Starting AI services ({ai_mode} mode)...")
             await self.containers.start_ai_services()
-            started.extend(self.config.AI_SERVICES)
+            started.extend(self.config.ai_services)
 
         # Phase 3: Backend
         output.step("Phase 3: Starting backend...")
@@ -342,15 +354,18 @@ class DeployOrchestrator:
         # Wait for all services to be healthy
         services_to_check = ["backend", "frontend"]
         if self.config.mode != DeployMode.GHCR:
-            services_to_check.extend(
-                [
-                    "ai-yolo26",
-                    "ai-llm",
-                    "ai-florence",
-                    "ai-clip",
-                    "ai-enrichment",
-                ]
-            )
+            if self.config.use_ai_gateway:
+                services_to_check.extend(["ai-gateway", "ai-llm"])
+            else:
+                services_to_check.extend(
+                    [
+                        "ai-yolo26",
+                        "ai-llm",
+                        "ai-florence",
+                        "ai-clip",
+                        "ai-enrichment",
+                    ]
+                )
 
         await self.health.wait_healthy(services_to_check, timeout=180)
 
