@@ -59,22 +59,30 @@ def test_image() -> Image.Image:
 
 @pytest.fixture
 def vehicle_detection() -> DetectionInput:
-    """Create a vehicle detection for testing."""
+    """Create a vehicle detection for testing.
+
+    Confidence set below 0.7 Florence-2 cascade threshold (NEM-5570) so
+    Florence vision extraction is triggered for tests that need it.
+    """
     return DetectionInput(
         id=1,
         class_name="car",
-        confidence=0.92,
+        confidence=0.65,
         bbox=BoundingBox(x1=100, y1=150, x2=300, y2=350),
     )
 
 
 @pytest.fixture
 def person_detection() -> DetectionInput:
-    """Create a person detection for testing."""
+    """Create a person detection for testing.
+
+    Confidence set below 0.7 Florence-2 cascade threshold (NEM-5570) so
+    Florence vision extraction is triggered for tests that need it.
+    """
     return DetectionInput(
         id=2,
         class_name="person",
-        confidence=0.95,
+        confidence=0.65,
         bbox=BoundingBox(x1=50, y1=50, x2=150, y2=400),
     )
 
@@ -238,6 +246,7 @@ class TestVehicleEnrichment:
                 model_manager=mock_model_manager,
                 license_plate_enabled=False,
                 face_detection_enabled=False,
+                ocr_enabled=False,
                 vision_extraction_enabled=True,
                 reid_enabled=False,
                 scene_change_enabled=False,
@@ -250,6 +259,15 @@ class TestVehicleEnrichment:
                 pet_classification_enabled=False,
                 weather_classification_enabled=False,
                 action_recognition_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                scene_ocr_enabled=False,
+                age_classification_enabled=False,
+                gender_classification_enabled=False,
+                smoke_fire_detection_enabled=False,
+                yolo_world_enabled=False,
+                osnet_reid_enabled=False,
+                low_light_enhancement_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -386,6 +404,7 @@ class TestPersonEnrichment:
                 model_manager=mock_model_manager,
                 license_plate_enabled=False,
                 face_detection_enabled=False,
+                ocr_enabled=False,
                 vision_extraction_enabled=True,
                 reid_enabled=True,
                 scene_change_enabled=False,
@@ -398,6 +417,15 @@ class TestPersonEnrichment:
                 pet_classification_enabled=False,
                 weather_classification_enabled=False,
                 action_recognition_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                scene_ocr_enabled=False,
+                age_classification_enabled=False,
+                gender_classification_enabled=False,
+                smoke_fire_detection_enabled=False,
+                yolo_world_enabled=False,
+                osnet_reid_enabled=False,
+                low_light_enhancement_enabled=False,
                 redis_client=mock_redis,
             )
 
@@ -743,6 +771,7 @@ class TestMixedDetections:
                 model_manager=mock_model_manager,
                 license_plate_enabled=False,
                 face_detection_enabled=False,
+                ocr_enabled=False,
                 vision_extraction_enabled=True,
                 reid_enabled=False,
                 scene_change_enabled=False,
@@ -755,6 +784,15 @@ class TestMixedDetections:
                 pet_classification_enabled=True,
                 weather_classification_enabled=False,
                 action_recognition_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                scene_ocr_enabled=False,
+                age_classification_enabled=False,
+                gender_classification_enabled=False,
+                smoke_fire_detection_enabled=False,
+                yolo_world_enabled=False,
+                osnet_reid_enabled=False,
+                low_light_enhancement_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
