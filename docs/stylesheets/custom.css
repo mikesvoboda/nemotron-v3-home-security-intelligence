@@ -1,0 +1,66 @@
+/* Grid cards — full grid layout + polished card styling for community edition */
+
+/* Force proper 2-column CSS Grid on the card list */
+.md-typeset .grid.cards > ul {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Single column on small screens */
+@media (max-width: 768px) {
+  .md-typeset .grid.cards > ul {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card styling */
+.md-typeset .grid.cards > ul > li {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  padding: 1.2rem 1.4rem;
+  margin: 0;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Card title (bold text with icon) */
+.md-typeset .grid.cards > ul > li > p:first-child strong {
+  font-size: 1.1rem;
+}
+
+/* Card horizontal rule separator */
+.md-typeset .grid.cards > ul > li hr {
+  margin: 0.6rem 0;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Card link styling */
+.md-typeset .grid.cards > ul > li a {
+  font-weight: 500;
+}
+
+/* Light mode overrides */
+[data-md-color-scheme="default"] .md-typeset .grid.cards > ul > li {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="default"] .md-typeset .grid.cards > ul > li:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-md-color-scheme="default"] .md-typeset .grid.cards > ul > li hr {
+  border-color: rgba(0, 0, 0, 0.08);
+}

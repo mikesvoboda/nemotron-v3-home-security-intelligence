@@ -187,6 +187,9 @@ nav:
   - Decisions:
       - decisions/README.md
 
+extra_css:
+  - stylesheets/custom.css
+
 extra:
   social:
     - icon: fontawesome/brands/github

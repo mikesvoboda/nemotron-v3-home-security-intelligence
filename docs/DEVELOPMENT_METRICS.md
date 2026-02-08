@@ -499,14 +499,14 @@ xychart-beta
 
 ### Quality Radar
 
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4f46e5'}}}%%
-radar
-    title Testing Quality Dimensions
-    variables ["Unit Coverage", "Integration Depth", "E2E Breadth", "Test Speed", "Maintainability", "TDD Discipline"]
-    line "This Project" [95, 85, 75, 90, 85, 95]
-    line "Industry Best" [80, 70, 70, 85, 75, 60]
-```
+| Dimension           | This Project | Industry Best |
+| ------------------- | -----------: | ------------: |
+| Unit Coverage       |           95 |            80 |
+| Integration Depth   |           85 |            70 |
+| E2E Breadth         |           75 |            70 |
+| Test Speed          |           90 |            85 |
+| Maintainability     |           85 |            75 |
+| TDD Discipline      |           95 |            60 |
 
 ### Test Execution Pipeline
 
@@ -823,14 +823,13 @@ quadrantChart
 
 ### Quality Radar vs Industry
 
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4f46e5'}}}%%
-radar
-    title Quality Dimensions vs Industry
-    variables ["Test Coverage", "Automation", "Velocity", "Security", "Documentation"]
-    line "Industry Avg" [50, 40, 30, 35, 45]
-    line "This Project" [95, 90, 85, 90, 75]
-```
+| Dimension     | Industry Avg | This Project |
+| ------------- | -----------: | -----------: |
+| Test Coverage |           50 |           95 |
+| Automation    |           40 |           90 |
+| Velocity      |           30 |           85 |
+| Security      |           35 |           90 |
+| Documentation |           45 |           75 |
 
 ### Scorecard
 
