@@ -284,8 +284,6 @@ class TestConfidenceFiltering:
         assert "car" in object_types
         assert "dog" in object_types
         assert "cat" not in object_types
-        assert "dog" not in object_types
-        assert "cat" not in object_types
 
         # Verify in database as well
         async with get_session() as session:
