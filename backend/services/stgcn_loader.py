@@ -209,7 +209,8 @@ def _build_coco_adjacency() -> np.ndarray:
         for i in range(num_node):
             if Dl[i] > 0:
                 Dn[i, i] = Dl[i] ** (-1)
-        return np.dot(mat, Dn)
+        result: np.ndarray = np.dot(mat, Dn)
+        return result
 
     iden = _edge2mat(self_link)
     in_mat = _normalize(_edge2mat(inward))
@@ -245,13 +246,12 @@ class _GCNUnit(nn.Module):
         self.register_buffer("A", A.clone())
 
         # Residual when channels change
+        self.down: nn.Sequential | None = None
         if in_channels != out_channels:
             self.down = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, 1),
                 nn.BatchNorm2d(out_channels),
             )
-        else:
-            self.down = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         N, C, T, V = x.shape
@@ -260,9 +260,10 @@ class _GCNUnit(nn.Module):
         z = self.conv(x)
         z = z.view(N, self.num_subsets, self.out_channels, T, V)
 
+        A: torch.Tensor = self.A  # type: ignore[assignment]
         out = torch.zeros(N, self.out_channels, T, V, device=x.device, dtype=x.dtype)
         for k in range(self.num_subsets):
-            out = out + torch.einsum("nctv,vw->nctw", z[:, k], self.A[k])
+            out = out + torch.einsum("nctv,vw->nctw", z[:, k], A[k])
 
         out = self.bn(out)
         return F.relu(out + res, inplace=True)
@@ -289,7 +290,8 @@ class _TemporalConvWrap(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.conv(x)
+        result: torch.Tensor = self.conv(x)
+        return result
 
 
 class _TCNUnit(nn.Module):
@@ -377,7 +379,8 @@ class _TCNUnit(nn.Module):
 
         out = torch.cat(outs, dim=1)
         out = self.bn(out)
-        return out + res
+        result: torch.Tensor = out + res
+        return result
 
 
 class _STGCNPPBlock(nn.Module):
@@ -471,7 +474,8 @@ class STGCNPP(nn.Module):
             x = block(x)
 
         x = self.pool(x).view(N, M, -1).mean(dim=1)
-        return self.fc(x)
+        result: torch.Tensor = self.fc(x)
+        return result
 
 
 # ==============================================================================

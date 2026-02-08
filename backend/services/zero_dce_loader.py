@@ -45,7 +45,8 @@ class _DepthwiseSeparableConv(nn.Module):
         self.point_conv = nn.Conv2d(in_ch, out_ch, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.point_conv(self.depth_conv(x))
+        result: torch.Tensor = self.point_conv(self.depth_conv(x))
+        return result
 
 
 class ZeroDCEPP(nn.Module):
@@ -208,7 +209,7 @@ async def enhance_image(model_data: dict[str, Any], image: Image.Image) -> Image
 
         # Resize back if dimensions changed due to scale_factor padding
         if enhanced_pil.size != original_size:
-            enhanced_pil = enhanced_pil.resize(original_size, Image.BILINEAR)
+            enhanced_pil = enhanced_pil.resize(original_size, Image.Resampling.BILINEAR)
 
         return enhanced_pil
 

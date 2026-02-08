@@ -144,6 +144,7 @@ async def run_fast_alpr(
     loop = asyncio.get_running_loop()
 
     # Convert PIL Image to numpy array if needed (FastALPR accepts both)
+    image_input: np.ndarray | str
     if isinstance(image, PILImage.Image):
         image_input = np.array(image.convert("RGB"))
     elif isinstance(image, str):
