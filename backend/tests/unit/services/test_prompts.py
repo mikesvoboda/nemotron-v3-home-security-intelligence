@@ -967,9 +967,9 @@ class TestFormatPoseAnalysisContext:
     """Tests for format_pose_analysis_context function."""
 
     def test_none_input(self) -> None:
-        """Test formatting when pose data is None."""
+        """Test formatting when pose data is None returns empty string."""
         result = format_pose_analysis_context(None)
-        assert result == "Pose analysis: Not available"
+        assert result == ""
 
     def test_empty_dict(self) -> None:
         """Test formatting when pose dict is empty."""
@@ -1038,9 +1038,9 @@ class TestFormatActionRecognitionContext:
     """Tests for format_action_recognition_context function."""
 
     def test_none_input(self) -> None:
-        """Test formatting when action data is None."""
+        """Test formatting when action data is None returns empty string."""
         result = format_action_recognition_context(None)
-        assert result == "Action recognition: Not available"
+        assert result == ""
 
     def test_empty_dict(self) -> None:
         """Test formatting when actions dict is empty."""
@@ -1867,9 +1867,9 @@ class TestFormatDepthContext:
     """Tests for format_depth_context function."""
 
     def test_none_input(self) -> None:
-        """Test formatting when depth data is None."""
+        """Test formatting when depth data is None returns empty string."""
         result = format_depth_context(None)
-        assert result == "Depth analysis: Not available"
+        assert result == ""
 
     def test_empty_detections(self) -> None:
         """Test formatting when depth has no detections."""

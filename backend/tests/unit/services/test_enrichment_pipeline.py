@@ -5402,9 +5402,9 @@ class TestEnrichmentResultPoseActionPromptContext:
 
         assert "pose_analysis" in context
         assert "action_recognition" in context
-        # Should indicate no data available (actual format from prompts.py)
-        assert "Not available" in context["pose_analysis"]
-        assert "Not available" in context["action_recognition"]
+        # Should return empty strings when enrichment data is absent
+        assert context["pose_analysis"] == ""
+        assert context["action_recognition"] == ""
 
 
 # =============================================================================
