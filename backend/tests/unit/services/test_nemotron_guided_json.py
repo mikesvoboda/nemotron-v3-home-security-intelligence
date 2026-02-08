@@ -212,14 +212,11 @@ class TestGuidedJsonSupportDetection:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.return_value = mock_response
-            mock_client_class.return_value = mock_client
+        # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+        analyzer_with_guided_json._health_http_client = AsyncMock()
+        analyzer_with_guided_json._health_http_client.post.return_value = mock_response
 
-            result = await analyzer_with_guided_json._check_guided_json_support()
+        result = await analyzer_with_guided_json._check_guided_json_support()
 
         assert result is True
         assert analyzer_with_guided_json._supports_guided_json is True
@@ -230,14 +227,11 @@ class TestGuidedJsonSupportDetection:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 422  # Unprocessable Entity
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.return_value = mock_response
-            mock_client_class.return_value = mock_client
+        # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+        analyzer_with_guided_json._health_http_client = AsyncMock()
+        analyzer_with_guided_json._health_http_client.post.return_value = mock_response
 
-            result = await analyzer_with_guided_json._check_guided_json_support()
+        result = await analyzer_with_guided_json._check_guided_json_support()
 
         assert result is False
         assert analyzer_with_guided_json._supports_guided_json is False
@@ -248,35 +242,29 @@ class TestGuidedJsonSupportDetection:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.return_value = mock_response
-            mock_client_class.return_value = mock_client
+        # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+        analyzer_with_guided_json._health_http_client = AsyncMock()
+        analyzer_with_guided_json._health_http_client.post.return_value = mock_response
 
-            # First call should make HTTP request
-            result1 = await analyzer_with_guided_json._check_guided_json_support()
-            # Second call should use cached result
-            result2 = await analyzer_with_guided_json._check_guided_json_support()
+        # First call should make HTTP request
+        result1 = await analyzer_with_guided_json._check_guided_json_support()
+        # Second call should use cached result
+        result2 = await analyzer_with_guided_json._check_guided_json_support()
 
         assert result1 is True
         assert result2 is True
         # HTTP client should only be called once due to caching
-        assert mock_client_class.call_count == 1
+        assert analyzer_with_guided_json._health_http_client.post.call_count == 1
 
     @pytest.mark.asyncio
     async def test_check_support_returns_false_on_connection_error(self, analyzer_with_guided_json):
         """Test that support check returns False on connection error after retries (NEM-3886)."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.side_effect = httpx.ConnectError("Connection refused")
-            mock_client_class.return_value = mock_client
+        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+            # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+            analyzer_with_guided_json._health_http_client = AsyncMock()
+            analyzer_with_guided_json._health_http_client.post.side_effect = httpx.ConnectError(
+                "Connection refused"
+            )
 
             result = await analyzer_with_guided_json._check_guided_json_support()
 
@@ -284,7 +272,7 @@ class TestGuidedJsonSupportDetection:
         # Should NOT cache on transient errors
         assert analyzer_with_guided_json._supports_guided_json is None
         # Should retry 3 times (max_retries)
-        assert mock_client.post.call_count == 3
+        assert analyzer_with_guided_json._health_http_client.post.call_count == 3
         # Should sleep between retries (2 sleeps for 3 attempts)
         assert mock_sleep.call_count == 2
         # Verify exponential backoff delays
@@ -294,15 +282,12 @@ class TestGuidedJsonSupportDetection:
     @pytest.mark.asyncio
     async def test_check_support_returns_false_on_timeout(self, analyzer_with_guided_json):
         """Test that support check returns False on timeout after retries (NEM-3886)."""
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.side_effect = httpx.TimeoutException("Request timeout")
-            mock_client_class.return_value = mock_client
+        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+            # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+            analyzer_with_guided_json._health_http_client = AsyncMock()
+            analyzer_with_guided_json._health_http_client.post.side_effect = httpx.TimeoutException(
+                "Request timeout"
+            )
 
             result = await analyzer_with_guided_json._check_guided_json_support()
 
@@ -310,7 +295,7 @@ class TestGuidedJsonSupportDetection:
         # Should NOT cache on transient errors
         assert analyzer_with_guided_json._supports_guided_json is None
         # Should retry 3 times (max_retries)
-        assert mock_client.post.call_count == 3
+        assert analyzer_with_guided_json._health_http_client.post.call_count == 3
         # Should sleep between retries (2 sleeps for 3 attempts)
         assert mock_sleep.call_count == 2
 
@@ -322,19 +307,14 @@ class TestGuidedJsonSupportDetection:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
+        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+            # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+            analyzer_with_guided_json._health_http_client = AsyncMock()
             # Fail first, succeed second
-            mock_client.post.side_effect = [
+            analyzer_with_guided_json._health_http_client.post.side_effect = [
                 httpx.ConnectError("Connection refused"),
                 mock_response,
             ]
-            mock_client_class.return_value = mock_client
 
             result = await analyzer_with_guided_json._check_guided_json_support()
 
@@ -342,7 +322,7 @@ class TestGuidedJsonSupportDetection:
         # Should cache successful result
         assert analyzer_with_guided_json._supports_guided_json is True
         # Should have made 2 attempts (fail, then succeed)
-        assert mock_client.post.call_count == 2
+        assert analyzer_with_guided_json._health_http_client.post.call_count == 2
         # Should sleep once between attempts
         assert mock_sleep.call_count == 1
         mock_sleep.assert_called_once_with(1.0)  # First retry delay
@@ -355,21 +335,16 @@ class TestGuidedJsonSupportDetection:
         mock_success_response = MagicMock(spec=httpx.Response)
         mock_success_response.status_code = 200
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
-        ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
+        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+            # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+            analyzer_with_guided_json._health_http_client = AsyncMock()
             # Fail with 503, then succeed
-            mock_client.post.side_effect = [
+            analyzer_with_guided_json._health_http_client.post.side_effect = [
                 httpx.HTTPStatusError(
                     "Service Unavailable", request=MagicMock(), response=mock_error_response
                 ),
                 mock_success_response,
             ]
-            mock_client_class.return_value = mock_client
 
             result = await analyzer_with_guided_json._check_guided_json_support()
 
@@ -377,7 +352,7 @@ class TestGuidedJsonSupportDetection:
         # Should cache successful result
         assert analyzer_with_guided_json._supports_guided_json is True
         # Should have made 2 attempts (fail, then succeed)
-        assert mock_client.post.call_count == 2
+        assert analyzer_with_guided_json._health_http_client.post.call_count == 2
         # Should sleep once between attempts
         assert mock_sleep.call_count == 1
 
@@ -398,14 +373,11 @@ class TestGuidedJsonSupportDetection:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.return_value = mock_response
-            mock_client_class.return_value = mock_client
+        # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+        analyzer_with_guided_json._health_http_client = AsyncMock()
+        analyzer_with_guided_json._health_http_client.post.return_value = mock_response
 
-            result = await analyzer_with_guided_json.supports_guided_json()
+        result = await analyzer_with_guided_json.supports_guided_json()
 
         assert result is True
 
@@ -453,18 +425,15 @@ class TestGuidedJsonPayloadConstruction:
             captured_payload = json
             return llm_response
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings_with_guided_json,
-            ),
+        with patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings_with_guided_json,
         ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.side_effect = capture_post
-            mock_client_class.return_value = mock_client
+            # Patch the persistent HTTP clients directly (NEM-5538 httpx pooling)
+            analyzer_with_guided_json._health_http_client = AsyncMock()
+            analyzer_with_guided_json._health_http_client.post.side_effect = capture_post
+            analyzer_with_guided_json._http_client = AsyncMock()
+            analyzer_with_guided_json._http_client.post.side_effect = capture_post
 
             # Call _call_llm which should include guided_json
             result = await analyzer_with_guided_json._call_llm(
@@ -507,18 +476,13 @@ class TestGuidedJsonPayloadConstruction:
             captured_payload = json
             return llm_response
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings_without_guided_json,
-            ),
+        with patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings_without_guided_json,
         ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.side_effect = capture_post
-            mock_client_class.return_value = mock_client
+            # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+            analyzer_without_guided_json._http_client = AsyncMock()
+            analyzer_without_guided_json._http_client.post.side_effect = capture_post
 
             result = await analyzer_without_guided_json._call_llm(
                 camera_name="test_camera",
@@ -565,18 +529,15 @@ class TestGuidedJsonPayloadConstruction:
             captured_payload = json
             return llm_response
 
-        with (
-            patch("httpx.AsyncClient") as mock_client_class,
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings_with_guided_json,
-            ),
+        with patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings_with_guided_json,
         ):
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.post.side_effect = capture_post
-            mock_client_class.return_value = mock_client
+            # Patch the persistent HTTP clients directly (NEM-5538 httpx pooling)
+            analyzer_with_guided_json._health_http_client = AsyncMock()
+            analyzer_with_guided_json._health_http_client.post.side_effect = capture_post
+            analyzer_with_guided_json._http_client = AsyncMock()
+            analyzer_with_guided_json._http_client.post.side_effect = capture_post
 
             result = await analyzer_with_guided_json._call_llm(
                 camera_name="test_camera",
