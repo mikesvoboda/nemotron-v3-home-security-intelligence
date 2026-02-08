@@ -173,12 +173,12 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
     environment:
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
       - PET_MODEL_PATH=/models/pet-classifier
       - CLOTHING_MODEL_PATH=/models/fashion-clip
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+      - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s

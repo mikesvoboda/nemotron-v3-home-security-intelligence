@@ -295,12 +295,13 @@ class FlorenceClient:
             image: PIL Image to encode
 
         Returns:
-            Base64-encoded string of the image in PNG format
+            Base64-encoded string of the image in JPEG format
         """
         buffer = io.BytesIO()
-        # Use PNG for lossless encoding, or JPEG for smaller size
-        # PNG is safer for quality preservation
-        image.save(buffer, format="PNG")
+        # Convert to RGB if needed (JPEG doesn't support alpha channel)
+        if image.mode in ("RGBA", "LA", "P"):
+            image = image.convert("RGB")
+        image.save(buffer, format="JPEG", quality=85)
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
 

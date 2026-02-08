@@ -458,13 +458,19 @@ async def list_backups(
     Returns:
         List of available backups.
     """
-    # Query completed backup jobs
-    result = await db.execute(
-        select(BackupJob)
-        .where(BackupJob.status == BackupJobStatusModel.COMPLETED)
-        .order_by(BackupJob.created_at.desc())
-    )
-    jobs = result.scalars().all()
+    Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Query completed backup jobs
+        result = await db.execute(
+            select(BackupJob)
+            .where(BackupJob.status == BackupJobStatusModel.COMPLETED)
+            .order_by(BackupJob.created_at.desc())
+        )
+        jobs = result.scalars().all()
+    except Exception as e:
+        logger.warning(f"Failed to query backup jobs: {e}")
+        return BackupListResponse(backups=[], total=0)
 
     backups = []
     for job in jobs:

@@ -836,7 +836,7 @@ async def check_database_health(db: AsyncSession) -> HealthCheckServiceStatus:
         return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Database error: {e!s}",
-            details=None,
+            details={"error": str(e)},
         )
 
 
@@ -854,7 +854,7 @@ async def check_redis_health(redis: RedisClient | None) -> HealthCheckServiceSta
         return HealthCheckServiceStatus(
             status="unhealthy",
             message="Redis unavailable: connection failed",
-            details=None,
+            details={"error": "Redis client not available"},
         )
 
     try:
@@ -869,14 +869,14 @@ async def check_redis_health(redis: RedisClient | None) -> HealthCheckServiceSta
             return HealthCheckServiceStatus(
                 status="unhealthy",
                 message=health.get("error", "Redis connection error"),
-                details=None,
+                details={"error": health.get("error", "Redis connection error")},
             )
     except (ConnectionError, TimeoutError, OSError) as e:
         # Redis connection failures
         return HealthCheckServiceStatus(
             status="unhealthy",
             message=f"Redis error: {e!s}",
-            details=None,
+            details={"error": str(e)},
         )
 
 
@@ -1078,8 +1078,8 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
 
     # Build details dict with individual service status
     details: dict[str, str] = {
-        "yolo26": "healthy" if yolo26_healthy else (yolo26_error or "unknown error"),
-        "nemotron": "healthy" if nemotron_healthy else (nemotron_error or "unknown error"),
+        "yolo26": "healthy" if yolo26_healthy else (yolo26_error or "unhealthy"),
+        "nemotron": "healthy" if nemotron_healthy else (nemotron_error or "unhealthy"),
     }
 
     # Determine overall AI status
@@ -2132,9 +2132,15 @@ async def get_performance_metrics(
     global _performance_metrics_cache  # noqa: PLW0603
 
     if _performance_collector is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Performance collector not initialized",
+        return PerformanceUpdate(
+            gpu=None,
+            ai_models={},
+            nemotron=None,
+            inference=None,
+            databases={},
+            host=None,
+            containers=[],
+            alerts=[],
         )
 
     # Check cache first - return cached response if still valid
@@ -4696,7 +4702,7 @@ def _get_model_display_name(name: str) -> str:
         "yolo26-general": "YOLO26 General Detection",
         "clip_embedder": "CLIP ViT-L/14",
         "yolo-world-s": "YOLO-World Small",
-        "depth-anything-v2-small": "Depth Anything V2 Small",
+        "depth-anything-v2-tiny": "Depth Anything V2 Tiny",
         "vitpose-small": "ViTPose Small",
     }
 
@@ -4863,7 +4869,7 @@ MODEL_CATEGORIES: dict[str, list[str]] = {
     ],
     "Segmentation": ["segformer-b2-clothes"],
     "Pose": ["vitpose-small", "yolov8n-pose"],
-    "Depth": ["depth-anything-v2-small"],
+    "Depth": ["depth-anything-v2-tiny"],
     "Embedding": ["clip-vit-l", "osnet-x0-25"],
     "OCR": ["paddleocr"],
     "Action Recognition": ["xclip-base"],

@@ -41,12 +41,30 @@ router = APIRouter()
 
 
 class ImageRequest(BaseModel):
-    image: str = Field(..., description="Base64 encoded image")
+    """Request with a base64 image.
+
+    Accepts ``image`` or ``image_base64`` as the field name so the backend
+    client (which uses ``image_base64`` for some endpoints) doesn't get a 422.
+    """
+
+    model_config = {"extra": "ignore", "populate_by_name": True}
+
+    image: str = Field(..., description="Base64 encoded image", alias="image_base64")
 
 
 class BBoxRequest(BaseModel):
-    image: str = Field(..., description="Base64 encoded image")
-    bbox: dict[str, float] | None = Field(default=None)
+    """Request with a base64 image and optional bounding box.
+
+    Accepts ``image`` or ``image_base64`` as the field name. The ``bbox``
+    field accepts either a dict (``{x, y, width, height}``) or a list
+    (``[x1, y1, x2, y2]``) for backward compatibility with the backend client.
+    Extra fields (e.g. ``min_confidence``) are silently ignored.
+    """
+
+    model_config = {"extra": "ignore", "populate_by_name": True}
+
+    image: str = Field(..., description="Base64 encoded image", alias="image_base64")
+    bbox: dict[str, float] | list[float] | None = Field(default=None)
 
 
 class PoseResponse(BaseModel):

@@ -195,16 +195,16 @@ class TestListGpus:
     def test_list_gpus_handles_detection_service_errors(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
-        """Test that detection service errors return 500 with error detail."""
+        """Test that detection service errors return empty list gracefully."""
         mock_service = AsyncMock()
         mock_service.detect_gpus = AsyncMock(side_effect=Exception("NVML init failed"))
         mock_get_service.return_value = mock_service
 
         response = client.get("/api/system/gpus")
 
-        assert response.status_code == 500
-        assert "GPU detection failed" in response.json()["detail"]
-        assert "NVML init failed" in response.json()["detail"]
+        # Graceful degradation: returns 200 with empty GPU list
+        assert response.status_code == 200
+        assert response.json()["gpus"] == []
 
     @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
     def test_list_gpus_validates_response_schema(

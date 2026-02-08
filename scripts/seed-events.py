@@ -656,7 +656,7 @@ def get_test_camera_for_category(category: str) -> str:
     """
     category_to_camera = {
         "normal": "test_normal_delivery",
-        "suspicious": "test_suspicious_loitering",
+        "suspicious": "test_suspicious_casing",
         "threats": "test_threat_breakin",
         "cosmos": "test_normal_delivery",  # Default for cosmos scenarios
     }
@@ -693,6 +693,28 @@ async def ensure_synthetic_camera(camera_name: str = "test_normal_delivery") -> 
 
         print(f"Created synthetic camera: {camera_name} (ID: {camera.id})")
         return camera
+
+
+async def _fix_selinux_context(file_path: Path) -> None:
+    """Fix SELinux context for a single file so containers can read it.
+
+    Files copied from temp directories (e.g., ffmpeg-extracted frames) inherit
+    the creating process's unconfined_u SELinux user context. Podman containers
+    running as appuser cannot read files with unconfined_u even when Unix
+    permissions allow it. The -F flag forces restorecon to reset the context
+    even when it considers it "customized by admin".
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "restorecon",
+            "-F",
+            str(file_path),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await asyncio.wait_for(proc.wait(), timeout=5)
+    except (TimeoutError, FileNotFoundError, OSError):
+        pass  # Best-effort; batch fix at end will catch stragglers
 
 
 async def seed_synthetic_scenarios(
@@ -770,6 +792,12 @@ async def seed_synthetic_scenarios(
                     processed_frames.append(dest_path)
                     total_extracted += 1
 
+                    # Fix SELinux context BEFORE touching to trigger file watcher.
+                    # Files copied from temp dirs inherit unconfined_u context which
+                    # is unreadable by the container's appuser. Must use -F to force
+                    # reset even "customized" contexts.
+                    await _fix_selinux_context(dest_path)
+
                     # Touch to trigger file watcher
                     dest_path.touch()
         else:
@@ -781,6 +809,9 @@ async def seed_synthetic_scenarios(
             shutil.copy2(scenario.image_path, dest_path)
             processed_frames.append(dest_path)
             total_extracted += 1
+
+            # Fix SELinux context BEFORE touching (same reason as above)
+            await _fix_selinux_context(dest_path)
 
             # Touch to trigger file watcher
             dest_path.touch()
@@ -798,15 +829,16 @@ async def seed_synthetic_scenarios(
 
     print(f"\nProcessed {total_extracted} media files from {len(scenarios)} scenarios")
 
-    # Fix SELinux context for files created in temp directories
-    # Without this, containers using :z mount option may get Permission denied
+    # Safety-net SELinux fix: re-run restorecon -F on all directories in case
+    # any per-file fixes above were missed. The -F flag forces reset even for
+    # contexts that restorecon considers "customized by admin" (unconfined_u).
     if processed_frames:
         try:
-            # Get unique parent directories
             parent_dirs = {str(p.parent) for p in processed_frames}
             for parent_dir in parent_dirs:
                 proc = await asyncio.create_subprocess_exec(
                     "restorecon",
+                    "-F",
                     "-R",
                     parent_dir,
                     stdout=asyncio.subprocess.DEVNULL,

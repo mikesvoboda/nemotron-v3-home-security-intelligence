@@ -483,7 +483,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
       # TensorRT engine cache (persists compiled engines across restarts)
       - enrichment-light-tensorrt-cache:/cache/tensorrt
       # PyTorch GPU profiling traces (NEM-4130)
@@ -508,7 +508,7 @@ services:
       - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
       - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
       - PET_MODEL_PATH=/models/pet-classifier
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+      - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
       # TensorRT acceleration for YOLO models
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
@@ -788,10 +788,10 @@ services:
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
         echo "Starting Redis with password authentication"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no --requirepass "$$REDIS_PASSWORD"
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no --requirepass "$$REDIS_PASSWORD"
       else
         echo "Starting Redis without authentication (development mode)"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no
       fi
       '
     environment:
@@ -1046,96 +1046,27 @@ services:
   # Access points:
   #   - Grafana: http://localhost:3002 (anonymous access enabled by default)
   #   - Prometheus: http://localhost:9090
-  #   - Jaeger: http://localhost:16686 (distributed tracing)
+  #   - Tempo: http://localhost:3200 (distributed tracing)
   #   - Alertmanager: http://localhost:9093
 
-  # Elasticsearch for Jaeger trace storage (NEM-3053)
-  # Single-node deployment with 30-day retention via ILM
-  elasticsearch:
-    # Security hardening: Drop all capabilities except IPC_LOCK for memory locking
+  # Grafana Tempo for distributed tracing (NEM-5545, replaces Jaeger+Elasticsearch)
+  # Lightweight trace backend with native OTLP ingestion and 30-day retention
+  tempo:
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - IPC_LOCK # Required for bootstrap.memory_lock=true (mlockall)
-    image: docker.io/elasticsearch:8.12.0
-    environment:
-      # Single-node discovery (no cluster)
-      - discovery.type=single-node
-      # Disable security for internal network (no external exposure)
-      - xpack.security.enabled=false
-      # Memory settings - ES needs locked memory for performance
-      - bootstrap.memory_lock=true
-      - 'ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE:-2g} -Xmx${ES_HEAP_SIZE:-2g}'
-      # Reduce disk watermarks for single-node
-      - cluster.routing.allocation.disk.threshold_enabled=true
-      - cluster.routing.allocation.disk.watermark.low=85%
-      - cluster.routing.allocation.disk.watermark.high=90%
-      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    image: docker.io/grafana/tempo:2.7.1
+    container_name: tempo
     volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-      - ./monitoring/elasticsearch:/usr/share/elasticsearch/config/ilm:ro,z
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'curl -s http://localhost:9200/_cluster/health | grep -q ''"status":"green"\|"status":"yellow"''',
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: ${ES_MEMORY_LIMIT:-6G}
-
-  # Jaeger all-in-one for distributed tracing (NEM-1629, NEM-3053)
-  # Provides trace collection, storage, and visualization for cross-service request correlation
-  # Uses Elasticsearch backend for persistent storage with 30-day retention
-  jaeger:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    image: docker.io/jaegertracing/all-in-one:1.54
-    # NEM-4486: Bind to localhost only to prevent unauthorized external access
+      - ./monitoring/tempo/tempo-config.yml:/etc/tempo/config.yml:ro,z
+      - tempo_data:/var/tempo
+    command: -config.file=/etc/tempo/config.yml
     ports:
-      - '127.0.0.1:${JAEGER_UI_PORT:-16686}:16686' # Jaeger UI
-      - '127.0.0.1:${JAEGER_OTLP_GRPC_PORT:-4317}:4317' # OTLP gRPC receiver
-      - '127.0.0.1:${JAEGER_OTLP_HTTP_PORT:-4318}:4318' # OTLP HTTP receiver
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      # Elasticsearch storage backend (NEM-3053)
-      - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
-      # Index configuration
-      - ES_INDEX_PREFIX=jaeger
-      - ES_TAGS_AS_FIELDS_ALL=true
-      # Performance tuning
-      - ES_NUM_SHARDS=1
-      - ES_NUM_REPLICAS=0
-      - ES_BULK_SIZE=5000000
-      - ES_BULK_WORKERS=1
-      - ES_BULK_FLUSH_INTERVAL=200ms
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+      - '127.0.0.1:${TEMPO_PORT:-3200}:3200'
+      - '127.0.0.1:${TEMPO_OTLP_GRPC:-4317}:4317'
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:16686']
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3200/ready']
       interval: 15s
       timeout: 5s
       retries: 3
@@ -1146,7 +1077,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 1G
 
   prometheus:
     # Security hardening: Drop all capabilities, prevent privilege escalation
@@ -1154,7 +1085,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/prom/prometheus:v2.48.0
+    image: docker.io/prom/prometheus:v3.1.0
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
       - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
@@ -1196,7 +1127,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/grafana:10.2.3
+    image: docker.io/grafana/grafana:12.3.2
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     # Access Grafana via the frontend nginx proxy at /grafana/ for production use
     ports:
@@ -1226,9 +1157,8 @@ services:
       # Use relative root URL for reverse proxy compatibility (allows any hostname/port)
       - GF_SERVER_ROOT_URL=/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      # Pin JSON API plugin to v1.3.0 for Grafana 10.x compatibility (v1.3.15+ requires Grafana 11.6.0+)
-      # Note: grafana-pyroscope-datasource is a core plugin in Grafana 10.x and should not be installed
-      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource 1.3.0
+      # JSON API plugin for dashboard data sources (no version pin needed for Grafana 12.x)
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
       # SMTP Configuration for Email Alerts (NEM-3511)
       # Configure via .env file for email alerting capability
       # See docs/operator/smtp-configuration.md for setup instructions
@@ -1391,7 +1321,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/loki:2.9.4
+    image: docker.io/grafana/loki:3.5.0
     container_name: loki
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z
@@ -1573,7 +1503,7 @@ services:
   # - Collects container logs from Podman and forwards to Loki
   # - Profiles native C/C++ services (ai-llm/llama.cpp) via eBPF and sends to Pyroscope
   alloy:
-    image: docker.io/grafana/alloy:v1.0.0
+    image: docker.io/grafana/alloy:v1.9.2
     container_name: alloy
     # WORKAROUND (NEM-4499): Using privileged mode due to SELinux blocking /bin/alloy execution
     # Issue: Rootless Podman + SELinux Enforcing prevents execution of /bin/alloy even with label=disable
@@ -1634,7 +1564,7 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  elasticsearch_data:
+  tempo_data:
     driver: local
   # Persistent HuggingFace cache volume (NEM-3812)
   # Shared across all AI services to avoid re-downloading models

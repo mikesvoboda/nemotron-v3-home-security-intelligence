@@ -1081,56 +1081,65 @@ async def get_face_events_stats(
     Returns:
         FaceEventsStatsResponse with today's face detection statistics
     """
-    # Get today's date range in UTC
-    today = date.today()
-    start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
-    end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=UTC)
+    try:
+        # Get today's date range in UTC
+        today = date.today()
+        start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
+        end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=UTC)
 
-    # Build aggregation query: count total, known, unknown per camera for today
-    stmt = (
-        select(
-            FaceDetectionEvent.camera_id,
-            func.count().label("total"),
-            func.count(FaceDetectionEvent.matched_person_id).label("known_count"),
-            func.sum(case((FaceDetectionEvent.is_unknown.is_(True), 1), else_=0)).label(
-                "unknown_count"
-            ),
-        )
-        .where(FaceDetectionEvent.timestamp >= start_of_day)
-        .where(FaceDetectionEvent.timestamp <= end_of_day)
-        .group_by(FaceDetectionEvent.camera_id)
-    )
-
-    result = await session.execute(stmt)
-    rows = result.all()
-
-    # Aggregate totals and build by_camera breakdown
-    total_today = 0
-    known_count = 0
-    unknown_count = 0
-    by_camera: dict[str, CameraFaceStats] = {}
-
-    for row in rows:
-        camera_total = row.total or 0
-        camera_known = row.known_count or 0
-        camera_unknown = row.unknown_count or 0
-
-        total_today += camera_total
-        known_count += camera_known
-        unknown_count += camera_unknown
-
-        by_camera[row.camera_id] = CameraFaceStats(
-            total=camera_total,
-            known=camera_known,
-            unknown=camera_unknown,
+        # Build aggregation query: count total, known, unknown per camera for today
+        stmt = (
+            select(
+                FaceDetectionEvent.camera_id,
+                func.count().label("total"),
+                func.count(FaceDetectionEvent.matched_person_id).label("known_count"),
+                func.sum(case((FaceDetectionEvent.is_unknown.is_(True), 1), else_=0)).label(
+                    "unknown_count"
+                ),
+            )
+            .where(FaceDetectionEvent.timestamp >= start_of_day)
+            .where(FaceDetectionEvent.timestamp <= end_of_day)
+            .group_by(FaceDetectionEvent.camera_id)
         )
 
-    return FaceEventsStatsResponse(
-        total_today=total_today,
-        known_count=known_count,
-        unknown_count=unknown_count,
-        by_camera=by_camera,
-    )
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        # Aggregate totals and build by_camera breakdown
+        total_today = 0
+        known_count = 0
+        unknown_count = 0
+        by_camera: dict[str, CameraFaceStats] = {}
+
+        for row in rows:
+            camera_total = row.total or 0
+            camera_known = row.known_count or 0
+            camera_unknown = row.unknown_count or 0
+
+            total_today += camera_total
+            known_count += camera_known
+            unknown_count += camera_unknown
+
+            by_camera[row.camera_id] = CameraFaceStats(
+                total=camera_total,
+                known=camera_known,
+                unknown=camera_unknown,
+            )
+
+        return FaceEventsStatsResponse(
+            total_today=total_today,
+            known_count=known_count,
+            unknown_count=unknown_count,
+            by_camera=by_camera,
+        )
+    except Exception as e:
+        logger.warning(f"Face events stats query failed: {e}")
+        return FaceEventsStatsResponse(
+            total_today=0,
+            known_count=0,
+            unknown_count=0,
+            by_camera={},
+        )
 
 
 @router.get("/face-events/unknown", response_model=UnknownStrangerListResponse)

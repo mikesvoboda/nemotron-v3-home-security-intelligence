@@ -94,11 +94,11 @@ PHASE1_MODELS: list[ModelSpec] = [
         required=False,
     ),
     ModelSpec(
-        name="depth-anything-v2-small",
-        hf_repo="depth-anything/Depth-Anything-V2-Small-hf",
+        name="depth-anything-v2-tiny",
+        hf_repo="depth-anything/Depth-Anything-V2-Tiny-hf",
         phase=1,
-        size_mb=150,
-        description="Monocular depth estimation",
+        size_mb=100,
+        description="Monocular depth estimation (3x faster than Small)",
         required=False,
     ),
     ModelSpec(

@@ -342,10 +342,12 @@ export default function Header() {
           <RecentThreatsIndicator onThreatClick={handleThreatClick} />
         </div>
 
-        {/* AI Service Status Badge - hidden on mobile */}
-        <div className="hidden sm:block" data-testid="ai-service-status">
-          <AIServiceStatus compact={true} />
-        </div>
+        {/* AI Service Status Badge - hidden on mobile, only shown when system is healthy or health unknown */}
+        {(effectiveHealth === 'healthy' || effectiveHealth === null) && (
+          <div className="hidden sm:block" data-testid="ai-service-status">
+            <AIServiceStatus compact={true} />
+          </div>
+        )}
 
         {/* System Health Indicator with Tooltip */}
         <div

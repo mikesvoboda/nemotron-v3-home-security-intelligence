@@ -22,8 +22,8 @@ huggingface-cli download patrickjohncyh/fashion-clip --local-dir "$MODELS_DIR/fa
 
 # Depth Anything v2
 echo ""
-echo "[2/9] Downloading Depth Anything v2 Small..."
-huggingface-cli download depth-anything/Depth-Anything-V2-Small --local-dir "$MODELS_DIR/depth-anything-v2-small" --local-dir-use-symlinks False
+echo "[2/9] Downloading Depth Anything v2 Tiny..."
+huggingface-cli download depth-anything/Depth-Anything-V2-Tiny --local-dir "$MODELS_DIR/depth-anything-v2-tiny" --local-dir-use-symlinks False
 
 # YOLOv8n-pose (from Ultralytics)
 echo ""

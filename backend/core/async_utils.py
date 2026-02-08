@@ -276,8 +276,17 @@ async def bounded_gather[T](
 
     async def with_semaphore(index: int, coro: Awaitable[T]) -> tuple[int, T]:
         async with semaphore:
-            result = await coro
-            return (index, result)
+            try:
+                result = await coro
+                return (index, result)
+            except Exception as e:
+                # When return_exceptions=True, asyncio.gather will catch this
+                # and return it as a result. We need to wrap it in a tuple
+                # to preserve the index for proper ordering.
+                if return_exceptions:
+                    return (index, e)  # type: ignore[return-value]
+                else:
+                    raise
 
     # Create tasks with index to preserve order
     tasks = [with_semaphore(i, coro) for i, coro in enumerate(coros)]
@@ -285,19 +294,12 @@ async def bounded_gather[T](
     # Execute with gather
     results = await asyncio.gather(*tasks, return_exceptions=return_exceptions)
 
-    # Handle exceptions in results
-    if not return_exceptions:
-        for result in results:
-            if isinstance(result, Exception):
-                raise result
-
     # Sort by index to restore original order and extract results
-    # Cast to expected type since we know the structure at this point
-    typed_results = [r for r in results if isinstance(r, tuple)]
-    sorted_results = sorted(typed_results, key=lambda x: x[0])
+    # All results are now tuples (index, result) where result may be an exception
+    sorted_results = sorted(results, key=lambda x: x[0])  # type: ignore[arg-type, return-value, index]
 
     # Extract just the results (not the indices)
-    return [result[1] for result in sorted_results]
+    return [result[1] for result in sorted_results]  # type: ignore[misc, index]
 
 
 async def async_read_bytes(path: str | Path) -> bytes | None:

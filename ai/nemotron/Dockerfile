@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 RUN git clone https://github.com/ggerganov/llama.cpp.git
 WORKDIR /build/llama.cpp
-RUN git checkout 9496bbb80
+RUN git checkout b7972
 
 # Build llama.cpp with CUDA support
 # Set up CUDA stubs for linking (actual libcuda.so provided at runtime by driver)
@@ -32,6 +32,8 @@ RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/lib
 # hadolint ignore=SC2046
 RUN cmake -B build \
     -DGGML_CUDA=ON \
+    -DGGML_CUDA_FA_ALL_QUANTS=ON \
+    -DGGML_NATIVE=ON \
     -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release --target llama-server -j"$(nproc)"
 
@@ -122,7 +124,9 @@ CMD ["sh", "-c", "FLASH_ARGS=''; \
     --cache-type-k ${CACHE_TYPE_K} \
     --cache-type-v ${CACHE_TYPE_V} \
     --cont-batching \
-    --cache-prompt \
     --metrics \
+    --cache-reuse 256 \
+    --merge-qkv \
+    --mlock \
     ${FLASH_ARGS} \
     ${MOE_ARGS}"]

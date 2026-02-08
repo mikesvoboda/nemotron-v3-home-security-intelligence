@@ -26,15 +26,10 @@ from backend.api.middleware import (
     BaggageMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
-    DeprecationConfig,
-    DeprecationLoggerMiddleware,
-    DeprecationMiddleware,
     IdempotencyMiddleware,
+    ObservabilityMiddleware,
     ProfilingMiddleware,
-    PrometheusMiddleware,
-    RequestLoggingMiddleware,
     RequestRecorderMiddleware,
-    RequestTimingMiddleware,
     SecurityHeadersMiddleware,
     SetupGuardMiddleware,
 )
@@ -1028,49 +1023,6 @@ def _get_openapi_servers() -> list[dict[str, str]]:
     return [{"url": server_url, "description": "API server"}]
 
 
-def _get_deprecation_config() -> DeprecationConfig:
-    """Get deprecation configuration for RFC 8594 headers (NEM-2089).
-
-    This function returns a DeprecationConfig that registers all deprecated API
-    endpoints. The middleware will add Deprecation, Sunset, and Link headers
-    to responses from these endpoints per RFC 8594.
-
-    Returns:
-        DeprecationConfig with registered deprecated endpoints.
-
-    Example:
-        To deprecate an endpoint, import DeprecatedEndpoint and datetime,
-        then add to this function::
-
-            from datetime import UTC, datetime
-            from backend.api.middleware import DeprecatedEndpoint
-
-            config.register(
-                DeprecatedEndpoint(
-                    path="/api/v1/cameras",
-                    sunset_date=datetime(2026, 6, 1, tzinfo=UTC),
-                    deprecated_at=datetime(2026, 1, 1, tzinfo=UTC),
-                    replacement="/api/v2/cameras",
-                    link="https://docs.example.com/migration/v2-cameras",
-                )
-            )
-
-    Note:
-        DeprecatedEndpoint fields:
-        - path: The URL path (supports wildcards like /api/v1/*)
-        - sunset_date: When the endpoint will be removed
-        - deprecated_at: When deprecation was announced (optional)
-        - replacement: Replacement endpoint path (optional)
-        - link: Documentation URL for migration guide (optional)
-    """
-    config = DeprecationConfig()
-
-    # Currently no deprecated endpoints are registered.
-    # When deprecating an endpoint, add config.register() calls here.
-
-    return config
-
-
 def custom_generate_unique_id(route: APIRoute) -> str:
     """Generate custom operation IDs for OpenAPI schema (NEM-3347).
 
@@ -1158,22 +1110,12 @@ app.add_middleware(BaggageMiddleware)
 # Added after BaggageMiddleware to capture full request lifecycle
 app.add_middleware(ProfilingMiddleware)
 
-# Add Prometheus HTTP metrics middleware (NEM-4149)
-# Records http_request_duration_seconds histogram for Grafana dashboards
-# Added early to capture full request lifecycle including other middleware
-# Excludes health/metrics endpoints to avoid skewing latency distribution
-app.add_middleware(PrometheusMiddleware)
-
-# Add request timing middleware for API latency tracking (NEM-1469)
-# Added early so it measures the full request lifecycle including other middleware
-app.add_middleware(RequestTimingMiddleware)
-
-# Add request logging middleware for structured observability (NEM-1963)
-# Logs HTTP requests with timing, status codes, and correlation IDs
-# Added after RequestTimingMiddleware so logging happens after timing starts
-# Excludes health/metrics endpoints to reduce noise
-if get_settings().request_logging_enabled:
-    app.add_middleware(RequestLoggingMiddleware)
+# NEM-5558: Unified observability — single timer for headers, logging, and metrics.
+# Health endpoints are short-circuited to bypass overhead.
+app.add_middleware(
+    ObservabilityMiddleware,
+    enable_request_logging=get_settings().request_logging_enabled,
+)
 
 # Add request recording middleware for debugging production issues (NEM-1964)
 # Records HTTP requests for replay debugging based on:
@@ -1184,14 +1126,8 @@ if get_settings().request_logging_enabled:
 if get_settings().request_recording_enabled:
     app.add_middleware(RequestRecorderMiddleware)
 
-# Add RFC 8594 deprecation headers middleware (NEM-2089)
-# Adds Deprecation, Sunset, and Link headers to deprecated endpoints
-app.add_middleware(DeprecationMiddleware, config=_get_deprecation_config())
-
-# Add deprecation logger middleware for tracking deprecated endpoint usage (NEM-2090)
-# Logs deprecated calls, increments Prometheus metrics, and adds Warning header
-# Note: Must be added AFTER DeprecationMiddleware so it can see the Deprecation header
-app.add_middleware(DeprecationLoggerMiddleware)
+# NEM-5558: DeprecationMiddleware and DeprecationLoggerMiddleware removed.
+# Zero deprecated endpoints were registered. Re-add when endpoints are deprecated.
 
 # Security: Restrict CORS methods and headers to only what's needed
 # Using explicit methods and headers instead of wildcards to follow least-privilege principle

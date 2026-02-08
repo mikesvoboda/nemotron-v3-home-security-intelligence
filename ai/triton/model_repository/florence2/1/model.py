@@ -320,6 +320,17 @@ class TritonPythonModel:
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.image_processor = AutoImageProcessor.from_pretrained(model_path)
 
+        # Add Florence-2's special location/segmentation tokens.
+        # The full AutoProcessor (trust_remote_code) registers these automatically,
+        # but since we use a bare AutoTokenizer we must add them manually.
+        # Without these tokens, location outputs like <loc_123> appear as garbage.
+        special_tokens = [f"<loc_{i}>" for i in range(1000)] + [f"<seg_{i}>" for i in range(128)]
+        self.tokenizer.add_special_tokens({"additional_special_tokens": special_tokens})
+        logger.info(
+            "Florence-2: added %d special tokens (loc_0..999, seg_0..127)",
+            len(special_tokens),
+        )
+
         # Import the old MS post-processor for structured output parsing
         self.post_processor = _load_old_ms_post_processor(model_path, self.tokenizer)
 

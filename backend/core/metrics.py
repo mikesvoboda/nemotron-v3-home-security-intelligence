@@ -623,6 +623,24 @@ ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL = Counter(
     registry=_registry,
 )
 
+# Counters for enrichment cascade (NEM-5570: skip empty frames / defer models)
+ENRICHMENT_CASCADE_SKIPPED_TOTAL = Counter(
+    "hsi_enrichment_cascade_skipped_total",
+    "Frames skipped by cascade (no detections)",
+    registry=_registry,
+)
+ENRICHMENT_CASCADE_PROCESSED_TOTAL = Counter(
+    "hsi_enrichment_cascade_processed_total",
+    "Frames processed through enrichment (had detections)",
+    registry=_registry,
+)
+ENRICHMENT_CASCADE_MODELS_DEFERRED_TOTAL = Counter(
+    "hsi_enrichment_cascade_models_deferred_total",
+    "Individual model invocations deferred by cascade",
+    labelnames=["model", "reason"],
+    registry=_registry,
+)
+
 # Gauge for enrichment quality level in use
 ENRICHMENT_QUALITY_LEVEL = Gauge(
     "hsi_enrichment_quality_level",
@@ -1613,6 +1631,18 @@ class MetricsService:
         """
         ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
 
+    def record_cascade_skipped(self) -> None:
+        """Increment counter for frames skipped by cascade."""
+        ENRICHMENT_CASCADE_SKIPPED_TOTAL.inc()
+
+    def record_cascade_processed(self) -> None:
+        """Increment counter for frames processed through enrichment."""
+        ENRICHMENT_CASCADE_PROCESSED_TOTAL.inc()
+
+    def record_cascade_model_deferred(self, model: str, reason: str) -> None:
+        """Record a model invocation deferred by cascade logic."""
+        ENRICHMENT_CASCADE_MODELS_DEFERRED_TOTAL.labels(model=model, reason=reason).inc()
+
     def record_event_by_camera(self, camera_id: str, camera_name: str) -> None:
         """Increment the events per camera counter.
 
@@ -2438,6 +2468,26 @@ def observe_enrichment_pipeline_stage(stage: str, duration_seconds: float) -> No
 def record_enrichment_pipeline_timeout() -> None:
     """Increment the counter for enrichment pipeline hard timeouts."""
     ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL.inc()
+
+
+def record_cascade_skipped() -> None:
+    """Increment counter for frames skipped by cascade (no detections)."""
+    ENRICHMENT_CASCADE_SKIPPED_TOTAL.inc()
+
+
+def record_cascade_processed() -> None:
+    """Increment counter for frames processed through enrichment."""
+    ENRICHMENT_CASCADE_PROCESSED_TOTAL.inc()
+
+
+def record_cascade_model_deferred(model: str, reason: str) -> None:
+    """Record a model invocation deferred by cascade logic.
+
+    Args:
+        model: Model name (e.g., "florence2", "clothing", "vehicle_class")
+        reason: Reason for deferral (e.g., "high_confidence", "no_matching_detections")
+    """
+    ENRICHMENT_CASCADE_MODELS_DEFERRED_TOTAL.labels(model=model, reason=reason).inc()
 
 
 def set_enrichment_quality_level(level: str) -> None:

@@ -504,7 +504,7 @@ def load_all_models() -> None:
 
     # Load Depth Estimator (if assigned to light service AND in preload list)
     if _should_load_model("depth") and _should_preload_model("depth_estimator"):
-        depth_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-small")
+        depth_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-tiny")
         try:
             depth_estimator = DepthEstimator(model_path=depth_path, device=device)
             depth_estimator.load_model()

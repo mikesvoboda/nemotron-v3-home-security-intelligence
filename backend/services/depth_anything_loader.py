@@ -1,6 +1,6 @@
 """Depth Anything V2 model loader for monocular depth estimation.
 
-This module provides async loading of Depth Anything V2 Small model and helper
+This module provides async loading of Depth Anything V2 Tiny model and helper
 functions for extracting depth information at specific locations.
 
 The Depth Anything V2 model generates relative depth maps from single images,
@@ -8,11 +8,12 @@ which can be used to estimate how close detected objects are to the camera.
 This information enhances Nemotron's risk analysis by providing spatial context.
 
 Model details:
-- HuggingFace: depth-anything/Depth-Anything-V2-Small-hf
-- VRAM: ~100-200MB (very lightweight)
-- Parameters: 24.8M
+- HuggingFace: depth-anything/Depth-Anything-V2-Tiny-hf
+- VRAM: ~50-100MB (very lightweight)
+- Parameters: 5.8M (3x faster inference than Small variant)
 - License: Apache 2.0
 - Output: Depth map with relative distance from camera
+- Input resolution: 518x518 (same as Small)
 
 Depth values:
 - Lower values (closer to 0) = objects closer to camera
@@ -182,10 +183,10 @@ class DepthAnalysisResult:
 async def load_depth_model(model_path: str) -> Any:
     """Load Depth Anything V2 model from a local path or HuggingFace repo ID.
 
-    This function loads the Depth Anything V2 Small model using the
+    This function loads the Depth Anything V2 Tiny model using the
     transformers depth-estimation pipeline. It handles both local directory
-    paths (e.g., "/models/model-zoo/depth-anything-v2-small") and HuggingFace
-    repo IDs (e.g., "depth-anything/Depth-Anything-V2-Small-hf").
+    paths (e.g., "/models/model-zoo/depth-anything-v2-tiny") and HuggingFace
+    repo IDs (e.g., "depth-anything/Depth-Anything-V2-Tiny-hf").
 
     For local paths, the model and image processor are loaded explicitly
     with ``from_pretrained(local_path)`` and passed to the pipeline to
@@ -654,7 +655,7 @@ async def analyze_depth(
         DepthAnalysisResult with depth info for all detections
 
     Example:
-        >>> async with model_manager.load("depth-anything-v2-small") as depth_pipe:
+        >>> async with model_manager.load("depth-anything-v2-tiny") as depth_pipe:
         ...     result = await analyze_depth(depth_pipe, image, detections)
         ...     print(result.to_context_string())
     """

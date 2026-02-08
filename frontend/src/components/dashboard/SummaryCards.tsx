@@ -92,7 +92,7 @@ export function SummaryCard({
 
   // Format event count for footer (with defensive fallback to 0)
   const eventCountText = summary
-    ? `${summary.eventCount ?? 0} ${(summary.eventCount ?? 0) === 1 ? 'event' : 'events'} analyzed`
+    ? `${summary.eventCount ?? 0} high-priority ${(summary.eventCount ?? 0) === 1 ? 'event' : 'events'} analyzed`
     : '';
 
   // Get bullet points: use backend-provided data or extract from content

@@ -83,7 +83,7 @@ describe('SummaryCard', () => {
     it('displays events analyzed count in footer', () => {
       render(<SummaryCard type="hourly" summary={mockHourlySummary} />);
       expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
-        '1 event analyzed'
+        '1 high-priority event analyzed'
       );
     });
 
@@ -91,7 +91,7 @@ describe('SummaryCard', () => {
       const multiEvent: Summary = { ...mockHourlySummary, eventCount: 3 };
       render(<SummaryCard type="hourly" summary={multiEvent} />);
       expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
-        '3 events analyzed'
+        '3 high-priority events analyzed'
       );
     });
 
@@ -99,7 +99,7 @@ describe('SummaryCard', () => {
       const undefinedEventCount: Summary = { ...mockHourlySummary, eventCount: undefined as any };
       render(<SummaryCard type="hourly" summary={undefinedEventCount} />);
       expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
-        '0 events analyzed'
+        '0 high-priority events analyzed'
       );
     });
 

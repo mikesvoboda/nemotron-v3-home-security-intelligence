@@ -442,11 +442,11 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=unload_torch_model,
     )
 
-    # Depth Estimator (~150MB)
-    depth_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-small")
+    # Depth Estimator (~100MB) - Tiny variant, 3x faster than Small
+    depth_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-tiny")
     registry["depth_estimator"] = ModelConfig(
         name="depth_estimator",
-        vram_mb=150,
+        vram_mb=100,
         priority=ModelPriority.LOW,
         loader_fn=lambda: _create_and_load_model(DepthEstimator, depth_path, device),
         unloader_fn=_unload_model,

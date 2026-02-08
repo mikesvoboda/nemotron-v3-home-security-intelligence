@@ -11,7 +11,9 @@ from datetime import date as Date
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import ORJSONResponse
+from sqlalchemy import func, select
 
+from backend.api.dependencies import DbSession
 from backend.api.schemas.cost_analytics import (
     BudgetUtilization,
     CostAnalyticsResponse,
@@ -24,6 +26,7 @@ from backend.api.schemas.cost_analytics import (
     TokenUsageMetrics,
 )
 from backend.core.logging import get_logger
+from backend.models.detection import Detection
 from backend.services.cost_tracker import CostTracker, DailyUsage, get_cost_tracker
 
 logger = get_logger(__name__)
@@ -70,7 +73,7 @@ def _validate_date_range(start_date: Date, end_date: Date) -> None:
         500: {"description": "Internal server error"},
     },
 )
-async def get_cost_analytics() -> CostAnalyticsResponse:
+async def get_cost_analytics(db: DbSession) -> CostAnalyticsResponse:
     """Get comprehensive cost analytics data.
 
     Returns cost metrics including:
@@ -82,15 +85,25 @@ async def get_cost_analytics() -> CostAnalyticsResponse:
     - Historical cost data (last 30 days)
     - Pricing configuration
 
+    Args:
+        db: Database session for querying detection counts.
+
     Returns:
         CostAnalyticsResponse with all cost metrics
     """
     tracker = get_cost_tracker()
     now = datetime.now(UTC)
     today = now.date()
+    today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=UTC)
 
     # Get today's usage
     today_usage = tracker.get_daily_usage(today)
+
+    # Count today's actual detections from the database
+    detection_count_result = await db.execute(
+        select(func.count(Detection.id)).where(Detection.detected_at >= today_start)
+    )
+    today_detection_count = detection_count_result.scalar() or 0
 
     # Build today's cost entry
     today_entry = DailyCostEntry(
@@ -99,7 +112,7 @@ async def get_cost_analytics() -> CostAnalyticsResponse:
         token_cost_usd=_calculate_token_cost(today_usage) if today_usage else 0.0,
         gpu_cost_usd=_calculate_gpu_cost(today_usage) if today_usage else 0.0,
         event_count=today_usage.event_count if today_usage else 0,
-        detection_count=today_usage.total_images_processed if today_usage else 0,
+        detection_count=today_detection_count,
     )
 
     # Get budget status
@@ -138,20 +151,24 @@ async def get_cost_analytics() -> CostAnalyticsResponse:
     # Get cost breakdown by model
     cost_by_model = _build_model_cost_breakdown(today_usage)
 
+    # Count total detections over last 30 days from the database
+    thirty_days_ago = now - timedelta(days=30)
+    total_detections_result = await db.execute(
+        select(func.count(Detection.id)).where(Detection.detected_at >= thirty_days_ago)
+    )
+    total_detections = total_detections_result.scalar() or 0
+
     # Get efficiency metrics
+    avg_cost = summary["all_time"]["avg_cost_per_event_usd"]
     efficiency = CostEfficiencyMetrics(
-        cost_per_detection_usd=summary["all_time"]["avg_cost_per_event_usd"] * 0.1,  # Approximation
-        cost_per_event_usd=summary["all_time"]["avg_cost_per_event_usd"],
-        total_detections=sum(
-            u.total_images_processed
-            for u in [tracker.get_daily_usage(today - timedelta(days=i)) for i in range(30)]
-            if u
-        ),
+        cost_per_detection_usd=(avg_cost / max(total_detections, 1)) if total_detections else 0.0,
+        cost_per_event_usd=avg_cost,
+        total_detections=total_detections,
         total_events=summary["all_time"]["total_events"],
     )
 
     # Get historical cost data (last 30 days)
-    cost_history = _build_cost_history(tracker, today, 30)
+    cost_history = await _build_cost_history(tracker, db, today, 30)
 
     # Get pricing configuration
     pricing = PricingConfig(
@@ -263,12 +280,26 @@ def _build_model_cost_breakdown(usage: DailyUsage | None) -> list[ModelCostBreak
     ]
 
 
-def _build_cost_history(tracker: CostTracker, end_date: Date, days: int) -> list[DailyCostEntry]:
+async def _build_cost_history(
+    tracker: CostTracker, db: DbSession, end_date: Date, days: int
+) -> list[DailyCostEntry]:
     """Build historical cost data for the last N days."""
     history = []
     for i in range(days - 1, -1, -1):  # Start from oldest
         target_date = end_date - timedelta(days=i)
         usage = tracker.get_daily_usage(target_date)
+
+        # Query actual detection count for this day
+        day_start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=UTC)
+        day_end = day_start + timedelta(days=1)
+        det_result = await db.execute(
+            select(func.count(Detection.id)).where(
+                Detection.detected_at >= day_start,
+                Detection.detected_at < day_end,
+            )
+        )
+        day_detection_count = det_result.scalar() or 0
+
         history.append(
             DailyCostEntry(
                 date=target_date.isoformat(),
@@ -276,7 +307,7 @@ def _build_cost_history(tracker: CostTracker, end_date: Date, days: int) -> list
                 token_cost_usd=_calculate_token_cost(usage),
                 gpu_cost_usd=_calculate_gpu_cost(usage),
                 event_count=usage.event_count if usage else 0,
-                detection_count=usage.total_images_processed if usage else 0,
+                detection_count=day_detection_count,
             )
         )
     return history

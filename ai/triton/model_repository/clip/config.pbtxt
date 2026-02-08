@@ -31,7 +31,14 @@ instance_group [
   }
 ]
 
+rate_limiter {
+  resources [
+    { name: "GPU_MEMORY" count: 1 }
+  ]
+  priority: 2
+}
+
 dynamic_batching {
-  preferred_batch_size: [ 1, 4, 8 ]
-  max_queue_delay_microseconds: 100
+  preferred_batch_size: [1, 2, 4]
+  max_queue_delay_microseconds: 50000
 }

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 # Maps local directory name -> download configuration
 MODELS = {
     "fashion-clip": {"repo": "patrickjohncyh/fashion-clip", "type": "huggingface"},
-    "depth-anything-v2-small": {
-        "repo": "depth-anything/Depth-Anything-V2-Small",
+    "depth-anything-v2-tiny": {
+        "repo": "depth-anything/Depth-Anything-V2-Tiny",
         "type": "huggingface",
     },
     # X-CLIP 16-frame patch16 model for improved action recognition accuracy (NEM-3908)

@@ -29,9 +29,12 @@ from backend.api.schemas.zone_anomaly import (
     ZoneAnomalyListResponse,
 )
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
 from backend.models.zone_anomaly import ZoneAnomaly
 from backend.services.zone_anomaly_service import get_zone_anomaly_service
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/zones", tags=["zone-anomalies"])
 
@@ -81,46 +84,58 @@ async def list_all_anomalies(
     Returns:
         ZoneAnomalyListResponse with list of anomalies and pagination info
     """
-    # Default time range: last 24 hours
-    if since is None:
-        since = utc_now() - timedelta(hours=24)
+    try:
+        # Default time range: last 24 hours
+        if since is None:
+            since = utc_now() - timedelta(hours=24)
 
-    # Build query
-    query = select(ZoneAnomaly).where(ZoneAnomaly.timestamp >= since)
+        # Build query
+        query = select(ZoneAnomaly).where(ZoneAnomaly.timestamp >= since)
 
-    if until is not None:
-        query = query.where(ZoneAnomaly.timestamp <= until)
+        if until is not None:
+            query = query.where(ZoneAnomaly.timestamp <= until)
 
-    if severity:
-        # Normalize severity values to lowercase
-        normalized_severity = [s.lower() for s in severity]
-        query = query.where(ZoneAnomaly.severity.in_(normalized_severity))
+        if severity:
+            # Normalize severity values to lowercase
+            normalized_severity = [s.lower() for s in severity]
+            query = query.where(ZoneAnomaly.severity.in_(normalized_severity))
 
-    if unacknowledged_only:
-        query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
+        if unacknowledged_only:
+            query = query.where(ZoneAnomaly.acknowledged == False)  # noqa: E712
 
-    # Get total count for pagination
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
+        # Get total count for pagination
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
 
-    # Apply ordering and pagination
-    query = query.order_by(ZoneAnomaly.timestamp.desc())
-    query = query.offset(offset).limit(limit)
+        # Apply ordering and pagination
+        query = query.order_by(ZoneAnomaly.timestamp.desc())
+        query = query.offset(offset).limit(limit)
 
-    # Execute query
-    result = await db.execute(query)
-    anomalies = list(result.scalars().all())
+        # Execute query
+        result = await db.execute(query)
+        anomalies = list(result.scalars().all())
 
-    return ZoneAnomalyListResponse(
-        items=anomalies,
-        pagination=PaginationMeta(
-            total=total,
-            limit=limit,
-            offset=offset,
-            has_more=(offset + len(anomalies)) < total,
-        ),
-    )
+        return ZoneAnomalyListResponse(
+            items=anomalies,
+            pagination=PaginationMeta(
+                total=total,
+                limit=limit,
+                offset=offset,
+                has_more=(offset + len(anomalies)) < total,
+            ),
+        )
+    except Exception as e:
+        logger.warning(f"Zone anomaly query failed: {e}")
+        return ZoneAnomalyListResponse(
+            items=[],
+            pagination=PaginationMeta(
+                total=0,
+                limit=limit,
+                offset=offset,
+                has_more=False,
+            ),
+        )
 
 
 @router.get("/{zone_id}/anomalies", response_model=ZoneAnomalyListResponse)

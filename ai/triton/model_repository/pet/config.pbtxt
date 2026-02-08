@@ -31,8 +31,8 @@ instance_group [
 ]
 
 dynamic_batching {
-  preferred_batch_size: [ 1, 4 ]
-  max_queue_delay_microseconds: 100
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 100000
 }
 
 # ResNet-18 cat/dog classifier

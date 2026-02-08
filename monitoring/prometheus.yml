@@ -5,7 +5,7 @@
 #
 # Variable substitution:
 #   - 8083: Port for cAdvisor metrics (default: 8083)
-#   - 9401: Port for DCGM GPU metrics (default: 9401)
+#   - 9400: Port for DCGM GPU metrics (default: 9400)
 #
 # PORT CONFIGURATION NOTE:
 # Internal Docker service names (e.g., backend:8000, alertmanager:9093) use FIXED
@@ -89,6 +89,27 @@ scrape_configs:
           service: nemotron
           model_type: llm
     # Handle case where container is not running
+    honor_labels: true
+
+  # Triton Inference Server native metrics (NEM-5553)
+  # Exposes per-model inference statistics, queue latency, batch sizes, and GPU utilization.
+  # Key metrics:
+  # - nv_inference_request_success: Successful inference count per model
+  # - nv_inference_request_failure: Failed inference count per model
+  # - nv_inference_queue_duration_us: Time spent in scheduling queue
+  # - nv_inference_compute_infer_duration_us: Actual inference compute time
+  # - nv_gpu_utilization: GPU utilization percentage
+  # - nv_gpu_memory_used_bytes: GPU memory in use
+  - job_name: 'triton-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-gateway:8002'
+        labels:
+          service: triton
+          component: inference-server
     honor_labels: true
 
   # YOLO26 Object Detection metrics (ai-yolo26)
@@ -259,30 +280,6 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: json-exporter:7979
-
-  # ==========================================================================
-  # LLM (llama.cpp) Native Prometheus Metrics
-  # ==========================================================================
-  # Scrapes native Prometheus metrics from the Nemotron/llama.cpp server.
-  # llama.cpp exposes metrics at /metrics when started with --metrics flag.
-  # Key metrics for LLM performance monitoring:
-  #   - llama_tokens_predicted_total: Total tokens generated
-  #   - llama_generation_time_seconds_bucket: Token generation latency histogram
-  #   - llama_prompt_eval_time_seconds_bucket: Prompt evaluation latency histogram
-  #   - llama_requests_processing: Currently processing requests
-  #   - llama_kv_cache_usage_ratio: KV cache utilization
-  - job_name: 'llama-cpp-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-llm:8091'
-    relabel_configs:
-      - target_label: service
-        replacement: 'nemotron-llm'
-      - target_label: ai_model
-        replacement: 'nemotron-3-nano-30b'
 
   # ==========================================================================
   # Node Exporter - Host System Metrics (NEM-3931)
@@ -540,6 +537,6 @@ scrape_configs:
       # Use host.containers.internal because dcgm-exporter runs in rootful podman (sudo)
       # while prometheus runs in rootless podman - separate network namespaces
       # Port is configurable via DCGM_EXPORTER_PORT environment variable
-      - targets: ['host.containers.internal:9401']
+      - targets: ['host.containers.internal:9400']
     scrape_interval: 15s
     scrape_timeout: 10s

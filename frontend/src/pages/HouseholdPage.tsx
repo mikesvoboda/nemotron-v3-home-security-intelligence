@@ -266,7 +266,7 @@ function MemberForm({
 
   // Get known persons that are not already linked to another household member
   // (or are linked to this member)
-  const availableKnownPersons = knownPersons?.filter(
+  const availableKnownPersons = (knownPersons ?? []).filter(
     (p) => !p.household_member_id || p.household_member_id === initialData?.id
   );
 
@@ -933,7 +933,7 @@ export default function HouseholdPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {members?.map((member) => {
                 // Find linked known person
-                const linkedKnownPerson = knownPersons?.find(
+                const linkedKnownPerson = (knownPersons ?? []).find(
                   (p) => p.household_member_id === member.id
                 );
                 return (

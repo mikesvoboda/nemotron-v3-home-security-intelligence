@@ -253,6 +253,7 @@ class AuditStatsResponse(BaseModel):
                         "model_contributions": {"yolo26": 38, "florence": 30},
                     },
                 ],
+                "message": None,
             }
         }
     )
@@ -270,6 +271,9 @@ class AuditStatsResponse(BaseModel):
 
     # Audits by day for trending
     audits_by_day: list[DailyAuditStats]
+
+    # Informational message (e.g., when no evaluations have been run)
+    message: str | None = Field(None, description="Informational message about the stats")
 
 
 class ModelLeaderboardEntry(BaseModel):

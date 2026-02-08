@@ -2048,7 +2048,7 @@ async def lifespan(_app: FastAPI):
     )
     pet_model_path = os.environ.get("PET_MODEL_PATH", "/models/pet-classifier")
     clothing_model_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-clip")
-    depth_model_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-small")
+    depth_model_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-tiny")
     pose_model_path = os.environ.get("POSE_MODEL_PATH", "/models/vitpose-plus-small")
 
     # Initialize the on-demand model manager
@@ -2299,7 +2299,7 @@ async def health_check() -> HealthResponse:
             "vehicle_classifier": "vehicle-segment-classification",
             "pet_classifier": "pet-classifier",
             "fashion_clip": "fashion-clip",
-            "depth_estimator": "depth-anything-v2-small",
+            "depth_estimator": "depth-anything-v2-tiny",
             "pose_analyzer": "vitpose-plus-small",
         }
 

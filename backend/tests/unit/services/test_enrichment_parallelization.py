@@ -133,7 +133,7 @@ def create_tracking_model_manager() -> tuple[MagicMock, dict[str, list[float]]]:
             "weather-classification": {"model": MagicMock(), "processor": MagicMock()},
             "fashion-clip": {"model": MagicMock(), "processor": MagicMock()},
             "vitpose-small": (MagicMock(), MagicMock()),
-            "depth-anything-v2-small": MagicMock(
+            "depth-anything-v2-tiny": MagicMock(
                 return_value={"depth": np.array([[0.3, 0.4]], dtype=np.float32)}
             ),
             "xclip-base": {"model": MagicMock(), "processor": MagicMock()},
@@ -193,7 +193,7 @@ class TestPhase1ParallelExecution:
     - weather: weather-classification
     - clothing: fashion-clip
     - pose: vitpose-small
-    - depth: depth-anything-v2-small
+    - depth: depth-anything-v2-tiny
     - action: xclip-base
     - vehicle: vehicle-segment-classification
     """
