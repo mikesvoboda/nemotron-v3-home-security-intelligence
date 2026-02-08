@@ -5446,10 +5446,11 @@ class TestEnrichmentResultPoseActionPromptContext:
 
 @pytest.mark.asyncio
 class TestEnrichmentPipelineActionRecognition:
-    """Tests for X-CLIP action recognition integration in enrichment pipeline.
+    """Tests for ST-GCN++ skeleton action recognition integration in enrichment pipeline.
 
-    These tests verify the integration between the FrameBuffer service and
-    the EnrichmentPipeline for X-CLIP temporal action recognition.
+    These tests verify the integration between pose estimation and
+    the EnrichmentPipeline for ST-GCN++ skeleton-based action recognition (NEM-5563).
+    ST-GCN++ replaced X-CLIP and uses pose keypoints instead of video frames.
     """
 
     @pytest.fixture
@@ -5490,25 +5491,33 @@ class TestEnrichmentPipelineActionRecognition:
         mock_model_manager: MagicMock,
         mock_frame_buffer,
     ) -> None:
-        """Test action recognition is called when enough buffered frames exist."""
+        """Test action recognition is called when pose results are available.
+
+        ST-GCN++ runs after pose estimation, using keypoints for action classification.
+        """
+        from backend.services.vitpose_loader import PoseResult
+
         mock_action_result = {
             "detected_action": "a person walking normally",
             "confidence": 0.85,
             "top_actions": [("a person walking normally", 0.85)],
             "all_scores": {"a person walking normally": 0.85},
+            "source": "stgcn++",
+        }
+
+        mock_pose_results = {
+            str(person_detection.id): PoseResult(
+                keypoints={},
+                pose_class="standing",
+                pose_confidence=0.9,
+            )
         }
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
             patch("backend.services.enrichment_pipeline.get_reid_service"),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
         ):
-            mock_classify.return_value = mock_action_result
-
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 frame_buffer=mock_frame_buffer,
@@ -5525,24 +5534,38 @@ class TestEnrichmentPipelineActionRecognition:
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
                 depth_estimation_enabled=False,
-                pose_estimation_enabled=False,
+                pose_estimation_enabled=True,
                 action_recognition_enabled=True,
             )
 
-            result = await pipeline.enrich_batch(
-                detections=[person_detection],
-                images={None: test_image},
-                camera_id="front_door",
-            )
+            with (
+                patch.object(
+                    pipeline,
+                    "_safe_estimate_poses",
+                    new_callable=AsyncMock,
+                    return_value=mock_pose_results,
+                ),
+                patch.object(
+                    pipeline,
+                    "_recognize_actions_from_skeleton",
+                    new_callable=AsyncMock,
+                    return_value=mock_action_result,
+                ) as mock_skeleton_action,
+            ):
+                result = await pipeline.enrich_batch(
+                    detections=[person_detection],
+                    images={None: test_image},
+                    camera_id="front_door",
+                )
 
-            # X-CLIP classify_actions should have been called
-            mock_classify.assert_called_once()
+                # ST-GCN++ _recognize_actions_from_skeleton should have been called
+                mock_skeleton_action.assert_called_once()
 
-            # Result should have action_results populated
-            assert result.has_action_results
-            assert result.action_results is not None
-            assert result.action_results["detected_action"] == "a person walking normally"
-            assert result.action_results["confidence"] == 0.85
+                # Result should have action_results populated
+                assert result.has_action_results
+                assert result.action_results is not None
+                assert result.action_results["detected_action"] == "a person walking normally"
+                assert result.action_results["confidence"] == 0.85
 
     async def test_action_recognition_graceful_when_insufficient_frames(
         self,
@@ -5551,25 +5574,26 @@ class TestEnrichmentPipelineActionRecognition:
         mock_model_manager: MagicMock,
         mock_frame_buffer_insufficient,
     ) -> None:
-        """Test action recognition handles insufficient frames gracefully."""
-        mock_action_result = {
-            "detected_action": "a person standing",
-            "confidence": 0.7,
-            "top_actions": [("a person standing", 0.7)],
-            "all_scores": {"a person standing": 0.7},
+        """Test action recognition returns None when pose has insufficient temporal data.
+
+        ST-GCN++ needs buffered keypoints over multiple frames. When the skeleton
+        service doesn't have enough data yet, it returns None (no action result).
+        """
+        from backend.services.vitpose_loader import PoseResult
+
+        mock_pose_results = {
+            str(person_detection.id): PoseResult(
+                keypoints={},
+                pose_class="standing",
+                pose_confidence=0.9,
+            )
         }
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
             patch("backend.services.enrichment_pipeline.get_reid_service"),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
         ):
-            mock_classify.return_value = mock_action_result
-
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 frame_buffer=mock_frame_buffer_insufficient,
@@ -5586,23 +5610,36 @@ class TestEnrichmentPipelineActionRecognition:
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
                 depth_estimation_enabled=False,
-                pose_estimation_enabled=False,
+                pose_estimation_enabled=True,
                 action_recognition_enabled=True,
             )
 
-            result = await pipeline.enrich_batch(
-                detections=[person_detection],
-                images={None: test_image},
-                camera_id="front_door",
-            )
+            with (
+                patch.object(
+                    pipeline,
+                    "_safe_estimate_poses",
+                    new_callable=AsyncMock,
+                    return_value=mock_pose_results,
+                ),
+                patch.object(
+                    pipeline,
+                    "_recognize_actions_from_skeleton",
+                    new_callable=AsyncMock,
+                    return_value=None,  # Not enough temporal data yet
+                ) as mock_skeleton_action,
+            ):
+                result = await pipeline.enrich_batch(
+                    detections=[person_detection],
+                    images={None: test_image},
+                    camera_id="front_door",
+                )
 
-            # X-CLIP should still be called (with single frame fallback)
-            # The pipeline falls back to single current frame when buffer has insufficient frames
-            mock_classify.assert_called_once()
+                # ST-GCN++ should be called but returns None (insufficient frames buffered)
+                mock_skeleton_action.assert_called_once()
 
-            # Result should still have action_results from single-frame fallback
-            assert result.has_action_results
-            assert result.action_results is not None
+                # Result should NOT have action_results when skeleton has insufficient data
+                assert not result.has_action_results
+                assert result.action_results is None
 
     async def test_action_recognition_disabled_when_flag_false(
         self,
@@ -5661,19 +5698,22 @@ class TestEnrichmentPipelineActionRecognition:
         mock_model_manager: MagicMock,
         mock_frame_buffer,
     ) -> None:
-        """Test action recognition handles X-CLIP errors gracefully."""
+        """Test action recognition handles ST-GCN++ errors gracefully."""
+        from backend.services.vitpose_loader import PoseResult
+
+        mock_pose_results = {
+            str(person_detection.id): PoseResult(
+                keypoints={},
+                pose_class="standing",
+                pose_confidence=0.9,
+            )
+        }
+
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
             patch("backend.services.enrichment_pipeline.get_reid_service"),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
         ):
-            # Simulate X-CLIP failure
-            mock_classify.side_effect = RuntimeError("X-CLIP model loading failed")
-
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 frame_buffer=mock_frame_buffer,
@@ -5690,27 +5730,41 @@ class TestEnrichmentPipelineActionRecognition:
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
                 depth_estimation_enabled=False,
-                pose_estimation_enabled=False,
+                pose_estimation_enabled=True,
                 action_recognition_enabled=True,
             )
 
-            # Should not raise - error should be handled gracefully
-            result = await pipeline.enrich_batch(
-                detections=[person_detection],
-                images={None: test_image},
-                camera_id="front_door",
-            )
+            with (
+                patch.object(
+                    pipeline,
+                    "_safe_estimate_poses",
+                    new_callable=AsyncMock,
+                    return_value=mock_pose_results,
+                ),
+                patch.object(
+                    pipeline,
+                    "_recognize_actions_from_skeleton",
+                    new_callable=AsyncMock,
+                    side_effect=RuntimeError("ST-GCN++ model loading failed"),
+                ) as mock_skeleton_action,
+            ):
+                # Should not raise - error should be handled gracefully
+                result = await pipeline.enrich_batch(
+                    detections=[person_detection],
+                    images={None: test_image},
+                    camera_id="front_door",
+                )
 
-            # X-CLIP was called but failed
-            mock_classify.assert_called_once()
+                # ST-GCN++ was called but failed
+                mock_skeleton_action.assert_called_once()
 
-            # Result should not have action_results due to error
-            assert not result.has_action_results
-            assert result.action_results is None
+                # Result should not have action_results due to error
+                assert not result.has_action_results
+                assert result.action_results is None
 
-            # Error should be recorded
-            assert len(result.errors) > 0
-            assert any("action" in e.lower() for e in result.errors)
+                # Error should be recorded
+                assert len(result.errors) > 0
+                assert any("action" in e.lower() for e in result.errors)
 
     async def test_action_recognition_only_runs_for_person_detections(
         self,
@@ -5769,24 +5823,31 @@ class TestEnrichmentPipelineActionRecognition:
         mock_frame_buffer,
     ) -> None:
         """Test suspicious actions are properly flagged in results."""
+        from backend.services.vitpose_loader import PoseResult
+
         mock_action_result = {
             "detected_action": "a person breaking in",
             "confidence": 0.92,
             "top_actions": [("a person breaking in", 0.92)],
             "all_scores": {"a person breaking in": 0.92},
+            "security_risk": "critical",
+            "is_security_relevant": True,
+            "source": "stgcn++",
+        }
+
+        mock_pose_results = {
+            str(person_detection.id): PoseResult(
+                keypoints={},
+                pose_class="standing",
+                pose_confidence=0.9,
+            )
         }
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
             patch("backend.services.enrichment_pipeline.get_reid_service"),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
         ):
-            mock_classify.return_value = mock_action_result
-
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 frame_buffer=mock_frame_buffer,
@@ -5803,20 +5864,34 @@ class TestEnrichmentPipelineActionRecognition:
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
                 depth_estimation_enabled=False,
-                pose_estimation_enabled=False,
+                pose_estimation_enabled=True,
                 action_recognition_enabled=True,
             )
 
-            result = await pipeline.enrich_batch(
-                detections=[person_detection],
-                images={None: test_image},
-                camera_id="front_door",
-            )
+            with (
+                patch.object(
+                    pipeline,
+                    "_safe_estimate_poses",
+                    new_callable=AsyncMock,
+                    return_value=mock_pose_results,
+                ),
+                patch.object(
+                    pipeline,
+                    "_recognize_actions_from_skeleton",
+                    new_callable=AsyncMock,
+                    return_value=mock_action_result,
+                ),
+            ):
+                result = await pipeline.enrich_batch(
+                    detections=[person_detection],
+                    images={None: test_image},
+                    camera_id="front_door",
+                )
 
-            # Result should have action_results with suspicious action
-            assert result.has_action_results
-            assert result.has_suspicious_action
-            assert result.action_risk_weight >= 0.7  # High risk
+                # Result should have action_results with suspicious action
+                assert result.has_action_results
+                assert result.has_suspicious_action
+                assert result.action_risk_weight >= 0.7  # High risk
 
     async def test_action_recognition_without_camera_id_uses_fallback(
         self,
@@ -5825,25 +5900,33 @@ class TestEnrichmentPipelineActionRecognition:
         mock_model_manager: MagicMock,
         mock_frame_buffer,
     ) -> None:
-        """Test action recognition falls back to single frame when no camera_id."""
+        """Test action recognition works when no camera_id is provided.
+
+        ST-GCN++ uses 'unknown' as fallback camera key for per-camera buffering.
+        """
+        from backend.services.vitpose_loader import PoseResult
+
         mock_action_result = {
             "detected_action": "a person walking normally",
             "confidence": 0.75,
             "top_actions": [("a person walking normally", 0.75)],
             "all_scores": {"a person walking normally": 0.75},
+            "source": "stgcn++",
+        }
+
+        mock_pose_results = {
+            str(person_detection.id): PoseResult(
+                keypoints={},
+                pose_class="standing",
+                pose_confidence=0.9,
+            )
         }
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
             patch("backend.services.enrichment_pipeline.get_reid_service"),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
         ):
-            mock_classify.return_value = mock_action_result
-
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
                 frame_buffer=mock_frame_buffer,
@@ -5860,22 +5943,36 @@ class TestEnrichmentPipelineActionRecognition:
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
                 depth_estimation_enabled=False,
-                pose_estimation_enabled=False,
+                pose_estimation_enabled=True,
                 action_recognition_enabled=True,
             )
 
-            # No camera_id provided - should fall back to single frame
-            result = await pipeline.enrich_batch(
-                detections=[person_detection],
-                images={None: test_image},
-                camera_id=None,
-            )
+            with (
+                patch.object(
+                    pipeline,
+                    "_safe_estimate_poses",
+                    new_callable=AsyncMock,
+                    return_value=mock_pose_results,
+                ),
+                patch.object(
+                    pipeline,
+                    "_recognize_actions_from_skeleton",
+                    new_callable=AsyncMock,
+                    return_value=mock_action_result,
+                ) as mock_skeleton_action,
+            ):
+                # No camera_id provided - ST-GCN++ uses 'unknown' as fallback key
+                result = await pipeline.enrich_batch(
+                    detections=[person_detection],
+                    images={None: test_image},
+                    camera_id=None,
+                )
 
-            # X-CLIP should still be called with single-frame fallback
-            mock_classify.assert_called_once()
+                # ST-GCN++ should still be called
+                mock_skeleton_action.assert_called_once()
 
-            # Result should have action_results
-            assert result.has_action_results
+                # Result should have action_results
+                assert result.has_action_results
 
 
 @pytest.mark.asyncio

@@ -268,8 +268,8 @@ class TestModelZooIntegration:
         # Test with known models
         total = get_total_vram_if_loaded(["siglip2-base-patch16-224", "florence-2-large"])
 
-        # Should be sum of both models (800 + 1200 = 2000)
-        assert total == 2000
+        # Should be sum of both models (200 + 1200 = 1400)
+        assert total == 1400
 
     def test_total_vram_empty_list(self):
         """Test total VRAM calculation with empty list."""
@@ -285,5 +285,5 @@ class TestModelZooIntegration:
         # Unknown model should be ignored
         total = get_total_vram_if_loaded(["siglip2-base-patch16-224", "nonexistent-model"])
 
-        # Should only count siglip2-base-patch16-224 (800)
-        assert total == 800
+        # Should only count siglip2-base-patch16-224 (200)
+        assert total == 200

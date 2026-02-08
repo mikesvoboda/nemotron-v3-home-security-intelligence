@@ -426,8 +426,13 @@ class TestPhase2Prerequisites:
         OCR should only be invoked when:
         1. License plate detection has completed
         2. License plate detection found at least one plate
+        3. The plate result has no text yet (FastALPR populates text directly)
 
         If no plates are detected, OCR should be skipped.
+
+        NEM-5569: The pipeline now routes through FastALPR by default.
+        We mock _is_fast_alpr_available to return False so the test exercises
+        the YOLO11 + PaddleOCR fallback path where Phase 2 OCR is needed.
         """
         plate_detection_called = False
         ocr_called = False
@@ -438,7 +443,7 @@ class TestPhase2Prerequisites:
             plate_detection_called = True
             call_order.append("plate_detection")
             await asyncio.sleep(0.01)  # Simulate detection time
-            # Return a mock plate result
+            # Return a mock plate result (no text — needs Phase 2 OCR)
             from backend.services.enrichment_pipeline import BoundingBox, LicensePlateResult
 
             return [
@@ -480,6 +485,7 @@ class TestPhase2Prerequisites:
         )
 
         with (
+            patch.object(pipeline, "_is_fast_alpr_available", return_value=False),
             patch.object(pipeline, "_detect_license_plates", side_effect=mock_plate_detection),
             patch.object(pipeline, "_read_plates", side_effect=mock_read_plates),
         ):
@@ -908,9 +914,6 @@ class TestEnrichmentParallelizationIntegration:
         async def track_depth(*a: Any, **k: Any) -> Any:
             return track_call("depth", None)
 
-        async def track_action(*a: Any, **k: Any) -> Any:
-            return track_call("action", None)
-
         async def track_vehicle(*a: Any, **k: Any) -> dict[str, Any]:
             return track_call("vehicle", {})
 
@@ -924,16 +927,17 @@ class TestEnrichmentParallelizationIntegration:
             return track_call("segmentation", {})
 
         # Create mocks for all pipeline methods
+        # NEM-5563: Action recognition moved to post-pose phase (ST-GCN++ uses keypoints)
+        # NEM-5569: FastALPR replaces YOLO11+PaddleOCR, mock the safe wrapper
         mocks = {
             "_detect_faces": AsyncMock(side_effect=track_face),
-            "_detect_license_plates": AsyncMock(side_effect=track_plate),
+            "_safe_detect_plates_fast_alpr": AsyncMock(side_effect=track_plate),
             "_detect_violence": AsyncMock(side_effect=track_violence),
             "_assess_image_quality": AsyncMock(side_effect=track_quality),
             "_classify_weather": AsyncMock(side_effect=track_weather),
             "_classify_person_clothing": AsyncMock(side_effect=track_clothing),
             "_estimate_poses": AsyncMock(side_effect=track_pose),
             "_analyze_depth": AsyncMock(side_effect=track_depth),
-            "_recognize_actions": AsyncMock(side_effect=track_action),
             "_classify_vehicle_types": AsyncMock(side_effect=track_vehicle),
             "_classify_pets": AsyncMock(side_effect=track_pet),
             "_detect_vehicle_damage": AsyncMock(side_effect=track_damage),
