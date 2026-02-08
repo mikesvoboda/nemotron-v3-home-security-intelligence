@@ -1651,6 +1651,13 @@ class TestEnrichmentPipelineErrorHandling:
         mock_model_manager: MagicMock,
     ) -> None:
         """Test vision extraction errors are logged and pipeline continues."""
+        # Use low confidence so model cascading doesn't skip Florence-2
+        low_conf_detection = DetectionInput(
+            id=person_detection.id,
+            class_name=person_detection.class_name,
+            confidence=0.5,
+            bbox=person_detection.bbox,
+        )
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor") as mock_get_ext,
             patch("backend.services.enrichment_pipeline.get_reid_service"),
@@ -1676,10 +1683,12 @@ class TestEnrichmentPipelineErrorHandling:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
-                detections=[person_detection],
+                detections=[low_conf_detection],
                 images={None: test_image},
             )
 
@@ -1697,6 +1706,19 @@ class TestEnrichmentPipelineErrorHandling:
         mock_model_manager: MagicMock,
     ) -> None:
         """Test multiple errors are collected when major components fail."""
+        # Use low confidence so model cascading doesn't skip Florence-2
+        low_conf_vehicle = DetectionInput(
+            id=vehicle_detection.id,
+            class_name=vehicle_detection.class_name,
+            confidence=0.5,
+            bbox=vehicle_detection.bbox,
+        )
+        low_conf_person = DetectionInput(
+            id=person_detection.id,
+            class_name=person_detection.class_name,
+            confidence=0.5,
+            bbox=person_detection.bbox,
+        )
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor") as mock_get_ext,
             patch("backend.services.enrichment_pipeline.get_reid_service"),
@@ -1730,10 +1752,12 @@ class TestEnrichmentPipelineErrorHandling:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
-                detections=[vehicle_detection, person_detection],
+                detections=[low_conf_vehicle, low_conf_person],
                 images={None: test_image},
                 camera_id="test_camera",  # Needed for scene change detection
             )
@@ -4356,6 +4380,14 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
         """Test enrich_batch_with_tracking tracks partial failures."""
         from backend.services.enrichment_pipeline import EnrichmentStatus
 
+        # Use low confidence so model cascading doesn't skip Florence-2
+        low_conf_detection = DetectionInput(
+            id=vehicle_detection.id,
+            class_name=vehicle_detection.class_name,
+            confidence=0.5,
+            bbox=vehicle_detection.bbox,
+        )
+
         with (
             patch(
                 "backend.services.enrichment_pipeline.get_model_manager",
@@ -4387,7 +4419,7 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
                 mock_vision.side_effect = Exception("Vision failed")  # Failure
 
                 tracking = await pipeline.enrich_batch_with_tracking(
-                    [vehicle_detection],
+                    [low_conf_detection],
                     {None: test_image},
                 )
 

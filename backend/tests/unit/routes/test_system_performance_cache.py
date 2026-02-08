@@ -139,17 +139,24 @@ async def test_get_performance_metrics_clear_cache_invalidates() -> None:
 
 @pytest.mark.asyncio
 async def test_get_performance_metrics_collector_not_initialized() -> None:
-    """Test that 503 is raised when collector is not initialized."""
+    """Test that empty response is returned when collector is not initialized."""
     original_collector = system_routes._performance_collector
 
     try:
         system_routes._performance_collector = None
 
-        with pytest.raises(HTTPException) as exc_info:
-            await system_routes.get_performance_metrics()
+        response = await system_routes.get_performance_metrics()
 
-        assert exc_info.value.status_code == 503
-        assert "not initialized" in exc_info.value.detail
+        # Should return graceful empty response instead of raising 503
+        assert isinstance(response, PerformanceUpdate)
+        assert response.gpu is None
+        assert response.ai_models == {}
+        assert response.nemotron is None
+        assert response.inference is None
+        assert response.databases == {}
+        assert response.host is None
+        assert response.containers == []
+        assert response.alerts == []
     finally:
         system_routes._performance_collector = original_collector
 

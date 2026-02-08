@@ -1867,7 +1867,7 @@ class TestPerformanceMetricsEndpoint:
     async def test_performance_endpoint_collector_not_initialized(
         self, async_client: AsyncClient, mock_settings: Settings
     ) -> None:
-        """Test that endpoint returns 503 when collector is not initialized."""
+        """Test that endpoint returns empty response when collector is not initialized."""
         import backend.api.routes.system as system_module
 
         original_collector = system_module._performance_collector
@@ -1876,10 +1876,17 @@ class TestPerformanceMetricsEndpoint:
 
             response = await async_client.get("/api/system/performance")
 
-            assert response.status_code == 503
+            # Should return graceful empty response instead of 503
+            assert response.status_code == 200
             data = response.json()
-            assert "detail" in data
-            assert "not initialized" in data["detail"].lower()
+            assert data["gpu"] is None
+            assert data["ai_models"] == {}
+            assert data["nemotron"] is None
+            assert data["inference"] is None
+            assert data["databases"] == {}
+            assert data["host"] is None
+            assert data["containers"] == []
+            assert data["alerts"] == []
         finally:
             system_module._performance_collector = original_collector
 

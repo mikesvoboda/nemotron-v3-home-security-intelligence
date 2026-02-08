@@ -230,8 +230,11 @@ class TestBuildModelCostBreakdown:
 class TestBuildCostHistory:
     """Tests for _build_cost_history helper function."""
 
+    @pytest.mark.asyncio
     @pytest.mark.unit
-    def test_cost_history_builds_correctly(self, mock_cost_tracker, mock_daily_usage, mock_pricing):
+    async def test_cost_history_builds_correctly(
+        self, mock_cost_tracker, mock_daily_usage, mock_pricing, mock_db_session
+    ):
         """Test cost history is built for the correct number of days."""
         with patch("backend.api.routes.cost_analytics.get_cost_tracker") as mock_get:
             mock_tracker = MagicMock()
@@ -240,15 +243,16 @@ class TestBuildCostHistory:
             mock_get.return_value = mock_tracker
 
             today = date.today()
-            history = _build_cost_history(mock_tracker, today, 7)
+            history = await _build_cost_history(mock_tracker, mock_db_session, today, 7)
 
             assert len(history) == 7
             # Verify dates are in chronological order
             dates = [h.date for h in history]
             assert dates == sorted(dates)
 
+    @pytest.mark.asyncio
     @pytest.mark.unit
-    def test_cost_history_handles_no_data(self, mock_pricing):
+    async def test_cost_history_handles_no_data(self, mock_pricing, mock_db_session):
         """Test cost history handles days with no data."""
         with patch("backend.api.routes.cost_analytics.get_cost_tracker") as mock_get:
             mock_tracker = MagicMock()
@@ -257,7 +261,7 @@ class TestBuildCostHistory:
             mock_get.return_value = mock_tracker
 
             today = date.today()
-            history = _build_cost_history(mock_tracker, today, 3)
+            history = await _build_cost_history(mock_tracker, mock_db_session, today, 3)
 
             assert len(history) == 3
             for entry in history:
@@ -270,12 +274,17 @@ class TestGetCostAnalytics:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_cost_analytics_success(self, mock_cost_tracker):
+    async def test_get_cost_analytics_success(self, mock_cost_tracker, mock_db_session):
         """Test successful retrieval of cost analytics."""
+        # Configure db.execute to return a proper result with scalar() = 100
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 100
+        mock_db_session.execute.return_value = mock_result
+
         with patch(
             "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
         ):
-            response = await get_cost_analytics()
+            response = await get_cost_analytics(mock_db_session)
 
         assert isinstance(response, CostAnalyticsResponse)
 
@@ -304,7 +313,7 @@ class TestGetCostAnalytics:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_cost_analytics_no_usage_data(self, mock_cost_tracker):
+    async def test_get_cost_analytics_no_usage_data(self, mock_cost_tracker, mock_db_session):
         """Test cost analytics when no usage data exists."""
         mock_cost_tracker.get_daily_usage.return_value = None
         mock_cost_tracker.get_usage_summary.return_value = {
@@ -334,10 +343,15 @@ class TestGetCostAnalytics:
             },
         }
 
+        # Configure db.execute to return 0 detections
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 0
+        mock_db_session.execute.return_value = mock_result
+
         with patch(
             "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
         ):
-            response = await get_cost_analytics()
+            response = await get_cost_analytics(mock_db_session)
 
         # Verify defaults when no data
         assert response.today.total_cost_usd == 0.0
@@ -420,12 +434,17 @@ class TestCostAnalyticsSchemas:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_daily_cost_entry_schema(self, mock_cost_tracker):
+    async def test_daily_cost_entry_schema(self, mock_cost_tracker, mock_db_session):
         """Test DailyCostEntry schema validation."""
+        # Configure db.execute to return a proper result with scalar() = 150
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 150
+        mock_db_session.execute.return_value = mock_result
+
         with patch(
             "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
         ):
-            response = await get_cost_analytics()
+            response = await get_cost_analytics(mock_db_session)
 
         # Verify today entry has all required fields
         today = response.today
@@ -442,12 +461,17 @@ class TestCostAnalyticsSchemas:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_budget_utilization_schema(self, mock_cost_tracker):
+    async def test_budget_utilization_schema(self, mock_cost_tracker, mock_db_session):
         """Test BudgetUtilization schema validation."""
+        # Configure db.execute to return a proper result with scalar() = 150
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 150
+        mock_db_session.execute.return_value = mock_result
+
         with patch(
             "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
         ):
-            response = await get_cost_analytics()
+            response = await get_cost_analytics(mock_db_session)
 
         # Verify daily budget has all required fields
         daily_budget = response.daily_budget
