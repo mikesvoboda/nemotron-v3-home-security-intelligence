@@ -84,9 +84,9 @@ echo ""
 echo "  Started at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
 # ---------------------------------------------------------------------------
-# Phase 1: TensorRT exports (require GPU)
+# Phase 1: GPU model exports (TensorRT + ONNX via Ultralytics)
 # ---------------------------------------------------------------------------
-log_step "[1/4] Exporting TensorRT models (GPU required)..."
+log_step "[1/4] Exporting GPU models (TensorRT + ONNX)..."
 
 # CLIP -> ONNX (TensorRT too large for 4GB A400, ONNX Runtime is sufficient)
 run_export "CLIP ViT-L/14 -> ONNX" \
@@ -105,19 +105,25 @@ run_export "Fashion-CLIP -> ONNX" \
         --onnx-only
 [ -f "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" ] && mv "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" "${CACHE_DIR}/fashion_clip/1/model.onnx"
 
-# YOLOv8n-pose -> TensorRT
-run_export "YOLOv8n-pose -> TensorRT FP16" \
+# YOLOv8n-pose -> ONNX (TensorRT too large for 4GB A400)
+run_export "YOLOv8n-pose -> ONNX" \
     python3 "${SCRIPT_DIR}/export_yolo_pose.py" \
         --model-path "${MODELS_ZOO}/yolov8n-pose/yolov8n-pose.pt" \
-        --output-path "${CACHE_DIR}/pose/1/model.plan" \
-        --device "${CUDA_DEVICE}"
+        --output-path "${CACHE_DIR}/pose/1/model.onnx" \
+        --device "${CUDA_DEVICE}" \
+        --onnx-only
+# Rename if Ultralytics produced a differently-named .onnx file
+[ -f "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" ] && mv "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" "${CACHE_DIR}/pose/1/model.onnx"
 
-# YOLOv8n threat detection -> TensorRT
-run_export "YOLOv8n threat detection -> TensorRT FP16" \
+# YOLOv8n threat detection -> ONNX (TensorRT too large for 4GB A400)
+run_export "YOLOv8n threat detection -> ONNX" \
     python3 "${SCRIPT_DIR}/export_yolo_threat.py" \
         --model-path "${MODELS_ZOO}/threat-detection-yolov8n/weights/best.pt" \
-        --output-path "${CACHE_DIR}/threat/1/model.plan" \
-        --device "${CUDA_DEVICE}"
+        --output-path "${CACHE_DIR}/threat/1/model.onnx" \
+        --device "${CUDA_DEVICE}" \
+        --onnx-only
+# Rename if Ultralytics produced a differently-named .onnx file
+[ -f "${CACHE_DIR}/threat/1/best.onnx" ] && mv "${CACHE_DIR}/threat/1/best.onnx" "${CACHE_DIR}/threat/1/model.onnx"
 
 # YOLO26 engine (pre-built, just copy)
 run_export "YOLO26 TensorRT engine -> copy" \
@@ -191,12 +197,12 @@ log_step "[4/4] Validating exported model files..."
 
 echo ""
 echo "  TensorRT engines (.plan):"
-check_file "${CACHE_DIR}/pose/1/model.plan"           "pose"          || true
-check_file "${CACHE_DIR}/threat/1/model.plan"         "threat"        || true
 check_file "${CACHE_DIR}/yolo26/1/model.plan"         "yolo26"        || true
 
 echo ""
 echo "  ONNX models (.onnx):"
+check_file "${CACHE_DIR}/pose/1/model.onnx"                 "pose"                || true
+check_file "${CACHE_DIR}/threat/1/model.onnx"               "threat"              || true
 check_file "${CACHE_DIR}/clip/1/model.onnx"                 "clip"                || true
 check_file "${CACHE_DIR}/fashion_clip/1/model.onnx"         "fashion_clip"        || true
 check_file "${CACHE_DIR}/vehicle/1/model.onnx"              "vehicle"             || true

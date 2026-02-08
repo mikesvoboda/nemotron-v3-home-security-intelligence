@@ -1,16 +1,16 @@
-# YOLOv8n Threat/Weapon Detection - TensorRT FP16
-# Input: image tensor (B, 3, 640, 640) FP16
+# YOLOv8n Threat/Weapon Detection - ONNX Runtime
+# Input: image tensor (B, 3, 640, 640) FP32
 # Output: detection boxes, confidence scores, threat class IDs
 # Source: ai/enrichment-light/models/threat_detector.py (640x640 input)
 
 name: "threat"
-platform: "tensorrt_plan"
+backend: "onnxruntime"
 max_batch_size: 8
 
 input [
   {
     name: "images"
-    data_type: TYPE_FP16
+    data_type: TYPE_FP32
     dims: [ 3, 640, 640 ]
   }
 ]
@@ -46,5 +46,5 @@ dynamic_batching {
   max_queue_delay_microseconds: 100
 }
 
-# YOLOv8n weapon detection TensorRT engine exported via Ultralytics .export(format='engine')
+# YOLOv8n weapon detection ONNX model exported via Ultralytics .export(format='onnx')
 # Detects weapons, knives, firearms, and other threat objects

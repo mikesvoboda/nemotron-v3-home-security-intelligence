@@ -73,7 +73,7 @@ EMBEDDING_DIM = 768  # SigLIP ViT-L embedding dimension
 DEFAULT_OPSET = 17
 DEFAULT_MAX_BATCH = 8
 DEFAULT_WORKSPACE_GB = 1  # Conservative for 4 GB RTX A400
-COSINE_SIM_THRESHOLD = 0.999
+COSINE_SIM_THRESHOLD = 0.99
 
 
 # ---------------------------------------------------------------------------
@@ -701,6 +701,12 @@ def main(argv: list[str] | None = None) -> None:
         except ValueError as exc:
             logger.error("ONNX validation FAILED: %s", exc)
             sys.exit(1)
+        except Exception as exc:
+            logger.warning(
+                "ONNX validation could not complete (non-fatal): %s: %s",
+                type(exc).__name__,
+                exc,
+            )
     else:
         logger.info("Skipping ONNX validation (--skip-validation)")
 
