@@ -4696,7 +4696,7 @@ def _get_model_display_name(name: str) -> str:
         "yolo26-general": "YOLO26 General Detection",
         "clip_embedder": "CLIP ViT-L/14",
         "yolo-world-s": "YOLO-World Small",
-        "depth-anything-v2-small": "Depth Anything V2 Small",
+        "depth-anything-v2-tiny": "Depth Anything V2 Tiny",
         "vitpose-small": "ViTPose Small",
     }
 
@@ -4863,7 +4863,7 @@ MODEL_CATEGORIES: dict[str, list[str]] = {
     ],
     "Segmentation": ["segformer-b2-clothes"],
     "Pose": ["vitpose-small", "yolov8n-pose"],
-    "Depth": ["depth-anything-v2-small"],
+    "Depth": ["depth-anything-v2-tiny"],
     "Embedding": ["clip-vit-l", "osnet-x0-25"],
     "OCR": ["paddleocr"],
     "Action Recognition": ["xclip-base"],

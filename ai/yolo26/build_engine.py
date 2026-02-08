@@ -7,9 +7,9 @@ the cold-start latency that occurs when engines are built on first inference.
 
 TensorRT engines are GPU-architecture-specific. The CUDA_COMPUTE_CAP build arg
 controls which GPU architecture the engine targets:
-  - sm_75: RTX 2080 / T4 / A400
-  - sm_86: RTX 3090 / A5500
-  - sm_89: RTX 4090 / L4
+  - sm_75: RTX 2080 / T4 (Turing)
+  - sm_86: RTX 3090 / A5500 / A400 (Ampere)
+  - sm_89: RTX 4090 / L4 (Ada Lovelace)
   - sm_90: H100
 
 At container startup, the service validates that the pre-built engine matches

@@ -334,7 +334,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
       - enrichment-light-tensorrt-cache:/cache/tensorrt
       - pytorch-profiles:/tmp/profiles
     environment:
@@ -353,7 +353,7 @@ services:
       - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
       - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
       - PET_MODEL_PATH=/models/pet-classifier
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+      - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
       # Default: All light models (pose, threat, reid, pet, depth) for fast inference

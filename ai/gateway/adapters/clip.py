@@ -45,10 +45,57 @@ router = APIRouter()
 
 # Model configuration
 VISION_MODEL_NAME = "clip"
+TEXT_MODEL_NAME = "clip_text"
 EMBEDDING_DIMENSION = 768
+MAX_TEXT_LENGTH = 77  # CLIP standard context length
 
 # ---------------------------------------------------------------------------
-# In-process CLIP text encoder (lazy-loaded, CPU-only)
+# HuggingFace CLIPTokenizer (lazy-loaded, CPU-only, lightweight)
+# ---------------------------------------------------------------------------
+
+_tokenizer_lock = threading.Lock()
+_clip_tokenizer: Any = None
+_tokenizer_failed: bool = False
+
+
+def _ensure_tokenizer() -> bool:
+    """Lazy-init the HuggingFace CLIPTokenizer.
+
+    This only loads the tokenizer (a few MB), not the full model.
+    Thread-safe via a module-level lock.
+    """
+    global _clip_tokenizer, _tokenizer_failed
+
+    if _clip_tokenizer is not None:
+        return True
+    if _tokenizer_failed:
+        return False
+
+    with _tokenizer_lock:
+        if _clip_tokenizer is not None:
+            return True
+        if _tokenizer_failed:
+            return False
+
+        try:
+            from transformers import CLIPTokenizer
+
+            logger.info("Loading CLIPTokenizer for Triton text encoder...")
+            _clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+            logger.info("CLIPTokenizer loaded successfully")
+            return True
+        except Exception:
+            _tokenizer_failed = True
+            logger.warning(
+                "Failed to load CLIPTokenizer. "
+                "classify/similarity/batch-similarity will return placeholder results.",
+                exc_info=True,
+            )
+            return False
+
+
+# ---------------------------------------------------------------------------
+# In-process open_clip text encoder (lazy-loaded, CPU-only fallback)
 # ---------------------------------------------------------------------------
 
 _text_encoder_lock = threading.Lock()
@@ -83,9 +130,6 @@ def _ensure_text_encoder() -> bool:
             logger.info("Loading open_clip ViT-L-14 text encoder (CPU)...")
             model, _, _ = open_clip.create_model_and_transforms("ViT-L-14", pretrained="openai")
             model = model.eval().cpu()
-            # Keep only the text encoder parts — discard vision tower to save memory
-            # We cannot delete the visual attr entirely because open_clip's forward
-            # may reference it, but we won't call encode_image.
             tokenizer = open_clip.get_tokenizer("ViT-L-14")
             _text_model = model
             _text_tokenizer = tokenizer
@@ -235,7 +279,7 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
     """Get text embeddings for classify/similarity endpoints.
 
     Resolution order:
-    1. Triton ``clip_text`` model (if deployed)
+    1. Triton ``clip_text`` ONNX model with tokenized inputs (if deployed)
     2. In-process open_clip text encoder on CPU (lazy-loaded)
     3. Zero-vector fallback (non-functional placeholder)
 
@@ -247,16 +291,27 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
     """
     triton = get_triton_client()
 
-    # Try Triton text encoder model first
+    # Try Triton text encoder model first (ONNX with tokenized inputs)
     try:
-        if await triton.is_model_ready("clip_text"):
-            text_bytes = np.array([[t.encode("utf-8")] for t in texts], dtype=object)
-            result = await triton.infer(
-                model_name="clip_text",
-                inputs={"text": text_bytes},
-                outputs=["text_embedding"],
+        if await triton.is_model_ready(TEXT_MODEL_NAME) and _ensure_tokenizer():
+            tokens = _clip_tokenizer(
+                texts,
+                return_tensors="np",
+                padding="max_length",
+                max_length=MAX_TEXT_LENGTH,
+                truncation=True,
             )
-            embeddings = result["text_embedding"]
+            input_ids = tokens["input_ids"].astype(np.int64)
+            attention_mask = tokens["attention_mask"].astype(np.int64)
+            result = await triton.infer(
+                model_name=TEXT_MODEL_NAME,
+                inputs={
+                    "input_ids": input_ids,
+                    "attention_mask": attention_mask,
+                },
+                outputs=["text_embeds"],
+            )
+            embeddings = result["text_embeds"]
             norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
             norms = np.maximum(norms, 1e-8)
             return embeddings / norms
@@ -418,10 +473,12 @@ async def anomaly_score(request: AnomalyScoreRequest) -> AnomalyScoreResponse:
 async def health() -> dict[str, Any]:
     """Health check for the CLIP model."""
     triton = get_triton_client()
-    model_ready = await triton.is_model_ready(VISION_MODEL_NAME)
+    vision_ready = await triton.is_model_ready(VISION_MODEL_NAME)
+    text_ready = await triton.is_model_ready(TEXT_MODEL_NAME)
     return {
-        "status": "healthy" if model_ready else "degraded",
+        "status": "healthy" if vision_ready else "degraded",
         "model": "clip-vit-large-patch14",
-        "model_loaded": model_ready,
+        "model_loaded": vision_ready,
+        "text_encoder_loaded": text_ready,
         "embedding_dimension": EMBEDDING_DIMENSION,
     }

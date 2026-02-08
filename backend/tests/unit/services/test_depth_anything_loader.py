@@ -476,7 +476,7 @@ async def test_load_depth_model_import_error(monkeypatch):
 
     try:
         with pytest.raises(ImportError, match="Depth Anything V2 requires transformers and torch"):
-            await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+            await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
     finally:
         sys.modules.update(hidden_modules)
 
@@ -524,12 +524,12 @@ async def test_load_depth_model_success_cpu(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+    result = await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
 
     assert result is mock_pipeline
     mock_transformers.pipeline.assert_called_once_with(
         task="depth-estimation",
-        model="depth-anything/Depth-Anything-V2-Small-hf",
+        model="depth-anything/Depth-Anything-V2-Tiny-hf",
         device=-1,  # CPU
     )
 
@@ -553,12 +553,12 @@ async def test_load_depth_model_success_cuda(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+    result = await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
 
     assert result is mock_pipeline
     mock_transformers.pipeline.assert_called_once_with(
         task="depth-estimation",
-        model="depth-anything/Depth-Anything-V2-Small-hf",
+        model="depth-anything/Depth-Anything-V2-Tiny-hf",
         device=0,  # First CUDA device
     )
 
@@ -625,10 +625,10 @@ def test_depth_anything_in_model_zoo():
     from backend.services.model_zoo import get_model_zoo
 
     zoo = get_model_zoo()
-    assert "depth-anything-v2-small" in zoo
+    assert "depth-anything-v2-tiny" in zoo
 
-    config = zoo["depth-anything-v2-small"]
-    assert config.name == "depth-anything-v2-small"
+    config = zoo["depth-anything-v2-tiny"]
+    assert config.name == "depth-anything-v2-tiny"
     assert config.category == "depth-estimation"
     assert config.enabled is True
 
@@ -638,7 +638,7 @@ def test_depth_anything_model_config_load_fn():
     from backend.services.model_zoo import get_model_zoo
 
     zoo = get_model_zoo()
-    config = zoo["depth-anything-v2-small"]
+    config = zoo["depth-anything-v2-tiny"]
     assert config.load_fn is load_depth_model
 
 

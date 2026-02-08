@@ -45,6 +45,6 @@ parameters {
 }
 
 dynamic_batching {
-  preferred_batch_size: [ 1, 4 ]
-  max_queue_delay_microseconds: 200
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 100000
 }

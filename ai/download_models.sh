@@ -15,7 +15,7 @@
 #     - Fashion-CLIP - Clothing classification
 #     - Vehicle-Segment-Classification (ViT) - Vehicle types
 #     - Pet-Classifier (ResNet-18) - Cat/dog detection
-#     - Depth-Anything-V2-Small - Depth estimation
+#     - Depth-Anything-V2-Tiny - Depth estimation (3x faster than Small)
 #     - ViTPose+ Small - Pose estimation
 #     - YOLO26 (n/s/m) - ~67MB - Object detection (Ultralytics)
 #
@@ -81,8 +81,8 @@ declare -A HF_REPO_COMMITS=(
     ["openai/clip-vit-large-patch14"]=""
     # Fashion-CLIP - leave empty to use latest
     ["patrickjohncyh/fashion-clip"]=""
-    # Depth-Anything-V2-Small - leave empty to use latest
-    ["depth-anything/Depth-Anything-V2-Small-hf"]=""
+    # Depth-Anything-V2-Tiny - leave empty to use latest
+    ["depth-anything/Depth-Anything-V2-Tiny-hf"]=""
 )
 
 # ==========================================
@@ -482,9 +482,9 @@ clone_or_update_hf "microsoft/resnet-18" "$PET_DIR" "Pet-Classifier (~45MB)"
 VITPOSE_DIR="${AI_MODELS_PATH}/model-zoo/vitpose-plus-small"
 clone_or_update_hf "usyd-community/vitpose-plus-small" "$VITPOSE_DIR" "ViTPose+ Small (~100MB)"
 
-# Depth estimation
-DEPTH_DIR="${AI_MODELS_PATH}/model-zoo/depth-anything-v2-small"
-clone_or_update_hf "depth-anything/Depth-Anything-V2-Small-hf" "$DEPTH_DIR" "Depth-Anything-V2-Small (~95MB)"
+# Depth estimation (Tiny variant — 3x faster than Small, same 518x518 input)
+DEPTH_DIR="${AI_MODELS_PATH}/model-zoo/depth-anything-v2-tiny"
+clone_or_update_hf "depth-anything/Depth-Anything-V2-Tiny-hf" "$DEPTH_DIR" "Depth-Anything-V2-Tiny (~25MB)"
 
 echo ""
 echo "=========================================="
@@ -572,7 +572,7 @@ echo "      ├── fashion-clip/                  (Clothing)"
 echo "      ├── vehicle-segment-classification/ (Vehicles)"
 echo "      ├── pet-classifier/                (Pets)"
 echo "      ├── vitpose-plus-small/            (Pose)"
-echo "      ├── depth-anything-v2-small/       (Depth)"
+echo "      ├── depth-anything-v2-tiny/        (Depth)"
 echo "      └── yolo26/                        (YOLO26 detection)"
 echo "          ├── yolo26n.pt                 (Nano - fastest)"
 echo "          ├── yolo26s.pt                 (Small - balanced)"

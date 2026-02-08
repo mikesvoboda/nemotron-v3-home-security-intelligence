@@ -65,7 +65,7 @@ ENV POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
 ENV THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
 ENV REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
 ENV PET_MODEL_PATH=/models/pet-classifier
-ENV DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+ENV DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
 # HuggingFace cache configuration (NEM-3812)
 ENV HF_HOME=/cache/huggingface
 ENV HF_HUB_CACHE=/cache/huggingface/hub

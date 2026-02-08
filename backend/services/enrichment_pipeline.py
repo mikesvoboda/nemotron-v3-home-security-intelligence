@@ -57,6 +57,7 @@ import httpx
 from PIL import Image
 from pydantic import ValidationError
 
+from backend.core.async_utils import bounded_gather
 from backend.core.exceptions import (
     AIServiceError,
     CLIPUnavailableError,
@@ -67,6 +68,9 @@ from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_enrichment_model_duration,
     observe_enrichment_pipeline_stage,
+    record_cascade_model_deferred,
+    record_cascade_processed,
+    record_cascade_skipped,
     record_enrichment_model_call,
     record_enrichment_model_error,
     record_enrichment_pipeline_timeout,
@@ -2206,6 +2210,32 @@ class EnrichmentPipeline:
         vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
         animals = [d for d in high_conf_detections if d.class_name in ANIMAL_CLASSES]
 
+        # NEM-5570: Cascade Level 2 — log per-model cascade decisions based on detection types
+        if not persons:
+            for model in (
+                "face_detection",
+                "pose",
+                "clothing",
+                "action",
+                "reid",
+                "threat",
+                "violence",
+            ):
+                record_cascade_model_deferred(model, "no_person_detections")
+        if not vehicles:
+            for model in ("license_plate", "vehicle_class", "vehicle_damage"):
+                record_cascade_model_deferred(model, "no_vehicle_detections")
+        if not animals:
+            record_cascade_model_deferred("pet_class", "no_animal_detections")
+
+        logger.debug(
+            "Cascade: %d detections — %d persons, %d vehicles, %d animals",
+            len(high_conf_detections),
+            len(persons),
+            len(vehicles),
+            len(animals),
+        )
+
         super_phase_start = time.monotonic()
         phase1_tasks: dict[str, Any] = {}
 
@@ -2342,29 +2372,73 @@ class EnrichmentPipeline:
             phase1_tasks["clip_threat_matching"] = self._safe_clip_threat_match(pil_image)
 
         # Florence-2 Vision Extraction (runs IN PARALLEL with Phase 1)
+        # NEM-5570: Cascade Level 3 — skip Florence-2 when all detections are
+        # high-confidence (>= 0.7). YOLO's class label is sufficient for obvious
+        # detections; Florence-2 captioning only adds value for ambiguous ones.
         florence_task = None
+        _FLORENCE_CONFIDENCE_THRESHOLD = 0.7
         if (
             self.vision_extraction_enabled
             and pil_image
             and self._should_run_for_quality("standard")
         ):
-            det_dicts = [
-                {
-                    "class_name": d.class_name,
-                    "confidence": d.confidence,
-                    "bbox": d.bbox.to_tuple() if d.bbox else None,
-                    "detection_id": str(d.id) if d.id else str(i),
-                }
-                for i, d in enumerate(high_conf_detections)
+            # Filter to only ambiguous (low-confidence) detections for Florence-2
+            ambiguous_detections = [
+                d for d in high_conf_detections if d.confidence < _FLORENCE_CONFIDENCE_THRESHOLD
             ]
-            florence_task = self._vision_extractor.extract_batch_attributes(pil_image, det_dicts)
+            if ambiguous_detections:
+                det_dicts = [
+                    {
+                        "class_name": d.class_name,
+                        "confidence": d.confidence,
+                        "bbox": d.bbox.to_tuple() if d.bbox else None,
+                        "detection_id": str(d.id) if d.id else str(i),
+                    }
+                    for i, d in enumerate(ambiguous_detections)
+                ]
+                florence_task = self._vision_extractor.extract_batch_attributes(
+                    pil_image, det_dicts
+                )
+                deferred_count = len(high_conf_detections) - len(ambiguous_detections)
+                if deferred_count > 0:
+                    record_cascade_model_deferred("florence2", "high_confidence")
+                    logger.debug(
+                        "Cascade: Florence-2 deferred for %d/%d high-confidence detections "
+                        "(threshold=%.2f)",
+                        deferred_count,
+                        len(high_conf_detections),
+                        _FLORENCE_CONFIDENCE_THRESHOLD,
+                    )
+            else:
+                # All detections are high-confidence — skip Florence-2 entirely
+                record_cascade_model_deferred("florence2", "all_high_confidence")
+                logger.debug(
+                    "Cascade: Florence-2 skipped entirely — all %d detections above %.2f confidence",
+                    len(high_conf_detections),
+                    _FLORENCE_CONFIDENCE_THRESHOLD,
+                )
 
         # Execute Super-Phase: Phase 1 + Florence-2 concurrently
+        # NEM-5548: Split tasks by resource type for bounded concurrency.
+        # GPU-bound models share VRAM so they need tighter limits (2).
+        # CPU-bound models can run more freely (limit=5).
+        # Service calls are HTTP-bound and use limit=5.
+        _GPU_TASK_NAMES = frozenset(
+            {
+                "pose_estimation",
+                "depth_estimation",
+                "clothing_segmentation",
+                "clip_scene_classification",
+                "clip_threat_matching",
+                "face_detection",
+                "license_plate_detection",
+                "violence_detection",
+            }
+        )
+
         phase1_start = time.monotonic()
         if phase1_tasks or florence_task:
-            all_super_tasks: list[Any] = []
             phase1_keys = list(phase1_tasks.keys())
-            all_super_tasks.extend(phase1_tasks.values())
 
             # NEM-5525: Span event for super-phase parallel execution
             add_span_event(
@@ -2376,17 +2450,52 @@ class EnrichmentPipeline:
                     "use_enrichment_service": self.use_enrichment_service,
                 },
             )
+
+            # Partition phase1 tasks into GPU-bound and CPU/service-bound
+            gpu_keys: list[str] = []
+            gpu_coros: list[Any] = []
+            cpu_keys: list[str] = []
+            cpu_coros: list[Any] = []
+            for key in phase1_keys:
+                if not self.use_enrichment_service and key in _GPU_TASK_NAMES:
+                    gpu_keys.append(key)
+                    gpu_coros.append(phase1_tasks[key])
+                else:
+                    cpu_keys.append(key)
+                    cpu_coros.append(phase1_tasks[key])
+
+            # Florence-2 is GPU-bound; run it alongside GPU tasks
             if florence_task:
-                all_super_tasks.append(florence_task)
+                gpu_keys.append("_florence")
+                gpu_coros.append(florence_task)
 
-            super_results = await asyncio.gather(*all_super_tasks, return_exceptions=True)
+            # Run GPU and CPU groups concurrently, each internally bounded
+            async def _run_gpu_group() -> list[Any]:
+                if not gpu_coros:
+                    return []
+                return await bounded_gather(gpu_coros, limit=2, return_exceptions=True)
 
-            phase1_count = len(phase1_keys)
-            phase1_results_list = super_results[:phase1_count]
-            florence_result = super_results[phase1_count] if florence_task else None
+            async def _run_cpu_group() -> list[Any]:
+                if not cpu_coros:
+                    return []
+                return await bounded_gather(cpu_coros, limit=5, return_exceptions=True)
 
-            if phase1_keys:
-                phase1_dict = dict(zip(phase1_keys, phase1_results_list, strict=True))
+            gpu_results_list, cpu_results_list = await asyncio.gather(
+                _run_gpu_group(), _run_cpu_group()
+            )
+
+            # Reassemble results in original key order
+            phase1_dict: dict[str, Any] = {}
+            florence_result = None
+            for key, res in zip(gpu_keys, gpu_results_list, strict=True):
+                if key == "_florence":
+                    florence_result = res
+                else:
+                    phase1_dict[key] = res
+            for key, res in zip(cpu_keys, cpu_results_list, strict=True):
+                phase1_dict[key] = res
+
+            if phase1_dict:
                 self._process_phase1_results(result, phase1_dict)
 
             if florence_task:
@@ -2464,7 +2573,11 @@ class EnrichmentPipeline:
 
         if phase2_tasks:
             phase2_keys = list(phase2_tasks.keys())
-            phase2_results = await asyncio.gather(*phase2_tasks.values(), return_exceptions=True)
+            phase2_results = await bounded_gather(
+                list(phase2_tasks.values()),
+                limit=5,
+                return_exceptions=True,
+            )
             for key, phase2_result in zip(phase2_keys, phase2_results, strict=True):
                 if isinstance(phase2_result, Exception):
                     self._handle_enrichment_error(key, phase2_result, result)
@@ -2498,7 +2611,11 @@ class EnrichmentPipeline:
 
         if phase3_tasks:
             phase3_keys = list(phase3_tasks.keys())
-            phase3_results = await asyncio.gather(*phase3_tasks.values(), return_exceptions=True)
+            phase3_results = await bounded_gather(
+                list(phase3_tasks.values()),
+                limit=5,
+                return_exceptions=True,
+            )
             for key, phase3_result in zip(phase3_keys, phase3_results, strict=True):
                 if isinstance(phase3_result, Exception):
                     self._handle_enrichment_error(key, phase3_result, result)
@@ -3829,7 +3946,7 @@ class EnrichmentPipeline:
 
         start_time = time.perf_counter()
         try:
-            async with self.model_manager.load("depth-anything-v2-small") as depth_pipeline:
+            async with self.model_manager.load("depth-anything-v2-tiny") as depth_pipeline:
                 record_enrichment_model_call("depth")
                 result = await analyze_depth(
                     depth_pipeline,
@@ -4861,6 +4978,9 @@ class EnrichmentPipeline:
         )
 
         if not detections:
+            # NEM-5570: Cascade Level 1 — no detections, skip all enrichment
+            record_cascade_skipped()
+            logger.debug("Cascade: no detections, skipping all enrichment")
             return result
 
         # Get the shared image for full-frame analysis
@@ -4874,7 +4994,17 @@ class EnrichmentPipeline:
         high_conf_detections = [d for d in detections if d.confidence >= self.min_confidence]
 
         if not high_conf_detections:
+            # NEM-5570: Cascade — all detections below confidence threshold
+            record_cascade_skipped()
+            logger.debug(
+                "Cascade: %d detections all below min_confidence=%.2f, skipping enrichment",
+                len(detections),
+                self.min_confidence,
+            )
             return result
+
+        # NEM-5570: Cascade — frame has qualifying detections, proceed with enrichment
+        record_cascade_processed()
 
         # Run parallel enrichment pipeline (NEM-4234: Phase 4, NEM-5525 optimized)
         # This runs Phase 1 + Florence-2 concurrently, then Phase 2/3 dependents

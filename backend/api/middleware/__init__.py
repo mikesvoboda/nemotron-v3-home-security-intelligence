@@ -45,6 +45,7 @@ from .idempotency import (
     IdempotencyMiddleware,
     compute_request_fingerprint,
 )
+from .observability import ObservabilityMiddleware
 from .profiling import ProfilingMiddleware
 from .prometheus import (
     EXCLUDED_PATHS,
@@ -106,6 +107,7 @@ __all__ = [
     "DeprecationLoggerMiddleware",
     "DeprecationMiddleware",
     "IdempotencyMiddleware",
+    "ObservabilityMiddleware",
     "ProfilingMiddleware",
     "PrometheusMiddleware",
     "RateLimitTier",

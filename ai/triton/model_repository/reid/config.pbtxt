@@ -32,8 +32,8 @@ instance_group [
 ]
 
 dynamic_batching {
-  preferred_batch_size: [ 1, 4, 8 ]
-  max_queue_delay_microseconds: 100
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 100000
 }
 
 # OSNet-x0.25 person re-identification model (~100MB)

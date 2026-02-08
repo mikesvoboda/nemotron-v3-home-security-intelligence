@@ -166,7 +166,7 @@ async def run_inference(model: Any, model_name: str, image: Image.Image) -> floa
             if hasattr(model, "inference"):
                 _ = model.inference(img_array, bboxes)
 
-        elif model_name == "depth-anything-v2-small":
+        elif model_name == "depth-anything-v2-tiny":
             # Depth Anything expects PIL image
             depth_model = model["model"]
             processor = model["processor"]

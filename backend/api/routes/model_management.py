@@ -73,7 +73,7 @@ LIGHT_MODELS = frozenset(
     {
         "threat-detection-yolov8n",
         "osnet-x0-25",
-        "depth-anything-v2-small",
+        "depth-anything-v2-tiny",
         "pet-classifier",
         "vit-age-classifier",
         "vit-gender-classifier",

@@ -356,6 +356,17 @@ class NemotronAnalyzer:
             label.lower() for label in settings.priority_medium_labels
         )
 
+        # Create persistent HTTP connection pools (NEM-5538)
+        # Reusing connections avoids TCP overhead (~50-100ms per request)
+        self._http_client = httpx.AsyncClient(
+            timeout=self._timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+        self._health_http_client = httpx.AsyncClient(
+            timeout=self._health_timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
             f"timeout={settings.nemotron_read_timeout}s, "
@@ -363,6 +374,15 @@ class NemotronAnalyzer:
             f"coalescing_enabled={self._coalescing_enabled}, "
             f"priority_queue_enabled={self._priority_queue_enabled}"
         )
+
+    async def close(self) -> None:
+        """Close persistent HTTP client connections (NEM-5538).
+
+        Called automatically by the DI container during shutdown.
+        """
+        await self._http_client.aclose()
+        await self._health_http_client.aclose()
+        logger.debug("NemotronAnalyzer HTTP connections closed")
 
     # =========================================================================
     # Structured Generation Support (NEM-3726)
@@ -397,38 +417,37 @@ class NemotronAnalyzer:
 
         for attempt in range(max_retries):
             try:
-                async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                    # Send a minimal completion request with guided_json
-                    response = await client.post(
-                        f"{self._llm_url}/completion",
-                        headers=self._get_auth_headers(),
-                        json={
-                            "prompt": "Say hello",
-                            "max_tokens": 10,
-                            "temperature": 0.0,
-                            "nvext": {"guided_json": test_schema},
-                        },
-                    )
+                # Send a minimal completion request with guided_json
+                response = await self._health_http_client.post(
+                    f"{self._llm_url}/completion",
+                    headers=self._get_auth_headers(),
+                    json={
+                        "prompt": "Say hello",
+                        "max_tokens": 10,
+                        "temperature": 0.0,
+                        "nvext": {"guided_json": test_schema},
+                    },
+                )
 
-                    # If we get a 2xx response, the endpoint likely supports guided_json
-                    # Some endpoints may return 200 but ignore the parameter
-                    if response.status_code < 300:
-                        self._supports_guided_json = True
-                        logger.info(
-                            "Nemotron endpoint supports guided_json structured generation",
-                            extra={"llm_url": self._llm_url, "attempts": attempt + 1},
-                        )
-                        result = True
-                        break  # Success - stop retrying
-                    # 4xx errors indicate the endpoint doesn't support guided_json
-                    # (e.g., 422 Unprocessable Entity for unknown parameters)
-                    elif 400 <= response.status_code < 500:
-                        self._supports_guided_json = False
-                        logger.info(
-                            "Nemotron endpoint does not support guided_json, using regex fallback",
-                            extra={"llm_url": self._llm_url, "status_code": response.status_code},
-                        )
-                        break  # Definitive answer - stop retrying
+                # If we get a 2xx response, the endpoint likely supports guided_json
+                # Some endpoints may return 200 but ignore the parameter
+                if response.status_code < 300:
+                    self._supports_guided_json = True
+                    logger.info(
+                        "Nemotron endpoint supports guided_json structured generation",
+                        extra={"llm_url": self._llm_url, "attempts": attempt + 1},
+                    )
+                    result = True
+                    break  # Success - stop retrying
+                # 4xx errors indicate the endpoint doesn't support guided_json
+                # (e.g., 422 Unprocessable Entity for unknown parameters)
+                elif 400 <= response.status_code < 500:
+                    self._supports_guided_json = False
+                    logger.info(
+                        "Nemotron endpoint does not support guided_json, using regex fallback",
+                        extra={"llm_url": self._llm_url, "status_code": response.status_code},
+                    )
+                    break  # Definitive answer - stop retrying
 
             except httpx.HTTPStatusError as e:
                 # 4xx status errors indicate unsupported parameter
@@ -979,15 +998,14 @@ class NemotronAnalyzer:
         headers = {"Content-Type": "application/json"}
         headers.update(self._get_auth_headers())
 
-        # Make the HTTP call (this will be mocked in tests)
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            response = await client.post(
-                f"{self._llm_url}/completion",
-                json=payload,
-                headers=headers,
-            )
-            response.raise_for_status()
-            llm_result = response.json()
+        # Make the HTTP call using persistent connection pool (NEM-5538)
+        response = await self._http_client.post(
+            f"{self._llm_url}/completion",
+            json=payload,
+            headers=headers,
+        )
+        response.raise_for_status()
+        llm_result = response.json()
 
         # Extract completion text
         completion_text = llm_result.get("content", "")
@@ -1372,24 +1390,23 @@ class NemotronAnalyzer:
 
         try:
             start_time = time.monotonic()
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                # Send a simple completion request
-                response = await client.post(
-                    f"{self._llm_url}/v1/completions",
-                    headers=self._get_auth_headers(),
-                    json={
-                        "prompt": self._warmup_prompt,
-                        "max_tokens": 50,
-                        "temperature": 0.1,
-                    },
-                )
-                response.raise_for_status()
-                duration = time.monotonic() - start_time
-                logger.debug(
-                    f"Nemotron readiness probe completed in {duration:.2f}s",
-                    extra={"duration": duration},
-                )
-                return True
+            # Send a simple completion request using persistent connection pool (NEM-5538)
+            response = await self._http_client.post(
+                f"{self._llm_url}/v1/completions",
+                headers=self._get_auth_headers(),
+                json={
+                    "prompt": self._warmup_prompt,
+                    "max_tokens": 50,
+                    "temperature": 0.1,
+                },
+            )
+            response.raise_for_status()
+            duration = time.monotonic() - start_time
+            logger.debug(
+                f"Nemotron readiness probe completed in {duration:.2f}s",
+                extra={"duration": duration},
+            )
+            return True
         except httpx.ConnectError as e:
             logger.warning(f"Nemotron readiness probe connection error: {e}")
             return False
@@ -3501,13 +3518,12 @@ class NemotronAnalyzer:
             True if LLM server is responding, False otherwise
         """
         try:
-            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                # Include auth headers in health check
-                response = await client.get(
-                    f"{self._llm_url}/health",
-                    headers=self._get_auth_headers(),
-                )
-                return bool(response.status_code == 200)
+            # Include auth headers in health check (NEM-5538)
+            response = await self._health_http_client.get(
+                f"{self._llm_url}/health",
+                headers=self._get_auth_headers(),
+            )
+            return bool(response.status_code == 200)
         except Exception as e:
             logger.warning(
                 "LLM health check failed",
@@ -3825,14 +3841,13 @@ class NemotronAnalyzer:
                         llm_call_start = time.monotonic()
                         # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
                         async with asyncio.timeout(explicit_timeout):
-                            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                                response = await client.post(
-                                    f"{self._llm_url}/completion",
-                                    json=payload,
-                                    headers=headers,
-                                )
-                                response.raise_for_status()
-                                llm_result = response.json()
+                            response = await self._http_client.post(
+                                f"{self._llm_url}/completion",
+                                json=payload,
+                                headers=headers,
+                            )
+                            response.raise_for_status()
+                            llm_result = response.json()
                         llm_call_duration = time.monotonic() - llm_call_start
 
                         # Extract completion text

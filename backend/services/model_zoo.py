@@ -15,7 +15,7 @@ Models:
     - florence-2-large: Vision-language queries for attribute extraction
     - yolo-world-s: Open-vocabulary zero-shot detection
     - vitpose-small: Human pose keypoint detection (17 COCO keypoints)
-    - depth-anything-v2-small: Monocular depth estimation for distance context
+    - depth-anything-v2-tiny: Monocular depth estimation for distance context (3x faster than Small)
     - violence-detection: Binary violence classification on full frame
     - weather-classification: Weather condition classification (5 classes)
     - segformer-b2-clothes: Clothing segmentation on person detections
@@ -426,14 +426,15 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             enabled=True,
             available=False,
         ),
-        # Depth Anything V2 Small for monocular depth estimation
+        # Depth Anything V2 Tiny for monocular depth estimation (3x faster than Small)
         # Provides relative distance estimation for detected objects
         # Output: depth map where lower values = closer to camera
-        "depth-anything-v2-small": ModelConfig(
-            name="depth-anything-v2-small",
-            path=f"{base_path}/depth-anything-v2-small",
+        # Parameters: 5.8M (vs 24.8M Small) — same 518x518 input resolution
+        "depth-anything-v2-tiny": ModelConfig(
+            name="depth-anything-v2-tiny",
+            path=f"{base_path}/depth-anything-v2-tiny",
             category="depth-estimation",
-            vram_mb=150,  # ~100-200MB (very lightweight)
+            vram_mb=100,  # ~50-100MB (smaller than Small variant)
             load_fn=load_depth_model,
             enabled=True,
             available=False,

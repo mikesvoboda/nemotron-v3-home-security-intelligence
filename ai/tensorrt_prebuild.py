@@ -6,7 +6,7 @@ engine matches the current GPU before loading it.
 
 TensorRT engines are GPU-architecture-specific. An engine built on one GPU
 (e.g., RTX A5500 / sm_86) will not work on a different architecture
-(e.g., RTX A400 / sm_75). This module provides:
+(e.g., RTX A400 / sm_86). This module provides:
 
 1. Engine metadata reading (from .metadata.json sidecar files)
 2. GPU architecture matching (compare build-time vs runtime SM version)

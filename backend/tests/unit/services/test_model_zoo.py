@@ -1738,35 +1738,35 @@ class TestDepthAnythingLoader:
         reset_model_manager()
 
     def test_depth_model_in_zoo(self) -> None:
-        """Test that depth-anything-v2-small is registered in the model zoo."""
+        """Test that depth-anything-v2-tiny is registered in the model zoo."""
         zoo = get_model_zoo()
 
-        assert "depth-anything-v2-small" in zoo
-        config = zoo["depth-anything-v2-small"]
-        assert config.name == "depth-anything-v2-small"
-        assert config.path == "/models/model-zoo/depth-anything-v2-small"
+        assert "depth-anything-v2-tiny" in zoo
+        config = zoo["depth-anything-v2-tiny"]
+        assert config.name == "depth-anything-v2-tiny"
+        assert config.path == "/models/model-zoo/depth-anything-v2-tiny"
         assert config.category == "depth-estimation"
-        assert config.vram_mb == 150
+        assert config.vram_mb == 100
         assert config.enabled is True
         assert config.available is False
 
     def test_depth_model_in_enabled_models(self) -> None:
-        """Test that depth-anything-v2-small appears in enabled models list."""
+        """Test that depth-anything-v2-tiny appears in enabled models list."""
         enabled = get_enabled_models()
         enabled_names = [m.name for m in enabled]
 
-        assert "depth-anything-v2-small" in enabled_names
+        assert "depth-anything-v2-tiny" in enabled_names
 
     def test_depth_model_vram_calculation(self) -> None:
-        """Test VRAM calculation includes depth-anything-v2-small."""
-        total = get_total_vram_if_loaded(["depth-anything-v2-small"])
-        assert total == 150
+        """Test VRAM calculation includes depth-anything-v2-tiny."""
+        total = get_total_vram_if_loaded(["depth-anything-v2-tiny"])
+        assert total == 100
 
         # Combined with other models
         total_combined = get_total_vram_if_loaded(
-            ["depth-anything-v2-small", "yolo11-license-plate"]
+            ["depth-anything-v2-tiny", "yolo11-license-plate"]
         )
-        assert total_combined == 450  # 150 + 300
+        assert total_combined == 400  # 100 + 300
 
     @pytest.mark.asyncio
     async def test_load_depth_model_import_error(self) -> None:
@@ -1780,7 +1780,7 @@ class TestDepthAnythingLoader:
             ),
             pytest.raises(ImportError),
         ):
-            await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+            await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
 
     @pytest.mark.asyncio
     async def test_load_depth_model_runtime_error(self) -> None:
@@ -1806,7 +1806,7 @@ class TestDepthAnythingLoader:
             ),
             pytest.raises(RuntimeError, match="Failed to load Depth Anything V2"),
         ):
-            await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+            await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
 
 
 class TestDepthHelperFunctions:

@@ -44,26 +44,18 @@ datasources:
     jsonData:
       tlsSkipVerify: true
 
-  # Jaeger datasource for distributed tracing with metric correlations
-  - name: Jaeger
-    uid: jaeger
-    type: jaeger
+  # Tempo datasource for distributed tracing (NEM-5545, replaces Jaeger)
+  - name: Tempo
+    uid: tempo
+    type: tempo
     access: proxy
-    url: http://jaeger:16686
+    url: http://tempo:3200
     isDefault: false
     editable: false
     jsonData:
-      nodeGraph:
-        enabled: true
-      # Trace-to-Profile integration (NEM-4129): Click from trace span to Pyroscope profile
-      tracesToProfiles:
-        datasourceUid: pyroscope
-        profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
-        customQuery: true
-        query: '{service_name="${__span.tags["service.name"]}", trace_id="${__span.traceId}"}'
-        tags:
-          - key: service.name
-            value: service
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
       tracesToMetrics:
         datasourceUid: prometheus
         spanStartTimeShift: '-5m'
@@ -209,6 +201,16 @@ datasources:
             query: 'hsi_worker_busy_count'
           - name: 'Workers Idle'
             query: 'hsi_worker_idle_count'
+      nodeGraph:
+        enabled: true
+      tracesToProfiles:
+        datasourceUid: pyroscope
+        profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
+        customQuery: true
+        query: '{service_name="${__span.tags["service.name"]}", trace_id="${__span.traceId}"}'
+        tags:
+          - key: service.name
+            value: service
 
   # Loki datasource for log aggregation with trace correlation
   - name: Loki
@@ -225,7 +227,7 @@ datasources:
         - name: TraceID
           matcherRegex: 'trace_id=([a-f0-9]{32})'
           url: '${__value.raw}'
-          datasourceUid: jaeger
+          datasourceUid: tempo
           urlDisplayLabel: 'View Trace'
 
   # Pyroscope datasource for continuous profiling
@@ -237,9 +239,9 @@ datasources:
     isDefault: false
     editable: false
     jsonData:
-      # Profile-to-Trace navigation: Link back to Jaeger traces from Pyroscope
+      # Profile-to-Trace navigation: Link back to Tempo traces from Pyroscope
       tracesToProfiles:
-        datasourceUid: jaeger
+        datasourceUid: tempo
         tags:
           - key: service.name
             value: service

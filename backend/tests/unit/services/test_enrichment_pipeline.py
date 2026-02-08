@@ -169,7 +169,7 @@ def create_mock_model_manager() -> MagicMock:
         "yolo11-license-plate": MagicMock(),
         "yolo11-face": MagicMock(),
         "paddleocr": MagicMock(),
-        "depth-anything-v2-small": mock_depth_pipeline,
+        "depth-anything-v2-tiny": mock_depth_pipeline,
         # X-CLIP for action recognition (NEM-3335)
         "xclip-base": {"model": MagicMock(), "processor": MagicMock()},
     }

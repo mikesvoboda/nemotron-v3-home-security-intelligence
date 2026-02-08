@@ -89,11 +89,11 @@ MODEL_ZOO: list[ModelSpec] = [
         model_type="transformers",
     ),
     ModelSpec(
-        name="depth-anything-v2-small",
-        hf_repo="depth-anything/Depth-Anything-V2-Small-hf",
+        name="depth-anything-v2-tiny",
+        hf_repo="depth-anything/Depth-Anything-V2-Tiny-hf",
         phase=1,
-        vram_mb=150,
-        description="Monocular depth estimation",
+        vram_mb=100,
+        description="Monocular depth estimation (3x faster than Small)",
         model_type="transformers",
     ),
     ModelSpec(

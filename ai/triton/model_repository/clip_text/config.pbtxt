@@ -1,0 +1,41 @@
+# CLIP ViT-L/14 Text Encoder - ONNX Runtime
+# Input: tokenized text (B, 77) INT64
+# Output: text_embeds (B, 768) FP32
+# Source: ai/gateway/export/export_clip_text.py
+
+name: "clip_text"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "input_ids"
+    data_type: TYPE_INT64
+    dims: [77]
+  },
+  {
+    name: "attention_mask"
+    data_type: TYPE_INT64
+    dims: [77]
+  }
+]
+
+output [
+  {
+    name: "text_embeds"
+    data_type: TYPE_FP32
+    dims: [768]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 50000
+}

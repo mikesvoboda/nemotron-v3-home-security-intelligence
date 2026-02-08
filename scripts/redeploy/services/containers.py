@@ -638,13 +638,13 @@ class ContainerManager:
                     f"{self.config.ai_models_path}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro,z",
                     f"{self.config.ai_models_path}/model-zoo/pet-classifier:/models/pet-classifier:ro,z",
                     f"{self.config.ai_models_path}/model-zoo/fashion-clip:/models/fashion-clip:ro,z",
-                    f"{self.config.ai_models_path}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro,z",
                 ],
                 "env": {
                     "VEHICLE_MODEL_PATH": "/models/vehicle-segment-classification",
                     "PET_MODEL_PATH": "/models/pet-classifier",
                     "CLOTHING_MODEL_PATH": "/models/fashion-clip",
-                    "DEPTH_MODEL_PATH": "/models/depth-anything-v2-small",
+                    "DEPTH_MODEL_PATH": "/models/depth-anything-v2-tiny",
                 },
             },
             {
@@ -657,7 +657,7 @@ class ContainerManager:
                     f"{self.config.ai_models_path}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro,z",
                     f"{self.config.ai_models_path}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro,z",
                     f"{self.config.ai_models_path}/model-zoo/pet-classifier:/models/pet-classifier:ro,z",
-                    f"{self.config.ai_models_path}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro,z",
                 ],
                 "env": {
                     "GPU_TIER": "light",
@@ -665,7 +665,7 @@ class ContainerManager:
                     "THREAT_MODEL_PATH": "/models/threat-detection-yolov8n/weights/best.pt",
                     "REID_MODEL_PATH": "/models/osnet-x0-25/osnet_x0_25.pth",
                     "PET_MODEL_PATH": "/models/pet-classifier",
-                    "DEPTH_MODEL_PATH": "/models/depth-anything-v2-small",
+                    "DEPTH_MODEL_PATH": "/models/depth-anything-v2-tiny",
                 },
             },
         ]

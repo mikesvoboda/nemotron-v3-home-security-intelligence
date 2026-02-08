@@ -105,6 +105,7 @@ podman run -d \
   -v "/export/ai_models/model-zoo:/models/zoo:ro" \
   -v "/export/ai_models/triton:/models/cache" \
   -p "127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090" \
+  -p "127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002" \
   ai-gateway 2>&1 | tail -1
 
 # LLM on GPU 0
@@ -116,7 +117,8 @@ podman run -d \
   --security-opt label=disable \
   -e PORT="${LLM_PORT:-8091}" \
   -e CUDA_VISIBLE_DEVICES=0 \
-  -e GPU_LAYERS="${GPU_LAYERS:-48}" \
+  -e GPU_LAYERS="${GPU_LAYERS:-999}" \
+  -e GGML_CUDA_GRAPH_OPT=1 \
   -e CTX_SIZE="${CTX_SIZE:-32768}" \
   -e PARALLEL="${PARALLEL:-2}" \
   -v "/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro,z" \
