@@ -1,9 +1,9 @@
 """Florence-2 Vision-Language Model - Triton Python Backend.
 
-Loads Florence-2-base with trust_remote_code=True for autoregressive
-image-to-text generation tasks (captioning, OCR, object detection, etc.).
-Cannot be exported to ONNX/TensorRT due to custom HuggingFace model code
-and autoregressive generation.
+Loads Florence-2-base for autoregressive image-to-text generation tasks
+(captioning, OCR, object detection, etc.). Uses the native transformers
+Florence2ForConditionalGeneration class (available since transformers v4.46+).
+Cannot be exported to ONNX/TensorRT due to autoregressive generation.
 
 Input tensors (defined in config.pbtxt):
   - image: TYPE_STRING [1] - base64-encoded image bytes
@@ -35,7 +35,7 @@ import numpy as np
 import torch
 import triton_python_backend_utils as pb_utils
 from PIL import Image
-from transformers import AutoModelForCausalLM, AutoProcessor
+from transformers import AutoProcessor, Florence2ForConditionalGeneration
 
 logger = logging.getLogger("triton.florence2")
 
@@ -73,18 +73,20 @@ class TritonPythonModel:
             dtype,
         )
 
-        # Load processor (tokenizer + image processor)
-        self.processor = AutoProcessor.from_pretrained(
-            model_path,
-            trust_remote_code=True,
-        )
+        # Load processor (tokenizer + image processor).
+        # Do NOT use trust_remote_code=True: the old Microsoft custom
+        # processing_florence2.py is incompatible with transformers 5.x
+        # (AttributeError: TokenizersBackend has no attribute
+        # additional_special_tokens).  The native transformers
+        # Florence2Processor (available since v4.46) handles this correctly.
+        self.processor = AutoProcessor.from_pretrained(model_path)
 
-        # Load model with eager attention to avoid SDPA compatibility
-        # issues with Florence-2's custom model code
-        self.model = AutoModelForCausalLM.from_pretrained(
+        # Load model using the native Florence2ForConditionalGeneration
+        # class instead of AutoModelForCausalLM to avoid loading the old
+        # custom modeling code via auto_map / trust_remote_code.
+        self.model = Florence2ForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=dtype,
-            trust_remote_code=True,
             attn_implementation="eager",
         ).to(self.device)
 

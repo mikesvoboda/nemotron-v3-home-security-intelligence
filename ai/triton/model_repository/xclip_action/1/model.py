@@ -1,9 +1,8 @@
 """X-CLIP Action Recognition - Triton Python Backend.
 
-Loads microsoft/xclip-base-patch16-16-frames for zero-shot temporal
-action recognition from multi-frame video clips. Cannot be exported to
-ONNX/TensorRT due to custom cross-frame temporal attention requiring
-trust_remote_code=True.
+Loads microsoft/xclip-base-patch32 for zero-shot temporal action
+recognition from multi-frame video clips. Cannot be exported to
+ONNX/TensorRT due to custom cross-frame temporal attention.
 
 Input tensors (defined in config.pbtxt):
   - frames: TYPE_STRING [1] - JSON array of base64-encoded frame images
@@ -14,7 +13,7 @@ Output tensors:
   - confidence: TYPE_FP32 [1] - top action confidence (0.0-1.0)
   - all_scores: TYPE_STRING [1] - JSON with all scores, is_suspicious, risk_weight
 
-Model zoo path: /models/zoo/xclip-base-patch16-16-frames
+Model zoo path: /models/zoo/xclip-base-patch32
 Reference: ai/enrichment/models/action_recognizer.py (standalone ActionRecognizer)
 """
 
@@ -95,25 +94,38 @@ class TritonPythonModel:
         """
         logger.info("X-CLIP: initializing Triton Python backend...")
 
-        model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch16-16-frames")
+        model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch32")
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.num_frames = 16
 
-        logger.info("X-CLIP: loading from %s on %s", model_path, self.device)
+        # Resolve local paths to avoid HFValidationError.
+        # HuggingFace's from_pretrained validates repo_id format before
+        # checking if the path is a local directory.  Using Path.resolve()
+        # ensures the path is properly normalized so the library recognises
+        # it as a local directory rather than a repo_id.
+        from pathlib import Path
+
+        model_dir = Path(model_path)
+        if model_dir.exists():
+            local_path = str(model_dir.resolve())
+        else:
+            local_path = model_path
+
+        logger.info("X-CLIP: loading from %s on %s", local_path, self.device)
 
         # Load processor
-        self.processor = XCLIPProcessor.from_pretrained(model_path)
+        self.processor = XCLIPProcessor.from_pretrained(local_path)
 
         # Try SDPA for faster inference, fall back to default
         try:
             self.model = XCLIPModel.from_pretrained(
-                model_path,
+                local_path,
                 attn_implementation="sdpa",
             )
             logger.info("X-CLIP: loaded with SDPA attention (optimized)")
         except (ValueError, ImportError) as exc:
             logger.warning("X-CLIP: SDPA unavailable, using default: %s", exc)
-            self.model = XCLIPModel.from_pretrained(model_path)
+            self.model = XCLIPModel.from_pretrained(local_path)
 
         if "cuda" in self.device and torch.cuda.is_available():
             self.model = self.model.to(self.device)

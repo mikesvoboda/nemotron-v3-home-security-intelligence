@@ -6,12 +6,12 @@
 # Age ranges: 0-10, 11-20, 21-35, 36-50, 51-65, 65+
 
 name: "demographics_age"
-platform: "onnxruntime_onnx"
+backend: "onnxruntime"
 max_batch_size: 8
 
 input [
   {
-    name: "pixel_values"
+    name: "input"
     data_type: TYPE_FP32
     dims: [ 3, 224, 224 ]
   }
@@ -19,17 +19,16 @@ input [
 
 output [
   {
-    name: "logits"
+    name: "output"
     data_type: TYPE_FP32
-    dims: [ 6 ]
+    dims: [ 9 ]
   }
 ]
 
 instance_group [
   {
     count: 1
-    kind: KIND_GPU
-    gpus: [ 0 ]
+    kind: KIND_CPU
   }
 ]
 

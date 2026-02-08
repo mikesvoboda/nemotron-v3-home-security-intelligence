@@ -1,10 +1,10 @@
 # X-CLIP Action Recognition - Python Backend
-# Temporal cross-frame attention model requiring trust_remote_code=True
+# Temporal cross-frame attention model for zero-shot action recognition.
 # Cannot be exported to TensorRT/ONNX due to custom cross-frame attention.
 #
 # Source: ai/enrichment/models/action_recognizer.py
-# Model: microsoft/xclip-base-patch16-16-frames (~400 MiB VRAM)
-# Model zoo path: /models/zoo/xclip-base-patch16-16-frames
+# Model: microsoft/xclip-base-patch32 (~400 MiB VRAM)
+# Model zoo path: /models/zoo/xclip-base-patch32
 #
 # The gateway sends base64-encoded frames as a JSON array and optional
 # action labels.  Frame decoding, sampling (to 16 frames), and
@@ -52,8 +52,7 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_GPU
-    gpus: [ 0 ]
+    kind: KIND_CPU
   }
 ]
 

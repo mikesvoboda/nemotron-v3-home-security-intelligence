@@ -1,7 +1,6 @@
 # Florence-2 Vision-Language Model - Python Backend
-# Encoder-decoder architecture requiring trust_remote_code=True
-# Cannot be exported to TensorRT/ONNX due to custom HuggingFace model code
-# and autoregressive generation.
+# Encoder-decoder architecture using native transformers Florence2 classes.
+# Cannot be exported to TensorRT/ONNX due to autoregressive generation.
 #
 # Source: ai/florence/model.py (Florence-2-base, ~460 MiB VRAM FP16)
 # Model zoo path: /models/zoo/florence-2-base

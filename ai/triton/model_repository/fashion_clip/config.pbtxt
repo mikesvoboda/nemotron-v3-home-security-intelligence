@@ -2,6 +2,10 @@
 # Input: preprocessed image (B, 3, 224, 224) FP32
 # Output: image embedding (B, 768) FP32
 # Source: ai/enrichment/model.py ClothingClassifier (open_clip)
+#
+# Runs on CPU to avoid OOM on RTX A400 (4GB VRAM).
+# At 354 MB the model is small enough for CPU inference with acceptable
+# latency, and this frees GPU memory for the larger CLIP model (1159 MB).
 
 name: "fashion_clip"
 backend: "onnxruntime"
@@ -26,10 +30,19 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_GPU
-    gpus: [ 0 ]
+    kind: KIND_CPU
   }
 ]
+
+parameters {
+  key: "intra_op_thread_count"
+  value: { string_value: "4" }
+}
+
+parameters {
+  key: "execution_mode"
+  value: { string_value: "1" }
+}
 
 dynamic_batching {
   preferred_batch_size: [ 1, 4 ]

@@ -81,6 +81,8 @@ tritonserver \
     --strict-model-config=false \
     --exit-on-error=false \
     --log-verbose=0 \
+    --pinned-memory-pool-byte-size=33554432 \
+    --cuda-memory-pool-byte-size=0:134217728 \
     &
 
 TRITON_PID=$!

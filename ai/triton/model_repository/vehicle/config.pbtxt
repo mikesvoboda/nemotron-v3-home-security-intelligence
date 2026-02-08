@@ -7,7 +7,7 @@
 #          non_motorized_vehicle, pedestrian, pickup_truck, single_unit_truck, work_van
 
 name: "vehicle"
-platform: "onnxruntime_onnx"
+backend: "onnxruntime"
 max_batch_size: 8
 
 input [
@@ -20,7 +20,7 @@ input [
 
 output [
   {
-    name: "logits"
+    name: "output"
     data_type: TYPE_FP32
     dims: [ 11 ]
   }
@@ -29,8 +29,7 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_GPU
-    gpus: [ 0 ]
+    kind: KIND_CPU
   }
 ]
 
@@ -39,12 +38,6 @@ dynamic_batching {
   max_queue_delay_microseconds: 100
 }
 
-parameters [
-  {
-    key: "cudnn_conv_algo_search"
-    value: { string_value: "DEFAULT" }
-  }
-]
 
 # ResNet-50 trained on vehicle segment dataset
 # Preprocessing: Resize(224,224), ToTensor, Normalize(ImageNet)

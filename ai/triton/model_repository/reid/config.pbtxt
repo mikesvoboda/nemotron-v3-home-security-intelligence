@@ -5,7 +5,7 @@
 #   OSNET_INPUT_HEIGHT=256, OSNET_INPUT_WIDTH=128, EMBEDDING_DIMENSION=512
 
 name: "reid"
-platform: "onnxruntime_onnx"
+backend: "onnxruntime"
 max_batch_size: 16
 
 input [
@@ -27,8 +27,7 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_GPU
-    gpus: [ 0 ]
+    kind: KIND_CPU
   }
 ]
 
