@@ -8,7 +8,7 @@
 
 name: "depth"
 platform: "onnxruntime_onnx"
-max_batch_size: 4
+max_batch_size: 1
 
 input [
   {
@@ -35,7 +35,7 @@ instance_group [
 ]
 
 dynamic_batching {
-  preferred_batch_size: [ 1, 2 ]
+  preferred_batch_size: [ 1 ]
   max_queue_delay_microseconds: 200
 }
 

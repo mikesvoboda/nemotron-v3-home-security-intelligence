@@ -256,7 +256,7 @@ def main() -> int:
 
         # Validate
         if not args.skip_validation:
-            if not validate_onnx(model, args.output_path, num_classes=len(classes)):
+            if not validate_onnx(model, args.output_path, len(classes)):
                 logger.error("Validation failed — exported ONNX may produce incorrect results")
                 return 1
 
