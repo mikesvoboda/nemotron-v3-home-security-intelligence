@@ -39,6 +39,31 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # ---------------------------------------------------------------------------
+# 0. Link exported model files into the Triton model repository
+# ---------------------------------------------------------------------------
+# Model configs (config.pbtxt) are baked into the image at /models/repository/.
+# Exported model files (.onnx, .plan, .data) live in /models/cache/ (volume).
+# Symlink each model's version directory so Triton finds both.
+
+MODEL_CACHE="${MODEL_CACHE_DIR:-/models/cache}"
+
+if [ -d "$MODEL_CACHE" ]; then
+    echo "[entrypoint] Linking model cache -> repository..."
+    for model_dir in "$MODEL_CACHE"/*/; do
+        model_name=$(basename "$model_dir")
+        repo_model="${TRITON_MODEL_REPO}/${model_name}"
+        cache_version="${model_dir}1"
+        # Only link if cache has a version dir AND repo has a config
+        if [ -d "$repo_model" ] && [ -d "$cache_version" ]; then
+            rm -rf "${repo_model}/1"
+            ln -sf "$cache_version" "${repo_model}/1" 2>/dev/null && \
+                echo "[entrypoint]   ${model_name}/1 -> ${cache_version}" || \
+                echo "[entrypoint]   WARN: failed to link ${model_name}"
+        fi
+    done
+fi
+
+# ---------------------------------------------------------------------------
 # 1. Start Triton Inference Server in background
 # ---------------------------------------------------------------------------
 echo "[entrypoint] Starting Triton Inference Server..."
@@ -52,7 +77,7 @@ tritonserver \
     --http-port="${TRITON_HTTP_PORT}" \
     --grpc-port="${TRITON_GRPC_PORT}" \
     --metrics-port="${TRITON_METRICS_PORT}" \
-    --model-control-mode=explicit \
+    --model-control-mode=none \
     --strict-model-config=false \
     --exit-on-error=false \
     --log-verbose=0 \
