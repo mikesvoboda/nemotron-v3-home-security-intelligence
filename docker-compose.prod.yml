@@ -29,7 +29,7 @@
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
-#   - GPU_LAYERS: Number of GPU layers for LLM (default: 999 = all layers on GPU)
+#   - GPU_LAYERS: Number of GPU layers for LLM (default: auto = fit to available VRAM)
 #   - CTX_SIZE: LLM context window size (default: 32768, defined in .env)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
@@ -123,7 +123,10 @@ services:
 
   # YOLO26 TensorRT-optimized object detection
   # Uses pre-exported TensorRT engine for fast inference
+  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
   ai-yolo26:
+    profiles:
+      - standalone
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
@@ -214,8 +217,8 @@ services:
       # NEM-5528: Model path configurable via .env to swap quantizations without rebuild
       - MODEL_PATH=${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}
       # All layers on GPU - other AI services moved to GPU 1 (A400) to free up A5500 for LLM
-      # With dual-GPU setup, Nemotron can use all 53 layers on GPU 0
-      - GPU_LAYERS=${GPU_LAYERS:-999}
+      # auto = llama.cpp --fit determines optimal layer count based on free VRAM
+      - GPU_LAYERS=${GPU_LAYERS:-auto}
       # NEM-5369: Reduced context for home security analysis (was 65536, saves ~4GB VRAM)
       # 32768 tokens is sufficient for security event analysis prompts
       - CTX_SIZE=${CTX_SIZE:-32768}
@@ -333,7 +336,10 @@ services:
               capabilities: [gpu]
 
   # Florence-2 vision-language model for dense captioning and visual understanding
+  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
   ai-florence:
+    profiles:
+      - standalone
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
@@ -394,9 +400,13 @@ services:
             - driver: nvidia
               capabilities: [gpu]
 
-  # CLIP ViT-L model for entity re-identification embeddings
+  # SigLIP 2 Base model for entity re-identification embeddings (replaces CLIP ViT-L)
+  # NEM-5561: Swapped from CLIP ViT-L (1.2GB) to SigLIP 2 Base (178MB FP16)
   # NEM-5369: Pinned to GPU 1 explicitly to prevent random GPU selection
+  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
   ai-clip:
+    profiles:
+      - standalone
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
@@ -459,7 +469,10 @@ services:
 
   # Lightweight enrichment service for small, efficient models (GPU 1)
   # Hosts: pose, threat, reid, pet, depth models (~1.2GB total)
+  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
   ai-enrichment-light:
+    profiles:
+      - standalone
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
@@ -481,9 +494,10 @@ services:
       # Light models for GPU 1
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-ain-x1-0:/models/osnet-ain-x1-0:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/stgcn-plus-plus:/models/stgcn-plus-plus:ro
       # TensorRT engine cache (persists compiled engines across restarts)
       - enrichment-light-tensorrt-cache:/cache/tensorrt
       # PyTorch GPU profiling traces (NEM-4130)
@@ -506,7 +520,7 @@ services:
       # Light model paths
       - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
       - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
-      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
+      - REID_MODEL_PATH=/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth
       - PET_MODEL_PATH=/models/pet-classifier
       - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
       # TensorRT acceleration for YOLO models
@@ -543,7 +557,10 @@ services:
 
   # Heavy enrichment service for large transformer models (GPU 0)
   # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
+  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
   ai-enrichment:
+    profiles:
+      - standalone
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
@@ -567,7 +584,17 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
+      # X-CLIP deprecated — replaced by ST-GCN++ on ai-enrichment-light (NEM-5563)
+      # Kept for backward compatibility until fully removed
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
+      # Smoke/fire detection (NEM-5566, CRITICAL safety model)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/smoke-fire-yolov8n:/models/smoke-fire-yolov8n:ro
+      # YOLO-World open-vocabulary detection (NEM-5566)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo-world-s:/models/yolo-world-s:ro
+      # Zero-DCE++ low-light enhancement (NEM-5567)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/zero-dce-plus-plus:/models/zero-dce-plus-plus:ro
+      # INT8 quantized model files (NEM-5550)
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
       # PyTorch GPU profiling traces (NEM-4130)
@@ -585,7 +612,12 @@ services:
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - ACTION_MODEL_PATH=/models/xclip-base-patch32
+      - ACTION_MODEL_PATH=/models/xclip-base-patch32 # Legacy X-CLIP, ST-GCN++ is on ai-enrichment-light
+      # INT8 quantized model configuration (NEM-5550)
+      # Run ai/enrichment/scripts/quantize_models.py to generate INT8 .pt files
+      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
+      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
+      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
       # VRAM management for heavy models
       - VRAM_BUDGET_GB=6.0
       - MODEL_LOAD_TIMEOUT=30
@@ -619,6 +651,55 @@ services:
           devices:
             # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
+              capabilities: [gpu]
+
+  # =============================================================================
+  # AI Gateway (Triton + FastAPI) — Gateway Mode Only
+  # =============================================================================
+  # Replaces ai-yolo26, ai-florence, ai-clip, ai-enrichment, ai-enrichment-light
+  # with a single Triton-backed gateway. Activate with --profile gateway.
+  #
+  # Usage:
+  #   podman compose -f docker-compose.prod.yml -f docker-compose.gateway.yml \
+  #     --profile gateway up -d --scale ai-yolo26=0 --scale ai-florence=0 \
+  #     --scale ai-clip=0 --scale ai-enrichment=0 --scale ai-enrichment-light=0
+  ai-gateway:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    build:
+      context: .
+      dockerfile: ai/gateway/Dockerfile
+    ports:
+      - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090'
+      - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+    environment:
+      - SERVICE_NAME=ai-gateway
+      - GATEWAY_PORT=8090
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          memory: 4G
+          devices:
+            - driver: nvidia
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
 
   backend:
@@ -706,25 +787,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # AI services have health-based startup ordering (NEM-1582)
-      # Backend will start after critical AI services are healthy
-      # Expected startup times:
-      #   - ai-yolo26 (YOLO26): ~60s (TensorRT model loading)
-      #   - ai-llm (Nemotron): ~120s (LLM loading, largest model)
-      #   - ai-florence: ~60s (Florence-2 model loading)
-      #   - ai-clip: ~60s (CLIP model loading)
-      #   - ai-enrichment: ~180s (multiple models: vehicle, pet, clothing, depth)
-      ai-yolo26:
-        condition: service_healthy
+      # AI services — backend waits for LLM (critical for risk analysis)
+      # Gateway/standalone AI services handled via docker-compose.gateway.yml override
       ai-llm:
         condition: service_healthy
-      # Non-critical AI services - backend can start without these (graceful degradation)
-      # ai-florence:
-      #   condition: service_healthy
-      # ai-clip:
-      #   condition: service_healthy
-      # ai-enrichment:
-      #   condition: service_healthy
       # go2rtc for live streaming - non-critical, backend can start without it
       go2rtc:
         condition: service_healthy

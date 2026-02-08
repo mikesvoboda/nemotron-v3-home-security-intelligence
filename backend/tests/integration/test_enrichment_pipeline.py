@@ -59,22 +59,30 @@ def test_image() -> Image.Image:
 
 @pytest.fixture
 def vehicle_detection() -> DetectionInput:
-    """Create a vehicle detection for testing."""
+    """Create a vehicle detection for testing.
+
+    Confidence set below 0.7 Florence-2 cascade threshold (NEM-5570) so
+    Florence vision extraction is triggered for tests that need it.
+    """
     return DetectionInput(
         id=1,
         class_name="car",
-        confidence=0.92,
+        confidence=0.65,
         bbox=BoundingBox(x1=100, y1=150, x2=300, y2=350),
     )
 
 
 @pytest.fixture
 def person_detection() -> DetectionInput:
-    """Create a person detection for testing."""
+    """Create a person detection for testing.
+
+    Confidence set below 0.7 Florence-2 cascade threshold (NEM-5570) so
+    Florence vision extraction is triggered for tests that need it.
+    """
     return DetectionInput(
         id=2,
         class_name="person",
-        confidence=0.95,
+        confidence=0.65,
         bbox=BoundingBox(x1=50, y1=50, x2=150, y2=400),
     )
 
@@ -131,7 +139,7 @@ def create_mock_model_manager() -> MagicMock:
     # Mock model data for each model type
     mock_models: dict[str, Any] = {
         "florence-2-large": {"model": MagicMock(), "processor": MagicMock()},
-        "clip-vit-l": {"model": MagicMock(), "processor": MagicMock()},
+        "siglip2-base-patch16-224": {"model": MagicMock(), "processor": MagicMock()},
         "fashion-clip": {"model": MagicMock(), "processor": MagicMock()},
         "vehicle-segment-classification": {
             "model": MagicMock(),
@@ -238,6 +246,7 @@ class TestVehicleEnrichment:
                 model_manager=mock_model_manager,
                 license_plate_enabled=False,
                 face_detection_enabled=False,
+                ocr_enabled=False,
                 vision_extraction_enabled=True,
                 reid_enabled=False,
                 scene_change_enabled=False,
@@ -248,6 +257,17 @@ class TestVehicleEnrichment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                scene_ocr_enabled=False,
+                age_classification_enabled=False,
+                gender_classification_enabled=False,
+                smoke_fire_detection_enabled=False,
+                yolo_world_enabled=False,
+                osnet_reid_enabled=False,
+                low_light_enhancement_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -309,6 +329,8 @@ class TestVehicleEnrichment:
                 vehicle_damage_detection_enabled=True,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -382,6 +404,7 @@ class TestPersonEnrichment:
                 model_manager=mock_model_manager,
                 license_plate_enabled=False,
                 face_detection_enabled=False,
+                ocr_enabled=False,
                 vision_extraction_enabled=True,
                 reid_enabled=True,
                 scene_change_enabled=False,
@@ -392,6 +415,17 @@ class TestPersonEnrichment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                scene_ocr_enabled=False,
+                age_classification_enabled=False,
+                gender_classification_enabled=False,
+                smoke_fire_detection_enabled=False,
+                yolo_world_enabled=False,
+                osnet_reid_enabled=False,
+                low_light_enhancement_enabled=False,
                 redis_client=mock_redis,
             )
 
@@ -449,6 +483,8 @@ class TestPersonEnrichment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -473,13 +509,13 @@ class TestPersonEnrichment:
             DetectionInput(
                 id=1,
                 class_name="person",
-                confidence=0.95,
+                confidence=0.5,  # Low conf for Florence-2 cascading
                 bbox=BoundingBox(x1=50, y1=50, x2=150, y2=400),
             ),
             DetectionInput(
                 id=2,
                 class_name="person",
-                confidence=0.92,
+                confidence=0.5,  # Low conf for Florence-2 cascading
                 bbox=BoundingBox(x1=250, y1=60, x2=350, y2=420),
             ),
         ]
@@ -512,6 +548,8 @@ class TestPersonEnrichment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -571,6 +609,8 @@ class TestPetEnrichment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=True,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -620,6 +660,8 @@ class TestPetEnrichment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=True,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -729,6 +771,7 @@ class TestMixedDetections:
                 model_manager=mock_model_manager,
                 license_plate_enabled=False,
                 face_detection_enabled=False,
+                ocr_enabled=False,
                 vision_extraction_enabled=True,
                 reid_enabled=False,
                 scene_change_enabled=False,
@@ -739,6 +782,17 @@ class TestMixedDetections:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=True,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                scene_ocr_enabled=False,
+                age_classification_enabled=False,
+                gender_classification_enabled=False,
+                smoke_fire_detection_enabled=False,
+                yolo_world_enabled=False,
+                osnet_reid_enabled=False,
+                low_light_enhancement_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -807,6 +861,8 @@ class TestErrorHandling:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -855,6 +911,8 @@ class TestErrorHandling:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -918,6 +976,8 @@ class TestErrorHandling:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=True,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -964,6 +1024,8 @@ class TestEdgeCases:
             vehicle_damage_detection_enabled=True,
             image_quality_enabled=True,
             pet_classification_enabled=True,
+            weather_classification_enabled=False,
+            action_recognition_enabled=False,
         )
 
         result = await pipeline.enrich_batch(
@@ -1022,6 +1084,8 @@ class TestEdgeCases:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -1058,6 +1122,8 @@ class TestEdgeCases:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             # Empty images dict
@@ -1162,6 +1228,8 @@ class TestResultFormatting:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=False,
                 pet_classification_enabled=True,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -1320,6 +1388,8 @@ class TestImageQualityAssessment:
                 vehicle_damage_detection_enabled=False,
                 image_quality_enabled=True,
                 pet_classification_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(

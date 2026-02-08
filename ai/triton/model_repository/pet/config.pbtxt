@@ -1,7 +1,8 @@
-# Pet Classification - ONNX Runtime (ResNet-18)
+# Pet Classification - ONNX Runtime on GPU (ResNet-18, NEM-5551)
 # Input: preprocessed image (B, 3, 224, 224) FP32
 # Output: class logits (2 classes: cat, dog)
 # Source: ai/enrichment-light/model.py PetClassifier (AutoImageProcessor -> 224x224)
+# NEM-5551: Promoted from CPU to GPU (~2x speedup, ~45MB on GPU)
 
 name: "pet"
 backend: "onnxruntime"
@@ -26,7 +27,8 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_CPU
+    kind: KIND_GPU
+    gpus: [ 0 ]
   }
 ]
 
@@ -35,5 +37,5 @@ dynamic_batching {
   max_queue_delay_microseconds: 100000
 }
 
-# ResNet-18 cat/dog classifier
+# ResNet-18 cat/dog classifier (GPU-accelerated)
 # Preprocessing: AutoImageProcessor (resize 224x224, normalize ImageNet)

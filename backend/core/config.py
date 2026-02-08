@@ -1379,7 +1379,7 @@ class Settings(BaseSettings):
     )
     enrichment_reid_service: str = Field(
         default="light",
-        description="Service for person re-ID model: 'heavy' or 'light'. OSNet-x0.25 (~100MB) recommended for light.",
+        description="Service for person re-ID model: 'heavy' or 'light'. OSNet-AIN x1.0 (~100MB) recommended for light.",
     )
     enrichment_pet_service: str = Field(
         default="light",
@@ -1399,7 +1399,7 @@ class Settings(BaseSettings):
     )
     enrichment_action_service: str = Field(
         default="heavy",
-        description="Service for action recognition model: 'heavy' or 'light'. X-CLIP (~1.5GB) recommended for heavy.",
+        description="Service for action recognition model: 'heavy' or 'light'. ST-GCN++ (preferred, X-CLIP legacy) recommended for heavy.",
     )
     enrichment_demographics_service: str = Field(
         default="heavy",

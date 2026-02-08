@@ -1,17 +1,17 @@
 """OSNet model loader for person re-identification embeddings.
 
-This module provides async loading and inference for the OSNet-x0-25 model,
-a lightweight person re-identification network.
+This module provides async loading and inference for OSNet-AIN x1.0,
+a person re-identification network with Attention-based Instance Normalization.
 
-OSNet (Omni-Scale Network) uses omni-scale feature learning to capture
-features at multiple scales, making it effective for person re-identification
-across different camera views and distances.
+Upgraded from OSNet-x0.25 to OSNet-AIN x1.0 for 4x better re-identification
+accuracy (NEM-5562). Uses MSMT17 domain-generalization training for better
+cross-domain generalization to unseen cameras.
 
 Model details:
-- Architecture: OSNet-x0-25 (quarter-width variant)
+- Architecture: OSNet-AIN x1.0 (full-width with attention instance norm)
 - Input: 256x128 person crops
 - Output: 512-dimensional embedding vectors
-- VRAM: ~100MB (very lightweight)
+- VRAM: ~100MB
 - Use case: Enhanced person tracking across cameras via embedding comparison
 
 Usage in security context:
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# OSNet-x0-25 embedding dimension
+# OSNet-AIN x1.0 embedding dimension
 OSNET_EMBEDDING_DIM = 512
 
 
@@ -80,11 +80,11 @@ class PersonEmbeddingResult:
 
 
 async def load_osnet_model(model_path: str) -> dict[str, Any]:
-    """Load OSNet-x0-25 model from local path.
+    """Load OSNet-AIN x1.0 model from local path.
 
-    This function loads the OSNet person re-identification model.
-    The model uses a lightweight CNN architecture optimized for
-    person re-identification tasks.
+    This function loads the OSNet-AIN x1.0 person re-identification model.
+    The model uses Attention-based Instance Normalization for better
+    cross-domain generalization.
 
     Security (NEM-4501): Model path is validated to prevent path traversal.
     Security (NEM-4519): Model weights are loaded with weights_only=True
@@ -92,7 +92,7 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
 
     Args:
         model_path: Local path to the model directory
-                   (e.g., "/models/model-zoo/osnet-x0-25")
+                   (e.g., "/models/model-zoo/osnet-ain-x1-0")
                    Should contain the model weights file.
 
     Returns:
@@ -122,7 +122,7 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
         except PathSecurityError as e:
             raise RuntimeError(f"Invalid model path: {e}") from e
 
-        logger.info(f"Loading OSNet-x0-25 model from {model_path}")
+        logger.info(f"Loading OSNet-AIN x1.0 model from {model_path}")
 
         loop = asyncio.get_running_loop()
 
@@ -134,9 +134,9 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
             try:
                 from torchreid.models import build_model
 
-                # Build OSNet-x0-25 architecture
+                # Build OSNet-AIN x1.0 architecture
                 model = build_model(
-                    name="osnet_x0_25",
+                    name="osnet_ain_x1_0",
                     num_classes=1,  # We only need feature extraction
                     pretrained=False,
                 )
@@ -144,7 +144,7 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
                 # Load weights
                 weights_file = model_dir / "model.pth"
                 if not weights_file.exists():
-                    weights_file = model_dir / "osnet_x0_25_msmt17.pth"
+                    weights_file = model_dir / "osnet_ain_x1_0_msmt17.pth"
                 if not weights_file.exists():
                     # Try any .pth file in directory
                     pth_files = list(model_dir.glob("*.pth"))
@@ -202,7 +202,9 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
                         f"OSNet state dict: {len(unexpected_keys)} unexpected keys: {unexpected_keys[:3]}..."
                     )
 
-                logger.info(f"Loaded OSNet weights from {weights_file} (verified critical layers)")
+                logger.info(
+                    f"Loaded OSNet-AIN x1.0 weights from {weights_file} (verified critical layers)"
+                )
 
             except ImportError:
                 # Fallback: load as generic feature extractor
@@ -211,7 +213,7 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
 
                 weights_file = model_dir / "model.pth"
                 if not weights_file.exists():
-                    weights_file = model_dir / "osnet_x0_25.pth"
+                    weights_file = model_dir / "osnet_ain_x1_0_msmt17.pth"
                 if not weights_file.exists():
                     pth_files = list(model_dir.glob("*.pth"))
                     if not pth_files:
@@ -262,7 +264,7 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
 
         result = await loop.run_in_executor(None, _load)
 
-        logger.info(f"Successfully loaded OSNet-x0-25 model from {model_path}")
+        logger.info(f"Successfully loaded OSNet-AIN x1.0 model from {model_path}")
         return result
 
     except ImportError as e:

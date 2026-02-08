@@ -425,7 +425,7 @@ class TestFindMatches:
                 "reid_embedding": {
                     "vector": embedding,
                     "dimension": len(embedding),
-                    "model": "osnet_x0_25",
+                    "model": "osnet_ain_x1_0",
                 }
             },
         )

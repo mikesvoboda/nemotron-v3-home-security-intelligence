@@ -2790,6 +2790,34 @@ class NemotronAnalyzer:
             }
 
         # =========================================================================
+        # NEM-5566: Fire risk score override (SAFETY CRITICAL)
+        # Fire detection immediately overrides risk to 100 regardless of LLM output
+        # =========================================================================
+        if (
+            enrichment_result is not None
+            and enrichment_result.smoke_fire_detection is not None
+            and enrichment_result.smoke_fire_detection.has_fire
+        ):
+            original_score = risk_data.get("risk_score", 50)
+            risk_data["risk_score"] = 100
+            risk_data["risk_level"] = "critical"
+            if "FIRE" not in risk_data.get("summary", ""):
+                risk_data["summary"] = (
+                    f"FIRE DETECTED - {risk_data.get('summary', 'Immediate response required')}"
+                )
+            risk_data["reasoning"] = (
+                f"Fire detected by smoke/fire model (confidence: "
+                f"{enrichment_result.smoke_fire_detection.highest_confidence:.0%}). "
+                f"Risk overridden from {original_score} to 100. "
+                f"{risk_data.get('reasoning', '')}"
+            )
+            logger.warning(
+                "Fire risk override: score=%d->100",
+                original_score,
+                extra={"batch_id": batch_id, "camera_id": camera_id},
+            )
+
+        # =========================================================================
         # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
         # This is a new, short-lived session for writing results to the database.
         # =========================================================================
@@ -3275,6 +3303,28 @@ class NemotronAnalyzer:
             }
 
         # =========================================================================
+        # NEM-5566: Fire risk score override (SAFETY CRITICAL) - fast path
+        # =========================================================================
+        if (
+            enrichment_result is not None
+            and enrichment_result.smoke_fire_detection is not None
+            and enrichment_result.smoke_fire_detection.has_fire
+        ):
+            original_score = risk_data.get("risk_score", 50)
+            risk_data["risk_score"] = 100
+            risk_data["risk_level"] = "critical"
+            if "FIRE" not in risk_data.get("summary", ""):
+                risk_data["summary"] = (
+                    f"FIRE DETECTED - {risk_data.get('summary', 'Immediate response required')}"
+                )
+            risk_data["reasoning"] = (
+                f"Fire detected (confidence: "
+                f"{enrichment_result.smoke_fire_detection.highest_confidence:.0%}). "
+                f"Risk overridden from {original_score} to 100. "
+                f"{risk_data.get('reasoning', '')}"
+            )
+
+        # =========================================================================
         # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
         # This is a new, short-lived session for writing results to the database.
         # =========================================================================
@@ -3645,18 +3695,31 @@ class NemotronAnalyzer:
     ) -> str:
         """Build on-demand enrichment context string from available data.
 
-        Assembles age classification, gender classification, and scene OCR
-        contexts into a single formatted string for the Nemotron prompt.
+        Assembles age classification, gender classification, smoke/fire detection,
+        YOLO-World zero-shot detections, and scene OCR contexts into a single
+        formatted string for the Nemotron prompt.
 
         Args:
             enrichment_result: The enrichment pipeline result containing
-                age_classifications, gender_classifications, and scene_ocr data.
+                age_classifications, gender_classifications, smoke_fire_detection,
+                yolo_world_detections, and scene_ocr data.
 
         Returns:
             Formatted string combining all on-demand enrichment sections,
             or empty string if no meaningful data exists.
         """
+        from backend.services.smoke_fire_loader import format_smoke_fire_context
+
         sections: list[str] = []
+
+        # Smoke/Fire detection context (NEM-5566 - SAFETY CRITICAL, placed first)
+        if enrichment_result.smoke_fire_detection is not None:
+            sf_text = format_smoke_fire_context(
+                enrichment_result.smoke_fire_detection,
+                time_of_day=enrichment_result.time_of_day,
+            )
+            if sf_text and "No smoke or fire detected" not in sf_text:
+                sections.append(f"### Smoke/Fire Detection\n{sf_text}")
 
         # Age classification context
         age_text = format_age_classification_context(enrichment_result.age_classifications)
@@ -3667,6 +3730,24 @@ class NemotronAnalyzer:
         gender_text = format_gender_classification_context(enrichment_result.gender_classifications)
         if gender_text and gender_text != "Gender estimation: No persons analyzed":
             sections.append(f"### Gender Estimation\n{gender_text}")
+
+        # YOLO-World zero-shot detection context (NEM-5566)
+        if enrichment_result.yolo_world_detections:
+            yw_lines = ["Security-relevant objects detected via zero-shot analysis:"]
+            for det in sorted(
+                enrichment_result.yolo_world_detections,
+                key=lambda d: d.get("confidence", 0),
+                reverse=True,
+            )[:10]:
+                priority = det.get("priority", "low")
+                priority_marker = (
+                    f" [{priority.upper()}]" if priority in ("critical", "high") else ""
+                )
+                yw_lines.append(
+                    f"  - {det.get('class_name', 'unknown')}: "
+                    f"{det.get('confidence', 0):.0%} confidence{priority_marker}"
+                )
+            sections.append("### Zero-Shot Object Detection\n" + "\n".join(yw_lines))
 
         # Scene OCR context (text from uniforms, vehicles, signs)
         ocr_text = format_scene_ocr_context(enrichment_result.scene_ocr)

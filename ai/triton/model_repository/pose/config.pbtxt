@@ -1,7 +1,10 @@
-# YOLOv8n-pose Pose Estimation - ONNX Runtime
+# YOLOv8n-pose Pose Estimation - ONNX Runtime on GPU (NEM-5551)
 # Input: image tensor [1, 3, 640, 640] FP32 (static batch=1 from Ultralytics export)
 # Output: raw YOLO tensor [1, 56, 8400] FP32 (56 = 4 box + 1 conf + 17*3 keypoints)
 # Source: ai/enrichment-light/models/pose_estimator.py (640x640 input)
+#
+# NEM-5551: Promoted from CPU to GPU. ONNX Runtime with CUDAExecutionProvider.
+# Model size: ~14MB ONNX
 
 name: "pose"
 backend: "onnxruntime"
@@ -26,7 +29,8 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_CPU
+    kind: KIND_GPU
+    gpus: [ 0 ]
   }
 ]
 

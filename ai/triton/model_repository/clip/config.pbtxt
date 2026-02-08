@@ -1,7 +1,9 @@
-# CLIP ViT-L/14 Image Embedding - ONNX Runtime
+# SigLIP 2 Base (patch16-224) Vision Encoder - ONNX Runtime
+# Replaces CLIP ViT-L/14 (1.2GB -> 178MB FP16, saves 1,035MB VRAM)
 # Input: preprocessed image (B, 3, 224, 224) FP32
 # Output: embedding (B, 768) FP32
-# Source: ai/clip/model.py (CLIPProcessor resizes to 224x224, embedding dim 768)
+# Normalization: mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
+# Source: onnx-community/siglip2-base-patch16-224-ONNX (vision_model_fp16.onnx)
 
 name: "clip"
 backend: "onnxruntime"
@@ -17,7 +19,7 @@ input [
 
 output [
   {
-    name: "embedding"
+    name: "pooler_output"
     data_type: TYPE_FP32
     dims: [ 768 ]
   }
@@ -30,13 +32,6 @@ instance_group [
     gpus: [ 0 ]
   }
 ]
-
-rate_limiter {
-  resources [
-    { name: "GPU_MEMORY" count: 1 }
-  ]
-  priority: 2
-}
 
 dynamic_batching {
   preferred_batch_size: [1, 2, 4]

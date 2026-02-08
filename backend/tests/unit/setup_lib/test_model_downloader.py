@@ -40,7 +40,7 @@ class TestModelSpecConstants:
         model_names = [m.name for m in REQUIRED_MODELS]
         # Florence-2 and CLIP are essential for the AI pipeline
         assert "florence-2-base" in model_names
-        assert "clip-vit-l" in model_names
+        assert "siglip2-base-patch16-224" in model_names
 
     def test_phase1_models_exists(self) -> None:
         """PHASE1_MODELS should be a list."""
@@ -634,10 +634,10 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should have downloaded florence-2-base and clip-vit-l
+            # Should have downloaded florence-2-base and siglip2-base-patch16-224
             # (yolo26 is skipped because it has no hf_repo)
             assert "florence-2-base" in downloaded_models
-            assert "clip-vit-l" in downloaded_models
+            assert "siglip2-base-patch16-224" in downloaded_models
 
     def test_uses_default_path_when_not_provided(self) -> None:
         """Should use default ai_models_path when not in config."""
@@ -881,7 +881,7 @@ class TestPromptAndDownloadModels:
 
             # Should download required models (option 1 is default)
             assert "florence-2-base" in downloaded_models
-            assert "clip-vit-l" in downloaded_models
+            assert "siglip2-base-patch16-224" in downloaded_models
 
 
 class TestHfHubAvailability:

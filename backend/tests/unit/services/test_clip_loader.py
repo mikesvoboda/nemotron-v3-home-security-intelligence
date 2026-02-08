@@ -1,6 +1,6 @@
 """Unit tests for clip_loader service.
 
-Tests for the CLIP ViT-L model loader for re-identification embeddings.
+Tests for the SigLIP 2 Base model loader for re-identification embeddings.
 """
 
 from unittest.mock import MagicMock
@@ -40,7 +40,7 @@ async def test_load_clip_model_import_error(monkeypatch):
 
     try:
         with pytest.raises(ImportError, match="transformers package required"):
-            await load_clip_model("openai/clip-vit-large-patch14")
+            await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
     finally:
         sys.modules.update(hidden_modules)
 
@@ -51,11 +51,11 @@ async def test_load_clip_model_runtime_error_processor(monkeypatch):
     import sys
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.side_effect = RuntimeError("Model not found")
+    mock_transformers.AutoProcessor.from_pretrained.side_effect = RuntimeError("Model not found")
 
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
+    with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
         await load_clip_model("/nonexistent/path")
 
 
@@ -67,12 +67,12 @@ async def test_load_clip_model_runtime_error_model(monkeypatch):
     mock_processor = MagicMock()
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.side_effect = RuntimeError("Weights not found")
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.side_effect = RuntimeError("Weights not found")
 
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
+    with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
         await load_clip_model("/nonexistent/path")
 
 
@@ -96,13 +96,13 @@ async def test_load_clip_model_success_cpu(monkeypatch):
 
     # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_clip_model("openai/clip-vit-large-patch14")
+    result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
     assert "model" in result
     assert "processor" in result
@@ -110,11 +110,11 @@ async def test_load_clip_model_success_cpu(monkeypatch):
     assert result["processor"] is mock_processor
 
     # Verify from_pretrained was called
-    mock_transformers.CLIPProcessor.from_pretrained.assert_called_once_with(
-        "openai/clip-vit-large-patch14"
+    mock_transformers.AutoProcessor.from_pretrained.assert_called_once_with(
+        "openai/siglip2-base-patch16-224arge-patch14"
     )
-    mock_transformers.CLIPModel.from_pretrained.assert_called_once_with(
-        "openai/clip-vit-large-patch14"
+    mock_transformers.AutoModel.from_pretrained.assert_called_once_with(
+        "openai/siglip2-base-patch16-224arge-patch14"
     )
 
     # Model should NOT be moved to CUDA
@@ -145,13 +145,13 @@ async def test_load_clip_model_sets_eval_mode(monkeypatch):
 
     # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    await load_clip_model("openai/clip-vit-large-patch14")
+    await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
     # Verify model.eval() was called for proper inference mode
     mock_model.eval.assert_called_once()
@@ -176,13 +176,13 @@ async def test_load_clip_model_success_cuda(monkeypatch):
 
     # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_clip_model("openai/clip-vit-large-patch14")
+    result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
     assert "model" in result
     assert "processor" in result
@@ -208,13 +208,13 @@ async def test_load_clip_model_success_no_cuda(monkeypatch):
 
     # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_clip_model("openai/clip-vit-large-patch14")
+    result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
     assert "model" in result
     assert "processor" in result
@@ -236,8 +236,8 @@ async def test_load_clip_model_torch_import_error_handled(monkeypatch):
     mock_model = MagicMock()
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
@@ -249,7 +249,7 @@ async def test_load_clip_model_torch_import_error_handled(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
 
     # Should succeed - the function catches ImportError internally
-    result = await load_clip_model("openai/clip-vit-large-patch14")
+    result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
     assert "model" in result
     assert "processor" in result
@@ -287,10 +287,10 @@ def test_clip_in_model_zoo():
     from backend.services.model_zoo import get_model_zoo
 
     zoo = get_model_zoo()
-    assert "clip-vit-l" in zoo
+    assert "siglip2-base-patch16-224" in zoo
 
-    config = zoo["clip-vit-l"]
-    assert config.name == "clip-vit-l"
+    config = zoo["siglip2-base-patch16-224"]
+    assert config.name == "siglip2-base-patch16-224"
     assert config.category == "embedding"
     assert config.enabled is True
 
@@ -300,7 +300,7 @@ def test_clip_model_config_load_fn():
     from backend.services.model_zoo import get_model_zoo
 
     zoo = get_model_zoo()
-    config = zoo["clip-vit-l"]
+    config = zoo["siglip2-base-patch16-224"]
     assert config.load_fn is load_clip_model
 
 
@@ -309,7 +309,7 @@ def test_clip_model_vram_budget():
     from backend.services.model_zoo import get_model_zoo
 
     zoo = get_model_zoo()
-    config = zoo["clip-vit-l"]
+    config = zoo["siglip2-base-patch16-224"]
     # CLIP ViT-L should be around 1-2GB
     assert config.vram_mb > 0
     assert config.vram_mb <= 3000  # Should be under 3GB
@@ -332,7 +332,7 @@ def test_clip_loader_module_docstring():
 def test_clip_loader_function_docstring():
     """Test load_clip_model has proper docstring."""
     assert load_clip_model.__doc__ is not None
-    assert "CLIP" in load_clip_model.__doc__
+    assert "SigLIP" in load_clip_model.__doc__
     assert "model_path" in load_clip_model.__doc__
     assert "Returns" in load_clip_model.__doc__
     assert "Raises" in load_clip_model.__doc__
@@ -349,11 +349,11 @@ async def test_load_clip_model_with_empty_path(monkeypatch):
     import sys
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.side_effect = ValueError("Invalid model path")
+    mock_transformers.AutoProcessor.from_pretrained.side_effect = ValueError("Invalid model path")
 
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
+    with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
         await load_clip_model("")
 
 
@@ -370,13 +370,13 @@ async def test_load_clip_model_returns_dict(monkeypatch):
     mock_model = MagicMock()
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_clip_model("openai/clip-vit-large-patch14")
+    result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
     assert isinstance(result, dict)
     assert "model" in result
@@ -397,21 +397,21 @@ async def test_load_clip_model_local_path(monkeypatch):
     mock_model = MagicMock()
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    local_path = "/export/ai_models/model-zoo/clip-vit-large"
+    local_path = "/export/ai_models/model-zoo/siglip2-base-patch16-224arge"
     result = await load_clip_model(local_path)
 
     assert "model" in result
     assert "processor" in result
 
     # Verify the path was used
-    mock_transformers.CLIPProcessor.from_pretrained.assert_called_once_with(local_path)
-    mock_transformers.CLIPModel.from_pretrained.assert_called_once_with(local_path)
+    mock_transformers.AutoProcessor.from_pretrained.assert_called_once_with(local_path)
+    mock_transformers.AutoModel.from_pretrained.assert_called_once_with(local_path)
 
 
 # =============================================================================
@@ -449,8 +449,8 @@ def test_clip_supports_cosine_similarity():
 
 
 @pytest.mark.asyncio
-async def test_load_clip_model_uses_clip_classes(monkeypatch):
-    """Test load_clip_model uses CLIPModel and CLIPProcessor."""
+async def test_load_clip_model_uses_auto_classes(monkeypatch):
+    """Test load_clip_model uses AutoModel and AutoProcessor for SigLIP 2."""
     import sys
 
     # Create mock torch (no CUDA)
@@ -461,20 +461,17 @@ async def test_load_clip_model_uses_clip_classes(monkeypatch):
     mock_model = MagicMock()
 
     mock_transformers = MagicMock()
-    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
     await load_clip_model("test/model")
 
-    # Verify correct transformers classes were used
-    assert mock_transformers.CLIPProcessor.from_pretrained.called
-    assert mock_transformers.CLIPModel.from_pretrained.called
-
-    # Should NOT use AutoModel or other generic classes
-    assert not hasattr(mock_transformers, "AutoModel") or not mock_transformers.AutoModel.called
+    # Verify SigLIP 2 uses Auto* classes (not CLIP-specific classes)
+    assert mock_transformers.AutoProcessor.from_pretrained.called
+    assert mock_transformers.AutoModel.from_pretrained.called
 
 
 # =============================================================================
@@ -487,16 +484,16 @@ class TestCLIPLoaderInit:
 
     def test_init_with_model_path(self):
         """Test CLIPLoader initialization with model path."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
-        assert loader.model_path == "openai/clip-vit-large-patch14"
+        assert loader.model_path == "openai/siglip2-base-patch16-224arge-patch14"
         assert loader._model is None
 
     def test_init_with_local_path(self):
         """Test CLIPLoader initialization with local path."""
-        loader = CLIPLoader("/export/ai_models/model-zoo/clip-vit-large")
+        loader = CLIPLoader("/export/ai_models/model-zoo/siglip2-base-patch16-224arge")
 
-        assert loader.model_path == "/export/ai_models/model-zoo/clip-vit-large"
+        assert loader.model_path == "/export/ai_models/model-zoo/siglip2-base-patch16-224arge"
         assert loader._model is None
 
 
@@ -505,15 +502,15 @@ class TestCLIPLoaderProperties:
 
     def test_model_name_property(self):
         """Test model_name property returns correct identifier."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
-        assert loader.model_name == "clip-vit-l"
+        assert loader.model_name == "siglip2-base-patch16-224"
 
     def test_vram_mb_property(self):
         """Test vram_mb property returns correct VRAM estimate."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
-        assert loader.vram_mb == 800
+        assert loader.vram_mb == 200
         assert isinstance(loader.vram_mb, int)
 
 
@@ -539,13 +536,13 @@ class TestCLIPLoaderLoad:
 
         # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         result = await loader.load()
 
         assert "model" in result
@@ -573,13 +570,13 @@ class TestCLIPLoaderLoad:
 
         # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         result = await loader.load(device="cpu")
 
         assert "model" in result
@@ -622,13 +619,13 @@ class TestCLIPLoaderLoad:
 
         # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         result = await loader.load(device="cuda:1")
 
         assert "model" in result
@@ -663,13 +660,13 @@ class TestCLIPLoaderLoad:
 
         # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         # The device parsing happens in CLIPLoader.load() line 138: int(device.split(":")[1])
         # If this raises ValueError, it's caught and model kept on default device
         result = await loader.load(device="cuda:invalid")
@@ -693,8 +690,8 @@ class TestCLIPLoaderLoad:
 
         # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         # Track original import
         original_import = builtins.__import__
@@ -707,7 +704,7 @@ class TestCLIPLoaderLoad:
             return original_import(name, *args, **kwargs)
 
         # Pre-set the loader with a model to bypass the async loading
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         loader._model = {"model": mock_model, "processor": mock_processor}
 
         # Test that device move handles ImportError gracefully
@@ -731,13 +728,13 @@ class TestCLIPLoaderLoad:
         mock_model = MagicMock()
 
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         result = await loader.load()
 
         assert result is loader._model
@@ -765,13 +762,13 @@ class TestCLIPLoaderUnload:
 
         # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         await loader.load()
 
         assert loader._model is not None
@@ -784,7 +781,7 @@ class TestCLIPLoaderUnload:
     @pytest.mark.asyncio
     async def test_unload_without_loaded_model(self):
         """Test unload does nothing when model is not loaded."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         assert loader._model is None
 
@@ -806,13 +803,13 @@ class TestCLIPLoaderUnload:
         mock_model = MagicMock()
 
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         await loader.load()
 
         assert loader._model is not None
@@ -834,7 +831,7 @@ class TestCLIPLoaderUnload:
         from unittest.mock import patch
 
         # Create a loader with a mock model
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         mock_model = MagicMock()
         mock_processor = MagicMock()
         loader._model = {"model": mock_model, "processor": mock_processor}
@@ -867,13 +864,13 @@ class TestCLIPLoaderUnload:
         mock_model = MagicMock()
 
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         await loader.load()
 
         assert "model" in loader._model
@@ -886,7 +883,7 @@ class TestCLIPLoaderUnload:
     @pytest.mark.asyncio
     async def test_unload_handles_missing_model_key(self):
         """Test unload handles case where model key is missing."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         # Manually set _model without model key
         loader._model = {"processor": MagicMock()}
@@ -899,7 +896,7 @@ class TestCLIPLoaderUnload:
     @pytest.mark.asyncio
     async def test_unload_handles_missing_processor_key(self):
         """Test unload handles case where processor key is missing."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         # Manually set _model without processor key
         loader._model = {"model": MagicMock()}
@@ -928,13 +925,13 @@ class TestCLIPLoaderIntegration:
         mock_processor = MagicMock()
 
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         # Initial state
         assert loader._model is None
@@ -962,13 +959,13 @@ class TestCLIPLoaderIntegration:
         mock_processor = MagicMock()
 
         mock_transformers = MagicMock()
-        mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         await loader.load()
         await loader.unload()
 
@@ -981,9 +978,9 @@ class TestCLIPLoaderIntegration:
     @pytest.mark.asyncio
     async def test_loader_properties_work_before_load(self):
         """Test properties work before model is loaded."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         # Should work even before load
-        assert loader.model_name == "clip-vit-l"
-        assert loader.vram_mb == 800
-        assert loader.model_path == "openai/clip-vit-large-patch14"
+        assert loader.model_name == "siglip2-base-patch16-224"
+        assert loader.vram_mb == 200
+        assert loader.model_path == "openai/siglip2-base-patch16-224arge-patch14"

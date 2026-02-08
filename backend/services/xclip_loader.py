@@ -1,15 +1,14 @@
 """X-CLIP model loader for temporal action recognition.
 
-This module provides async loading of X-CLIP models for classifying actions
-in video sequences (multiple frames). X-CLIP extends CLIP for video understanding
-by adding temporal attention mechanisms.
+DEPRECATED (NEM-5563): Replaced by ST-GCN++ skeleton-based action recognition.
+ST-GCN++ uses pose keypoints already extracted by ViTPose/YOLOv8n-Pose,
+saving ~1,986MB VRAM (2GB -> 14MB). See stgcn_loader.py for the replacement.
 
-The model analyzes sequences of frames to detect security-relevant actions like:
-- Person loitering, approaching door, running away
-- Looking around suspiciously, trying door handle
-- Walking normally, delivering package
+This module is kept for backward compatibility but X-CLIP is disabled by default
+in model_zoo.py. The action prompts and risk classification functions are still
+used by the enrichment pipeline and action_recognition_service.py.
 
-Model Configuration (NEM-3908):
+Original X-CLIP Configuration (NEM-3908):
 - Model: microsoft/xclip-base-patch16-16-frames
 - Frames: 16 (upgraded from 8 for +4% accuracy)
 - Patch size: 16 (finer spatial resolution than patch32)

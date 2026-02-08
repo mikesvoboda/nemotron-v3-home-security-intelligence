@@ -692,7 +692,7 @@ def test_quantization_recommendations_low_priority_models():
         "vit-age-classifier",
         "vit-gender-classifier",
         "pet-classifier",
-        "osnet-x0-25",
+        "osnet-ain-x1-0",
     ]
 
     for model_name in low_priority_models:
@@ -1172,7 +1172,7 @@ def test_low_priority_models_in_recommendations():
         "vit-age-classifier",
         "vit-gender-classifier",
         "pet-classifier",
-        "osnet-x0-25",
+        "osnet-ain-x1-0",
         "threat-detection-yolov8n",
     ]
 

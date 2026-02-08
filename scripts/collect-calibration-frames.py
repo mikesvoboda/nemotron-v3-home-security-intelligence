@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Collect calibration frames for CLIP INT8 TensorRT quantization.
+"""Collect calibration frames for SigLIP 2 Base INT8 TensorRT quantization.
 
 Collects a diverse sample of security camera frames suitable for calibrating
-CLIP ViT-L INT8 TensorRT engines. The calibration dataset should be
+SigLIP 2 Base INT8 TensorRT engines. The calibration dataset should be
 representative of the images the model will process in production.
 
 Sources (checked in order of availability):
@@ -245,7 +245,7 @@ def collect_frames(
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Collect calibration frames for CLIP INT8 TensorRT quantization",
+        description="Collect calibration frames for SigLIP 2 Base INT8 TensorRT quantization",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -328,7 +328,7 @@ Examples:
 
     output_dir = Path(args.output)
 
-    logger.info("CLIP INT8 Calibration Frame Collector")
+    logger.info("SigLIP 2 Base INT8 Calibration Frame Collector")
     logger.info(f"  Sources: {[str(d) for d in source_dirs]}")
     logger.info(f"  Output: {output_dir}")
     logger.info(f"  Max frames: {args.max_frames}")
@@ -353,11 +353,11 @@ Examples:
         logger.info("Next steps:")
         logger.info("  1. Set CLIP_TENSORRT_PRECISION=int8 in .env")
         logger.info(f"  2. Set CLIP_CALIBRATION_DIR={output_dir} in .env")
-        logger.info("  3. Rebuild CLIP TensorRT engine:")
+        logger.info("  3. Rebuild SigLIP TensorRT engine:")
         logger.info(
             "     python ai/clip/export_onnx.py pipeline "
-            "--model-path /models/clip-vit-l "
-            f"--output-dir /models/clip-vit-l --precision int8 --calibration-dir {output_dir}"
+            "--model-path /models/siglip2-base-patch16-224 "
+            f"--output-dir /models/siglip2-base-patch16-224 --precision int8 --calibration-dir {output_dir}"
         )
 
 

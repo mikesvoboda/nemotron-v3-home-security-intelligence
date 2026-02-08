@@ -14,7 +14,7 @@ Example usage:
     class CLIPLoader(ModelLoaderBase[dict]):
         @property
         def model_name(self) -> str:
-            return "clip-vit-l"
+            return "siglip2-base-patch16-224"
 
         @property
         def vram_mb(self) -> int:
@@ -51,7 +51,7 @@ class ModelLoaderBase(ABC, Generic[T]):
            (e.g., dict, object, tuple, etc.)
 
     Required Properties:
-        model_name: Unique identifier for the model (e.g., "clip-vit-l")
+        model_name: Unique identifier for the model (e.g., "siglip2-base-patch16-224")
         vram_mb: Estimated VRAM usage in megabytes
 
     Required Methods:
@@ -68,12 +68,12 @@ class ModelLoaderBase(ABC, Generic[T]):
         the model. It should be unique across all models.
 
         Returns:
-            Unique model identifier (e.g., "clip-vit-l", "yolo11-face")
+            Unique model identifier (e.g., "siglip2-base-patch16-224", "yolo11-face")
 
         Example:
             @property
             def model_name(self) -> str:
-                return "clip-vit-l"
+                return "siglip2-base-patch16-224"
         """
         ...
 

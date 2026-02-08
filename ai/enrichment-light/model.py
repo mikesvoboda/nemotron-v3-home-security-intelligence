@@ -3,7 +3,7 @@
 HTTP server hosting small, efficient models suitable for the secondary GPU:
 - Pose Estimator: YOLOv8n-pose (~300MB, TensorRT-optimized)
 - Threat Detector: YOLOv8n weapon detection (~400MB, TensorRT-optimized)
-- Person Re-ID: OSNet-x0.25 embeddings (~100MB)
+- Person Re-ID: OSNet-AIN x1.0 embeddings (~100MB)
 - Pet Classifier: Cat/dog classification (~200MB)
 - Depth Estimator: Monocular depth estimation (~150MB)
 
@@ -466,7 +466,9 @@ def load_all_models() -> None:
 
     # Load Person Re-ID (if assigned to light service AND in preload list)
     if _should_load_model("reid") and _should_preload_model("person_reid"):
-        reid_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
+        reid_path = os.environ.get(
+            "REID_MODEL_PATH", "/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth"
+        )
         try:
             from models.person_reid import PersonReID
 

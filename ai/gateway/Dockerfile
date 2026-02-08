@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tritonserver:25.01-py3
+FROM nvcr.io/nvidia/tritonserver:26.01-py3
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 && \
@@ -7,14 +7,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 
 # Install gateway + model export dependencies
 # Note: packaging must be force-reinstalled (Triton base has system version pip skips)
 # PyTorch/transformers/ultralytics needed for model export pipeline (export_all.sh)
+# Triton 26.01 ships stale numpy-1.26.4.dist-info with broken metadata that prevents
+# transformers from detecting numpy version.  Remove it before installing numpy.
 # hadolint ignore=DL3013,SC2102
-RUN pip install --no-cache-dir --force-reinstall packaging && \
+RUN rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
+    pip install --no-cache-dir --force-reinstall packaging numpy && \
     pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
     "tritonclient[grpc]" \
     pillow \
-    numpy \
     prometheus-client \
     httpx \
     python-multipart \

@@ -56,13 +56,13 @@ REQUIRED_MODELS: list[ModelSpec] = [
         description="Florence-2-base vision-language model (smaller, saves ~1.2GB VRAM)",
         required=True,
     ),
-    # CLIP - embeddings for re-identification
+    # SigLIP 2 Base - embeddings for re-identification (replaces CLIP ViT-L)
     ModelSpec(
-        name="clip-vit-l",
-        hf_repo="openai/clip-vit-large-patch14",
+        name="siglip2-base-patch16-224",
+        hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
         phase=1,
-        size_mb=800,
-        description="CLIP embeddings for entity re-identification",
+        size_mb=200,
+        description="SigLIP 2 Base embeddings for entity re-identification (replaces CLIP ViT-L)",
         required=True,
     ),
 ]
@@ -102,11 +102,11 @@ PHASE1_MODELS: list[ModelSpec] = [
         required=False,
     ),
     ModelSpec(
-        name="osnet-x0-25",
+        name="osnet-ain-x1-0",
         hf_repo="",  # torchreid model
         phase=1,
-        size_mb=300,
-        description="Person re-identification embeddings",
+        size_mb=100,
+        description="Person re-identification embeddings (AIN x1.0)",
         required=False,
     ),
     ModelSpec(
@@ -115,6 +115,15 @@ PHASE1_MODELS: list[ModelSpec] = [
         phase=1,
         size_mb=50,
         description="Human pose estimation (17 COCO keypoints)",
+        required=False,
+    ),
+    # YOLO-World open-vocabulary detection (NEM-5566)
+    ModelSpec(
+        name="yolo-world-s",
+        hf_repo="",  # ultralytics YOLOWorld
+        phase=1,
+        size_mb=1500,
+        description="Open-vocabulary detection (packages, weapons, tools)",
         required=False,
     ),
 ]
@@ -129,12 +138,13 @@ PHASE2_MODELS: list[ModelSpec] = [
         description="Zero-shot clothing attribute detection",
         required=False,
     ),
+    # ST-GCN++ replaces X-CLIP for action recognition (NEM-5563, -1986MB VRAM)
     ModelSpec(
-        name="xclip-base",
-        hf_repo="microsoft/xclip-base-patch16-16-frames",
+        name="stgcn-plus-plus",
+        hf_repo="pyskl/stgcnpp_ntu60_xsub_hrnet_j",  # manual download
         phase=2,
-        size_mb=2000,
-        description="Video action recognition (16 frames)",
+        size_mb=20,
+        description="ST-GCN++ skeleton-based action recognition (replaces X-CLIP)",
         required=False,
     ),
     ModelSpec(
@@ -151,6 +161,15 @@ PHASE2_MODELS: list[ModelSpec] = [
         phase=2,
         size_mb=350,
         description="Gender classification from face",
+        required=False,
+    ),
+    # Zero-DCE++ low-light enhancement (NEM-5567)
+    ModelSpec(
+        name="zero-dce-plus-plus",
+        hf_repo="Li-Chongyi/Zero-DCE_extension",  # manual download from GitHub
+        phase=2,
+        size_mb=5,
+        description="Zero-DCE++ low-light enhancement preprocessing (40KB, ~0 VRAM)",
         required=False,
     ),
 ]

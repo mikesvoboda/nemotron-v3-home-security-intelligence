@@ -79,6 +79,10 @@ from backend.core.metrics import (
 )
 from backend.core.mime_types import VIDEO_MIME_TYPES
 from backend.core.telemetry import add_span_event
+from backend.services.age_classifier_loader import (
+    AgeClassificationResult,
+    classify_ages_batch,
+)
 from backend.services.depth_anything_loader import (
     DepthAnalysisResult,
     analyze_depth,
@@ -101,6 +105,10 @@ from backend.services.fashion_clip_loader import (
     classify_clothing,
     format_clothing_context,
 )
+from backend.services.gender_classifier_loader import (
+    GenderClassificationResult,
+    classify_genders_batch,
+)
 from backend.services.household_matcher import (
     HouseholdMatch,
     get_household_matcher,
@@ -118,6 +126,7 @@ from backend.services.model_zoo import (
     ModelManager,
     get_model_manager,
 )
+from backend.services.osnet_loader import extract_person_embedding
 from backend.services.pet_classifier_loader import (
     PetClassificationResult,
     classify_pet,
@@ -139,6 +148,14 @@ from backend.services.scene_ocr_service import (
 )
 from backend.services.segformer_loader import (
     ClothingSegmentationResult,
+)
+from backend.services.skeleton_action_service import SkeletonActionService
+from backend.services.smoke_fire_loader import (
+    SmokeFireDetectionResult,
+    detect_smoke_fire,
+)
+from backend.services.stgcn_loader import (
+    SkeletonActionResult,
 )
 from backend.services.threat_detection_loader import (
     ThreatDetection,
@@ -174,6 +191,16 @@ from backend.services.xclip_loader import (
     classify_actions,
     get_action_risk_weight,
     is_suspicious_action,
+)
+from backend.services.yolo_world_loader import (
+    detect_with_prompts,
+    get_object_priority,
+)
+from backend.services.zero_dce_loader import (
+    enhance_image as zero_dce_enhance,
+)
+from backend.services.zero_dce_loader import (
+    should_enhance as zero_dce_should_enhance,
 )
 
 if TYPE_CHECKING:
@@ -701,6 +728,12 @@ class EnrichmentResult:
         default_factory=dict
     )  # GenderClassificationResult
     person_embeddings: dict[str, Any] = field(default_factory=dict)  # PersonEmbeddingResult (OSNet)
+    # Smoke/fire detection results (NEM-5566) - runs on every frame
+    smoke_fire_detection: SmokeFireDetectionResult | None = None
+    # Consecutive smoke detection counter per camera for confirmation
+    _smoke_consecutive_count: int = 0
+    # YOLO-World zero-shot detection results (NEM-5566) - suspicious scenarios only
+    yolo_world_detections: list[dict[str, Any]] = field(default_factory=list)
     # CLIP embeddings for re-identification (768-dim), keyed by detection ID
     # These are generated during _run_reid and cached for reuse by downstream services
     # (NEM-5517/5518/5519: Embedding Caching)
@@ -944,6 +977,21 @@ class EnrichmentResult:
     def has_gender_classifications(self) -> bool:
         """Check if any gender classifications are available."""
         return bool(self.gender_classifications)
+
+    @property
+    def has_smoke_fire(self) -> bool:
+        """Check if smoke or fire was detected (NEM-5566)."""
+        return self.smoke_fire_detection is not None and self.smoke_fire_detection.has_detections
+
+    @property
+    def has_fire(self) -> bool:
+        """Check if fire was detected (NEM-5566, CRITICAL)."""
+        return self.smoke_fire_detection is not None and self.smoke_fire_detection.has_fire
+
+    @property
+    def has_yolo_world_detections(self) -> bool:
+        """Check if YOLO-World zero-shot detections are available (NEM-5566)."""
+        return bool(self.yolo_world_detections)
 
     @property
     def has_person_embeddings(self) -> bool:
@@ -1233,6 +1281,30 @@ class EnrichmentResult:
             lines.append(f"## Person Re-ID Embeddings ({len(self.person_embeddings)} persons)")
             lines.append("  Embeddings extracted for person tracking across cameras")
 
+        # Smoke/Fire Detection (NEM-5566 - SAFETY CRITICAL)
+        if self.smoke_fire_detection and self.smoke_fire_detection.has_detections:
+            lines.append("## **SMOKE/FIRE DETECTION**")
+            lines.append(self.smoke_fire_detection.to_context_string())
+
+        # YOLO-World Zero-Shot Detections (NEM-5566)
+        if self.yolo_world_detections:
+            lines.append(
+                f"## Zero-Shot Object Detection ({len(self.yolo_world_detections)} objects)"
+            )
+            for det in sorted(
+                self.yolo_world_detections,
+                key=lambda d: d.get("confidence", 0),
+                reverse=True,
+            )[:10]:
+                priority = det.get("priority", "low")
+                priority_marker = (
+                    f" [{priority.upper()}]" if priority in ("critical", "high") else ""
+                )
+                lines.append(
+                    f"  - {det.get('class_name', 'unknown')}: "
+                    f"{det.get('confidence', 0):.0%} confidence{priority_marker}"
+                )
+
         # Image Quality Assessment
         if self.image_quality:
             lines.append("## Image Quality Assessment")
@@ -1317,6 +1389,10 @@ class EnrichmentResult:
                 det_id: result.to_dict() if hasattr(result, "to_dict") else {}
                 for det_id, result in self.person_embeddings.items()
             },
+            "smoke_fire_detection": (
+                self.smoke_fire_detection.to_dict() if self.smoke_fire_detection else None
+            ),
+            "yolo_world_detections": self.yolo_world_detections,
             # Household matching results (NEM-3314, NEM-5512/5513/5514 - detection-attributed)
             # Now keyed by detection ID for context isolation
             "person_household_matches": {
@@ -1947,6 +2023,12 @@ class EnrichmentPipeline:
         action_recognition_enabled: bool = True,
         scene_ocr_enabled: bool = True,
         household_matching_enabled: bool = False,
+        age_classification_enabled: bool = True,
+        gender_classification_enabled: bool = True,
+        smoke_fire_detection_enabled: bool = True,
+        yolo_world_enabled: bool = True,
+        osnet_reid_enabled: bool = True,
+        low_light_enhancement_enabled: bool = True,
         frame_buffer: FrameBuffer | None = None,
         redis_client: Any | None = None,
         use_enrichment_service: bool = False,
@@ -2021,11 +2103,23 @@ class EnrichmentPipeline:
         self.action_recognition_enabled = action_recognition_enabled
         self.scene_ocr_enabled = scene_ocr_enabled
         self.household_matching_enabled = household_matching_enabled
+        self.age_classification_enabled = age_classification_enabled
+        self.gender_classification_enabled = gender_classification_enabled
+        self.smoke_fire_detection_enabled = smoke_fire_detection_enabled
+        self.yolo_world_enabled = yolo_world_enabled
+        self.osnet_reid_enabled = osnet_reid_enabled
+        self.low_light_enhancement_enabled = low_light_enhancement_enabled
+        # Smoke consecutive detection tracker per camera (for false positive reduction)
+        self._smoke_consecutive_counts: dict[str, int] = {}
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
 
-        # Frame buffer for X-CLIP temporal action recognition
+        # Frame buffer for X-CLIP temporal action recognition (legacy, kept for fallback)
         self._frame_buffer = frame_buffer
+
+        # ST-GCN++ skeleton action service (NEM-5563: replaces X-CLIP)
+        # Initialized lazily on first use (needs model loaded)
+        self._skeleton_action_service: SkeletonActionService | None = None
 
         # Enrichment service settings
         self.use_enrichment_service = use_enrichment_service
@@ -2243,9 +2337,16 @@ class EnrichmentPipeline:
         if self.face_detection_enabled and persons:
             phase1_tasks["face_detection"] = self._safe_detect_faces(persons, images)
         if self.license_plate_enabled and vehicles:
-            phase1_tasks["license_plate_detection"] = self._safe_detect_license_plates(
-                vehicles, images
-            )
+            # NEM-5569: Use FastALPR (end-to-end detection+OCR, 28MB) if available,
+            # otherwise fall back to YOLO11 + PaddleOCR (400MB)
+            if self._is_fast_alpr_available():
+                phase1_tasks["license_plate_detection"] = self._safe_detect_plates_fast_alpr(
+                    vehicles, images
+                )
+            else:
+                phase1_tasks["license_plate_detection"] = self._safe_detect_license_plates(
+                    vehicles, images
+                )
         if self.violence_detection_enabled and len(persons) >= 2:
             phase1_tasks["violence_detection"] = self._safe_detect_violence(pil_image)
 
@@ -2306,13 +2407,12 @@ class EnrichmentPipeline:
             # LOCAL MODEL PATH: Individual model loading (existing behavior)
             # ================================================================
 
-            # --- Threat/Pose/Action (minimal quality) ---
+            # --- Threat/Pose (minimal quality) ---
             if self.pose_estimation_enabled and persons:
                 phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
-            if self.action_recognition_enabled and persons:
-                phase1_tasks["action_recognition"] = self._safe_recognize_actions(
-                    pil_image, camera_id
-                )
+            # NOTE: Action recognition moved to post-pose phase (NEM-5563)
+            # ST-GCN++ uses pose keypoints, so it runs after pose results are available.
+            # See _run_skeleton_action_recognition() called after phase1 results assembly.
 
             # --- Standard quality models ---
             if (
@@ -2338,7 +2438,34 @@ class EnrichmentPipeline:
             ):
                 phase1_tasks["pet_classification"] = self._safe_classify_pets(animals, pil_image)
 
+            # --- NEM-5566: Demographics (age + gender) for person detections ---
+            if (
+                (self.age_classification_enabled or self.gender_classification_enabled)
+                and persons
+                and self._should_run_for_quality("standard")
+            ):
+                phase1_tasks["demographics"] = self._safe_classify_demographics(persons, pil_image)
+
+            # --- NEM-5566: OSNet person re-ID embeddings (local path) ---
+            if self.osnet_reid_enabled and persons and self._should_run_for_quality("standard"):
+                phase1_tasks["osnet_reid"] = self._safe_extract_osnet_embeddings(persons, pil_image)
+
         # --- Models that always use local loading regardless of enrichment service ---
+        # --- NEM-5566: Smoke/fire detection (SAFETY CRITICAL - runs on EVERY frame) ---
+        if self.smoke_fire_detection_enabled:
+            phase1_tasks["smoke_fire_detection"] = self._safe_detect_smoke_fire(
+                pil_image, camera_id
+            )
+
+        # --- NEM-5566: YOLO-World zero-shot (suspicious scenarios only) ---
+        if (
+            self.yolo_world_enabled
+            and high_conf_detections
+            and self._should_run_for_quality("standard")
+        ):
+            phase1_tasks["yolo_world_detection"] = self._safe_detect_yolo_world(
+                pil_image, high_conf_detections
+            )
         if self.image_quality_enabled and self._should_run_for_quality("standard"):
             phase1_tasks["image_quality"] = self._safe_assess_image_quality(pil_image, camera_id)
         if self.weather_classification_enabled and self._should_run_for_quality("standard"):
@@ -2433,6 +2560,9 @@ class EnrichmentPipeline:
                 "face_detection",
                 "license_plate_detection",
                 "violence_detection",
+                "smoke_fire_detection",
+                "yolo_world_detection",
+                "demographics",
             }
         )
 
@@ -2498,6 +2628,24 @@ class EnrichmentPipeline:
             if phase1_dict:
                 self._process_phase1_results(result, phase1_dict)
 
+            # ST-GCN++ skeleton action recognition (NEM-5563)
+            # Runs after pose estimation so we have keypoints to feed the model.
+            # Uses buffered keypoints across frames for temporal classification.
+            if (
+                self.action_recognition_enabled
+                and persons
+                and result.pose_results
+                and not self.use_enrichment_service
+            ):
+                try:
+                    action_result = await self._recognize_actions_from_skeleton(
+                        result.pose_results, persons, camera_id
+                    )
+                    if action_result:
+                        result.action_results = action_result
+                except Exception as e:
+                    self._handle_enrichment_error("action_recognition", e, result)
+
             if florence_task:
                 if isinstance(florence_result, Exception):
                     self._handle_enrichment_error("vision_extraction", florence_result, result)
@@ -2525,10 +2673,12 @@ class EnrichmentPipeline:
         phase2_start = time.monotonic()
         phase2_tasks: dict[str, Any] = {}
 
-        if self.ocr_enabled and result.license_plates:
+        # NEM-5569: Skip OCR phase when FastALPR was used (text already populated)
+        plates_need_ocr = [p for p in result.license_plates if not p.text]
+        if self.ocr_enabled and plates_need_ocr:
 
             async def _ocr_task() -> None:
-                await self._read_plates(result.license_plates, images)
+                await self._read_plates(plates_need_ocr, images)
 
             phase2_tasks["ocr"] = _ocr_task()
 
@@ -2785,6 +2935,33 @@ class EnrichmentPipeline:
                 if gender_cls:
                     result.gender_classifications = gender_cls
 
+        # Smoke/Fire Detection (NEM-5566 - SAFETY CRITICAL)
+        if "smoke_fire_detection" in phase1_dict:
+            sf_result = phase1_dict["smoke_fire_detection"]
+            if isinstance(sf_result, Exception):
+                self._handle_enrichment_error("smoke_fire_detection", sf_result, result)
+            elif sf_result is not None:
+                result.smoke_fire_detection = sf_result
+
+        # YOLO-World Zero-Shot Detection (NEM-5566)
+        if "yolo_world_detection" in phase1_dict:
+            yw_result = phase1_dict["yolo_world_detection"]
+            if isinstance(yw_result, Exception):
+                self._handle_enrichment_error("yolo_world_detection", yw_result, result)
+            elif yw_result:
+                result.yolo_world_detections = yw_result
+
+        # OSNet Person Re-ID Embeddings (NEM-5566)
+        if "osnet_reid" in phase1_dict:
+            osnet_result = phase1_dict["osnet_reid"]
+            if isinstance(osnet_result, Exception):
+                self._handle_enrichment_error("osnet_reid", osnet_result, result)
+            elif osnet_result:
+                # Merge into person_embeddings (don't overwrite if service already populated)
+                for det_id, emb in osnet_result.items():
+                    if det_id not in result.person_embeddings:
+                        result.person_embeddings[det_id] = emb
+
         # CLIP Scene Classification (NEM-5525)
         if "clip_scene_classification" in phase1_dict:
             classify_result = phase1_dict["clip_scene_classification"]
@@ -2843,6 +3020,18 @@ class EnrichmentPipeline:
         """Safe wrapper for license plate detection."""
         return await self._detect_license_plates(vehicles, images)
 
+    async def _safe_detect_plates_fast_alpr(
+        self,
+        vehicles: list[DetectionInput],
+        images: dict[int | None, Image.Image | Path | str],
+    ) -> list[LicensePlateResult]:
+        """Safe wrapper for FastALPR end-to-end plate detection + OCR (NEM-5569).
+
+        Uses FastALPR (~28MB) instead of YOLO11 (300MB) + PaddleOCR (100MB).
+        Returns LicensePlateResult with text already populated (skips Phase 2 OCR).
+        """
+        return await self._detect_plates_fast_alpr(vehicles, images)
+
     async def _safe_detect_violence(
         self,
         image: Image.Image,
@@ -2894,7 +3083,11 @@ class EnrichmentPipeline:
         image: Image.Image,
         camera_id: str | None,
     ) -> dict[str, Any] | None:
-        """Safe wrapper for action recognition."""
+        """Safe wrapper for X-CLIP action recognition (DEPRECATED).
+
+        Deprecated in favor of _recognize_actions_from_skeleton() (NEM-5563).
+        Kept as fallback if ST-GCN++ is unavailable.
+        """
         frames = await self._get_action_frames(camera_id, image)
         if frames:
             return await self._recognize_actions(frames)
@@ -2923,6 +3116,270 @@ class EnrichmentPipeline:
     ) -> dict[str, PetClassificationResult]:
         """Safe wrapper for pet classification."""
         return await self._classify_pets(animals, image)
+
+    async def _safe_classify_demographics(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> tuple[dict[str, AgeClassificationResult], dict[str, GenderClassificationResult]]:
+        """Classify age and gender for person detections (NEM-5566).
+
+        Crops each person detection and runs age + gender classifiers.
+        Uses batch inference when multiple persons are detected.
+
+        Args:
+            persons: Person detections to classify
+            image: Full frame PIL Image
+
+        Returns:
+            Tuple of (age_classifications, gender_classifications) dicts keyed by detection ID
+        """
+        age_results: dict[str, AgeClassificationResult] = {}
+        gender_results: dict[str, GenderClassificationResult] = {}
+
+        if not persons:
+            return age_results, gender_results
+
+        # Crop person images
+        person_crops: list[tuple[str, Image.Image]] = []
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+            crop = await self._crop_to_bbox(image, person.bbox)
+            if crop is not None:
+                person_crops.append((det_id, crop))
+
+        if not person_crops:
+            return age_results, gender_results
+
+        det_ids = [pc[0] for pc in person_crops]
+        crops = [pc[1] for pc in person_crops]
+
+        # Run age classification
+        if self.age_classification_enabled:
+            try:
+                start = time.monotonic()
+                async with self.model_manager.load("vit-age-classifier") as model_dict:
+                    age_batch = await classify_ages_batch(model_dict, crops)
+                    for det_id, age_result in zip(det_ids, age_batch, strict=True):
+                        age_results[det_id] = age_result
+                duration = time.monotonic() - start
+                observe_enrichment_model_duration("age_classification", duration)
+                record_enrichment_model_call("age_classification")
+                logger.debug(
+                    "Age classification completed for %d persons in %.2fs",
+                    len(age_results),
+                    duration,
+                )
+            except Exception as e:
+                record_enrichment_model_error("age_classification")
+                logger.debug(f"Age classification skipped: {e}")
+
+        # Run gender classification
+        if self.gender_classification_enabled:
+            try:
+                start = time.monotonic()
+                async with self.model_manager.load("vit-gender-classifier") as model_dict:
+                    gender_batch = await classify_genders_batch(model_dict, crops)
+                    for det_id, gender_result in zip(det_ids, gender_batch, strict=True):
+                        gender_results[det_id] = gender_result
+                duration = time.monotonic() - start
+                observe_enrichment_model_duration("gender_classification", duration)
+                record_enrichment_model_call("gender_classification")
+                logger.debug(
+                    "Gender classification completed for %d persons in %.2fs",
+                    len(gender_results),
+                    duration,
+                )
+            except Exception as e:
+                record_enrichment_model_error("gender_classification")
+                logger.debug(f"Gender classification skipped: {e}")
+
+        return age_results, gender_results
+
+    async def _safe_detect_smoke_fire(
+        self,
+        image: Image.Image,
+        camera_id: str | None = None,
+    ) -> SmokeFireDetectionResult | None:
+        """Detect smoke/fire on full frame (NEM-5566, SAFETY CRITICAL).
+
+        Runs on every frame regardless of YOLO detections.
+        Fire detection is immediate; smoke requires 2 consecutive frames
+        to confirm (reduces false positives from steam/fog).
+
+        Args:
+            image: Full frame PIL Image
+            camera_id: Camera identifier for consecutive frame tracking
+
+        Returns:
+            SmokeFireDetectionResult or None if detection fails/skipped
+        """
+        try:
+            start = time.monotonic()
+            async with self.model_manager.load("smoke-fire-yolov8n") as model:
+                result = await detect_smoke_fire(model, image, confidence_threshold=0.5)
+            duration = time.monotonic() - start
+            observe_enrichment_model_duration("smoke_fire_detection", duration)
+            record_enrichment_model_call("smoke_fire_detection")
+
+            cam_key = camera_id or "_default"
+
+            if result.has_fire:
+                # Fire: immediate alert, reset smoke counter
+                self._smoke_consecutive_counts[cam_key] = 0
+                logger.warning(
+                    "FIRE DETECTED (confidence=%.2f)",
+                    result.highest_confidence,
+                    extra={"camera_id": camera_id},
+                )
+                return result
+
+            if result.has_smoke:
+                # Smoke: require 2 consecutive frames to confirm
+                self._smoke_consecutive_counts[cam_key] = (
+                    self._smoke_consecutive_counts.get(cam_key, 0) + 1
+                )
+                count = self._smoke_consecutive_counts[cam_key]
+                if count >= 2:
+                    logger.warning(
+                        "SMOKE CONFIRMED (%d consecutive frames, confidence=%.2f)",
+                        count,
+                        result.highest_confidence,
+                        extra={"camera_id": camera_id},
+                    )
+                    return result
+                else:
+                    logger.debug(
+                        "Smoke detected (%d/2 consecutive frames needed)",
+                        count,
+                        extra={"camera_id": camera_id},
+                    )
+                    return None  # Not yet confirmed
+            else:
+                # No smoke/fire: reset counter
+                self._smoke_consecutive_counts[cam_key] = 0
+                return result if result.has_detections else None
+
+        except Exception as e:
+            record_enrichment_model_error("smoke_fire_detection")
+            logger.debug(f"Smoke/fire detection skipped: {e}")
+            return None
+
+    async def _safe_detect_yolo_world(
+        self,
+        image: Image.Image,
+        detections: list[DetectionInput],
+    ) -> list[dict[str, Any]]:
+        """Run YOLO-World zero-shot detection for suspicious scenarios (NEM-5566).
+
+        Only triggered when YOLO26 detects potentially suspicious items or
+        unknown objects. Not run on every frame due to 1.5GB VRAM cost.
+
+        Args:
+            image: Full frame PIL Image
+            detections: Current YOLO26 detections to check for suspicious triggers
+
+        Returns:
+            List of YOLO-World detection dicts with class_name, confidence, bbox, priority
+        """
+        # Determine if we should run YOLO-World based on detection context
+        suspicious_classes = {
+            "backpack",
+            "suitcase",
+            "handbag",
+            "umbrella",
+            "knife",
+            "scissors",
+            "baseball bat",
+            "unknown",
+        }
+        has_suspicious = any(d.class_name.lower() in suspicious_classes for d in detections)
+        has_person_with_low_conf = any(
+            d.class_name == PERSON_CLASS and d.confidence < 0.6 for d in detections
+        )
+
+        if not has_suspicious and not has_person_with_low_conf:
+            return []
+
+        try:
+            start = time.monotonic()
+            async with self.model_manager.load("yolo-world-s") as model:
+                results = await detect_with_prompts(model, image, confidence_threshold=0.25)
+            duration = time.monotonic() - start
+            observe_enrichment_model_duration("yolo_world_detection", duration)
+            record_enrichment_model_call("yolo_world_detection")
+
+            # Annotate results with priority level
+            for det in results:
+                det["priority"] = get_object_priority(det.get("class_name", ""))
+
+            logger.debug(
+                "YOLO-World detected %d objects in %.2fs",
+                len(results),
+                duration,
+            )
+            return results
+
+        except Exception as e:
+            record_enrichment_model_error("yolo_world_detection")
+            logger.debug(f"YOLO-World detection skipped: {e}")
+            return []
+
+    async def _safe_extract_osnet_embeddings(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, Any]:
+        """Extract OSNet person re-ID embeddings (NEM-5566).
+
+        Extracts appearance embeddings for each person detection using
+        OSNet for cross-camera person matching.
+
+        Args:
+            persons: Person detections
+            image: Full frame PIL Image
+
+        Returns:
+            Dict mapping detection IDs to embedding results
+        """
+        embeddings: dict[str, Any] = {}
+        if not persons:
+            return embeddings
+
+        try:
+            start = time.monotonic()
+            async with self.model_manager.load("osnet-ain-x1-0") as model_data:
+                for i, person in enumerate(persons):
+                    det_id = str(person.id) if person.id else str(i)
+                    crop = await self._crop_to_bbox(image, person.bbox)
+                    if crop is None:
+                        continue
+
+                    emb_result = await extract_person_embedding(
+                        model_data, crop, detection_id=det_id
+                    )
+                    if emb_result is not None and emb_result.embedding is not None:
+                        emb = emb_result.embedding
+                        embeddings[det_id] = {
+                            "embedding": emb.tolist() if hasattr(emb, "tolist") else emb,
+                            "embedding_dim": len(emb) if hasattr(emb, "__len__") else 0,
+                            "detection_id": det_id,
+                        }
+
+            duration = time.monotonic() - start
+            observe_enrichment_model_duration("osnet_reid", duration)
+            record_enrichment_model_call("osnet_reid")
+            logger.debug(
+                "OSNet embeddings extracted for %d/%d persons in %.2fs",
+                len(embeddings),
+                len(persons),
+                duration,
+            )
+        except Exception as e:
+            record_enrichment_model_error("osnet_reid")
+            logger.debug(f"OSNet embedding extraction skipped: {e}")
+
+        return embeddings
 
     async def _safe_segment_person_clothing(
         self,
@@ -4139,6 +4596,107 @@ class EnrichmentPipeline:
             )
             raise
 
+    async def _recognize_actions_from_skeleton(
+        self,
+        pose_results: dict[str, PoseResult],
+        persons: list[DetectionInput],  # noqa: ARG002
+        camera_id: str | None,
+    ) -> dict[str, Any] | None:
+        """Recognize actions using ST-GCN++ skeleton-based approach (NEM-5563).
+
+        Uses pose keypoints already extracted by ViTPose/YOLOv8n-Pose to classify
+        actions. Buffers keypoints per tracked person across frames and runs
+        ST-GCN++ when enough temporal context is available.
+
+        This replaces X-CLIP video-based action recognition, saving ~1,986MB VRAM.
+
+        Args:
+            pose_results: Dictionary mapping detection IDs to PoseResult
+            persons: List of person detections
+            camera_id: Camera identifier for per-camera buffering
+
+        Returns:
+            Dictionary with detected_action, confidence, top_actions, all_scores
+            compatible with the X-CLIP output format, or None if not enough frames
+        """
+        if not pose_results:
+            return None
+
+        start_time = time.perf_counter()
+
+        try:
+            # Lazily initialize skeleton action service
+            # Use preload (not context manager) so model stays loaded —
+            # ST-GCN++ is only ~14MB so it's fine to keep resident
+            if self._skeleton_action_service is None:
+                await self.model_manager.preload("stgcn-plus-plus")
+                model_dict = self.model_manager._loaded_models["stgcn-plus-plus"]
+                self._skeleton_action_service = SkeletonActionService(
+                    model_dict=model_dict,
+                    buffer_size=60,
+                    min_frames=30,
+                    inference_interval=15,
+                )
+
+            # Feed keypoints for each detected person to the buffer
+            best_result: SkeletonActionResult | None = None
+            for det_id, pose in pose_results.items():
+                # Build person tracking key from detection ID + camera
+                person_key = f"{camera_id or 'unknown'}_{det_id}"
+
+                # Feed keypoints to the skeleton service
+                result = await self._skeleton_action_service.add_keypoints(
+                    person_id=person_key,
+                    keypoints=pose.keypoints,
+                )
+
+                # Keep the most security-relevant or highest-confidence result
+                if result is not None:
+                    if (
+                        best_result is None
+                        or (result.is_security_relevant and not best_result.is_security_relevant)
+                        or result.confidence > best_result.confidence
+                    ):
+                        best_result = result
+
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("stgcn", duration)
+
+            if best_result is None:
+                # Not enough frames buffered yet — this is expected for the first
+                # 30 frames of a new person. Return None (no action result yet).
+                return None
+
+            record_enrichment_model_call("action")
+
+            # Convert SkeletonActionResult to X-CLIP-compatible dict format
+            # so the rest of the pipeline (prompts, LLM context) works unchanged
+            action_dict: dict[str, Any] = {
+                "detected_action": best_result.action_label,
+                "confidence": best_result.confidence,
+                "top_actions": best_result.top_actions,
+                "all_scores": dict(best_result.top_actions),
+                "security_risk": best_result.security_risk,
+                "is_security_relevant": best_result.is_security_relevant,
+                "source": "stgcn++",  # Flag for downstream consumers
+            }
+
+            logger.debug(
+                f"Skeleton action recognition: {best_result.action_label} "
+                f"({best_result.confidence:.0%}, risk={best_result.security_risk})"
+            )
+            return action_dict
+
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            observe_enrichment_model_duration("stgcn", duration)
+            record_enrichment_model_error("stgcn")
+            logger.error(
+                f"Skeleton action recognition failed: {sanitize_error(e)}",
+                exc_info=True,
+            )
+            raise
+
     async def _classify_clothing_via_service(
         self,
         persons: list[DetectionInput],
@@ -4990,6 +5548,12 @@ class EnrichmentPipeline:
         else:
             pil_image = None
 
+        # NEM-5567: Zero-DCE++ low-light enhancement preprocessing
+        # Conditionally enhance dark frames before all downstream enrichment models.
+        # Only applied when the image brightness is below threshold (low-light).
+        if pil_image and self.low_light_enhancement_enabled:
+            pil_image = await self._maybe_enhance_low_light(pil_image)
+
         # Filter detections by confidence
         high_conf_detections = [d for d in detections if d.confidence >= self.min_confidence]
 
@@ -5133,7 +5697,7 @@ class EnrichmentPipeline:
 
         # CLIP model is now accessed via HTTP service (ai-clip)
         # The context manager is kept for compatibility but model is unused
-        async with self.model_manager.load("clip-vit-l"):
+        async with self.model_manager.load("siglip2-base-patch16-224"):
             for i, det in enumerate(detections):
                 det_id = str(det.id) if det.id else str(i)
 
@@ -5373,12 +5937,92 @@ class EnrichmentPipeline:
                                 },
                             )
 
+    def _is_fast_alpr_available(self) -> bool:
+        """Check if FastALPR is available in model zoo (NEM-5569).
+
+        Returns True if the fast-alpr model is registered and enabled.
+        Falls back to YOLO11 + PaddleOCR if not available.
+        """
+        try:
+            from backend.services.model_zoo import get_model_config
+
+            config = get_model_config("fast-alpr")
+            return config is not None and config.enabled
+        except Exception:
+            return False
+
+    async def _detect_plates_fast_alpr(
+        self,
+        vehicles: list[DetectionInput],
+        images: dict[int | None, Image.Image | Path | str],
+    ) -> list[LicensePlateResult]:
+        """Detect license plates using FastALPR end-to-end (NEM-5569).
+
+        FastALPR combines plate detection + OCR in a single pass (~28MB total),
+        replacing the two-step YOLO11 (300MB) + PaddleOCR (100MB) pipeline.
+        Results include text already populated, skipping the Phase 2 OCR step.
+
+        Args:
+            vehicles: List of vehicle detections
+            images: Dictionary mapping detection IDs to images
+
+        Returns:
+            List of LicensePlateResult with text already populated
+        """
+        from backend.services.fast_alpr_loader import run_fast_alpr
+
+        results: list[LicensePlateResult] = []
+
+        try:
+            async with self.model_manager.load("fast-alpr") as alpr:
+                for vehicle in vehicles:
+                    image = self._get_image_for_detection(vehicle, images)
+                    if image is None:
+                        continue
+
+                    # Crop to vehicle bounding box
+                    cropped = await self._crop_to_bbox(image, vehicle.bbox)
+                    if cropped is None:
+                        continue
+
+                    # Run end-to-end detection + OCR
+                    alpr_results = await run_fast_alpr(alpr, cropped)
+
+                    for plate in alpr_results:
+                        results.append(
+                            LicensePlateResult(
+                                bbox=BoundingBox(
+                                    x1=plate.bbox[0],
+                                    y1=plate.bbox[1],
+                                    x2=plate.bbox[2],
+                                    y2=plate.bbox[3],
+                                ),
+                                confidence=plate.detection_confidence,
+                                text=plate.text,
+                                ocr_confidence=plate.confidence,
+                                source_detection_id=vehicle.id,
+                            )
+                        )
+
+        except KeyError:
+            logger.warning("fast-alpr model not available, falling back to YOLO11 + PaddleOCR")
+            return await self._detect_license_plates(vehicles, images)
+        except RuntimeError:
+            logger.warning("FastALPR error, falling back to YOLO11 + PaddleOCR", exc_info=True)
+            return await self._detect_license_plates(vehicles, images)
+
+        if results:
+            logger.info(
+                f"FastALPR: detected {len(results)} plates with text in {len(vehicles)} vehicles"
+            )
+        return results
+
     async def _detect_license_plates(
         self,
         vehicles: list[DetectionInput],
         images: dict[int | None, Image.Image | Path | str],
     ) -> list[LicensePlateResult]:
-        """Detect license plates in vehicle detections.
+        """Detect license plates in vehicle detections (legacy YOLO11 path).
 
         Args:
             vehicles: List of vehicle detections
@@ -6307,6 +6951,35 @@ class EnrichmentPipeline:
             logger.error("Vehicle damage detection error", exc_info=True)
 
         return results
+
+    async def _maybe_enhance_low_light(self, image: Image.Image) -> Image.Image:
+        """Conditionally enhance a low-light image using Zero-DCE++.
+
+        Only applies enhancement when the image brightness is below the
+        low-light threshold. Bright images are returned unchanged to avoid
+        degradation and wasted compute.
+
+        Args:
+            image: PIL Image to potentially enhance
+
+        Returns:
+            Enhanced image if low-light, original image otherwise
+        """
+        try:
+            if not zero_dce_should_enhance(image):
+                return image
+
+            async with self.model_manager.load("zero-dce-plus-plus") as model_data:
+                record_enrichment_model_call("zero-dce-plus-plus")
+                start_time = time.perf_counter()
+                enhanced = await zero_dce_enhance(model_data, image)
+                duration = time.perf_counter() - start_time
+                observe_enrichment_model_duration("zero-dce-plus-plus", duration)
+                logger.debug("Low-light enhancement applied (%.1fms)", duration * 1000)
+                return enhanced
+        except Exception:
+            logger.debug("Zero-DCE++ enhancement skipped (model unavailable or error)")
+            return image
 
     async def _assess_image_quality(
         self,

@@ -178,7 +178,7 @@ def test_model_name_returns_string():
     class TestLoader(ModelLoaderBase[dict]):
         @property
         def model_name(self) -> str:
-            return "clip-vit-l"
+            return "siglip2-base-patch16-224"
 
         @property
         def vram_mb(self) -> int:
@@ -192,7 +192,7 @@ def test_model_name_returns_string():
 
     loader = TestLoader()
     assert isinstance(loader.model_name, str)
-    assert loader.model_name == "clip-vit-l"
+    assert loader.model_name == "siglip2-base-patch16-224"
 
 
 def test_vram_mb_returns_int():

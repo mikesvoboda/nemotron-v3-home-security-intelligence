@@ -2,6 +2,7 @@
 """Quick test to exercise all AI models with specific test images."""
 
 import base64
+import os
 import sys
 from pathlib import Path
 
@@ -12,15 +13,15 @@ FIXTURE_DIR = Path(
 )
 
 SERVICES = {
-    "detector": "http://localhost:8090",
-    "florence": "http://localhost:8092",
-    "clip": "http://localhost:8093",
-    "enrichment": "http://localhost:8094",
+    "detector": os.environ.get("YOLO26_URL", "http://localhost:8095"),
+    "florence": os.environ.get("FLORENCE_URL", "http://localhost:8092"),
+    "clip": os.environ.get("CLIP_URL", "http://localhost:8093"),
+    "enrichment": os.environ.get("ENRICHMENT_URL", "http://localhost:8094"),
 }
 
 
 def encode_image(path: str) -> str:
-    with open(path, "rb") as f:
+    with open(path, "rb") as f:  # nosemgrep: path-traversal-open
         return base64.b64encode(f.read()).decode()
 
 
@@ -32,7 +33,7 @@ def test_image(image_path: Path, client: httpx.Client) -> dict:
 
     # 1. YOLO26 Detection
     try:
-        with open(image_path, "rb") as f:
+        with open(image_path, "rb") as f:  # nosemgrep: path-traversal-open
             r = client.post(
                 f"{SERVICES['detector']}/detect",
                 files={"file": (image_path.name, f, "image/jpeg")},

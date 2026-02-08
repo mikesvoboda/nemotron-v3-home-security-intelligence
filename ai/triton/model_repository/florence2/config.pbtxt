@@ -51,11 +51,5 @@ instance_group [
   }
 ]
 
-rate_limiter {
-  resources [
-    { name: "GPU_MEMORY" count: 1 }
-  ]
-  priority: 3
-}
-
+# Note: rate_limiter removed — not supported in Triton 26.01 Python backend
 version_policy: { latest: { num_versions: 1 }}

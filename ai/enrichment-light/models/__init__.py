@@ -3,7 +3,7 @@
 This package contains small, efficient models suitable for the secondary GPU:
 - PoseEstimator: YOLOv8n-pose body keypoint detection (~300MB, TensorRT-optimized)
 - ThreatDetector: YOLOv8n weapon detection (~400MB, TensorRT-optimized)
-- PersonReID: OSNet-x0.25 re-identification embeddings (~100MB)
+- PersonReID: OSNet-AIN x1.0 re-identification embeddings (~100MB)
 - PetClassifier: Cat/dog classification (~200MB)
 - DepthEstimator: Monocular depth estimation (~150MB)
 """

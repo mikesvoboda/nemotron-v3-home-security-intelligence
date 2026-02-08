@@ -1,14 +1,17 @@
-"""Action recognition service for X-CLIP video action classification.
+"""Action recognition service for video/skeleton action classification.
 
-This module provides the ActionRecognitionService class that integrates
-X-CLIP action recognition with the database layer. It handles:
-- Analyzing video frames for action classification
-- Creating and retrieving ActionEvent records
-- Filtering suspicious actions
-- Configurable confidence thresholds
-- Prometheus metrics for action detection observability
+DEPRECATED: X-CLIP video-based action recognition (NEM-3714).
+The enrichment pipeline now uses ST-GCN++ skeleton-based action recognition
+(NEM-5563) which reuses pose keypoints and saves ~1,986MB VRAM.
 
-Linear issue: NEM-3714, NEM-4144
+This module is kept for backward compatibility and provides:
+- ActionRecognitionService: X-CLIP based frame analysis (deprecated)
+- Database CRUD for ActionEvent records (still active)
+- Prometheus metrics for action detection observability (still active)
+
+For new code, use skeleton_action_service.SkeletonActionService instead.
+
+Linear issue: NEM-3714, NEM-4144, NEM-5563
 """
 
 from __future__ import annotations

@@ -63,7 +63,7 @@ ENV PORT=8096
 # Light model paths
 ENV POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
 ENV THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
-ENV REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
+ENV REID_MODEL_PATH=/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth
 ENV PET_MODEL_PATH=/models/pet-classifier
 ENV DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
 # HuggingFace cache configuration (NEM-3812)

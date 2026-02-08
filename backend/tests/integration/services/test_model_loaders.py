@@ -75,7 +75,7 @@ class TestCLIPLoaderIntegration:
     @pytest.mark.asyncio
     async def test_clip_loader_load_success(self, mock_transformers):
         """Test CLIP model loads successfully."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         result = await loader.load(device="cpu")
 
@@ -89,7 +89,7 @@ class TestCLIPLoaderIntegration:
         """Test CLIP model loads with CUDA device."""
         mock_transformers["torch"].cuda.is_available.return_value = True
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         result = await loader.load(device="cuda")
 
         assert "model" in result
@@ -101,7 +101,7 @@ class TestCLIPLoaderIntegration:
         # Enable CUDA for this test to verify empty_cache is called
         mock_transformers["torch"].cuda.is_available.return_value = True
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         await loader.load(device="cpu")
 
         assert loader._model is not None
@@ -115,9 +115,9 @@ class TestCLIPLoaderIntegration:
     @pytest.mark.asyncio
     async def test_clip_loader_properties(self, mock_transformers):
         """Test CLIP loader properties return correct values."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
-        assert loader.model_name == "clip-vit-l"
+        assert loader.model_name == "siglip2-base-patch16-224"
         assert loader.vram_mb == 800
         assert isinstance(loader.vram_mb, int)
 
@@ -136,12 +136,12 @@ class TestCLIPLoaderIntegration:
     @pytest.mark.asyncio
     async def test_load_clip_model_function(self, mock_transformers):
         """Test standalone load_clip_model function."""
-        result = await load_clip_model("openai/clip-vit-large-patch14")
+        result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
 
         assert "model" in result
         assert "processor" in result
         mock_transformers["transformers"].CLIPProcessor.from_pretrained.assert_called_once_with(
-            "openai/clip-vit-large-patch14"
+            "openai/siglip2-base-patch16-224arge-patch14"
         )
 
 
@@ -275,7 +275,7 @@ class TestModelZooIntegration:
         zoo = get_model_zoo()
 
         assert isinstance(zoo, dict)
-        assert "clip-vit-l" in zoo
+        assert "siglip2-base-patch16-224" in zoo
         assert "florence-2-large" in zoo
         assert "pet-classifier" in zoo
 
@@ -313,9 +313,9 @@ class TestModelZooIntegration:
     def test_clip_model_in_zoo(self):
         """Test CLIP model is registered correctly."""
         zoo = get_model_zoo()
-        config = zoo["clip-vit-l"]
+        config = zoo["siglip2-base-patch16-224"]
 
-        assert config.name == "clip-vit-l"
+        assert config.name == "siglip2-base-patch16-224"
         assert config.category == "embedding"
         assert config.enabled is True
         assert config.load_fn is load_clip_model
@@ -336,14 +336,14 @@ class TestModelManagerIntegration:
 
         manager = get_model_manager()
 
-        async with manager.load("clip-vit-l") as model:
+        async with manager.load("siglip2-base-patch16-224") as model:
             assert model is not None
             assert "model" in model
             assert "processor" in model
 
         # Model should be unloaded after context exit
         status = manager.get_status()
-        assert "clip-vit-l" not in status["loaded_models"]
+        assert "siglip2-base-patch16-224" not in status["loaded_models"]
 
     @pytest.mark.asyncio
     async def test_model_manager_reference_counting(self, mock_transformers):
@@ -353,25 +353,25 @@ class TestModelManagerIntegration:
         manager = get_model_manager()
 
         # Load model twice (simulating concurrent use)
-        async with manager.load("clip-vit-l") as model1:
+        async with manager.load("siglip2-base-patch16-224") as model1:
             assert model1 is not None
 
-            async with manager.load("clip-vit-l") as model2:
+            async with manager.load("siglip2-base-patch16-224") as model2:
                 # Should return same model instance
                 assert model2 is model1
 
                 status = manager.get_status()
-                assert "clip-vit-l" in status["loaded_models"]
+                assert "siglip2-base-patch16-224" in status["loaded_models"]
                 # Reference count should be 2
-                assert status["load_counts"]["clip-vit-l"] == 2
+                assert status["load_counts"]["siglip2-base-patch16-224"] == 2
 
             # After first release, ref count should be 1
             status = manager.get_status()
-            assert status["load_counts"]["clip-vit-l"] == 1
+            assert status["load_counts"]["siglip2-base-patch16-224"] == 1
 
         # After all releases, model should be unloaded
         status = manager.get_status()
-        assert "clip-vit-l" not in status["loaded_models"]
+        assert "siglip2-base-patch16-224" not in status["loaded_models"]
 
     @pytest.mark.asyncio
     async def test_model_manager_vram_tracking(self, mock_transformers):
@@ -380,7 +380,7 @@ class TestModelManagerIntegration:
 
         manager = get_model_manager()
 
-        async with manager.load("clip-vit-l"):
+        async with manager.load("siglip2-base-patch16-224"):
             status = manager.get_status()
             assert status["total_loaded_vram_mb"] == 800  # CLIP VRAM
 
@@ -402,7 +402,7 @@ class TestModelManagerIntegration:
         manager = get_model_manager()
 
         # Load two different models concurrently
-        async with manager.load("clip-vit-l") as clip_model:
+        async with manager.load("siglip2-base-patch16-224") as clip_model:
             assert clip_model is not None
 
             async with manager.load("pet-classifier") as pet_model:
@@ -410,7 +410,7 @@ class TestModelManagerIntegration:
 
                 status = manager.get_status()
                 # Both models should be loaded
-                assert "clip-vit-l" in status["loaded_models"]
+                assert "siglip2-base-patch16-224" in status["loaded_models"]
                 assert "pet-classifier" in status["loaded_models"]
                 # Total VRAM should be sum of both
                 assert status["total_loaded_vram_mb"] == 800 + 200
@@ -428,12 +428,12 @@ class TestModelManagerIntegration:
         )
 
         with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
-            async with manager.load("clip-vit-l"):
+            async with manager.load("siglip2-base-patch16-224"):
                 pass
 
         # Manager should remain in consistent state
         status = manager.get_status()
-        assert "clip-vit-l" not in status["loaded_models"]
+        assert "siglip2-base-patch16-224" not in status["loaded_models"]
 
     @pytest.mark.asyncio
     async def test_model_manager_status_returns_correct_structure(self, mock_transformers):
@@ -442,7 +442,7 @@ class TestModelManagerIntegration:
 
         manager = get_model_manager()
 
-        async with manager.load("clip-vit-l"):
+        async with manager.load("siglip2-base-patch16-224"):
             status = manager.get_status()
 
             assert "loaded_models" in status
@@ -486,7 +486,7 @@ class TestModelLoaderErrorHandling:
 
         try:
             with pytest.raises(ImportError, match="transformers package required"):
-                await load_clip_model("openai/clip-vit-large-patch14")
+                await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
         finally:
             sys.modules.update(hidden_modules)
 
@@ -523,7 +523,7 @@ class TestModelWarmup:
     @pytest.mark.asyncio
     async def test_clip_loader_model_loads_for_warmup(self, mock_transformers):
         """Test CLIP model can be loaded for warmup."""
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         result = await loader.load(device="cpu")
 
@@ -564,7 +564,7 @@ class TestModelInferenceMocked:
         mock_embeddings.shape = (1, 768)  # 768-dimensional embeddings
         mock_model.return_value = MagicMock(image_embeds=mock_embeddings)
 
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
         result = await loader.load(device="cpu")
 
         # Verify model is callable (would perform inference)

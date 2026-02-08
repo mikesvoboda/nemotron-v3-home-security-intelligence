@@ -2075,7 +2075,7 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
                                 data = response.json()
                                 embedding_vector = {
                                     "vector": data.get("embedding", []),
-                                    "model": "clip-vit-large-patch14",
+                                    "model": "siglip2-base-patch16-224",
                                     "dimension": len(data.get("embedding", [])),
                                 }
                     except Exception as e:
@@ -4809,7 +4809,7 @@ Respond with JSON containing: risk_score, risk_level, summary, reasoning."""
         "confidence_threshold": 0.35,
     }
 
-    xclip_config = {
+    stgcn_config = {
         "action_classes": [
             "walking",
             "running",
@@ -4855,8 +4855,8 @@ Respond with JSON containing: risk_score, risk_level, summary, reasoning."""
             "max_tokens": 256,
         },
         {
-            "model": "x-clip",
-            "system_prompt": json.dumps(xclip_config),
+            "model": "stgcn-plus-plus",
+            "system_prompt": json.dumps(stgcn_config),
             "temperature": 0.0,
             "max_tokens": 256,
         },
@@ -4980,7 +4980,7 @@ async def seed_prompt_versions(versions_per_model: int = 4) -> int:
                 "change": "Full class set",
             },
         ],
-        AIModel.XCLIP: [
+        AIModel.XCLIP: [  # Note: STGCN replaces XCLIP but enum still has XCLIP for backward compatibility
             {"config": {"action_classes": ["walking", "running"]}, "change": "Basic actions"},
             {
                 "config": {"action_classes": ["walking", "running", "standing", "sitting"]},

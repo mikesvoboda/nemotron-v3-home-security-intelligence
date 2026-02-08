@@ -144,7 +144,7 @@ def mock_enrichment_responses():
                 return httpx.Response(
                     200,
                     json=create_enrichment_status_response(
-                        loaded_models=["threat-detection-yolov8n", "osnet-x0-25"],
+                        loaded_models=["threat-detection-yolov8n", "osnet-ain-x1-0"],
                         vram_used_mb=450,
                         vram_budget_mb=1200,
                     ),

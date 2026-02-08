@@ -348,7 +348,7 @@ def validate_model_path_env(
 # These should be populated with actual checksums for production models
 KNOWN_MODEL_CHECKSUMS: dict[str, str] = {
     # Example entries - replace with actual checksums
-    # "osnet_x0_25_msmt17.pth": "abc123...",
+    # "osnet_ain_x1_0_msmt17.pth": "abc123...",
 }
 
 

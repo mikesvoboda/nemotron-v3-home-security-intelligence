@@ -1,7 +1,10 @@
-"""CLIP adapter for the AI Gateway.
+"""CLIP adapter for the AI Gateway (backed by SigLIP 2 Base).
 
 Translates the existing CLIP REST API (JSON with base64 images) into
-Triton gRPC inference calls against the ``clip`` TensorRT model (vision encoder).
+Triton gRPC inference calls against the ``clip`` ONNX model (SigLIP 2 vision encoder).
+
+The underlying model was swapped from CLIP ViT-L/14 (1.2GB) to SigLIP 2
+Base patch16-224 (178MB FP16) to save 1,035MB VRAM on the A400.
 
 Endpoints:
     POST /embed             - Generate 768-dim embedding from image
@@ -12,16 +15,14 @@ Endpoints:
     GET  /health            - Model health check
 
 Design notes on text encoding:
-    The TensorRT engine only handles the CLIP vision encoder. For endpoints
-    that require text encoding (classify, similarity, batch-similarity), the
-    gateway uses pre-computed text embeddings via a lightweight ONNX text
-    encoder or falls back to the ``clip`` Triton model's text input if
-    the model config supports it. As a practical first implementation, text
-    encoding is performed in-gateway using the transformers CLIPTokenizer +
-    a small text encoder, keeping the heavy vision work on Triton.
+    The Triton ``clip`` model only handles the SigLIP 2 vision encoder.
+    For endpoints that require text encoding (classify, similarity,
+    batch-similarity), the gateway uses a Triton ``clip_text`` ONNX model
+    (SigLIP 2 text encoder, quantized, on CPU) with the SigLIP tokenizer,
+    or falls back to an in-process SigLIP 2 text encoder on CPU.
 
 The backend's CLIPClient sends JSON payloads with base64 images and expects
-JSON responses matching the current ai-clip service format.
+JSON responses matching the existing ai-clip service format.
 """
 
 from __future__ import annotations
@@ -47,21 +48,25 @@ router = APIRouter()
 VISION_MODEL_NAME = "clip"
 TEXT_MODEL_NAME = "clip_text"
 EMBEDDING_DIMENSION = 768
-MAX_TEXT_LENGTH = 77  # CLIP standard context length
+MAX_TEXT_LENGTH = 64  # SigLIP 2 standard context length (CLIP was 77)
 
 # ---------------------------------------------------------------------------
-# HuggingFace CLIPTokenizer (lazy-loaded, CPU-only, lightweight)
+# SigLIP 2 tokenizer (lazy-loaded, CPU-only, lightweight)
 # ---------------------------------------------------------------------------
 
 _tokenizer_lock = threading.Lock()
 _clip_tokenizer: Any = None
 _tokenizer_failed: bool = False
 
+# SigLIP 2 tokenizer source — prefers local download, falls back to HuggingFace
+_SIGLIP2_TOKENIZER_PATH = "/models/model-zoo/siglip2-base-patch16-224"
+_SIGLIP2_TOKENIZER_HF = "google/siglip2-base-patch16-224"
+
 
 def _ensure_tokenizer() -> bool:
-    """Lazy-init the HuggingFace CLIPTokenizer.
+    """Lazy-init the SigLIP 2 tokenizer.
 
-    This only loads the tokenizer (a few MB), not the full model.
+    This only loads the tokenizer, not the full model.
     Thread-safe via a module-level lock.
     """
     global _clip_tokenizer, _tokenizer_failed
@@ -78,16 +83,19 @@ def _ensure_tokenizer() -> bool:
             return False
 
         try:
-            from transformers import CLIPTokenizer
+            from transformers import AutoTokenizer
 
-            logger.info("Loading CLIPTokenizer for Triton text encoder...")
-            _clip_tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-            logger.info("CLIPTokenizer loaded successfully")
+            logger.info("Loading SigLIP 2 tokenizer for Triton text encoder...")
+            try:
+                _clip_tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
+            except Exception:
+                _clip_tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
+            logger.info("SigLIP 2 tokenizer loaded successfully")
             return True
         except Exception:
             _tokenizer_failed = True
             logger.warning(
-                "Failed to load CLIPTokenizer. "
+                "Failed to load SigLIP 2 tokenizer. "
                 "classify/similarity/batch-similarity will return placeholder results.",
                 exc_info=True,
             )
@@ -95,7 +103,7 @@ def _ensure_tokenizer() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# In-process open_clip text encoder (lazy-loaded, CPU-only fallback)
+# In-process SigLIP 2 text encoder (lazy-loaded, CPU-only fallback)
 # ---------------------------------------------------------------------------
 
 _text_encoder_lock = threading.Lock()
@@ -105,7 +113,7 @@ _text_encoder_failed: bool = False
 
 
 def _ensure_text_encoder() -> bool:
-    """Lazy-init the open_clip text encoder and tokenizer.
+    """Lazy-init the SigLIP 2 text encoder and tokenizer.
 
     Returns True if the text encoder is available, False otherwise.
     Thread-safe via a module-level lock.
@@ -125,28 +133,38 @@ def _ensure_text_encoder() -> bool:
             return False
 
         try:
-            import open_clip
+            from transformers import AutoModel, AutoTokenizer
 
-            logger.info("Loading open_clip ViT-L-14 text encoder (CPU)...")
-            model, _, _ = open_clip.create_model_and_transforms("ViT-L-14", pretrained="openai")
+            logger.info("Loading SigLIP 2 text encoder (CPU)...")
+            try:
+                model = AutoModel.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
+            except Exception:
+                model = AutoModel.from_pretrained(_SIGLIP2_TOKENIZER_HF)
             model = model.eval().cpu()
-            tokenizer = open_clip.get_tokenizer("ViT-L-14")
-            _text_model = model
+            # Extract just the text model for encoding
+            if hasattr(model, "text_model"):
+                _text_model = model
+            else:
+                _text_model = model
+            try:
+                tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
+            except Exception:
+                tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
             _text_tokenizer = tokenizer
-            logger.info("open_clip text encoder loaded successfully")
+            logger.info("SigLIP 2 text encoder loaded successfully")
             return True
         except Exception:
             _text_encoder_failed = True
             logger.warning(
-                "Failed to load open_clip text encoder. "
+                "Failed to load SigLIP 2 text encoder. "
                 "classify/similarity/batch-similarity will return placeholder results.",
                 exc_info=True,
             )
             return False
 
 
-def _encode_texts_open_clip(texts: list[str]) -> np.ndarray:
-    """Encode text strings to L2-normalized 768-dim embeddings using open_clip.
+def _encode_texts_siglip(texts: list[str]) -> np.ndarray:
+    """Encode text strings to L2-normalized 768-dim embeddings using SigLIP 2.
 
     Assumes _ensure_text_encoder() has already returned True.
 
@@ -156,9 +174,15 @@ def _encode_texts_open_clip(texts: list[str]) -> np.ndarray:
     Returns:
         Numpy array of shape (len(texts), 768) with L2-normalized embeddings.
     """
-    tokens = _text_tokenizer(texts)  # (N, context_length) on CPU
+    tokens = _text_tokenizer(
+        texts,
+        return_tensors="pt",
+        padding="max_length",
+        max_length=MAX_TEXT_LENGTH,
+        truncation=True,
+    )
     with torch.no_grad():
-        text_features = _text_model.encode_text(tokens)
+        text_features = _text_model.get_text_features(**tokens)
         # L2-normalize
         text_features = text_features / (text_features.norm(dim=-1, keepdim=True) + 1e-8)
     return text_features.cpu().float().numpy()
@@ -229,7 +253,7 @@ class AnomalyScoreResponse(BaseModel):
 
 
 async def _get_image_embedding(image_b64: str) -> tuple[list[float], float]:
-    """Extract image embedding via Triton CLIP vision encoder.
+    """Extract image embedding via Triton SigLIP 2 vision encoder.
 
     Args:
         image_b64: Base64-encoded image.
@@ -251,12 +275,12 @@ async def _get_image_embedding(image_b64: str) -> tuple[list[float], float]:
         result = await triton.infer(
             model_name=VISION_MODEL_NAME,
             inputs={"pixel_values": tensor},
-            outputs=["embedding"],
+            outputs=["pooler_output"],
         )
     except TritonClientError as e:
         raise HTTPException(status_code=503, detail=f"CLIP inference failed: {e}") from e
 
-    raw_embedding = result["embedding"][0].tolist()
+    raw_embedding = result["pooler_output"][0].tolist()
     embedding = l2_normalize(raw_embedding)
     inference_time_ms = (time.monotonic() - start) * 1000
 
@@ -280,7 +304,7 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
 
     Resolution order:
     1. Triton ``clip_text`` ONNX model with tokenized inputs (if deployed)
-    2. In-process open_clip text encoder on CPU (lazy-loaded)
+    2. In-process SigLIP 2 text encoder on CPU (lazy-loaded)
     3. Zero-vector fallback (non-functional placeholder)
 
     Args:
@@ -291,7 +315,7 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
     """
     triton = get_triton_client()
 
-    # Try Triton text encoder model first (ONNX with tokenized inputs)
+    # Try Triton text encoder model first (SigLIP 2 ONNX with tokenized inputs)
     try:
         if await triton.is_model_ready(TEXT_MODEL_NAME) and _ensure_tokenizer():
             tokens = _clip_tokenizer(
@@ -302,29 +326,28 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
                 truncation=True,
             )
             input_ids = tokens["input_ids"].astype(np.int64)
-            attention_mask = tokens["attention_mask"].astype(np.int64)
+            # SigLIP 2 text model only takes input_ids (no attention_mask)
             result = await triton.infer(
                 model_name=TEXT_MODEL_NAME,
                 inputs={
                     "input_ids": input_ids,
-                    "attention_mask": attention_mask,
                 },
-                outputs=["text_embeds"],
+                outputs=["pooler_output"],
             )
-            embeddings = result["text_embeds"]
+            embeddings = result["pooler_output"]
             norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
             norms = np.maximum(norms, 1e-8)
             return embeddings / norms
     except Exception as e:
         logger.debug("Triton clip_text model not available: %s", e)
 
-    # Try in-process open_clip text encoder (CPU)
+    # Try in-process SigLIP 2 text encoder (CPU)
     if _ensure_text_encoder():
-        return _encode_texts_open_clip(texts)
+        return _encode_texts_siglip(texts)
 
     # Final fallback: zero embeddings
     logger.warning(
-        "No CLIP text encoder available (Triton or open_clip). "
+        "No SigLIP 2 text encoder available (Triton or in-process). "
         "classify/similarity/batch-similarity will return placeholder results."
     )
     return np.zeros((len(texts), EMBEDDING_DIMENSION), dtype=np.float32)
@@ -477,7 +500,7 @@ async def health() -> dict[str, Any]:
     text_ready = await triton.is_model_ready(TEXT_MODEL_NAME)
     return {
         "status": "healthy" if vision_ready else "degraded",
-        "model": "clip-vit-large-patch14",
+        "model": "siglip2-base-patch16-224",
         "model_loaded": vision_ready,
         "text_encoder_loaded": text_ready,
         "embedding_dimension": EMBEDDING_DIMENSION,

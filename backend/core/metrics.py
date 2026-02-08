@@ -2979,7 +2979,7 @@ class ModelLatencyTracker:
     latency measurements with statistical analysis capabilities.
 
     Model Zoo models tracked:
-    - yolo11-license-plate, yolo11-face, paddleocr, clip-vit-l, etc.
+    - yolo11-license-plate, yolo11-face, paddleocr, siglip2-base-patch16-224, etc.
     - All 18 models in the Model Zoo registry
 
     Usage:

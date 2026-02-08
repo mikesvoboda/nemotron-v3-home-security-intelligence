@@ -9,6 +9,7 @@ Exercises ALL available endpoints across all AI services:
 """
 
 import base64
+import os
 import shutil
 import subprocess
 import sys
@@ -24,10 +25,10 @@ FIXTURE_DIR = Path(
 )
 
 SERVICES = {
-    "detector": "http://localhost:8090",
-    "florence": "http://localhost:8092",
-    "clip": "http://localhost:8093",
-    "enrichment": "http://localhost:8094",
+    "detector": os.environ.get("YOLO26_URL", "http://localhost:8095"),
+    "florence": os.environ.get("FLORENCE_URL", "http://localhost:8092"),
+    "clip": os.environ.get("CLIP_URL", "http://localhost:8093"),
+    "enrichment": os.environ.get("ENRICHMENT_URL", "http://localhost:8094"),
 }
 
 # Florence-2 supported prompts
@@ -121,7 +122,7 @@ def get_gpu_stats() -> GPUStats:
 
 def encode_image(path: str) -> str:
     """Encode image to base64."""
-    with open(path, "rb") as f:
+    with open(path, "rb") as f:  # nosemgrep: path-traversal-open
         return base64.b64encode(f.read()).decode()
 
 
@@ -131,7 +132,7 @@ def test_yolo26_detect(image_path: Path, client: httpx.Client) -> LatencyResult:
     start = time.perf_counter()
 
     try:
-        with open(image_path, "rb") as f:
+        with open(image_path, "rb") as f:  # nosemgrep: path-traversal-open
             r = client.post(
                 f"{SERVICES['detector']}/detect",
                 files={"file": (image_path.name, f, "image/jpeg")},
@@ -177,7 +178,7 @@ def test_yolo26_batch(image_paths: list[Path], client: httpx.Client) -> LatencyR
     try:
         files = []
         for path in image_paths:
-            with open(path, "rb") as f:
+            with open(path, "rb") as f:  # nosemgrep: path-traversal-open
                 files.append(("files", (path.name, f.read(), "image/jpeg")))
 
         r = client.post(
@@ -484,7 +485,7 @@ def get_detection_bbox(
 ) -> tuple[list[int] | None, dict | None]:
     """Get bounding box for a specific class from detection."""
     try:
-        with open(image_path, "rb") as f:
+        with open(image_path, "rb") as f:  # nosemgrep: path-traversal-open
             r = client.post(
                 f"{SERVICES['detector']}/detect",
                 files={"file": (image_path.name, f, "image/jpeg")},
@@ -558,7 +559,7 @@ def main() -> int:
         # =========================================
         # 1. YOLO26 Detection Tests
         # =========================================
-        print_header("YOLO26 OBJECT DETECTION (Port 8090)")
+        print_header("YOLO26 OBJECT DETECTION (Port 8095)")
 
         # Single detection on all images
         print_subheader("Single Image Detection (/detect)")
@@ -618,7 +619,7 @@ def main() -> int:
         # =========================================
         # 3. CLIP Embedding Tests
         # =========================================
-        print_header("CLIP ViT-L EMBEDDINGS (Port 8093)")
+        print_header("SigLIP 2 Base EMBEDDINGS (Port 8093)")
 
         print_subheader("Embedding Generation (/embed)")
         for img_path in test_images[:5]:

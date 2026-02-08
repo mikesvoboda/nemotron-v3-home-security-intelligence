@@ -8,11 +8,13 @@ Output: (1, 84, 8400) FP32 -- raw YOLO detections (4 box + 80 class scores)
 
 The Ultralytics export pipeline handles the full conversion:
   .pt -> ONNX                                      [default / --onnx-only]
+  .pt -> ONNX -> INT8 quantized ONNX               [--int8]
   .pt -> ONNX -> TensorRT FP16 engine (.engine)    [--tensorrt]
 
-ONNX is the default because the RTX A400 (4 GB) does not have enough
-workspace memory for TensorRT engine building.  The ONNX Runtime with
-CUDA EP provides near-TensorRT performance for this model size.
+INT8 quantization (NEM-5547) uses ONNX Runtime's quantization APIs to produce
+a smaller, faster model that runs on the existing onnxruntime Triton backend.
+Dynamic quantization requires no calibration data; static quantization uses
+representative frames from security cameras for optimal accuracy.
 
 Since model zoo volumes are mounted read-only, the .pt file is copied to
 a temporary writable directory before export.  The resulting file is then
@@ -26,6 +28,18 @@ Usage:
     python export_yolo26.py \\
         --model-path /models/zoo/yolo26/yolo26m.pt \\
         --output-path /models/cache/yolo26/1/model.onnx
+
+    # INT8 quantized ONNX (dynamic — no calibration data needed)
+    python export_yolo26.py \\
+        --model-path /models/zoo/yolo26/yolo26m.pt \\
+        --output-path /models/cache/yolo26/1/model.onnx \\
+        --int8
+
+    # INT8 quantized ONNX (static — uses calibration data for better accuracy)
+    python export_yolo26.py \\
+        --model-path /models/zoo/yolo26/yolo26m.pt \\
+        --output-path /models/cache/yolo26/1/model.onnx \\
+        --int8 --calibration-data /export/foscam/
 
     # TensorRT export (requires >4 GB VRAM)
     python export_yolo26.py \\
@@ -43,6 +57,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(
     level=logging.INFO,
@@ -270,6 +285,125 @@ def _find_engine(
     return None
 
 
+def quantize_onnx_int8(
+    onnx_path: str,
+    output_path: str,
+    calibration_data_dir: str | None = None,
+) -> None:
+    """Quantize an ONNX model to INT8 using ONNX Runtime quantization.
+
+    Supports two modes:
+    - Dynamic quantization (no calibration data): quantizes weights statically,
+      activations dynamically at runtime. Fast to produce, no data needed.
+    - Static quantization (with calibration data): quantizes both weights and
+      activations using representative data for optimal accuracy.
+
+    Args:
+        onnx_path: Path to the FP32 ONNX model to quantize.
+        output_path: Destination path for the INT8 ONNX model.
+        calibration_data_dir: Optional directory containing calibration images.
+            If provided, uses static quantization for better accuracy.
+            If None, uses dynamic quantization (no data needed).
+
+    Raises:
+        ImportError: If onnxruntime.quantization is not available.
+        RuntimeError: If quantization fails.
+    """
+    try:
+        from onnxruntime.quantization import QuantType, quantize_dynamic
+    except ImportError as e:
+        raise ImportError(
+            "onnxruntime quantization not available. "
+            "Install with: pip install onnxruntime onnxruntime-gpu"
+        ) from e
+
+    output_dir = Path(output_path).parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if calibration_data_dir and Path(calibration_data_dir).is_dir():
+        # Static quantization with calibration data
+        logger.info("Using static INT8 quantization with calibration data")
+        logger.info(f"Calibration data: {calibration_data_dir}")
+
+        try:
+            from onnxruntime.quantization import CalibrationDataReader, quantize_static
+
+            class YOLOCalibrationReader(CalibrationDataReader):
+                """Reads calibration images for static INT8 quantization."""
+
+                def __init__(self, data_dir: str, input_name: str = "images") -> None:
+                    import numpy as np
+                    from PIL import Image as PILImage
+
+                    self.input_name = input_name
+                    data_path = Path(data_dir)
+                    self.image_paths = sorted(
+                        [str(p) for p in data_path.rglob("*.jpg")]
+                        + [str(p) for p in data_path.rglob("*.jpeg")]
+                        + [str(p) for p in data_path.rglob("*.png")]
+                    )[:500]  # Cap at 500 images
+                    self.index = 0
+                    self._pil = PILImage
+                    self._np = np
+                    logger.info(f"Found {len(self.image_paths)} calibration images")
+
+                def get_next(self) -> dict[str, Any] | None:
+                    if self.index >= len(self.image_paths):
+                        return None
+                    img_path = self.image_paths[self.index]
+                    self.index += 1
+                    try:
+                        img = self._pil.open(img_path).convert("RGB").resize((IMGSZ, IMGSZ))
+                        arr = self._np.array(img, dtype=self._np.float32) / 255.0
+                        arr = arr.transpose(2, 0, 1)  # HWC -> CHW
+                        arr = self._np.expand_dims(arr, axis=0)  # Add batch dim
+                        return {self.input_name: arr}
+                    except Exception as e:
+                        logger.debug(f"Skipping calibration image {img_path}: {e}")
+                        return self.get_next()
+
+            calibration_reader = YOLOCalibrationReader(calibration_data_dir)
+            if not calibration_reader.image_paths:
+                logger.warning("No calibration images found, falling back to dynamic quantization")
+                quantize_dynamic(
+                    onnx_path,
+                    output_path,
+                    weight_type=QuantType.QInt8,
+                )
+            else:
+                quantize_static(
+                    onnx_path,
+                    output_path,
+                    calibration_reader,
+                    quant_format=None,  # Use default QDQ format
+                    weight_type=QuantType.QInt8,
+                    activation_type=QuantType.QUInt8,
+                )
+        except ImportError:
+            logger.warning("Static quantization not available, falling back to dynamic")
+            quantize_dynamic(
+                onnx_path,
+                output_path,
+                weight_type=QuantType.QInt8,
+            )
+    else:
+        # Dynamic quantization (no calibration data needed)
+        logger.info("Using dynamic INT8 quantization (no calibration data)")
+        quantize_dynamic(
+            onnx_path,
+            output_path,
+            weight_type=QuantType.QInt8,
+        )
+
+    file_size_mb = Path(output_path).stat().st_size / (1024 * 1024)
+    orig_size_mb = Path(onnx_path).stat().st_size / (1024 * 1024)
+    reduction = (1 - file_size_mb / orig_size_mb) * 100 if orig_size_mb > 0 else 0
+    logger.info(
+        f"INT8 quantized model saved: {output_path} "
+        f"({file_size_mb:.1f} MB, {reduction:.0f}% smaller than FP32)"
+    )
+
+
 def validate_model(output_path: str) -> bool:
     """Quick validation that the exported model file looks reasonable.
 
@@ -326,6 +460,18 @@ def main() -> int:
         help="Export TensorRT FP16 engine instead of ONNX (requires >4 GB VRAM)",
     )
     parser.add_argument(
+        "--int8",
+        action="store_true",
+        help="Apply INT8 quantization to ONNX model (NEM-5547: ~20-40%% faster, ~50%% smaller)",
+    )
+    parser.add_argument(
+        "--calibration-data",
+        type=str,
+        default=None,
+        help="Directory containing calibration images for static INT8 quantization. "
+        "If omitted, uses dynamic quantization (no data needed, slightly less accurate).",
+    )
+    parser.add_argument(
         "--skip-validation",
         action="store_true",
         help="Skip post-export validation",
@@ -335,6 +481,19 @@ def main() -> int:
     try:
         if args.tensorrt:
             export_to_tensorrt(args.model_path, args.output_path, device=args.device)
+        elif args.int8:
+            # INT8 quantization: export FP32 ONNX first, then quantize
+            # Use a temporary path for the intermediate FP32 ONNX
+            fp32_path = args.output_path + ".fp32.onnx"
+            export_to_onnx(args.model_path, fp32_path, device=args.device)
+            quantize_onnx_int8(
+                fp32_path,
+                args.output_path,
+                calibration_data_dir=args.calibration_data,
+            )
+            # Clean up intermediate FP32 ONNX
+            Path(fp32_path).unlink(missing_ok=True)
+            logger.info("Removed intermediate FP32 ONNX")
         else:
             export_to_onnx(args.model_path, args.output_path, device=args.device)
 
@@ -343,7 +502,7 @@ def main() -> int:
                 logger.error("Post-export validation failed")
                 return 1
 
-        fmt = "TensorRT" if args.tensorrt else "ONNX"
+        fmt = "TensorRT" if args.tensorrt else ("ONNX INT8" if args.int8 else "ONNX")
         logger.info(f"YOLO26m {fmt} export complete")
         return 0
 

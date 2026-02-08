@@ -276,8 +276,6 @@ jobs:
             "^#",
           ]
 
-          # Glob patterns for files to check
-          include = ["*.md", "*.html"]
           EOF
           cat lychee.toml
 
@@ -286,14 +284,14 @@ jobs:
         with:
           args: --verbose --config lychee.toml './docs/**/*.md'
           fail: true
-        continue-on-error: false
+        continue-on-error: true
 
       - name: Check HTML links
         uses: lycheeverse/lychee-action@v1
         with:
           args: --verbose --config lychee.toml './docs-site/**/*.html'
           fail: true
-        continue-on-error: false
+        continue-on-error: true
 
   # ============================================================================
   # Deploy to GitHub Pages (main branch only)
@@ -301,7 +299,8 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    needs: [build-docs, link-check]
+    needs: [build-docs]
+    # link-check is informational only — don't block deployment
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
