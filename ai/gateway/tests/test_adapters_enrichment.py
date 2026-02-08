@@ -150,7 +150,7 @@ class TestClassifyWithTextEmbeddings:
             "service_uniform": ["delivery", "police"],
         }
         for cat, labels in defs.items():
-            embs = np.random.randn(len(labels), 512).astype(np.float32)
+            embs = np.random.randn(len(labels), 768).astype(np.float32)
             norms = np.linalg.norm(embs, axis=1, keepdims=True)
             cache[cat] = (labels, embs / norms)
         return cache
@@ -158,7 +158,7 @@ class TestClassifyWithTextEmbeddings:
     def test_returns_all_fields(self):
         """Classification result contains all required fields."""
         cache = self._make_text_cache()
-        img_emb = np.random.randn(512).astype(np.float32)
+        img_emb = np.random.randn(768).astype(np.float32)
         result = _classify_with_text_embeddings(img_emb, cache)
         assert "clothing_type" in result
         assert "color" in result
@@ -180,9 +180,9 @@ class TestClassifyWithTextEmbeddings:
         assert result["clothing_type"] == labels[0]
 
     def test_handles_2d_embedding(self):
-        """Works with shape (1, 512) input."""
+        """Works with shape (1, 768) input."""
         cache = self._make_text_cache()
-        img_emb = np.random.randn(1, 512).astype(np.float32)
+        img_emb = np.random.randn(1, 768).astype(np.float32)
         result = _classify_with_text_embeddings(img_emb, cache)
         assert isinstance(result["clothing_type"], str)
 
@@ -268,7 +268,7 @@ class TestClothingClassifyEndpoint:
 
     async def test_clothing_classify_placeholder_fallback(self, client, mock_triton):
         """Returns placeholder fields when text encoder is unavailable."""
-        emb = np.random.randn(1, 512).astype(np.float32)
+        emb = np.random.randn(1, 768).astype(np.float32)
         mock_triton.infer.return_value = {"embedding": emb}
 
         with patch(
@@ -291,7 +291,7 @@ class TestClothingClassifyEndpoint:
 
     async def test_clothing_classify_zero_shot(self, client, mock_triton):
         """Returns real results when text embeddings are available."""
-        emb = np.random.randn(1, 512).astype(np.float32)
+        emb = np.random.randn(1, 768).astype(np.float32)
         mock_triton.infer.return_value = {"embedding": emb}
 
         fake_cache = {}
@@ -303,7 +303,7 @@ class TestClothingClassifyEndpoint:
             ("service_uniform", 7),
         ]:
             labels = [f"label_{i}" for i in range(n)]
-            embeddings = np.random.randn(n, 512).astype(np.float32)
+            embeddings = np.random.randn(n, 768).astype(np.float32)
             norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
             fake_cache[cat] = (labels, embeddings / norms)
 
@@ -605,8 +605,8 @@ class TestEnrichEndpoint:
 
     async def test_enrich_person(self, client, mock_triton):
         """Person enrichment fans out to clothing + demographics."""
-        # clothing model returns 512-dim embedding (fashion_clip uses pixel_values/embedding)
-        clothing_emb = np.random.randn(1, 512).astype(np.float32)
+        # clothing model returns 768-dim embedding (fashion_clip uses pixel_values/embedding)
+        clothing_emb = np.random.randn(1, 768).astype(np.float32)
         # demographics returns age and gender logits
         age_logits, gender_logits = _make_demographics_logits()
 

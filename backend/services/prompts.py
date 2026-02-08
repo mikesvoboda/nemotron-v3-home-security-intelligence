@@ -789,6 +789,12 @@ SCORE CALIBRATION:
 - 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
 - 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
+EXPECTED DISTRIBUTION: In a typical day, expect approximately:
+- ~85% LOW (0-29): Normal household activity
+- ~10% MEDIUM (30-59): Worth noting but not alarming
+- ~4% HIGH (60-84): Genuinely suspicious, warrants review
+- ~1% CRITICAL (85-100): Immediate threats only
+
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
@@ -805,7 +811,10 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
 | Unknown person lingering 5-10 min | 35-50 | Worth monitoring |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
+| Tailgating through secure door/gate | 55-75 | ACCESS VIOLATION - unauthorized entry |
+| Person checking vehicle doors | 65-80 | Clear suspicious intent |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Camera tampering (hand/object at lens) | 60-80 | Visual evidence of obstruction |
 | Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
 | Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
 | Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
@@ -819,6 +828,21 @@ Property crimes are criminal acts and must ALWAYS be scored as threats:
 - Vehicle break-in = 70-85
 - Nighttime property crimes = Add +5-10 points
 
+## ACCESS CONTROL VIOLATIONS (ALWAYS 45+)
+Tailgating, piggybacking, and unauthorized entry attempts are security policy violations:
+- Tailgating (following authorized person through door) = 55-75
+- Multiple unknown persons entering in quick succession = 50-70
+- Holding door for unknown individual at secure entry = 45-65
+- Bypassing gate/fence via climbing = 55-75
+- Forced entry through access-controlled door = 75-95 (CRITICAL)
+
+## CAMERA TAMPERING (VISUAL EVIDENCE REQUIRED)
+Only score HIGH if specific visual evidence of tampering is present:
+- Hand/object approaching camera lens = 60-80
+- Spray paint or obstruction applied to camera = 65-80
+- Camera physically moved or covered = 60-75
+- NOT tampering: image quality degradation alone, weather effects, lens flare, motion blur
+
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
 - Camera timestamps or time display
@@ -828,6 +852,15 @@ Property crimes are criminal acts and must ALWAYS be scored as threats:
 - Shadows or lighting artifacts
 - Wildlife (birds, squirrels)
 - Parked vehicles (without unusual context)
+- Camera angle or field of view
+- Image quality or resolution
+- Presence of multiple objects in frame
+
+IMPORTANT DEFAULTS:
+- Without clear threat indicators, DEFAULT to lower scores
+- A person simply standing or walking is NOT suspicious (score 0-15)
+- Presence on property alone does NOT indicate threat
+- Being "unknown" only matters if behavior is also unusual
 
 ## Scoring Examples
 Use these worked examples to calibrate your scoring. Most events (85%+) should be LOW.
@@ -860,15 +893,19 @@ Reasoning: Unknown visitor but used doorbell, daytime, reasonable hour, no conce
 Saturday 2:00 PM. Street camera. Unfamiliar dark sedan parked on street near property for 20 minutes. No vehicle match in household database. No persons exited vehicle during observation. CLIP scene: 'parked vehicle on street' (0.65). Zone: street (public). Departed without incident.
 Reasoning: Unknown vehicle but on public street, daytime, no persons approached property, short duration — unusual but benign. Score: 32.
 
-**Example 8 — Score: 50 (MEDIUM)**
+**Example 8 — Score: 40 (MEDIUM)**
+Tuesday 7:15 PM. Driveway camera. One person detected (unknown, no face match, no household re-ID). Standing near garage door for 2 minutes, looking at house. No suspicious pose (upright, standing). No face covering. Casual clothing (Florence-2: "person in gray t-shirt and khaki shorts"). CLIP scene: 'person loitering' (0.45). Zone: driveway (semi-private). Dusk lighting. Departed on foot after 2.5 minutes. No suspicious items detected.
+Reasoning: Unknown person lingering near garage at dusk is unusual — not on public sidewalk and no apparent purpose. However, no suspicious behavior (no face covering, no crouching, no testing doors), moderate duration, and still daylight. Worth noting but not alarming. Score: 40.
+
+**Example 9 — Score: 50 (MEDIUM)**
 Wednesday 7:30 PM. Front door camera. One person detected (unknown, no face match). Approached front door but did NOT ring doorbell. Stood at door for 35 seconds, looked through side window (action: looking through window). Casual dark clothing (Florence-2: "person in dark hoodie and jeans"). CLIP scene: 'person loitering' (0.58). Zone: porch (entry point). Departed after 50 seconds total.
 Reasoning: Unknown person at entry point, no doorbell ring, peering through window suggests possible casing behavior, but short duration and evening (not late night) temper concern. Score: 50.
 
-**Example 9 — Score: 72 (HIGH)**
+**Example 10 — Score: 72 (HIGH)**
 Thursday 1:15 AM. Backyard camera. One person detected (unknown, no face match). Wearing dark clothing, hood up, face partially concealed (SegFormer: face_covered=true). Crouching near back door (pose: crouching). Checking door handle (action: checking door handles). CLIP scene: 'suspicious approach' (0.71), threat pattern match: 'person checking door handles' (0.68). Zone: back door (entry point, high-sensitivity). Duration: 90 seconds. Visual anomaly score: 0.62.
 Reasoning: Late night, unknown person, face concealed, crouching at entry point, actively testing door handle — multiple high-risk indicators converging. Score: 72.
 
-**Example 10 — Score: 88 (CRITICAL)**
+**Example 11 — Score: 88 (CRITICAL)**
 Friday 2:40 AM. Front porch camera. One person detected (unknown, no face match). Grabbed delivered package from porch (action: picking up object and running). CLIP scene: 'property intrusion' (0.81), threat pattern match: 'a person stealing a package from a porch' (0.85). Person fled toward street immediately after grabbing package (pose: running, facing away). Dark clothing, face concealed. Zone: porch (entry point). Duration in frame: 8 seconds. Vehicle waiting at curb.
 Reasoning: Active theft — package taken and suspect fled to waiting vehicle. Property crime (package theft) with flight behavior and getaway vehicle. Score: 88.
 
@@ -1270,7 +1307,7 @@ def format_violence_context(
         Formatted string for prompt inclusion, or empty string for marginal tier
     """
     if violence_result is None:
-        return "Violence analysis: Not performed"
+        return ""
 
     # Get confidence tier, defaulting to determining from violent_score for backward compatibility
     tier = getattr(violence_result, "confidence_tier", None)
@@ -1316,7 +1353,7 @@ def format_weather_context(
         Formatted string for prompt inclusion
     """
     if weather_result is None:
-        return "Weather: Unknown (classification unavailable)"
+        return ""
 
     # Add visibility/condition notes based on weather
     visibility_notes = ""
@@ -1403,7 +1440,7 @@ def format_pose_analysis_context(
         Formatted string for prompt inclusion
     """
     if pose_results is None:
-        return "Pose analysis: Not available"
+        return ""
 
     if not pose_results:
         return "Pose analysis: No poses detected"
@@ -1558,7 +1595,7 @@ def format_action_recognition_context(
         Formatted string for prompt inclusion
     """
     if action_results is None:
-        return "Action recognition: Not available"
+        return ""
 
     if not action_results:
         return "Action recognition: No actions detected"
@@ -1815,7 +1852,7 @@ def format_depth_context(
         Formatted string for prompt inclusion
     """
     if depth_results is None:
-        return "Depth analysis: Not available"
+        return ""
 
     if not depth_results.has_detections:
         return "Depth analysis: No detections analyzed"

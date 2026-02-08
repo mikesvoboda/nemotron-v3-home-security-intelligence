@@ -506,9 +506,9 @@ class TestFormatViolenceContext:
     """Tests for format_violence_context function."""
 
     def test_none_input(self) -> None:
-        """Test formatting when violence detection result is None."""
+        """Test formatting when violence detection result is None returns empty string."""
         result = format_violence_context(None)
-        assert result == "Violence analysis: Not performed"
+        assert result == ""
 
     def test_violent_detection_high_confidence(self) -> None:
         """Test formatting for violent detection with high confidence."""
@@ -759,9 +759,9 @@ class TestFormatWeatherContext:
     """Tests for format_weather_context function."""
 
     def test_none_input(self) -> None:
-        """Test formatting when weather result is None."""
+        """Test formatting when weather result is None returns empty string."""
         result = format_weather_context(None)
-        assert result == "Weather: Unknown (classification unavailable)"
+        assert result == ""
 
     def test_clear_weather(self) -> None:
         """Test formatting for clear weather conditions."""

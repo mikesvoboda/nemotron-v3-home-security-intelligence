@@ -22,7 +22,6 @@ import logging
 import os
 import threading
 import time
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -40,9 +39,9 @@ router = APIRouter()
 # Fashion CLIP text encoder for zero-shot clothing classification
 # ---------------------------------------------------------------------------
 
-FASHION_CLIP_EMBED_DIM = 512
+FASHION_CLIP_EMBED_DIM = 768
 
-FASHION_CLIP_MODEL_ZOO = os.environ.get("FASHION_CLIP_MODEL_ZOO", "/models/zoo/fashion-clip")
+FASHION_CLIP_HUB_PATH = os.environ.get("FASHION_CLIP_HUB_PATH", "hf-hub:Marqo/marqo-fashionSigLIP")
 
 _CLOTHING_TYPE_PROMPTS = {
     "t-shirt": "a person wearing a t-shirt",
@@ -112,72 +111,67 @@ _clothing_text_lock = threading.Lock()
 _clothing_text_cache: dict[str, tuple[list[str], np.ndarray]] | None = None
 _clothing_text_failed = False
 
-
-def _load_fashion_clip_text_encoder() -> Any:
-    """Load the Fashion CLIP text encoder ONNX model via onnxruntime."""
-    try:
-        import onnxruntime as ort
-    except ImportError:
-        logger.warning("onnxruntime not installed; Fashion CLIP text encoding unavailable")
-        return None
-
-    text_model_path = Path(FASHION_CLIP_MODEL_ZOO) / "onnx" / "text_model.onnx"
-    if not text_model_path.exists():
-        logger.warning("Fashion CLIP text model not found at %s", text_model_path)
-        return None
-
-    try:
-        session = ort.InferenceSession(str(text_model_path), providers=["CPUExecutionProvider"])
-        logger.info("Fashion CLIP text encoder loaded from %s", text_model_path)
-        return session
-    except Exception:
-        logger.warning("Failed to load Fashion CLIP text encoder", exc_info=True)
-        return None
+# In-process FashionSigLIP text encoder (lazy-loaded, CPU-only)
+_fashion_text_model: Any = None
+_fashion_text_tokenizer: Any = None
 
 
-def _load_fashion_clip_tokenizer() -> Any:
-    """Load the CLIP tokenizer for Fashion CLIP."""
+def _load_fashion_clip_text_encoder() -> bool:
+    """Load the FashionSigLIP text encoder via open_clip (CPU-only).
+
+    Follows the same pattern as the CLIP adapter (clip.py). Only the text
+    encoding path is used; vision embeddings come from Triton.
+
+    Returns True if the text encoder is available, False otherwise.
+    """
+    global _fashion_text_model, _fashion_text_tokenizer
     try:
         import open_clip
+        import torch
 
-        tokenizer = open_clip.get_tokenizer("ViT-B-16")
-        logger.info("Fashion CLIP tokenizer loaded via open_clip")
-        return tokenizer
+        logger.info("Loading FashionSigLIP text encoder from %s (CPU)...", FASHION_CLIP_HUB_PATH)
+        model, _ = open_clip.create_model_from_pretrained(FASHION_CLIP_HUB_PATH, device="cpu")
+        model = model.eval()
+        tokenizer = open_clip.get_tokenizer(FASHION_CLIP_HUB_PATH)
+
+        # Verify embedding dimension matches Triton vision encoder
+        test_tokens = tokenizer(["test"])
+        with torch.no_grad():
+            test_embed = model.encode_text(test_tokens)
+        actual_dim = test_embed.shape[-1]
+        if actual_dim != FASHION_CLIP_EMBED_DIM:
+            logger.warning(
+                "FashionSigLIP text encoder dim %d != expected %d; "
+                "text-vision similarity will not work correctly",
+                actual_dim,
+                FASHION_CLIP_EMBED_DIM,
+            )
+
+        _fashion_text_model = model
+        _fashion_text_tokenizer = tokenizer
+        logger.info("FashionSigLIP text encoder loaded (dim=%d)", actual_dim)
+        return True
     except Exception:
-        logger.debug("open_clip tokenizer unavailable, trying transformers")
-
-    try:
-        from transformers import CLIPTokenizer
-
-        tokenizer = CLIPTokenizer.from_pretrained(FASHION_CLIP_MODEL_ZOO)
-        logger.info("Fashion CLIP tokenizer loaded via transformers")
-        return tokenizer
-    except Exception:
-        logger.warning("Failed to load Fashion CLIP tokenizer", exc_info=True)
-        return None
+        logger.warning("Failed to load FashionSigLIP text encoder", exc_info=True)
+        return False
 
 
-def _encode_texts_fashion_clip(session: Any, tokenizer: Any, texts: list[str]) -> np.ndarray:
-    """Encode text strings to L2-normalized 512-dim embeddings."""
+def _encode_texts_fashion_clip(texts: list[str]) -> np.ndarray:
+    """Encode text strings to L2-normalized embeddings using FashionSigLIP.
+
+    Assumes _load_fashion_clip_text_encoder() has already returned True.
+
+    Returns:
+        Numpy array of shape (len(texts), FASHION_CLIP_EMBED_DIM) with
+        L2-normalized embeddings.
+    """
     import torch
 
-    tokens = tokenizer(texts)
-    if isinstance(tokens, torch.Tensor):
-        input_ids = tokens.numpy().astype(np.int64)
-    elif hasattr(tokens, "input_ids"):
-        input_ids = np.array(tokens.input_ids, dtype=np.int64)
-    else:
-        input_ids = np.array(tokens, dtype=np.int64)
-
-    if input_ids.ndim == 1:
-        input_ids = input_ids[np.newaxis, :]
-
-    outputs = session.run(None, {"input_ids": input_ids})
-    embeddings = outputs[0].astype(np.float32)
-
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-8)
-    return embeddings / norms
+    tokens = _fashion_text_tokenizer(texts)
+    with torch.no_grad():
+        text_features = _fashion_text_model.encode_text(tokens)
+        text_features = text_features / (text_features.norm(dim=-1, keepdim=True) + 1e-8)
+    return text_features.cpu().float().numpy()
 
 
 def _ensure_clothing_text_embeddings() -> dict[str, tuple[list[str], np.ndarray]] | None:
@@ -195,13 +189,10 @@ def _ensure_clothing_text_embeddings() -> dict[str, tuple[list[str], np.ndarray]
         if _clothing_text_cache is not None or _clothing_text_failed:
             return _clothing_text_cache
 
-        session = _load_fashion_clip_text_encoder()
-        tokenizer = _load_fashion_clip_tokenizer()
-
-        if session is None or tokenizer is None:
+        if not _load_fashion_clip_text_encoder():
             _clothing_text_failed = True
             logger.warning(
-                "Fashion CLIP text encoder unavailable; "
+                "FashionSigLIP text encoder unavailable; "
                 "clothing classification will return placeholder results"
             )
             return None
@@ -218,17 +209,17 @@ def _ensure_clothing_text_embeddings() -> dict[str, tuple[list[str], np.ndarray]
             ]:
                 labels = list(prompts_dict.keys())
                 texts = list(prompts_dict.values())
-                embeddings = _encode_texts_fashion_clip(session, tokenizer, texts)
+                embeddings = _encode_texts_fashion_clip(texts)
                 cache[category_name] = (labels, embeddings)
                 logger.info("Cached %d text embeddings for '%s'", len(labels), category_name)
 
             _clothing_text_cache = cache
-            logger.info("Fashion CLIP text embeddings cached successfully")
+            logger.info("FashionSigLIP text embeddings cached successfully")
             return _clothing_text_cache
 
         except Exception:
             _clothing_text_failed = True
-            logger.warning("Failed to compute Fashion CLIP text embeddings", exc_info=True)
+            logger.warning("Failed to compute FashionSigLIP text embeddings", exc_info=True)
             return None
 
 

@@ -129,7 +129,7 @@ class TestFormatViolenceContext:
     def test_none_result(self) -> None:
         """Test formatting when no violence detection result is available."""
         result = format_violence_context(None)
-        assert result == "Violence analysis: Not performed"
+        assert result == ""
 
     def test_violent_detection(self) -> None:
         """Test formatting when violence is detected."""
@@ -192,7 +192,7 @@ class TestFormatWeatherContext:
     def test_none_result(self) -> None:
         """Test formatting when no weather result is available."""
         result = format_weather_context(None)
-        assert result == "Weather: Unknown (classification unavailable)"
+        assert result == ""
 
     def test_clear_weather(self) -> None:
         """Test formatting for clear weather."""
@@ -317,7 +317,7 @@ class TestFormatPoseAnalysisContext:
     def test_none_result(self) -> None:
         """Test formatting when no pose data is available."""
         result = format_pose_analysis_context(None)
-        assert result == "Pose analysis: Not available"
+        assert result == ""
 
     def test_empty_poses(self) -> None:
         """Test formatting when poses dict is empty."""
@@ -355,7 +355,7 @@ class TestFormatActionRecognitionContext:
     def test_none_result(self) -> None:
         """Test formatting when no action data is available."""
         result = format_action_recognition_context(None)
-        assert result == "Action recognition: Not available"
+        assert result == ""
 
     def test_empty_actions(self) -> None:
         """Test formatting when actions dict is empty."""
@@ -576,7 +576,7 @@ class TestFormatDepthContext:
     def test_none_result(self) -> None:
         """Test formatting when no depth data is available."""
         result = format_depth_context(None)
-        assert result == "Depth analysis: Not available"
+        assert result == ""
 
     def test_empty_detections(self) -> None:
         """Test formatting when depth result has no detections."""
@@ -1575,7 +1575,7 @@ class TestPromptTemplateFormatting:
             "camera_health_context": "No tampering detected",
             "detections_with_all_attributes": "1 person detected",
             "confidence_quality_summary": "Detection confidence: GOOD (75-90%)",
-            "violence_context": "Violence analysis: Not performed",
+            "violence_context": "",
             "pose_analysis": "Pose analysis: standing (90% confidence)",
             "action_recognition": "Action: walking (85% confidence)",
             "trajectory_context": "Movement: approaching entry point",
@@ -1618,7 +1618,7 @@ class TestPromptTemplateFormatting:
             "camera_health_context": "No tampering detected",
             "detections_with_all_attributes": "1 person detected",
             "confidence_quality_summary": "Detection confidence: GOOD",
-            "violence_context": "Violence analysis: Not performed",
+            "violence_context": "",
             "pose_analysis": "Pose: standing",
             "action_recognition": "Action: walking",
             "trajectory_context": "Movement: approaching",
