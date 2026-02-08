@@ -126,7 +126,6 @@ CMD ["sh", "-c", "FLASH_ARGS=''; \
     --cont-batching \
     --metrics \
     --cache-reuse 256 \
-    --merge-qkv \
     --mlock \
     ${FLASH_ARGS} \
     ${MOE_ARGS}"]

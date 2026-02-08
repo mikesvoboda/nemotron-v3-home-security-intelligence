@@ -414,9 +414,9 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_model,
     )
 
-    # Pet Classifier (~200MB) — CPU offloaded to free GPU VRAM
-    # ResNet-18 runs acceptably on CPU (10-20ms latency)
-    pet_device = os.environ.get("PET_DEVICE", "cpu")
+    # Pet Classifier (~200MB) — GPU by default after NEM-5551 freed 85% A400 VRAM
+    # ResNet-18 on GPU: ~5ms latency (vs 10-20ms on CPU)
+    pet_device = os.environ.get("PET_DEVICE", "cuda:0" if torch.cuda.is_available() else "cpu")
     pet_path = os.environ.get("PET_MODEL_PATH", "/models/pet-classifier")
     registry["pet_classifier"] = ModelConfig(
         name="pet_classifier",
@@ -476,9 +476,9 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_action_recognizer,
     )
 
-    # Person Re-Identification - OSNet-AIN x1.0 (~100MB) — CPU offloaded to free GPU VRAM
-    # OSNet-AIN x1.0 (NEM-5562): 4x better accuracy than x0.25, runs on CPU (15-25ms)
-    reid_device = os.environ.get("REID_DEVICE", "cpu")
+    # Person Re-Identification - OSNet-AIN x1.0 (~100MB) — GPU by default (NEM-5551)
+    # OSNet-AIN x1.0 (NEM-5562): 4x better accuracy than x0.25, GPU: ~5ms (vs CPU 15-25ms)
+    reid_device = os.environ.get("REID_DEVICE", "cuda:0" if torch.cuda.is_available() else "cpu")
     reid_path = os.environ.get(
         "REID_MODEL_PATH", "/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth"
     )
@@ -521,9 +521,11 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_demographics_estimator,
     )
 
-    # YOLO26 Detector - Optional secondary object detector (~100MB) — CPU offloaded
-    # Low priority, optional secondary detector. CPU latency acceptable (20-40ms).
-    yolo26_enrich_device = os.environ.get("YOLO26_ENRICHMENT_DEVICE", "cpu")
+    # YOLO26 Detector - Optional secondary object detector (~100MB) — GPU by default (NEM-5551)
+    # Low priority, optional secondary detector. GPU: ~5ms (vs CPU 20-40ms).
+    yolo26_enrich_device = os.environ.get(
+        "YOLO26_ENRICHMENT_DEVICE", "cuda:0" if torch.cuda.is_available() else "cpu"
+    )
     yolo26_path = os.environ.get("YOLO26_ENRICHMENT_MODEL_PATH", "/models/yolo26m.pt")
     registry["yolo26_detector"] = ModelConfig(
         name="yolo26_detector",
