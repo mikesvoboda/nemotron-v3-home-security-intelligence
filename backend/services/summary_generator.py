@@ -254,25 +254,37 @@ class SummaryGenerator:
         # Build event context for prompt
         event_context = self._build_event_context(events)
 
-        # Generate summary content via LLM
+        # Generate summary content via LLM (or deterministic message for zero events)
         generated_at = datetime.now(UTC)
-        try:
-            content = await self._call_nemotron(
-                window_start=window_start,
-                window_end=window_end,
-                period_type=period_type,
-                events=event_context,
-            )
-        except Exception as e:
-            logger.warning(
-                f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+
+        if event_count == 0:
+            # Zero events: use deterministic message to prevent LLM hallucination
+            content = self._get_fallback_content(event_count)
+            logger.info(
+                f"Zero events for {summary_type.value} summary, using deterministic all-clear message",
                 extra={
                     "summary_type": summary_type.value,
-                    "error": str(e),
-                    "event_count": event_count,
+                    "event_count": 0,
                 },
             )
-            content = self._get_fallback_content(event_count)
+        else:
+            try:
+                content = await self._call_nemotron(
+                    window_start=window_start,
+                    window_end=window_end,
+                    period_type=period_type,
+                    events=event_context,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Nemotron unavailable for {summary_type.value} summary, using fallback",
+                    extra={
+                        "summary_type": summary_type.value,
+                        "error": str(e),
+                        "event_count": event_count,
+                    },
+                )
+                content = self._get_fallback_content(event_count)
 
         # Store in database
         summary_repo = SummaryRepository(session)
@@ -413,8 +425,8 @@ class SummaryGenerator:
         # Call llama.cpp completion endpoint
         payload = {
             "prompt": full_prompt,
-            "temperature": 0.7,
-            "top_p": 0.95,
+            "temperature": 0.3,
+            "top_p": 0.9,
             "max_tokens": 256,  # Summaries are short (2-4 sentences)
             "stop": ["<|im_end|>", "<|im_start|>"],
         }

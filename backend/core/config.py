@@ -1019,9 +1019,9 @@ class Settings(BaseSettings):
     # Stored as str after validation for compatibility with httpx clients
     # YOLO26 Detector Settings
     # Development: http://localhost:8095 (local dev)
-    # Docker: http://ai-yolo26:8095 (container network)
+    # Docker: http://ai-gateway:8090/yolo26 (via AI gateway)
     yolo26_url: str = Field(
-        default="http://ai-yolo26:8095",
+        default="http://ai-gateway:8090/yolo26",
         description="URL of the YOLO26 detection service",
     )
     # Development: http://localhost:8091 (local dev)

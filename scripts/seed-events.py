@@ -284,12 +284,14 @@ from backend.models.prompt_config import PromptConfig  # noqa: E402
 from backend.models.prompt_version import AIModel, PromptVersion  # noqa: E402
 from backend.models.property import Property  # noqa: E402
 from backend.models.scene_change import SceneChange, SceneChangeType  # noqa: E402
+from backend.models.user import User  # noqa: E402
 from backend.models.user_calibration import UserCalibration  # noqa: E402
 
 # Phase 6 imports
 from backend.models.zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly  # noqa: E402
 from backend.models.zone_baseline import ZoneActivityBaseline  # noqa: E402
 from backend.models.zone_household_config import ZoneHouseholdConfig  # noqa: E402
+from backend.services.auth_service import hash_password  # noqa: E402
 from sqlalchemy import delete, select  # noqa: E402
 
 
@@ -2895,6 +2897,45 @@ async def seed_person_embeddings(member_ids: list[int]) -> int:
 
     print(f"  Created {created} person embeddings")
     return created
+
+
+async def seed_admin_user() -> bool:
+    """Ensure a default admin user exists.
+
+    The SetupGuardMiddleware returns HTTP 503 on all API endpoints until at
+    least one user row exists in the database.  This function creates a
+    default admin user (admin / admin@localhost / admin) when the users
+    table is empty so the middleware unblocks immediately.
+
+    The operation is idempotent -- if any user already exists, it is a no-op.
+
+    Returns:
+        True if a new admin user was created, False if one already existed.
+    """
+    from sqlalchemy import func as sa_func
+
+    async with get_session() as session:
+        result = await session.execute(select(sa_func.count(User.id)))
+        count = result.scalar() or 0
+
+        if count > 0:
+            print("  Admin user already exists -- skipping creation")
+            return False
+
+        password_hashed = hash_password("admin")
+        user = User(
+            id=str(uuid.uuid4()),
+            username="admin",
+            email="admin@localhost",
+            password_hash=password_hashed,
+            is_active=True,
+            is_admin=True,
+        )
+        session.add(user)
+        await session.commit()
+
+        print(f"  Created default admin user (username=admin, id={user.id})")
+        return True
 
 
 async def seed_foundation_layer() -> tuple[dict[str, int], dict[str, list]]:
@@ -6677,6 +6718,15 @@ This generates real data including:
     if args.clear:
         print("\nClearing existing data...")
         await clear_all_data()
+
+    # ==========================================================================
+    # ADMIN USER (required before anything else -- SetupGuardMiddleware blocks
+    # all API endpoints with HTTP 503 until at least one user exists)
+    # ==========================================================================
+    print("\n" + "=" * 50)
+    print("ENSURING ADMIN USER EXISTS")
+    print("=" * 50)
+    await seed_admin_user()
 
     total_created = {}
 

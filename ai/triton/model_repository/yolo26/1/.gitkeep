@@ -1,0 +1,3 @@
+# Placeholder for YOLO26m ONNX model (model.onnx)
+# At runtime, this directory is replaced by a symlink to /models/cache/yolo26/1/
+# which contains the ONNX model exported by export_all.sh -> export_yolo26.py

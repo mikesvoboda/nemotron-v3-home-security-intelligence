@@ -2753,7 +2753,12 @@ def format_detections_with_all_enrichment(
 # These templates are used by the SummaryGenerator service to create concise
 # narrative summaries of security events for dashboard display.
 
-SUMMARY_SYSTEM_PROMPT = """You are a home security analyst providing clear, concise summaries for a homeowner. Your summaries should be informative but not alarming. Focus on facts and actionable information."""
+SUMMARY_SYSTEM_PROMPT = """You are a home security analyst providing clear, concise summaries for a homeowner. Your summaries should be informative but not alarming. Focus on facts and actionable information.
+
+CRITICAL RULES:
+- ONLY describe events that are explicitly listed in the data provided to you.
+- If no events are provided, state clearly that no security events were detected. Do NOT fabricate, invent, or hallucinate any activity descriptions.
+- Never infer or imagine events that are not in the provided data."""
 
 SUMMARY_PROMPT_TEMPLATE = """Summarize the following security events for the homeowner.
 
@@ -2775,9 +2780,11 @@ SUMMARY_PROMPT_TEMPLATE = """Summarize the following security events for the hom
 **Response Format:**
 Write only the summary paragraph. No headers, bullets, or formatting. Just natural prose."""
 
-SUMMARY_EMPTY_STATE_INSTRUCTION = """If there are no high/critical events to summarize, write a brief reassuring message like:
-"No high-priority security events in the past {period}. The property has been quiet with only routine activity detected."
-You may mention the count of lower-priority detections if provided."""
+SUMMARY_EMPTY_STATE_INSTRUCTION = """IMPORTANT: There are ZERO events in this period. The event list above is empty.
+You MUST respond with ONLY a brief reassuring "all clear" message such as:
+"No high-priority security events detected in the past {period}. The property has been quiet."
+Do NOT invent, fabricate, or describe any activity. There were no events — say so directly.
+You may mention the count of lower-priority detections if provided, but do NOT describe what those detections were."""
 
 SUMMARY_EVENT_FORMAT = """
 Event {index}:

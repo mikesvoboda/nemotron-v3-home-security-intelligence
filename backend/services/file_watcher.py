@@ -156,6 +156,34 @@ def _validate_image_sync(file_path: str) -> bool:
     return True
 
 
+def _retry_validation_sync(file_path: str) -> bool:
+    """Retry image validation synchronously after a PermissionError."""
+    try:
+        return _validate_image_sync(file_path)
+    except OSError as retry_e:
+        logger.warning(
+            f"Image validation failed after retry (corrupt/truncated) {file_path}: {retry_e}"
+        )
+        return False
+    except Exception as retry_e:
+        logger.warning(f"Invalid image file after retry {file_path}: {retry_e}")
+        return False
+
+
+async def _retry_validation_async(file_path: str) -> bool:
+    """Retry image validation asynchronously after a PermissionError."""
+    try:
+        return await asyncio.to_thread(_validate_image_sync, file_path)
+    except OSError as retry_e:
+        logger.warning(
+            f"Image validation failed after retry (corrupt/truncated) {file_path}: {retry_e}"
+        )
+        return False
+    except Exception as retry_e:
+        logger.warning(f"Invalid image file after retry {file_path}: {retry_e}")
+        return False
+
+
 def is_valid_image(file_path: str) -> bool:
     """Validate that file is a valid, non-corrupted image.
 
@@ -165,6 +193,10 @@ def is_valid_image(file_path: str) -> bool:
     2. File size is non-zero and above minimum threshold
     3. PIL can verify the image header (basic structure check)
     4. PIL can fully load the image data (catches truncated images)
+
+    If validation fails with a PermissionError (common race condition when files
+    are detected by inotify before being fully written/closed by FTP or seed
+    scripts), a single retry is attempted after a brief delay.
 
     Note: This is a synchronous function that blocks on PIL operations.
     For async contexts, use is_valid_image_async() instead.
@@ -176,27 +208,29 @@ def is_valid_image(file_path: str) -> bool:
         True if file is a valid, complete image
     """
     try:
-        # Check file exists and has content
+        # Check file exists and has sufficient content
         file_path_obj = Path(file_path)
         if not file_path_obj.exists():
             return False
 
         file_size = file_path_obj.stat().st_size
-
-        if file_size == 0:
-            logger.warning(f"Empty image file detected: {file_path}")
-            return False
-
-        # Check minimum file size - very small images are likely truncated
         if file_size < MIN_IMAGE_FILE_SIZE:
-            logger.warning(
-                f"Image file too small ({file_size} bytes, minimum {MIN_IMAGE_FILE_SIZE}): {file_path}"
-            )
+            if file_size == 0:
+                logger.warning(f"Empty image file detected: {file_path}")
+            else:
+                logger.warning(
+                    f"Image file too small ({file_size} bytes, minimum {MIN_IMAGE_FILE_SIZE}): {file_path}"
+                )
             return False
 
         return _validate_image_sync(file_path)
+    except PermissionError as e:
+        # Race condition: file detected by inotify before fully written/closed.
+        # Retry once after a short delay to allow the writer to finish.
+        logger.debug(f"Image validation got PermissionError, retrying in 1s: {file_path}: {e}")
+        time.sleep(1.0)
+        return _retry_validation_sync(file_path)
     except OSError as e:
-        # OSError covers most PIL image errors (truncated, corrupt, etc.)
         logger.warning(f"Image validation failed (corrupt/truncated) {file_path}: {e}")
         return False
     except Exception as e:
@@ -218,6 +252,10 @@ async def is_valid_image_async(file_path: str) -> bool:
     3. PIL can verify the image header (basic structure check)
     4. PIL can fully load the image data (catches truncated images)
 
+    If validation fails with a PermissionError (common race condition when files
+    are detected by inotify before being fully written/closed by FTP or seed
+    scripts), a single retry is attempted after a brief async delay.
+
     Args:
         file_path: Path to the image file
 
@@ -225,26 +263,29 @@ async def is_valid_image_async(file_path: str) -> bool:
         True if file is a valid, complete image
     """
     try:
-        # Check file exists and has content (non-blocking stat operations)
+        # Check file exists and has sufficient content
         file_path_obj = Path(file_path)
         if not file_path_obj.exists():
             return False
 
         file_size = file_path_obj.stat().st_size
-
-        if file_size == 0:
-            logger.warning(f"Empty image file detected: {file_path}")
-            return False
-
-        # Check minimum file size - very small images are likely truncated
         if file_size < MIN_IMAGE_FILE_SIZE:
-            logger.warning(
-                f"Image file too small ({file_size} bytes, minimum {MIN_IMAGE_FILE_SIZE}): {file_path}"
-            )
+            if file_size == 0:
+                logger.warning(f"Empty image file detected: {file_path}")
+            else:
+                logger.warning(
+                    f"Image file too small ({file_size} bytes, minimum {MIN_IMAGE_FILE_SIZE}): {file_path}"
+                )
             return False
 
         # Run blocking PIL operations in thread pool to avoid blocking event loop
         return await asyncio.to_thread(_validate_image_sync, file_path)
+    except PermissionError as e:
+        # Race condition: file detected by inotify before fully written/closed.
+        # Retry once after a short async delay to allow the writer to finish.
+        logger.debug(f"Image validation got PermissionError, retrying in 1s: {file_path}: {e}")
+        await asyncio.sleep(1.0)
+        return await _retry_validation_async(file_path)
     except OSError as e:
         # OSError covers most PIL image errors (truncated, corrupt, etc.)
         logger.warning(f"Image validation failed (corrupt/truncated) {file_path}: {e}")

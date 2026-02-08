@@ -140,16 +140,48 @@ class TritonPythonModel:
         logger.info("X-CLIP: initialization complete")
 
     def _warmup(self):
-        """Run warmup inference with dummy frames."""
+        """Run warmup inference with dummy frames.
+
+        If warmup fails due to None logits (SDPA compatibility issue),
+        reload the model without SDPA and retry.
+        """
         dummy_frames = [
             Image.new("RGB", (224, 224), color=(128, 128, 128)) for _ in range(self.num_frames)
         ]
+        warmup_labels = ["walking normally", "running"]
+
         for i in range(2):
             try:
-                self._run_inference(dummy_frames, ["walking normally", "running"])
+                result = self._run_inference(dummy_frames, warmup_labels)
+                if result is None:
+                    raise RuntimeError("Inference returned None (logits_per_video was None)")
                 logger.info("X-CLIP: warmup %d/2 complete", i + 1)
             except Exception as exc:
                 logger.warning("X-CLIP: warmup %d failed: %s", i + 1, exc)
+                # On first warmup failure, try reloading without SDPA
+                if i == 0:
+                    self._reload_without_sdpa()
+
+    def _reload_without_sdpa(self):
+        """Reload the model without SDPA attention as a fallback.
+
+        SDPA can produce None logits on some PyTorch/transformers combinations.
+        Reloading with default (eager) attention fixes this.
+        """
+        from pathlib import Path
+
+        model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch32")
+        model_dir = Path(model_path)
+        local_path = str(model_dir.resolve()) if model_dir.exists() else model_path
+
+        logger.warning("X-CLIP: reloading model WITHOUT SDPA attention (fallback)")
+        try:
+            del self.model
+            self.model = XCLIPModel.from_pretrained(local_path)
+            self.model.eval()
+            logger.info("X-CLIP: reloaded with default (eager) attention")
+        except Exception as exc:
+            logger.error("X-CLIP: failed to reload without SDPA: %s", exc)
 
     def _sample_frames(self, frames, num_frames=16):
         """Sample frames evenly from input sequence.
@@ -214,6 +246,11 @@ class TritonPythonModel:
         with torch.inference_mode():
             outputs = self.model(**inputs)
             logits = outputs.logits_per_video
+            if logits is None:
+                raise RuntimeError(
+                    "X-CLIP model returned None for logits_per_video. "
+                    "This typically indicates an SDPA attention compatibility issue."
+                )
             probs = torch.softmax(logits, dim=1)[0]
 
         probs_np = probs.cpu().numpy()

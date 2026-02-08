@@ -125,11 +125,14 @@ run_export "YOLOv8n threat detection -> ONNX" \
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/threat/1/best.onnx" ] && mv "${CACHE_DIR}/threat/1/best.onnx" "${CACHE_DIR}/threat/1/model.onnx"
 
-# YOLO26 engine (pre-built, just copy)
-run_export "YOLO26 TensorRT engine -> copy" \
-    python3 "${SCRIPT_DIR}/copy_yolo26_engine.py" \
-        --model-path "${MODELS_ZOO}/yolo26" \
-        --output-path "${CACHE_DIR}/yolo26/1/model.plan"
+# YOLO26m -> ONNX (TensorRT too large for 4GB A400, ONNX Runtime is sufficient)
+run_export "YOLO26m -> ONNX" \
+    python3 "${SCRIPT_DIR}/export_yolo26.py" \
+        --model-path "${MODELS_ZOO}/yolo26/yolo26m.pt" \
+        --output-path "${CACHE_DIR}/yolo26/1/model.onnx" \
+        --device "${CUDA_DEVICE}"
+# Rename if Ultralytics produced a differently-named .onnx file
+[ -f "${CACHE_DIR}/yolo26/1/yolo26m.onnx" ] && mv "${CACHE_DIR}/yolo26/1/yolo26m.onnx" "${CACHE_DIR}/yolo26/1/model.onnx"
 
 # ---------------------------------------------------------------------------
 # Phase 2: ONNX exports (can run on CPU)
@@ -196,11 +199,8 @@ fi
 log_step "[4/4] Validating exported model files..."
 
 echo ""
-echo "  TensorRT engines (.plan):"
-check_file "${CACHE_DIR}/yolo26/1/model.plan"         "yolo26"        || true
-
-echo ""
 echo "  ONNX models (.onnx):"
+check_file "${CACHE_DIR}/yolo26/1/model.onnx"                 "yolo26"              || true
 check_file "${CACHE_DIR}/pose/1/model.onnx"                 "pose"                || true
 check_file "${CACHE_DIR}/threat/1/model.onnx"               "threat"              || true
 check_file "${CACHE_DIR}/clip/1/model.onnx"                 "clip"                || true
