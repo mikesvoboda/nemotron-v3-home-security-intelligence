@@ -1,12 +1,13 @@
 FROM nvcr.io/nvidia/tritonserver:25.01-py3
 
-# Install system deps needed by OpenCV (required by ultralytics)
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Install gateway + model export dependencies
 # Note: packaging must be force-reinstalled (Triton base has system version pip skips)
 # PyTorch/transformers/ultralytics needed for model export pipeline (export_all.sh)
+# hadolint ignore=DL3013,SC2102
 RUN pip install --no-cache-dir --force-reinstall packaging && \
     pip install --no-cache-dir \
     fastapi \
