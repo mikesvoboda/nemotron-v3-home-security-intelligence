@@ -38,6 +38,13 @@ instance_group [
   }
 ]
 
+rate_limiter {
+  resources [
+    { name: "GPU_MEMORY" count: 1 }
+  ]
+  priority: 1
+}
+
 # YOLO26m ONNX model exported via Ultralytics .export(format='onnx')
 # Static batch=1: max_batch_size=0, full shape including batch dim in dims
 # 80 COCO detection classes, post-NMS output with up to 300 detections
