@@ -1,0 +1,60 @@
+# X-CLIP Action Recognition - Python Backend
+# Temporal cross-frame attention model requiring trust_remote_code=True
+# Cannot be exported to TensorRT/ONNX due to custom cross-frame attention.
+#
+# Source: ai/enrichment/models/action_recognizer.py
+# Model: microsoft/xclip-base-patch16-16-frames (~400 MiB VRAM)
+# Model zoo path: /models/zoo/xclip-base-patch16-16-frames
+#
+# The gateway sends base64-encoded frames as a JSON array and optional
+# action labels.  Frame decoding, sampling (to 16 frames), and
+# preprocessing happen inside the Python backend model.py.
+
+name: "xclip_action"
+backend: "python"
+
+# No Triton-level batching -- the model processes one video clip
+# (multi-frame sequence) per request.
+max_batch_size: 0
+
+input [
+  {
+    name: "frames"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # JSON array of base64-encoded frame images
+  },
+  {
+    name: "labels"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # Optional JSON array of action label strings
+    optional: true
+  }
+]
+
+output [
+  {
+    name: "action"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # Recognized action class string
+  },
+  {
+    name: "confidence"
+    data_type: TYPE_FP32
+    dims: [ 1 ]    # Top action confidence score (0.0-1.0)
+  },
+  {
+    name: "all_scores"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # JSON dict: all_scores, is_suspicious, risk_weight, inference_time_ms
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
+version_policy: { latest: { num_versions: 1 }}

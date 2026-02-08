@@ -1,0 +1,43 @@
+# Depth Estimation - ONNX Runtime (Depth Anything V2 Small / DPT-Small)
+# Input: preprocessed image (B, 3, 518, 518) FP32
+# Output: depth map (B, 1, 518, 518) FP32
+# Source: ai/enrichment-light/model.py DepthEstimator (AutoImageProcessor -> 518x518)
+#
+# Depth Anything V2 Small uses DPT architecture with 518x518 input resolution.
+# Output depth map is relative (not metric) and needs min-max normalization.
+
+name: "depth"
+platform: "onnxruntime_onnx"
+max_batch_size: 4
+
+input [
+  {
+    name: "pixel_values"
+    data_type: TYPE_FP32
+    dims: [ 3, 518, 518 ]
+  }
+]
+
+output [
+  {
+    name: "predicted_depth"
+    data_type: TYPE_FP32
+    dims: [ 1, 518, 518 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 2 ]
+  max_queue_delay_microseconds: 200
+}
+
+# Depth Anything V2 Small (~150MB)
+# Larger input resolution (518x518) limits max batch size to 4

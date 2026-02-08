@@ -1,0 +1,50 @@
+# Vehicle Segment Classification - ONNX Runtime (ResNet-50)
+# Input: preprocessed image (B, 3, 224, 224) FP32
+# Output: class logits for 11 vehicle segment classes
+# Source: ai/enrichment/model.py VehicleClassifier (ResNet-50, 224x224)
+#
+# Classes: articulated_truck, background, bicycle, bus, car, motorcycle,
+#          non_motorized_vehicle, pedestrian, pickup_truck, single_unit_truck, work_van
+
+name: "vehicle"
+platform: "onnxruntime_onnx"
+max_batch_size: 8
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]
+  }
+]
+
+output [
+  {
+    name: "logits"
+    data_type: TYPE_FP32
+    dims: [ 11 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4 ]
+  max_queue_delay_microseconds: 100
+}
+
+parameters [
+  {
+    key: "cudnn_conv_algo_search"
+    value: { string_value: "DEFAULT" }
+  }
+]
+
+# ResNet-50 trained on vehicle segment dataset
+# Preprocessing: Resize(224,224), ToTensor, Normalize(ImageNet)

@@ -259,7 +259,7 @@ podman run -d \
   --device nvidia.com/gpu=1 \
   --security-opt label=disable \
   -v /export/ai_models/model-zoo:/models/zoo:ro \
-  -v triton-engine-cache:/models/cache \
+  -v /export/ai_models/triton:/models/cache \
   -p 127.0.0.1:8090:8090 \
   ai-gateway
 ```

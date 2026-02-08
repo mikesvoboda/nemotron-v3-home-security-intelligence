@@ -1,0 +1,48 @@
+# FashionSigLIP Clothing Classification - TensorRT FP16
+# Input: preprocessed image (B, 3, 224, 224) FP16 + tokenized text (B, 64) INT32
+# Output: image-text similarity logits
+# Source: ai/enrichment/model.py ClothingClassifier (open_clip, max_length=64)
+#
+# FashionSigLIP uses SigLIP architecture with 224x224 image input and
+# context length of 64 tokens (not 77 like standard CLIP).
+
+name: "fashion_clip"
+platform: "tensorrt_plan"
+max_batch_size: 8
+
+input [
+  {
+    name: "pixel_values"
+    data_type: TYPE_FP16
+    dims: [ 3, 224, 224 ]
+  },
+  {
+    name: "input_ids"
+    data_type: TYPE_INT32
+    dims: [ 64 ]
+  }
+]
+
+output [
+  {
+    name: "logits_per_image"
+    data_type: TYPE_FP32
+    dims: [ -1 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4 ]
+  max_queue_delay_microseconds: 200
+}
+
+# Marqo/marqo-fashionSigLIP model exported via ONNX -> TensorRT
+# 57% improved accuracy over FashionCLIP for clothing attribute extraction
