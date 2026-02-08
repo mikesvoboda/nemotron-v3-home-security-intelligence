@@ -48,6 +48,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: ci
         run: |
           mkdir -p docs-output/api
           uv run python -c "
