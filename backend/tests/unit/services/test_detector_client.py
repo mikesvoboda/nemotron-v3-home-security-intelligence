@@ -63,7 +63,7 @@ def sample_detector_response():
             },
             {
                 "class": "dog",
-                "confidence": 0.45,  # Below class threshold of 0.55
+                "confidence": 0.45,  # At class threshold of 0.45 (passes)
                 "bbox": [250, 300, 100, 80],
             },
         ],
@@ -150,8 +150,8 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
 
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        # Should return 2 detections (1 filtered out by confidence threshold)
-        assert len(detections) == 2
+        # Should return 3 detections (all pass current thresholds: person≥0.40, car≥0.50, dog≥0.45)
+        assert len(detections) == 3
         assert detections[0].object_type == "person"
         assert detections[0].confidence == 0.95
         assert detections[0].camera_id == camera_id
@@ -160,6 +160,9 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
         assert detections[1].object_type == "car"
         assert detections[1].confidence == 0.88
 
+        assert detections[2].object_type == "dog"
+        assert detections[2].confidence == 0.45
+
         # Verify bbox values
         assert detections[0].bbox_x == 100
         assert detections[0].bbox_y == 150
@@ -167,7 +170,7 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
         assert detections[0].bbox_height == 400
 
         # Verify database interactions
-        assert mock_session.add.call_count == 2
+        assert mock_session.add.call_count == 3
         assert mock_session.commit.called
 
 
@@ -194,13 +197,14 @@ async def test_detect_objects_filters_low_confidence(
 
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        # person (0.95) passes class threshold of 0.45
-        # car (0.88) passes class threshold of 0.70
-        # dog (0.45) filtered by class threshold of 0.55
+        # Current class-specific thresholds: person=0.40, car=0.50, dog=0.45
+        # person (0.95) passes threshold of 0.40 ✓
+        # car (0.88) passes threshold of 0.50 ✓
+        # dog (0.45) passes threshold of 0.45 ✓ (at threshold, passes)
         object_types = [d.object_type for d in detections]
         assert "person" in object_types
         assert "car" in object_types
-        assert "dog" not in object_types
+        assert "dog" in object_types
 
 
 @pytest.mark.asyncio
