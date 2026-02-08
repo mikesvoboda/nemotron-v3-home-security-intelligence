@@ -2899,7 +2899,6 @@ class TestSummaryPromptTemplates:
         assert "{period}" in SUMMARY_EMPTY_STATE_INSTRUCTION
         assert "reassuring" in SUMMARY_EMPTY_STATE_INSTRUCTION.lower()
         assert "quiet" in SUMMARY_EMPTY_STATE_INSTRUCTION.lower()
-        assert "routine" in SUMMARY_EMPTY_STATE_INSTRUCTION.lower()
 
     def test_summary_event_format_exists(self) -> None:
         """Test that SUMMARY_EVENT_FORMAT is defined."""

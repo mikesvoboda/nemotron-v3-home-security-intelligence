@@ -418,9 +418,19 @@ class TestHandleValidatedMessage:
         """Test that resync message with missing data uses default values."""
         message = WebSocketMessage(type="resync", data=None)
 
-        with patch(
-            "backend.api.routes.websocket.get_subscription_manager",
-            return_value=mock_subscription_manager,
+        mock_buffer = MagicMock()
+        mock_buffer.get_oldest_sequence.return_value = None
+        mock_buffer.get_since.return_value = []
+
+        with (
+            patch(
+                "backend.api.routes.websocket.get_subscription_manager",
+                return_value=mock_subscription_manager,
+            ),
+            patch(
+                "backend.api.routes.websocket.get_message_buffer",
+                return_value=mock_buffer,
+            ),
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
