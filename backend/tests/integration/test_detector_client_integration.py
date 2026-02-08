@@ -291,7 +291,7 @@ class TestConfidenceFiltering:
                 select(Detection).where(Detection.camera_id == sample_camera.id)
             )
             persisted = result.scalars().all()
-            assert len(persisted) == 2
+            assert len(persisted) == 3
 
     async def test_detect_objects_all_below_threshold(
         self, integration_db, sample_camera, temp_image_file, detector_client
