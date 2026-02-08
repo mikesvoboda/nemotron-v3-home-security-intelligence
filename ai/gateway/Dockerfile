@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir --force-reinstall packaging && \
     transformers \
     ultralytics \
     onnx \
+    onnxscript \
     onnxruntime-gpu \
     open_clip_torch \
     timm

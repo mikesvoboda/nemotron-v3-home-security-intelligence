@@ -88,17 +88,19 @@ echo "  Started at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 # ---------------------------------------------------------------------------
 log_step "[1/4] Exporting TensorRT models (GPU required)..."
 
-# CLIP -> TensorRT
-run_export "CLIP ViT-L/14 -> TensorRT FP16" \
+# CLIP -> ONNX (TensorRT too large for 4GB A400, ONNX Runtime is sufficient)
+run_export "CLIP ViT-L/14 -> ONNX" \
     python3 "${SCRIPT_DIR}/export_clip.py" \
         --model-path "${MODELS_ZOO}/clip-vit-l" \
-        --output-path "${CACHE_DIR}/clip/1/model.plan"
+        --output-path "${CACHE_DIR}/clip/1/model.onnx" \
+        --onnx-only
 
-# Fashion-CLIP -> TensorRT
-run_export "Fashion-CLIP -> TensorRT FP16" \
+# Fashion-CLIP -> ONNX
+run_export "Fashion-CLIP -> ONNX" \
     python3 "${SCRIPT_DIR}/export_fashion_clip.py" \
         --model-path "${MODELS_ZOO}/fashion-clip" \
-        --output-path "${CACHE_DIR}/fashion_clip/1/model.plan"
+        --output-path "${CACHE_DIR}/fashion_clip/1/model.onnx" \
+        --onnx-only
 
 # YOLOv8n-pose -> TensorRT
 run_export "YOLOv8n-pose -> TensorRT FP16" \
@@ -153,7 +155,7 @@ run_export "Depth Anything V2 Small -> ONNX" \
 # Person Re-ID -> ONNX
 run_export "OSNet-x0.25 Re-ID -> ONNX" \
     python3 "${SCRIPT_DIR}/export_reid.py" \
-        --model-path "${MODELS_ZOO}/osnet-x0-25" \
+        --model-path "${MODELS_ZOO}/osnet-x0-25/osnet_x0_25.pth" \
         --output-path "${CACHE_DIR}/reid/1/model.onnx"
 
 # ---------------------------------------------------------------------------
@@ -186,14 +188,14 @@ log_step "[4/4] Validating exported model files..."
 
 echo ""
 echo "  TensorRT engines (.plan):"
-check_file "${CACHE_DIR}/clip/1/model.plan"          "clip"          || true
-check_file "${CACHE_DIR}/fashion_clip/1/model.plan"   "fashion_clip"  || true
 check_file "${CACHE_DIR}/pose/1/model.plan"           "pose"          || true
 check_file "${CACHE_DIR}/threat/1/model.plan"         "threat"        || true
 check_file "${CACHE_DIR}/yolo26/1/model.plan"         "yolo26"        || true
 
 echo ""
 echo "  ONNX models (.onnx):"
+check_file "${CACHE_DIR}/clip/1/model.onnx"                 "clip"                || true
+check_file "${CACHE_DIR}/fashion_clip/1/model.onnx"         "fashion_clip"        || true
 check_file "${CACHE_DIR}/vehicle/1/model.onnx"              "vehicle"             || true
 check_file "${CACHE_DIR}/demographics_age/1/model.onnx"     "demographics_age"    || true
 check_file "${CACHE_DIR}/demographics_gender/1/model.onnx"  "demographics_gender" || true
