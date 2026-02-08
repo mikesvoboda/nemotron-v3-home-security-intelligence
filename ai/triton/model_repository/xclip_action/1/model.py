@@ -95,7 +95,8 @@ class TritonPythonModel:
         logger.info("X-CLIP: initializing Triton Python backend...")
 
         model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch32")
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        # Force CPU to avoid GPU OOM — GPU reserved for CLIP + Florence-2
+        self.device = "cpu"
         self.num_frames = 16
 
         # Resolve local paths to avoid HFValidationError.

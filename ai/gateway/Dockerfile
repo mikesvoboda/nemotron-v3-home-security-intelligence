@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir --force-reinstall packaging && \
     onnxscript \
     onnxruntime-gpu \
     open_clip_torch \
-    timm
+    timm \
+    einops
 
 # Copy gateway application code
 COPY ai/gateway/ /app/gateway/

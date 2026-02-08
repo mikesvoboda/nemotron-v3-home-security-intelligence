@@ -22,7 +22,7 @@ output [
   {
     name: "depth_map"
     data_type: TYPE_FP32
-    dims: [ 1, 1, 518, 518 ]
+    dims: [ 1, 518, 518 ]
   }
 ]
 
