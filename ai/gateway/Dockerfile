@@ -1,8 +1,8 @@
 FROM nvcr.io/nvidia/tritonserver:25.01-py3
 
-# Install gateway Python dependencies
-# Note: packaging must be installed explicitly — the Triton base image
-# has a system-managed version that pip skips but tritonclient can't find
+# Install gateway + model export dependencies
+# Note: packaging must be force-reinstalled (Triton base has system version pip skips)
+# PyTorch/transformers/ultralytics needed for model export pipeline (export_all.sh)
 RUN pip install --no-cache-dir --force-reinstall packaging && \
     pip install --no-cache-dir \
     fastapi \
@@ -12,7 +12,14 @@ RUN pip install --no-cache-dir --force-reinstall packaging && \
     numpy \
     prometheus-client \
     httpx \
-    python-multipart
+    python-multipart \
+    torch \
+    transformers \
+    ultralytics \
+    onnx \
+    onnxruntime-gpu \
+    open_clip_torch \
+    timm
 
 # Copy gateway application code
 COPY ai/gateway/ /app/gateway/
