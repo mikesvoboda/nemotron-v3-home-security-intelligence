@@ -19,7 +19,7 @@ input [
 
 output [
   {
-    name: "embedding"
+    name: "pooler_output"
     data_type: TYPE_FP32
     dims: [ 768 ]
   }

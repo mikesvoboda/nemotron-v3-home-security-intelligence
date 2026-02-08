@@ -3,9 +3,8 @@
 # Output: raw YOLO tensor [1, 8, 8400] FP32 (8 = 4 box + 4 class scores)
 # Source: ai/enrichment-light/models/threat_detector.py (640x640 input)
 #
-# NEM-5551: Promoted from CPU to GPU after Category 3 model swaps freed 85% of A400 VRAM.
-# ONNX Runtime with CUDAExecutionProvider gives ~2x speedup over CPU execution.
-# Model size: ~12MB ONNX (~12MB on GPU)
+# NEM-5551: Promoted from CPU to GPU. ONNX Runtime with CUDAExecutionProvider.
+# Model size: ~12MB ONNX
 
 name: "threat"
 backend: "onnxruntime"
@@ -35,6 +34,6 @@ instance_group [
   }
 ]
 
-# YOLOv8n weapon detection ONNX model exported via Ultralytics .export(format='onnx')
+# YOLOv8n weapon detection ONNX model
 # Static batch=1: max_batch_size=0, full shape including batch dim in dims
 # Detects weapons, knives, firearms, and other threat objects
