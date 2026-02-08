@@ -15,7 +15,7 @@ Examples:
     python scripts/benchmark_model_zoo.py
 
     # Benchmark specific models
-    python scripts/benchmark_model_zoo.py --models yolo11-license-plate,clip-vit-l
+    python scripts/benchmark_model_zoo.py --models yolo11-license-plate,siglip2-base-patch16-224
 
     # Output to specific file
     python scripts/benchmark_model_zoo.py --output docs/benchmarks/results.md
@@ -127,17 +127,18 @@ async def run_inference(model: Any, model_name: str, image: Image.Image) -> floa
 
         elif model_name == "paddleocr":
             # PaddleOCR expects numpy array
+            # Note: FastALPR is the recommended replacement for PaddleOCR
             img_array = np.array(image)
             _ = model.ocr(img_array, cls=False)
 
-        elif model_name == "clip-vit-l":
-            # CLIP returns model and processor
-            clip_model = model["model"]
+        elif model_name == "siglip2-base-patch16-224":
+            # SigLIP 2 Base returns model and processor
+            siglip_model = model["model"]
             processor = model["processor"]
             inputs = processor(images=image, return_tensors="pt")
-            device = next(clip_model.parameters()).device
+            device = next(siglip_model.parameters()).device
             inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = clip_model.get_image_features(**inputs)
+            _ = siglip_model.get_image_features(**inputs)
 
         elif model_name == "florence-2-large":
             # Florence returns model and processor
@@ -202,15 +203,17 @@ async def run_inference(model: Any, model_name: str, image: Image.Image) -> floa
             inputs = {k: v.to(device) for k, v in inputs.items()}
             _ = seg_model(**inputs)
 
-        elif model_name == "xclip-base":
-            # X-CLIP for video action recognition (single frame)
-            xclip_model = model["model"]
+        elif model_name == "stgcn-plus-plus":
+            # ST-GCN++ for skeleton-based action recognition
+            # Note: ST-GCN++ uses skeleton keypoints (not video frames) for inference,
+            # so benchmarking uses a different approach than standard image models
+            stgcn_model = model["model"]
             processor = model["processor"]
-            # X-CLIP expects video frames
+            # ST-GCN++ expects skeleton keypoints, not raw video frames
             inputs = processor(images=[image], return_tensors="pt")
-            device = next(xclip_model.parameters()).device
+            device = next(stgcn_model.parameters()).device
             inputs = {k: v.to(device) for k, v in inputs.items()}
-            _ = xclip_model.get_image_features(**inputs)
+            _ = stgcn_model.get_image_features(**inputs)
 
         elif model_name == "fashion-clip":
             # FashionCLIP

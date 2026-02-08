@@ -10,7 +10,7 @@ Lightweight AI models optimized for the secondary GPU (A400 4GB) in multi-GPU co
 ai/enrichment-light/models/
 ├── AGENTS.md            # This file
 ├── __init__.py          # Package exports
-├── person_reid.py       # OSNet-x0.25 person re-identification
+├── person_reid.py       # OSNet-AIN x1.0 person re-identification
 ├── pose_estimator.py    # YOLOv8n-pose human pose estimation
 └── threat_detector.py   # YOLOv8n weapon/threat detection
 ```
@@ -31,15 +31,15 @@ __all__ = ["PersonReID", "PoseEstimator", "ThreatDetector"]
 
 ### person_reid.py
 
-OSNet-x0.25 person re-identification for tracking individuals across cameras.
+OSNet-AIN x1.0 person re-identification for tracking individuals across cameras.
 
-| Class/Function       | Purpose                                      |
-| -------------------- | -------------------------------------------- |
-| `PersonReID`         | Main model wrapper for embedding extraction  |
-| `ReIDResult`         | Dataclass for embedding + hash result        |
-| `OSNet`              | Standalone OSNet architecture (no torchreid) |
-| `create_osnet_x0_25` | Factory for OSNet-x0.25 configuration        |
-| `load_person_reid`   | Factory function for model registry          |
+| Class/Function          | Purpose                                      |
+| ----------------------- | -------------------------------------------- |
+| `PersonReID`            | Main model wrapper for embedding extraction  |
+| `ReIDResult`            | Dataclass for embedding + hash result        |
+| `OSNet`                 | Standalone OSNet architecture (no torchreid) |
+| `create_osnet_ain_x1_0` | Factory for OSNet-AIN x1.0 configuration     |
+| `load_person_reid`      | Factory function for model registry          |
 
 **Features:**
 
@@ -149,11 +149,11 @@ if result.has_threat:
 
 ## Model Specifications
 
-| Model          | Architecture | Input Size | VRAM (PyTorch) | VRAM (TensorRT) |
-| -------------- | ------------ | ---------- | -------------- | --------------- |
-| PersonReID     | OSNet-x0.25  | 256x128    | ~100MB         | N/A             |
-| PoseEstimator  | YOLOv8n-pose | 640x640    | ~300MB         | ~200MB          |
-| ThreatDetector | YOLOv8n      | 640x640    | ~400MB         | ~300MB          |
+| Model          | Architecture   | Input Size | VRAM (PyTorch) | VRAM (TensorRT) |
+| -------------- | -------------- | ---------- | -------------- | --------------- |
+| PersonReID     | OSNet-AIN x1.0 | 256x128    | ~100MB         | N/A             |
+| PoseEstimator  | YOLOv8n-pose   | 640x640    | ~300MB         | ~200MB          |
+| ThreatDetector | YOLOv8n        | 640x640    | ~400MB         | ~300MB          |
 
 ## TensorRT Support
 

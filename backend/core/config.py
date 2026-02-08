@@ -1399,7 +1399,7 @@ class Settings(BaseSettings):
     )
     enrichment_action_service: str = Field(
         default="heavy",
-        description="Service for action recognition model: 'heavy' or 'light'. X-CLIP (~1.5GB) recommended for heavy.",
+        description="Service for action recognition model: 'heavy' or 'light'. ST-GCN++ (preferred, X-CLIP legacy) recommended for heavy.",
     )
     enrichment_demographics_service: str = Field(
         default="heavy",

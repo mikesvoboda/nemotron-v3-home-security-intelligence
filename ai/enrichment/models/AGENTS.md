@@ -7,7 +7,7 @@ This directory contains on-demand model implementations for the ai-enrichment se
 ```
 models/
   __init__.py              # Package exports
-  action_recognizer.py     # X-CLIP video action recognition
+  action_recognizer.py     # Action recognition (X-CLIP legacy, ST-GCN++ preferred)
   demographics.py          # Age/gender classification (existing)
   face_recognizer.py       # Face detection and recognition
   person_reid.py           # Person re-identification (existing)
@@ -28,15 +28,16 @@ Models are prioritized for VRAM allocation:
 | MEDIUM   | 2     | Vehicle, pet, re-ID          |
 | LOW      | 3     | Depth, action recognition    |
 
-## ActionRecognizer (X-CLIP)
+## ActionRecognizer (X-CLIP Legacy / ST-GCN++ Preferred)
 
 ### Overview
 
-Video-based action recognition using Microsoft's X-CLIP model for zero-shot classification.
+Video-based action recognition. **ST-GCN++ is the preferred model** for action recognition. X-CLIP is maintained for legacy compatibility but deprecated in favor of ST-GCN++.
 
 ### Specifications
 
-- **Model**: `microsoft/xclip-base-patch32`
+- **Model (Preferred)**: ST-GCN++ (spatial-temporal graph convolutional network)
+- **Model (Legacy)**: `microsoft/xclip-base-patch32` (X-CLIP, deprecated)
 - **VRAM**: ~1.5GB
 - **Priority**: LOW (expensive, use sparingly)
 - **Input**: 8-32 video frames

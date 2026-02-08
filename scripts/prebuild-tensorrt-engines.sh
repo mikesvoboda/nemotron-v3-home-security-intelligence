@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# DEPRECATED: Use ai/gateway/export/export_all.sh instead (Triton gateway mode)
+#
 # Pre-build TensorRT engines for all AI services (NEM-4999)
 #
 # This script pre-builds TensorRT engines for YOLO26, CLIP, and enrichment-light
@@ -80,8 +82,8 @@ build_yolo26() {
 
 build_clip() {
     info "=== Building CLIP TensorRT Engine ==="
-    CLIP_MODEL_PATH="${AI_MODELS_PATH}/model-zoo/clip-vit-l"
-    CLIP_ENGINE_PATH="${AI_MODELS_PATH}/model-zoo/clip-vit-l/vision_encoder_fp16.engine"
+    CLIP_MODEL_PATH="${AI_MODELS_PATH}/model-zoo/siglip2-base-patch16-224"
+    CLIP_ENGINE_PATH="${AI_MODELS_PATH}/model-zoo/siglip2-base-patch16-224/vision_encoder_fp16.engine"
 
     if [ ! -d "$CLIP_MODEL_PATH" ]; then
         warn "CLIP model not found at $CLIP_MODEL_PATH"
