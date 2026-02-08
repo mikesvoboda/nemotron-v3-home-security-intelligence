@@ -81,6 +81,50 @@ TASKS_ANSWER_POST_PROCESSING_TYPE = {
     "<REGION_PROPOSAL>": "bboxes",
 }
 
+# Task token -> natural language prompt conversion.
+# Florence-2's architecture requires task tokens to be converted before tokenization.
+# From processing_florence2.py _construct_prompts().
+TASK_PROMPTS_WITHOUT_INPUTS = {
+    "<CAPTION>": "What does the image describe?",
+    "<DETAILED_CAPTION>": "Describe in detail what is shown in the image.",
+    "<MORE_DETAILED_CAPTION>": "Describe with a paragraph what is shown in the image.",
+    "<OD>": "Locate the objects with category name in the image.",
+    "<DENSE_REGION_CAPTION>": "Locate the objects in the image, with their descriptions.",
+    "<REGION_PROPOSAL>": "Locate the region proposals in the image.",
+    "<OCR>": "What is the text in the image?",
+    "<OCR_WITH_REGION>": "What is the text in the image, with regions?",
+}
+
+TASK_PROMPTS_WITH_INPUT = {
+    "<CAPTION_TO_PHRASE_GROUNDING>": "Locate the phrases in the caption: {input}",
+    "<REFERRING_EXPRESSION_SEGMENTATION>": "Locate {input} in the image with mask",
+    "<REGION_TO_SEGMENTATION>": "What is the polygon mask of region {input}",
+    "<OPEN_VOCABULARY_DETECTION>": "Locate {input} in the image.",
+    "<REGION_TO_CATEGORY>": "What is the region {input}?",
+    "<REGION_TO_DESCRIPTION>": "What does the region {input} describe?",
+    "<REGION_TO_OCR>": "What text is in the region {input}?",
+}
+
+
+def _convert_task_prompt(prompt: str) -> str:
+    """Convert Florence-2 task tokens to natural language prompts.
+
+    The bare tokenizer doesn't know about task tokens like <CAPTION>.
+    They must be converted to natural language before tokenization.
+    """
+    # Check simple tasks first
+    if prompt in TASK_PROMPTS_WITHOUT_INPUTS:
+        return TASK_PROMPTS_WITHOUT_INPUTS[prompt]
+
+    # Check tasks with input (e.g., "<CAPTION_TO_PHRASE_GROUNDING> a cat")
+    for task_token, template in TASK_PROMPTS_WITH_INPUT.items():
+        if prompt.startswith(task_token):
+            user_input = prompt[len(task_token) :].strip()
+            return template.format(input=user_input)
+
+    # Unknown task — pass through as-is (may be a natural language prompt)
+    return prompt
+
 
 # ---------------------------------------------------------------------------
 # Transformers 5.x compatibility patches
@@ -268,39 +312,19 @@ class TritonPythonModel:
             dtype,
         )
 
-        # Use AutoProcessor to get the full Florence2Processor which handles:
-        # 1. Task prompt conversion (e.g. <CAPTION> -> "What does the image describe?")
-        # 2. All 1000+ special tokens (loc_0..loc_999, od, ocr, etc.)
-        # 3. Proper post-processing of structured outputs
-        # This matches the standalone server (ai/florence/model.py) approach.
-        from transformers import AutoProcessor
+        # Load tokenizer and image processor separately.
+        # (The old MS Florence2Processor is incompatible with
+        # transformers 5.x, so we build the pipeline by hand.)
+        from transformers import AutoImageProcessor, AutoTokenizer
 
-        self.processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-        self.tokenizer = self.processor.tokenizer
-        self.image_processor = self.processor.image_processor
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.image_processor = AutoImageProcessor.from_pretrained(model_path)
+
+        # Import the old MS post-processor for structured output parsing
+        self.post_processor = _load_old_ms_post_processor(model_path, self.tokenizer)
 
         # Load model with trust_remote_code + manual weight loading
         self.model = _load_florence2_model(model_path, dtype, self.device)
-
-        # Resize model embeddings to match processor's tokenizer vocabulary.
-        # The processor adds 1000+ special tokens (loc_0..loc_999, od, ocr, etc.)
-        # that the model's original embedding layer doesn't know about.
-        vocab_size = len(self.tokenizer)
-        model_vocab = self.model.language_model.model.shared.weight.shape[0]
-        if vocab_size != model_vocab:
-            logger.info(
-                "Florence-2: resizing embeddings from %d to %d to match processor tokenizer",
-                model_vocab,
-                vocab_size,
-            )
-            self.model.resize_token_embeddings(vocab_size)
-            # Re-tie shared embedding after resize
-            shared = self.model.language_model.model.shared.weight
-            self.model.language_model.model.encoder.embed_tokens.weight = shared
-            self.model.language_model.model.decoder.embed_tokens.weight = shared
-            self.model.language_model.lm_head.weight = shared
-            # Move to correct device/dtype after resize
-            self.model = self.model.to(dtype=dtype, device=self.device)
 
         # Warmup to pre-allocate CUDA memory
         self._warmup()
@@ -322,11 +346,6 @@ class TritonPythonModel:
         Replicates the core inference logic from
         ``ai/florence/model.py:Florence2Model.extract_raw()``.
 
-        Uses the full Florence2Processor for prompt construction and
-        post-processing, which handles task prompt conversion (e.g.
-        <CAPTION> -> "What does the image describe?") and structured
-        output parsing with all special tokens.
-
         Args:
             image: PIL Image in RGB mode.
             prompt: Florence-2 task prompt string.
@@ -337,20 +356,20 @@ class TritonPythonModel:
         if image.mode != "RGB":
             image = image.convert("RGB")
 
-        # Use the full processor for prompt construction + tokenization.
-        # The processor converts task tokens to natural language prompts
-        # (e.g. <CAPTION> -> "What does the image describe?") and
-        # prepends image tokens before tokenizing.
-        inputs = self.processor(
-            text=prompt,
-            images=image,
-            return_tensors="pt",
-        )
+        # Convert task tokens to natural language prompts.
+        # The bare tokenizer doesn't understand <CAPTION> etc.
+        nl_prompt = _convert_task_prompt(prompt)
+
+        # Tokenize text (the old MS model fuses image+text internally
+        # in its custom generate() method, so we do NOT prepend image
+        # tokens to the text).
+        text_inputs = self.tokenizer(nl_prompt, return_tensors="pt")
+        pixel_values = self.image_processor(image, return_tensors="pt")["pixel_values"]
 
         # Move inputs to device with model dtype
         model_dtype = next(self.model.parameters()).dtype
-        input_ids = inputs["input_ids"].to(self.device)
-        pixel_values = inputs["pixel_values"].to(self.device, model_dtype)
+        input_ids = text_inputs["input_ids"].to(self.device)
+        pixel_values = pixel_values.to(self.device, model_dtype)
 
         # Greedy decoding with KV cache disabled to work around
         # Florence-2's prepare_inputs_for_generation bug
@@ -365,26 +384,23 @@ class TritonPythonModel:
                 use_cache=False,
             )
 
-        generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+        generated_text = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=False)[0]
 
-        # Post-process using the processor's post_process_generation method.
-        # This handles all task types: pure_text, bboxes, OCR regions, etc.
-        # Extract the base task token for post-processing lookup.
-        base_task = prompt
-        for task_token in TASKS_ANSWER_POST_PROCESSING_TYPE:
-            if prompt.startswith(task_token):
-                base_task = task_token
-                break
-
-        parsed = self.processor.post_process_generation(
-            generated_text,
-            task=base_task,
+        # Post-process using the old MS Florence2PostProcesser
+        task_type = TASKS_ANSWER_POST_PROCESSING_TYPE.get(prompt, "pure_text")
+        parsed = self.post_processor(
+            text=generated_text,
             image_size=(image.width, image.height),
+            parse_tasks=task_type,
         )
 
         # Extract the task-specific result
-        if base_task in parsed:
-            return parsed[base_task]
+        if task_type in parsed:
+            result = parsed[task_type]
+            if task_type == "pure_text":
+                # Remove special tokens from pure text
+                result = result.replace("<s>", "").replace("</s>", "").strip()
+            return result
 
         # Fallback: return cleaned text
         return generated_text.replace("<s>", "").replace("</s>", "").strip()
@@ -500,12 +516,12 @@ class TritonPythonModel:
         logger.info("Florence-2: finalizing...")
         if hasattr(self, "model") and self.model is not None:
             del self.model
-        if hasattr(self, "processor") and self.processor is not None:
-            del self.processor
         if hasattr(self, "tokenizer") and self.tokenizer is not None:
             del self.tokenizer
         if hasattr(self, "image_processor") and self.image_processor is not None:
             del self.image_processor
+        if hasattr(self, "post_processor") and self.post_processor is not None:
+            del self.post_processor
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         logger.info("Florence-2: finalized")
