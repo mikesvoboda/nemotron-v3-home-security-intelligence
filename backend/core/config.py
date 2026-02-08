@@ -2781,7 +2781,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_environment(cls, v: str) -> str:
         """Validate environment is a known value."""
-        valid_environments = {"production", "staging", "development", "dev", "prod", "test"}
+        valid_environments = {"production", "staging", "development", "dev", "prod", "test", "ci"}
         v_lower = v.lower()
         if v_lower not in valid_environments:
             raise ValueError(
