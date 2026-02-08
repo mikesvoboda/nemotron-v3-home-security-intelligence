@@ -207,7 +207,7 @@ class DeployOrchestrator:
             self.storage.reset_storage()
 
         # Verify ports are available
-        self.containers.ensure_ports_available()
+        await self.containers.ensure_ports_available()
 
     async def _build_phase(self) -> dict:
         """Build phase: build all images.

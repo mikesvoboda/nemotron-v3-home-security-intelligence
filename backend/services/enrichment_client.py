@@ -846,17 +846,24 @@ class EnrichmentClient:
         """
         self._settings = get_settings()
 
-        # Use provided URL, or settings, or default for heavy service
+        # Use provided URL, or AI Gateway, or settings for heavy service
+        _use_gw = getattr(self._settings, "use_ai_gateway", False) is True and isinstance(
+            getattr(self._settings, "ai_gateway_url", None), str
+        )
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
+        elif _use_gw:
+            self._base_url = f"{self._settings.ai_gateway_url.rstrip('/')}/enrichment"
         else:
             self._base_url = getattr(
                 self._settings, "enrichment_url", DEFAULT_ENRICHMENT_URL
             ).rstrip("/")
 
-        # Use provided URL, or settings, or default for light service
+        # Use provided URL, or AI Gateway, or settings for light service
         if light_base_url is not None:
             self._light_base_url = light_base_url.rstrip("/")
+        elif _use_gw:
+            self._light_base_url = f"{self._settings.ai_gateway_url.rstrip('/')}/enrich-lt"
         else:
             self._light_base_url = getattr(
                 self._settings, "enrichment_light_url", DEFAULT_ENRICHMENT_LIGHT_URL

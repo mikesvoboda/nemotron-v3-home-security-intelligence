@@ -105,9 +105,13 @@ class CLIPClient:
         """
         settings = get_settings()
 
-        # Use provided URL, or settings, or default
+        # Use provided URL, or AI Gateway, or settings
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
+        elif getattr(settings, "use_ai_gateway", False) is True and isinstance(
+            getattr(settings, "ai_gateway_url", None), str
+        ):
+            self._base_url = f"{settings.ai_gateway_url.rstrip('/')}/clip"
         else:
             self._base_url = settings.clip_url.rstrip("/")
 

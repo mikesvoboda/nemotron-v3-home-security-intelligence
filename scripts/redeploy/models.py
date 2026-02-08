@@ -287,6 +287,13 @@ class DeployConfig(BaseSettings):
         alias="ENRICHMENT_LIGHT_PORT",
     )
 
+    # AI Gateway (Triton + FastAPI unified container)
+    ai_gateway_port: int = Field(
+        default_factory=lambda: _port_default("AI_GATEWAY_PORT", 8090),
+        alias="AI_GATEWAY_PORT",
+    )
+    use_ai_gateway: bool = Field(default=True, alias="USE_AI_GATEWAY")
+
     # Monitoring service ports (defaults from .env.example)
     prometheus_port: int = Field(
         default_factory=lambda: _port_default("PROMETHEUS_PORT", 9090), alias="PROMETHEUS_PORT"
@@ -375,24 +382,35 @@ class DeployConfig(BaseSettings):
         return self.project_root.name.replace("-", "_").replace(".", "_")
 
     @property
+    def ai_gateway_url(self) -> str:
+        """URL for the AI gateway container (used by backend)."""
+        return f"http://ai-gateway:{self.ai_gateway_port}"
+
+    @property
     def required_ports(self) -> dict[int, str]:
         """Map of required ports to service names."""
-        return {
+        ports = {
             # Core services
             self.postgres_port: "PostgreSQL",
             self.redis_port: "Redis",
             self.api_port: "Backend API",
-            # AI services
-            self.llm_port: "LLM",
-            self.florence_port: "Florence",
-            self.clip_port: "CLIP",
-            self.enrichment_port: "Enrichment",
-            self.yolo26_port: "YOLO26",
             # Monitoring (subset - only critical ones)
             self.prometheus_port: "Prometheus",
             self.grafana_port: "Grafana",
             self.loki_port: "Loki",
         }
+        if self.use_ai_gateway:
+            # Gateway mode: single port for all AI services (except LLM)
+            ports[self.ai_gateway_port] = "AI Gateway"
+            ports[self.llm_port] = "LLM"
+        else:
+            # Legacy mode: individual AI service ports
+            ports[self.llm_port] = "LLM"
+            ports[self.florence_port] = "Florence"
+            ports[self.clip_port] = "CLIP"
+            ports[self.enrichment_port] = "Enrichment"
+            ports[self.yolo26_port] = "YOLO26"
+        return ports
 
     @property
     def monitoring_ports(self) -> dict[int, str]:
@@ -417,6 +435,30 @@ class DeployConfig(BaseSettings):
         }
 
     # Class-level constants
+    # Legacy AI services (5 separate containers)
+    AI_SERVICES_LEGACY: ClassVar[list[str]] = [
+        "ai-yolo26",
+        "ai-llm",
+        "ai-florence",
+        "ai-clip",
+        "ai-enrichment",
+        "ai-enrichment-light",
+    ]
+
+    # Gateway AI services (ai-gateway replaces yolo26/florence/clip/enrichment/enrichment-light)
+    AI_SERVICES_GATEWAY: ClassVar[list[str]] = [
+        "ai-gateway",
+        "ai-llm",
+    ]
+
+    @property
+    def ai_services(self) -> list[str]:
+        """Active AI service names based on gateway mode."""
+        if self.use_ai_gateway:
+            return list(self.AI_SERVICES_GATEWAY)
+        return list(self.AI_SERVICES_LEGACY)
+
+    # Keep AI_SERVICES for backward compat (references legacy list)
     AI_SERVICES: ClassVar[list[str]] = [
         "ai-yolo26",
         "ai-llm",
@@ -427,6 +469,7 @@ class DeployConfig(BaseSettings):
     ]
 
     STANDALONE_CONTAINERS: ClassVar[list[str]] = [
+        "ai-gateway",
         "ai-yolo26",
         "ai-llm",
         "ai-florence",
@@ -440,6 +483,7 @@ class DeployConfig(BaseSettings):
     PROJECT_PATTERNS: ClassVar[list[str]] = [
         "nemotron",
         "security",
+        "ai-gateway",
         "ai-yolo",
         "ai-llm",
         "ai-florence",

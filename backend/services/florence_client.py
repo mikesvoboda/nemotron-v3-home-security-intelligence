@@ -208,9 +208,13 @@ class FlorenceClient:
         """
         settings = get_settings()
 
-        # Use provided URL or get from settings (which has default configured)
+        # Use provided URL, or AI Gateway, or settings
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
+        elif getattr(settings, "use_ai_gateway", False) is True and isinstance(
+            getattr(settings, "ai_gateway_url", None), str
+        ):
+            self._base_url = f"{settings.ai_gateway_url.rstrip('/')}/florence"
         else:
             # Use florence_url from settings (configured in config.py with proper default)
             self._base_url = settings.florence_url.rstrip("/")
