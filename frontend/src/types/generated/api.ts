@@ -42128,7 +42128,7 @@ export interface components {
          *           "gpu_id": 1,
          *           "loaded_models": [
          *             "threat-detection-yolov8n",
-         *             "osnet-x0-25"
+         *             "osnet-ain-x1-0"
          *           ],
          *           "service": "ai-enrichment-light",
          *           "used_mb": 450,

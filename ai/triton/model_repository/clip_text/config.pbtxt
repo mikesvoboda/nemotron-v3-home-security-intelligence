@@ -1,7 +1,9 @@
-# CLIP ViT-L/14 Text Encoder - ONNX Runtime
-# Input: tokenized text (B, 77) INT64
-# Output: text_embeds (B, 768) FP32
-# Source: ai/gateway/export/export_clip_text.py
+# SigLIP 2 Base (patch16-224) Text Encoder - ONNX Runtime
+# Replaces CLIP ViT-L/14 text encoder
+# Input: tokenized text (B, 64) INT64 (SigLIP 2 max_length=64, not CLIP's 77)
+# Output: pooler_output (B, 768) FP32
+# Note: SigLIP 2 text model does NOT use attention_mask
+# Source: onnx-community/siglip2-base-patch16-224-ONNX (text_model_quantized.onnx)
 
 name: "clip_text"
 backend: "onnxruntime"
@@ -11,18 +13,13 @@ input [
   {
     name: "input_ids"
     data_type: TYPE_INT64
-    dims: [77]
-  },
-  {
-    name: "attention_mask"
-    data_type: TYPE_INT64
-    dims: [77]
+    dims: [64]
   }
 ]
 
 output [
   {
-    name: "text_embeds"
+    name: "pooler_output"
     data_type: TYPE_FP32
     dims: [768]
   }

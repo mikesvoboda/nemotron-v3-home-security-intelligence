@@ -255,7 +255,7 @@ def load_person_reid(model_path: str, device: str = "cuda:0") -> Any:
 
         # Build OSNet model
         model = torchreid_models.build_model(
-            name="osnet_x0_25",
+            name="osnet_ain_x1_0",
             num_classes=1000,  # Pretrained classes
             pretrained=True,
         )
@@ -476,10 +476,12 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_action_recognizer,
     )
 
-    # Person Re-Identification - OSNet-x0.25 (~100MB) — CPU offloaded to free GPU VRAM
-    # OSNet-x0.25 is tiny (0.25x width), runs acceptably on CPU (15-25ms)
+    # Person Re-Identification - OSNet-AIN x1.0 (~100MB) — CPU offloaded to free GPU VRAM
+    # OSNet-AIN x1.0 (NEM-5562): 4x better accuracy than x0.25, runs on CPU (15-25ms)
     reid_device = os.environ.get("REID_DEVICE", "cpu")
-    reid_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
+    reid_path = os.environ.get(
+        "REID_MODEL_PATH", "/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth"
+    )
     registry["person_reid"] = ModelConfig(
         name="person_reid",
         vram_mb=0 if reid_device == "cpu" else 100,

@@ -4870,7 +4870,7 @@ MODEL_CATEGORIES: dict[str, list[str]] = {
     "Segmentation": ["segformer-b2-clothes"],
     "Pose": ["vitpose-small", "yolov8n-pose"],
     "Depth": ["depth-anything-v2-tiny"],
-    "Embedding": ["clip-vit-l", "osnet-x0-25"],
+    "Embedding": ["siglip2-base-patch16-224", "osnet-ain-x1-0"],
     "OCR": ["paddleocr"],
     "Action Recognition": ["xclip-base"],
 }
@@ -4888,7 +4888,10 @@ MODEL_ZOO_LATENCY_TTL_SECONDS = 86400  # Keep data for 24 hours
 AUDIT_MODEL_TO_ZOO_MODELS: dict[str, list[str]] = {
     "yolo26": [],  # YOLO26v2 is not in Model Zoo (always loaded separately)
     "florence": ["florence-2-large"],
-    "clip": ["clip-vit-l", "osnet-x0-25"],  # CLIP embeddings and OSNet re-id
+    "clip": [
+        "siglip2-base-patch16-224",
+        "osnet-ain-x1-0",
+    ],  # SigLIP 2 embeddings and OSNet-AIN re-id
     "violence": ["violence-detection"],
     "clothing": ["segformer-b2-clothes", "fashion-clip"],
     "vehicle": ["vehicle-segment-classification", "vehicle-damage-detection"],

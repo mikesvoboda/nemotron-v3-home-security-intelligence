@@ -153,7 +153,7 @@ def create_mock_model_manager() -> MagicMock:
 
     mock_models: dict[str, Any] = {
         "florence-2-large": {"model": MagicMock(), "processor": MagicMock()},
-        "clip-vit-l": {"model": MagicMock(), "processor": MagicMock()},
+        "siglip2-base-patch16-224": {"model": MagicMock(), "processor": MagicMock()},
         "fashion-clip": {"model": MagicMock(), "processor": MagicMock()},
         "vehicle-segment-classification": {
             "model": MagicMock(),

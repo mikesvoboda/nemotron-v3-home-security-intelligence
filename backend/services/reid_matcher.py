@@ -53,7 +53,7 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.7
 # Default time window for searching matches (hours)
 DEFAULT_TIME_WINDOW_HOURS = 24
 
-# Default embedding dimension for ReID models (OSNet-x0.25 produces 512-dim embeddings)
+# Default embedding dimension for ReID models (OSNet-AIN x1.0 produces 512-dim embeddings)
 DEFAULT_EMBEDDING_DIMENSION = 512
 
 
@@ -312,7 +312,7 @@ class ReIDMatcher:
                 "vector": embedding,
                 "dimension": len(embedding),
                 "hash": embedding_hash,
-                "model": "osnet_x0_25",  # Default model name
+                "model": "osnet_ain_x1_0",  # OSNet-AIN x1.0 (NEM-5562)
                 "stored_at": datetime.now(UTC).isoformat(),
             },
         }

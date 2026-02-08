@@ -1,22 +1,27 @@
 #!/usr/bin/env python3
-"""Export Person Re-ID (OSNet-x0.25) to ONNX format for Triton Inference Server.
+"""Export Person Re-ID (OSNet-AIN x1.0) to ONNX format for Triton Inference Server.
 
-Model: OSNet-x0.25 — Omni-Scale Feature Learning for Person Re-Identification.
-Source: /models/zoo/osnet-x0-25/osnet_x0_25.pth (raw PyTorch checkpoint)
+Model: OSNet-AIN x1.0 — Omni-Scale Feature Learning with Attention Instance Normalization.
+Source: /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth (raw PyTorch checkpoint)
 Input: (B, 3, 256, 128) FP32 — ImageNet-normalized (height=256, width=128)
 Output: (B, 512) FP32 — L2-normalizable embedding vector
 
+Upgraded from OSNet-x0.25 to OSNet-AIN x1.0 for 4x better re-identification
+accuracy (NEM-5562). Uses MSMT17 domain-generalization trained weights.
+
 This model uses a standalone OSNet architecture (no torchreid dependency).
 The architecture is reproduced from ai/enrichment-light/models/person_reid.py
-which defines the complete OSNet-x0.25 network structure.
+which defines the complete OSNet-AIN x1.0 network structure.
 
 Reference:
     Zhou et al. "Omni-Scale Feature Learning for Person Re-Identification."
     ICCV 2019.
+    Zhou et al. "Learning Generalisable Omni-Scale Representations
+    for Person Re-Identification." TPAMI 2021.
 
 Usage:
     python export_reid.py \
-        --model-path /models/zoo/osnet-x0-25/osnet_x0_25.pth \
+        --model-path /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth \
         --output-path /models/repository/reid/1/model.onnx
 """
 
@@ -39,15 +44,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# OSNet-x0.25 input dimensions (standard person ReID)
+# OSNet-AIN x1.0 input dimensions (standard person ReID)
 INPUT_HEIGHT = 256
 INPUT_WIDTH = 128
 
 # Output embedding dimension
 EMBEDDING_DIM = 512
 
-# OSNet-x0.25 channel configuration
-OSNET_X025_CHANNELS = [16, 64, 96, 128]
+# OSNet-AIN x1.0 channel configuration (full-width)
+OSNET_AIN_X10_CHANNELS = [64, 256, 384, 512]
 
 
 # =============================================================================
@@ -192,9 +197,15 @@ class ChannelGate(nn.Module):
 
 
 class OSBlock(nn.Module):
-    """Omni-scale feature learning block."""
+    """Omni-scale feature learning block with optional instance normalization."""
 
-    def __init__(self, in_channels: int, out_channels: int, bottleneck_reduction: int = 4):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        bottleneck_reduction: int = 4,
+        instance_norm: bool = False,
+    ):
         super().__init__()
         mid_channels = out_channels // bottleneck_reduction
         self.conv1 = Conv1x1(in_channels, mid_channels)
@@ -219,6 +230,9 @@ class OSBlock(nn.Module):
         self.downsample: Conv1x1Linear | None = None
         if in_channels != out_channels:
             self.downsample = Conv1x1Linear(in_channels, out_channels)
+        self.IN: nn.InstanceNorm2d | None = None
+        if instance_norm:
+            self.IN = nn.InstanceNorm2d(out_channels, affine=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         identity = x
@@ -231,13 +245,16 @@ class OSBlock(nn.Module):
         x3 = self.conv3(x2)
         if self.downsample is not None:
             identity = self.downsample(identity)
-        return F.relu(x3 + identity)
+        out = x3 + identity
+        if self.IN is not None:
+            out = self.IN(out)
+        return F.relu(out)
 
 
 class OSNet(nn.Module):
-    """Omni-Scale Network for Person Re-Identification.
+    """Omni-Scale Network with Attention Instance Normalization for Person Re-Identification.
 
-    This is the complete OSNet architecture reproduced from
+    This is the complete OSNet-AIN architecture reproduced from
     ai/enrichment-light/models/person_reid.py to avoid import dependencies.
     """
 
@@ -248,16 +265,31 @@ class OSNet(nn.Module):
         layers: list[int],
         channels: list[int],
         feature_dim: int = 512,
+        conv1_IN: bool = False,
+        instance_norm_blocks: list[bool] | None = None,
     ):
         super().__init__()
+        num_blocks = len(blocks)
         self.feature_dim = feature_dim
 
         # Convolutional backbone
         self.conv1 = ConvLayer(3, channels[0], 7, stride=2, padding=3)
+        self.conv1_IN: nn.InstanceNorm2d | None = None
+        if conv1_IN:
+            self.conv1_IN = nn.InstanceNorm2d(channels[0], affine=True)
         self.maxpool = nn.MaxPool2d(3, stride=2, padding=1)
-        self.conv2 = self._make_layer(blocks[0], layers[0], channels[0], channels[1], True)
-        self.conv3 = self._make_layer(blocks[1], layers[1], channels[1], channels[2], True)
-        self.conv4 = self._make_layer(blocks[2], layers[2], channels[2], channels[3], False)
+
+        if instance_norm_blocks is None:
+            instance_norm_blocks = [False] * num_blocks
+        self.conv2 = self._make_layer(
+            blocks[0], layers[0], channels[0], channels[1], True, instance_norm_blocks[0]
+        )
+        self.conv3 = self._make_layer(
+            blocks[1], layers[1], channels[1], channels[2], True, instance_norm_blocks[1]
+        )
+        self.conv4 = self._make_layer(
+            blocks[2], layers[2], channels[2], channels[3], False, instance_norm_blocks[2]
+        )
         self.conv5 = Conv1x1(channels[3], channels[3])
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
 
@@ -278,10 +310,13 @@ class OSNet(nn.Module):
         in_channels: int,
         out_channels: int,
         reduce_spatial_size: bool,
+        instance_norm: bool = False,
     ) -> nn.Sequential:
-        layers_list: list[nn.Module] = [block(in_channels, out_channels)]
+        layers_list: list[nn.Module] = [
+            block(in_channels, out_channels, instance_norm=instance_norm)
+        ]
         for _ in range(1, layer):
-            layers_list.append(block(out_channels, out_channels))
+            layers_list.append(block(out_channels, out_channels, instance_norm=instance_norm))
         if reduce_spatial_size:
             layers_list.append(
                 nn.Sequential(Conv1x1(out_channels, out_channels), nn.AvgPool2d(2, stride=2))
@@ -291,13 +326,17 @@ class OSNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass returns embeddings (not logits) when in eval mode."""
         x = self.conv1(x)
+        if self.conv1_IN is not None:
+            x = self.conv1_IN(x)
         x = self.maxpool(x)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
         x = self.conv5(x)
         v = self.global_avgpool(x)
-        v = v.view(v.size(0), -1)
+        # Use flatten(1) instead of view(v.size(0), -1) so ONNX export
+        # correctly traces a dynamic batch dimension on the output tensor.
+        v = v.flatten(1)
         v = self.fc(v)
         # During inference (eval mode), return feature embeddings
         if not self.training:
@@ -306,33 +345,34 @@ class OSNet(nn.Module):
         return self.classifier(v)
 
 
-def create_osnet_x0_25(num_classes: int = 1) -> OSNet:
-    """Create OSNet-x0.25 architecture (very tiny, width x0.25).
+def create_osnet_ain_x1_0(num_classes: int = 1) -> OSNet:
+    """Create OSNet-AIN x1.0 architecture (full-width with instance normalization).
 
     Args:
         num_classes: Number of output classes. Use 1 for feature extraction.
 
     Returns:
-        OSNet model configured for x0.25 width.
+        OSNet model configured for AIN x1.0 width.
     """
     return OSNet(
         num_classes=num_classes,
         blocks=[OSBlock, OSBlock, OSBlock],
         layers=[2, 2, 2],
-        channels=OSNET_X025_CHANNELS,
+        channels=OSNET_AIN_X10_CHANNELS,
         feature_dim=EMBEDDING_DIM,
+        conv1_IN=True,
+        instance_norm_blocks=[True, True, False],
     )
 
 
 def load_pytorch_model(model_path: str) -> torch.nn.Module:
-    """Load OSNet-x0.25 from a PyTorch checkpoint file.
+    """Load OSNet-AIN x1.0 from a PyTorch checkpoint file.
 
-    Creates the model with num_classes matching the checkpoint (typically 1000
-    for ImageNet-pretrained weights) so that all weights load without size
-    mismatches.  The classifier head is only used during training; in eval mode
-    the forward() method returns the 512-dim embedding vector before the
-    classifier, so the extra classifier weights are harmless dead weight that
-    never affect inference output.
+    Creates the model with num_classes matching the checkpoint so that all
+    weights load without size mismatches.  The classifier head is only used
+    during training; in eval mode the forward() method returns the 512-dim
+    embedding vector before the classifier, so the extra classifier weights
+    are harmless dead weight that never affect inference output.
 
     Handles both direct state dicts and DataParallel-wrapped checkpoints
     (keys prefixed with 'module.').
@@ -365,8 +405,8 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
         num_classes = state_dict["classifier.weight"].shape[0]
         logger.info(f"Detected num_classes={num_classes} from checkpoint classifier weights")
 
-    logger.info(f"Creating OSNet-x0.25 architecture (num_classes={num_classes})...")
-    model = create_osnet_x0_25(num_classes=num_classes)
+    logger.info(f"Creating OSNet-AIN x1.0 architecture (num_classes={num_classes})...")
+    model = create_osnet_ain_x1_0(num_classes=num_classes)
 
     # Load weights — should be an exact match now
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
@@ -379,7 +419,7 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
 
     model.eval()
     logger.info(
-        f"OSNet-x0.25 loaded: input ({INPUT_HEIGHT}x{INPUT_WIDTH}), output ({EMBEDDING_DIM},)"
+        f"OSNet-AIN x1.0 loaded: input ({INPUT_HEIGHT}x{INPUT_WIDTH}), output ({EMBEDDING_DIM},)"
     )
     return model
 
@@ -520,12 +560,12 @@ def validate_onnx(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Export Person Re-ID (OSNet-x0.25) to ONNX")
+    parser = argparse.ArgumentParser(description="Export Person Re-ID (OSNet-AIN x1.0) to ONNX")
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/models/zoo/osnet-x0-25/osnet_x0_25.pth",
-        help="Path to the OSNet-x0.25 checkpoint file (.pth)",
+        default="/models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth",
+        help="Path to the OSNet-AIN x1.0 checkpoint file (.pth)",
     )
     parser.add_argument(
         "--output-path",

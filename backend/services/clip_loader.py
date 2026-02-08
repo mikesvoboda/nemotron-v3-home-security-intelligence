@@ -1,10 +1,11 @@
-"""CLIP model loader for re-identification embeddings.
+"""SigLIP 2 model loader for re-identification embeddings.
 
-This module provides async loading of CLIP ViT-L models for generating
-embeddings used in entity re-identification across cameras.
+This module provides async loading of SigLIP 2 Base models (replacing CLIP ViT-L)
+for generating embeddings used in entity re-identification across cameras.
 
-The CLIP model generates 768-dimensional embeddings that can be compared
-using cosine similarity to match entities across different camera views.
+SigLIP 2 Base generates 768-dimensional embeddings (same as CLIP ViT-L) that
+can be compared using cosine similarity to match entities across different
+camera views. It uses 178MB FP16 vs CLIP's 1.2GB, saving 1,035MB VRAM.
 """
 
 from __future__ import annotations
@@ -19,38 +20,37 @@ logger = get_logger(__name__)
 
 
 async def load_clip_model(model_path: str) -> Any:
-    """Load a CLIP model from HuggingFace.
+    """Load a SigLIP 2 model for embedding generation.
 
-    This function loads the CLIP ViT-L model for generating embeddings
-    used in entity re-identification.
+    This function loads the SigLIP 2 Base model for generating embeddings
+    used in entity re-identification. Function name kept as load_clip_model
+    for backward compatibility with model_zoo.py.
 
     Args:
-        model_path: HuggingFace model path (e.g., "openai/clip-vit-large-patch14")
+        model_path: Local path to SigLIP 2 model directory
 
     Returns:
         Dictionary containing:
-            - model: The CLIP model instance
-            - processor: The CLIP processor for image preprocessing
+            - model: The SigLIP 2 model instance
+            - processor: The SigLIP 2 processor for image preprocessing
 
     Raises:
         ImportError: If transformers is not installed
         RuntimeError: If model loading fails
     """
     try:
-        from transformers import CLIPModel, CLIPProcessor
+        from transformers import AutoModel, AutoProcessor
 
-        logger.info(f"Loading CLIP model from {model_path}")
+        logger.info(f"Loading SigLIP 2 model from {model_path}")
 
         loop = asyncio.get_running_loop()
 
         # Load model and processor in thread pool to avoid blocking
         def _load() -> dict[str, Any]:
-            processor = CLIPProcessor.from_pretrained(model_path)
-            model = CLIPModel.from_pretrained(model_path)
+            processor = AutoProcessor.from_pretrained(model_path)
+            model = AutoModel.from_pretrained(model_path)
 
             # Set model to evaluation mode for deterministic inference
-            # Without eval(), dropout layers remain active and batch normalization
-            # uses batch statistics instead of running averages
             model.eval()
 
             # Move to GPU if available
@@ -59,54 +59,52 @@ async def load_clip_model(model_path: str) -> Any:
 
                 if torch.cuda.is_available():
                     model = model.cuda()
-                    logger.info("CLIP model moved to CUDA")
+                    logger.info("SigLIP 2 model moved to CUDA")
             except ImportError:
-                # torch not installed, model will run on CPU.
-                # CPU fallback is acceptable for CLIP model inference.
-                # See: NEM-2540 for rationale
                 pass
 
             return {"model": model, "processor": processor}
 
         result = await loop.run_in_executor(None, _load)
 
-        logger.info(f"Successfully loaded CLIP model from {model_path}")
+        logger.info(f"Successfully loaded SigLIP 2 model from {model_path}")
         return result
 
     except ImportError as e:
         logger.warning("transformers package not installed. Install with: pip install transformers")
         raise ImportError(
-            "transformers package required for CLIP. Install with: pip install transformers"
+            "transformers package required for SigLIP 2. Install with: pip install transformers"
         ) from e
 
     except Exception as e:
-        logger.error("Failed to load CLIP model", exc_info=True, extra={"model_path": model_path})
-        raise RuntimeError(f"Failed to load CLIP model: {e}") from e
+        logger.error(
+            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
+        )
+        raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
 
 
 class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
-    """Class-based CLIP model loader implementing ModelLoaderBase.
+    """Class-based SigLIP 2 model loader implementing ModelLoaderBase.
 
-    This class provides a standardized interface for loading CLIP models
-    following the Model Loader Base pattern. It wraps the functional
-    load_clip_model implementation.
+    This class provides a standardized interface for loading SigLIP 2 models
+    (replacing CLIP ViT-L) following the Model Loader Base pattern.
 
     Attributes:
-        model_path: Path to the model (HuggingFace repo or local path)
+        model_path: Path to the model (local path)
         _model: Loaded model dictionary (model + processor)
 
     Example:
-        loader = CLIPLoader("openai/clip-vit-large-patch14")
+        loader = CLIPLoader("/models/model-zoo/siglip2-base-patch16-224")
         model = await loader.load("cuda")
         # Use model...
         await loader.unload()
     """
 
     def __init__(self, model_path: str) -> None:
-        """Initialize CLIP loader.
+        """Initialize SigLIP 2 loader.
 
         Args:
-            model_path: HuggingFace model path or local path
+            model_path: Local model path
         """
         self.model_path = model_path
         self._model: dict[str, Any] | None = None
@@ -115,13 +113,13 @@ class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
     @override
     def model_name(self) -> str:
         """Get the unique identifier for this model."""
-        return "clip-vit-l"
+        return "siglip2-base-patch16-224"
 
     @property
     @override
     def vram_mb(self) -> int:
         """Get the estimated VRAM usage in megabytes."""
-        return 800  # CLIP ViT-L uses ~800MB
+        return 200  # SigLIP 2 Base FP16 uses ~200MB (vs CLIP ViT-L 800MB)
 
     @override
     async def load(self, device: str = "cuda") -> dict[str, Any]:

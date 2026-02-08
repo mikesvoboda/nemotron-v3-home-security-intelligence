@@ -354,7 +354,7 @@ class VramSummaryResponse(BaseModel):
                         "used_mb": 450,
                         "available_mb": 750,
                         "utilization_percent": 37.5,
-                        "loaded_models": ["threat-detection-yolov8n", "osnet-x0-25"],
+                        "loaded_models": ["threat-detection-yolov8n", "osnet-ain-x1-0"],
                     },
                 ],
                 "totals": {

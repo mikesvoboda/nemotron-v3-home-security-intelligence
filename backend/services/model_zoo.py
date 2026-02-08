@@ -11,7 +11,7 @@ Models:
     - yolo11-license-plate: License plate detection on vehicles
     - yolo11-face: Face detection on persons
     - paddleocr: OCR text extraction from detected plates
-    - clip-vit-l: CLIP embeddings for re-identification
+    - siglip2-base-patch16-224: SigLIP 2 Base embeddings for re-identification (replaces CLIP ViT-L)
     - florence-2-large: Vision-language queries for attribute extraction
     - yolo-world-s: Open-vocabulary zero-shot detection
     - vitpose-small: Human pose keypoint detection (17 COCO keypoints)
@@ -24,11 +24,12 @@ Models:
     - brisque-quality: Image quality assessment (CPU-based, 0 VRAM)
     - vehicle-segment-classification: Detailed vehicle type classification (11 types)
     - pet-classifier: Cat/dog classification for false positive reduction
-    - osnet-x0-25: OSNet for person re-identification embeddings (~100MB)
+    - osnet-ain-x1-0: OSNet-AIN x1.0 for person re-identification embeddings (~100MB)
     - threat-detection-yolov8n: Weapon/threat detection (~300MB)
     - vit-age-classifier: Age estimation from face/person crops (~200MB)
     - vit-gender-classifier: Gender classification from face/person crops (~200MB)
     - yolov8n-pose: Alternative pose estimation model (~200MB)
+    - zero-dce-plus-plus: Low-light image enhancement preprocessing (~5MB)
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
@@ -59,6 +60,7 @@ from backend.services.osnet_loader import load_osnet_model
 from backend.services.pet_classifier_loader import load_pet_classifier_model
 from backend.services.segformer_loader import load_segformer_model
 from backend.services.smoke_fire_loader import load_smoke_fire_model
+from backend.services.stgcn_loader import load_stgcn_model
 from backend.services.threat_detection_loader import load_threat_detection_model
 from backend.services.vehicle_classifier_loader import load_vehicle_classifier
 from backend.services.vehicle_damage_loader import load_vehicle_damage_model
@@ -67,6 +69,7 @@ from backend.services.vitpose_loader import load_vitpose_model
 from backend.services.weather_loader import load_weather_model
 from backend.services.xclip_loader import load_xclip_model
 from backend.services.yolo_world_loader import load_yolo_world_model
+from backend.services.zero_dce_loader import load_zero_dce_model
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -380,13 +383,14 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             enabled=False,  # Disabled until available
             available=False,
         ),
-        # CLIP ViT-L for re-identification embeddings
-        # DISABLED: Not downloaded to local model zoo
-        "clip-vit-l": ModelConfig(
-            name="clip-vit-l",
-            path=f"{base_path}/clip-vit-l",
+        # SigLIP 2 Base for re-identification embeddings (replaces CLIP ViT-L)
+        # 178MB FP16 vs 1.2GB = 1,035MB VRAM savings
+        # Same 768-dim embeddings, compatible with all downstream code
+        "siglip2-base-patch16-224": ModelConfig(
+            name="siglip2-base-patch16-224",
+            path=f"{base_path}/siglip2-base-patch16-224",
             category="embedding",
-            vram_mb=800,
+            vram_mb=200,
             load_fn=load_clip_model,
             enabled=True,
             available=False,
@@ -478,9 +482,24 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             enabled=True,
             available=False,
         ),
-        # X-CLIP for temporal action recognition in video sequences
-        # Analyzes multiple frames to classify security-relevant actions:
-        # loitering, approaching door, running away, suspicious behavior, etc.
+        # ST-GCN++ for skeleton-based action recognition (NEM-5563)
+        # Replaces X-CLIP (~2GB) with skeleton-based approach (~14MB)
+        # Uses pose keypoints already extracted by ViTPose/YOLOv8n-Pose
+        # Trained on NTU RGB+D 60 with COCO 2D keypoints (HRNet)
+        # 60 action classes including security-relevant: falling, fighting, etc.
+        # Input: buffered keypoints per tracked person (30-60 frames)
+        "stgcn-plus-plus": ModelConfig(
+            name="stgcn-plus-plus",
+            path=f"{base_path}/stgcn-plus-plus",
+            category="action-recognition",
+            vram_mb=20,  # ~14MB (extremely lightweight)
+            load_fn=load_stgcn_model,
+            enabled=True,
+            available=False,
+        ),
+        # DEPRECATED: X-CLIP for temporal action recognition in video sequences
+        # Replaced by ST-GCN++ (NEM-5563) — saves 1,986MB VRAM
+        # Kept for backward compatibility but disabled by default
         # Based on microsoft/xclip-base-patch16-16-frames (NEM-3908 upgrade for +4% accuracy)
         # Requires 16 frames for optimal performance
         "xclip-base": ModelConfig(
@@ -489,7 +508,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="action-recognition",
             vram_mb=2000,  # ~2GB with float16
             load_fn=load_xclip_model,
-            enabled=True,
+            enabled=False,  # DEPRECATED: Replaced by stgcn-plus-plus (NEM-5563)
             available=False,
         ),
         # Marqo-FashionSigLIP for zero-shot clothing classification (57% accuracy improvement)
@@ -566,14 +585,15 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             enabled=True,
             available=False,
         ),
-        # OSNet-x0-25 for person re-identification embeddings
-        # Generates 512-dimensional embeddings for matching persons across cameras
-        # Lightweight variant optimized for real-time re-identification
-        "osnet-x0-25": ModelConfig(
-            name="osnet-x0-25",
-            path=f"{base_path}/osnet-x0-25",
+        # OSNet-AIN x1.0 for person re-identification embeddings (NEM-5562)
+        # Upgraded from OSNet-x0.25 for 4x better accuracy
+        # MSMT17 domain-generalization trained (Rank-1: 73.3%)
+        # Same 512-dim embeddings, same 256x128 input — drop-in replacement
+        "osnet-ain-x1-0": ModelConfig(
+            name="osnet-ain-x1-0",
+            path=f"{base_path}/osnet-ain-x1-0",
             category="embedding",
-            vram_mb=100,  # ~100MB (very lightweight)
+            vram_mb=100,  # ~100MB
             load_fn=load_osnet_model,
             enabled=True,
             available=False,
@@ -642,6 +662,22 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="pose",
             vram_mb=200,  # ~200MB (lightweight)
             load_fn=load_yolo_model,  # Uses standard YOLO loading
+            enabled=True,
+            available=False,
+        ),
+        # Zero-DCE++ Low-Light Image Enhancement
+        # Learns brightness curve adjustments for low-light images (no reference needed)
+        # 10K parameters, ~40KB weights, ~1000 FPS on GPU — essentially zero overhead
+        # Applied conditionally as a preprocessing step before YOLO detection:
+        # - Only when image brightness is below threshold (low-light conditions)
+        # - OR during nighttime hours
+        # Improves detection accuracy in dark scenes without impacting bright-scene performance
+        "zero-dce-plus-plus": ModelConfig(
+            name="zero-dce-plus-plus",
+            path=f"{base_path}/zero-dce-plus-plus",
+            category="preprocessing",
+            vram_mb=5,  # ~40KB weights, essentially zero
+            load_fn=load_zero_dce_model,
             enabled=True,
             available=False,
         ),

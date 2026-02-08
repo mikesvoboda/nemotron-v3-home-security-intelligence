@@ -61,7 +61,7 @@ HEAVY_MODELS = frozenset(
 LIGHT_MODELS = frozenset(
     {
         "threat-detection-yolov8n",
-        "osnet-x0-25",
+        "osnet-ain-x1-0",
         "depth-anything-v2-tiny",
         "pet-classifier",
         "vit-age-classifier",
@@ -112,9 +112,9 @@ def sample_model_configs() -> dict[str, ModelConfig]:
             enabled=True,
             available=False,
         ),
-        "osnet-x0-25": ModelConfig(
-            name="osnet-x0-25",
-            path="/models/model-zoo/osnet-x0-25",
+        "osnet-ain-x1-0": ModelConfig(
+            name="osnet-ain-x1-0",
+            path="/models/model-zoo/osnet-ain-x1-0",
             category="embedding",
             vram_mb=100,
             load_fn=AsyncMock(),
@@ -146,7 +146,7 @@ def sample_model_configs() -> dict[str, ModelConfig]:
 def sample_enrichment_status_response() -> dict:
     """Mock response from enrichment service /models/status endpoint."""
     return {
-        "loaded_models": ["threat-detection-yolov8n", "osnet-x0-25"],
+        "loaded_models": ["threat-detection-yolov8n", "osnet-ain-x1-0"],
         "total_vram_mb": 400,
         "models": {
             "threat-detection-yolov8n": {
@@ -154,7 +154,7 @@ def sample_enrichment_status_response() -> dict:
                 "last_used": "2025-01-31T10:30:00Z",
                 "load_count": 5,
             },
-            "osnet-x0-25": {
+            "osnet-ain-x1-0": {
                 "vram_mb": 95,
                 "last_used": "2025-01-31T10:25:00Z",
                 "load_count": 3,
@@ -464,7 +464,7 @@ class TestLoadModel:
         mock_enrichment_client: AsyncMock,
     ) -> None:
         """Light models should be loaded via ai-enrichment-light service (GPU 1)."""
-        model_name = "osnet-x0-25"
+        model_name = "osnet-ain-x1-0"
         mock_get_model_config.return_value = sample_model_configs[model_name]
 
         response = MagicMock()
@@ -699,7 +699,7 @@ class TestVramSummary:
         light_response.json.return_value = {
             "budget_mb": 1200,
             "used_mb": 400,
-            "loaded_models": ["threat-detection-yolov8n", "osnet-x0-25"],
+            "loaded_models": ["threat-detection-yolov8n", "osnet-ain-x1-0"],
         }
 
         async def mock_get(url: str, **kwargs):

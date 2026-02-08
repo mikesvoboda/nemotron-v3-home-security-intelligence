@@ -2194,8 +2194,10 @@ async def lifespan(_app: FastAPI):
         )
     )
 
-    # Person Re-ID (~100MB) - OSNet-x0.25 person re-identification embeddings
-    reid_model_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
+    # Person Re-ID (~100MB) - OSNet-AIN x1.0 person re-identification embeddings (NEM-5562)
+    reid_model_path = os.environ.get(
+        "REID_MODEL_PATH", "/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth"
+    )
 
     def _create_person_reid(reid_path: str, dev: str) -> Any:
         from models.person_reid import PersonReID

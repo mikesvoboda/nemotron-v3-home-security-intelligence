@@ -97,11 +97,11 @@ MODEL_ZOO: list[ModelSpec] = [
         model_type="transformers",
     ),
     ModelSpec(
-        name="osnet-x0-25",
-        hf_repo="osnet_x0_25",  # torchreid model name
+        name="osnet-ain-x1-0",
+        hf_repo="osnet_ain_x1_0",  # torchreid model name
         phase=1,
-        vram_mb=300,
-        description="Person re-identification embeddings",
+        vram_mb=100,
+        description="Person re-identification embeddings (AIN x1.0, 4x better accuracy)",
         model_type="torchreid",
     ),
     ModelSpec(
@@ -111,6 +111,30 @@ MODEL_ZOO: list[ModelSpec] = [
         vram_mb=500,
         description="Text/label OCR extraction",
         model_type="paddleocr",
+    ),
+    ModelSpec(
+        name="vit-age-classifier",
+        hf_repo="nateraw/vit-age-classifier",
+        phase=1,
+        vram_mb=200,
+        description="Age estimation from face/person crops",
+        model_type="transformers",
+    ),
+    ModelSpec(
+        name="vit-gender-classifier",
+        hf_repo="rizvandwiki/gender-classification",
+        phase=1,
+        vram_mb=200,
+        description="Gender classification from face/person crops",
+        model_type="transformers",
+    ),
+    ModelSpec(
+        name="zero-dce-plus-plus",
+        hf_repo="Li-Chongyi/Zero-DCE_extension",  # Placeholder - needs manual download from GitHub
+        phase=1,
+        vram_mb=5,
+        description="Zero-DCE++ low-light enhancement preprocessing (40KB, ~0 VRAM)",
+        model_type="transformers",
     ),
     # Phase 2 - Context Enrichment
     ModelSpec(
@@ -163,12 +187,20 @@ MODEL_ZOO: list[ModelSpec] = [
         model_type="transformers",
     ),
     ModelSpec(
-        name="clip-vit-l",
-        hf_repo="openai/clip-vit-large-patch14",
+        name="siglip2-base-patch16-224",
+        hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
         phase=2,
-        vram_mb=800,
-        description="CLIP embeddings for re-identification",
+        vram_mb=200,
+        description="SigLIP 2 Base embeddings for re-identification (replaces CLIP ViT-L, -1035MB VRAM)",
         model_type="transformers",
+    ),
+    ModelSpec(
+        name="stgcn-plus-plus",
+        hf_repo="pyskl/stgcnpp_ntu60_xsub_hrnet_j",  # Placeholder - manual download
+        phase=2,
+        vram_mb=20,
+        description="ST-GCN++ skeleton-based action recognition (replaces X-CLIP, -1986MB VRAM)",
+        model_type="transformers",  # Will use snapshot_download for checkpoint
     ),
     # Phase 3 - Specialized
     ModelSpec(

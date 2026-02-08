@@ -1,7 +1,7 @@
 """CLIP HTTP client service for embedding generation.
 
 This service provides an HTTP client interface to the ai-clip service,
-sending images for embedding generation using the CLIP ViT-L model.
+sending images for embedding generation using SigLIP 2 Base (via AI Gateway).
 
 The ai-clip service runs CLIP as a dedicated HTTP service (URL configured via
 settings.clip_url) to avoid loading the model on-demand in the backend, which
@@ -50,7 +50,7 @@ CLIP_CONNECT_TIMEOUT = 10.0  # Fallback, use settings.ai_connect_timeout
 CLIP_READ_TIMEOUT = 15.0  # Fallback, use settings.clip_read_timeout
 CLIP_HEALTH_TIMEOUT = 5.0  # Fallback, use settings.ai_health_timeout
 
-# CLIP ViT-L embedding dimension
+# SigLIP 2 Base / CLIP ViT-L embedding dimension (both 768-dim)
 EMBEDDING_DIMENSION = 768
 
 

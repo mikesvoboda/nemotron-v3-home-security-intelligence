@@ -172,9 +172,9 @@ class TestPersonReIDInit:
 
     def test_init_with_model_path(self) -> None:
         """PersonReID stores model path correctly."""
-        reid = PersonReID(model_path="/models/osnet-reid/osnet_x0_25.pth")
+        reid = PersonReID(model_path="/models/osnet-reid/osnet_ain_x1_0_msmt17.pth")
 
-        assert reid.model_path == "/models/osnet-reid/osnet_x0_25.pth"
+        assert reid.model_path == "/models/osnet-reid/osnet_ain_x1_0_msmt17.pth"
         assert reid.device == "cuda:0"
         assert reid.model is None
 
@@ -539,7 +539,7 @@ class TestPersonReIDModelLoading:
 
             # Should call build_model
             mock_torchreid.models.build_model.assert_called_once_with(
-                name="osnet_x0_25",
+                name="osnet_ain_x1_0",
                 num_classes=1,
                 pretrained=True,
             )
@@ -697,7 +697,7 @@ class TestConstants:
     """Tests for module constants."""
 
     def test_embedding_dimension(self) -> None:
-        """Embedding dimension is 512 for OSNet-x0.25."""
+        """Embedding dimension is 512 for OSNet-AIN x1.0."""
         assert EMBEDDING_DIMENSION == 512
 
     def test_input_dimensions(self) -> None:
@@ -756,25 +756,25 @@ class TestEmbeddingHash:
 class TestStandaloneOSNet:
     """Tests for standalone OSNet architecture (torchreid-free loading)."""
 
-    def test_create_osnet_x0_25_returns_model(self) -> None:
-        """create_osnet_x0_25 returns an OSNet model instance."""
-        from ai.enrichment.models.person_reid import OSNet, create_osnet_x0_25
+    def test_create_osnet_ain_x1_0_returns_model(self) -> None:
+        """create_osnet_ain_x1_0 returns an OSNet model instance."""
+        from ai.enrichment.models.person_reid import OSNet, create_osnet_ain_x1_0
 
-        model = create_osnet_x0_25()
+        model = create_osnet_ain_x1_0()
         assert isinstance(model, OSNet)
 
-    def test_create_osnet_x0_25_feature_dimension(self) -> None:
-        """OSNet-x0.25 has 512-dimensional feature output."""
-        from ai.enrichment.models.person_reid import create_osnet_x0_25
+    def test_create_osnet_ain_x1_0_feature_dimension(self) -> None:
+        """OSNet-AIN x1.0 has 512-dimensional feature output."""
+        from ai.enrichment.models.person_reid import create_osnet_ain_x1_0
 
-        model = create_osnet_x0_25()
+        model = create_osnet_ain_x1_0()
         assert model.feature_dim == EMBEDDING_DIMENSION
 
-    def test_create_osnet_x0_25_forward_pass(self) -> None:
-        """OSNet-x0.25 produces correct output shape."""
-        from ai.enrichment.models.person_reid import create_osnet_x0_25
+    def test_create_osnet_ain_x1_0_forward_pass(self) -> None:
+        """OSNet-AIN x1.0 produces correct output shape."""
+        from ai.enrichment.models.person_reid import create_osnet_ain_x1_0
 
-        model = create_osnet_x0_25()
+        model = create_osnet_ain_x1_0()
         model.eval()
 
         # Create dummy input: batch=1, channels=3, height=256, width=128
@@ -785,11 +785,11 @@ class TestStandaloneOSNet:
 
         assert output.shape == (1, EMBEDDING_DIMENSION)
 
-    def test_create_osnet_x0_25_batch_processing(self) -> None:
-        """OSNet-x0.25 handles batch inputs correctly."""
-        from ai.enrichment.models.person_reid import create_osnet_x0_25
+    def test_create_osnet_ain_x1_0_batch_processing(self) -> None:
+        """OSNet-AIN x1.0 handles batch inputs correctly."""
+        from ai.enrichment.models.person_reid import create_osnet_ain_x1_0
 
-        model = create_osnet_x0_25()
+        model = create_osnet_ain_x1_0()
         model.eval()
 
         batch_size = 4
@@ -808,11 +808,11 @@ class TestStandaloneOSNet:
             reid._load_direct_weights()
 
     def test_osnet_parameter_count(self) -> None:
-        """OSNet-x0.25 has expected parameter count (~200-300K)."""
-        from ai.enrichment.models.person_reid import create_osnet_x0_25
+        """OSNet-AIN x1.0 has expected parameter count (~200-300K)."""
+        from ai.enrichment.models.person_reid import create_osnet_ain_x1_0
 
-        model = create_osnet_x0_25()
+        model = create_osnet_ain_x1_0()
         total_params = sum(p.numel() for p in model.parameters())
 
-        # OSNet-x0.25 should have approximately 200-300K parameters
+        # OSNet-AIN x1.0 should have approximately 200-300K parameters
         assert 150_000 < total_params < 400_000

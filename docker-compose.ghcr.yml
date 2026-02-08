@@ -332,7 +332,7 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-ain-x1-0:/models/osnet-ain-x1-0:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
       - enrichment-light-tensorrt-cache:/cache/tensorrt
@@ -351,7 +351,7 @@ services:
       - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
       - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
       - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
-      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
+      - REID_MODEL_PATH=/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth
       - PET_MODEL_PATH=/models/pet-classifier
       - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}

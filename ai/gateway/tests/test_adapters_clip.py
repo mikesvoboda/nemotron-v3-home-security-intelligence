@@ -21,7 +21,7 @@ from ai.gateway.adapters.clip import (
     EMBEDDING_DIMENSION,
     VISION_MODEL_NAME,
     _cosine_similarity,
-    _encode_texts_open_clip,
+    _encode_texts_siglip,
     _ensure_text_encoder,
     _get_image_embedding,
     _get_text_embeddings,
@@ -86,7 +86,7 @@ def _make_text_embeddings(texts: list[str]) -> np.ndarray:
 
 @pytest.fixture
 async def client(app, mock_triton):
-    """Create an async test client with mocked Triton and mocked open_clip."""
+    """Create an async test client with mocked Triton and mocked SigLIP 2 text encoder."""
     with (
         patch("ai.gateway.adapters.clip.get_triton_client", return_value=mock_triton),
         patch(
@@ -94,7 +94,7 @@ async def client(app, mock_triton):
             return_value=True,
         ),
         patch(
-            "ai.gateway.adapters.clip._encode_texts_open_clip",
+            "ai.gateway.adapters.clip._encode_texts_siglip",
             side_effect=_make_text_embeddings,
         ),
     ):
@@ -154,7 +154,7 @@ class TestEmbedEndpoint:
     async def test_embed_success(self, client, mock_triton):
         """Successful embedding returns 768-dim vector."""
         embedding = _make_embedding()
-        mock_triton.infer.return_value = {"embedding": embedding}
+        mock_triton.infer.return_value = {"pooler_output": embedding}
 
         response = await client.post("/embed", json={"image": _make_b64_image()})
 
@@ -167,7 +167,7 @@ class TestEmbedEndpoint:
         """Returned embedding is L2-normalized."""
         rng = np.random.RandomState(99)
         raw = rng.randn(1, EMBEDDING_DIMENSION).astype(np.float32) * 10
-        mock_triton.infer.return_value = {"embedding": raw}
+        mock_triton.infer.return_value = {"pooler_output": raw}
 
         response = await client.post("/embed", json={"image": _make_b64_image()})
 
@@ -190,7 +190,7 @@ class TestEmbedEndpoint:
 
     async def test_embed_wrong_dimension(self, client, mock_triton):
         """Wrong embedding dimension returns 500."""
-        mock_triton.infer.return_value = {"embedding": np.zeros((1, 256), dtype=np.float32)}
+        mock_triton.infer.return_value = {"pooler_output": np.zeros((1, 256), dtype=np.float32)}
 
         response = await client.post("/embed", json={"image": _make_b64_image()})
         assert response.status_code == 500
@@ -207,7 +207,7 @@ class TestClassifyEndpoint:
     async def test_classify_success(self, client, mock_triton):
         """Classification returns scores for all labels."""
         embedding = _make_embedding()
-        mock_triton.infer.return_value = {"embedding": embedding}
+        mock_triton.infer.return_value = {"pooler_output": embedding}
         # is_model_ready called for clip_text model
         mock_triton.is_model_ready.return_value = False
 
@@ -238,7 +238,7 @@ class TestClassifyEndpoint:
     async def test_classify_scores_sum_to_one(self, client, mock_triton):
         """Classification scores (softmax) sum to approximately 1."""
         embedding = _make_embedding()
-        mock_triton.infer.return_value = {"embedding": embedding}
+        mock_triton.infer.return_value = {"pooler_output": embedding}
         mock_triton.is_model_ready.return_value = False
 
         response = await client.post(
@@ -262,7 +262,7 @@ class TestSimilarityEndpoint:
     async def test_similarity_success(self, client, mock_triton):
         """Similarity returns a float score."""
         embedding = _make_embedding()
-        mock_triton.infer.return_value = {"embedding": embedding}
+        mock_triton.infer.return_value = {"pooler_output": embedding}
         mock_triton.is_model_ready.return_value = False
 
         response = await client.post(
@@ -288,7 +288,7 @@ class TestBatchSimilarityEndpoint:
     async def test_batch_similarity_success(self, client, mock_triton):
         """Batch similarity returns per-text scores."""
         embedding = _make_embedding()
-        mock_triton.infer.return_value = {"embedding": embedding}
+        mock_triton.infer.return_value = {"pooler_output": embedding}
         mock_triton.is_model_ready.return_value = False
 
         response = await client.post(
@@ -322,7 +322,7 @@ class TestAnomalyScoreEndpoint:
     async def test_anomaly_score_success(self, client, mock_triton):
         """Anomaly score returns values in [0, 1]."""
         embedding = _make_embedding()
-        mock_triton.infer.return_value = {"embedding": embedding}
+        mock_triton.infer.return_value = {"pooler_output": embedding}
 
         baseline = [0.0] * EMBEDDING_DIMENSION
         baseline[0] = 1.0
@@ -356,7 +356,7 @@ class TestAnomalyScoreEndpoint:
         # Create a specific normalized embedding
         vec = np.zeros(EMBEDDING_DIMENSION, dtype=np.float32)
         vec[0] = 1.0
-        mock_triton.infer.return_value = {"embedding": vec.reshape(1, -1)}
+        mock_triton.infer.return_value = {"pooler_output": vec.reshape(1, -1)}
 
         baseline = vec.tolist()
 
@@ -416,9 +416,18 @@ class TestGetTextEmbeddings:
         """Uses clip_text Triton model when available (priority 1)."""
         mock_triton.is_model_ready.return_value = True
         text_embs = np.random.randn(2, EMBEDDING_DIMENSION).astype(np.float32)
-        mock_triton.infer.return_value = {"text_embedding": text_embs}
+        mock_triton.infer.return_value = {"pooler_output": text_embs}
 
-        with patch("ai.gateway.adapters.clip.get_triton_client", return_value=mock_triton):
+        # Mock tokenizer to return dummy input_ids
+        mock_tok = AsyncMock()
+        mock_tok_result = {"input_ids": np.zeros((2, 64), dtype=np.int64)}
+        mock_tok.side_effect = lambda *a, **kw: mock_tok_result
+
+        with (
+            patch("ai.gateway.adapters.clip.get_triton_client", return_value=mock_triton),
+            patch("ai.gateway.adapters.clip._ensure_tokenizer", return_value=True),
+            patch("ai.gateway.adapters.clip._clip_tokenizer", mock_tok),
+        ):
             result = await _get_text_embeddings(["hello", "world"])
 
         assert result.shape == (2, EMBEDDING_DIMENSION)
@@ -426,8 +435,8 @@ class TestGetTextEmbeddings:
         norms = np.linalg.norm(result, axis=1)
         np.testing.assert_allclose(norms, 1.0, atol=0.01)
 
-    async def test_open_clip_used_when_triton_unavailable(self, mock_triton):
-        """Falls back to open_clip text encoder when Triton clip_text unavailable (priority 2)."""
+    async def test_siglip_used_when_triton_unavailable(self, mock_triton):
+        """Falls back to SigLIP 2 text encoder when Triton clip_text unavailable (priority 2)."""
         mock_triton.is_model_ready.return_value = False
 
         mock_embeddings = np.random.randn(2, EMBEDDING_DIMENSION).astype(np.float32)
@@ -438,7 +447,7 @@ class TestGetTextEmbeddings:
             patch("ai.gateway.adapters.clip.get_triton_client", return_value=mock_triton),
             patch("ai.gateway.adapters.clip._ensure_text_encoder", return_value=True),
             patch(
-                "ai.gateway.adapters.clip._encode_texts_open_clip",
+                "ai.gateway.adapters.clip._encode_texts_siglip",
                 return_value=mock_embeddings,
             ),
         ):
@@ -449,7 +458,7 @@ class TestGetTextEmbeddings:
         np.testing.assert_allclose(norms, 1.0, atol=0.01)
 
     async def test_zero_fallback_when_all_encoders_unavailable(self, mock_triton):
-        """Returns zero embeddings when both Triton and open_clip are unavailable (priority 3)."""
+        """Returns zero embeddings when both Triton and SigLIP 2 are unavailable (priority 3)."""
         mock_triton.is_model_ready.return_value = False
 
         with (

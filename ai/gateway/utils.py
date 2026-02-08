@@ -100,10 +100,10 @@ def encode_image_bytes(image: Image.Image, fmt: str = "PNG") -> str:
 
 
 def preprocess_clip(image: np.ndarray) -> np.ndarray:
-    """Preprocess an image for CLIP ViT-L ONNX Runtime inference.
+    """Preprocess an image for SigLIP 2 ONNX Runtime inference.
 
-    Resizes to 224x224, normalizes with ImageNet stats, and converts
-    to NCHW FP32 format expected by the ONNX Runtime backend.
+    Resizes to 224x224, normalizes with SigLIP 2 statistics (mean=0.5, std=0.5),
+    and converts to NCHW FP32 format expected by the ONNX Runtime backend.
 
     Args:
         image: Numpy array (H, W, 3) uint8 in RGB order.
@@ -116,9 +116,9 @@ def preprocess_clip(image: np.ndarray) -> np.ndarray:
     pil_img = pil_img.resize((224, 224), Image.BILINEAR)
     arr = np.array(pil_img, dtype=np.float32) / 255.0
 
-    # Normalize with CLIP/ImageNet statistics
-    mean = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
-    std = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)
+    # Normalize with SigLIP 2 statistics (mean=0.5, std=0.5 for all channels)
+    mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+    std = np.array([0.5, 0.5, 0.5], dtype=np.float32)
     arr = (arr - mean) / std
 
     # HWC -> CHW -> NCHW

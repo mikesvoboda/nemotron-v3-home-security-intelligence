@@ -42,7 +42,7 @@ Supported Models for INT8:
     - vit-age-classifier (~200MB -> ~50MB)
     - vit-gender-classifier (~200MB -> ~50MB)
     - pet-classifier (~200MB -> ~50MB)
-    - osnet-x0-25 (~100MB -> ~25MB)
+    - osnet-ain-x1-0 (~100MB -> ~25MB)
     - threat-detection-yolov8n (~300MB -> ~75MB)
 
 Supported Models for 4-bit:
@@ -564,7 +564,7 @@ QUANTIZATION_RECOMMENDATIONS: dict[str, dict[str, Any]] = {
         "expected_compression": 3.0,
         "accuracy_impact": "minimal (<1%)",
     },
-    "osnet-x0-25": {
+    "osnet-ain-x1-0": {
         "type": QuantizationType.INT8,
         "method": "dynamic",
         "expected_compression": 3.0,

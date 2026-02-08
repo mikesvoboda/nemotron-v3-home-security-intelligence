@@ -1321,8 +1321,8 @@ class TestModelLatencyTracker:
         from backend.core.metrics import ModelLatencyTracker
 
         tracker = ModelLatencyTracker()
-        tracker.record_model_latency("clip-vit-l", 120.0)
-        stats = tracker.get_model_stats("clip-vit-l")
+        tracker.record_model_latency("siglip2-base-patch16-224", 120.0)
+        stats = tracker.get_model_stats("siglip2-base-patch16-224")
         assert stats["avg_ms"] == 120.0
         assert stats["p50_ms"] == 120.0
         assert stats["p95_ms"] == 120.0
@@ -2567,11 +2567,11 @@ class TestModelLoadDurationMetrics:
 
         set_model_load_duration("yolo11-face", 0.5)
         set_model_load_duration("paddleocr", 2.1)
-        set_model_load_duration("clip-vit-l", 3.5)
+        set_model_load_duration("siglip2-base-patch16-224", 3.5)
 
         assert MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get() == 0.5
         assert MODEL_LOAD_DURATION.labels(model="paddleocr")._value.get() == 2.1
-        assert MODEL_LOAD_DURATION.labels(model="clip-vit-l")._value.get() == 3.5
+        assert MODEL_LOAD_DURATION.labels(model="siglip2-base-patch16-224")._value.get() == 3.5
 
     def test_load_duration_overwrite(self) -> None:
         """Load duration can be overwritten on model reload."""

@@ -72,7 +72,7 @@ HEAVY_MODELS = frozenset(
 LIGHT_MODELS = frozenset(
     {
         "threat-detection-yolov8n",
-        "osnet-x0-25",
+        "osnet-ain-x1-0",
         "depth-anything-v2-tiny",
         "pet-classifier",
         "vit-age-classifier",

@@ -56,13 +56,13 @@ REQUIRED_MODELS: list[ModelSpec] = [
         description="Florence-2-base vision-language model (smaller, saves ~1.2GB VRAM)",
         required=True,
     ),
-    # CLIP - embeddings for re-identification
+    # SigLIP 2 Base - embeddings for re-identification (replaces CLIP ViT-L)
     ModelSpec(
-        name="clip-vit-l",
-        hf_repo="openai/clip-vit-large-patch14",
+        name="siglip2-base-patch16-224",
+        hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
         phase=1,
-        size_mb=800,
-        description="CLIP embeddings for entity re-identification",
+        size_mb=200,
+        description="SigLIP 2 Base embeddings for entity re-identification (replaces CLIP ViT-L)",
         required=True,
     ),
 ]
@@ -102,11 +102,11 @@ PHASE1_MODELS: list[ModelSpec] = [
         required=False,
     ),
     ModelSpec(
-        name="osnet-x0-25",
+        name="osnet-ain-x1-0",
         hf_repo="",  # torchreid model
         phase=1,
-        size_mb=300,
-        description="Person re-identification embeddings",
+        size_mb=100,
+        description="Person re-identification embeddings (AIN x1.0)",
         required=False,
     ),
     ModelSpec(

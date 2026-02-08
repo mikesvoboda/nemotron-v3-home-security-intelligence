@@ -41,17 +41,17 @@ echo ""
 echo "[5/9] Downloading Age Classifier..."
 huggingface-cli download nateraw/vit-age-classifier --local-dir "$MODELS_DIR/vit-age-classifier" --local-dir-use-symlinks False
 
-# OSNet Re-ID
+# OSNet-AIN x1.0 Re-ID (NEM-5562: upgraded from x0.25 for 4x better accuracy)
 echo ""
-echo "[6/9] Downloading OSNet x0.25 Re-ID..."
+echo "[6/9] Downloading OSNet-AIN x1.0 Re-ID..."
 python -c "
 import torchreid
 import os
-model = torchreid.models.build_model(name='osnet_x0_25', num_classes=1, pretrained=True)
-os.makedirs('$MODELS_DIR/osnet-x0-25', exist_ok=True)
+model = torchreid.models.build_model(name='osnet_ain_x1_0', num_classes=1, pretrained=True)
+os.makedirs('$MODELS_DIR/osnet-ain-x1-0', exist_ok=True)
 import torch
-torch.save(model.state_dict(), '$MODELS_DIR/osnet-x0-25/osnet_x0_25.pth')
-print('OSNet saved successfully')
+torch.save(model.state_dict(), '$MODELS_DIR/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth')
+print('OSNet-AIN x1.0 saved successfully')
 "
 
 # Vehicle Classifier (if exists on HF, otherwise note manual download)

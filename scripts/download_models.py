@@ -23,7 +23,7 @@ MODELS = {
     },
     "vit-age-classifier": {"repo": "nateraw/vit-age-classifier", "type": "huggingface"},
     "yolov8n-pose": {"repo": "yolov8n-pose.pt", "type": "ultralytics"},
-    "osnet-x0-25": {"repo": "osnet_x0_25", "type": "torchreid"},
+    "osnet-ain-x1-0": {"repo": "osnet_ain_x1_0", "type": "torchreid"},
     # Threat detection model for weapon/dangerous object detection
     # Reference: https://huggingface.co/Subh775/Threat-Detection-YOLOv8n
     "threat-detection-yolov8n": {

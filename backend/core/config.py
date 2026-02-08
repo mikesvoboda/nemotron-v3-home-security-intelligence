@@ -1379,7 +1379,7 @@ class Settings(BaseSettings):
     )
     enrichment_reid_service: str = Field(
         default="light",
-        description="Service for person re-ID model: 'heavy' or 'light'. OSNet-x0.25 (~100MB) recommended for light.",
+        description="Service for person re-ID model: 'heavy' or 'light'. OSNet-AIN x1.0 (~100MB) recommended for light.",
     )
     enrichment_pet_service: str = Field(
         default="light",

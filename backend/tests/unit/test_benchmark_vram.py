@@ -42,7 +42,7 @@ class TestBenchmarkResult:
         from benchmark_vram import BenchmarkResult
 
         result = BenchmarkResult(
-            model_name="clip-vit-l",
+            model_name="siglip2-base-patch16-224",
             category="embedding",
             estimated_vram_mb=800,
             actual_vram_mb=750,
@@ -116,7 +116,7 @@ class TestBenchmarkReport:
             timestamp="2025-12-26T12:00:00Z",
             results=[
                 BenchmarkResult(
-                    model_name="clip-vit-l",
+                    model_name="siglip2-base-patch16-224",
                     category="embedding",
                     estimated_vram_mb=800,
                     actual_vram_mb=750,
@@ -149,7 +149,7 @@ class TestBenchmarkReport:
 
         # Check table
         assert "| Model | Category |" in markdown
-        assert "clip-vit-l" in markdown
+        assert "siglip2-base-patch16-224" in markdown
         assert "florence-2-large" in markdown
         assert "unavailable-model" in markdown
 
@@ -232,7 +232,7 @@ class TestModelZooIntegration:
 
         zoo = get_model_zoo()
 
-        assert "clip-vit-l" in zoo
+        assert "siglip2-base-patch16-224" in zoo
         assert "florence-2-large" in zoo
         assert "yolo11-license-plate" in zoo
         assert "paddleocr" in zoo
@@ -245,7 +245,7 @@ class TestModelZooIntegration:
         enabled_names = {m.name for m in enabled}
 
         # These should be enabled by default
-        assert "clip-vit-l" in enabled_names
+        assert "siglip2-base-patch16-224" in enabled_names
         assert "paddleocr" in enabled_names
         # Note: florence-2-large now runs as dedicated ai-florence service (disabled in model zoo)
 
@@ -266,7 +266,7 @@ class TestModelZooIntegration:
         from backend.services.model_zoo import get_total_vram_if_loaded
 
         # Test with known models
-        total = get_total_vram_if_loaded(["clip-vit-l", "florence-2-large"])
+        total = get_total_vram_if_loaded(["siglip2-base-patch16-224", "florence-2-large"])
 
         # Should be sum of both models (800 + 1200 = 2000)
         assert total == 2000
@@ -283,7 +283,7 @@ class TestModelZooIntegration:
         from backend.services.model_zoo import get_total_vram_if_loaded
 
         # Unknown model should be ignored
-        total = get_total_vram_if_loaded(["clip-vit-l", "nonexistent-model"])
+        total = get_total_vram_if_loaded(["siglip2-base-patch16-224", "nonexistent-model"])
 
-        # Should only count clip-vit-l (800)
+        # Should only count siglip2-base-patch16-224 (800)
         assert total == 800

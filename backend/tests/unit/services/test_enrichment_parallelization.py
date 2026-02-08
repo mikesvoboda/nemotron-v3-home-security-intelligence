@@ -143,8 +143,8 @@ def create_tracking_model_manager() -> tuple[MagicMock, dict[str, list[float]]]:
                 "classes": ["car", "truck"],
             },
             "paddleocr": MagicMock(),
-            "osnet-x0-25": MagicMock(),
-            "clip-vit-l": {"model": MagicMock(), "processor": MagicMock()},
+            "osnet-ain-x1-0": MagicMock(),
+            "siglip2-base-patch16-224": {"model": MagicMock(), "processor": MagicMock()},
             "florence-2-large": {"model": MagicMock(), "processor": MagicMock()},
             "vehicle-damage-detection": MagicMock(),
             "pet-classifier": {"model": MagicMock(), "processor": MagicMock()},
@@ -411,7 +411,7 @@ class TestPhase2Prerequisites:
 
     Phase 2 models that depend on Phase 1 results:
     - OCR (paddleocr) -> waits for License Plate Detection (yolo11-license-plate)
-    - Face Re-ID (osnet-x0-25) -> waits for Face Detection (yolo11-face)
+    - Face Re-ID (osnet-ain-x1-0) -> waits for Face Detection (yolo11-face)
     """
 
     @pytest.mark.asyncio

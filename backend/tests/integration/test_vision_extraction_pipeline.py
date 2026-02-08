@@ -68,24 +68,29 @@ def test_image_variant() -> Image.Image:
 
 @pytest.fixture
 def sample_detections() -> list[DetectionInput]:
-    """Create sample detections for testing."""
+    """Create sample detections for testing.
+
+    Uses confidence < 0.7 to ensure Florence-2 model cascading doesn't skip them.
+    Model cascading optimization (NEM-5570) only runs Florence-2 on detections
+    with confidence < 0.7 to save compute on obvious detections.
+    """
     return [
         DetectionInput(
             id=1,
             class_name="person",
-            confidence=0.95,
+            confidence=0.5,
             bbox=BoundingBox(x1=100, y1=100, x2=200, y2=400),
         ),
         DetectionInput(
             id=2,
             class_name="car",
-            confidence=0.88,
+            confidence=0.5,
             bbox=BoundingBox(x1=300, y1=200, x2=500, y2=350),
         ),
         DetectionInput(
             id=3,
             class_name="truck",
-            confidence=0.82,
+            confidence=0.5,
             bbox=BoundingBox(x1=50, y1=150, x2=150, y2=300),
         ),
     ]
@@ -124,7 +129,7 @@ def mock_model_manager() -> MagicMock:
             return MockAsyncContextManager(
                 {"model": mock_florence, "processor": mock_florence_processor}
             )
-        elif model_name == "clip-vit-l":
+        elif model_name == "siglip2-base-patch16-224":
             return MockAsyncContextManager({"model": mock_clip, "processor": mock_clip_processor})
         else:
             raise KeyError(f"Unknown model: {model_name}")
@@ -133,7 +138,7 @@ def mock_model_manager() -> MagicMock:
     manager.get_model = MagicMock(
         side_effect=lambda name: {
             "florence-2": {"model": mock_florence, "processor": mock_florence_processor},
-            "clip-vit-l": {"model": mock_clip, "processor": mock_clip_processor},
+            "siglip2-base-patch16-224": {"model": mock_clip, "processor": mock_clip_processor},
         }.get(name)
     )
 
@@ -218,6 +223,40 @@ def reset_global_services():
     reset_scene_change_detector()
 
 
+def minimal_enrichment_kwargs() -> dict:
+    """Return minimal EnrichmentPipeline kwargs with most models disabled.
+
+    Disables all optional enrichment models to prevent network calls during tests.
+    Tests should enable only the specific models they need to test.
+    """
+    return {
+        "license_plate_enabled": False,
+        "face_detection_enabled": False,
+        "vision_extraction_enabled": False,
+        "reid_enabled": False,
+        "scene_change_enabled": False,
+        "violence_detection_enabled": False,
+        "weather_classification_enabled": False,
+        "clothing_classification_enabled": False,
+        "clothing_segmentation_enabled": False,
+        "vehicle_damage_detection_enabled": False,
+        "vehicle_classification_enabled": False,
+        "image_quality_enabled": False,
+        "pet_classification_enabled": False,
+        "depth_estimation_enabled": False,
+        "pose_estimation_enabled": False,
+        "action_recognition_enabled": False,
+        "scene_ocr_enabled": False,
+        "household_matching_enabled": False,
+        "age_classification_enabled": False,
+        "gender_classification_enabled": False,
+        "smoke_fire_detection_enabled": False,
+        "yolo_world_enabled": False,
+        "osnet_reid_enabled": False,
+        "low_light_enhancement_enabled": False,
+    }
+
+
 # =============================================================================
 # VisionExtractor Integration Tests
 # =============================================================================
@@ -240,13 +279,11 @@ class TestVisionExtractorIntegration:
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=mock_vision_extractor,
         ):
+            kwargs = minimal_enrichment_kwargs()
+            kwargs["vision_extraction_enabled"] = True
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
-                license_plate_enabled=False,
-                face_detection_enabled=False,
-                vision_extraction_enabled=True,
-                reid_enabled=False,
-                scene_change_enabled=False,
+                **kwargs,
             )
 
             result = await pipeline.enrich_batch(
@@ -290,11 +327,7 @@ class TestVisionExtractorIntegration:
         """Test pipeline skips vision extraction when disabled."""
         pipeline = EnrichmentPipeline(
             model_manager=mock_model_manager,
-            license_plate_enabled=False,
-            face_detection_enabled=False,
-            vision_extraction_enabled=False,
-            reid_enabled=False,
-            scene_change_enabled=False,
+            **minimal_enrichment_kwargs(),
         )
 
         result = await pipeline.enrich_batch(
@@ -662,6 +695,9 @@ class TestFullPipelineIntegration:
                 vision_extraction_enabled=True,
                 reid_enabled=False,
                 scene_change_enabled=False,
+                image_quality_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(
@@ -739,6 +775,9 @@ class TestFullPipelineIntegration:
                 vision_extraction_enabled=True,
                 reid_enabled=False,
                 scene_change_enabled=False,
+                image_quality_enabled=False,
+                weather_classification_enabled=False,
+                action_recognition_enabled=False,
             )
 
             result = await pipeline.enrich_batch(

@@ -7,7 +7,7 @@ Models:
 - ActionRecognizer: X-CLIP video action recognition (~1.5GB VRAM)
 - DemographicsEstimator: ViT-based age and gender estimation (~500MB VRAM)
 - FaceRecognizer: InsightFace face detection and recognition (~1.5GB VRAM)
-- PersonReID: OSNet-x0.25 for person re-identification (~100MB VRAM)
+- PersonReID: OSNet-AIN x1.0 for person re-identification (~100MB VRAM)
 - PlateOCR: PaddleOCR-based license plate text recognition (~500MB VRAM)
 - PoseEstimator: YOLOv8n-pose for human pose estimation (~300MB VRAM)
 - ThreatDetector: Weapon detection YOLOv8 variant (~400MB VRAM, CRITICAL priority)

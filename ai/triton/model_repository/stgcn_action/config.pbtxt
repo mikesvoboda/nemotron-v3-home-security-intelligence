@@ -1,0 +1,51 @@
+# ST-GCN++ Skeleton-based Action Recognition (NEM-5563)
+# Replaces X-CLIP (~2GB) with skeleton-based approach (~14MB).
+# Uses COCO 17-keypoint pose data from ViTPose/YOLOv8n-Pose.
+# Trained on NTU RGB+D 60 (60 action classes).
+#
+# Input: keypoints tensor [1, M, T, V, C] where
+#   M=2 (persons), T=100 (frames), V=17 (COCO joints), C=3 (x,y,conf)
+# Output: action class probabilities [1, 60]
+#
+# Model: ONNX export of pyskl STGCN++ (stgcnpp_ntu60_xsub_hrnet_j.pth)
+# Source: http://download.openmmlab.com/mmaction/pyskl/ckpt/stgcnpp/stgcnpp_ntu60_xsub_hrnet/j.pth
+
+name: "stgcn_action"
+platform: "onnxruntime_onnx"
+
+max_batch_size: 0
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 1, 2, 100, 17, 3 ]  # [batch=1, persons=2, frames=100, joints=17, channels=3]
+  }
+]
+
+output [
+  {
+    name: "output"
+    data_type: TYPE_FP32
+    dims: [ 1, 60 ]  # [batch=1, num_classes=60]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU  # 14MB model runs efficiently on CPU
+  }
+]
+
+# Optimization: enable dynamic batching for throughput
+# (single request latency is already very low for this tiny model)
+optimization {
+  execution_accelerators {
+    cpu_execution_accelerator: [
+      { name: "default" }
+    ]
+  }
+}
+
+version_policy: { latest: { num_versions: 1 }}
