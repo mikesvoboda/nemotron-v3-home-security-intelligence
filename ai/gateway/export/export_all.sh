@@ -92,15 +92,18 @@ log_step "[1/4] Exporting TensorRT models (GPU required)..."
 run_export "CLIP ViT-L/14 -> ONNX" \
     python3 "${SCRIPT_DIR}/export_clip.py" \
         --model-path "${MODELS_ZOO}/clip-vit-l" \
-        --output-path "${CACHE_DIR}/clip/1/model.onnx" \
+        --output-path "${CACHE_DIR}/clip/1/model.plan" \
         --onnx-only
+# Rename vision_encoder.onnx -> model.onnx for Triton
+[ -f "${CACHE_DIR}/clip/1/vision_encoder.onnx" ] && mv "${CACHE_DIR}/clip/1/vision_encoder.onnx" "${CACHE_DIR}/clip/1/model.onnx"
 
 # Fashion-CLIP -> ONNX
 run_export "Fashion-CLIP -> ONNX" \
     python3 "${SCRIPT_DIR}/export_fashion_clip.py" \
         --model-path "${MODELS_ZOO}/fashion-clip" \
-        --output-path "${CACHE_DIR}/fashion_clip/1/model.onnx" \
+        --output-path "${CACHE_DIR}/fashion_clip/1/model.plan" \
         --onnx-only
+[ -f "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" ] && mv "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" "${CACHE_DIR}/fashion_clip/1/model.onnx"
 
 # YOLOv8n-pose -> TensorRT
 run_export "YOLOv8n-pose -> TensorRT FP16" \
