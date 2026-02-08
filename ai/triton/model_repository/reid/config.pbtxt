@@ -1,5 +1,6 @@
-# Person Re-Identification - ONNX Runtime (OSNet-AIN x1.0)
+# Person Re-Identification - ONNX Runtime on GPU (OSNet-AIN x1.0)
 # Upgraded from OSNet-x0.25 to OSNet-AIN x1.0 for 4x better accuracy (NEM-5562)
+# NEM-5551: Promoted from CPU to GPU (~2x speedup, ~9MB on GPU)
 # Input: preprocessed person crop (B, 3, 256, 128) FP32
 # Output: L2-normalized embedding (B, 512) FP32
 # Source: ai/enrichment-light/models/person_reid.py
@@ -29,7 +30,8 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_CPU
+    kind: KIND_GPU
+    gpus: [ 0 ]
   }
 ]
 
@@ -38,7 +40,7 @@ dynamic_batching {
   max_queue_delay_microseconds: 100000
 }
 
-# OSNet-AIN x1.0 person re-identification model (~9MB ONNX)
+# OSNet-AIN x1.0 person re-identification model (~9MB ONNX, GPU-accelerated)
 # AIN = Attention-based Instance Normalization for better cross-domain generalization
 # Same input/output dims as OSNet-x0.25: drop-in replacement
 # Preprocessing: Resize(256,128), ToTensor, Normalize(ImageNet)

@@ -1,4 +1,4 @@
-# Depth Estimation - ONNX Runtime (Depth Anything V2 Tiny / DPT-Tiny)
+# Depth Estimation - ONNX Runtime on GPU (Depth Anything V2 Tiny / DPT-Tiny, NEM-5551)
 # Input: preprocessed image (B, 3, 518, 518) FP32
 # Output: depth map (B, 1, 518, 518) FP32
 # Source: ai/enrichment-light/model.py DepthEstimator (AutoImageProcessor -> 518x518)
@@ -6,6 +6,7 @@
 # Depth Anything V2 Tiny uses DPT architecture with 518x518 input resolution.
 # 3x faster inference than Small variant (5.8M vs 24.8M parameters).
 # Output depth map is relative (not metric) and needs min-max normalization.
+# NEM-5551: Promoted from CPU to GPU (~2x speedup, ~101MB on GPU)
 # NOTE: ONNX model needs re-export from Tiny weights when model is downloaded.
 
 name: "depth"
@@ -31,7 +32,8 @@ output [
 instance_group [
   {
     count: 1
-    kind: KIND_CPU
+    kind: KIND_GPU
+    gpus: [ 0 ]
   }
 ]
 

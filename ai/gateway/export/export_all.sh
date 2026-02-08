@@ -110,23 +110,21 @@ run_export "Fashion-CLIP -> ONNX" \
         --onnx-only
 [ -f "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" ] && mv "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" "${CACHE_DIR}/fashion_clip/1/model.onnx"
 
-# YOLOv8n-pose -> ONNX (TensorRT too large for 4GB A400)
+# YOLOv8n-pose -> ONNX (NEM-5551: promoted to GPU, VRAM constraint removed)
 run_export "YOLOv8n-pose -> ONNX" \
     python3 "${SCRIPT_DIR}/export_yolo_pose.py" \
         --model-path "${MODELS_ZOO}/yolov8n-pose/yolov8n-pose.pt" \
         --output-path "${CACHE_DIR}/pose/1/model.onnx" \
-        --device "${CUDA_DEVICE}" \
-        --onnx-only
+        --device "${CUDA_DEVICE}"
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" ] && mv "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" "${CACHE_DIR}/pose/1/model.onnx"
 
-# YOLOv8n threat detection -> ONNX (TensorRT too large for 4GB A400)
+# YOLOv8n threat detection -> ONNX (NEM-5551: promoted to GPU, VRAM constraint removed)
 run_export "YOLOv8n threat detection -> ONNX" \
     python3 "${SCRIPT_DIR}/export_yolo_threat.py" \
         --model-path "${MODELS_ZOO}/threat-detection-yolov8n/weights/best.pt" \
         --output-path "${CACHE_DIR}/threat/1/model.onnx" \
-        --device "${CUDA_DEVICE}" \
-        --onnx-only
+        --device "${CUDA_DEVICE}"
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/threat/1/best.onnx" ] && mv "${CACHE_DIR}/threat/1/best.onnx" "${CACHE_DIR}/threat/1/model.onnx"
 
