@@ -4,9 +4,10 @@
 # All services managed via compose — single source of truth for configuration.
 #
 # Usage:
-#   ./scripts/deploy-gateway.sh                    # Normal deploy
+#   ./scripts/deploy-gateway.sh                    # Normal deploy (auto-skips export if cached)
 #   ./scripts/deploy-gateway.sh --destroy-volumes  # Fresh deploy (destroys all data)
-#   ./scripts/deploy-gateway.sh --skip-export      # Skip model export (use cached)
+#   ./scripts/deploy-gateway.sh --force-export     # Force re-export all models
+#   ./scripts/deploy-gateway.sh --skip-export      # Skip model export entirely
 #   ./scripts/deploy-gateway.sh --skip-build       # Skip image builds (use existing)
 set -euo pipefail
 
@@ -16,11 +17,13 @@ source "$PROJECT_ROOT/.env"
 # Parse arguments
 DESTROY_VOLUMES=false
 SKIP_EXPORT=false
+FORCE_EXPORT=false
 SKIP_BUILD=false
 for arg in "$@"; do
     case "$arg" in
         --destroy-volumes) DESTROY_VOLUMES=true ;;
         --skip-export) SKIP_EXPORT=true ;;
+        --force-export) FORCE_EXPORT=true ;;
         --skip-build) SKIP_BUILD=true ;;
     esac
 done
@@ -75,13 +78,34 @@ fi
 # ==========================================================================
 # Phase 3: Export models for Triton
 # ==========================================================================
+# Auto-detect if model exports are needed by checking for core model files
+TRITON_CACHE="/export/ai_models/triton"
+CORE_MODELS="yolo26 clip clip_text pose threat reid depth pet vehicle demographics_age demographics_gender fashion_clip"
+MISSING_MODELS=0
+
+if [ "$SKIP_EXPORT" != true ] && [ "$FORCE_EXPORT" != true ]; then
+    for model in $CORE_MODELS; do
+        if [ ! -f "$TRITON_CACHE/$model/1/model.onnx" ] && [ ! -f "$TRITON_CACHE/$model/1/model.plan" ]; then
+            MISSING_MODELS=$((MISSING_MODELS + 1))
+        fi
+    done
+fi
+
+if [ "$FORCE_EXPORT" = true ]; then
+    MISSING_MODELS=999  # Force re-export
+fi
+
 if [ "$SKIP_EXPORT" = true ]; then
     echo ""
     echo "[3/6] Skipping model export (--skip-export)"
+elif [ "$MISSING_MODELS" -eq 0 ]; then
+    echo ""
+    echo "[3/6] All $( echo $CORE_MODELS | wc -w) core models cached — skipping export"
+    echo "  Use --force-export to rebuild, or delete /export/ai_models/triton/ to re-export all"
 else
     echo ""
-    echo "[3/6] Exporting models for Triton..."
-    mkdir -p /export/ai_models/triton
+    echo "[3/6] Exporting models for Triton ($MISSING_MODELS missing)..."
+    mkdir -p "$TRITON_CACHE"
 
     # Run export in background while infrastructure starts
     podman run --rm \
@@ -94,7 +118,7 @@ else
         -e CACHE_DIR=/models/cache \
         -e REPO_DIR=/models/repository \
         -v "/export/ai_models/model-zoo:/models/zoo:ro" \
-        -v "/export/ai_models/triton:/models/cache" \
+        -v "$TRITON_CACHE:/models/cache" \
         ai-gateway \
         -c "cd /app/gateway/export && bash export_all.sh" > /tmp/export-models.log 2>&1 &
     PID_EXPORT=$!
@@ -116,7 +140,7 @@ $COMPOSE up -d --no-build \
 echo "  Infrastructure + observability up."
 
 # Wait for model export if it was started
-if [ "$SKIP_EXPORT" != true ]; then
+if [ "$SKIP_EXPORT" != true ] && [ "$MISSING_MODELS" -gt 0 ]; then
     echo ""
     echo "  Waiting for model export to complete..."
     if wait "$PID_EXPORT"; then
