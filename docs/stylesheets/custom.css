@@ -25,7 +25,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   padding: 1.2rem 1.4rem;
   margin: 0;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
 }
 
 .md-typeset .grid.cards > ul > li:hover {
@@ -51,16 +54,16 @@
 }
 
 /* Light mode overrides */
-[data-md-color-scheme="default"] .md-typeset .grid.cards > ul > li {
+[data-md-color-scheme='default'] .md-typeset .grid.cards > ul > li {
   border-color: rgba(0, 0, 0, 0.1);
   background: rgba(0, 0, 0, 0.02);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-[data-md-color-scheme="default"] .md-typeset .grid.cards > ul > li:hover {
+[data-md-color-scheme='default'] .md-typeset .grid.cards > ul > li:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-[data-md-color-scheme="default"] .md-typeset .grid.cards > ul > li hr {
+[data-md-color-scheme='default'] .md-typeset .grid.cards > ul > li hr {
   border-color: rgba(0, 0, 0, 0.08);
 }

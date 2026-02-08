@@ -8,6 +8,7 @@ hide:
 
 **Turn "dumb" security cameras into an intelligent threat detection system -- 100% local, no cloud APIs required.**
 
+<!-- prettier-ignore-start -->
 <div class="grid cards" markdown>
 
 -   :material-rocket-launch: **Getting Started**
@@ -43,6 +44,7 @@ hide:
     [:octicons-arrow-right-24: Developer Guide](developer/README.md)
 
 </div>
+<!-- prettier-ignore-end -->
 
 ---
 

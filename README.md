@@ -32,12 +32,12 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 [![Backend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=backend-unit&label=backend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 [![Frontend Coverage](https://img.shields.io/codecov/c/github/mikesvoboda/nemotron-v3-home-security-intelligence?flag=frontend&label=frontend%20coverage)](https://codecov.io/gh/mikesvoboda/nemotron-v3-home-security-intelligence)
 
-| I want to…                   | Start here                                                                                                        |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| I want to…                   | Start here                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------- |
 | Browse the full docs         | [**Documentation Site**](https://mikesvoboda.github.io/nemotron-v3-home-security-intelligence/) |
-| Run this at home             | [User Hub](docs/user/README.md)                                                                                   |
-| Deploy and maintain it       | [Operator Hub](docs/operator/README.md)                                                                           |
-| Contribute / extend the code | [Developer Hub](docs/developer/README.md)                                                                         |
+| Run this at home             | [User Hub](docs/user/README.md)                                                                 |
+| Deploy and maintain it       | [Operator Hub](docs/operator/README.md)                                                         |
+| Contribute / extend the code | [Developer Hub](docs/developer/README.md)                                                       |
 
 ---
 

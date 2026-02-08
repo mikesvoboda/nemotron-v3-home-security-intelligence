@@ -193,9 +193,12 @@ def _strip_fenced_code_blocks(content: str) -> str:
     """
     return re.sub(
         r"^(`{3,}|~{3,})([^\n]*)\n(.*?)\n\1\s*$",
-        lambda m: m.group(1) + m.group(2) + "\n"
+        lambda m: m.group(1)
+        + m.group(2)
+        + "\n"
         + "\n" * m.group(3).count("\n")
-        + "\n" + m.group(1),
+        + "\n"
+        + m.group(1),
         content,
         flags=re.DOTALL | re.MULTILINE,
     )
