@@ -38,13 +38,16 @@ router = APIRouter()
 # Request / Response schemas (match existing ai-enrichment API)
 # ---------------------------------------------------------------------------
 
+
 class ImageRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
 
 
 class BBoxRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
-    bbox: dict[str, float] | None = Field(default=None, description="Bounding box {x, y, width, height}")
+    bbox: dict[str, float] | None = Field(
+        default=None, description="Bounding box {x, y, width, height}"
+    )
 
 
 class VehicleClassifyResponse(BaseModel):
@@ -127,6 +130,7 @@ class PoseAnalyzeResponse(BaseModel):
 # Model inference helpers
 # ---------------------------------------------------------------------------
 
+
 async def _infer_vehicle(image_b64: str) -> dict[str, Any]:
     """Run vehicle classification via Triton."""
     start = time.monotonic()
@@ -135,6 +139,7 @@ async def _infer_vehicle(image_b64: str) -> dict[str, Any]:
     image_np = decode_base64_image(image_b64)
     # Vehicle model expects 224x224 normalized image
     from PIL import Image
+
     pil_img = Image.fromarray(image_np).resize((224, 224))
     arr = np.array(pil_img, dtype=np.float32) / 255.0
     mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -153,9 +158,17 @@ async def _infer_vehicle(image_b64: str) -> dict[str, Any]:
 
     # Vehicle class labels
     classes = [
-        "articulated_truck", "background", "bicycle", "bus", "car",
-        "motorcycle", "non_motorized_vehicle", "pedestrian",
-        "pickup_truck", "single_unit_truck", "work_van",
+        "articulated_truck",
+        "background",
+        "bicycle",
+        "bus",
+        "car",
+        "motorcycle",
+        "non_motorized_vehicle",
+        "pedestrian",
+        "pickup_truck",
+        "single_unit_truck",
+        "work_van",
     ]
     non_vehicle = {"background", "pedestrian"}
     commercial = {"articulated_truck", "single_unit_truck", "work_van"}
@@ -166,8 +179,11 @@ async def _infer_vehicle(image_b64: str) -> dict[str, Any]:
 
     display_names = {
         "articulated_truck": "articulated truck (semi/18-wheeler)",
-        "bicycle": "bicycle", "bus": "bus", "car": "car/sedan",
-        "motorcycle": "motorcycle", "non_motorized_vehicle": "non-motorized vehicle",
+        "bicycle": "bicycle",
+        "bus": "bus",
+        "car": "car/sedan",
+        "motorcycle": "motorcycle",
+        "non_motorized_vehicle": "non-motorized vehicle",
         "pickup_truck": "pickup truck",
         "single_unit_truck": "single-unit truck (box truck/delivery)",
         "work_van": "work van/delivery van",
@@ -223,6 +239,7 @@ async def _infer_demographics(image_b64: str) -> dict[str, Any]:
 
     image_np = decode_base64_image(image_b64)
     from PIL import Image
+
     pil_img = Image.fromarray(image_np).resize((224, 224))
     arr = np.array(pil_img, dtype=np.float32) / 255.0
     mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -296,6 +313,7 @@ async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]
     raw = result["OUTPUT_ACTIONS"]
     # Parse output (Python backend returns JSON string)
     import json
+
     if raw.dtype == object:
         actions = json.loads(raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0]))
     else:
@@ -318,6 +336,7 @@ def _softmax(x: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/vehicle-classify", response_model=VehicleClassifyResponse)
 async def vehicle_classify(request: BBoxRequest) -> VehicleClassifyResponse:
@@ -379,6 +398,7 @@ async def pet_classify(request: BBoxRequest) -> PetClassifyResponse:
     try:
         image_np = decode_base64_image(request.image)
         from PIL import Image
+
         pil_img = Image.fromarray(image_np).resize((224, 224))
         arr = np.array(pil_img, dtype=np.float32) / 255.0
         mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -419,6 +439,7 @@ async def depth_estimate(request: ImageRequest) -> DepthEstimateResponse:
     """Estimate monocular depth from an image."""
     import base64
     import io
+
     start = time.monotonic()
     triton = get_triton_client()
 
@@ -490,9 +511,12 @@ async def pose_analyze(request: BBoxRequest) -> PoseAnalyzeResponse:
         )
 
         import json
+
         raw = result["OUTPUT_KEYPOINTS"]
         if raw.dtype == object:
-            keypoints = json.loads(raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0]))
+            keypoints = json.loads(
+                raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0])
+            )
         else:
             keypoints = []
 
@@ -549,6 +573,7 @@ async def enrich(request: EnrichRequest) -> EnrichmentResponse:
             # Reuse pet endpoint logic
             image_np = decode_base64_image(request.image)
             from PIL import Image
+
             pil_img = Image.fromarray(image_np).resize((224, 224))
             arr = np.array(pil_img, dtype=np.float32) / 255.0
             mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)

@@ -45,9 +45,7 @@ INPUT_HEIGHT = 224
 INPUT_WIDTH = 224
 
 
-def load_vit_model(
-    model_path: str, model_name: str
-) -> tuple[torch.nn.Module, int]:
+def load_vit_model(model_path: str, model_name: str) -> tuple[torch.nn.Module, int]:
     """Load a ViT image classification model from a HuggingFace directory.
 
     Args:
@@ -77,8 +75,7 @@ def load_vit_model(
     labels = []
     if hasattr(model.config, "id2label") and model.config.id2label:
         labels = [
-            model.config.id2label.get(str(i), f"{model_name}_{i}")
-            for i in range(num_classes)
+            model.config.id2label.get(str(i), f"{model_name}_{i}") for i in range(num_classes)
         ]
     logger.info(f"{model_name.capitalize()} model: {num_classes} classes — {labels}")
 
@@ -149,7 +146,9 @@ def export_vit_to_onnx(
 
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
     logger.info(f"ONNX model saved: {output_path} ({file_size_mb:.1f} MB)")
-    logger.info(f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)")
+    logger.info(
+        f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)"
+    )
 
 
 def validate_onnx(
@@ -295,12 +294,8 @@ def main() -> int:
             logger.info("Exporting GENDER classifier")
             logger.info("=" * 60)
 
-            gender_model, gender_num_classes = load_vit_model(
-                args.gender_model_path, "gender"
-            )
-            export_vit_to_onnx(
-                gender_model, args.gender_output_path, "gender", gender_num_classes
-            )
+            gender_model, gender_num_classes = load_vit_model(args.gender_model_path, "gender")
+            export_vit_to_onnx(gender_model, args.gender_output_path, "gender", gender_num_classes)
 
             if not args.skip_validation:
                 if not validate_onnx(

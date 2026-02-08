@@ -360,90 +360,70 @@
       "scenario": "C01",
       "name": "Night Rain Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C01"
-      ],
+      "errors": ["No matching event found for C01"],
       "enrichment_errors": []
     },
     {
       "scenario": "C02",
       "name": "Snowfall Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C02"
-      ],
+      "errors": ["No matching event found for C02"],
       "enrichment_errors": []
     },
     {
       "scenario": "C03",
       "name": "Fog Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C03"
-      ],
+      "errors": ["No matching event found for C03"],
       "enrichment_errors": []
     },
     {
       "scenario": "C04",
       "name": "Day Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C04"
-      ],
+      "errors": ["No matching event found for C04"],
       "enrichment_errors": []
     },
     {
       "scenario": "C05",
       "name": "Windy Day Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C05"
-      ],
+      "errors": ["No matching event found for C05"],
       "enrichment_errors": []
     },
     {
       "scenario": "C06",
       "name": "Backlight Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C06"
-      ],
+      "errors": ["No matching event found for C06"],
       "enrichment_errors": []
     },
     {
       "scenario": "C07",
       "name": "Headlight Sweep",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C07"
-      ],
+      "errors": ["No matching event found for C07"],
       "enrichment_errors": []
     },
     {
       "scenario": "C08",
       "name": "Side Yard Night",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C08"
-      ],
+      "errors": ["No matching event found for C08"],
       "enrichment_errors": []
     },
     {
       "scenario": "C09",
       "name": "Driveway Night",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C09"
-      ],
+      "errors": ["No matching event found for C09"],
       "enrichment_errors": []
     },
     {
       "scenario": "C10",
       "name": "Garage Approach",
       "category": "suspicious",
-      "errors": [
-        "No matching event found for C10"
-      ],
+      "errors": ["No matching event found for C10"],
       "enrichment_errors": []
     },
     {

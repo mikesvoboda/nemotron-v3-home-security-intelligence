@@ -24,9 +24,9 @@ HuggingFace PyTorch weights
 
 ## Scripts
 
-| Script | Model | Input | Output | Engine Path |
-|--------|-------|-------|--------|-------------|
-| `export_clip.py` | CLIP ViT-L/14 | (B, 3, 224, 224) | (B, 768) | `/models/cache/clip/1/model.plan` |
+| Script                   | Model                 | Input            | Output   | Engine Path                               |
+| ------------------------ | --------------------- | ---------------- | -------- | ----------------------------------------- |
+| `export_clip.py`         | CLIP ViT-L/14         | (B, 3, 224, 224) | (B, 768) | `/models/cache/clip/1/model.plan`         |
 | `export_fashion_clip.py` | FashionSigLIP (Marqo) | (B, 3, 224, 224) | (B, 768) | `/models/cache/fashion_clip/1/model.plan` |
 
 ## Usage
@@ -47,16 +47,16 @@ python export_fashion_clip.py \
 
 ### Common flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--model-path` | Model-specific | HuggingFace model directory or model ID |
-| `--output-path` | Model-specific | Destination for the TensorRT .plan file |
-| `--precision` | `fp16` | `fp16` or `fp32` |
-| `--max-batch` | `8` | Maximum dynamic batch size |
-| `--workspace-gb` | `1` | TensorRT builder workspace (GB) |
-| `--opset` | `17` | ONNX opset version |
-| `--onnx-only` | false | Export ONNX only, skip TRT conversion |
-| `--skip-validation` | false | Skip ONNX vs PyTorch validation |
+| Flag                | Default        | Description                             |
+| ------------------- | -------------- | --------------------------------------- |
+| `--model-path`      | Model-specific | HuggingFace model directory or model ID |
+| `--output-path`     | Model-specific | Destination for the TensorRT .plan file |
+| `--precision`       | `fp16`         | `fp16` or `fp32`                        |
+| `--max-batch`       | `8`            | Maximum dynamic batch size              |
+| `--workspace-gb`    | `1`            | TensorRT builder workspace (GB)         |
+| `--opset`           | `17`           | ONNX opset version                      |
+| `--onnx-only`       | false          | Export ONNX only, skip TRT conversion   |
+| `--skip-validation` | false          | Skip ONNX vs PyTorch validation         |
 
 ## TensorRT conversion strategy
 

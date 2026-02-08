@@ -27,10 +27,9 @@ import time
 
 import numpy as np
 import torch
+import triton_python_backend_utils as pb_utils
 from PIL import Image
 from transformers import XCLIPModel, XCLIPProcessor
-
-import triton_python_backend_utils as pb_utils
 
 logger = logging.getLogger("triton.xclip_action")
 
@@ -54,15 +53,17 @@ SECURITY_ACTIONS = [
     "looking around suspiciously",
 ]
 
-SUSPICIOUS_ACTIONS = frozenset({
-    "fighting",
-    "climbing",
-    "breaking window",
-    "picking lock",
-    "hiding",
-    "loitering",
-    "looking around suspiciously",
-})
+SUSPICIOUS_ACTIONS = frozenset(
+    {
+        "fighting",
+        "climbing",
+        "breaking window",
+        "picking lock",
+        "hiding",
+        "loitering",
+        "looking around suspiciously",
+    }
+)
 
 # Risk weights for security assessment.
 # Replicated from ai/enrichment/model.py.
@@ -94,9 +95,7 @@ class TritonPythonModel:
         """
         logger.info("X-CLIP: initializing Triton Python backend...")
 
-        model_path = os.environ.get(
-            "ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch16-16-frames"
-        )
+        model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch16-16-frames")
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.num_frames = 16
 
@@ -130,8 +129,7 @@ class TritonPythonModel:
     def _warmup(self):
         """Run warmup inference with dummy frames."""
         dummy_frames = [
-            Image.new("RGB", (224, 224), color=(128, 128, 128))
-            for _ in range(self.num_frames)
+            Image.new("RGB", (224, 224), color=(128, 128, 128)) for _ in range(self.num_frames)
         ]
         for i in range(2):
             try:
@@ -208,10 +206,7 @@ class TritonPythonModel:
         top_action = actions[top_idx]
         top_confidence = float(probs_np[top_idx])
 
-        all_scores = {
-            action: round(float(probs_np[i]), 4)
-            for i, action in enumerate(actions)
-        }
+        all_scores = {action: round(float(probs_np[i]), 4) for i, action in enumerate(actions)}
 
         is_suspicious = top_action in SUSPICIOUS_ACTIONS
         default_weight = 0.5 if is_suspicious else 0.1
@@ -243,9 +238,11 @@ class TritonPythonModel:
                 # --- Decode frames ---
                 frames_tensor = pb_utils.get_input_tensor_by_name(request, "frames")
                 if frames_tensor is None:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError("Missing required input: 'frames'"),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError("Missing required input: 'frames'"),
+                        )
+                    )
                     continue
 
                 frames_raw = frames_tensor.as_numpy().flat[0]
@@ -257,17 +254,21 @@ class TritonPythonModel:
                 try:
                     frame_b64_list = json.loads(frames_str)
                 except json.JSONDecodeError as exc:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError(f"Invalid JSON in 'frames': {exc}"),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError(f"Invalid JSON in 'frames': {exc}"),
+                        )
+                    )
                     continue
 
                 if not isinstance(frame_b64_list, list) or not frame_b64_list:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError(
-                            "'frames' must be a non-empty JSON array of base64 images"
-                        ),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError(
+                                "'frames' must be a non-empty JSON array of base64 images"
+                            ),
+                        )
+                    )
                     continue
 
                 # Decode each base64 frame to PIL Image
@@ -279,11 +280,11 @@ class TritonPythonModel:
                         frame_bytes = base64.b64decode(raw)
                         pil_frames.append(Image.open(io.BytesIO(frame_bytes)))
                     except Exception as exc:
-                        responses.append(pb_utils.InferenceResponse(
-                            error=pb_utils.TritonError(
-                                f"Failed to decode frame {idx}: {exc}"
-                            ),
-                        ))
+                        responses.append(
+                            pb_utils.InferenceResponse(
+                                error=pb_utils.TritonError(f"Failed to decode frame {idx}: {exc}"),
+                            )
+                        )
                         decode_ok = False
                         break
 
@@ -307,9 +308,7 @@ class TritonPythonModel:
                             if isinstance(parsed, list) and parsed:
                                 actions = parsed
                         except json.JSONDecodeError:
-                            logger.warning(
-                                "X-CLIP: invalid JSON in 'labels', using defaults"
-                            )
+                            logger.warning("X-CLIP: invalid JSON in 'labels', using defaults")
 
                 # --- Run inference ---
                 result = self._run_inference(pil_frames, actions)
@@ -333,29 +332,31 @@ class TritonPythonModel:
                 }
                 all_scores_tensor = pb_utils.Tensor(
                     "all_scores",
-                    np.array(
-                        [json.dumps(scores_output).encode("utf-8")], dtype=np.object_
-                    ),
+                    np.array([json.dumps(scores_output).encode("utf-8")], dtype=np.object_),
                 )
 
-                responses.append(pb_utils.InferenceResponse(
-                    output_tensors=[action_tensor, confidence_tensor, all_scores_tensor],
-                ))
+                responses.append(
+                    pb_utils.InferenceResponse(
+                        output_tensors=[action_tensor, confidence_tensor, all_scores_tensor],
+                    )
+                )
 
             except torch.cuda.OutOfMemoryError:
                 logger.error("X-CLIP: GPU OOM during inference")
                 torch.cuda.empty_cache()
-                responses.append(pb_utils.InferenceResponse(
-                    error=pb_utils.TritonError(
-                        "GPU out of memory during X-CLIP inference"
-                    ),
-                ))
+                responses.append(
+                    pb_utils.InferenceResponse(
+                        error=pb_utils.TritonError("GPU out of memory during X-CLIP inference"),
+                    )
+                )
 
             except Exception as exc:
                 logger.error("X-CLIP: inference failed: %s", exc, exc_info=True)
-                responses.append(pb_utils.InferenceResponse(
-                    error=pb_utils.TritonError(f"X-CLIP inference error: {exc}"),
-                ))
+                responses.append(
+                    pb_utils.InferenceResponse(
+                        error=pb_utils.TritonError(f"X-CLIP inference error: {exc}"),
+                    )
+                )
 
         return responses
 

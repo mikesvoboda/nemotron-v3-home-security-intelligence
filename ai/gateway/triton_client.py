@@ -137,9 +137,7 @@ class TritonClient:
                 ],
             }
         except Exception as e:
-            raise TritonClientError(
-                f"Failed to get metadata for model {model_name}: {e}"
-            ) from e
+            raise TritonClientError(f"Failed to get metadata for model {model_name}: {e}") from e
 
     async def infer(
         self,
@@ -181,9 +179,7 @@ class TritonClient:
                 triton_inputs.append(inp)
 
             # Build InferRequestedOutput objects
-            triton_outputs = [
-                grpcclient.InferRequestedOutput(name) for name in outputs
-            ]
+            triton_outputs = [grpcclient.InferRequestedOutput(name) for name in outputs]
 
             # Execute inference with timeout
             result = await asyncio.wait_for(
@@ -202,17 +198,14 @@ class TritonClient:
 
             return output_dict
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TritonClientError(
-                f"Inference timed out for model {model_name} "
-                f"after {effective_timeout}s"
+                f"Inference timed out for model {model_name} after {effective_timeout}s"
             )
         except TritonClientError:
             raise
         except Exception as e:
-            raise TritonClientError(
-                f"Inference failed for model {model_name}: {e}"
-            ) from e
+            raise TritonClientError(f"Inference failed for model {model_name}: {e}") from e
 
 
 # Triton dtype mapping from numpy dtypes
@@ -261,7 +254,7 @@ def get_triton_client() -> TritonClient:
     Returns:
         Shared TritonClient instance.
     """
-    global _client  # noqa: PLW0603
+    global _client
     if _client is None:
         _client = TritonClient()
     return _client

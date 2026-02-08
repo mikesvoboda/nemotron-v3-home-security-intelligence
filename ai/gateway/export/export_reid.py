@@ -70,8 +70,13 @@ class ConvLayer(nn.Module):
     ):
         super().__init__()
         self.conv = nn.Conv2d(
-            in_channels, out_channels, kernel_size,
-            stride=stride, padding=padding, bias=False, groups=groups,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            bias=False,
+            groups=groups,
         )
         self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
@@ -86,8 +91,13 @@ class Conv1x1(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, stride: int = 1, groups: int = 1):
         super().__init__()
         self.conv = nn.Conv2d(
-            in_channels, out_channels, 1,
-            stride=stride, padding=0, bias=False, groups=groups,
+            in_channels,
+            out_channels,
+            1,
+            stride=stride,
+            padding=0,
+            bias=False,
+            groups=groups,
         )
         self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
@@ -115,8 +125,13 @@ class LightConv3x3(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 1, stride=1, padding=0, bias=False)
         self.conv2 = nn.Conv2d(
-            out_channels, out_channels, 3,
-            stride=1, padding=1, bias=False, groups=out_channels,
+            out_channels,
+            out_channels,
+            3,
+            stride=1,
+            padding=1,
+            bias=False,
+            groups=out_channels,
         )
         self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
@@ -142,12 +157,16 @@ class ChannelGate(nn.Module):
             num_gates = in_channels
         self.return_gates = return_gates
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.Conv2d(in_channels, in_channels // reduction, kernel_size=1, bias=True, padding=0)
+        self.fc1 = nn.Conv2d(
+            in_channels, in_channels // reduction, kernel_size=1, bias=True, padding=0
+        )
         self.norm1: nn.LayerNorm | None = None
         if layer_norm:
             self.norm1 = nn.LayerNorm([in_channels // reduction, 1, 1])
         self.relu = nn.ReLU(inplace=True)
-        self.fc2 = nn.Conv2d(in_channels // reduction, num_gates, kernel_size=1, bias=True, padding=0)
+        self.fc2 = nn.Conv2d(
+            in_channels // reduction, num_gates, kernel_size=1, bias=True, padding=0
+        )
         if gate_activation == "sigmoid":
             self.gate_activation: nn.Module | None = nn.Sigmoid()
         elif gate_activation == "relu":
@@ -346,7 +365,9 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
         logger.debug(f"Unexpected keys in state_dict (ignored): {unexpected}")
 
     model.eval()
-    logger.info(f"OSNet-x0.25 loaded: input ({INPUT_HEIGHT}x{INPUT_WIDTH}), output ({EMBEDDING_DIM},)")
+    logger.info(
+        f"OSNet-x0.25 loaded: input ({INPUT_HEIGHT}x{INPUT_WIDTH}), output ({EMBEDDING_DIM},)"
+    )
     return model
 
 
@@ -398,7 +419,9 @@ def export_to_onnx(
 
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
     logger.info(f"ONNX model saved: {output_path} ({file_size_mb:.1f} MB)")
-    logger.info(f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)")
+    logger.info(
+        f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)"
+    )
 
 
 def validate_onnx(
@@ -484,9 +507,7 @@ def validate_onnx(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Export Person Re-ID (OSNet-x0.25) to ONNX"
-    )
+    parser = argparse.ArgumentParser(description="Export Person Re-ID (OSNet-x0.25) to ONNX")
     parser.add_argument(
         "--model-path",
         type=str,

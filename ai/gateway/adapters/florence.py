@@ -49,6 +49,7 @@ MODEL_NAME = "florence2"
 # Request / Response schemas (match existing ai-florence API exactly)
 # ---------------------------------------------------------------------------
 
+
 class ExtractRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
     prompt: str = Field(default="<CAPTION>", description="Florence-2 prompt")
@@ -183,6 +184,7 @@ class SceneAnalysisResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     """Send image + prompt to Florence-2 Triton Python backend.
 
@@ -227,7 +229,11 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     # Decode output
     raw_output = result["OUTPUT_TEXT"]
     if raw_output.dtype == object:
-        text_result = raw_output[0].decode("utf-8") if isinstance(raw_output[0], bytes) else str(raw_output[0])
+        text_result = (
+            raw_output[0].decode("utf-8")
+            if isinstance(raw_output[0], bytes)
+            else str(raw_output[0])
+        )
     else:
         text_result = str(raw_output[0])
 
@@ -241,6 +247,7 @@ def _parse_json_output(text: str) -> Any:
     Florence Python backend may return JSON-serialized structured results.
     """
     import json
+
     try:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError):
@@ -249,15 +256,35 @@ def _parse_json_output(text: str) -> Any:
 
 # Security objects vocabulary (matches ai-florence)
 SECURITY_OBJECTS = [
-    "person", "face", "mask", "hoodie", "backpack", "package", "weapon",
-    "knife", "gun", "crowbar", "tool", "vehicle", "car", "truck", "van",
-    "motorcycle", "bicycle", "dog", "cat", "uniform", "badge", "clipboard",
+    "person",
+    "face",
+    "mask",
+    "hoodie",
+    "backpack",
+    "package",
+    "weapon",
+    "knife",
+    "gun",
+    "crowbar",
+    "tool",
+    "vehicle",
+    "car",
+    "truck",
+    "van",
+    "motorcycle",
+    "bicycle",
+    "dog",
+    "cat",
+    "uniform",
+    "badge",
+    "clipboard",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/extract", response_model=ExtractResponse)
 async def extract(request: ExtractRequest) -> ExtractResponse:
@@ -280,25 +307,31 @@ async def batch_extract(request: BatchExtractRequest) -> BatchExtractResponse:
     for item in request.items:
         try:
             text, time_ms = await _florence_infer(item.image, item.prompt)
-            results.append(BatchExtractResultItem(
-                result=text,
-                prompt_used=item.prompt,
-                inference_time_ms=round(time_ms, 2),
-            ))
+            results.append(
+                BatchExtractResultItem(
+                    result=text,
+                    prompt_used=item.prompt,
+                    inference_time_ms=round(time_ms, 2),
+                )
+            )
         except HTTPException as e:
-            results.append(BatchExtractResultItem(
-                result="",
-                prompt_used=item.prompt,
-                inference_time_ms=0.0,
-                error=str(e.detail),
-            ))
+            results.append(
+                BatchExtractResultItem(
+                    result="",
+                    prompt_used=item.prompt,
+                    inference_time_ms=0.0,
+                    error=str(e.detail),
+                )
+            )
         except Exception as e:
-            results.append(BatchExtractResultItem(
-                result="",
-                prompt_used=item.prompt,
-                inference_time_ms=0.0,
-                error=str(e),
-            ))
+            results.append(
+                BatchExtractResultItem(
+                    result="",
+                    prompt_used=item.prompt,
+                    inference_time_ms=0.0,
+                    error=str(e),
+                )
+            )
 
     total_time_ms = (time.monotonic() - batch_start) * 1000
 
@@ -429,11 +462,13 @@ async def phrase_grounding(request: PhraseGroundingRequest) -> PhraseGroundingRe
                     bboxes.append(bbox)
                     confidence_scores.append(1.0)
 
-        grounded_phrases.append(GroundedPhrase(
-            phrase=phrase,
-            bboxes=bboxes,
-            confidence_scores=confidence_scores,
-        ))
+        grounded_phrases.append(
+            GroundedPhrase(
+                phrase=phrase,
+                bboxes=bboxes,
+                confidence_scores=confidence_scores,
+            )
+        )
 
     total_time_ms = (time.monotonic() - start) * 1000
 
@@ -459,11 +494,13 @@ async def detect_security_objects(request: ImageRequest) -> SecurityObjectsRespo
         labels = parsed.get("bboxes_labels", parsed.get("labels", []))
         for i, label in enumerate(labels):
             bbox = bboxes[i] if i < len(bboxes) else []
-            detections.append(SecurityObjectDetection(
-                label=label,
-                bbox=bbox,
-                confidence=1.0,
-            ))
+            detections.append(
+                SecurityObjectDetection(
+                    label=label,
+                    bbox=bbox,
+                    confidence=1.0,
+                )
+            )
 
     return SecurityObjectsResponse(
         detections=detections,
@@ -509,9 +546,7 @@ async def analyze_scene(request: SceneAnalysisRequest) -> SceneAnalysisResponse:
                 text_regions.append(OCRRegion(text=label, bbox=bbox))
         return text_regions, t
 
-    (regions, regions_time), (text_regions, ocr_time) = await asyncio.gather(
-        run_dense(), run_ocr()
-    )
+    (regions, regions_time), (text_regions, ocr_time) = await asyncio.gather(run_dense(), run_ocr())
 
     task_times["dense_regions"] = round(regions_time, 2)
     task_times["ocr_with_regions"] = round(ocr_time, 2)

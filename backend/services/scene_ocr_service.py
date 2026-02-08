@@ -378,9 +378,7 @@ class SceneOCRService:
             enabled: Whether scene OCR is enabled (for feature flags)
         """
         settings = get_settings()
-        self.florence_url = florence_url or getattr(
-            settings, "florence_url", DEFAULT_FLORENCE_URL
-        )
+        self.florence_url = florence_url or getattr(settings, "florence_url", DEFAULT_FLORENCE_URL)
         self.timeout = timeout
         self.enabled = enabled
         self.service_matcher = get_service_provider_matcher()

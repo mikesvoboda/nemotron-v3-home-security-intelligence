@@ -83,7 +83,7 @@ def export_to_tensorrt(
     logger.info(f"Source model: {model_path}")
     logger.info(f"Output path: {output_path}")
     logger.info(f"Device: cuda:{device}")
-    logger.info(f"Precision: FP16")
+    logger.info("Precision: FP16")
     logger.info(f"Image size: {IMGSZ}")
 
     # Work in a writable temp directory since model zoo may be read-only
@@ -249,10 +249,7 @@ def main() -> int:
         logger.error(f"File not found: {e}")
         return 1
     except ImportError as e:
-        logger.error(
-            f"Missing dependency: {e}. "
-            "Ensure ultralytics and tensorrt are installed."
-        )
+        logger.error(f"Missing dependency: {e}. Ensure ultralytics and tensorrt are installed.")
         return 1
     except Exception as e:
         logger.error(f"Export failed: {e}", exc_info=True)

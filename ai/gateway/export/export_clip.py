@@ -336,9 +336,7 @@ def convert_to_tensorrt_trtexec(
     """
     trtexec = _trtexec_path()
     if trtexec is None:
-        raise FileNotFoundError(
-            "trtexec not found. Install TensorRT or use the Python API path."
-        )
+        raise FileNotFoundError("trtexec not found. Install TensorRT or use the Python API path.")
 
     Path(engine_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -364,7 +362,7 @@ def convert_to_tensorrt_trtexec(
     logger.info("  Command: %s", " ".join(cmd))
 
     t0 = time.time()
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=600)
     elapsed = time.time() - t0
 
     if result.returncode != 0:
@@ -406,9 +404,7 @@ def convert_to_tensorrt_python(
     try:
         import tensorrt as trt
     except ImportError as exc:
-        raise ImportError(
-            "tensorrt Python package is required. pip install tensorrt"
-        ) from exc
+        raise ImportError("tensorrt Python package is required. pip install tensorrt") from exc
 
     logger.info("Building TensorRT engine via Python API ...")
     logger.info("  Precision: %s", precision)
@@ -675,8 +671,7 @@ def main(argv: list[str] | None = None) -> None:
     logger.info("  ONNX:     %s", onnx_path)
     logger.info("  TensorRT: %s", engine_path)
     logger.info(
-        "  Copy to Triton repo:  "
-        "cp %s ai/triton/model_repository/clip/1/model.plan",
+        "  Copy to Triton repo:  cp %s ai/triton/model_repository/clip/1/model.plan",
         engine_path,
     )
     logger.info("-" * 70)

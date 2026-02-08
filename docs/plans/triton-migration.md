@@ -8,14 +8,14 @@
 
 The AI pipeline runs 5 separate containers on GPU 1 (RTX A400 4GB), each with its own PyTorch CUDA runtime. The duplicate CUDA contexts consume ~2.4 GB of overhead, leaving only 360 MiB free on a 4 GB card. This prevents on-demand models from loading and limits enrichment coverage.
 
-| Container | Model VRAM | CUDA Overhead | Total |
-|-----------|-----------|---------------|-------|
-| ai-yolo26 | 5 MiB | ~170 MiB | ~175 MiB |
-| ai-clip | 834 MiB | ~384 MiB | ~1,218 MiB |
-| ai-florence | 460 MiB | ~930 MiB | ~1,390 MiB |
-| ai-enrichment | 760 MiB | ~170 MiB | ~930 MiB |
-| ai-enrichment-light | 0 MiB | 0 MiB | 0 MiB |
-| **Total** | | | **~3,713 MiB / 4,094 MiB** |
+| Container           | Model VRAM | CUDA Overhead | Total                      |
+| ------------------- | ---------- | ------------- | -------------------------- |
+| ai-yolo26           | 5 MiB      | ~170 MiB      | ~175 MiB                   |
+| ai-clip             | 834 MiB    | ~384 MiB      | ~1,218 MiB                 |
+| ai-florence         | 460 MiB    | ~930 MiB      | ~1,390 MiB                 |
+| ai-enrichment       | 760 MiB    | ~170 MiB      | ~930 MiB                   |
+| ai-enrichment-light | 0 MiB      | 0 MiB         | 0 MiB                      |
+| **Total**           |            |               | **~3,713 MiB / 4,094 MiB** |
 
 ## Solution: Single Triton Container + AI Gateway
 
@@ -23,13 +23,13 @@ Consolidate all GPU 1 models into a single NVIDIA Triton Inference Server with o
 
 ### Projected VRAM After Migration
 
-| Backend | Models | VRAM |
-|---------|--------|------|
-| TensorRT | yolo26, clip, pose, threat, fashion-clip | ~500 MiB |
-| ONNX Runtime | vehicle, demographics (age+gender), pet, depth, reid | ~350 MiB |
-| Python (shared PyTorch) | florence-2, xclip-action | ~860 MiB |
-| Triton server overhead | (single CUDA context) | ~300 MiB |
-| **Total** | **13 models** | **~2,010 MiB / 4,094 MiB** |
+| Backend                 | Models                                               | VRAM                       |
+| ----------------------- | ---------------------------------------------------- | -------------------------- |
+| TensorRT                | yolo26, clip, pose, threat, fashion-clip             | ~500 MiB                   |
+| ONNX Runtime            | vehicle, demographics (age+gender), pet, depth, reid | ~350 MiB                   |
+| Python (shared PyTorch) | florence-2, xclip-action                             | ~860 MiB                   |
+| Triton server overhead  | (single CUDA context)                                | ~300 MiB                   |
+| **Total**               | **13 models**                                        | **~2,010 MiB / 4,094 MiB** |
 
 **All models stay resident in memory.** No on-demand loading needed. ~2 GB free headroom for inference buffers.
 
@@ -133,12 +133,12 @@ ai/triton/model_repository/
 
 ### Model Backend Selection Rationale
 
-| Model | Backend | Why |
-|-------|---------|-----|
-| yolo26, clip, pose, threat, fashion-clip | **TensorRT** | Standard architectures, max efficiency, 50-90% VRAM reduction |
-| vehicle, demographics, pet, depth, reid | **ONNX Runtime** | Simple models, straightforward export, good efficiency |
-| florence2 | **Python** | `trust_remote_code=True`, autoregressive decoder, custom post-processing |
-| xclip_action | **Python** | `trust_remote_code=True`, custom cross-frame temporal attention |
+| Model                                    | Backend          | Why                                                                      |
+| ---------------------------------------- | ---------------- | ------------------------------------------------------------------------ |
+| yolo26, clip, pose, threat, fashion-clip | **TensorRT**     | Standard architectures, max efficiency, 50-90% VRAM reduction            |
+| vehicle, demographics, pet, depth, reid  | **ONNX Runtime** | Simple models, straightforward export, good efficiency                   |
+| florence2                                | **Python**       | `trust_remote_code=True`, autoregressive decoder, custom post-processing |
+| xclip_action                             | **Python**       | `trust_remote_code=True`, custom cross-frame temporal attention          |
 
 Florence-2 and X-CLIP cannot be exported to TensorRT/ONNX due to custom HuggingFace model code and autoregressive generation. They share a single PyTorch runtime in Triton's Python backend.
 
@@ -224,11 +224,11 @@ hsi_circuit_breaker_state{service="clip",endpoint="embed"}
 
 ### Health Checking (3 layers)
 
-| Layer | Endpoint | What It Checks |
-|-------|----------|---------------|
-| Triton native | `GET :8000/v2/health/ready` | Server ready, all models loaded |
-| Triton per-model | `GET :8000/v2/models/{name}/ready` | Individual model status |
-| Gateway aggregated | `GET :8090/health` | All models + gateway (matches current backend format) |
+| Layer              | Endpoint                           | What It Checks                                        |
+| ------------------ | ---------------------------------- | ----------------------------------------------------- |
+| Triton native      | `GET :8000/v2/health/ready`        | Server ready, all models loaded                       |
+| Triton per-model   | `GET :8000/v2/models/{name}/ready` | Individual model status                               |
+| Gateway aggregated | `GET :8090/health`                 | All models + gateway (matches current backend format) |
 
 ## Container & Deployment
 
@@ -304,6 +304,7 @@ YOLO26 TensorRT engine already exists. Pose and threat TensorRT engines export v
 Build export scripts, convert all models, validate outputs match PyTorch originals.
 
 **Tasks:**
+
 - Write 7 export scripts (CLIP, fashion-CLIP, vehicle, demographics, pet, depth, reid)
 - Copy existing YOLO26 TensorRT engine
 - Export pose/threat via Ultralytics TensorRT
@@ -320,6 +321,7 @@ Build export scripts, convert all models, validate outputs match PyTorch origina
 Build gateway adapters and Triton container. Deploy alongside existing services on a different port.
 
 **Tasks:**
+
 - Write `ai/gateway/main.py` (health, metrics, routing)
 - Write 5 adapter files (yolo26, clip, florence, enrichment, enrichment-light)
 - Write `triton_client.py` (gRPC connection pool)
@@ -327,6 +329,7 @@ Build gateway adapters and Triton container. Deploy alongside existing services 
 - Deploy on port 8090, test with seed script via env override
 
 **Validation:**
+
 ```bash
 AI_GATEWAY_URL=http://localhost:8090 uv run python scripts/seed-events.py --validate
 ```
@@ -340,6 +343,7 @@ AI_GATEWAY_URL=http://localhost:8090 uv run python scripts/seed-events.py --vali
 Update 5 backend clients to support `AI_GATEWAY_URL`. Feature-flagged with `USE_AI_GATEWAY` toggle.
 
 **Tasks:**
+
 - Add `AI_GATEWAY_URL` to backend settings
 - Update each client's `__init__` (1 line each)
 - Add `USE_AI_GATEWAY=true/false` toggle
@@ -354,6 +358,7 @@ Update 5 backend clients to support `AI_GATEWAY_URL`. Feature-flagged with `USE_
 Switch to gateway as default, remove old containers and code.
 
 **Tasks:**
+
 - Set `USE_AI_GATEWAY=true` as default
 - Stop 5 old AI containers
 - Update redeploy script, docker-compose, CLAUDE.md, AGENTS.md, .env.example
@@ -363,12 +368,12 @@ Switch to gateway as default, remove old containers and code.
 
 ### Rollback Safety
 
-| Phase | Rollback |
-|-------|----------|
-| Phase 1 | No impact — nothing running changed |
+| Phase   | Rollback                                          |
+| ------- | ------------------------------------------------- |
+| Phase 1 | No impact — nothing running changed               |
 | Phase 2 | Delete gateway container, old services unaffected |
-| Phase 3 | Set `USE_AI_GATEWAY=false`, instant rollback |
-| Phase 4 | Re-deploy old containers from cached images |
+| Phase 3 | Set `USE_AI_GATEWAY=false`, instant rollback      |
+| Phase 4 | Re-deploy old containers from cached images       |
 
 ## Success Criteria
 

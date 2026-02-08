@@ -71,7 +71,9 @@ def load_pytorch_model(model_path: str) -> tuple[torch.nn.Module, int, list[str]
     labels = PET_LABELS[:num_classes]
     if hasattr(model.config, "id2label") and model.config.id2label:
         labels = [
-            model.config.id2label.get(str(i), PET_LABELS[i] if i < len(PET_LABELS) else f"class_{i}")
+            model.config.id2label.get(
+                str(i), PET_LABELS[i] if i < len(PET_LABELS) else f"class_{i}"
+            )
             for i in range(num_classes)
         ]
 
@@ -137,7 +139,9 @@ def export_to_onnx(
 
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
     logger.info(f"ONNX model saved: {output_path} ({file_size_mb:.1f} MB)")
-    logger.info(f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)")
+    logger.info(
+        f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)"
+    )
 
 
 def validate_onnx(
@@ -209,9 +213,7 @@ def validate_onnx(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Export Pet Classifier (ResNet-18) to ONNX"
-    )
+    parser = argparse.ArgumentParser(description="Export Pet Classifier (ResNet-18) to ONNX")
     parser.add_argument(
         "--model-path",
         type=str,

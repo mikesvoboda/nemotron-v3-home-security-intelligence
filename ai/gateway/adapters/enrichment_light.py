@@ -39,6 +39,7 @@ router = APIRouter()
 # Request / Response schemas (match existing ai-enrichment-light API)
 # ---------------------------------------------------------------------------
 
+
 class ImageRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
 
@@ -92,6 +93,7 @@ class DepthResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _softmax(x: np.ndarray) -> np.ndarray:
     """Compute softmax over a 1D array."""
     e = np.exp(x - np.max(x))
@@ -101,6 +103,7 @@ def _softmax(x: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/pose-analyze", response_model=PoseResponse)
 async def pose_analyze(request: BBoxRequest) -> PoseResponse:
@@ -206,6 +209,7 @@ async def person_reid(request: BBoxRequest) -> ReIDResponse:
     try:
         image_np = decode_base64_image(request.image)
         from PIL import Image
+
         # OSNet expects 256x128 input
         pil_img = Image.fromarray(image_np).resize((128, 256))
         arr = np.array(pil_img, dtype=np.float32) / 255.0
@@ -224,6 +228,7 @@ async def person_reid(request: BBoxRequest) -> ReIDResponse:
 
         # L2 normalize
         import math
+
         norm = math.sqrt(sum(x * x for x in embedding))
         if norm > 1e-8:
             embedding = [x / norm for x in embedding]
@@ -250,6 +255,7 @@ async def pet_classify(request: BBoxRequest) -> PetResponse:
     try:
         image_np = decode_base64_image(request.image)
         from PIL import Image
+
         pil_img = Image.fromarray(image_np).resize((224, 224))
         arr = np.array(pil_img, dtype=np.float32) / 255.0
         mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)

@@ -153,7 +153,9 @@ def export_to_onnx(
 
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
     logger.info(f"ONNX model saved: {output_path} ({file_size_mb:.1f} MB)")
-    logger.info(f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)")
+    logger.info(
+        f"Estimated VRAM at runtime: ~{file_size_mb * 1.1:.0f} MB (model weights + buffers)"
+    )
 
 
 def validate_onnx(
@@ -229,9 +231,7 @@ def validate_onnx(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Export Depth Anything V2 Small to ONNX"
-    )
+    parser = argparse.ArgumentParser(description="Export Depth Anything V2 Small to ONNX")
     parser.add_argument(
         "--model-path",
         type=str,

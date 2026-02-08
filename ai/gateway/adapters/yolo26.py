@@ -40,19 +40,86 @@ TARGET_SIZE = 640
 
 # COCO class names used by YOLO26
 COCO_CLASSES: list[str] = [
-    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train",
-    "truck", "boat", "traffic light", "fire hydrant", "stop sign",
-    "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep",
-    "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella",
-    "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard",
-    "sports ball", "kite", "baseball bat", "baseball glove", "skateboard",
-    "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork",
-    "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange",
-    "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
-    "couch", "potted plant", "bed", "dining table", "toilet", "tv",
-    "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave",
-    "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase",
-    "scissors", "teddy bear", "hair drier", "toothbrush",
+    "person",
+    "bicycle",
+    "car",
+    "motorcycle",
+    "airplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "couch",
+    "potted plant",
+    "bed",
+    "dining table",
+    "toilet",
+    "tv",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
 ]
 
 
@@ -168,16 +235,18 @@ def _postprocess_yolo(
         cls_id = int(class_ids[idx])
         cls_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"class_{cls_id}"
 
-        detections.append({
-            "class": cls_name,
-            "confidence": round(float(confidences[idx]), 4),
-            "bbox": {
-                "x": round(bx1),
-                "y": round(by1),
-                "width": round(box_w),
-                "height": round(box_h),
-            },
-        })
+        detections.append(
+            {
+                "class": cls_name,
+                "confidence": round(float(confidences[idx]), 4),
+                "bbox": {
+                    "x": round(bx1),
+                    "y": round(by1),
+                    "width": round(box_w),
+                    "height": round(box_h),
+                },
+            }
+        )
 
     return detections
 
@@ -272,17 +341,21 @@ async def detect_batch(files: list[UploadFile] = File(...)) -> dict[str, Any]:
 
             detections = _postprocess_yolo(result["output0"], orig_w, orig_h)
 
-            results.append({
-                "detections": detections,
-                "image_width": orig_w,
-                "image_height": orig_h,
-            })
+            results.append(
+                {
+                    "detections": detections,
+                    "image_width": orig_w,
+                    "image_height": orig_h,
+                }
+            )
         except Exception as e:
             logger.warning(f"Batch detection failed for {upload_file.filename}: {e}")
-            results.append({
-                "detections": [],
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "detections": [],
+                    "error": str(e),
+                }
+            )
 
     total_time_ms = (time.monotonic() - start) * 1000
 

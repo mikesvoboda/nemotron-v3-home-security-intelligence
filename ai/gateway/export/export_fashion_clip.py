@@ -225,7 +225,9 @@ def export_to_onnx(
     # Log actual embedding dim from test inference
     with torch.no_grad():
         test_out = wrapper(dummy_input)
-        logger.info("  Output shape: %s  (embedding dim = %d)", list(test_out.shape), test_out.shape[-1])
+        logger.info(
+            "  Output shape: %s  (embedding dim = %d)", list(test_out.shape), test_out.shape[-1]
+        )
 
     return onnx_path
 
@@ -455,7 +457,7 @@ def _run_trtexec(
 
     logger.info("Running trtexec: %s", " ".join(cmd))
     t0 = time.time()
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=600)
     elapsed = time.time() - t0
 
     if result.returncode != 0:
@@ -728,8 +730,7 @@ def main(argv: list[str] | None = None) -> None:
     logger.info("  ONNX:     %s", onnx_path)
     logger.info("  TensorRT: %s", engine_path)
     logger.info(
-        "  Copy to Triton repo:  "
-        "cp %s ai/triton/model_repository/fashion_clip/1/model.plan",
+        "  Copy to Triton repo:  cp %s ai/triton/model_repository/fashion_clip/1/model.plan",
         engine_path,
     )
     logger.info("-" * 70)

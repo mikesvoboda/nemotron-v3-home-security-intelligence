@@ -137,7 +137,7 @@ class DeployOrchestrator:
         # Gateway mode reduces AI containers from 6 to 2 (gateway + llm)
         if self.config.use_ai_gateway:
             service_count = {
-                DeployMode.LOCAL: 5,   # postgres, redis, ai-gateway, ai-llm, backend, frontend -> but banner shows AI+core
+                DeployMode.LOCAL: 5,  # postgres, redis, ai-gateway, ai-llm, backend, frontend -> but banner shows AI+core
                 DeployMode.HYBRID: 5,
                 DeployMode.GHCR: 4,
             }

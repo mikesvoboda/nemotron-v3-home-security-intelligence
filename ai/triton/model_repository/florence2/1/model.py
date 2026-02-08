@@ -33,10 +33,9 @@ import time
 
 import numpy as np
 import torch
+import triton_python_backend_utils as pb_utils
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor
-
-import triton_python_backend_utils as pb_utils
 
 logger = logging.getLogger("triton.florence2")
 
@@ -55,9 +54,7 @@ class TritonPythonModel:
         """
         logger.info("Florence-2: initializing Triton Python backend...")
 
-        model_path = os.environ.get(
-            "FLORENCE_MODEL_PATH", "/models/zoo/florence-2-base"
-        )
+        model_path = os.environ.get("FLORENCE_MODEL_PATH", "/models/zoo/florence-2-base")
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
         # Determine compute dtype
@@ -71,7 +68,9 @@ class TritonPythonModel:
 
         logger.info(
             "Florence-2: loading from %s on %s with %s",
-            model_path, self.device, dtype,
+            model_path,
+            self.device,
+            dtype,
         )
 
         # Load processor (tokenizer + image processor)
@@ -144,9 +143,7 @@ class TritonPythonModel:
                 use_cache=False,
             )
 
-        generated_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=False
-        )[0]
+        generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
 
         parsed = self.processor.post_process_generation(
             generated_text,
@@ -177,9 +174,11 @@ class TritonPythonModel:
                 # --- Decode image input ---
                 image_tensor = pb_utils.get_input_tensor_by_name(request, "image")
                 if image_tensor is None:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError("Missing required input: 'image'"),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError("Missing required input: 'image'"),
+                        )
+                    )
                     continue
 
                 image_raw = image_tensor.as_numpy().flat[0]
@@ -191,25 +190,31 @@ class TritonPythonModel:
                 try:
                     image_data = base64.b64decode(image_b64)
                 except Exception as exc:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError(f"Invalid base64 image: {exc}"),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError(f"Invalid base64 image: {exc}"),
+                        )
+                    )
                     continue
 
                 try:
                     image = Image.open(io.BytesIO(image_data))
                 except Exception as exc:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError(f"Cannot decode image: {exc}"),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError(f"Cannot decode image: {exc}"),
+                        )
+                    )
                     continue
 
                 # --- Decode prompt input ---
                 prompt_tensor = pb_utils.get_input_tensor_by_name(request, "prompt")
                 if prompt_tensor is None:
-                    responses.append(pb_utils.InferenceResponse(
-                        error=pb_utils.TritonError("Missing required input: 'prompt'"),
-                    ))
+                    responses.append(
+                        pb_utils.InferenceResponse(
+                            error=pb_utils.TritonError("Missing required input: 'prompt'"),
+                        )
+                    )
                     continue
 
                 prompt_raw = prompt_tensor.as_numpy().flat[0]
@@ -235,24 +240,24 @@ class TritonPythonModel:
                     "inference_time_ms",
                     np.array([inference_ms], dtype=np.float32),
                 )
-                responses.append(
-                    pb_utils.InferenceResponse(output_tensors=[out_result, out_time])
-                )
+                responses.append(pb_utils.InferenceResponse(output_tensors=[out_result, out_time]))
 
             except torch.cuda.OutOfMemoryError:
                 logger.error("Florence-2: GPU OOM during inference")
                 torch.cuda.empty_cache()
-                responses.append(pb_utils.InferenceResponse(
-                    error=pb_utils.TritonError(
-                        "GPU out of memory during Florence-2 inference"
-                    ),
-                ))
+                responses.append(
+                    pb_utils.InferenceResponse(
+                        error=pb_utils.TritonError("GPU out of memory during Florence-2 inference"),
+                    )
+                )
 
             except Exception as exc:
                 logger.error("Florence-2: inference failed: %s", exc, exc_info=True)
-                responses.append(pb_utils.InferenceResponse(
-                    error=pb_utils.TritonError(f"Florence-2 inference error: {exc}"),
-                ))
+                responses.append(
+                    pb_utils.InferenceResponse(
+                        error=pb_utils.TritonError(f"Florence-2 inference error: {exc}"),
+                    )
+                )
 
         return responses
 

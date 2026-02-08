@@ -99,6 +99,7 @@ except ImportError:
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager.
@@ -118,10 +119,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("Triton Inference Server is ready")
             break
         if attempt < retries - 1:
-            logger.info(
-                f"Waiting for Triton server... (attempt {attempt + 1}/{retries})"
-            )
+            logger.info(f"Waiting for Triton server... (attempt {attempt + 1}/{retries})")
             import asyncio
+
             await asyncio.sleep(2)
     else:
         logger.error("Triton server not ready after all retries")
@@ -187,6 +187,7 @@ app.include_router(enrichment_light_router, prefix="/enrich-lt", tags=["enrichme
 # ---------------------------------------------------------------------------
 # Top-level endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health")
 async def health_check() -> dict[str, Any]:

@@ -50,6 +50,7 @@ EMBEDDING_DIMENSION = 768
 # Request / Response schemas (match existing ai-clip API exactly)
 # ---------------------------------------------------------------------------
 
+
 class EmbedRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
 
@@ -107,6 +108,7 @@ class AnomalyScoreResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _get_image_embedding(image_b64: str) -> tuple[list[float], float]:
     """Extract image embedding via Triton CLIP vision encoder.
@@ -208,6 +210,7 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.post("/embed", response_model=EmbedResponse)
 async def embed(request: EmbedRequest) -> EmbedResponse:
     """Generate CLIP embedding from an image.
@@ -304,10 +307,7 @@ async def batch_similarity(request: BatchSimilarityRequest) -> BatchSimilarityRe
     text_embeddings = await _get_text_embeddings(request.texts)
 
     sims = (image_np @ text_embeddings.T)[0]
-    similarities = {
-        text: round(float(sims[i]), 6)
-        for i, text in enumerate(request.texts)
-    }
+    similarities = {text: round(float(sims[i]), 6) for i, text in enumerate(request.texts)}
 
     inference_time_ms = (time.monotonic() - start) * 1000
 
@@ -327,7 +327,7 @@ async def anomaly_score(request: AnomalyScoreRequest) -> AnomalyScoreResponse:
         raise HTTPException(
             status_code=400,
             detail=f"Baseline embedding must have {EMBEDDING_DIMENSION} dimensions, "
-                   f"got {len(request.baseline_embedding)}",
+            f"got {len(request.baseline_embedding)}",
         )
 
     start = time.monotonic()

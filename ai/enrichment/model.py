@@ -2141,7 +2141,8 @@ async def lifespan(_app: FastAPI):
             name="demographics",
             vram_mb=500,
             priority=ModelPriority.HIGH,
-            loader_fn=lambda age_p=age_model_path, gender_p=gender_model_path,
+            loader_fn=lambda age_p=age_model_path,
+            gender_p=gender_model_path,
             dev=device: _create_demographics(age_p, gender_p, dev),
             unloader_fn=_unload_model,
         )
@@ -2174,9 +2175,7 @@ async def lifespan(_app: FastAPI):
     )
 
     # Threat Detector (~400MB) - YOLOv8 weapon/dangerous object detection
-    threat_model_path = os.environ.get(
-        "THREAT_MODEL_PATH", "/models/threat-detection-yolov8n"
-    )
+    threat_model_path = os.environ.get("THREAT_MODEL_PATH", "/models/threat-detection-yolov8n")
 
     def _create_threat_detector(threat_path: str, dev: str) -> Any:
         from models.threat_detector import ThreatDetector
@@ -2190,17 +2189,13 @@ async def lifespan(_app: FastAPI):
             name="threat_detector",
             vram_mb=400,
             priority=ModelPriority.CRITICAL,
-            loader_fn=lambda path=threat_model_path, dev=device: _create_threat_detector(
-                path, dev
-            ),
+            loader_fn=lambda path=threat_model_path, dev=device: _create_threat_detector(path, dev),
             unloader_fn=_unload_model,
         )
     )
 
     # Person Re-ID (~100MB) - OSNet-x0.25 person re-identification embeddings
-    reid_model_path = os.environ.get(
-        "REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth"
-    )
+    reid_model_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
 
     def _create_person_reid(reid_path: str, dev: str) -> Any:
         from models.person_reid import PersonReID
@@ -2214,9 +2209,7 @@ async def lifespan(_app: FastAPI):
             name="person_reid",
             vram_mb=100,
             priority=ModelPriority.HIGH,
-            loader_fn=lambda path=reid_model_path, dev=device: _create_person_reid(
-                path, dev
-            ),
+            loader_fn=lambda path=reid_model_path, dev=device: _create_person_reid(path, dev),
             unloader_fn=_unload_model,
         )
     )
@@ -2850,9 +2843,7 @@ class ActionClassifyResponse(BaseModel):
     confidence: float = Field(..., description="Classification confidence (0-1)")
     is_suspicious: bool = Field(..., description="Whether action is considered suspicious")
     risk_weight: float = Field(..., description="Risk weight for security assessment (0-1)")
-    all_scores: dict[str, float] = Field(
-        default_factory=dict, description="All action scores"
-    )
+    all_scores: dict[str, float] = Field(default_factory=dict, description="All action scores")
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
 
 
@@ -2999,9 +2990,7 @@ async def analyze_pose(request: PoseAnalyzeRequest) -> PoseAnalyzeResponse:
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
-        INFERENCE_LATENCY_SECONDS.labels(endpoint="pose-analyze").observe(
-            inference_time_ms / 1000
-        )
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="pose-analyze").observe(inference_time_ms / 1000)
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="pose-analyze", status="success").inc()
 
         return PoseAnalyzeResponse(
@@ -3193,7 +3182,9 @@ async def _run_reid_embedding(
     try:
         reid_model = await model_manager.get_model("person_reid")
         result = await asyncio.to_thread(reid_model.extract_embedding, cropped_image)
-        embedding = result.embedding if hasattr(result, "embedding") else result.get("embedding", [])
+        embedding = (
+            result.embedding if hasattr(result, "embedding") else result.get("embedding", [])
+        )
         return embedding if embedding else None
     except ValueError:
         # Model not registered (e.g., PersonReID not available)

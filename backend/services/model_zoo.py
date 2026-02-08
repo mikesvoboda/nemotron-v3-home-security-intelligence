@@ -172,8 +172,7 @@ async def load_yolo_model(model_path: str) -> Any:
                 parent_dir = os.path.dirname(model_path)
                 if os.path.isdir(parent_dir):
                     available_files = [
-                        f for f in os.listdir(parent_dir)
-                        if f.endswith((".pt", ".pth", ".onnx"))
+                        f for f in os.listdir(parent_dir) if f.endswith((".pt", ".pth", ".onnx"))
                     ]
                     logger.warning(
                         f"Model file not found: {model_path}. "
