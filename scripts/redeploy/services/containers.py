@@ -600,6 +600,7 @@ class ContainerManager:
                 volumes=ai_config["volumes"],
                 env={
                     **ai_config["env"],
+                    "PORT": str(ai_config["port"]),
                     "CUDA_VISIBLE_DEVICES": "0",
                 },
                 devices=[f"nvidia.com/gpu={ai_config['gpu']}"],

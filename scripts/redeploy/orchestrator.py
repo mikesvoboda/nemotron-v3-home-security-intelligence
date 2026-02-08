@@ -1,7 +1,9 @@
 """Deployment orchestrator - coordinates the full deployment workflow."""
 
+import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 from scripts.redeploy.core import output
 from scripts.redeploy.models import (
@@ -150,12 +152,15 @@ class DeployOrchestrator:
         """Pre-flight checks: git pull, prerequisites, .env bootstrap."""
         output.header("Pre-flight Checks")
 
-        # Bootstrap .env if missing
+        # Bootstrap .env if missing, then always sync ports from .env.example
         env_path = self.config.project_root / ".env"
         if not env_path.exists():
             output.step("Bootstrapping .env with defaults...")
             self._bootstrap_env()
             output.success(".env created with defaults")
+
+        # Always sync ports from .env.example into .env
+        self._sync_env_ports(env_path)
 
         # Git pull (unless skipped)
         if not self.config.skip_git_pull:
@@ -381,6 +386,44 @@ class DeployOrchestrator:
         if result.returncode != 0:
             output.error(f"setup.py failed: {result.stderr}")
             raise DeployError("Failed to bootstrap .env")
+
+    def _sync_env_ports(self, env_path: Path) -> None:
+        """Sync port values from .env.example into .env.
+
+        .env.example is the single source of truth for ports.
+        This preserves secrets (passwords, JWT, paths) in .env while
+        ensuring port assignments never drift from .env.example.
+        """
+        env_example_path = self.config.project_root / ".env.example"
+        if not env_example_path.exists():
+            output.warn(".env.example not found, skipping port sync")
+            return
+
+        # Extract all *_PORT= lines from .env.example
+        example_content = env_example_path.read_text(encoding="utf-8")
+        port_pattern = re.compile(r"^([A-Z_]+_PORT)=(\d+)$", re.MULTILINE)
+        example_ports = dict(port_pattern.findall(example_content))
+
+        if not example_ports:
+            return
+
+        # Update matching lines in .env
+        env_content = env_path.read_text(encoding="utf-8")
+        updated = 0
+        for var_name, port_value in example_ports.items():
+            env_pattern = re.compile(rf"^{re.escape(var_name)}=\d+$", re.MULTILINE)
+            if env_pattern.search(env_content):
+                new_line = f"{var_name}={port_value}"
+                old_match = env_pattern.search(env_content)
+                if old_match and old_match.group() != new_line:
+                    env_content = env_pattern.sub(new_line, env_content)
+                    updated += 1
+
+        if updated > 0:
+            env_path.write_text(env_content, encoding="utf-8")
+            output.info(f"Synced {updated} port(s) from .env.example into .env")
+        else:
+            output.info("All ports in .env match .env.example")
 
     def _get_phase_name(self, error: DeployError) -> str:
         """Get phase name from error type."""
