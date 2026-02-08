@@ -3745,6 +3745,7 @@ class NemotronAnalyzer:
             "top_p": 0.95,
             "max_tokens": max_output_tokens,  # Use settings-based value
             "stop": ["<|im_end|>", "<|im_start|>"],
+            "cache_prompt": True,  # Reuse KV cache for shared prompt prefix (30-50% TTFT reduction)
         }
 
         # Merge auth headers with JSON content-type
