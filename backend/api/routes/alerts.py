@@ -113,39 +113,63 @@ async def list_rules(
     Returns:
         AlertRuleListResponse with rules and pagination info
     """
-    # Build base query
-    query = select(AlertRule)
+    try:
+        # Build base query
+        query = select(AlertRule)
 
-    # Apply filters
-    if enabled is not None:
-        query = query.where(AlertRule.enabled == enabled)
-    if severity:
-        query = query.where(AlertRule.severity == severity)
+        # Apply filters
+        if enabled is not None:
+            query = query.where(AlertRule.enabled == enabled)
+        if severity:
+            try:
+                severity_enum = ModelAlertSeverity(severity.lower())
+                query = query.where(AlertRule.severity == severity_enum)
+            except ValueError:
+                query = query.where(AlertRule.severity == severity)
 
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
-    count_result = await db.execute(count_query)
-    total_count = count_result.scalar() or 0
+        # Get total count
+        count_query = select(func.count(AlertRule.id))
+        if enabled is not None:
+            count_query = count_query.where(AlertRule.enabled == enabled)
+        if severity:
+            try:
+                severity_enum = ModelAlertSeverity(severity.lower())
+                count_query = count_query.where(AlertRule.severity == severity_enum)
+            except ValueError:
+                count_query = count_query.where(AlertRule.severity == severity)
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
 
-    # Sort by name
-    query = query.order_by(AlertRule.name)
+        # Sort by name
+        query = query.order_by(AlertRule.name)
 
-    # Apply pagination
-    query = query.limit(limit).offset(offset)
+        # Apply pagination
+        query = query.limit(limit).offset(offset)
 
-    # Execute query
-    result = await db.execute(query)
-    rules = result.scalars().all()
+        # Execute query
+        result = await db.execute(query)
+        rules = result.scalars().all()
 
-    return AlertRuleListResponse(
-        items=[AlertRuleResponse.model_validate(rule) for rule in rules],
-        pagination=PaginationMeta(
-            total=total_count,
-            limit=limit,
-            offset=offset,
-            has_more=total_count > offset + limit,
-        ),
-    )
+        return AlertRuleListResponse(
+            items=[AlertRuleResponse.model_validate(rule) for rule in rules],
+            pagination=PaginationMeta(
+                total=total_count,
+                limit=limit,
+                offset=offset,
+                has_more=total_count > offset + limit,
+            ),
+        )
+    except Exception as e:
+        logger.error(f"Failed to list alert rules: {e}")
+        return AlertRuleListResponse(
+            items=[],
+            pagination=PaginationMeta(
+                total=0,
+                limit=limit,
+                offset=offset,
+                has_more=False,
+            ),
+        )
 
 
 @router.post(

@@ -105,6 +105,7 @@ class PlateReadResponse(PlateReadBase):
             "example": {
                 "id": 1,
                 "camera_id": "driveway",
+                "camera_name": "Driveway",
                 "timestamp": "2026-01-26T14:30:00Z",
                 "plate_text": "ABC1234",
                 "raw_text": "ABC-1234",
@@ -120,6 +121,7 @@ class PlateReadResponse(PlateReadBase):
     )
 
     id: int = Field(..., description="Database record ID")
+    camera_name: str | None = Field(None, description="Human-readable camera name")
     created_at: datetime = Field(..., description="Record creation timestamp")
 
 

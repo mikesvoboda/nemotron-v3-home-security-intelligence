@@ -71,6 +71,17 @@ class ALPRService:
         self.min_ocr_confidence = min_ocr_confidence
         self.retention_days = retention_days
 
+    def _plate_read_to_response(
+        self, plate_read: PlateRead, camera_name: str | None = None
+    ) -> PlateReadResponse:
+        """Convert a PlateRead model to response, resolving camera_name."""
+        response = PlateReadResponse.model_validate(plate_read)
+        if camera_name is not None:
+            response.camera_name = camera_name
+        elif plate_read.camera and hasattr(plate_read.camera, "name"):
+            response.camera_name = plate_read.camera.name
+        return response
+
     async def recognize_and_store(
         self,
         camera_id: str,
@@ -228,14 +239,20 @@ class ALPRService:
         Returns:
             PlateReadResponse if found, None otherwise.
         """
-        stmt = select(PlateRead).where(PlateRead.id == plate_read_id)
+        from sqlalchemy.orm import joinedload
+
+        stmt = (
+            select(PlateRead)
+            .options(joinedload(PlateRead.camera))
+            .where(PlateRead.id == plate_read_id)
+        )
         result = await self.db.execute(stmt)
         plate_read = result.scalar_one_or_none()
 
         if plate_read is None:
             return None
 
-        return PlateReadResponse.model_validate(plate_read)
+        return self._plate_read_to_response(plate_read)
 
     async def get_plate_reads(
         self,
@@ -259,6 +276,8 @@ class ALPRService:
         Returns:
             PlateReadListResponse with paginated results.
         """
+        from sqlalchemy.orm import joinedload
+
         # Validate pagination
         page = max(1, page)
         page_size = max(1, min(page_size, 1000))
@@ -284,15 +303,18 @@ class ALPRService:
         total_result = await self.db.execute(count_query)
         total = total_result.scalar_one()
 
-        # Fetch paginated results
+        # Fetch paginated results with camera name
         paginated_query = (
-            base_query.order_by(PlateRead.timestamp.desc()).offset(offset).limit(page_size)
+            base_query.options(joinedload(PlateRead.camera))
+            .order_by(PlateRead.timestamp.desc())
+            .offset(offset)
+            .limit(page_size)
         )
         result = await self.db.execute(paginated_query)
-        plate_reads = list(result.scalars().all())
+        plate_reads = list(result.unique().scalars().all())
 
         return PlateReadListResponse(
-            plate_reads=[PlateReadResponse.model_validate(pr) for pr in plate_reads],
+            plate_reads=[self._plate_read_to_response(pr) for pr in plate_reads],
             total=total,
             page=page,
             page_size=page_size,
@@ -344,6 +366,8 @@ class ALPRService:
         Returns:
             PlateReadListResponse with matching results.
         """
+        from sqlalchemy.orm import joinedload
+
         page = max(1, page)
         page_size = max(1, min(page_size, 1000))
         offset = (page - 1) * page_size
@@ -363,15 +387,18 @@ class ALPRService:
         total_result = await self.db.execute(count_query)
         total = total_result.scalar_one()
 
-        # Fetch paginated results
+        # Fetch paginated results with camera name
         paginated_query = (
-            base_query.order_by(PlateRead.timestamp.desc()).offset(offset).limit(page_size)
+            base_query.options(joinedload(PlateRead.camera))
+            .order_by(PlateRead.timestamp.desc())
+            .offset(offset)
+            .limit(page_size)
         )
         result = await self.db.execute(paginated_query)
-        plate_reads = list(result.scalars().all())
+        plate_reads = list(result.unique().scalars().all())
 
         return PlateReadListResponse(
-            plate_reads=[PlateReadResponse.model_validate(pr) for pr in plate_reads],
+            plate_reads=[self._plate_read_to_response(pr) for pr in plate_reads],
             total=total,
             page=page,
             page_size=page_size,
@@ -383,60 +410,87 @@ class ALPRService:
         Returns:
             PlateStatisticsResponse with recognition metrics.
         """
-        now = datetime.now(UTC)
-        one_hour_ago = now - timedelta(hours=1)
-        one_day_ago = now - timedelta(hours=24)
+        try:
+            now = datetime.now(UTC)
+            one_hour_ago = now - timedelta(hours=1)
+            one_day_ago = now - timedelta(hours=24)
 
-        # Total reads
-        total_result = await self.db.execute(select(func.count(PlateRead.id)))
-        total_reads = total_result.scalar_one()
+            # Total reads
+            total_result = await self.db.execute(select(func.coalesce(func.count(PlateRead.id), 0)))
+            total_reads = total_result.scalar_one()
 
-        # Unique plates
-        unique_result = await self.db.execute(select(func.count(distinct(PlateRead.plate_text))))
-        unique_plates = unique_result.scalar_one()
+            # Unique plates
+            unique_result = await self.db.execute(
+                select(func.coalesce(func.count(distinct(PlateRead.plate_text)), 0))
+            )
+            unique_plates = unique_result.scalar_one()
 
-        # Average OCR confidence
-        avg_conf_result = await self.db.execute(select(func.avg(PlateRead.ocr_confidence)))
-        avg_ocr_confidence = avg_conf_result.scalar_one() or 0.0
+            # Average OCR confidence
+            avg_conf_result = await self.db.execute(
+                select(func.coalesce(func.avg(PlateRead.ocr_confidence), 0.0))
+            )
+            avg_ocr_confidence = avg_conf_result.scalar_one()
 
-        # Average quality score
-        avg_quality_result = await self.db.execute(select(func.avg(PlateRead.image_quality_score)))
-        avg_quality_score = avg_quality_result.scalar_one() or 0.0
+            # Average quality score
+            avg_quality_result = await self.db.execute(
+                select(func.coalesce(func.avg(PlateRead.image_quality_score), 0.0))
+            )
+            avg_quality_score = avg_quality_result.scalar_one()
 
-        # Enhanced count
-        enhanced_result = await self.db.execute(
-            select(func.count(PlateRead.id)).where(PlateRead.is_enhanced.is_(True))
-        )
-        enhanced_count = enhanced_result.scalar_one()
+            # Enhanced count
+            enhanced_result = await self.db.execute(
+                select(func.coalesce(func.count(PlateRead.id), 0)).where(
+                    PlateRead.is_enhanced.is_(True)
+                )
+            )
+            enhanced_count = enhanced_result.scalar_one()
 
-        # Blurry count
-        blurry_result = await self.db.execute(
-            select(func.count(PlateRead.id)).where(PlateRead.is_blurry.is_(True))
-        )
-        blurry_count = blurry_result.scalar_one()
+            # Blurry count
+            blurry_result = await self.db.execute(
+                select(func.coalesce(func.count(PlateRead.id), 0)).where(
+                    PlateRead.is_blurry.is_(True)
+                )
+            )
+            blurry_count = blurry_result.scalar_one()
 
-        # Reads in last hour
-        last_hour_result = await self.db.execute(
-            select(func.count(PlateRead.id)).where(PlateRead.timestamp >= one_hour_ago)
-        )
-        reads_last_hour = last_hour_result.scalar_one()
+            # Reads in last hour
+            last_hour_result = await self.db.execute(
+                select(func.coalesce(func.count(PlateRead.id), 0)).where(
+                    PlateRead.timestamp >= one_hour_ago
+                )
+            )
+            reads_last_hour = last_hour_result.scalar_one()
 
-        # Reads in last 24 hours
-        last_day_result = await self.db.execute(
-            select(func.count(PlateRead.id)).where(PlateRead.timestamp >= one_day_ago)
-        )
-        reads_last_24h = last_day_result.scalar_one()
+            # Reads in last 24 hours
+            last_day_result = await self.db.execute(
+                select(func.coalesce(func.count(PlateRead.id), 0)).where(
+                    PlateRead.timestamp >= one_day_ago
+                )
+            )
+            reads_last_24h = last_day_result.scalar_one()
 
-        return PlateStatisticsResponse(
-            total_reads=total_reads,
-            unique_plates=unique_plates,
-            avg_ocr_confidence=round(avg_ocr_confidence, 3),
-            avg_quality_score=round(avg_quality_score, 3),
-            enhanced_count=enhanced_count,
-            blurry_count=blurry_count,
-            reads_last_hour=reads_last_hour,
-            reads_last_24h=reads_last_24h,
-        )
+            return PlateStatisticsResponse(
+                total_reads=total_reads,
+                unique_plates=unique_plates,
+                avg_ocr_confidence=round(avg_ocr_confidence, 3),
+                avg_quality_score=round(avg_quality_score, 3),
+                enhanced_count=enhanced_count,
+                blurry_count=blurry_count,
+                reads_last_hour=reads_last_hour,
+                reads_last_24h=reads_last_24h,
+            )
+        except Exception:
+            logger.exception("Failed to load plate read statistics")
+            return PlateStatisticsResponse(
+                total_reads=0,
+                unique_plates=0,
+                avg_ocr_confidence=0.0,
+                avg_quality_score=0.0,
+                enhanced_count=0,
+                blurry_count=0,
+                reads_last_hour=0,
+                reads_last_24h=0,
+            )
 
     async def prune_old_reads(self, retention_days: int | None = None) -> int:
         """Delete plate reads older than the retention period.

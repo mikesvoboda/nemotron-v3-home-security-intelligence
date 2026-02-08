@@ -268,7 +268,7 @@ describe('SummaryCards Accessibility Tests', () => {
 
       // Event count should be accessible
       expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
-        '3 events analyzed'
+        '3 high-priority events analyzed'
       );
     });
 

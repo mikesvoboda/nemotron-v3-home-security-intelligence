@@ -198,10 +198,11 @@ function PersonSelector({
   const [query, setQuery] = useState('');
 
   const filteredPersons = useMemo(() => {
+    const safePersons = persons ?? [];
     if (query === '') {
-      return persons;
+      return safePersons;
     }
-    return persons.filter((person) =>
+    return safePersons.filter((person) =>
       person.name.toLowerCase().includes(query.toLowerCase())
     );
   }, [persons, query]);

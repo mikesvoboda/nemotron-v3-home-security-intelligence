@@ -691,7 +691,7 @@ function SceneChangesPageComponent() {
         )}
 
         {/* Historical Scene Changes List */}
-        {isSceneChangesLoading && !isRefetching ? (
+        {isSceneChangesLoading && !isRefetching && !sceneChanges ? (
           <div
             className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-700 bg-gray-800/50"
             data-testid="scene-changes-loading"

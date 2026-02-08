@@ -5,7 +5,7 @@
 #
 # Variable substitution:
 #   - 8083: Port for cAdvisor metrics (default: 8083)
-#   - 9401: Port for DCGM GPU metrics (default: 9401)
+#   - 9400: Port for DCGM GPU metrics (default: 9400)
 #
 # PORT CONFIGURATION NOTE:
 # Internal Docker service names (e.g., backend:8000, alertmanager:9093) use FIXED
@@ -537,6 +537,6 @@ scrape_configs:
       # Use host.containers.internal because dcgm-exporter runs in rootful podman (sudo)
       # while prometheus runs in rootless podman - separate network namespaces
       # Port is configurable via DCGM_EXPORTER_PORT environment variable
-      - targets: ['host.containers.internal:9401']
+      - targets: ['host.containers.internal:9400']
     scrape_interval: 15s
     scrape_timeout: 10s

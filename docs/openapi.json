@@ -5045,6 +5045,18 @@
             "title": "Fully Evaluated Events",
             "type": "integer"
           },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Informational message about the stats",
+            "title": "Message"
+          },
           "model_contribution_rates": {
             "additionalProperties": {
               "type": "number"
@@ -30524,6 +30536,7 @@
             240.0
           ],
           "camera_id": "driveway",
+          "camera_name": "Driveway",
           "created_at": "2026-01-26T14:30:05Z",
           "detection_confidence": 0.95,
           "id": 1,
@@ -30550,6 +30563,18 @@
             "description": "Camera ID where plate was detected",
             "title": "Camera Id",
             "type": "string"
+          },
+          "camera_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable camera name",
+            "title": "Camera Name"
           },
           "created_at": {
             "description": "Record creation timestamp",
@@ -47583,7 +47608,7 @@
     },
     "/api/analytics/costs": {
       "get": {
-        "description": "Get comprehensive cost analytics data.\n\nReturns cost metrics including:\n- Today's cost summary\n- Daily and monthly budget utilization\n- Token usage metrics\n- Cost breakdown by model\n- Cost efficiency metrics\n- Historical cost data (last 30 days)\n- Pricing configuration\n\nReturns:\n    CostAnalyticsResponse with all cost metrics",
+        "description": "Get comprehensive cost analytics data.\n\nReturns cost metrics including:\n- Today's cost summary\n- Daily and monthly budget utilization\n- Token usage metrics\n- Cost breakdown by model\n- Cost efficiency metrics\n- Historical cost data (last 30 days)\n- Pricing configuration\n\nArgs:\n    db: Database session for querying detection counts.\n\nReturns:\n    CostAnalyticsResponse with all cost metrics",
         "operationId": "cost-analytics_get_cost_analytics",
         "responses": {
           "200": {

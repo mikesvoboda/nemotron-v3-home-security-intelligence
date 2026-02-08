@@ -2204,6 +2204,9 @@ export interface paths {
          *     - Historical cost data (last 30 days)
          *     - Pricing configuration
          *
+         *     Args:
+         *         db: Database session for querying detection counts.
+         *
          *     Returns:
          *         CostAnalyticsResponse with all cost metrics
          */
@@ -16566,6 +16569,11 @@ export interface components {
             avg_quality_score: number | null;
             /** Fully Evaluated Events */
             fully_evaluated_events: number;
+            /**
+             * Message
+             * @description Informational message about the stats
+             */
+            message?: string | null;
             /** Model Contribution Rates */
             model_contribution_rates: {
                 [key: string]: number;
@@ -34781,6 +34789,7 @@ export interface components {
          *         240
          *       ],
          *       "camera_id": "driveway",
+         *       "camera_name": "Driveway",
          *       "created_at": "2026-01-26T14:30:05Z",
          *       "detection_confidence": 0.95,
          *       "id": 1,
@@ -34804,6 +34813,11 @@ export interface components {
              * @description Camera ID where plate was detected
              */
             camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable camera name
+             */
+            camera_name?: string | null;
             /**
              * Created At
              * Format: date-time

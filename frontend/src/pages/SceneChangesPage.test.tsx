@@ -214,7 +214,7 @@ describe('SceneChangesPage', () => {
     it('shows loading state while scene changes are loading', () => {
       (useSceneChangesQueryModule.useSceneChangesQuery as Mock).mockReturnValue({
         ...defaultSceneChangesReturn,
-        sceneChanges: [],
+        sceneChanges: undefined,
         isLoading: true,
       });
 

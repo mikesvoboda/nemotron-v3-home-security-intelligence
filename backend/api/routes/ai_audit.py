@@ -273,15 +273,25 @@ async def get_audit_stats(
     service = get_audit_service()
     stats = await service.get_stats(db, days=days, camera_id=camera_id)
 
+    # Compute evaluation coverage and add guidance message when 0%
+    total_events = stats["total_events"]
+    fully_evaluated = stats["fully_evaluated_events"]
+    message = None
+    if total_events > 0 and fully_evaluated == 0:
+        message = "Run a batch audit to generate quality evaluations."
+    elif total_events == 0:
+        message = "No events found for the selected period."
+
     return AuditStatsResponse(
-        total_events=stats["total_events"],
+        total_events=total_events,
         audited_events=stats["audited_events"],
-        fully_evaluated_events=stats["fully_evaluated_events"],
+        fully_evaluated_events=fully_evaluated,
         avg_quality_score=stats["avg_quality_score"],
         avg_consistency_rate=stats["avg_consistency_rate"],
         avg_enrichment_utilization=stats["avg_enrichment_utilization"],
         model_contribution_rates=stats["model_contribution_rates"],
         audits_by_day=stats["audits_by_day"],
+        message=message,
     )
 
 

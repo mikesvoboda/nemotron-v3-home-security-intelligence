@@ -634,11 +634,8 @@ async def list_gpus() -> GpuDevicesResponse:
         return GpuDevicesResponse(gpus=[_gpu_device_to_response(device) for device in devices])
 
     except Exception as e:
-        logger.exception("GPU detection failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"GPU detection failed: {e}",
-        ) from e
+        logger.warning(f"GPU detection failed: {e}")
+        return GpuDevicesResponse(gpus=[])
 
 
 @router.get(

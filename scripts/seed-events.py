@@ -656,7 +656,7 @@ def get_test_camera_for_category(category: str) -> str:
     """
     category_to_camera = {
         "normal": "test_normal_delivery",
-        "suspicious": "test_suspicious_loitering",
+        "suspicious": "test_suspicious_casing",
         "threats": "test_threat_breakin",
         "cosmos": "test_normal_delivery",  # Default for cosmos scenarios
     }

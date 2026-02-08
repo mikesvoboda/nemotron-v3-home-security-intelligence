@@ -76,8 +76,8 @@ function getRtdetrStatus(
   // Red if model is down
   if (model.status === 'unhealthy') return 'red';
 
-  // Gray if unknown
-  if (model.status === 'unknown' || !latency?.avg_ms) return 'gray';
+  // Yellow if unknown
+  if (model.status === 'unknown' || !latency?.avg_ms) return 'yellow';
 
   // Check latency thresholds
   const avgMs = latency.avg_ms;
