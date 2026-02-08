@@ -19,7 +19,7 @@ input [
   {
     name: "input"
     data_type: TYPE_FP32
-    dims: [ 1, 2, 100, 17, 3 ]  # [batch=1, persons=2, frames=100, joints=17, channels=3]
+    dims: [ -1, 2, -1, 17, 3 ]  # [batch=dynamic, persons=2, frames=dynamic, joints=17, channels=3]
   }
 ]
 
@@ -27,7 +27,7 @@ output [
   {
     name: "output"
     data_type: TYPE_FP32
-    dims: [ 1, 60 ]  # [batch=1, num_classes=60]
+    dims: [ -1, 60 ]  # [batch=dynamic, num_classes=60]
   }
 ]
 
@@ -37,15 +37,5 @@ instance_group [
     kind: KIND_CPU  # 14MB model runs efficiently on CPU
   }
 ]
-
-# Optimization: enable dynamic batching for throughput
-# (single request latency is already very low for this tiny model)
-optimization {
-  execution_accelerators {
-    cpu_execution_accelerator: [
-      { name: "default" }
-    ]
-  }
-}
 
 version_policy: { latest: { num_versions: 1 }}

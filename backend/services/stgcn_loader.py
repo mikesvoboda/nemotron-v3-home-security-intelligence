@@ -268,54 +268,11 @@ class _GCNUnit(nn.Module):
         return F.relu(out + res, inplace=True)
 
 
-class _TCNBranch(nn.Module):
-    """Single TCN branch with 1x1 conv + BN + optional temporal conv.
-
-    Branches 0-3: 1x1 -> BN -> ReLU -> temporal_conv
-    Branch 4: 1x1 -> BN (no temporal conv)
-    """
-
-    def __init__(
-        self,
-        in_ch: int,
-        out_ch: int,
-        *,
-        has_temporal: bool = True,
-        kernel_size: int = 3,
-        stride: int = 1,
-        dilation: int = 1,
-    ) -> None:
-        super().__init__()
-        # ModuleList indexed as [0]=Conv2d, [1]=BN, [2]=ReLU, [3]=TemporalConv
-        self.layers = nn.ModuleList(
-            [
-                nn.Conv2d(in_ch, out_ch, 1),
-                nn.BatchNorm2d(out_ch),
-            ]
-        )
-        if has_temporal:
-            self.layers.append(nn.ReLU(inplace=True))
-            padding = dilation * (kernel_size - 1) // 2
-            self.layers.append(
-                _TemporalConvWrap(out_ch, out_ch, kernel_size, stride, dilation, padding)
-            )
-        self.has_temporal = has_temporal
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.layers[0](x)
-        out = self.layers[1](out)
-        if self.has_temporal:
-            out = self.layers[2](out)
-            out = self.layers[3](out)
-        return out
-
-    # Allow subscript access for state_dict key compatibility
-    def __getitem__(self, idx: int) -> nn.Module:
-        return self.layers[idx]
-
-
 class _TemporalConvWrap(nn.Module):
-    """Temporal convolution wrapper with .conv attribute for checkpoint compat."""
+    """Temporal convolution wrapper with .conv attribute for checkpoint compat.
+
+    Checkpoint keys use: branches.{i}.3.conv.weight (the .conv. is from this wrapper).
+    """
 
     def __init__(
         self,
@@ -336,40 +293,52 @@ class _TemporalConvWrap(nn.Module):
 
 
 class _TCNUnit(nn.Module):
-    """Temporal Convolution unit matching pyskl's tcn sub-block.
+    """Temporal Convolution unit matching pyskl's MSTCN checkpoint structure exactly.
 
-    Keys: branches (ModuleList), bn, transform (Sequential)
-    Branch channel distribution: ceil(ch/6) for first, floor(ch/6) for rest.
+    Checkpoint key structure:
+    - branches.{0-3}: nn.Sequential(Conv2d[0], BN[1], ReLU[2], TemporalConvWrap[3])
+    - branches.4: nn.Sequential(Conv2d[0], BN[1])  (identity path)
+    - branches.5: nn.Conv2d  (plain, no Sequential wrapper)
+    - bn: BatchNorm2d
+    - transform: nn.Sequential(BN[0], ReLU[1], Conv2d[2])
+
+    Temporal stride handling: branches 0-3 use stride in their temporal conv.
+    Branches 4, 5 and transform use F.avg_pool2d/F.max_pool2d in forward()
+    (no learnable parameters, so no state_dict keys for pooling).
     """
 
     def __init__(self, channels: int, stride: int = 1) -> None:
         super().__init__()
-        num_temporal_branches = 5  # branches 0-4
-        num_total_branches = 6  # branches 0-5
+        self.stride = stride
+        num_total_branches = 6
         branch_ch = channels // num_total_branches
         first_ch = channels - branch_ch * (num_total_branches - 1)
 
         self.branches = nn.ModuleList()
-        for i in range(num_temporal_branches):
-            ch = first_ch if i == 0 else branch_ch
-            if i < 4:
-                # Branches 0-3: with temporal conv
-                dilation = i + 1
-                self.branches.append(
-                    _TCNBranch(
-                        channels,
-                        ch,
-                        has_temporal=True,
-                        kernel_size=3,
-                        stride=stride,
-                        dilation=dilation,
-                    )
-                )
-            else:
-                # Branch 4: no temporal conv (identity path)
-                self.branches.append(_TCNBranch(channels, ch, has_temporal=False))
 
-        # Branch 5: simple 1x1 conv (maxpool-like)
+        # Branches 0-3: temporal conv with dilation (nn.Sequential for key compat)
+        for i in range(4):
+            ch = first_ch if i == 0 else branch_ch
+            dilation = i + 1
+            padding = dilation * (3 - 1) // 2
+            self.branches.append(
+                nn.Sequential(
+                    nn.Conv2d(channels, ch, 1),  # [0]
+                    nn.BatchNorm2d(ch),  # [1]
+                    nn.ReLU(inplace=True),  # [2] (no params)
+                    _TemporalConvWrap(ch, ch, 3, stride, dilation, padding),  # [3]
+                )
+            )
+
+        # Branch 4: identity path (Conv2d + BN, pooling in forward)
+        self.branches.append(
+            nn.Sequential(
+                nn.Conv2d(channels, branch_ch, 1),  # [0]
+                nn.BatchNorm2d(branch_ch),  # [1]
+            )
+        )
+
+        # Branch 5: plain Conv2d (checkpoint key: branches.5.weight, no Sequential)
         self.branches.append(nn.Conv2d(channels, branch_ch, 1))
 
         self.bn = nn.BatchNorm2d(channels)
@@ -382,11 +351,29 @@ class _TCNUnit(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Transform residual (with temporal pooling for stride > 1)
         res = self.transform(x)
+        if self.stride > 1:
+            res = F.avg_pool2d(res, (self.stride, 1), (self.stride, 1))
 
-        outs = []
-        for branch in self.branches:
-            outs.append(branch(x))
+        outs: list[torch.Tensor] = []
+
+        # Branches 0-3: temporal conv handles stride internally
+        for i in range(4):
+            outs.append(self.branches[i](x))
+
+        # Branch 4: identity path (pool after conv+BN for stride > 1)
+        out4 = self.branches[4](x)
+        if self.stride > 1:
+            out4 = F.avg_pool2d(out4, (self.stride, 1), (self.stride, 1))
+        outs.append(out4)
+
+        # Branch 5: maxpool before conv for stride > 1
+        if self.stride > 1:
+            x5 = F.max_pool2d(x, (3, 1), (self.stride, 1), (1, 0))
+            outs.append(self.branches[5](x5))
+        else:
+            outs.append(self.branches[5](x))
 
         out = torch.cat(outs, dim=1)
         out = self.bn(out)
@@ -394,10 +381,16 @@ class _TCNUnit(nn.Module):
 
 
 class _STGCNPPBlock(nn.Module):
-    """Single ST-GCN++ block: GCN + TCN + optional block-level residual."""
+    """Single ST-GCN++ block: GCN + TCN + optional block-level residual.
+
+    When in_ch != out_ch or stride != 1, a residual projection (Conv2d + BN)
+    maps the input to the output space. Temporal stride is handled via
+    F.avg_pool2d in forward (no learnable pool parameters in checkpoint).
+    """
 
     def __init__(self, in_ch: int, out_ch: int, A: torch.Tensor, stride: int = 1) -> None:
         super().__init__()
+        self.stride = stride
         self.gcn = _GCNUnit(in_ch, out_ch, A)
         self.tcn = _TCNUnit(out_ch, stride=stride)
 
@@ -414,7 +407,16 @@ class _STGCNPPBlock(nn.Module):
             self._has_block_residual = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.tcn(self.gcn(x))
+        # Block-level residual
+        if self._has_block_residual:
+            res = self.residual["bn"](self.residual["conv"](x))
+            if self.stride > 1:
+                res = F.avg_pool2d(res, (self.stride, 1), (self.stride, 1))
+        else:
+            res = x
+
+        out = self.tcn(self.gcn(x))
+        return F.relu(out + res)
 
 
 class STGCNPP(nn.Module):
