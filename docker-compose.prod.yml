@@ -190,6 +190,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
@@ -201,6 +202,9 @@ services:
     build:
       context: ./ai/nemotron
       dockerfile: Dockerfile
+    # Podman CDI device passthrough (rootless GPU access)
+    devices:
+      - nvidia.com/gpu=${GPU_LLM:-0}
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
       - '127.0.0.1:${LLM_PORT:-8091}:8091'
@@ -666,11 +670,15 @@ services:
   ai-gateway:
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     build:
       context: .
       dockerfile: ai/gateway/Dockerfile
+    # Podman CDI device passthrough (rootless GPU access)
+    devices:
+      - nvidia.com/gpu=${GPU_AI_SERVICES:-1}
     ports:
       - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090'
       - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002'
