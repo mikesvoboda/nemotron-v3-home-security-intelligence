@@ -243,7 +243,7 @@ class TestConfidenceFiltering:
         from backend.core.database import get_session
 
         # Response with detections at varying confidence levels
-        # Class-specific thresholds (NEM-4522): person=0.45, car=0.70, dog=0.55, cat=0.55
+        # Current class-specific thresholds (NEM-4522): person=0.40, car=0.50, dog=0.45, cat=0.45
         response_data = {
             "detections": [
                 {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]},
@@ -252,12 +252,12 @@ class TestConfidenceFiltering:
                     "class": "dog",
                     "confidence": 0.45,
                     "bbox": [300, 350, 100, 120],
-                },  # Below dog threshold (0.55)
+                },  # At dog threshold (0.45) - passes
                 {
                     "class": "cat",
                     "confidence": 0.30,
                     "bbox": [400, 450, 80, 100],
-                },  # Below cat threshold (0.55)
+                },  # Below cat threshold (0.45) - filtered
             ],
             "processing_time_ms": 100.0,
             "image_size": [1920, 1080],
@@ -276,12 +276,14 @@ class TestConfidenceFiltering:
                     session=session,
                 )
 
-        # Class thresholds: person 0.45, car 0.70, dog 0.55, cat 0.55
-        # person (0.95) passes, car (0.75) passes, dog (0.45) filtered, cat (0.30) filtered
-        assert len(detections) == 2
+        # Current class thresholds: person 0.40, car 0.50, dog 0.45, cat 0.45
+        # person (0.95) passes, car (0.75) passes, dog (0.45) passes, cat (0.30) filtered
+        assert len(detections) == 3
         object_types = [d.object_type for d in detections]
         assert "person" in object_types
         assert "car" in object_types
+        assert "dog" in object_types
+        assert "cat" not in object_types
         assert "dog" not in object_types
         assert "cat" not in object_types
 
