@@ -137,15 +137,18 @@ podman run -d \
   ai-gateway 2>&1 | tail -1
 
 # LLM on GPU 0
+# Use --fit auto to let llama.cpp determine optimal GPU layer count based on available VRAM
+# GPU_LAYERS=auto tells llama.cpp to load as many layers as fit in free VRAM
 echo "  Starting ai-llm on GPU ${GPU_LLM:-0}..."
 podman run -d \
   --name ai-llm \
   --network "$NETWORK" \
   --device "nvidia.com/gpu=${GPU_LLM:-0}" \
   --security-opt label=disable \
+  --env-file "$PROJECT_ROOT/.env" \
   -e PORT="${LLM_PORT:-8091}" \
   -e CUDA_VISIBLE_DEVICES=0 \
-  -e GPU_LAYERS="${GPU_LAYERS:-45}" \
+  -e GPU_LAYERS=auto \
   -e GGML_CUDA_GRAPH_OPT=1 \
   -e CTX_SIZE="${CTX_SIZE:-32768}" \
   -e PARALLEL="${PARALLEL:-2}" \
