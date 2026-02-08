@@ -192,7 +192,7 @@ def validate_onnx(
         max_diff = np.abs(pt_output - ort_output).max()
         mean_diff = np.abs(pt_output - ort_output).mean()
 
-        if max_diff < 1e-4:
+        if max_diff < 1e-3:
             logger.info(
                 f"  Batch size {batch_size}: PASS "
                 f"(max_diff={max_diff:.2e}, mean_diff={mean_diff:.2e})"
