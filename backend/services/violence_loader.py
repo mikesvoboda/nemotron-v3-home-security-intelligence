@@ -76,9 +76,25 @@ async def load_violence_model(model_path: str) -> Any:
         RuntimeError: If model loading fails
     """
     try:
+        from pathlib import Path
+
         from transformers import AutoImageProcessor, AutoModelForImageClassification
 
         logger.info(f"Loading violence detection model from {model_path}")
+
+        # Validate local model path has required files when directory exists
+        # (only fires in container where /models/model-zoo/ is mounted;
+        # unit tests with fake paths skip this check gracefully)
+        if Path(model_path).is_dir():
+            preprocessor_path = str(Path(model_path) / "preprocessor_config.json")
+            if not Path(preprocessor_path).is_file():
+                available = [
+                    f.name for f in Path(model_path).iterdir() if not f.name.startswith(".")
+                ]
+                raise RuntimeError(
+                    f"Violence detection model missing preprocessor_config.json at {model_path}. "
+                    f"Available files: {available}. Model may need re-downloading."
+                )
 
         loop = asyncio.get_running_loop()
 

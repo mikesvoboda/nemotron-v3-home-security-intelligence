@@ -70,6 +70,30 @@ REQUIRED_MODELS: list[ModelSpec] = [
 # Optional enrichment models (Phase 1 - Core)
 PHASE1_MODELS: list[ModelSpec] = [
     ModelSpec(
+        name="yolo11-face-detection",
+        hf_repo="AdamCodd/YOLOv11n-face-detection",
+        phase=1,
+        size_mb=11,
+        description="YOLO11 face detection on person crops",
+        required=False,
+    ),
+    ModelSpec(
+        name="yolo11-license-plate",
+        hf_repo="morsetechlab/yolov11-license-plate-detection",
+        phase=1,
+        size_mb=650,
+        description="YOLO11 license plate detection (multiple variants)",
+        required=False,
+    ),
+    ModelSpec(
+        name="smoke-fire-yolov8n",
+        hf_repo="luminous0219/fire-and-smoke-detection-yolov8",
+        phase=1,
+        size_mb=25,
+        description="Smoke/fire detection (CRITICAL safety model)",
+        required=False,
+    ),
+    ModelSpec(
         name="depth-anything-v2-small",
         hf_repo="depth-anything/Depth-Anything-V2-Small-hf",
         phase=1,

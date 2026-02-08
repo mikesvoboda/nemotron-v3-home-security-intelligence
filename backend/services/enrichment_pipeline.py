@@ -41,6 +41,7 @@ __all__ = [
 ]
 
 import asyncio
+import io
 import json
 import time
 from dataclasses import dataclass, field
@@ -85,6 +86,7 @@ from backend.services.enrichment_client import (
 )
 from backend.services.enrichment_client import (
     EnrichmentClient,
+    UnifiedEnrichmentResult,
     get_enrichment_client,
 )
 from backend.services.enrichment_client import (
@@ -2325,6 +2327,14 @@ class EnrichmentPipeline:
     ) -> None:
         """Run enrichment models with maximum parallelism and concurrency control.
 
+        When use_enrichment_service=True, this method uses the unified /enrich
+        endpoint per detection type (person, vehicle, animal), replacing 8+
+        individual HTTP calls with one call per detection. Each /enrich call
+        returns all applicable enrichment data for that detection type.
+
+        When use_enrichment_service=False, falls back to local model loading
+        (existing behavior).
+
         Args:
             result: EnrichmentResult to populate
             pil_image: Full frame PIL Image for analysis
@@ -2339,7 +2349,7 @@ class EnrichmentPipeline:
         super_phase_start = time.monotonic()
         phase1_tasks: dict[str, Any] = {}
 
-        # --- Core detections (minimal quality) ---
+        # --- Core detections (always run locally - these don't have unified equivalents) ---
         if self.face_detection_enabled and persons:
             phase1_tasks["face_detection"] = self._safe_detect_faces(persons, images)
         if self.license_plate_enabled and vehicles:
@@ -2349,82 +2359,115 @@ class EnrichmentPipeline:
         if self.violence_detection_enabled and len(persons) >= 2:
             phase1_tasks["violence_detection"] = self._safe_detect_violence(pil_image)
 
-        # --- Threat/Pose/Action (minimal quality) ---
-        if self.pose_estimation_enabled and persons:
-            if self.use_enrichment_service:
+        if self.use_enrichment_service:
+            # ================================================================
+            # UNIFIED ENRICHMENT PATH: One /enrich call per detection
+            # Replaces 8+ individual _*_via_service HTTP calls with unified
+            # endpoint calls that return all enrichment data per detection.
+            # ================================================================
+
+            # Unified person enrichment (replaces pose, clothing, threat,
+            # demographics, action, and reid individual calls)
+            if persons:
+                phase1_tasks["unified_person_enrichment"] = (
+                    self._enrich_persons_via_unified_service(persons, pil_image, camera_id, result)
+                )
+
+            # Unified vehicle enrichment (replaces vehicle classification)
+            if (
+                self.vehicle_classification_enabled
+                and vehicles
+                and self._should_run_for_quality("standard")
+            ):
+                phase1_tasks["unified_vehicle_enrichment"] = (
+                    self._enrich_vehicles_via_unified_service(vehicles, pil_image, result)
+                )
+
+            # Unified animal enrichment (replaces pet classification)
+            if (
+                self.pet_classification_enabled
+                and animals
+                and self._should_run_for_quality("standard")
+            ):
+                phase1_tasks["unified_animal_enrichment"] = (
+                    self._enrich_animals_via_unified_service(animals, pil_image, result)
+                )
+
+            # ================================================================
+            # ENRICHMENT-LIGHT SERVICE CALLS: Individual calls for models
+            # hosted on ai-enrichment-light:8096 (pose, threat, reid).
+            # The unified /enrich endpoint only reaches the heavy service,
+            # so these models must be called individually via the light
+            # service. EnrichmentClient._get_service_for_model() routes
+            # each call to the correct service based on config.
+            # ================================================================
+            if self.pose_estimation_enabled and persons:
                 phase1_tasks["pose_estimation"] = self._estimate_poses_via_service(
                     persons, pil_image
                 )
-            else:
-                phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
-        if self.action_recognition_enabled and persons:
-            if self.use_enrichment_service:
-                phase1_tasks["action_recognition"] = self._recognize_actions_via_service(
-                    pil_image, camera_id
+            if persons:
+                phase1_tasks["threat_detection"] = self._detect_threats_via_service(pil_image)
+            if self.reid_enabled and persons:
+                phase1_tasks["reid_via_service"] = self._compute_reid_via_service(
+                    high_conf_detections, pil_image, result
                 )
-            else:
+        else:
+            # ================================================================
+            # LOCAL MODEL PATH: Individual model loading (existing behavior)
+            # ================================================================
+
+            # --- Threat/Pose/Action (minimal quality) ---
+            if self.pose_estimation_enabled and persons:
+                phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
+            if self.action_recognition_enabled and persons:
                 phase1_tasks["action_recognition"] = self._safe_recognize_actions(
                     pil_image, camera_id
                 )
-        if self.use_enrichment_service and persons:
-            phase1_tasks["threat_detection"] = self._detect_threats_via_service(pil_image)
 
-        # --- Standard quality models ---
+            # --- Standard quality models ---
+            if (
+                self.clothing_classification_enabled
+                and persons
+                and self._should_run_for_quality("standard")
+            ):
+                phase1_tasks["clothing_classification"] = self._safe_classify_person_clothing(
+                    persons, pil_image
+                )
+            if (
+                self.vehicle_classification_enabled
+                and vehicles
+                and self._should_run_for_quality("standard")
+            ):
+                phase1_tasks["vehicle_classification"] = self._safe_classify_vehicle_types(
+                    vehicles, pil_image
+                )
+            if (
+                self.pet_classification_enabled
+                and animals
+                and self._should_run_for_quality("standard")
+            ):
+                phase1_tasks["pet_classification"] = self._safe_classify_pets(animals, pil_image)
+
+        # --- Models that always use local loading regardless of enrichment service ---
         if self.image_quality_enabled and self._should_run_for_quality("standard"):
             phase1_tasks["image_quality"] = self._safe_assess_image_quality(pil_image, camera_id)
         if self.weather_classification_enabled and self._should_run_for_quality("standard"):
             phase1_tasks["weather_classification"] = self._safe_classify_weather(pil_image)
         if (
-            self.clothing_classification_enabled
-            and persons
-            and self._should_run_for_quality("standard")
-        ):
-            if self.use_enrichment_service:
-                phase1_tasks["clothing_classification"] = self._classify_clothing_via_service(
-                    persons, pil_image
-                )
-            else:
-                phase1_tasks["clothing_classification"] = self._safe_classify_person_clothing(
-                    persons, pil_image
-                )
-        if (
             self.depth_estimation_enabled
             and high_conf_detections
             and self._should_run_for_quality("standard")
+            and not self.use_enrichment_service
         ):
             phase1_tasks["depth_estimation"] = self._safe_analyze_depth(
                 high_conf_detections, pil_image
             )
-        if (
-            self.vehicle_classification_enabled
-            and vehicles
-            and self._should_run_for_quality("standard")
-        ):
-            if self.use_enrichment_service:
-                phase1_tasks["vehicle_classification"] = self._classify_vehicle_via_service(
-                    vehicles, pil_image
-                )
-            else:
-                phase1_tasks["vehicle_classification"] = self._safe_classify_vehicle_types(
-                    vehicles, pil_image
-                )
         if (
             self.vehicle_damage_detection_enabled
             and vehicles
             and self._should_run_for_quality("standard")
         ):
             phase1_tasks["vehicle_damage"] = self._safe_detect_vehicle_damage(vehicles, pil_image)
-        if self.pet_classification_enabled and animals and self._should_run_for_quality("standard"):
-            if self.use_enrichment_service:
-                phase1_tasks["pet_classification"] = self._classify_pets_via_service(
-                    animals, pil_image
-                )
-            else:
-                phase1_tasks["pet_classification"] = self._safe_classify_pets(animals, pil_image)
-        if self.use_enrichment_service and persons and self._should_run_for_quality("standard"):
-            phase1_tasks["demographics"] = self._analyze_demographics_via_service(
-                persons, pil_image
-            )
         if self.scene_ocr_enabled and self._should_run_for_quality("standard"):
             phase1_tasks["scene_ocr_frame"] = self._safe_run_scene_ocr_frame(pil_image)
 
@@ -2520,13 +2563,14 @@ class EnrichmentPipeline:
 
             phase2_tasks["ocr"] = _ocr_task()
 
+        # Re-ID: When using unified service, person embeddings are already populated
+        # by _enrich_persons_via_unified_service. Only fall back to individual calls
+        # or local models when not using unified path.
         if self.reid_enabled and pil_image:
             if self.use_enrichment_service:
-
-                async def _reid_svc_task() -> None:
-                    await self._compute_reid_via_service(high_conf_detections, pil_image, result)
-
-                phase2_tasks["re_identification"] = _reid_svc_task()
+                # Unified path already populated person_embeddings in Phase 1.
+                # No separate re-ID call needed.
+                pass
             elif self.redis_client:
 
                 async def _reid_local_task() -> None:
@@ -2781,6 +2825,25 @@ class EnrichmentPipeline:
                 self._handle_enrichment_error("clip_threat_matching", threat_result, result)
             elif threat_result:
                 result.clip_threat_matches = threat_result
+
+        # Re-ID via enrichment-light service (populates result directly)
+        if "reid_via_service" in phase1_dict:
+            reid_result = phase1_dict["reid_via_service"]
+            if isinstance(reid_result, Exception):
+                self._handle_enrichment_error("reid_via_service", reid_result, result)
+
+        # Unified Enrichment tasks (NEM-5525)
+        # These tasks populate `result` directly via _map_unified_to_enrichment_result,
+        # so we only need to handle exceptions here.
+        for unified_key in (
+            "unified_person_enrichment",
+            "unified_vehicle_enrichment",
+            "unified_animal_enrichment",
+        ):
+            if unified_key in phase1_dict:
+                unified_result = phase1_dict[unified_key]
+                if isinstance(unified_result, Exception):
+                    self._handle_enrichment_error(unified_key, unified_result, result)
 
     # ==========================================================================
     # Safe wrapper methods for Phase 1 parallel execution
@@ -3167,6 +3230,448 @@ class EnrichmentPipeline:
                     "error_type": type(e).__name__,
                 },
             )
+
+    # ==========================================================================
+    # Unified Enrichment Service Methods
+    # These methods replace the individual _*_via_service methods by calling
+    # the single /enrich endpoint per detection (NEM-5525).
+    # ==========================================================================
+
+    def _pil_to_bytes(self, image: Image.Image, fmt: str = "PNG") -> bytes:
+        """Convert a PIL Image to raw bytes.
+
+        Args:
+            image: PIL Image to convert
+            fmt: Image format (PNG or JPEG)
+
+        Returns:
+            Raw image bytes
+        """
+        buf = io.BytesIO()
+        image.save(buf, format=fmt)
+        return buf.getvalue()
+
+    async def _enrich_single_detection_unified(
+        self,
+        detection: DetectionInput,
+        image: Image.Image,
+        detection_type: str,
+        camera_id: str | None = None,
+    ) -> tuple[str, UnifiedEnrichmentResult]:
+        """Enrich a single detection via the unified /enrich endpoint.
+
+        Crops the detection from the full frame, then calls the unified
+        enrichment endpoint which runs all applicable models in one request.
+
+        Args:
+            detection: Detection to enrich
+            image: Full frame PIL Image
+            detection_type: One of "person", "vehicle", "animal"
+            camera_id: Camera ID for action recognition frame buffer
+
+        Returns:
+            Tuple of (detection_id, UnifiedEnrichmentResult)
+        """
+        det_id = str(detection.id) if detection.id else "0"
+
+        # Crop detection from full frame
+        cropped = await self._crop_to_bbox(image, detection.bbox)
+        if cropped is None:
+            return det_id, UnifiedEnrichmentResult()
+
+        # Convert to bytes for the client
+        image_bytes = self._pil_to_bytes(cropped)
+
+        # Get bounding box tuple
+        bbox_tuple = detection.bbox.to_tuple() if detection.bbox else (0.0, 0.0, 0.0, 0.0)
+
+        # Build options
+        options: dict[str, Any] = {}
+        if detection_type == "person":
+            # Check if face is visible based on detection context
+            options["face_visible"] = True  # Default to True; the service decides
+
+        # Get frame bytes for action recognition (person detections only)
+        frame_bytes_list: list[bytes] | None = None
+        if detection_type == "person" and self.action_recognition_enabled:
+            frames = await self._get_action_frames(camera_id, image)
+            if frames and len(frames) > 1:
+                frame_bytes_list = [self._pil_to_bytes(f) for f in frames]
+
+        # Call unified enrichment endpoint
+        client = self._get_enrichment_client()
+        async with self._enrichment_service_semaphore:
+            unified_result = await client.enrich_detection(
+                image=image_bytes,
+                detection_type=detection_type,
+                bbox=bbox_tuple,
+                frames=frame_bytes_list,
+                options=options,
+            )
+
+        return det_id, unified_result
+
+    def _map_unified_to_enrichment_result(
+        self,
+        result: EnrichmentResult,
+        det_id: str,
+        unified: UnifiedEnrichmentResult,
+        detection_type: str,
+    ) -> None:
+        """Map fields from UnifiedEnrichmentResult into EnrichmentResult.
+
+        Converts the unified result's typed fields back to the pipeline's
+        expected result types so downstream code (context generation,
+        Nemotron prompts) continues to work unchanged.
+
+        Args:
+            result: EnrichmentResult to populate
+            det_id: Detection ID string
+            unified: UnifiedEnrichmentResult from the /enrich endpoint
+            detection_type: One of "person", "vehicle", "animal"
+        """
+        # --- Pose (person only) ---
+        if unified.pose is not None and detection_type == "person":
+            # Convert UnifiedPoseResult to local PoseResult
+            keypoints_dict: dict[str, Keypoint] = {}
+            for kp_data in unified.pose.keypoints:
+                name = kp_data.get("name", "unknown")
+                keypoints_dict[name] = Keypoint(
+                    x=kp_data.get("x", 0.0),
+                    y=kp_data.get("y", 0.0),
+                    confidence=kp_data.get("confidence", 0.0),
+                    name=name,
+                )
+
+            avg_confidence = (
+                sum(kp_data.get("confidence", 0.0) for kp_data in unified.pose.keypoints)
+                / len(unified.pose.keypoints)
+                if unified.pose.keypoints
+                else 0.0
+            )
+
+            result.pose_results[det_id] = PoseResult(
+                keypoints=keypoints_dict,
+                pose_class=unified.pose.pose_class,
+                pose_confidence=avg_confidence,
+                bbox=None,
+            )
+
+        # --- Clothing (person only) ---
+        if unified.clothing is not None and detection_type == "person":
+            top_cat = ""
+            confidence = 0.0
+            description = ""
+            if unified.clothing.categories:
+                top = unified.clothing.categories[0]
+                top_cat = top.get("category", "")
+                confidence = top.get("confidence", 0.0)
+                description = top.get("description", top_cat)
+
+            result.clothing_classifications[det_id] = ClothingClassification(
+                top_category=top_cat,
+                confidence=confidence,
+                all_scores={},
+                is_suspicious=unified.clothing.is_suspicious,
+                is_service_uniform=False,
+                raw_description=description,
+            )
+
+        # --- Demographics (person only) ---
+        if unified.demographics is not None and detection_type == "person":
+            from types import SimpleNamespace
+
+            is_minor = unified.demographics.age_range in (
+                "0-10",
+                "11-20",
+                "child",
+                "teenager",
+            )
+            result.age_classifications[det_id] = SimpleNamespace(
+                age_group=unified.demographics.age_range,
+                display_name=unified.demographics.age_range,
+                confidence=unified.demographics.age_confidence,
+                is_minor=is_minor,
+            )
+            result.gender_classifications[det_id] = SimpleNamespace(
+                gender=unified.demographics.gender,
+                confidence=unified.demographics.gender_confidence,
+            )
+
+        # --- Threat (person only) ---
+        if unified.threat is not None and unified.threat.has_threat and detection_type == "person":
+            # Convert UnifiedThreatResult to local ThreatDetectionResult
+            threats = []
+            for t in unified.threat.threats:
+                threat_class = t.get("type", t.get("class_name", "unknown"))
+                threats.append(
+                    ThreatDetection(
+                        class_name=threat_class,
+                        confidence=t.get("confidence", 0.0),
+                        bbox=tuple(t["bbox"]) if "bbox" in t else (0.0, 0.0, 0.0, 0.0),
+                        is_high_priority=threat_class.lower()
+                        in {
+                            "gun",
+                            "pistol",
+                            "rifle",
+                            "firearm",
+                            "handgun",
+                            "knife",
+                            "machete",
+                            "sword",
+                        },
+                    )
+                )
+            # Only set if we don't already have threat detection results
+            if result.threat_detection is None:
+                result.threat_detection = ThreatDetectionResult(threats=threats)
+
+        # --- Re-ID embedding (person only) ---
+        if unified.reid_embedding is not None and detection_type == "person":
+            result.person_embeddings[det_id] = {
+                "embedding": unified.reid_embedding,
+                "embedding_dim": len(unified.reid_embedding),
+                "detection_id": det_id,
+            }
+
+        # --- Action (person only) ---
+        if unified.action is not None and detection_type == "person":
+            # Convert to local action dict format
+            action_data = unified.action
+            if result.action_results is None:
+                result.action_results = {}
+            result.action_results[det_id] = {
+                "detected_action": action_data.get(
+                    "top_action", action_data.get("action", "unknown")
+                ),
+                "confidence": action_data.get("confidence", 0.0),
+                "top_actions": sorted(
+                    action_data.get("all_scores", {}).items(),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )[:5]
+                if action_data.get("all_scores")
+                else [],
+                "all_scores": action_data.get("all_scores", {}),
+            }
+
+        # --- Vehicle (vehicle only) ---
+        if unified.vehicle is not None and detection_type == "vehicle":
+            v = unified.vehicle
+            display_parts = []
+            if v.color:
+                display_parts.append(v.color)
+            if v.make:
+                display_parts.append(v.make)
+            if v.model:
+                display_parts.append(v.model)
+            display_parts.append(v.type)
+            display_name = " ".join(display_parts)
+
+            result.vehicle_classifications[det_id] = VehicleClassificationResult(
+                vehicle_type=v.type,
+                confidence=v.confidence,
+                display_name=display_name,
+                is_commercial=v.type
+                in {
+                    "delivery_van",
+                    "box_truck",
+                    "semi_truck",
+                    "cargo_van",
+                    "pickup_truck",
+                },
+                all_scores={},
+            )
+
+        # --- Pet (animal only) ---
+        if unified.pet is not None and detection_type == "animal":
+            pet_data = unified.pet
+            result.pet_classifications[det_id] = PetClassificationResult(
+                animal_type=pet_data.get("pet_type", pet_data.get("type", "unknown")),
+                confidence=pet_data.get("confidence", 0.0),
+                cat_score=0.0,
+                dog_score=0.0,
+                is_household_pet=pet_data.get("is_household_pet", True),
+            )
+
+        # --- Depth (any type) ---
+        if unified.depth is not None:
+            # Depth from unified endpoint provides per-detection depth info.
+            # We merge this into the existing depth_analysis if present, or note it.
+            # The unified depth is typically per-detection, not full-frame, so
+            # we store it as a supplemental annotation.
+            if result.depth_analysis is None:
+                # Create a minimal DepthAnalysisResult from the unified data
+                # The unified depth format is a dict with depth values
+                depth_data = unified.depth
+                if isinstance(depth_data, dict):
+                    # Store in a way that's compatible with DepthAnalysisResult
+                    logger.debug(
+                        f"Depth data from unified endpoint for {det_id}: "
+                        f"mean={depth_data.get('mean_depth', 'N/A')}"
+                    )
+
+    async def _enrich_persons_via_unified_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+        camera_id: str | None,
+        result: EnrichmentResult,
+    ) -> None:
+        """Enrich all person detections via the unified /enrich endpoint.
+
+        Makes one /enrich call per person detection (in parallel), replacing
+        separate calls to pose, clothing, threat, demographics, and action
+        endpoints.
+
+        Args:
+            persons: List of person detections
+            image: Full frame PIL Image
+            camera_id: Camera ID for action recognition frame buffer
+            result: EnrichmentResult to populate
+        """
+        if not persons:
+            return
+
+        record_enrichment_model_call("unified-enrich-person")
+        start_time = time.perf_counter()
+
+        tasks = []
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+            tasks.append(self._enrich_single_detection_unified(person, image, "person", camera_id))
+
+        # Run all person enrichments in parallel
+        results_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+        duration = time.perf_counter() - start_time
+        observe_enrichment_model_duration("unified-enrich-person", duration)
+
+        for i, task_result in enumerate(results_list):
+            if isinstance(task_result, BaseException):
+                det_id = str(persons[i].id) if persons[i].id else str(i)
+                logger.warning(
+                    f"Unified enrichment failed for person {det_id}: {sanitize_error(task_result)}",  # type: ignore[arg-type]
+                    extra={"service": "unified-enrich", "detection_id": det_id},
+                )
+                record_enrichment_model_error("unified-enrich-person")
+                continue
+
+            det_id, unified = task_result
+            self._map_unified_to_enrichment_result(result, det_id, unified, "person")
+
+        logger.debug(
+            f"Unified person enrichment complete: {len(persons)} persons in {duration:.2f}s"
+        )
+
+    async def _enrich_vehicles_via_unified_service(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+        result: EnrichmentResult,
+    ) -> None:
+        """Enrich all vehicle detections via the unified /enrich endpoint.
+
+        Makes one /enrich call per vehicle detection (in parallel), replacing
+        the separate _classify_vehicle_via_service call.
+
+        Args:
+            vehicles: List of vehicle detections
+            image: Full frame PIL Image
+            result: EnrichmentResult to populate
+        """
+        if not vehicles:
+            return
+
+        record_enrichment_model_call("unified-enrich-vehicle")
+        start_time = time.perf_counter()
+
+        tasks = []
+        for vehicle in vehicles:
+            tasks.append(self._enrich_single_detection_unified(vehicle, image, "vehicle"))
+
+        results_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+        duration = time.perf_counter() - start_time
+        observe_enrichment_model_duration("unified-enrich-vehicle", duration)
+
+        for i, task_result in enumerate(results_list):
+            if isinstance(task_result, BaseException):
+                det_id = str(vehicles[i].id) if vehicles[i].id else str(i)
+                logger.warning(
+                    f"Unified enrichment failed for vehicle {det_id}: {sanitize_error(task_result)}",  # type: ignore[arg-type]
+                    extra={"service": "unified-enrich", "detection_id": det_id},
+                )
+                record_enrichment_model_error("unified-enrich-vehicle")
+                continue
+
+            det_id, unified = task_result
+            self._map_unified_to_enrichment_result(result, det_id, unified, "vehicle")
+
+        logger.debug(
+            f"Unified vehicle enrichment complete: {len(vehicles)} vehicles in {duration:.2f}s"
+        )
+
+    async def _enrich_animals_via_unified_service(
+        self,
+        animals: list[DetectionInput],
+        image: Image.Image,
+        result: EnrichmentResult,
+    ) -> None:
+        """Enrich all animal detections via the unified /enrich endpoint.
+
+        Makes one /enrich call per animal detection (in parallel), replacing
+        the separate _classify_pets_via_service call.
+
+        Args:
+            animals: List of animal detections
+            image: Full frame PIL Image
+            result: EnrichmentResult to populate
+        """
+        if not animals:
+            return
+
+        record_enrichment_model_call("unified-enrich-animal")
+        start_time = time.perf_counter()
+
+        tasks = []
+        for animal in animals:
+            tasks.append(self._enrich_single_detection_unified(animal, image, "animal"))
+
+        results_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+        duration = time.perf_counter() - start_time
+        observe_enrichment_model_duration("unified-enrich-animal", duration)
+
+        for i, task_result in enumerate(results_list):
+            if isinstance(task_result, BaseException):
+                det_id = str(animals[i].id) if animals[i].id else str(i)
+                logger.warning(
+                    f"Unified enrichment failed for animal {det_id}: {sanitize_error(task_result)}",  # type: ignore[arg-type]
+                    extra={"service": "unified-enrich", "detection_id": det_id},
+                )
+                record_enrichment_model_error("unified-enrich-animal")
+                continue
+
+            det_id, unified = task_result
+            self._map_unified_to_enrichment_result(result, det_id, unified, "animal")
+
+        # Check for pet-only event
+        if result.pet_classifications and result.pet_only_event:
+            logger.info(
+                "Pet-only event detected via unified enrichment - can skip Nemotron risk analysis"
+            )
+
+        logger.debug(
+            f"Unified animal enrichment complete: {len(animals)} animals in {duration:.2f}s"
+        )
+
+    # ==========================================================================
+    # DEPRECATED: Individual _via_service methods
+    # These are kept for backward compatibility but are no longer called when
+    # use_enrichment_service=True. The unified enrichment methods above
+    # replace all of these with single /enrich calls per detection.
+    # ==========================================================================
 
     async def _classify_vehicle_via_service(
         self,

@@ -17725,20 +17725,13 @@ export interface components {
          *           "deviation_pct": 1.2,
          *           "is_drifting": false,
          *           "target_pct": 10,
-         *           "tier": "elevated"
+         *           "tier": "medium"
          *         },
          *         {
-         *           "actual_pct": 3.1,
-         *           "deviation_pct": 0.1,
+         *           "actual_pct": 4.3,
+         *           "deviation_pct": 0.3,
          *           "is_drifting": false,
-         *           "target_pct": 3,
-         *           "tier": "moderate"
-         *         },
-         *         {
-         *           "actual_pct": 1.2,
-         *           "deviation_pct": 0.2,
-         *           "is_drifting": false,
-         *           "target_pct": 1,
+         *           "target_pct": 4,
          *           "tier": "high"
          *         },
          *         {

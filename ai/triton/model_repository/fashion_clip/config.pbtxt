@@ -1,0 +1,50 @@
+# FashionSigLIP Clothing Classification - ONNX Runtime (vision encoder)
+# Input: preprocessed image (B, 3, 224, 224) FP32
+# Output: image embedding (B, 768) FP32
+# Source: ai/enrichment/model.py ClothingClassifier (open_clip)
+#
+# Runs on CPU to avoid OOM on RTX A400 (4GB VRAM).
+# At 354 MB the model is small enough for CPU inference with acceptable
+# latency, and this frees GPU memory for the larger CLIP model (1159 MB).
+
+name: "fashion_clip"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "pixel_values"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]
+  }
+]
+
+output [
+  {
+    name: "embedding"
+    data_type: TYPE_FP32
+    dims: [ 768 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+parameters {
+  key: "intra_op_thread_count"
+  value: { string_value: "4" }
+}
+
+parameters {
+  key: "execution_mode"
+  value: { string_value: "1" }
+}
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4 ]
+  max_queue_delay_microseconds: 200
+}

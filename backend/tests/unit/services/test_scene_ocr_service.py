@@ -460,7 +460,7 @@ class TestSceneOCRService:
         """Create a SceneOCRService instance for testing."""
         reset_scene_ocr_service()
         return SceneOCRService(
-            enrichment_url="http://test-enrichment:8094",
+            florence_url="http://test-florence:8092",
             enabled=True,
         )
 
@@ -489,7 +489,7 @@ class TestSceneOCRService:
 
     def test_service_initialization(self, service: SceneOCRService) -> None:
         """Test service initializes with correct parameters."""
-        assert service.enrichment_url == "http://test-enrichment:8094"
+        assert service.florence_url == "http://test-florence:8092"
         assert service.enabled is True
         assert service.service_matcher is not None
 
@@ -512,7 +512,7 @@ class TestSceneOCRService:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "texts": [
+            "regions": [
                 {"text": "123", "confidence": 0.88, "bbox": [50, 20, 90, 45]},
                 {"text": "STOP", "confidence": 0.96, "bbox": [600, 30, 680, 110]},
             ]
@@ -539,7 +539,7 @@ class TestSceneOCRService:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "texts": [
+            "regions": [
                 {"text": "GOOD", "confidence": 0.85, "bbox": [0, 0, 10, 10]},
                 {"text": "BAD", "confidence": 0.30, "bbox": [0, 0, 10, 10]},  # Below threshold
                 {"text": "UNCERTAIN", "confidence": 0.60, "bbox": [0, 0, 10, 10]},
@@ -597,7 +597,7 @@ class TestSceneOCRService:
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"texts": []}
+        mock_response.json.return_value = {"regions": []}
 
         with patch.object(service, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
@@ -625,7 +625,7 @@ class TestSceneOCRService:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "texts": [
+            "regions": [
                 # Coordinates relative to crop
                 {"text": "FedEx", "confidence": 0.94, "bbox": [50, 100, 150, 130]},
             ]
@@ -799,10 +799,11 @@ class TestSceneOCRService:
     ) -> None:
         """Test full process_frame integration with mocked HTTP."""
         # Mock responses for frame and crop OCR
+        # Florence /ocr-with-regions returns {"regions": [...]}
         frame_response = MagicMock()
         frame_response.status_code = 200
         frame_response.json.return_value = {
-            "texts": [
+            "regions": [
                 {"text": "123", "confidence": 0.88, "bbox": [10, 10, 50, 40]},
                 {"text": "FedEx", "confidence": 0.90, "bbox": [150, 200, 250, 230]},
             ]
@@ -811,19 +812,24 @@ class TestSceneOCRService:
         crop_response = MagicMock()
         crop_response.status_code = 200
         crop_response.json.return_value = {
-            "texts": [
+            "regions": [
                 {"text": "FedEx Ground", "confidence": 0.94, "bbox": [50, 150, 150, 180]},
             ]
         }
 
         with patch.object(service, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
+            # Default to frame_response, the first call is always the frame OCR
             mock_client.post.return_value = frame_response
 
-            # Return different responses for frame vs crop
+            # All calls go to the same Florence /ocr-with-regions endpoint;
+            # differentiate by call order (first = frame, rest = crops)
+            call_count = 0
+
             async def mock_post(url: str, **kwargs: object) -> MagicMock:
-                json_data = kwargs.get("json", {})
-                if json_data.get("mode") == "full_frame":
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
                     return frame_response
                 return crop_response
 

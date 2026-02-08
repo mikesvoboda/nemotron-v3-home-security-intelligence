@@ -123,11 +123,8 @@ from backend.services.prompt_sanitizer import (
     sanitize_detection_description,
 )
 from backend.services.prompts import (
-    ENRICHED_RISK_ANALYSIS_PROMPT,
-    FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
     MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
     RISK_ANALYSIS_PROMPT,
-    VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
     format_action_recognition_context,
     format_age_classification_context,
     format_camera_health_context,
@@ -3710,49 +3707,32 @@ class NemotronAnalyzer:
         camera_name = sanitize_camera_name(camera_name)
         detections_list = sanitize_detection_description(detections_list)
 
-        # Format the prompt based on available context
+        # Simplified template selection (NEM-5525 consolidation):
+        # Only 2 templates: MODEL_ZOO_ENHANCED (always when any context available)
+        # and BASIC (fallback when zero context). The format functions all handle
+        # None/empty gracefully, producing empty strings for missing data.
         has_enriched_context = (
             enriched_context is not None and enriched_context.baselines is not None
-        )
-        has_enrichment_result = enrichment_result is not None and (
-            enrichment_result.has_license_plates or enrichment_result.has_faces
-        )
-        has_vision_extraction = (
-            enrichment_result is not None and enrichment_result.has_vision_extraction
-        )
-
-        # Check for full model zoo enrichment (clothing, violence, vehicle analysis, CLIP, etc.)
-        has_model_zoo_enrichment = enrichment_result is not None and (
-            enrichment_result.has_violence
-            or enrichment_result.has_clothing_classifications
-            or enrichment_result.has_vehicle_classifications
-            or enrichment_result.has_vehicle_damage
-            or enrichment_result.has_pet_classifications
-            or enrichment_result.has_image_quality
-            or enrichment_result.has_clip_analysis
         )
 
         # Track which template is used for metrics
         template_name: str = "basic"  # Default, will be overwritten
 
-        if has_model_zoo_enrichment and has_enriched_context:
-            # Use MODEL_ZOO_ENHANCED prompt with full enrichment from all models
+        if has_enriched_context or enrichment_result is not None:
+            # Use MODEL_ZOO_ENHANCED prompt — format functions handle missing data gracefully
             template_name = "model_zoo"
             from backend.services.reid_service import format_full_reid_context
             from backend.services.vision_extractor import (
                 format_scene_analysis,
             )
 
-            assert enriched_context is not None
-            assert enriched_context.baselines is not None
-            assert enrichment_result is not None
-
             enricher = self._get_context_enricher()
 
             # Determine time of day from environment context or vision extraction
             time_of_day = "day"
             if (
-                enrichment_result.vision_extraction
+                enrichment_result is not None
+                and enrichment_result.vision_extraction
                 and enrichment_result.vision_extraction.environment_context
             ):
                 time_of_day = enrichment_result.vision_extraction.environment_context.time_of_day
@@ -3760,7 +3740,8 @@ class NemotronAnalyzer:
             # Format scene analysis
             scene_text = "No scene analysis available."
             if (
-                enrichment_result.vision_extraction
+                enrichment_result is not None
+                and enrichment_result.vision_extraction
                 and enrichment_result.vision_extraction.scene_analysis
             ):
                 scene_text = format_scene_analysis(
@@ -3769,202 +3750,160 @@ class NemotronAnalyzer:
 
             # Format re-id context
             reid_text = format_full_reid_context(
-                enrichment_result.person_reid_matches,
-                enrichment_result.vehicle_reid_matches,
+                enrichment_result.person_reid_matches if enrichment_result else None,
+                enrichment_result.vehicle_reid_matches if enrichment_result else None,
             )
+
+            # Build detections with all enrichment — handles None enrichment_result gracefully
+            if enrichment_result is not None and enrichment_result.vision_extraction:
+                detections_with_all_text = format_detections_with_all_enrichment(
+                    [],
+                    enrichment_result,
+                    enrichment_result.vision_extraction,
+                )
+            elif enrichment_result is not None:
+                detections_with_all_text = enrichment_result.to_context_string()
+            else:
+                detections_with_all_text = detections_list
+
+            # Build violence context — format_violence_context returns "" for marginal tier
+            violence_text = (
+                format_violence_context(enrichment_result.violence_detection)
+                if enrichment_result is not None
+                else "Violence analysis: Not performed"
+            )
+
+            # Build pose analysis context
+            pose_data = None
+            if enrichment_result is not None and enrichment_result.pose_results:
+                pose_data = {
+                    det_id: {
+                        "classification": pose.pose_class,
+                        "confidence": pose.pose_confidence,
+                    }
+                    for det_id, pose in enrichment_result.pose_results.items()
+                }
+
+            # Build action recognition context
+            action_data = None
+            if enrichment_result is not None and enrichment_result.action_results:
+                action_data = {"0": enrichment_result.action_results}
+
+            # Build on-demand enrichment context
+            ondemand_text = (
+                self._build_ondemand_enrichment_context(enrichment_result)
+                if enrichment_result is not None
+                else ""
+            )
+
+            # Build cross-camera person tracking context
+            cross_camera_tracking_text = format_cross_camera_person_tracking(
+                person_reid_matches=(
+                    enrichment_result.person_reid_matches if enrichment_result else None
+                ),
+                vehicle_reid_matches=(
+                    enrichment_result.vehicle_reid_matches if enrichment_result else None
+                ),
+                current_camera_id=(enriched_context.camera_id if enriched_context else None),
+                zone_context=(enriched_context.zones if enriched_context else None),
+            )
+
+            # Use baselines if enriched_context is available, otherwise use safe defaults
+            if enriched_context is not None and enriched_context.baselines is not None:
+                day_of_week = enriched_context.baselines.day_of_week
+                zone_analysis = enricher.format_zone_analysis(enriched_context.zones)
+                baseline_comparison = enricher.format_baseline_comparison(
+                    enriched_context.baselines
+                )
+                deviation_score = f"{enriched_context.baselines.deviation_score:.2f}"
+                cross_camera_summary = enricher.format_cross_camera_summary(
+                    enriched_context.cross_camera
+                )
+            else:
+                day_of_week = "Unknown"
+                zone_analysis = "Zone analysis: Not available"
+                baseline_comparison = "Baseline comparison: Not available"
+                deviation_score = "0.00"
+                cross_camera_summary = "Cross-camera activity: Not available"
 
             # Format all model zoo enrichment contexts
             prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.format(
                 camera_name=camera_name,
                 timestamp=f"{start_time} to {end_time}",
-                day_of_week=enriched_context.baselines.day_of_week,
+                day_of_week=day_of_week,
                 time_of_day=time_of_day,
                 # Environmental context
-                weather_context=format_weather_context(enrichment_result.weather_classification),
-                image_quality_context=format_image_quality_context(
-                    enrichment_result.image_quality,
-                    enrichment_result.quality_change_detected,
-                    enrichment_result.quality_change_description,
+                weather_context=(
+                    format_weather_context(enrichment_result.weather_classification)
+                    if enrichment_result is not None
+                    else "Weather: Unknown (classification unavailable)"
+                ),
+                image_quality_context=(
+                    format_image_quality_context(
+                        enrichment_result.image_quality,
+                        enrichment_result.quality_change_detected,
+                        enrichment_result.quality_change_description,
+                    )
+                    if enrichment_result is not None
+                    else "Image quality: Not assessed"
                 ),
                 # Camera health/tampering context (NEM-3012)
                 camera_health_context=camera_health_context,
                 # Detections with all enrichment
-                detections_with_all_attributes=format_detections_with_all_enrichment(
-                    [],  # Will use enrichment_result.to_context_string() for now
-                    enrichment_result,
-                    enrichment_result.vision_extraction,
-                )
-                if enrichment_result.vision_extraction
-                else enrichment_result.to_context_string(),
+                detections_with_all_attributes=detections_with_all_text,
                 # Confidence quality summary (NEM-5525)
                 confidence_quality_summary=format_confidence_quality_summary(detection_dicts or []),
                 # Violence analysis
-                violence_context=format_violence_context(enrichment_result.violence_detection),
+                violence_context=violence_text,
                 # Behavioral analysis (ViTPose pose estimation, X-CLIP action recognition)
-                pose_analysis=format_pose_analysis_context(
-                    {
-                        det_id: {
-                            "classification": pose.pose_class,
-                            "confidence": pose.pose_confidence,
-                        }
-                        for det_id, pose in enrichment_result.pose_results.items()
-                    }
-                    if enrichment_result.pose_results
-                    else None
-                ),
-                action_recognition=format_action_recognition_context(
-                    {"0": enrichment_result.action_results}
-                    if enrichment_result.action_results
-                    else None
-                ),
+                pose_analysis=format_pose_analysis_context(pose_data),
+                action_recognition=format_action_recognition_context(action_data),
                 # Trajectory analysis (NEM-5532)
-                trajectory_context=format_trajectory_context(enrichment_result.trajectory_analyses),
+                trajectory_context=format_trajectory_context(
+                    enrichment_result.trajectory_analyses if enrichment_result else None
+                ),
                 # Vehicle analysis
                 vehicle_classification_context=format_vehicle_classification_context(
-                    enrichment_result.vehicle_classifications
+                    enrichment_result.vehicle_classifications if enrichment_result else {}
                 ),
                 vehicle_damage_context=format_vehicle_damage_context(
-                    enrichment_result.vehicle_damage,
+                    enrichment_result.vehicle_damage if enrichment_result else {},
                     time_of_day=time_of_day,
                 ),
                 # Person analysis
                 clothing_analysis_context=format_clothing_analysis_context(
-                    enrichment_result.clothing_classifications,
-                    enrichment_result.clothing_segmentation,
+                    enrichment_result.clothing_classifications if enrichment_result else {},
+                    enrichment_result.clothing_segmentation if enrichment_result else None,
                 ),
                 # Pet detection
                 pet_classification_context=format_pet_classification_context(
-                    enrichment_result.pet_classifications
+                    enrichment_result.pet_classifications if enrichment_result else {}
                 ),
                 # Spatial context (Depth Anything V2)
-                depth_context=format_depth_context(enrichment_result.depth_analysis),
+                depth_context=format_depth_context(
+                    enrichment_result.depth_analysis if enrichment_result else None
+                ),
                 # Re-identification
                 reid_context=reid_text,
                 # Cross-camera person tracking narrative (NEM-5525)
-                cross_camera_person_tracking=format_cross_camera_person_tracking(
-                    person_reid_matches=enrichment_result.person_reid_matches,
-                    vehicle_reid_matches=enrichment_result.vehicle_reid_matches,
-                    current_camera_id=enriched_context.camera_id,
-                    zone_context=enriched_context.zones,
-                ),
+                cross_camera_person_tracking=cross_camera_tracking_text,
                 # Zone, baseline, cross-camera
-                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
-                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
-                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
-                cross_camera_summary=enricher.format_cross_camera_summary(
-                    enriched_context.cross_camera
-                ),
+                zone_analysis=zone_analysis,
+                baseline_comparison=baseline_comparison,
+                deviation_score=deviation_score,
+                cross_camera_summary=cross_camera_summary,
                 scene_analysis=scene_text,
                 # On-demand enrichment: age, gender, scene OCR
-                ondemand_enrichment_context=self._build_ondemand_enrichment_context(
-                    enrichment_result
-                ),
+                ondemand_enrichment_context=ondemand_text,
                 # CLIP scene intelligence (NEM-5525)
-                clip_analysis_context=format_clip_analysis_context(enrichment_result),
-            )
-        elif has_vision_extraction and has_enriched_context:
-            # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis
-            template_name = "vision"
-            from backend.services.reid_service import format_full_reid_context
-            from backend.services.vision_extractor import (
-                format_scene_analysis,
-            )
-
-            assert enriched_context is not None
-            assert enriched_context.baselines is not None
-            assert enrichment_result is not None
-            assert enrichment_result.vision_extraction is not None
-
-            enricher = self._get_context_enricher()
-
-            # Determine time of day from environment context
-            time_of_day = "day"
-            if enrichment_result.vision_extraction.environment_context:
-                time_of_day = enrichment_result.vision_extraction.environment_context.time_of_day
-
-            # Format scene analysis
-            scene_text = "No scene analysis available."
-            if enrichment_result.vision_extraction.scene_analysis:
-                scene_text = format_scene_analysis(
-                    enrichment_result.vision_extraction.scene_analysis
-                )
-
-            # Format re-id context
-            reid_text = format_full_reid_context(
-                enrichment_result.person_reid_matches,
-                enrichment_result.vehicle_reid_matches,
-            )
-
-            prompt = VISION_ENHANCED_RISK_ANALYSIS_PROMPT.format(
-                camera_name=camera_name,
-                timestamp=f"{start_time} to {end_time}",
-                day_of_week=enriched_context.baselines.day_of_week,
-                time_of_day=time_of_day,
-                # Camera health/tampering context (NEM-3012)
-                camera_health_context=camera_health_context,
-                detections_with_attributes=enrichment_result.to_context_string(),
-                reid_context=reid_text,
-                # Cross-camera person tracking narrative (NEM-5525)
-                cross_camera_person_tracking=format_cross_camera_person_tracking(
-                    person_reid_matches=enrichment_result.person_reid_matches,
-                    vehicle_reid_matches=enrichment_result.vehicle_reid_matches,
-                    current_camera_id=enriched_context.camera_id,
-                    zone_context=enriched_context.zones,
+                clip_analysis_context=(
+                    format_clip_analysis_context(enrichment_result)
+                    if enrichment_result is not None
+                    else ""
                 ),
-                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
-                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
-                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
-                cross_camera_summary=enricher.format_cross_camera_summary(
-                    enriched_context.cross_camera
-                ),
-                scene_analysis=scene_text,
-            )
-        elif has_enriched_context and has_enrichment_result:
-            # Use full enriched prompt with zone, baseline, cross-camera, and pipeline context
-            template_name = "full_enriched"
-            # These assertions help mypy understand type narrowing
-            assert enriched_context is not None
-            assert enriched_context.baselines is not None
-            assert enrichment_result is not None
-            enricher = self._get_context_enricher()
-            prompt = FULL_ENRICHED_RISK_ANALYSIS_PROMPT.format(
-                camera_name=camera_name,
-                start_time=start_time,
-                end_time=end_time,
-                day_of_week=enriched_context.baselines.day_of_week,
-                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
-                hour=enriched_context.baselines.hour_of_day,
-                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
-                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
-                cross_camera_summary=enricher.format_cross_camera_summary(
-                    enriched_context.cross_camera
-                ),
-                enrichment_context=enrichment_result.to_context_string(),
-                detections_list=detections_list,
-            )
-        elif has_enriched_context:
-            # Use enriched prompt with zone, baseline, and cross-camera context (no pipeline)
-            template_name = "enriched"
-            # These assertions help mypy understand type narrowing
-            assert enriched_context is not None
-            assert enriched_context.baselines is not None
-            enricher = self._get_context_enricher()
-            prompt = ENRICHED_RISK_ANALYSIS_PROMPT.format(
-                camera_name=camera_name,
-                start_time=start_time,
-                end_time=end_time,
-                day_of_week=enriched_context.baselines.day_of_week,
-                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
-                hour=enriched_context.baselines.hour_of_day,
-                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
-                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
-                cross_camera_summary=enricher.format_cross_camera_summary(
-                    enriched_context.cross_camera
-                ),
-                detections_list=detections_list,
             )
         else:
-            # Fall back to basic prompt
+            # Fall back to basic prompt — no enrichment or context available
             prompt = RISK_ANALYSIS_PROMPT.format(
                 camera_name=camera_name,
                 start_time=start_time,

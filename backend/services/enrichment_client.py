@@ -43,7 +43,7 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.services.bbox_validation import is_valid_bbox, validate_and_clamp_bbox
-from backend.services.circuit_breaker import CircuitBreaker, CircuitState
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -846,17 +846,25 @@ class EnrichmentClient:
         """
         self._settings = get_settings()
 
-        # Use provided URL, or settings, or default for heavy service
+        # Use provided URL, or AI Gateway, or settings for heavy service
+        _gw_url = getattr(self._settings, "ai_gateway_url", None)
+        _use_gw = getattr(self._settings, "use_ai_gateway", False) is True and isinstance(
+            _gw_url, str
+        )
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
+        elif _use_gw and isinstance(_gw_url, str):
+            self._base_url = f"{_gw_url.rstrip('/')}/enrichment"
         else:
             self._base_url = getattr(
                 self._settings, "enrichment_url", DEFAULT_ENRICHMENT_URL
             ).rstrip("/")
 
-        # Use provided URL, or settings, or default for light service
+        # Use provided URL, or AI Gateway, or settings for light service
         if light_base_url is not None:
             self._light_base_url = light_base_url.rstrip("/")
+        elif _use_gw and isinstance(_gw_url, str):
+            self._light_base_url = f"{_gw_url.rstrip('/')}/enrich-lt"
         else:
             self._light_base_url = getattr(
                 self._settings, "enrichment_light_url", DEFAULT_ENRICHMENT_LIGHT_URL
@@ -877,19 +885,29 @@ class EnrichmentClient:
             pool=self._settings.ai_health_timeout,
         )
 
-        # Initialize circuit breakers for both services
-        self._circuit_breaker = CircuitBreaker(
-            name="enrichment",
+        # Initialize per-endpoint circuit breakers.
+        # Each enrichment endpoint gets its own breaker so that failures on one
+        # endpoint (e.g. pose) do not block unrelated endpoints (e.g. vehicle).
+        _cb_config = CircuitBreakerConfig(
             failure_threshold=self._settings.enrichment_cb_failure_threshold,
             recovery_timeout=self._settings.enrichment_cb_recovery_timeout,
             half_open_max_calls=self._settings.enrichment_cb_half_open_max_calls,
         )
-        self._light_circuit_breaker = CircuitBreaker(
-            name="enrichment_light",
-            failure_threshold=self._settings.enrichment_cb_failure_threshold,
-            recovery_timeout=self._settings.enrichment_cb_recovery_timeout,
-            half_open_max_calls=self._settings.enrichment_cb_half_open_max_calls,
-        )
+        self._breakers: dict[str, CircuitBreaker] = {
+            "vehicle": CircuitBreaker(name="enrichment_vehicle", config=_cb_config),
+            "clothing": CircuitBreaker(name="enrichment_clothing", config=_cb_config),
+            "demographics": CircuitBreaker(name="enrichment_demographics", config=_cb_config),
+            "action": CircuitBreaker(name="enrichment_action", config=_cb_config),
+            "pose": CircuitBreaker(name="enrichment_pose", config=_cb_config),
+            "threat": CircuitBreaker(name="enrichment_threat", config=_cb_config),
+            "reid": CircuitBreaker(name="enrichment_reid", config=_cb_config),
+            "pet": CircuitBreaker(name="enrichment_pet", config=_cb_config),
+            "depth": CircuitBreaker(name="enrichment_depth", config=_cb_config),
+            "enrich": CircuitBreaker(name="enrichment_unified", config=_cb_config),
+        }
+        # Keep backward-compatible aliases for code that references the old attributes
+        self._circuit_breaker = self._breakers["enrich"]
+        self._light_circuit_breaker = self._breakers["enrich"]
 
         # Retry configuration for transient failures (NEM-1732)
         self._max_retries = self._settings.enrichment_max_retries
@@ -908,9 +926,11 @@ class EnrichmentClient:
         logger.info(f"EnrichmentClient initialized with base_url={self._base_url}")
 
     def _get_service_for_model(self, model: str) -> tuple[str, CircuitBreaker]:
-        """Get the service URL and circuit breaker for a specific model.
+        """Get the service URL and per-endpoint circuit breaker for a specific model.
 
-        Uses configuration from Settings to determine which service hosts the model.
+        Uses configuration from Settings to determine which service hosts the model,
+        and returns the per-endpoint circuit breaker for that model so that failures
+        on one endpoint do not block unrelated endpoints.
 
         Args:
             model: Model name (pose, threat, reid, pet, depth, vehicle, clothing, action, demographics)
@@ -919,10 +939,9 @@ class EnrichmentClient:
             Tuple of (service_url, circuit_breaker)
         """
         url = self._settings.get_enrichment_url_for_model(model)
-        # Determine which circuit breaker based on URL
-        if url == self._light_base_url or "8096" in url or "light" in url:
-            return url, self._light_circuit_breaker
-        return url, self._circuit_breaker
+        # Return the per-endpoint circuit breaker, falling back to the unified breaker
+        breaker = self._breakers.get(model, self._breakers["enrich"])
+        return url, breaker
 
     def _get_headers(self) -> dict[str, str]:
         """Get headers for outgoing HTTP requests.
@@ -959,29 +978,64 @@ class EnrichmentClient:
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
 
-    def get_circuit_breaker_state(self) -> CircuitState:
+    def get_circuit_breaker_state(self, endpoint: str | None = None) -> CircuitState:
         """Get current circuit breaker state.
+
+        Args:
+            endpoint: Optional endpoint name (e.g. "vehicle", "pose"). If None,
+                     returns the worst state across all breakers (OPEN > HALF_OPEN > CLOSED).
 
         Returns:
             Current CircuitState (CLOSED, OPEN, or HALF_OPEN)
         """
-        return self._circuit_breaker.get_state()
+        if endpoint is not None:
+            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
+            return breaker.get_state()
+        # Return worst state across all breakers
+        states = [b.get_state() for b in self._breakers.values()]
+        if CircuitState.OPEN in states:
+            return CircuitState.OPEN
+        if CircuitState.HALF_OPEN in states:
+            return CircuitState.HALF_OPEN
+        return CircuitState.CLOSED
 
-    def is_circuit_open(self) -> bool:
+    def get_all_circuit_breaker_states(self) -> dict[str, str]:
+        """Get the state of every per-endpoint circuit breaker.
+
+        Returns:
+            Dictionary mapping endpoint name to state string value.
+        """
+        return {name: breaker.get_state().value for name, breaker in self._breakers.items()}
+
+    def is_circuit_open(self, endpoint: str | None = None) -> bool:
         """Check if circuit breaker is open.
+
+        Args:
+            endpoint: Optional endpoint name. If None, returns True if ANY breaker is open.
 
         Returns:
             True if circuit is open (requests are being rejected), False otherwise
         """
-        return self._circuit_breaker.get_state() == CircuitState.OPEN
+        if endpoint is not None:
+            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
+            return breaker.get_state() == CircuitState.OPEN
+        return any(b.get_state() == CircuitState.OPEN for b in self._breakers.values())
 
-    def reset_circuit_breaker(self) -> None:
-        """Manually reset circuit breaker to CLOSED state.
+    def reset_circuit_breaker(self, endpoint: str | None = None) -> None:
+        """Manually reset circuit breaker(s) to CLOSED state.
 
-        This clears all failure counts and returns the circuit to normal operation.
+        This clears all failure counts and returns the circuit(s) to normal operation.
         Use this after fixing underlying issues or for maintenance.
+
+        Args:
+            endpoint: Optional endpoint name. If None, resets ALL breakers.
         """
-        self._circuit_breaker.reset()
+        if endpoint is not None:
+            breaker = self._breakers.get(endpoint, self._breakers["enrich"])
+            breaker.reset()
+        else:
+            for breaker in self._breakers.values():
+                breaker.reset()
 
     def _calculate_backoff_delay(self, attempt: int) -> float:
         """Calculate exponential backoff delay with jitter.
@@ -1032,10 +1086,12 @@ class EnrichmentClient:
         """Check if Enrichment service is healthy and get model status.
 
         Returns:
-            Dictionary with health status, model information, and circuit breaker state
+            Dictionary with health status, model information, and circuit breaker state.
+            Includes per-endpoint circuit breaker states under ``circuit_breaker_states``.
         """
-        # Always include circuit breaker state in health response
-        circuit_state = self._circuit_breaker.get_state().value
+        # Always include per-endpoint circuit breaker states in health response
+        circuit_state = self.get_circuit_breaker_state().value
+        circuit_breaker_states = self.get_all_circuit_breaker_states()
 
         try:
             # Use persistent HTTP client (NEM-1721)
@@ -1047,6 +1103,7 @@ class EnrichmentClient:
             response.raise_for_status()
             result = cast("dict[str, Any]", response.json())
             result["circuit_breaker_state"] = circuit_state
+            result["circuit_breaker_states"] = circuit_breaker_states
             return result
         except (httpx.ConnectError, httpx.TimeoutException) as e:
             logger.warning(f"Enrichment health check failed: {e}", exc_info=True)
@@ -1054,16 +1111,27 @@ class EnrichmentClient:
                 "status": "unavailable",
                 "error": str(e),
                 "circuit_breaker_state": circuit_state,
+                "circuit_breaker_states": circuit_breaker_states,
             }
         except httpx.HTTPStatusError as e:
             logger.warning(f"Enrichment health check returned error status: {e}", exc_info=True)
-            return {"status": "error", "error": str(e), "circuit_breaker_state": circuit_state}
+            return {
+                "status": "error",
+                "error": str(e),
+                "circuit_breaker_state": circuit_state,
+                "circuit_breaker_states": circuit_breaker_states,
+            }
         except Exception as e:
             logger.error(
                 f"Unexpected error during Enrichment health check: {sanitize_error(e)}",
                 exc_info=True,
             )
-            return {"status": "error", "error": str(e), "circuit_breaker_state": circuit_state}
+            return {
+                "status": "error",
+                "error": str(e),
+                "circuit_breaker_state": circuit_state,
+                "circuit_breaker_states": circuit_breaker_states,
+            }
 
     async def is_healthy(self) -> bool:
         """Check if Enrichment service is healthy.
@@ -3126,8 +3194,8 @@ class EnrichmentClient:
             # Parse response
             data = response.json()
 
-            # Record success with circuit breaker
-            self._circuit_breaker.record_success()
+            # Record success with per-endpoint circuit breaker
+            self._breakers["enrich"].record_success()
 
             return self._parse_unified_response(data)
 

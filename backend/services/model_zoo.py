@@ -153,13 +153,43 @@ async def load_yolo_model(model_path: str) -> Any:
 
     Raises:
         ImportError: If ultralytics is not installed
-        RuntimeError: If model loading fails
+        RuntimeError: If model loading fails or model file is missing
     """
     try:
+        from pathlib import Path
+
         # Attempt to import ultralytics for YOLO support
         from ultralytics import YOLO
 
         logger.info(f"Loading YOLO model from {model_path}")
+
+        # Validate model file exists for local paths (paths containing '/')
+        # This catches missing model files early with a clear error message
+        # instead of letting ultralytics raise a cryptic FileNotFoundError
+        if "/" in model_path and not model_path.startswith("http"):
+            if not Path(model_path).exists():
+                # Check if this is a .pt file path vs a directory
+                parent_dir = str(Path(model_path).parent)
+                if Path(parent_dir).is_dir():
+                    available_files = [
+                        f.name
+                        for f in Path(parent_dir).iterdir()
+                        if f.name.endswith((".pt", ".pth", ".onnx"))
+                    ]
+                    logger.warning(
+                        f"Model file not found: {model_path}. "
+                        f"Available model files in {parent_dir}: {available_files}"
+                    )
+                else:
+                    logger.warning(
+                        f"Model path does not exist: {model_path}. "
+                        f"Ensure the model directory is mounted in the container. "
+                        f"Download with: python scripts/download-model-zoo.py --all"
+                    )
+                raise RuntimeError(
+                    f"Model file not found: {model_path}. "
+                    f"Download the model with: python scripts/download-model-zoo.py --all"
+                )
 
         def _load_and_fuse() -> Any:
             """Load YOLO model and pre-fuse for thread-safe concurrent use.

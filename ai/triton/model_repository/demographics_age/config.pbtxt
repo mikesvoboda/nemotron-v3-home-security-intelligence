@@ -1,0 +1,41 @@
+# Age Classification - ONNX Runtime (ViT)
+# Input: preprocessed face/person crop (B, 3, 224, 224) FP32
+# Output: age class logits (6 age ranges)
+# Source: ai/enrichment/models/demographics.py (ViT, AutoImageProcessor -> 224x224)
+#
+# Age ranges: 0-10, 11-20, 21-35, 36-50, 51-65, 65+
+
+name: "demographics_age"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]
+  }
+]
+
+output [
+  {
+    name: "output"
+    data_type: TYPE_FP32
+    dims: [ 9 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4 ]
+  max_queue_delay_microseconds: 100
+}
+
+# nateraw/vit-age-classifier or similar ViT-based age classification model
+# Preprocessing handled by AutoImageProcessor (standard ViT 224x224)

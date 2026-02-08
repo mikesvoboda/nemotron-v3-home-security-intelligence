@@ -8,41 +8,43 @@ hide:
 
 **Turn "dumb" security cameras into an intelligent threat detection system -- 100% local, no cloud APIs required.**
 
+<!-- prettier-ignore-start -->
 <div class="grid cards" markdown>
 
-- :material-rocket-launch: **Getting Started**
+-   :material-rocket-launch: **Getting Started**
 
-  ***
+    ---
 
-  Prerequisites, installation, and your first run
+    Prerequisites, installation, and your first run
 
-  [:octicons-arrow-right-24: Get started](getting-started/README.md)
+    [:octicons-arrow-right-24: Get started](getting-started/README.md)
 
-- :material-monitor-dashboard: **User Guide**
+-   :material-monitor-dashboard: **User Guide**
 
-  ***
+    ---
 
-  Dashboard, alerts, timeline, analytics, and features
+    Dashboard, alerts, timeline, analytics, and features
 
-  [:octicons-arrow-right-24: User Guide](user/README.md)
+    [:octicons-arrow-right-24: User Guide](user/README.md)
 
-- :material-server-network: **Operator Guide**
+-   :material-server-network: **Operator Guide**
 
-  ***
+    ---
 
-  Deployment, monitoring, GPU setup, and administration
+    Deployment, monitoring, GPU setup, and administration
 
-  [:octicons-arrow-right-24: Operator Guide](operator/README.md)
+    [:octicons-arrow-right-24: Operator Guide](operator/README.md)
 
-- :material-code-braces: **Developer Guide**
+-   :material-code-braces: **Developer Guide**
 
-  ***
+    ---
 
-  Architecture, API reference, patterns, and contributing
+    Architecture, API reference, patterns, and contributing
 
-  [:octicons-arrow-right-24: Developer Guide](developer/README.md)
+    [:octicons-arrow-right-24: Developer Guide](developer/README.md)
 
 </div>
+<!-- prettier-ignore-end -->
 
 ---
 

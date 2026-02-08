@@ -1,0 +1,54 @@
+# Florence-2 Vision-Language Model - Python Backend
+# Encoder-decoder architecture using native transformers Florence2 classes.
+# Cannot be exported to TensorRT/ONNX due to autoregressive generation.
+#
+# Source: ai/florence/model.py (Florence-2-base, ~460 MiB VRAM FP16)
+# Model zoo path: /models/zoo/florence-2-base
+#
+# The gateway sends base64-encoded images and task prompt strings.
+# Preprocessing (decode, resize) and postprocessing (parse generation)
+# happen inside the Python backend model.py.
+
+name: "florence2"
+backend: "python"
+
+# No Triton-level batching -- autoregressive decoder processes one
+# image at a time.  The execute() loop handles multiple requests
+# sequentially within a single call.
+max_batch_size: 0
+
+input [
+  {
+    name: "image"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # Single base64-encoded image
+  },
+  {
+    name: "prompt"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # Florence-2 task prompt (e.g. "<CAPTION>", "<OD>")
+  }
+]
+
+output [
+  {
+    name: "result"
+    data_type: TYPE_STRING
+    dims: [ 1 ]    # JSON string with task-specific parsed result
+  },
+  {
+    name: "inference_time_ms"
+    data_type: TYPE_FP32
+    dims: [ 1 ]    # Inference time in milliseconds
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
+version_policy: { latest: { num_versions: 1 }}

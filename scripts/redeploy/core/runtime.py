@@ -121,10 +121,12 @@ class ContainerRuntime:
                 if isinstance(data, list):
                     # Docker format
                     for item in data:
-                        containers.append(self._parse_container(item))
-                else:
+                        if isinstance(item, dict):
+                            containers.append(self._parse_container(item))
+                elif isinstance(data, dict):
                     # Podman format (one object per line)
                     containers.append(self._parse_container(data))
+                # Skip strings/other non-dict JSON values
             except json.JSONDecodeError:
                 continue
 
@@ -403,7 +405,9 @@ class ContainerRuntime:
 
         try:
             data = json.loads(result.stdout)
-            return data[0] if isinstance(data, list) else data
+            if isinstance(data, list):
+                return data[0] if data and isinstance(data[0], dict) else None
+            return data if isinstance(data, dict) else None
         except (json.JSONDecodeError, IndexError):
             return None
 
@@ -580,9 +584,11 @@ class ContainerRuntime:
                 data = json.loads(line)
                 if isinstance(data, list):
                     for item in data:
-                        images.append(self._parse_image(item))
-                else:
+                        if isinstance(item, dict):
+                            images.append(self._parse_image(item))
+                elif isinstance(data, dict):
                     images.append(self._parse_image(data))
+                # Skip strings/other non-dict JSON values
             except json.JSONDecodeError:
                 continue
 

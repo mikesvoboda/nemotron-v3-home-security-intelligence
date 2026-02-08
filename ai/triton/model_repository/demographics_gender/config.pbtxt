@@ -1,0 +1,39 @@
+# Gender Classification - ONNX Runtime (ViT)
+# Input: preprocessed face/person crop (B, 3, 224, 224) FP32
+# Output: gender class logits (2 classes: female, male)
+# Source: ai/enrichment/models/demographics.py (ViT, AutoImageProcessor -> 224x224)
+
+name: "demographics_gender"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]
+  }
+]
+
+output [
+  {
+    name: "output"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4 ]
+  max_queue_delay_microseconds: 100
+}
+
+# ViT-based gender classification model
+# Preprocessing handled by AutoImageProcessor (standard ViT 224x224)

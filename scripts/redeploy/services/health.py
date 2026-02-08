@@ -146,6 +146,15 @@ class HealthChecker:
         url = f"http://localhost:{self.config.enrichment_light_port}/health"
         return await self._check_http(url, "ai-enrichment-light")
 
+    async def check_ai_gateway(self) -> HealthStatus:
+        """Check AI Gateway health (Triton + FastAPI unified container).
+
+        Returns:
+            HealthStatus for ai-gateway
+        """
+        url = f"http://localhost:{self.config.ai_gateway_port}/health"
+        return await self._check_http(url, "ai-gateway")
+
     async def check_frontend(self) -> HealthStatus:
         """Check frontend health.
 
@@ -275,29 +284,42 @@ class HealthChecker:
         Returns:
             Dict of service name -> HealthStatus
         """
-        checks = [
-            self.check_backend(),
-            self.check_yolo26(),
-            self.check_llm(),
-            self.check_florence(),
-            self.check_clip(),
-            self.check_enrichment(),
-            self.check_enrichment_light(),
-            self.check_frontend(),
-        ]
+        if self.config.use_ai_gateway:
+            checks = [
+                self.check_backend(),
+                self.check_ai_gateway(),
+                self.check_llm(),
+                self.check_frontend(),
+            ]
+            services = [
+                "backend",
+                "ai-gateway",
+                "ai-llm",
+                "frontend",
+            ]
+        else:
+            checks = [
+                self.check_backend(),
+                self.check_yolo26(),
+                self.check_llm(),
+                self.check_florence(),
+                self.check_clip(),
+                self.check_enrichment(),
+                self.check_enrichment_light(),
+                self.check_frontend(),
+            ]
+            services = [
+                "backend",
+                "ai-yolo26",
+                "ai-llm",
+                "ai-florence",
+                "ai-clip",
+                "ai-enrichment",
+                "ai-enrichment-light",
+                "frontend",
+            ]
 
         results = await asyncio.gather(*checks, return_exceptions=True)
-
-        services = [
-            "backend",
-            "ai-yolo26",
-            "ai-llm",
-            "ai-florence",
-            "ai-clip",
-            "ai-enrichment",
-            "ai-enrichment-light",
-            "frontend",
-        ]
 
         statuses: dict[str, HealthStatus] = {}
         for service, result in zip(services, results, strict=False):
@@ -318,25 +340,34 @@ class HealthChecker:
         Returns:
             Dict of service name -> HealthStatus
         """
-        checks = [
-            self.check_yolo26(),
-            self.check_llm(),
-            self.check_florence(),
-            self.check_clip(),
-            self.check_enrichment(),
-            self.check_enrichment_light(),
-        ]
+        if self.config.use_ai_gateway:
+            checks = [
+                self.check_ai_gateway(),
+                self.check_llm(),
+            ]
+            services = [
+                "ai-gateway",
+                "ai-llm",
+            ]
+        else:
+            checks = [
+                self.check_yolo26(),
+                self.check_llm(),
+                self.check_florence(),
+                self.check_clip(),
+                self.check_enrichment(),
+                self.check_enrichment_light(),
+            ]
+            services = [
+                "ai-yolo26",
+                "ai-llm",
+                "ai-florence",
+                "ai-clip",
+                "ai-enrichment",
+                "ai-enrichment-light",
+            ]
 
         results = await asyncio.gather(*checks, return_exceptions=True)
-
-        services = [
-            "ai-yolo26",
-            "ai-llm",
-            "ai-florence",
-            "ai-clip",
-            "ai-enrichment",
-            "ai-enrichment-light",
-        ]
 
         statuses: dict[str, HealthStatus] = {}
         for service, result in zip(services, results, strict=False):
@@ -382,6 +413,7 @@ class HealthChecker:
             "backend": self.check_backend,
             "postgres": self.check_postgres,
             "redis": self.check_redis,
+            "ai-gateway": self.check_ai_gateway,
             "ai-yolo26": self.check_yolo26,
             "ai-llm": self.check_llm,
             "ai-florence": self.check_florence,
@@ -465,14 +497,17 @@ class HealthChecker:
         Raises:
             HealthCheckError: If timeout exceeded
         """
-        ai_services = [
-            "ai-yolo26",
-            "ai-llm",
-            "ai-florence",
-            "ai-clip",
-            "ai-enrichment",
-            "ai-enrichment-light",
-        ]
+        if self.config.use_ai_gateway:
+            ai_services = ["ai-gateway", "ai-llm"]
+        else:
+            ai_services = [
+                "ai-yolo26",
+                "ai-llm",
+                "ai-florence",
+                "ai-clip",
+                "ai-enrichment",
+                "ai-enrichment-light",
+            ]
         return await self.wait_healthy(ai_services, timeout=timeout)
 
     # =========================================================================

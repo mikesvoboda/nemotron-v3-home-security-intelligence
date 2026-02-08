@@ -64,11 +64,11 @@ IOU_DEDUP_THRESHOLD = 0.70
 # Bbox overlap threshold for associating frame OCR with detections
 DETECTION_OVERLAP_THRESHOLD = 0.50
 
-# HTTP client timeout for ai-enrichment service
+# HTTP client timeout for ai-florence OCR requests
 OCR_TIMEOUT_SECONDS = 30.0
 
-# Default ai-enrichment service URL
-DEFAULT_ENRICHMENT_URL = "http://ai-enrichment:8094"
+# Default ai-florence service URL (OCR is a Florence-2 capability)
+DEFAULT_FLORENCE_URL = "http://ai-florence:8092"
 
 
 @dataclass(slots=True)
@@ -340,9 +340,9 @@ def _image_to_base64(image: Image.Image) -> str:
 class SceneOCRService:
     """Comprehensive scene OCR service for security frame analysis.
 
-    This service orchestrates PaddleOCR text extraction from security camera frames,
-    running OCR on both full frames and detection crops for comprehensive text
-    detection.
+    This service orchestrates OCR text extraction from security camera frames
+    using the Florence-2 vision-language model, running OCR on both full frames
+    and detection crops for comprehensive text detection.
 
     Features:
     - Full-frame OCR for scene context (signs, house numbers)
@@ -352,7 +352,7 @@ class SceneOCRService:
     - Service provider matching for known companies
 
     Attributes:
-        enrichment_url: URL of the ai-enrichment service
+        florence_url: URL of the ai-florence service
         timeout: HTTP request timeout in seconds
         enabled: Whether scene OCR is enabled
         service_matcher: Service provider matcher instance
@@ -366,21 +366,19 @@ class SceneOCRService:
 
     def __init__(
         self,
-        enrichment_url: str | None = None,
+        florence_url: str | None = None,
         timeout: float = OCR_TIMEOUT_SECONDS,
         enabled: bool = True,
     ) -> None:
         """Initialize the SceneOCRService.
 
         Args:
-            enrichment_url: URL of the ai-enrichment service (default from settings)
+            florence_url: URL of the ai-florence service (default from settings)
             timeout: HTTP request timeout in seconds
             enabled: Whether scene OCR is enabled (for feature flags)
         """
         settings = get_settings()
-        self.enrichment_url = enrichment_url or getattr(
-            settings, "enrichment_url", DEFAULT_ENRICHMENT_URL
-        )
+        self.florence_url = florence_url or getattr(settings, "florence_url", DEFAULT_FLORENCE_URL)
         self.timeout = timeout
         self.enabled = enabled
         self.service_matcher = get_service_provider_matcher()
@@ -388,7 +386,7 @@ class SceneOCRService:
         # HTTP client is created lazily for async context
         self._client: httpx.AsyncClient | None = None
 
-        logger.info(f"SceneOCRService initialized (url={self.enrichment_url}, enabled={enabled})")
+        logger.info(f"SceneOCRService initialized (url={self.florence_url}, enabled={enabled})")
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create the HTTP client.
@@ -525,10 +523,9 @@ class SceneOCRService:
             image_base64 = _image_to_base64(image)
 
             response = await client.post(
-                f"{self.enrichment_url}/scene-ocr",
+                f"{self.florence_url}/ocr-with-regions",
                 json={
                     "image": image_base64,
-                    "mode": "full_frame",
                 },
             )
 
@@ -539,8 +536,9 @@ class SceneOCRService:
             data = response.json()
             results: list[RawOCRResult] = []
 
-            for item in data.get("texts", []):
-                confidence = item.get("confidence", 0)
+            for item in data.get("regions", []):
+                # Florence OCR does not return confidence; use high default
+                confidence = item.get("confidence", 0.90)
                 if confidence < CONFIDENCE_EXCLUDE:
                     continue
 
@@ -548,6 +546,13 @@ class SceneOCRService:
                 observe_scene_ocr_confidence(confidence)
 
                 bbox = item.get("bbox", [0, 0, 0, 0])
+                # Florence returns quadrilateral bbox [x1,y1,x2,y2,x3,y3,x4,y4];
+                # convert to axis-aligned [x1,y1,x2,y2] using min/max
+                if len(bbox) == 8:
+                    xs = [bbox[i] for i in range(0, 8, 2)]
+                    ys = [bbox[i] for i in range(1, 8, 2)]
+                    bbox = [min(xs), min(ys), max(xs), max(ys)]
+
                 results.append(
                     RawOCRResult(
                         text=item.get("text", ""),
@@ -567,7 +572,7 @@ class SceneOCRService:
             logger.warning("Full-frame OCR request timed out")
             return []
         except httpx.ConnectError:
-            logger.warning("Failed to connect to ai-enrichment service for OCR")
+            logger.warning("Failed to connect to ai-florence service for OCR")
             return []
         except Exception as e:
             logger.exception(f"Full-frame OCR failed: {e}")
@@ -626,10 +631,9 @@ class SceneOCRService:
 
                     client = await self._get_client()
                     response = await client.post(
-                        f"{self.enrichment_url}/scene-ocr",
+                        f"{self.florence_url}/ocr-with-regions",
                         json={
                             "image": crop_base64,
-                            "mode": "crop",
                         },
                     )
 
@@ -639,8 +643,9 @@ class SceneOCRService:
                     data = response.json()
                     crop_results: list[RawOCRResult] = []
 
-                    for item in data.get("texts", []):
-                        confidence = item.get("confidence", 0)
+                    for item in data.get("regions", []):
+                        # Florence OCR does not return confidence; use high default
+                        confidence = item.get("confidence", 0.90)
                         if confidence < CONFIDENCE_EXCLUDE:
                             continue
 
@@ -649,6 +654,12 @@ class SceneOCRService:
 
                         # Convert crop coordinates to frame coordinates
                         item_bbox = item.get("bbox", [0, 0, 0, 0])
+                        # Florence returns quadrilateral bbox [x1,y1,...,x4,y4];
+                        # convert to axis-aligned [x1,y1,x2,y2] using min/max
+                        if len(item_bbox) == 8:
+                            xs = [item_bbox[i] for i in range(0, 8, 2)]
+                            ys = [item_bbox[i] for i in range(1, 8, 2)]
+                            item_bbox = [min(xs), min(ys), max(xs), max(ys)]
                         frame_bbox = (
                             int(item_bbox[0] + x1),
                             int(item_bbox[1] + y1),

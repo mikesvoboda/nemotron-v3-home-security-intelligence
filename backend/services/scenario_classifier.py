@@ -594,7 +594,7 @@ def _has_person_detected(
 def _is_historical_graffiti(combined_text: str) -> bool:
     """Check if graffiti is explicitly historical (pre-existing) rather than active.
 
-    Pre-existing graffiti without a perpetrator should score LOW (0-20),
+    Pre-existing graffiti without a perpetrator should score LOW (0-29),
     while active graffiti with perpetrator should score HIGH (65-85).
 
     This returns True ONLY if there are explicit historical indicators.

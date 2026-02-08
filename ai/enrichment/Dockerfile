@@ -115,7 +115,7 @@ ENV PORT=8094
 ENV VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
 ENV PET_MODEL_PATH=/models/pet-classifier
 ENV CLOTHING_MODEL_PATH=/models/fashion-clip
-ENV POSE_MODEL_PATH=/models/yolov8-pose
+ENV POSE_MODEL_PATH=/models/vitpose-plus-small
 ENV THREAT_CLASSIFIER_PATH=/models/threat-classifier
 ENV REID_MODEL_PATH=/models/osnet-reid
 # HuggingFace cache configuration (NEM-3812)

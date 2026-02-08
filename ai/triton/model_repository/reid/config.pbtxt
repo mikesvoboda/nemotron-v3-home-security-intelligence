@@ -1,0 +1,41 @@
+# Person Re-Identification - ONNX Runtime (OSNet-x0.25)
+# Input: preprocessed person crop (B, 3, 256, 128) FP32
+# Output: L2-normalized embedding (B, 512) FP32
+# Source: ai/enrichment-light/models/person_reid.py
+#   OSNET_INPUT_HEIGHT=256, OSNET_INPUT_WIDTH=128, EMBEDDING_DIMENSION=512
+
+name: "reid"
+backend: "onnxruntime"
+max_batch_size: 16
+
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 3, 256, 128 ]
+  }
+]
+
+output [
+  {
+    name: "embedding"
+    data_type: TYPE_FP32
+    dims: [ 512 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4, 8 ]
+  max_queue_delay_microseconds: 100
+}
+
+# OSNet-x0.25 person re-identification model (~100MB)
+# Small model allows higher max_batch_size for multi-person tracking
+# Preprocessing: Resize(256,128), ToTensor, Normalize(ImageNet)

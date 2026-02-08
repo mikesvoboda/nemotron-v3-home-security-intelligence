@@ -684,6 +684,32 @@ class CLIPEmbeddingModel:
             logger.error(f"Failed to load PyTorch model: {e}")
             raise
 
+    @staticmethod
+    def _move_inputs_to_device(
+        inputs: dict[str, torch.Tensor], device: str, dtype: torch.dtype
+    ) -> dict[str, torch.Tensor]:
+        """Move processor outputs to the target device, casting only float tensors to dtype.
+
+        Integer tensors (e.g. input_ids, attention_mask) are moved to the device
+        but kept as their original integer type.  Casting them to float16 would
+        cause "expected Long/Int but got HalfTensor" errors in embedding lookups.
+
+        Args:
+            inputs: Dict of tensors from the CLIP processor.
+            device: Target device string (e.g. "cuda:0").
+            dtype: Target dtype for floating-point tensors (e.g. torch.float16).
+
+        Returns:
+            Dict with tensors on the target device, float tensors cast to dtype.
+        """
+        moved: dict[str, torch.Tensor] = {}
+        for k, v in inputs.items():
+            if v.is_floating_point():
+                moved[k] = v.to(device, dtype)
+            else:
+                moved[k] = v.to(device)
+        return moved
+
     def _warmup(self, num_iterations: int = 3) -> None:
         """Warmup the model with dummy inputs."""
         logger.info(f"Warming up model with {num_iterations} iterations...")
@@ -761,9 +787,9 @@ class CLIPEmbeddingModel:
         # Preprocess image
         inputs = self.processor(images=image, return_tensors="pt")
 
-        # Move inputs to device with correct dtype
+        # Move inputs to device with correct dtype (preserve integer types for input_ids)
         model_dtype = next(self.model.parameters()).dtype
-        inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
+        inputs = self._move_inputs_to_device(inputs, self.device, model_dtype)
 
         # Generate embedding
         try:
@@ -879,9 +905,9 @@ class CLIPEmbeddingModel:
             padding=True,
         )
 
-        # Move inputs to device with correct dtype
+        # Move inputs to device with correct dtype (preserve integer types for input_ids)
         model_dtype = next(self.model.parameters()).dtype
-        inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
+        inputs = self._move_inputs_to_device(inputs, self.device, model_dtype)
 
         # Generate logits
         try:
@@ -966,7 +992,7 @@ class CLIPEmbeddingModel:
         # Preprocess image once
         image_inputs = self.processor(images=image, return_tensors="pt")
         model_dtype = next(self.model.parameters()).dtype
-        image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
+        image_inputs = self._move_inputs_to_device(image_inputs, self.device, model_dtype)
 
         # Get image features
         with torch.inference_mode():
@@ -987,7 +1013,7 @@ class CLIPEmbeddingModel:
 
             # Encode text prompts
             text_inputs = self.processor(text=prompts, return_tensors="pt", padding=True)
-            text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
+            text_inputs = self._move_inputs_to_device(text_inputs, self.device, model_dtype)
 
             with torch.inference_mode():
                 raw_text_features = self.model.get_text_features(**text_inputs)
@@ -1060,11 +1086,11 @@ class CLIPEmbeddingModel:
         # Preprocess image
         image_inputs = self.processor(images=image, return_tensors="pt")
         model_dtype = next(self.model.parameters()).dtype
-        image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
+        image_inputs = self._move_inputs_to_device(image_inputs, self.device, model_dtype)
 
         # Preprocess text
         text_inputs = self.processor(text=[text], return_tensors="pt", padding=True)
-        text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
+        text_inputs = self._move_inputs_to_device(text_inputs, self.device, model_dtype)
 
         # Generate embeddings
         try:
@@ -1121,11 +1147,11 @@ class CLIPEmbeddingModel:
         # Preprocess image
         image_inputs = self.processor(images=image, return_tensors="pt")
         model_dtype = next(self.model.parameters()).dtype
-        image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
+        image_inputs = self._move_inputs_to_device(image_inputs, self.device, model_dtype)
 
         # Preprocess texts
         text_inputs = self.processor(text=texts, return_tensors="pt", padding=True)
-        text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
+        text_inputs = self._move_inputs_to_device(text_inputs, self.device, model_dtype)
 
         # Generate embeddings
         with torch.inference_mode():

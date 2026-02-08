@@ -17,7 +17,8 @@ from scripts.redeploy.models import (
 class ImageBuilder:
     """Build container images with parallel support for AI services."""
 
-    AI_SERVICES: ClassVar[list[str]] = [
+    # Legacy AI services (individual containers)
+    AI_SERVICES_LEGACY: ClassVar[list[str]] = [
         "ai-yolo26",
         "ai-llm",
         "ai-florence",
@@ -26,15 +27,32 @@ class ImageBuilder:
         "ai-enrichment-light",
     ]
 
+    # Gateway AI services (Triton replaces 5 containers, LLM stays separate)
+    AI_SERVICES_GATEWAY: ClassVar[list[str]] = [
+        "ai-gateway",
+        "ai-llm",
+    ]
+
     # Mapping of AI service to Dockerfile location
     AI_DOCKERFILES: ClassVar[dict[str, str]] = {
         "ai-yolo26": "ai/yolo26/Dockerfile",
-        "ai-llm": "ai/nemotron/Dockerfile",  # ai-llm builds from nemotron
+        "ai-llm": "ai/nemotron/Dockerfile",
         "ai-florence": "ai/florence/Dockerfile",
         "ai-clip": "ai/clip/Dockerfile",
         "ai-enrichment": "ai/enrichment/Dockerfile",
         "ai-enrichment-light": "ai/enrichment-light/Dockerfile",
+        "ai-gateway": "ai/gateway/Dockerfile",
     }
+
+    @property
+    def ai_services(self) -> list[str]:
+        """Active AI services based on gateway mode."""
+        if self.config.use_ai_gateway:
+            return list(self.ai_services_GATEWAY)
+        return list(self.ai_services_LEGACY)
+
+    # Keep AI_SERVICES for backward compat
+    AI_SERVICES: ClassVar[list[str]] = AI_SERVICES_LEGACY
 
     def __init__(self, runtime: ContainerRuntime, config: DeployConfig):
         """Initialize image builder.
@@ -178,13 +196,13 @@ class ImageBuilder:
             output.dry_run("Would build AI images in parallel")
             return {
                 svc: BuildResult(service=svc, status=BuildStatus.SKIPPED, duration=0.0)
-                for svc in self.AI_SERVICES
+                for svc in self.ai_services
             }
 
-        output.step(f"Starting parallel builds for {len(self.AI_SERVICES)} AI services...")
+        output.step(f"Starting parallel builds for {len(self.ai_services)} AI services...")
 
         # Create build tasks
-        tasks = [self._build_ai_service(service) for service in self.AI_SERVICES]
+        tasks = [self._build_ai_service(service) for service in self.ai_services]
 
         # Run in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -193,7 +211,7 @@ class ImageBuilder:
         build_results: dict[str, BuildResult] = {}
         all_success = True
 
-        for service, result in zip(self.AI_SERVICES, results, strict=False):
+        for service, result in zip(self.ai_services, results, strict=False):
             if isinstance(result, Exception):
                 build_results[service] = BuildResult(
                     service=service,
@@ -323,20 +341,25 @@ class ImageBuilder:
                 )
             return {
                 svc: BuildResult(service=svc, status=BuildStatus.SKIPPED, duration=0.0)
-                for svc in self.AI_SERVICES
+                for svc in self.ai_services
             }
 
-        output.step(f"Starting parallel builds for {len(self.AI_SERVICES)} AI services...")
+        output.step(f"Starting parallel builds for {len(self.ai_services)} AI services...")
 
         # Create individual tasks for each service
         tasks: dict[str, asyncio.Task[BuildResult]] = {}
-        for service in self.AI_SERVICES:
+        for service in self.ai_services:
             tasks[service] = asyncio.create_task(
                 self._build_ai_service(service),
                 name=f"build-{service}",
             )
 
         # If we have a callback for yolo26, wait for it specifically first
+        # In gateway mode, yolo26 is not built separately — skip callback
+        if on_yolo26_complete and "ai-yolo26" not in tasks:
+            on_yolo26_complete.set_result(
+                BuildResult(service="ai-yolo26", status=BuildStatus.SKIPPED, duration=0.0)
+            )
         if on_yolo26_complete and "ai-yolo26" in tasks:
             yolo26_task = tasks["ai-yolo26"]
             try:

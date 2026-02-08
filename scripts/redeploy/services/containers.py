@@ -1,6 +1,5 @@
 """Container lifecycle management."""
 
-import asyncio
 import os
 import re
 from pathlib import Path
@@ -21,11 +20,12 @@ from scripts.redeploy.models import (
 class ContainerManager:
     """High-level container lifecycle management."""
 
-    # Required ports for the application
+    # Required ports for the application (legacy; actual ports come from config.required_ports)
     REQUIRED_PORTS: ClassVar[dict[int, str]] = {
         5432: "PostgreSQL",
         6379: "Redis",
         8000: "Backend API",
+        8090: "AI Gateway",
         8091: "LLM",
         8092: "Florence",
         8093: "CLIP",
@@ -37,6 +37,7 @@ class ContainerManager:
     PROJECT_PATTERNS: ClassVar[list[str]] = [
         "nemotron",
         "security",
+        "ai-gateway",
         "ai-yolo",
         "ai-llm",
         "ai-florence",
@@ -61,7 +62,9 @@ class ContainerManager:
     ]
 
     # Standalone containers (started with 'run', not compose)
+    # Includes both gateway and legacy AI containers so stop_standalone cleans up either mode
     STANDALONE_CONTAINERS: ClassVar[list[str]] = [
+        "ai-gateway",
         "ai-yolo26",
         "ai-llm",
         "ai-florence",
@@ -259,7 +262,7 @@ class ContainerManager:
                 capture=True,
             )
 
-    def ensure_ports_available(self) -> None:
+    async def ensure_ports_available(self) -> None:
         """Ensure all required ports are available, escalating if needed.
 
         Raises:
@@ -275,7 +278,7 @@ class ContainerManager:
 
         # Try stopping matching containers
         output.step("Attempting to free ports...")
-        asyncio.get_event_loop().run_until_complete(self.stop_all_matching())
+        await self.stop_all_matching()
 
         # Check again
         status = self.verify_ports_available()
@@ -288,9 +291,9 @@ class ContainerManager:
         self.kill_port_holders()
 
         # Give processes time to die
-        import time
+        import asyncio
 
-        time.sleep(2)
+        await asyncio.sleep(2)
 
         # Final check
         status = self.verify_ports_available()
@@ -428,6 +431,7 @@ class ContainerManager:
             "CLIP_PORT": str(self.config.clip_port),
             "ENRICHMENT_PORT": str(self.config.enrichment_port),
             "ENRICHMENT_LIGHT_PORT": str(self.config.enrichment_light_port),
+            "AI_GATEWAY_PORT": str(self.config.ai_gateway_port),
         }
 
         # Merge with current environment (allows .env values to take precedence)
@@ -491,12 +495,89 @@ class ContainerManager:
             output.warn(f"Failed to process {errors} template(s)")
 
     async def start_ai_services(self) -> None:
-        """Start all AI services with GPU assignments."""
-        output.step("Starting AI services...")
+        """Start AI services based on gateway mode.
+
+        When USE_AI_GATEWAY=true (default): launches a single ai-gateway container
+        (Triton + FastAPI) that replaces yolo26, clip, florence, enrichment, and
+        enrichment-light, plus the standalone ai-llm container.
+
+        When USE_AI_GATEWAY=false: falls back to 5 individual AI containers
+        (legacy mode) for rollback safety.
+        """
+        if self.config.use_ai_gateway:
+            await self._start_ai_gateway_mode()
+        else:
+            await self._start_ai_legacy_mode()
+
+    async def _start_ai_gateway_mode(self) -> None:
+        """Start AI services in gateway mode (1 gateway + 1 LLM container)."""
+        output.step("Starting AI services (gateway mode)...")
 
         network = f"{self.config.project_name}_security-net"
 
-        # AI service configurations
+        # Start the unified AI gateway (replaces yolo26, clip, florence,
+        # enrichment, enrichment-light)
+        output.info("Starting ai-gateway (Triton + FastAPI)...")
+        gateway_id = self.runtime.run(
+            image="ai-gateway",
+            name="ai-gateway",
+            network=network,
+            ports={self.config.ai_gateway_port: 8090},
+            volumes=[
+                f"{self.config.ai_models_path}/model-zoo:/models/zoo:ro",
+                f"{self.config.ai_models_path}/triton:/models/cache",
+            ],
+            env={
+                "GATEWAY_PORT": "8090",
+                "CUDA_VISIBLE_DEVICES": "0",
+            },
+            devices=[f"nvidia.com/gpu={self.config.gpu_ai_services}"],
+            restart="unless-stopped",
+            extra_args=["--security-opt=label=disable"],
+        )
+
+        if not gateway_id:
+            raise ContainerError("ai-gateway", "start", "Failed to start container")
+
+        output.success("ai-gateway started")
+
+        # Start LLM separately (different GPU)
+        output.info("Starting ai-llm...")
+        llm_id = self.runtime.run(
+            image="ai-llm",
+            name="ai-llm",
+            network=network,
+            ports={self.config.llm_port: self.config.llm_port},
+            volumes=[
+                f"{self.config.ai_models_path}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro,z",
+            ],
+            env={
+                "GPU_LAYERS": "40",
+                "CTX_SIZE": "65536",
+                "PORT": str(self.config.llm_port),
+                "CUDA_VISIBLE_DEVICES": "0",
+            },
+            devices=[f"nvidia.com/gpu={self.config.gpu_llm}"],
+            restart="unless-stopped",
+            extra_args=["--security-opt=label=disable"],
+        )
+
+        if not llm_id:
+            raise ContainerError("ai-llm", "start", "Failed to start container")
+
+        output.success("AI services started (gateway mode: 2 containers)")
+
+    async def _start_ai_legacy_mode(self) -> None:
+        """Start AI services in legacy mode (5 individual containers + LLM).
+
+        This is the original start_ai_services implementation, preserved for
+        rollback when USE_AI_GATEWAY=false.
+        """
+        output.step("Starting AI services (legacy mode)...")
+
+        network = f"{self.config.project_name}_security-net"
+
+        # AI service configurations (legacy: 5 separate containers + LLM)
         ai_configs = [
             {
                 "name": "ai-yolo26",
@@ -600,6 +681,7 @@ class ContainerManager:
                 volumes=ai_config["volumes"],
                 env={
                     **ai_config["env"],
+                    "PORT": str(ai_config["port"]),
                     "CUDA_VISIBLE_DEVICES": "0",
                 },
                 devices=[f"nvidia.com/gpu={ai_config['gpu']}"],
@@ -610,7 +692,7 @@ class ContainerManager:
             if not container_id:
                 raise ContainerError(ai_config["name"], "start", "Failed to start container")
 
-        output.success("AI services started")
+        output.success("AI services started (legacy mode: 6 containers)")
 
     async def start_backend(self) -> None:
         """Start backend service."""
@@ -619,6 +701,34 @@ class ContainerManager:
         network = f"{self.config.project_name}_security-net"
         postgres_host = f"{self.config.project_name}_postgres_1"
         redis_host = f"{self.config.project_name}_redis_1"
+
+        # Build environment variables based on gateway mode
+        backend_env = {
+            "DATABASE_URL": f"postgresql+asyncpg://{self.config.postgres_user}:{self.config.postgres_password}@{postgres_host}:5432/{self.config.postgres_db}",
+            "REDIS_URL": f"redis://{redis_host}:6379",
+            "REDIS_PASSWORD": self.config.redis_password,
+            "NEMOTRON_URL": f"http://ai-llm:{self.config.llm_port}",
+            "FRONTEND_URL": "http://frontend:8080",
+            "FOSCAM_BASE_PATH": "/cameras",
+            "DEBUG": str(self.config.debug).lower(),
+        }
+
+        if self.config.use_ai_gateway:
+            # Gateway mode: single URL replaces 5 individual service URLs
+            backend_env["AI_GATEWAY_URL"] = self.config.ai_gateway_url
+            backend_env["USE_AI_GATEWAY"] = "true"
+            # Still provide individual URLs pointing at gateway for backward compat
+            gw = self.config.ai_gateway_url
+            backend_env["YOLO26_URL"] = f"{gw}/yolo26"
+            backend_env["FLORENCE_URL"] = f"{gw}/florence"
+            backend_env["CLIP_URL"] = f"{gw}/clip"
+            backend_env["ENRICHMENT_URL"] = f"{gw}/enrichment"
+        else:
+            # Legacy mode: individual service URLs
+            backend_env["YOLO26_URL"] = f"http://ai-yolo26:{self.config.yolo26_port}"
+            backend_env["FLORENCE_URL"] = f"http://ai-florence:{self.config.florence_port}"
+            backend_env["CLIP_URL"] = f"http://ai-clip:{self.config.clip_port}"
+            backend_env["ENRICHMENT_URL"] = f"http://ai-enrichment:{self.config.enrichment_port}"
 
         container_id = self.runtime.run(
             image=f"localhost/{self.config.project_name}_backend:latest",
@@ -630,19 +740,7 @@ class ContainerManager:
                 f"{self.config.foscam_base_path}:/cameras:ro,z",
                 f"{self.config.ai_models_path}/model-zoo:/models/model-zoo:ro,z",
             ],
-            env={
-                "DATABASE_URL": f"postgresql+asyncpg://{self.config.postgres_user}:{self.config.postgres_password}@{postgres_host}:5432/{self.config.postgres_db}",
-                "REDIS_URL": f"redis://{redis_host}:6379",
-                "REDIS_PASSWORD": self.config.redis_password,
-                "YOLO26_URL": f"http://ai-yolo26:{self.config.yolo26_port}",
-                "NEMOTRON_URL": f"http://ai-llm:{self.config.llm_port}",
-                "FLORENCE_URL": f"http://ai-florence:{self.config.florence_port}",
-                "CLIP_URL": f"http://ai-clip:{self.config.clip_port}",
-                "ENRICHMENT_URL": f"http://ai-enrichment:{self.config.enrichment_port}",
-                "FRONTEND_URL": "http://frontend:8080",
-                "FOSCAM_BASE_PATH": "/cameras",
-                "DEBUG": str(self.config.debug).lower(),
-            },
+            env=backend_env,
             restart="unless-stopped",
             extra_args=["--network-alias", "backend"],
         )

@@ -257,12 +257,11 @@ class TestRiskAnalysisPromptTemplate:
         assert '"reasoning"' in RISK_ANALYSIS_PROMPT
 
     def test_template_has_risk_level_guidance(self) -> None:
-        """Test that the template provides risk level ranges (NEM-3880 calibrated)."""
-        assert "low (0-20)" in RISK_ANALYSIS_PROMPT
-        assert "elevated (21-40)" in RISK_ANALYSIS_PROMPT
-        assert "moderate (41-60)" in RISK_ANALYSIS_PROMPT
-        assert "high (61-80)" in RISK_ANALYSIS_PROMPT
-        assert "critical (81-100)" in RISK_ANALYSIS_PROMPT
+        """Test that the template provides risk level ranges matching DB taxonomy."""
+        assert "low (0-29)" in RISK_ANALYSIS_PROMPT
+        assert "medium (30-59)" in RISK_ANALYSIS_PROMPT
+        assert "high (60-84)" in RISK_ANALYSIS_PROMPT
+        assert "critical (85-100)" in RISK_ANALYSIS_PROMPT
 
     def test_template_variable_substitution(self) -> None:
         """Test that template variables can be properly substituted."""
@@ -547,10 +546,9 @@ class TestCalibrationGuidelines:
     """
 
     def test_calibrated_system_prompt_has_score_ranges(self) -> None:
-        """Test that CALIBRATED_SYSTEM_PROMPT has explicit score ranges."""
-        assert "0-20" in CALIBRATED_SYSTEM_PROMPT
-        has_elevated = "21-40" in CALIBRATED_SYSTEM_PROMPT or "ELEVATED" in CALIBRATED_SYSTEM_PROMPT
-        assert has_elevated
+        """Test that CALIBRATED_SYSTEM_PROMPT has explicit score ranges matching DB taxonomy."""
+        assert "0-29" in CALIBRATED_SYSTEM_PROMPT
+        assert "MEDIUM" in CALIBRATED_SYSTEM_PROMPT or "30-59" in CALIBRATED_SYSTEM_PROMPT
         assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_mentions_delivery_drivers(self) -> None:
@@ -595,7 +593,7 @@ class TestCalibrationGuidelines:
             assert has_tree or has_header, f"{name} should mention non-risk factors"
 
     def test_all_prompts_have_calibrated_score_ranges(self) -> None:
-        """Test that all prompt templates have calibrated score ranges."""
+        """Test that all prompt templates have calibrated score ranges matching DB taxonomy."""
         prompts_to_check = [
             ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
             ("ENRICHED_RISK_ANALYSIS_PROMPT", ENRICHED_RISK_ANALYSIS_PROMPT),
@@ -604,9 +602,9 @@ class TestCalibrationGuidelines:
             ("MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT", MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT),
         ]
         for name, prompt in prompts_to_check:
-            # Each prompt should have the new calibrated LOW range (0-20)
-            has_range = "0-20" in prompt or "(0-20)" in prompt
-            assert has_range, f"{name} should have calibrated LOW range (0-20)"
+            # Each prompt should have the calibrated LOW range (0-29)
+            has_range = "0-29" in prompt or "(0-29)" in prompt
+            assert has_range, f"{name} should have calibrated LOW range (0-29)"
 
     def test_prompts_emphasize_lower_scores_as_default(self) -> None:
         """Test that prompts emphasize defaulting to lower scores."""
@@ -670,8 +668,10 @@ class TestFormatViolenceContext:
     def test_non_violent_detection(self) -> None:
         """Test formatting when no violence is detected (marginal tier).
 
-        With the new tier-based system (NEM-5483), marginal tier (violent_score < 55%)
-        returns None to exclude from LLM prompts.
+        With the tier-based system (NEM-5483), marginal tier (violent_score < 55%)
+        returns empty string to exclude from LLM prompts. Changed from None to ""
+        as part of NEM-5525 prompt template consolidation so format_violence_context
+        is safe for direct use in str.format() calls.
         """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
@@ -681,13 +681,14 @@ class TestFormatViolenceContext:
         )
         result = format_violence_context(violence_result)
 
-        # Marginal tier (violent_score < 55%) returns None to exclude from prompts
-        assert result is None
+        # Marginal tier (violent_score < 55%) returns "" to exclude from prompts
+        assert result == ""
 
     def test_edge_case_exactly_zero_confidence(self) -> None:
         """Test edge case with zero confidence (marginal tier).
 
-        With the new tier-based system (NEM-5483), marginal tier returns None.
+        With the tier-based system (NEM-5483), marginal tier returns empty string.
+        Changed from None to "" as part of NEM-5525 prompt template consolidation.
         """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
@@ -696,8 +697,8 @@ class TestFormatViolenceContext:
             non_violent_score=0.0,
         )
         result = format_violence_context(violence_result)
-        # Marginal tier (violent_score < 55%) returns None to exclude from prompts
-        assert result is None
+        # Marginal tier (violent_score < 55%) returns "" to exclude from prompts
+        assert result == ""
 
 
 # =============================================================================
@@ -784,11 +785,13 @@ class TestFormatViolenceContextTierBased:
         # Should NOT have urgent action language
         assert "ACTION REQUIRED" not in result or "Immediate" not in result
 
-    def test_format_violence_marginal_tier_returns_none(self) -> None:
-        """Marginal tier should return None to exclude from LLM prompt.
+    def test_format_violence_marginal_tier_returns_empty_string(self) -> None:
+        """Marginal tier should return empty string to exclude from LLM prompt.
 
         Low-confidence violence (<55%) should be completely excluded from
         the LLM prompt to avoid noise and false positive contamination.
+        Changed from None to "" as part of NEM-5525 prompt template consolidation
+        so format_violence_context is safe for direct use in str.format() calls.
         """
         violence_result = MockViolenceDetectionResultWithTier(
             is_violent=False,
@@ -800,9 +803,8 @@ class TestFormatViolenceContextTierBased:
 
         result = format_violence_context(violence_result)
 
-        # This test will FAIL because current code returns formatted string
-        # for any non-None input. Marginal tier should return None.
-        assert result is None
+        # Marginal tier returns "" to exclude from prompts (safe for str.format)
+        assert result == ""
 
     def test_format_violence_suspected_tier_boundary(self) -> None:
         """55% exactly should be suspected tier with appropriate formatting."""
@@ -4350,19 +4352,16 @@ class TestCalibratedSystemPrompt:
         assert "1%" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_has_risk_level_ranges(self) -> None:
-        """Test that the prompt includes risk level score ranges."""
+        """Test that the prompt includes risk level score ranges matching DB taxonomy."""
         assert "LOW" in CALIBRATED_SYSTEM_PROMPT
-        # NEM-3880: Updated to use ELEVATED and MODERATE instead of MEDIUM
-        has_elevated = "ELEVATED" in CALIBRATED_SYSTEM_PROMPT
-        has_moderate = "MODERATE" in CALIBRATED_SYSTEM_PROMPT
-        assert has_elevated or has_moderate
+        assert "MEDIUM" in CALIBRATED_SYSTEM_PROMPT
         assert "HIGH" in CALIBRATED_SYSTEM_PROMPT
         assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
-        # Score ranges - updated per NEM-3880
-        assert "0-20" in CALIBRATED_SYSTEM_PROMPT
-        assert "21-40" in CALIBRATED_SYSTEM_PROMPT
-        assert "61-80" in CALIBRATED_SYSTEM_PROMPT
-        assert "81-100" in CALIBRATED_SYSTEM_PROMPT
+        # Score ranges aligned with DB severity thresholds
+        assert "0-29" in CALIBRATED_SYSTEM_PROMPT
+        assert "30-59" in CALIBRATED_SYSTEM_PROMPT
+        assert "60-84" in CALIBRATED_SYSTEM_PROMPT
+        assert "85-100" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_has_miscalibration_warning(self) -> None:
         """Test that the prompt warns about miscalibration."""

@@ -1,0 +1,37 @@
+# CLIP ViT-L/14 Image Embedding - ONNX Runtime
+# Input: preprocessed image (B, 3, 224, 224) FP32
+# Output: embedding (B, 768) FP32
+# Source: ai/clip/model.py (CLIPProcessor resizes to 224x224, embedding dim 768)
+
+name: "clip"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "pixel_values"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]
+  }
+]
+
+output [
+  {
+    name: "embedding"
+    data_type: TYPE_FP32
+    dims: [ 768 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [ 1, 4, 8 ]
+  max_queue_delay_microseconds: 100
+}

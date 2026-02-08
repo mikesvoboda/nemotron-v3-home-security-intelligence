@@ -601,6 +601,24 @@ class ImageRequest(BaseModel):
     image_base64: str = Field(..., description="Base64-encoded image data")
 
 
+class PoseAnalyzeRequest(BaseModel):
+    """Request model for pose analysis endpoint.
+
+    Compatible with enrichment_client.py which sends 'image' (not 'image_base64'),
+    plus optional bbox and min_confidence fields.
+    """
+
+    image: str = Field(..., description="Base64-encoded image data")
+    bbox: list[float] | None = Field(
+        default=None,
+        description="Optional bounding box [x1, y1, x2, y2] to crop before analysis",
+    )
+    min_confidence: float = Field(
+        default=0.3,
+        description="Minimum confidence threshold for keypoints (0-1)",
+    )
+
+
 class PoseResponse(BaseModel):
     """Response model for pose estimation.
 
@@ -733,17 +751,30 @@ async def metrics():
 
 
 @app.post("/pose-analyze", response_model=PoseResponse)
-async def analyze_pose(request: ImageRequest):
+async def analyze_pose(request: PoseAnalyzeRequest):
     """Analyze body pose keypoints from an image.
 
     Endpoint name matches heavy service for config-driven routing compatibility.
+    Accepts 'image' field (base64 encoded) with optional 'bbox' and 'min_confidence'.
     """
     if pose_estimator is None:
         raise HTTPException(status_code=503, detail="Pose estimator not loaded")
 
     start_time = time.perf_counter()
     try:
-        image = decode_image(request.image_base64)
+        image = decode_image(request.image)
+
+        # Crop to bounding box if provided
+        if request.bbox and len(request.bbox) == 4:
+            x1, y1, x2, y2 = request.bbox
+            width, height = image.size
+            x1 = max(0, int(x1))
+            y1 = max(0, int(y1))
+            x2 = min(width, int(x2))
+            y2 = min(height, int(y2))
+            if x2 > x1 and y2 > y1:
+                image = image.crop((x1, y1, x2, y2))
+
         result = await asyncio.to_thread(pose_estimator.estimate_pose, image)
         inference_ms = (time.perf_counter() - start_time) * 1000
 

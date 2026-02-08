@@ -1300,6 +1300,53 @@ class Settings(BaseSettings):
         default="http://localhost:8096",
         description="Light enrichment service URL for pose, threat, reid, pet, depth models. Development: http://localhost:8096, Docker: http://ai-enrichment-light:8096",
     )
+
+    # AI Gateway (Triton Inference Server migration)
+    # When set, all AI service clients use this single URL with service-specific
+    # path prefixes instead of individual service URLs.
+    # See docs/plans/triton-migration.md for details.
+    ai_gateway_url: str | None = Field(
+        default=None,
+        description="AI Gateway URL that replaces individual AI service URLs. "
+        "When set, clients use {ai_gateway_url}/{service_prefix} as base URL. "
+        "Example: http://ai-gateway:8090",
+    )
+    use_ai_gateway: bool = Field(
+        default=False,
+        description="Enable AI Gateway mode. When true and ai_gateway_url is set, "
+        "all AI service clients route through the gateway instead of individual services.",
+    )
+
+    @field_validator("ai_gateway_url", mode="before")
+    @classmethod
+    def validate_ai_gateway_url(cls, v: Any) -> str | None:
+        """Validate AI Gateway URL if provided.
+
+        Accepts None (gateway disabled) or a valid HTTP/HTTPS URL.
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string, or None
+
+        Raises:
+            ValueError: If the URL is provided but not a valid HTTP/HTTPS URL
+        """
+        if v is None or v == "":
+            return None
+
+        url_str = str(v)
+
+        try:
+            validated_url = AnyHttpUrl(url_str)
+            return str(validated_url).rstrip("/")
+        except Exception as e:
+            raise ValueError(
+                f"Invalid AI Gateway URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+                f"Example: 'http://ai-gateway:8090'. Error: {e}"
+            ) from None
+
     use_enrichment_service: bool = Field(
         default=True,
         description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
@@ -1930,12 +1977,12 @@ class Settings(BaseSettings):
         description="Successful DLQ writes needed to close circuit from half-open state",
     )
 
-    # Enrichment circuit breaker settings
+    # Enrichment circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
     enrichment_cb_failure_threshold: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=50,
-        description="Number of Enrichment service failures before opening circuit breaker",
+        description="Number of Enrichment service failures before opening circuit breaker (per-endpoint)",
     )
     enrichment_cb_recovery_timeout: float = Field(
         default=60.0,
@@ -1950,12 +1997,12 @@ class Settings(BaseSettings):
         description="Maximum test calls allowed when Enrichment circuit is half-open",
     )
 
-    # CLIP circuit breaker settings
+    # CLIP circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
     clip_cb_failure_threshold: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=50,
-        description="Number of CLIP service failures before opening circuit breaker",
+        description="Number of CLIP service failures before opening circuit breaker (per-endpoint)",
     )
     clip_cb_recovery_timeout: float = Field(
         default=60.0,
@@ -1970,12 +2017,12 @@ class Settings(BaseSettings):
         description="Maximum test calls allowed when CLIP circuit is half-open",
     )
 
-    # Florence circuit breaker settings
+    # Florence circuit breaker settings (per-endpoint breakers, threshold=10 for high-throughput pipeline)
     florence_cb_failure_threshold: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=50,
-        description="Number of Florence service failures before opening circuit breaker",
+        description="Number of Florence service failures before opening circuit breaker (per-endpoint)",
     )
     florence_cb_recovery_timeout: float = Field(
         default=60.0,

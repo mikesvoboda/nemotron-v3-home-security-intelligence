@@ -1,352 +1,387 @@
 # Triton Inference Server Migration Plan
 
-## Overview
+> **Date:** 2026-02-08
+> **Status:** Approved Design
+> **Author:** Mike Svoboda + Claude Opus 4.6
 
-This document describes the migration from direct PyTorch/TensorRT inference to NVIDIA Triton Inference Server for object detection models (YOLO26 and YOLO26).
+## Problem Statement
 
-## Why Triton?
+The AI pipeline runs 5 separate containers on GPU 1 (RTX A400 4GB), each with its own PyTorch CUDA runtime. The duplicate CUDA contexts consume ~2.4 GB of overhead, leaving only 360 MiB free on a 4 GB card. This prevents on-demand models from loading and limits enrichment coverage.
 
-### Current Architecture Issues
+| Container           | Model VRAM | CUDA Overhead | Total                      |
+| ------------------- | ---------- | ------------- | -------------------------- |
+| ai-yolo26           | 5 MiB      | ~170 MiB      | ~175 MiB                   |
+| ai-clip             | 834 MiB    | ~384 MiB      | ~1,218 MiB                 |
+| ai-florence         | 460 MiB    | ~930 MiB      | ~1,390 MiB                 |
+| ai-enrichment       | 760 MiB    | ~170 MiB      | ~930 MiB                   |
+| ai-enrichment-light | 0 MiB      | 0 MiB         | 0 MiB                      |
+| **Total**           |            |               | **~3,713 MiB / 4,094 MiB** |
 
-| Issue                   | Impact                                      |
-| ----------------------- | ------------------------------------------- |
-| No automatic batching   | Suboptimal GPU utilization under load       |
-| Separate AI services    | Resource duplication, complex orchestration |
-| Manual model management | No versioning, no A/B testing               |
-| Custom health/metrics   | Inconsistent observability                  |
-| Cold start latency      | First request slow after idle               |
+## Solution: Single Triton Container + AI Gateway
 
-### Triton Benefits
+Consolidate all GPU 1 models into a single NVIDIA Triton Inference Server with one shared CUDA context. A lightweight FastAPI gateway translates between the existing backend REST APIs and Triton's gRPC protocol.
 
-| Feature             | Benefit                                 |
-| ------------------- | --------------------------------------- |
-| Dynamic batching    | Up to 5x throughput improvement         |
-| Model repository    | Centralized, versioned model management |
-| Native metrics      | Prometheus-compatible, detailed latency |
-| Warmup support      | Configurable model pre-loading          |
-| Resource isolation  | Per-model memory and compute quotas     |
-| Multi-model serving | Single server, multiple models          |
-| gRPC + HTTP         | Flexible protocol options               |
+### Projected VRAM After Migration
 
-## Architecture Comparison
+| Backend                 | Models                                               | VRAM                       |
+| ----------------------- | ---------------------------------------------------- | -------------------------- |
+| TensorRT                | yolo26, clip, pose, threat, fashion-clip             | ~500 MiB                   |
+| ONNX Runtime            | vehicle, demographics (age+gender), pet, depth, reid | ~350 MiB                   |
+| Python (shared PyTorch) | florence-2, xclip-action                             | ~860 MiB                   |
+| Triton server overhead  | (single CUDA context)                                | ~300 MiB                   |
+| **Total**               | **13 models**                                        | **~2,010 MiB / 4,094 MiB** |
 
-### Before (Current)
+**All models stay resident in memory.** No on-demand loading needed. ~2 GB free headroom for inference buffers.
 
-```
-┌─────────────┐
-│   Backend   │
-└──────┬──────┘
-       │
-  ┌────┴────┐
-  ▼         ▼
-┌─────┐  ┌──────┐
-│YOLO26│  │YOLO26│
-│FastAPI│  │FastAPI│
-│8090   │  │8095   │
-└───────┘  └───────┘
-   GPU        GPU
-```
-
-Each AI service:
-
-- Runs FastAPI + PyTorch
-- Manages own model loading
-- Handles own health checks
-- No request batching
-
-### After (With Triton)
+## Architecture
 
 ```
-┌─────────────┐
-│   Backend   │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   Triton    │
-│   Server    │
-│ 8000/8001   │
-├─────────────┤
-│ ┌────────┐  │
-│ │ YOLO26 │  │
-│ └────────┘  │
-│ ┌────────┐  │
-│ │ YOLO26 │  │
-│ └────────┘  │
-└─────────────┘
-      GPU
+                    ┌─────────────────────────────────┐
+                    │          Backend (8001)          │
+                    │                                  │
+                    │  AI_GATEWAY_URL=http://gw:8090   │
+                    │                                  │
+                    │  detector_client  → /yolo26/*    │
+                    │  clip_client      → /clip/*      │
+                    │  florence_client   → /florence/*  │
+                    │  enrichment_client → /enrichment/*│
+                    │  enrich_light_cli → /enrich-lt/* │
+                    └──────────┬──────────────────────┘
+                               │ HTTP (existing REST APIs)
+                               ▼
+              ┌───────────────────────────────────────┐
+              │       AI Gateway (FastAPI, CPU)        │
+              │            Port 8090                   │
+              │                                        │
+              │  /yolo26/detect   → triton:yolo26      │
+              │  /clip/embed      → triton:clip        │
+              │  /florence/extract → triton:florence2   │
+              │  /enrichment/*    → triton:various     │
+              │  /enrich-lt/*     → triton:various     │
+              │  /health          → aggregated health  │
+              │  /metrics         → prometheus export  │
+              └──────────┬────────────────────────────┘
+                         │ gRPC (localhost:8001)
+                         ▼
+              ┌───────────────────────────────────────┐
+              │     Triton Inference Server            │
+              │     GPU 1 (RTX A400 4GB)              │
+              │                                        │
+              │  TensorRT:  yolo26, clip, pose,        │
+              │             threat, fashion_clip        │
+              │  ONNX RT:   vehicle, demographics_age, │
+              │             demographics_gender, pet,   │
+              │             depth, reid                 │
+              │  Python:    florence2, xclip_action     │
+              │                                        │
+              │  All 13 models resident in memory       │
+              └───────────────────────────────────────┘
 ```
 
-Single Triton server:
+### Component Responsibilities
 
-- Manages all models
-- Automatic batching
-- Unified metrics
-- Model versioning
+1. **Backend** — Unchanged. All 5 HTTP clients keep their existing APIs, circuit breakers, retry logic. Single env var `AI_GATEWAY_URL` replaces 5 individual `*_URL` vars. Each client prepends its service prefix (`/clip/embed`, `/florence/extract`, etc.).
+
+2. **AI Gateway** — Thin FastAPI process on CPU (no GPU). Receives REST calls, translates to Triton gRPC, reformats responses. ~200 lines per model adapter. Runs in same container as Triton. Exposes per-model Prometheus metrics and aggregated health endpoint.
+
+3. **Triton Inference Server** — Hosts all 13 models on GPU 1 in a single CUDA context. Three backends: TensorRT (5 models), ONNX Runtime (6 models), Python (2 models).
+
+## Model Repository Structure
+
+```
+ai/triton/model_repository/
+├── yolo26/
+│   ├── config.pbtxt              # TensorRT, FP16
+│   └── 1/model.plan
+├── clip/
+│   ├── config.pbtxt              # TensorRT, FP16
+│   └── 1/model.plan
+├── pose/
+│   ├── config.pbtxt              # TensorRT, FP16
+│   └── 1/model.plan
+├── threat/
+│   ├── config.pbtxt              # TensorRT, FP16
+│   └── 1/model.plan
+├── fashion_clip/
+│   ├── config.pbtxt              # TensorRT, FP16
+│   └── 1/model.plan
+├── vehicle/
+│   ├── config.pbtxt              # ONNX Runtime
+│   └── 1/model.onnx
+├── demographics_age/
+│   ├── config.pbtxt              # ONNX Runtime
+│   └── 1/model.onnx
+├── demographics_gender/
+│   ├── config.pbtxt              # ONNX Runtime
+│   └── 1/model.onnx
+├── pet/
+│   ├── config.pbtxt              # ONNX Runtime
+│   └── 1/model.onnx
+├── depth/
+│   ├── config.pbtxt              # ONNX Runtime
+│   └── 1/model.onnx
+├── reid/
+│   ├── config.pbtxt              # ONNX Runtime
+│   └── 1/model.onnx
+├── florence2/
+│   ├── config.pbtxt              # Python backend
+│   └── 1/model.py
+└── xclip_action/
+    ├── config.pbtxt              # Python backend
+    └── 1/model.py
+```
+
+### Model Backend Selection Rationale
+
+| Model                                    | Backend          | Why                                                                      |
+| ---------------------------------------- | ---------------- | ------------------------------------------------------------------------ |
+| yolo26, clip, pose, threat, fashion-clip | **TensorRT**     | Standard architectures, max efficiency, 50-90% VRAM reduction            |
+| vehicle, demographics, pet, depth, reid  | **ONNX Runtime** | Simple models, straightforward export, good efficiency                   |
+| florence2                                | **Python**       | `trust_remote_code=True`, autoregressive decoder, custom post-processing |
+| xclip_action                             | **Python**       | `trust_remote_code=True`, custom cross-frame temporal attention          |
+
+Florence-2 and X-CLIP cannot be exported to TensorRT/ONNX due to custom HuggingFace model code and autoregressive generation. They share a single PyTorch runtime in Triton's Python backend.
+
+## AI Gateway Design
+
+### File Structure
+
+```
+ai/gateway/
+├── Dockerfile
+├── requirements.txt          # fastapi, tritonclient[grpc], uvicorn, pillow
+├── main.py                   # App, routing, health, metrics
+├── triton_client.py          # Shared gRPC client pool
+├── adapters/
+│   ├── yolo26.py             # /yolo26/detect, /yolo26/segment
+│   ├── clip.py               # /clip/embed, /clip/classify, etc.
+│   ├── florence.py           # /florence/extract, /florence/ocr, etc.
+│   ├── enrichment.py         # /enrichment/enrich, /enrichment/vehicle, etc.
+│   └── enrichment_light.py   # /enrich-lt/pose, /enrich-lt/threat, etc.
+└── utils.py                  # base64 decode, image resize, numpy conversion
+```
+
+### Adapter Pattern
+
+Each adapter translates REST → Triton gRPC → REST:
+
+```python
+@router.post("/embed")
+async def embed(request: EmbedRequest) -> EmbedResponse:
+    start = time.monotonic()
+    image = decode_base64_image(request.image)
+    tensor = preprocess_clip(image)                   # (1, 3, 224, 224) FP16
+    result = await triton.infer(
+        model_name="clip",
+        inputs={"image": tensor},
+        outputs=["embedding"],
+    )
+    embedding = l2_normalize(result["embedding"][0].tolist())
+    return {"embedding": embedding, "inference_time_ms": (time.monotonic() - start) * 1000}
+```
+
+### Backend Client Changes
+
+Single env var replaces 5:
+
+```env
+AI_GATEWAY_URL=http://ai-gateway:8090
+```
+
+Each client prepends its prefix:
+
+```python
+# clip_client.py
+self.base_url = f"{settings.ai_gateway_url}/clip"
+
+# florence_client.py
+self.base_url = f"{settings.ai_gateway_url}/florence"
+```
+
+## Observability
+
+### Per-Model Metrics (Triton native)
+
+Triton exposes Prometheus metrics at `:8002/metrics` with per-model granularity:
+
+```prometheus
+nv_inference_request_success{model="clip",version="1"} 1547
+nv_inference_request_success{model="yolo26",version="1"} 3201
+nv_inference_compute_infer_duration_us{model="clip",version="1"} 12400
+nv_inference_queue_duration_us{model="clip",version="1"} 150
+nv_gpu_utilization{gpu_uuid="..."} 0.45
+nv_gpu_memory_used_bytes{gpu_uuid="..."} 2105000000
+```
+
+### Gateway Application Metrics
+
+```prometheus
+hsi_ai_inference_duration_seconds{service="clip",endpoint="embed"}
+hsi_ai_inference_duration_seconds{service="florence",endpoint="ocr"}
+hsi_ai_inference_errors_total{service="enrichment",endpoint="vehicle"}
+hsi_circuit_breaker_state{service="clip",endpoint="embed"}
+```
+
+### Health Checking (3 layers)
+
+| Layer              | Endpoint                           | What It Checks                                        |
+| ------------------ | ---------------------------------- | ----------------------------------------------------- |
+| Triton native      | `GET :8000/v2/health/ready`        | Server ready, all models loaded                       |
+| Triton per-model   | `GET :8000/v2/models/{name}/ready` | Individual model status                               |
+| Gateway aggregated | `GET :8090/health`                 | All models + gateway (matches current backend format) |
+
+## Container & Deployment
+
+### Single Container (Gateway + Triton)
+
+```dockerfile
+FROM nvcr.io/nvidia/tritonserver:25.01-py3
+
+RUN pip install --no-cache-dir fastapi uvicorn tritonclient[grpc] pillow numpy prometheus-client
+
+COPY ai/gateway/ /app/gateway/
+COPY ai/triton/model_repository/ /models/repository/
+COPY ai/gateway/entrypoint.sh /entrypoint.sh
+
+ENV TRITON_MODEL_REPOSITORY=/models/repository
+ENV GATEWAY_PORT=8090
+
+EXPOSE 8090
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+### Launch Command (replaces 5 containers)
+
+```bash
+podman run -d \
+  --name ai-gateway \
+  --network security-net \
+  --device nvidia.com/gpu=1 \
+  --security-opt label=disable \
+  -v /export/ai_models/model-zoo:/models/zoo:ro \
+  -v /export/ai_models/triton:/models/cache \
+  -p 127.0.0.1:8090:8090 \
+  ai-gateway
+```
+
+### .env Changes
+
+```env
+# Remove
+YOLO26_PORT=8095
+CLIP_PORT=8093
+FLORENCE_PORT=8092
+ENRICHMENT_PORT=8094
+ENRICHMENT_LIGHT_PORT=8096
+
+# Add
+AI_GATEWAY_PORT=8090
+AI_GATEWAY_URL=http://ai-gateway:8090
+```
+
+## Model Export Pipeline
+
+Export scripts convert HuggingFace/PyTorch models to Triton-compatible formats:
+
+```
+ai/gateway/export/
+├── export_clip.py            # HF → ONNX → TensorRT FP16
+├── export_fashion_clip.py    # HF → ONNX → TensorRT FP16
+├── export_vehicle.py         # HF → ONNX
+├── export_demographics.py    # HF → ONNX (age + gender)
+├── export_pet.py             # HF → ONNX
+├── export_depth.py           # HF → ONNX
+├── export_reid.py            # PyTorch → ONNX
+└── export_all.sh             # Runs all exports, caches results
+```
+
+YOLO26 TensorRT engine already exists. Pose and threat TensorRT engines export via Ultralytics `.export(format='engine')`. Exported files are cached in a persistent volume and reused across deploys.
 
 ## Migration Phases
 
-### Phase 1: Infrastructure (Current)
+### Phase 1: Model Export Pipeline
 
-**Goal**: Create Triton infrastructure without disrupting existing services.
+Build export scripts, convert all models, validate outputs match PyTorch originals.
 
-**Deliverables**:
+**Tasks:**
 
-- [x] Model repository structure (`ai/triton/model_repository/`)
-- [x] Model configurations (`config.pbtxt` files)
-- [x] Triton client wrapper (`ai/triton/client.py`)
-- [x] Docker Compose service (profile-gated)
-- [x] Unit tests for client
+- Write 7 export scripts (CLIP, fashion-CLIP, vehicle, demographics, pet, depth, reid)
+- Copy existing YOLO26 TensorRT engine
+- Export pose/threat via Ultralytics TensorRT
+- Write Python backend `model.py` for Florence-2 and X-CLIP
+- Write `config.pbtxt` for all 13 models
+- Validate: load each in standalone Triton, compare outputs (cosine sim > 0.999, IoU > 0.99)
 
-**Status**: Complete
+**Deliverable:** Fully populated `ai/triton/model_repository/`
 
-### Phase 2: Model Conversion
+**Risk:** None — no runtime changes, purely offline work.
 
-**Goal**: Convert existing models to Triton-compatible TensorRT format.
+### Phase 2: Gateway + Triton Container
 
-**Tasks**:
+Build gateway adapters and Triton container. Deploy alongside existing services on a different port.
 
-1. **YOLO26 Conversion**
+**Tasks:**
 
-   ```bash
-   # Export to ONNX (if not already)
-   python ai/yolo26/export_onnx.py --output yolo26.onnx
+- Write `ai/gateway/main.py` (health, metrics, routing)
+- Write 5 adapter files (yolo26, clip, florence, enrichment, enrichment-light)
+- Write `triton_client.py` (gRPC connection pool)
+- Write `Dockerfile` and `entrypoint.sh`
+- Deploy on port 8090, test with seed script via env override
 
-   # Convert to TensorRT
-   trtexec --onnx=yolo26.onnx \
-           --saveEngine=ai/triton/model_repository/yolo26/1/model.plan \
-           --fp16 \
-           --minShapes=images:1x3x640x640 \
-           --optShapes=images:4x3x640x640 \
-           --maxShapes=images:8x3x640x640 \
-           --workspace=4096
-   ```
-
-2. **YOLO26 Conversion**
-
-   ```bash
-   # Use Ultralytics export
-   yolo export model=yolo26m.pt format=engine device=0 half=True
-
-   # Copy to Triton repository
-   cp yolo26m.engine ai/triton/model_repository/yolo26/1/model.plan
-   ```
-
-3. **Validation**
-   - Verify model outputs match current implementation
-   - Compare latency and throughput
-   - Test batch inference
-
-**Estimated Time**: 2-3 days
-
-### Phase 3: Integration Testing
-
-**Goal**: Validate Triton client works correctly with real Triton server.
-
-**Tasks**:
-
-1. **Local Testing**
-
-   ```bash
-   # Start Triton server
-   docker compose -f docker-compose.prod.yml --profile triton up -d triton
-
-   # Run integration tests
-   TRITON_ENABLED=true pytest ai/triton/tests/test_integration.py -v
-   ```
-
-2. **Performance Testing**
-
-   ```bash
-   # Use Triton's perf_analyzer
-   perf_analyzer -m yolo26 \
-                 -u localhost:8097 \
-                 --concurrency-range 1:16 \
-                 --shape images:1,3,640,640
-   ```
-
-3. **Comparison Testing**
-   - A/B test with current implementation
-   - Measure latency at p50, p95, p99
-   - Verify detection accuracy unchanged
-
-**Estimated Time**: 2-3 days
-
-### Phase 4: Backend Integration
-
-**Goal**: Update backend to use Triton client when enabled.
-
-**Tasks**:
-
-1. **Configuration**
-
-   - Add Triton settings to backend config
-   - Support fallback to direct services
-
-2. **Detector Client Update**
-
-   ```python
-   # backend/services/detector_client.py
-
-   async def _detect_with_triton(self, image_data: bytes) -> list[Detection]:
-       """Use Triton for inference when enabled."""
-       from ai.triton import TritonClient
-
-       client = self._get_triton_client()
-       result = await client.detect(image_data, model=self._detector_type)
-
-       return [
-           Detection(
-               object_type=det.class_name,
-               confidence=det.confidence,
-               bbox_x=det.bbox.x,
-               bbox_y=det.bbox.y,
-               bbox_width=det.bbox.width,
-               bbox_height=det.bbox.height,
-           )
-           for det in result.detections
-       ]
-   ```
-
-3. **Testing**
-   - Unit tests with mocked Triton client
-   - Integration tests with real Triton server
-
-**Estimated Time**: 3-4 days
-
-### Phase 5: Gradual Rollout
-
-**Goal**: Safely roll out Triton in production.
-
-**Rollout Strategy**:
-
-1. **Canary (10% traffic)**
-
-   - Deploy Triton alongside existing services
-   - Route 10% of traffic via feature flag
-   - Monitor error rates and latency
-
-2. **Incremental (25%, 50%, 75%)**
-
-   - Increase traffic percentage
-   - Monitor for regression
-   - Rollback if issues detected
-
-3. **Full Rollout (100%)**
-   - All traffic through Triton
-   - Existing services as fallback
-
-**Monitoring**:
-
-```yaml
-# Grafana alert rules
-- alert: TritonHighLatency
-  expr: histogram_quantile(0.95, rate(nv_inference_exec_duration_us[5m])) > 200000
-  for: 5m
-  labels:
-    severity: warning
-
-- alert: TritonHighErrorRate
-  expr: rate(nv_inference_request_failure[5m]) / rate(nv_inference_request_success[5m]) > 0.01
-  for: 5m
-  labels:
-    severity: critical
-```
-
-**Estimated Time**: 1-2 weeks
-
-### Phase 6: Deprecation
-
-**Goal**: Remove legacy AI services after successful migration.
-
-**Tasks**:
-
-1. Remove direct AI service containers
-2. Update documentation
-3. Archive old code (keep for reference)
-4. Update CI/CD pipelines
-
-**Estimated Time**: 1-2 days
-
-## Configuration Reference
-
-### Environment Variables
-
-| Variable                      | Default          | Description               |
-| ----------------------------- | ---------------- | ------------------------- |
-| `TRITON_ENABLED`              | `false`          | Enable Triton inference   |
-| `TRITON_URL`                  | `localhost:8001` | gRPC endpoint             |
-| `TRITON_HTTP_URL`             | `localhost:8000` | HTTP endpoint             |
-| `TRITON_PROTOCOL`             | `grpc`           | Protocol (grpc/http)      |
-| `TRITON_TIMEOUT`              | `60`             | Request timeout (seconds) |
-| `TRITON_MODEL`                | `yolo26`         | Default model             |
-| `TRITON_MAX_RETRIES`          | `3`              | Max retry attempts        |
-| `TRITON_CONFIDENCE_THRESHOLD` | `0.5`            | Detection threshold       |
-
-### Docker Compose
-
-Enable Triton with:
+**Validation:**
 
 ```bash
-# Start with Triton profile
-docker compose -f docker-compose.prod.yml --profile triton up -d
-
-# Or set in .env
-TRITON_ENABLED=true
+AI_GATEWAY_URL=http://localhost:8090 uv run python scripts/seed-events.py --validate
 ```
 
-## Performance Expectations
+**Deliverable:** Working `ai-gateway` container, verified equivalent to current 5-service deployment.
 
-### Latency (p95)
+**Risk:** Low — old services still running, gateway runs in parallel.
 
-| Scenario       | Current | With Triton | Improvement |
-| -------------- | ------- | ----------- | ----------- |
-| Single request | 50ms    | 45ms        | ~10%        |
-| 4 concurrent   | 200ms   | 55ms        | ~73%        |
-| 8 concurrent   | 400ms   | 70ms        | ~82%        |
+### Phase 3: Backend Client Migration
 
-### Throughput
+Update 5 backend clients to support `AI_GATEWAY_URL`. Feature-flagged with `USE_AI_GATEWAY` toggle.
 
-| Scenario   | Current  | With Triton | Improvement |
-| ---------- | -------- | ----------- | ----------- |
-| Sequential | 20 req/s | 22 req/s    | ~10%        |
-| Concurrent | 25 req/s | 115 req/s   | ~360%       |
+**Tasks:**
 
-_Note: Actual results depend on GPU, batch sizes, and workload patterns._
+- Add `AI_GATEWAY_URL` to backend settings
+- Update each client's `__init__` (1 line each)
+- Add `USE_AI_GATEWAY=true/false` toggle
+- Test both modes with seed + validation
 
-## Rollback Plan
+**Deliverable:** Backend supports both old and new modes.
 
-If issues occur during migration:
+**Risk:** Minimal — toggle provides instant rollback.
 
-1. **Immediate**: Set `TRITON_ENABLED=false` to fall back to direct services
-2. **Container**: Stop Triton container, existing services continue working
-3. **Full Rollback**: Remove Triton profile, restart without changes
+### Phase 4: Cutover & Cleanup
+
+Switch to gateway as default, remove old containers and code.
+
+**Tasks:**
+
+- Set `USE_AI_GATEWAY=true` as default
+- Stop 5 old AI containers
+- Update redeploy script, docker-compose, CLAUDE.md, AGENTS.md, .env.example
+- Archive old Dockerfiles to `ai/legacy/`
+
+**Deliverable:** Single `ai-gateway` container replaces 5 AI containers.
+
+### Rollback Safety
+
+| Phase   | Rollback                                          |
+| ------- | ------------------------------------------------- |
+| Phase 1 | No impact — nothing running changed               |
+| Phase 2 | Delete gateway container, old services unaffected |
+| Phase 3 | Set `USE_AI_GATEWAY=false`, instant rollback      |
+| Phase 4 | Re-deploy old containers from cached images       |
 
 ## Success Criteria
 
-- [ ] No increase in detection latency (p95)
-- [ ] Detection accuracy unchanged (< 0.1% variance)
-- [ ] Error rate < 0.1% under normal load
-- [ ] GPU utilization improved under concurrent load
-- [ ] All existing tests pass
-- [ ] Prometheus metrics available
-
-## Timeline Summary
-
-| Phase               | Duration  | Dependencies   |
-| ------------------- | --------- | -------------- |
-| Infrastructure      | Complete  | -              |
-| Model Conversion    | 2-3 days  | TensorRT tools |
-| Integration Testing | 2-3 days  | Phase 2        |
-| Backend Integration | 3-4 days  | Phase 3        |
-| Gradual Rollout     | 1-2 weeks | Phase 4        |
-| Deprecation         | 1-2 days  | Phase 5        |
-
-**Total Estimated Time**: 4-6 weeks
-
-## References
-
-- [NVIDIA Triton Inference Server](https://github.com/triton-inference-server/server)
-- [Triton Model Configuration](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html)
-- [Dynamic Batching](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html#dynamic-batching)
-- [Performance Analyzer](https://github.com/triton-inference-server/client/tree/main/src/c%2B%2B/perf_analyzer)
+- [ ] All 13 models loaded and healthy in single Triton container
+- [ ] GPU 1 VRAM usage < 2.5 GB (vs current 3.7 GB)
+- [ ] Per-model Prometheus metrics available
+- [ ] Detection/enrichment accuracy unchanged (< 0.1% variance)
+- [ ] Inference latency within 10% of current (TensorRT models should be faster)
+- [ ] Seed script validation passes with equivalent results
+- [ ] Backend circuit breakers and health checks functional
+- [ ] Single `AI_GATEWAY_URL` env var replaces 5 service URLs

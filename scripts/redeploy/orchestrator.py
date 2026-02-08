@@ -1,7 +1,9 @@
 """Deployment orchestrator - coordinates the full deployment workflow."""
 
+import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 from scripts.redeploy.core import output
 from scripts.redeploy.models import (
@@ -87,6 +89,9 @@ class DeployOrchestrator:
             # Phase 6: Verify deployment
             await self._verify_phase()
 
+            # Phase 7: Prune unused images (after containers started)
+            self.storage.prune_unused_images()
+
             duration = time.monotonic() - start
             self._print_success(duration)
 
@@ -129,11 +134,19 @@ class DeployOrchestrator:
             DeployMode.GHCR: "GHCR only (no AI)",
         }
 
-        service_count = {
-            DeployMode.LOCAL: 9,
-            DeployMode.HYBRID: 9,
-            DeployMode.GHCR: 4,
-        }
+        # Gateway mode reduces AI containers from 6 to 2 (gateway + llm)
+        if self.config.use_ai_gateway:
+            service_count = {
+                DeployMode.LOCAL: 5,  # postgres, redis, ai-gateway, ai-llm, backend, frontend -> but banner shows AI+core
+                DeployMode.HYBRID: 5,
+                DeployMode.GHCR: 4,
+            }
+        else:
+            service_count = {
+                DeployMode.LOCAL: 9,
+                DeployMode.HYBRID: 9,
+                DeployMode.GHCR: 4,
+            }
 
         output.banner(
             title="Home Security Intelligence Redeploy",
@@ -150,12 +163,15 @@ class DeployOrchestrator:
         """Pre-flight checks: git pull, prerequisites, .env bootstrap."""
         output.header("Pre-flight Checks")
 
-        # Bootstrap .env if missing
+        # Bootstrap .env if missing, then always sync ports from .env.example
         env_path = self.config.project_root / ".env"
         if not env_path.exists():
             output.step("Bootstrapping .env with defaults...")
             self._bootstrap_env()
             output.success(".env created with defaults")
+
+        # Always sync ports from .env.example into .env
+        self._sync_env_ports(env_path)
 
         # Git pull (unless skipped)
         if not self.config.skip_git_pull:
@@ -191,7 +207,7 @@ class DeployOrchestrator:
             self.storage.reset_storage()
 
         # Verify ports are available
-        self.containers.ensure_ports_available()
+        await self.containers.ensure_ports_available()
 
     async def _build_phase(self) -> dict:
         """Build phase: build all images.
@@ -288,9 +304,10 @@ class DeployOrchestrator:
 
         # Phase 2: AI services
         if self.config.mode != DeployMode.GHCR:
-            output.step("Phase 2: Starting AI services...")
+            ai_mode = "gateway" if self.config.use_ai_gateway else "legacy"
+            output.step(f"Phase 2: Starting AI services ({ai_mode} mode)...")
             await self.containers.start_ai_services()
-            started.extend(self.config.AI_SERVICES)
+            started.extend(self.config.ai_services)
 
         # Phase 3: Backend
         output.step("Phase 3: Starting backend...")
@@ -337,15 +354,18 @@ class DeployOrchestrator:
         # Wait for all services to be healthy
         services_to_check = ["backend", "frontend"]
         if self.config.mode != DeployMode.GHCR:
-            services_to_check.extend(
-                [
-                    "ai-yolo26",
-                    "ai-llm",
-                    "ai-florence",
-                    "ai-clip",
-                    "ai-enrichment",
-                ]
-            )
+            if self.config.use_ai_gateway:
+                services_to_check.extend(["ai-gateway", "ai-llm"])
+            else:
+                services_to_check.extend(
+                    [
+                        "ai-yolo26",
+                        "ai-llm",
+                        "ai-florence",
+                        "ai-clip",
+                        "ai-enrichment",
+                    ]
+                )
 
         await self.health.wait_healthy(services_to_check, timeout=180)
 
@@ -381,6 +401,44 @@ class DeployOrchestrator:
         if result.returncode != 0:
             output.error(f"setup.py failed: {result.stderr}")
             raise DeployError("Failed to bootstrap .env")
+
+    def _sync_env_ports(self, env_path: Path) -> None:
+        """Sync port values from .env.example into .env.
+
+        .env.example is the single source of truth for ports.
+        This preserves secrets (passwords, JWT, paths) in .env while
+        ensuring port assignments never drift from .env.example.
+        """
+        env_example_path = self.config.project_root / ".env.example"
+        if not env_example_path.exists():
+            output.warn(".env.example not found, skipping port sync")
+            return
+
+        # Extract all *_PORT= lines from .env.example
+        example_content = env_example_path.read_text(encoding="utf-8")
+        port_pattern = re.compile(r"^([A-Z_]+_PORT)=(\d+)$", re.MULTILINE)
+        example_ports = dict(port_pattern.findall(example_content))
+
+        if not example_ports:
+            return
+
+        # Update matching lines in .env
+        env_content = env_path.read_text(encoding="utf-8")
+        updated = 0
+        for var_name, port_value in example_ports.items():
+            env_pattern = re.compile(rf"^{re.escape(var_name)}=\d+$", re.MULTILINE)
+            if env_pattern.search(env_content):
+                new_line = f"{var_name}={port_value}"
+                old_match = env_pattern.search(env_content)
+                if old_match and old_match.group() != new_line:
+                    env_content = env_pattern.sub(new_line, env_content)
+                    updated += 1
+
+        if updated > 0:
+            env_path.write_text(env_content, encoding="utf-8")
+            output.info(f"Synced {updated} port(s) from .env.example into .env")
+        else:
+            output.info("All ports in .env match .env.example")
 
     def _get_phase_name(self, error: DeployError) -> str:
         """Get phase name from error type."""

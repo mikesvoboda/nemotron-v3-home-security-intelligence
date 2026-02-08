@@ -248,10 +248,28 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
         RuntimeError: If model loading fails
     """
     try:
+        from pathlib import Path
+
         import torch
         from ultralytics import YOLO
 
         logger.info(f"Loading vehicle damage detection model from {model_path}")
+
+        # Validate model directory and weights file exist when running in container
+        # (parent directory /models/model-zoo must exist for validation to fire,
+        # so unit tests with fake paths like /models/model-zoo/... skip this check)
+        weights_path = f"{model_path}/best.pt"
+        if Path(model_path).is_dir() and not Path(weights_path).is_file():
+            available = [
+                f.name
+                for f in Path(model_path).iterdir()
+                if f.name.endswith((".pt", ".pth", ".onnx"))
+            ]
+            raise RuntimeError(
+                f"Vehicle damage weights not found: {weights_path}. "
+                f"Available files: {available}. "
+                f"Re-download with: python scripts/download-model-zoo.py --model vehicle-damage"
+            )
 
         loop = asyncio.get_running_loop()
 

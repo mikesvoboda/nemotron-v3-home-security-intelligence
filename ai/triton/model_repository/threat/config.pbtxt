@@ -1,0 +1,35 @@
+# YOLOv8n Threat/Weapon Detection - ONNX Runtime
+# Input: image tensor [1, 3, 640, 640] FP32 (static batch=1 from Ultralytics export)
+# Output: raw YOLO tensor [1, 8, 8400] FP32 (8 = 4 box + 4 class scores)
+# Source: ai/enrichment-light/models/threat_detector.py (640x640 input)
+
+name: "threat"
+backend: "onnxruntime"
+max_batch_size: 0
+
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    dims: [ 1, 3, 640, 640 ]
+  }
+]
+
+output [
+  {
+    name: "output0"
+    data_type: TYPE_FP32
+    dims: [ 1, 8, 8400 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_CPU
+  }
+]
+
+# YOLOv8n weapon detection ONNX model exported via Ultralytics .export(format='onnx')
+# Static batch=1: max_batch_size=0, full shape including batch dim in dims
+# Detects weapons, knives, firearms, and other threat objects

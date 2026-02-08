@@ -155,7 +155,7 @@ repos:
     hooks:
       - id: prettier
         types_or: [css, json, markdown, yaml]
-        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$)
+        exclude: (^frontend/|tsconfig.*\.json$|^docs/openapi\.json$|^docs/index\.md$)
         additional_dependencies:
           - prettier@3.2.4
 

@@ -49,6 +49,30 @@ class ModelSpec(NamedTuple):
 MODEL_ZOO: list[ModelSpec] = [
     # Phase 1 - Core Enhancements
     ModelSpec(
+        name="yolo11-face-detection",
+        hf_repo="AdamCodd/YOLOv11n-face-detection",
+        phase=1,
+        vram_mb=200,
+        description="YOLO11 face detection (WIDERFACE trained)",
+        model_type="transformers",  # Uses snapshot_download, not ultralytics loader
+    ),
+    ModelSpec(
+        name="yolo11-license-plate",
+        hf_repo="morsetechlab/yolov11-license-plate-detection",
+        phase=1,
+        vram_mb=300,
+        description="YOLO11 license plate detection (multiple variants)",
+        model_type="transformers",  # Uses snapshot_download, not ultralytics loader
+    ),
+    ModelSpec(
+        name="smoke-fire-yolov8n",
+        hf_repo="luminous0219/fire-and-smoke-detection-yolov8",
+        phase=1,
+        vram_mb=350,
+        description="Smoke/fire detection (CRITICAL safety model)",
+        model_type="transformers",  # Uses snapshot_download
+    ),
+    ModelSpec(
         name="yolo-world-s",
         hf_repo="yolov8s-worldv2.pt",  # ultralytics will download this
         phase=1,

@@ -180,26 +180,49 @@ class DepthAnalysisResult:
 
 
 async def load_depth_model(model_path: str) -> Any:
-    """Load Depth Anything V2 model from HuggingFace.
+    """Load Depth Anything V2 model from a local path or HuggingFace repo ID.
 
     This function loads the Depth Anything V2 Small model using the
-    transformers depth-estimation pipeline.
+    transformers depth-estimation pipeline. It handles both local directory
+    paths (e.g., "/models/model-zoo/depth-anything-v2-small") and HuggingFace
+    repo IDs (e.g., "depth-anything/Depth-Anything-V2-Small-hf").
+
+    For local paths, the model and image processor are loaded explicitly
+    with ``from_pretrained(local_path)`` and passed to the pipeline to
+    avoid ``huggingface_hub`` repo-ID validation errors that occur when
+    a local path is passed directly as the ``model`` argument.
 
     Args:
-        model_path: HuggingFace model path (e.g., "depth-anything/Depth-Anything-V2-Small-hf")
+        model_path: Local directory path or HuggingFace repo ID
 
     Returns:
         Transformers pipeline for depth estimation
 
     Raises:
         ImportError: If transformers or torch is not installed
-        RuntimeError: If model loading fails
+        RuntimeError: If model loading fails (missing files, bad format, etc.)
     """
     try:
+        from pathlib import Path
+
         import torch
-        from transformers import pipeline
+        from transformers import AutoImageProcessor, AutoModelForDepthEstimation, pipeline
 
         logger.info(f"Loading Depth Anything V2 model from {model_path}")
+
+        # Validate local model path has required files when directory exists
+        # (only fires in container where /models/model-zoo/ is mounted;
+        # unit tests with fake paths skip this check gracefully)
+        if Path(model_path).is_dir():
+            preprocessor_path = str(Path(model_path) / "preprocessor_config.json")
+            if not Path(preprocessor_path).is_file():
+                available = [
+                    f.name for f in Path(model_path).iterdir() if not f.name.startswith(".")
+                ]
+                raise RuntimeError(
+                    f"Depth Anything V2 model missing preprocessor_config.json at {model_path}. "
+                    f"Available files: {available}. Model may need re-downloading."
+                )
 
         loop = asyncio.get_running_loop()
 
@@ -213,12 +236,32 @@ async def load_depth_model(model_path: str) -> Any:
                 device = -1  # CPU
                 logger.info("Depth Anything V2 will use CPU")
 
-            # Create depth estimation pipeline
-            depth_pipe = pipeline(
-                task="depth-estimation",
-                model=model_path,
-                device=device,
-            )
+            # Check if model_path is a local directory.  When a local path
+            # (starting with "/" or ".") is passed directly to pipeline(),
+            # huggingface_hub may reject it with:
+            #   "Repo id must be in the form 'repo_name' or 'namespace/repo_name'"
+            # To avoid this, load the model and processor explicitly and hand
+            # them to the pipeline.
+            is_local = Path(model_path).is_dir()
+
+            if is_local:
+                logger.info(f"Loading Depth Anything V2 from local path: {model_path}")
+                image_processor = AutoImageProcessor.from_pretrained(model_path)
+                model = AutoModelForDepthEstimation.from_pretrained(model_path)
+                depth_pipe = pipeline(
+                    task="depth-estimation",
+                    model=model,
+                    image_processor=image_processor,
+                    device=device,
+                )
+            else:
+                # HuggingFace repo ID -- let pipeline handle download
+                logger.info(f"Loading Depth Anything V2 from HuggingFace: {model_path}")
+                depth_pipe = pipeline(
+                    task="depth-estimation",
+                    model=model_path,
+                    device=device,
+                )
 
             return depth_pipe
 
