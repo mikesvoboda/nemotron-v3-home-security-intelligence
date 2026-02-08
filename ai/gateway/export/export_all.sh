@@ -90,33 +90,33 @@ log_step "[1/4] Exporting TensorRT models (GPU required)..."
 
 # CLIP -> TensorRT
 run_export "CLIP ViT-L/14 -> TensorRT FP16" \
-    python "${SCRIPT_DIR}/export_clip.py" \
+    python3 "${SCRIPT_DIR}/export_clip.py" \
         --model-path "${MODELS_ZOO}/clip-vit-l" \
         --output-path "${CACHE_DIR}/clip/1/model.plan"
 
 # Fashion-CLIP -> TensorRT
 run_export "Fashion-CLIP -> TensorRT FP16" \
-    python "${SCRIPT_DIR}/export_fashion_clip.py" \
+    python3 "${SCRIPT_DIR}/export_fashion_clip.py" \
         --model-path "${MODELS_ZOO}/fashion-clip" \
         --output-path "${CACHE_DIR}/fashion_clip/1/model.plan"
 
 # YOLOv8n-pose -> TensorRT
 run_export "YOLOv8n-pose -> TensorRT FP16" \
-    python "${SCRIPT_DIR}/export_yolo_pose.py" \
+    python3 "${SCRIPT_DIR}/export_yolo_pose.py" \
         --model-path "${MODELS_ZOO}/yolov8n-pose/yolov8n-pose.pt" \
         --output-path "${CACHE_DIR}/pose/1/model.plan" \
         --device "${CUDA_DEVICE}"
 
 # YOLOv8n threat detection -> TensorRT
 run_export "YOLOv8n threat detection -> TensorRT FP16" \
-    python "${SCRIPT_DIR}/export_yolo_threat.py" \
+    python3 "${SCRIPT_DIR}/export_yolo_threat.py" \
         --model-path "${MODELS_ZOO}/threat-detection-yolov8n/weights/best.pt" \
         --output-path "${CACHE_DIR}/threat/1/model.plan" \
         --device "${CUDA_DEVICE}"
 
 # YOLO26 engine (pre-built, just copy)
 run_export "YOLO26 TensorRT engine -> copy" \
-    python "${SCRIPT_DIR}/copy_yolo26_engine.py" \
+    python3 "${SCRIPT_DIR}/copy_yolo26_engine.py" \
         --model-path "${MODELS_ZOO}/yolo26" \
         --output-path "${CACHE_DIR}/yolo26/1/model.plan"
 
@@ -127,32 +127,32 @@ log_step "[2/4] Exporting ONNX models (CPU compatible)..."
 
 # Vehicle classifier -> ONNX
 run_export "Vehicle classifier (ResNet-50) -> ONNX" \
-    python "${SCRIPT_DIR}/export_vehicle.py" \
+    python3 "${SCRIPT_DIR}/export_vehicle.py" \
         --model-path "${MODELS_ZOO}/vehicle-segment-classification" \
         --output-path "${CACHE_DIR}/vehicle/1/model.onnx"
 
 # Demographics (age + gender) -> ONNX
 run_export "Demographics (age + gender) -> ONNX" \
-    python "${SCRIPT_DIR}/export_demographics.py" \
+    python3 "${SCRIPT_DIR}/export_demographics.py" \
         --model-path-age "${MODELS_ZOO}/vit-age-classifier" \
         --model-path-gender "${MODELS_ZOO}/vit-gender-classifier" \
         --output-dir "${CACHE_DIR}"
 
 # Pet classifier -> ONNX
 run_export "Pet classifier (ResNet-18) -> ONNX" \
-    python "${SCRIPT_DIR}/export_pet.py" \
+    python3 "${SCRIPT_DIR}/export_pet.py" \
         --model-path "${MODELS_ZOO}/pet-classifier" \
         --output-path "${CACHE_DIR}/pet/1/model.onnx"
 
 # Depth estimation -> ONNX
 run_export "Depth Anything V2 Small -> ONNX" \
-    python "${SCRIPT_DIR}/export_depth.py" \
+    python3 "${SCRIPT_DIR}/export_depth.py" \
         --model-path "${MODELS_ZOO}/depth-anything-v2-small" \
         --output-path "${CACHE_DIR}/depth/1/model.onnx"
 
 # Person Re-ID -> ONNX
 run_export "OSNet-x0.25 Re-ID -> ONNX" \
-    python "${SCRIPT_DIR}/export_reid.py" \
+    python3 "${SCRIPT_DIR}/export_reid.py" \
         --model-path "${MODELS_ZOO}/osnet-x0-25" \
         --output-path "${CACHE_DIR}/reid/1/model.onnx"
 

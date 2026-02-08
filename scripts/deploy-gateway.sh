@@ -59,6 +59,7 @@ mkdir -p /export/ai_models/triton
 # Run export_all.sh inside a temporary gateway container with GPU access
 podman run --rm \
   --name ai-gateway-export \
+  --entrypoint bash \
   --device "nvidia.com/gpu=${GPU_AI_SERVICES:-1}" \
   --security-opt label=disable \
   -e CUDA_VISIBLE_DEVICES=0 \
@@ -68,7 +69,7 @@ podman run --rm \
   -v "/export/ai_models/model-zoo:/models/zoo:ro" \
   -v "/export/ai_models/triton:/models/cache" \
   ai-gateway \
-  bash -c "cd /app/gateway/export && bash export_all.sh" 2>&1 | tail -20
+  -c "cd /app/gateway/export && bash export_all.sh" 2>&1 | tail -30
 
 echo "  Model exports complete."
 echo "  Exported files:"
