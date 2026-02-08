@@ -236,6 +236,8 @@ class StorageManager:
                 data = json.loads(result.stdout)
                 if isinstance(data, list) and data:
                     for item in data:
+                        if not isinstance(item, dict):
+                            continue
                         type_name = item.get("Type", "")
                         size = item.get("Size", item.get("TotalSize", "0"))
                         usage[type_name] = str(size)
