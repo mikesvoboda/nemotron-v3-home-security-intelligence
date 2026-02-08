@@ -4677,6 +4677,8 @@ class NemotronAnalyzer:
         enrichment_result: EnrichmentResult | None = None,
         camera_health_context: str = "",
         detection_dicts: list[dict[str, Any]] | None = None,
+        auto_tuning_context: str = "",
+        household_context: str = "",
     ) -> str:
         """Build the LLM prompt for risk analysis (NEM-1665).
 
@@ -4693,6 +4695,10 @@ class NemotronAnalyzer:
             enrichment_result: Optional enrichment result with plates/faces
             camera_health_context: Optional camera health/tampering context
             detection_dicts: Optional detection dicts for confidence summary
+            auto_tuning_context: Optional auto-tuning recommendations from historical
+                analysis (NEM-3015). Injected into prompt to improve analysis quality.
+            household_context: Optional household matching context (NEM-3024).
+                Contains known person/vehicle matches that should reduce risk scores.
 
         Returns:
             Formatted prompt string ready for LLM
@@ -4805,7 +4811,7 @@ class NemotronAnalyzer:
                 deviation_score = "0.00"
                 cross_camera_summary = "Cross-camera activity: Not available"
 
-            return MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.format(
+            prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.format(
                 camera_name=camera_name,
                 timestamp=f"{start_time} to {end_time}",
                 day_of_week=day_of_week,
@@ -4864,14 +4870,72 @@ class NemotronAnalyzer:
                     else ""
                 ),
             )
+        else:
+            # Fall back to basic prompt — no enrichment or context available
+            prompt = RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                start_time=start_time,
+                end_time=end_time,
+                detections_list=detections_list,
+            )
 
-        # Fall back to basic prompt — no enrichment or context available
-        return RISK_ANALYSIS_PROMPT.format(
-            camera_name=camera_name,
-            start_time=start_time,
-            end_time=end_time,
-            detections_list=detections_list,
-        )
+        # Inject household context if available (NEM-3024, NEM-3315)
+        # This provides known person/vehicle matches that should reduce risk scores
+        # NEM-3315: Household context must appear at the TOP of the user prompt,
+        # right after the SCORING REFERENCE table, before EVENT CONTEXT/DETECTIONS
+        if household_context:
+            # Find the ## EVENT CONTEXT section and insert household context before it
+            event_context_marker = "## EVENT CONTEXT"
+            if event_context_marker in prompt:
+                prompt = prompt.replace(
+                    event_context_marker,
+                    f"{household_context}\n\n{event_context_marker}",
+                )
+            else:
+                # Fallback: Insert after SCORING REFERENCE table if EVENT CONTEXT not found
+                scoring_ref_marker = "## SCORING REFERENCE"
+                if scoring_ref_marker in prompt:
+                    idx = prompt.find(scoring_ref_marker)
+                    table_end = prompt.find("\n\n", idx + len(scoring_ref_marker))
+                    if table_end != -1:
+                        prompt = (
+                            prompt[: table_end + 2]
+                            + household_context
+                            + "\n\n"
+                            + prompt[table_end + 2 :]
+                        )
+                    else:
+                        assistant_marker = "<|im_start|>assistant"
+                        if assistant_marker in prompt:
+                            prompt = prompt.replace(
+                                assistant_marker,
+                                f"\n{household_context}\n{assistant_marker}",
+                            )
+                        else:
+                            prompt = f"{prompt}\n{household_context}"
+                else:
+                    assistant_marker = "<|im_start|>assistant"
+                    if assistant_marker in prompt:
+                        prompt = prompt.replace(
+                            assistant_marker,
+                            f"\n{household_context}\n{assistant_marker}",
+                        )
+                    else:
+                        prompt = f"{prompt}\n{household_context}"
+
+        # Inject auto-tuning context if available (NEM-3015)
+        # This provides historical recommendations from self-evaluation to improve analysis
+        if auto_tuning_context:
+            assistant_marker = "<|im_start|>assistant"
+            if assistant_marker in prompt:
+                prompt = prompt.replace(
+                    assistant_marker,
+                    f"\n{auto_tuning_context}\n{assistant_marker}",
+                )
+            else:
+                prompt = f"{prompt}\n{auto_tuning_context}"
+
+        return prompt
 
     async def analyze_batch_streaming(
         self,

@@ -36,7 +36,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ai.gateway.triton_client import TritonClientError, get_triton_client
-from ai.gateway.utils import decode_base64_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -205,13 +204,17 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     start = time.monotonic()
     triton = get_triton_client()
 
+    # Validate base64 before sending to backend
     try:
-        image_bytes = decode_base64_to_bytes(image_b64)
+        import base64 as _b64
+
+        _b64.b64decode(image_b64, validate=True)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image: {e}") from e
 
-    # Package inputs for Triton Python backend (tensor names match config.pbtxt)
-    image_input = np.array([image_bytes], dtype=object)
+    # Send raw base64 string to Triton Python backend (which decodes it internally).
+    # Do NOT pre-decode — the Python backend model.py calls base64.b64decode() itself.
+    image_input = np.array([image_b64.encode("utf-8")], dtype=object)
     prompt_input = np.array([prompt.encode("utf-8")], dtype=object)
 
     try:
