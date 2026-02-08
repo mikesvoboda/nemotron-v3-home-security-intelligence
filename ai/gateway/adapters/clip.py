@@ -27,10 +27,12 @@ JSON responses matching the current ai-clip service format.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from typing import Any
 
 import numpy as np
+import torch
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -44,6 +46,78 @@ router = APIRouter()
 # Model configuration
 VISION_MODEL_NAME = "clip"
 EMBEDDING_DIMENSION = 768
+
+# ---------------------------------------------------------------------------
+# In-process CLIP text encoder (lazy-loaded, CPU-only)
+# ---------------------------------------------------------------------------
+
+_text_encoder_lock = threading.Lock()
+_text_model: torch.nn.Module | None = None
+_text_tokenizer: Any = None
+_text_encoder_failed: bool = False
+
+
+def _ensure_text_encoder() -> bool:
+    """Lazy-init the open_clip text encoder and tokenizer.
+
+    Returns True if the text encoder is available, False otherwise.
+    Thread-safe via a module-level lock.
+    """
+    global _text_model, _text_tokenizer, _text_encoder_failed
+
+    if _text_model is not None:
+        return True
+    if _text_encoder_failed:
+        return False
+
+    with _text_encoder_lock:
+        # Double-check after acquiring lock
+        if _text_model is not None:
+            return True
+        if _text_encoder_failed:
+            return False
+
+        try:
+            import open_clip
+
+            logger.info("Loading open_clip ViT-L-14 text encoder (CPU)...")
+            model, _, _ = open_clip.create_model_and_transforms("ViT-L-14", pretrained="openai")
+            model = model.eval().cpu()
+            # Keep only the text encoder parts — discard vision tower to save memory
+            # We cannot delete the visual attr entirely because open_clip's forward
+            # may reference it, but we won't call encode_image.
+            tokenizer = open_clip.get_tokenizer("ViT-L-14")
+            _text_model = model
+            _text_tokenizer = tokenizer
+            logger.info("open_clip text encoder loaded successfully")
+            return True
+        except Exception:
+            _text_encoder_failed = True
+            logger.warning(
+                "Failed to load open_clip text encoder. "
+                "classify/similarity/batch-similarity will return placeholder results.",
+                exc_info=True,
+            )
+            return False
+
+
+def _encode_texts_open_clip(texts: list[str]) -> np.ndarray:
+    """Encode text strings to L2-normalized 768-dim embeddings using open_clip.
+
+    Assumes _ensure_text_encoder() has already returned True.
+
+    Args:
+        texts: List of text strings.
+
+    Returns:
+        Numpy array of shape (len(texts), 768) with L2-normalized embeddings.
+    """
+    tokens = _text_tokenizer(texts)  # (N, context_length) on CPU
+    with torch.no_grad():
+        text_features = _text_model.encode_text(tokens)
+        # L2-normalize
+        text_features = text_features / (text_features.norm(dim=-1, keepdim=True) + 1e-8)
+    return text_features.cpu().float().numpy()
 
 
 # ---------------------------------------------------------------------------
@@ -132,13 +206,13 @@ async def _get_image_embedding(image_b64: str) -> tuple[list[float], float]:
     try:
         result = await triton.infer(
             model_name=VISION_MODEL_NAME,
-            inputs={"input": tensor},
-            outputs=["output"],
+            inputs={"pixel_values": tensor},
+            outputs=["embedding"],
         )
     except TritonClientError as e:
         raise HTTPException(status_code=503, detail=f"CLIP inference failed: {e}") from e
 
-    raw_embedding = result["output"][0].tolist()
+    raw_embedding = result["embedding"][0].tolist()
     embedding = l2_normalize(raw_embedding)
     inference_time_ms = (time.monotonic() - start) * 1000
 
@@ -158,16 +232,12 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
-    """Get text embeddings using Triton text encoder model if available.
+    """Get text embeddings for classify/similarity endpoints.
 
-    If the Triton model repository includes a ``clip_text`` model, uses it.
-    Otherwise, falls back to a simple bag-of-characters approach that
-    signals the need for a proper text encoder deployment.
-
-    In production, the text encoder should be deployed as a separate
-    ONNX model in Triton. For now, this returns placeholder embeddings
-    that enable the API contract to work while the text encoder model
-    is being set up.
+    Resolution order:
+    1. Triton ``clip_text`` model (if deployed)
+    2. In-process open_clip text encoder on CPU (lazy-loaded)
+    3. Zero-vector fallback (non-functional placeholder)
 
     Args:
         texts: List of text strings to encode.
@@ -180,7 +250,6 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
     # Try Triton text encoder model first
     try:
         if await triton.is_model_ready("clip_text"):
-            # Encode texts as bytes for the Triton Python/ONNX backend
             text_bytes = np.array([[t.encode("utf-8")] for t in texts], dtype=object)
             result = await triton.infer(
                 model_name="clip_text",
@@ -188,20 +257,20 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
                 outputs=["text_embedding"],
             )
             embeddings = result["text_embedding"]
-            # L2 normalize each embedding
             norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
             norms = np.maximum(norms, 1e-8)
             return embeddings / norms
     except Exception as e:
-        logger.debug(f"Triton clip_text model not available, using fallback: {e}")
+        logger.debug("Triton clip_text model not available: %s", e)
 
-    # Fallback: Return zero embeddings with a warning
-    # This means classify/similarity endpoints will not produce meaningful results
-    # until a text encoder is deployed
+    # Try in-process open_clip text encoder (CPU)
+    if _ensure_text_encoder():
+        return _encode_texts_open_clip(texts)
+
+    # Final fallback: zero embeddings
     logger.warning(
-        "CLIP text encoder not available in Triton. "
-        "classify/similarity/batch-similarity endpoints will return placeholder results. "
-        "Deploy a clip_text model to enable full functionality."
+        "No CLIP text encoder available (Triton or open_clip). "
+        "classify/similarity/batch-similarity will return placeholder results."
     )
     return np.zeros((len(texts), EMBEDDING_DIMENSION), dtype=np.float32)
 

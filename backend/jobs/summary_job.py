@@ -1,6 +1,6 @@
 """Background job for generating dashboard summaries.
 
-This job runs every 5 minutes to generate both hourly and daily summaries
+This job runs every 60 minutes to generate both hourly and daily summaries
 of high/critical security events using the Nemotron LLM.
 
 The job:
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Default configuration values
-DEFAULT_INTERVAL_MINUTES = 5
+DEFAULT_INTERVAL_MINUTES = 60
 # Timeout must be longer than max LLM timeout (nemotron_read_timeout=120s + ai_connect_timeout=10s)
 # Set to 180s (3 minutes) to allow for LLM inference + DB queries + broadcasting overhead
 DEFAULT_TIMEOUT_SECONDS = 180

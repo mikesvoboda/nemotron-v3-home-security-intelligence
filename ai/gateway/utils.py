@@ -100,16 +100,16 @@ def encode_image_bytes(image: Image.Image, fmt: str = "PNG") -> str:
 
 
 def preprocess_clip(image: np.ndarray) -> np.ndarray:
-    """Preprocess an image for CLIP ViT-L TensorRT inference.
+    """Preprocess an image for CLIP ViT-L ONNX Runtime inference.
 
     Resizes to 224x224, normalizes with ImageNet stats, and converts
-    to NCHW FP16 format expected by the TensorRT engine.
+    to NCHW FP32 format expected by the ONNX Runtime backend.
 
     Args:
         image: Numpy array (H, W, 3) uint8 in RGB order.
 
     Returns:
-        Numpy array (1, 3, 224, 224) FP16 normalized.
+        Numpy array (1, 3, 224, 224) FP32 normalized.
     """
     # Resize to 224x224
     pil_img = Image.fromarray(image)
@@ -125,7 +125,7 @@ def preprocess_clip(image: np.ndarray) -> np.ndarray:
     arr = arr.transpose(2, 0, 1)
     arr = np.expand_dims(arr, axis=0)
 
-    return arr.astype(np.float16)
+    return arr.astype(np.float32)
 
 
 def preprocess_yolo(image_bytes: bytes, target_size: int = 640) -> np.ndarray:

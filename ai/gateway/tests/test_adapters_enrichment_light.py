@@ -108,12 +108,19 @@ class TestPoseAnalyzeEndpoint:
 
     async def test_pose_analyze_success(self, client, mock_triton):
         """Pose analysis returns keypoints and person count."""
-        keypoints = [
-            {"nose": [100, 50], "left_eye": [95, 45], "right_eye": [105, 45]},
-            {"nose": [200, 100], "left_eye": [195, 95], "right_eye": [205, 95]},
-        ]
-        output = np.array([json.dumps(keypoints).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_KEYPOINTS": output}
+        # Create mock YOLOv8-pose output: (1, 56, 8400) with 2 detections
+        output = np.zeros((1, 56, 8400), dtype=np.float32)
+        for det_idx in range(2):
+            output[0, 0, det_idx] = 320.0 + det_idx * 100  # cx
+            output[0, 1, det_idx] = 320.0  # cy
+            output[0, 2, det_idx] = 100.0  # w
+            output[0, 3, det_idx] = 200.0  # h
+            output[0, 4, det_idx] = 0.9  # confidence
+            for i in range(17):
+                output[0, 5 + i * 3, det_idx] = 300.0 + i
+                output[0, 6 + i * 3, det_idx] = 200.0 + i
+                output[0, 7 + i * 3, det_idx] = 0.8
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/pose-analyze",
@@ -128,8 +135,8 @@ class TestPoseAnalyzeEndpoint:
 
     async def test_pose_analyze_no_people(self, client, mock_triton):
         """No people detected returns empty keypoints."""
-        output = np.array([json.dumps([]).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_KEYPOINTS": output}
+        output = np.zeros((1, 56, 8400), dtype=np.float32)
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/pose-analyze",
@@ -142,9 +149,9 @@ class TestPoseAnalyzeEndpoint:
         assert data["keypoints"] == []
 
     async def test_pose_analyze_non_object_dtype(self, client, mock_triton):
-        """Non-object dtype returns empty keypoints."""
-        output = np.array([0], dtype=np.int32)
-        mock_triton.infer.return_value = {"OUTPUT_KEYPOINTS": output}
+        """All-zero output returns empty keypoints."""
+        output = np.zeros((1, 56, 8400), dtype=np.float32)
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/pose-analyze",
@@ -183,9 +190,14 @@ class TestThreatDetectEndpoint:
 
     async def test_threat_detected(self, client, mock_triton):
         """Threat detected returns correct fields."""
-        detections = [{"class": "knife", "confidence": 0.92, "bbox": [10, 20, 100, 200]}]
-        output = np.array([json.dumps(detections).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_DETECTIONS": output}
+        # Create mock YOLOv8 threat output: (1, 8, 8400) with one detection
+        output = np.zeros((1, 8, 8400), dtype=np.float32)
+        output[0, 0, 0] = 55.0  # cx
+        output[0, 1, 0] = 110.0  # cy
+        output[0, 2, 0] = 90.0  # w
+        output[0, 3, 0] = 180.0  # h
+        output[0, 4, 0] = 0.92  # class 0 (knife) score
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/threat-detect",
@@ -201,8 +213,8 @@ class TestThreatDetectEndpoint:
 
     async def test_no_threat(self, client, mock_triton):
         """No threat returns threat_detected=False."""
-        output = np.array([json.dumps([]).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_DETECTIONS": output}
+        output = np.zeros((1, 8, 8400), dtype=np.float32)
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/threat-detect",
@@ -217,9 +229,9 @@ class TestThreatDetectEndpoint:
         assert data["detections"] == []
 
     async def test_threat_detect_non_object_dtype(self, client, mock_triton):
-        """Non-object dtype returns no threats."""
-        output = np.array([0], dtype=np.int32)
-        mock_triton.infer.return_value = {"OUTPUT_DETECTIONS": output}
+        """All-zero output returns no threats."""
+        output = np.zeros((1, 8, 8400), dtype=np.float32)
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/threat-detect",
@@ -251,7 +263,7 @@ class TestPersonReIDEndpoint:
     async def test_person_reid_success(self, client, mock_triton):
         """Person ReID returns a normalized embedding."""
         raw_emb = np.random.randn(1, 512).astype(np.float32)
-        mock_triton.infer.return_value = {"output": raw_emb}
+        mock_triton.infer.return_value = {"embedding": raw_emb}
 
         response = await client.post(
             "/person-reid",
@@ -269,7 +281,7 @@ class TestPersonReIDEndpoint:
     async def test_person_reid_embedding_dimension(self, client, mock_triton):
         """Embedding dimension field matches actual embedding length."""
         raw_emb = np.random.randn(1, 256).astype(np.float32)
-        mock_triton.infer.return_value = {"output": raw_emb}
+        mock_triton.infer.return_value = {"embedding": raw_emb}
 
         response = await client.post(
             "/person-reid",
@@ -360,7 +372,7 @@ class TestDepthEstimateEndpoint:
     async def test_depth_estimate_success(self, client, mock_triton):
         """Depth estimation returns depth statistics and base64 map."""
         depth_map = np.random.rand(1, 518, 518).astype(np.float32) * 10.0
-        mock_triton.infer.return_value = {"output": depth_map}
+        mock_triton.infer.return_value = {"depth_map": depth_map}
 
         response = await client.post(
             "/depth-estimate",
@@ -379,7 +391,7 @@ class TestDepthEstimateEndpoint:
     async def test_depth_estimate_flat_map(self, client, mock_triton):
         """Constant depth produces equal min/max/mean."""
         depth_map = np.full((1, 518, 518), 3.5, dtype=np.float32)
-        mock_triton.infer.return_value = {"output": depth_map}
+        mock_triton.infer.return_value = {"depth_map": depth_map}
 
         response = await client.post(
             "/depth-estimate",
@@ -392,7 +404,7 @@ class TestDepthEstimateEndpoint:
     async def test_depth_estimate_squeezable(self, client, mock_triton):
         """Depth map with extra dims (3D+) is squeezed correctly."""
         depth_map = np.random.rand(1, 1, 518, 518).astype(np.float32) * 5.0
-        mock_triton.infer.return_value = {"output": depth_map}
+        mock_triton.infer.return_value = {"depth_map": depth_map}
 
         response = await client.post(
             "/depth-estimate",

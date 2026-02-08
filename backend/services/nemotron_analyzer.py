@@ -2523,7 +2523,7 @@ class NemotronAnalyzer:
             for det_data in detections_for_enrichment:
                 # det_data["id"] is guaranteed to be int from detections_for_enrichment extraction
                 det_id = int(det_data["id"])  # type: ignore[arg-type]
-                det_enrichment = enrichment_result.get_enrichment_for_detection(det_id)
+                det_enrichment = enrichment_result.to_storage_dict(det_id)
                 if det_enrichment:
                     enrichment_data_map[det_id] = det_enrichment
                     logger.debug(
@@ -3184,7 +3184,7 @@ class NemotronAnalyzer:
         # Build enrichment data map for persisting to detections later
         enrichment_data_to_persist: dict[str, Any] | None = None
         if enrichment_result is not None:
-            det_enrichment = enrichment_result.get_enrichment_for_detection(detection_id_int)
+            det_enrichment = enrichment_result.to_storage_dict(detection_id_int)
             if det_enrichment:
                 enrichment_data_to_persist = det_enrichment
                 logger.debug(
@@ -3707,273 +3707,28 @@ class NemotronAnalyzer:
         camera_name = sanitize_camera_name(camera_name)
         detections_list = sanitize_detection_description(detections_list)
 
-        # Simplified template selection (NEM-5525 consolidation):
-        # Only 2 templates: MODEL_ZOO_ENHANCED (always when any context available)
-        # and BASIC (fallback when zero context). The format functions all handle
-        # None/empty gracefully, producing empty strings for missing data.
+        # Determine template name for metrics tracking
         has_enriched_context = (
             enriched_context is not None and enriched_context.baselines is not None
         )
+        template_name: str = (
+            "model_zoo" if has_enriched_context or enrichment_result is not None else "basic"
+        )
 
-        # Track which template is used for metrics
-        template_name: str = "basic"  # Default, will be overwritten
-
-        if has_enriched_context or enrichment_result is not None:
-            # Use MODEL_ZOO_ENHANCED prompt — format functions handle missing data gracefully
-            template_name = "model_zoo"
-            from backend.services.reid_service import format_full_reid_context
-            from backend.services.vision_extractor import (
-                format_scene_analysis,
-            )
-
-            enricher = self._get_context_enricher()
-
-            # Determine time of day from environment context or vision extraction
-            time_of_day = "day"
-            if (
-                enrichment_result is not None
-                and enrichment_result.vision_extraction
-                and enrichment_result.vision_extraction.environment_context
-            ):
-                time_of_day = enrichment_result.vision_extraction.environment_context.time_of_day
-
-            # Format scene analysis
-            scene_text = "No scene analysis available."
-            if (
-                enrichment_result is not None
-                and enrichment_result.vision_extraction
-                and enrichment_result.vision_extraction.scene_analysis
-            ):
-                scene_text = format_scene_analysis(
-                    enrichment_result.vision_extraction.scene_analysis
-                )
-
-            # Format re-id context
-            reid_text = format_full_reid_context(
-                enrichment_result.person_reid_matches if enrichment_result else None,
-                enrichment_result.vehicle_reid_matches if enrichment_result else None,
-            )
-
-            # Build detections with all enrichment — handles None enrichment_result gracefully
-            if enrichment_result is not None and enrichment_result.vision_extraction:
-                detections_with_all_text = format_detections_with_all_enrichment(
-                    [],
-                    enrichment_result,
-                    enrichment_result.vision_extraction,
-                )
-            elif enrichment_result is not None:
-                detections_with_all_text = enrichment_result.to_context_string()
-            else:
-                detections_with_all_text = detections_list
-
-            # Build violence context — format_violence_context returns "" for marginal tier
-            violence_text = (
-                format_violence_context(enrichment_result.violence_detection)
-                if enrichment_result is not None
-                else "Violence analysis: Not performed"
-            )
-
-            # Build pose analysis context
-            pose_data = None
-            if enrichment_result is not None and enrichment_result.pose_results:
-                pose_data = {
-                    det_id: {
-                        "classification": pose.pose_class,
-                        "confidence": pose.pose_confidence,
-                    }
-                    for det_id, pose in enrichment_result.pose_results.items()
-                }
-
-            # Build action recognition context
-            action_data = None
-            if enrichment_result is not None and enrichment_result.action_results:
-                action_data = {"0": enrichment_result.action_results}
-
-            # Build on-demand enrichment context
-            ondemand_text = (
-                self._build_ondemand_enrichment_context(enrichment_result)
-                if enrichment_result is not None
-                else ""
-            )
-
-            # Build cross-camera person tracking context
-            cross_camera_tracking_text = format_cross_camera_person_tracking(
-                person_reid_matches=(
-                    enrichment_result.person_reid_matches if enrichment_result else None
-                ),
-                vehicle_reid_matches=(
-                    enrichment_result.vehicle_reid_matches if enrichment_result else None
-                ),
-                current_camera_id=(enriched_context.camera_id if enriched_context else None),
-                zone_context=(enriched_context.zones if enriched_context else None),
-            )
-
-            # Use baselines if enriched_context is available, otherwise use safe defaults
-            if enriched_context is not None and enriched_context.baselines is not None:
-                day_of_week = enriched_context.baselines.day_of_week
-                zone_analysis = enricher.format_zone_analysis(enriched_context.zones)
-                baseline_comparison = enricher.format_baseline_comparison(
-                    enriched_context.baselines
-                )
-                deviation_score = f"{enriched_context.baselines.deviation_score:.2f}"
-                cross_camera_summary = enricher.format_cross_camera_summary(
-                    enriched_context.cross_camera
-                )
-            else:
-                day_of_week = "Unknown"
-                zone_analysis = "Zone analysis: Not available"
-                baseline_comparison = "Baseline comparison: Not available"
-                deviation_score = "0.00"
-                cross_camera_summary = "Cross-camera activity: Not available"
-
-            # Format all model zoo enrichment contexts
-            prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.format(
-                camera_name=camera_name,
-                timestamp=f"{start_time} to {end_time}",
-                day_of_week=day_of_week,
-                time_of_day=time_of_day,
-                # Environmental context
-                weather_context=(
-                    format_weather_context(enrichment_result.weather_classification)
-                    if enrichment_result is not None
-                    else "Weather: Unknown (classification unavailable)"
-                ),
-                image_quality_context=(
-                    format_image_quality_context(
-                        enrichment_result.image_quality,
-                        enrichment_result.quality_change_detected,
-                        enrichment_result.quality_change_description,
-                    )
-                    if enrichment_result is not None
-                    else "Image quality: Not assessed"
-                ),
-                # Camera health/tampering context (NEM-3012)
-                camera_health_context=camera_health_context,
-                # Detections with all enrichment
-                detections_with_all_attributes=detections_with_all_text,
-                # Confidence quality summary (NEM-5525)
-                confidence_quality_summary=format_confidence_quality_summary(detection_dicts or []),
-                # Violence analysis
-                violence_context=violence_text,
-                # Behavioral analysis (ViTPose pose estimation, X-CLIP action recognition)
-                pose_analysis=format_pose_analysis_context(pose_data),
-                action_recognition=format_action_recognition_context(action_data),
-                # Trajectory analysis (NEM-5532)
-                trajectory_context=format_trajectory_context(
-                    enrichment_result.trajectory_analyses if enrichment_result else None
-                ),
-                # Vehicle analysis
-                vehicle_classification_context=format_vehicle_classification_context(
-                    enrichment_result.vehicle_classifications if enrichment_result else {}
-                ),
-                vehicle_damage_context=format_vehicle_damage_context(
-                    enrichment_result.vehicle_damage if enrichment_result else {},
-                    time_of_day=time_of_day,
-                ),
-                # Person analysis
-                clothing_analysis_context=format_clothing_analysis_context(
-                    enrichment_result.clothing_classifications if enrichment_result else {},
-                    enrichment_result.clothing_segmentation if enrichment_result else None,
-                ),
-                # Pet detection
-                pet_classification_context=format_pet_classification_context(
-                    enrichment_result.pet_classifications if enrichment_result else {}
-                ),
-                # Spatial context (Depth Anything V2)
-                depth_context=format_depth_context(
-                    enrichment_result.depth_analysis if enrichment_result else None
-                ),
-                # Re-identification
-                reid_context=reid_text,
-                # Cross-camera person tracking narrative (NEM-5525)
-                cross_camera_person_tracking=cross_camera_tracking_text,
-                # Zone, baseline, cross-camera
-                zone_analysis=zone_analysis,
-                baseline_comparison=baseline_comparison,
-                deviation_score=deviation_score,
-                cross_camera_summary=cross_camera_summary,
-                scene_analysis=scene_text,
-                # On-demand enrichment: age, gender, scene OCR
-                ondemand_enrichment_context=ondemand_text,
-                # CLIP scene intelligence (NEM-5525)
-                clip_analysis_context=(
-                    format_clip_analysis_context(enrichment_result)
-                    if enrichment_result is not None
-                    else ""
-                ),
-            )
-        else:
-            # Fall back to basic prompt — no enrichment or context available
-            prompt = RISK_ANALYSIS_PROMPT.format(
-                camera_name=camera_name,
-                start_time=start_time,
-                end_time=end_time,
-                detections_list=detections_list,
-            )
-
-        # Inject household context if available (NEM-3024, NEM-3315)
-        # This provides known person/vehicle matches that should reduce risk scores
-        # NEM-3315: Household context must appear at the TOP of the user prompt,
-        # right after the SCORING REFERENCE table, before EVENT CONTEXT/DETECTIONS
-        if household_context:
-            # Find the ## EVENT CONTEXT section and insert household context before it
-            event_context_marker = "## EVENT CONTEXT"
-            if event_context_marker in prompt:
-                prompt = prompt.replace(
-                    event_context_marker,
-                    f"{household_context}\n\n{event_context_marker}",
-                )
-            else:
-                # Fallback: Insert after SCORING REFERENCE table if EVENT CONTEXT not found
-                scoring_ref_marker = "## SCORING REFERENCE"
-                if scoring_ref_marker in prompt:
-                    # Find the end of the SCORING REFERENCE section (look for next ## or newline gap)
-                    # Insert after the table ends
-                    idx = prompt.find(scoring_ref_marker)
-                    # Find the next double newline after the marker (end of table)
-                    table_end = prompt.find("\n\n", idx + len(scoring_ref_marker))
-                    if table_end != -1:
-                        prompt = (
-                            prompt[: table_end + 2]
-                            + household_context
-                            + "\n\n"
-                            + prompt[table_end + 2 :]
-                        )
-                    else:
-                        # Final fallback: append before assistant marker
-                        assistant_marker = "<|im_start|>assistant"
-                        if assistant_marker in prompt:
-                            prompt = prompt.replace(
-                                assistant_marker,
-                                f"\n{household_context}\n{assistant_marker}",
-                            )
-                        else:
-                            prompt = f"{prompt}\n{household_context}"
-                else:
-                    # Very last fallback: append before assistant marker
-                    assistant_marker = "<|im_start|>assistant"
-                    if assistant_marker in prompt:
-                        prompt = prompt.replace(
-                            assistant_marker,
-                            f"\n{household_context}\n{assistant_marker}",
-                        )
-                    else:
-                        prompt = f"{prompt}\n{household_context}"
-
-        # Inject auto-tuning context if available (NEM-3015)
-        # This provides historical recommendations from self-evaluation to improve analysis
-        if auto_tuning_context:
-            # Insert before the assistant turn marker
-            # Prompts end with: <|im_end|>\n<|im_start|>assistant
-            assistant_marker = "<|im_start|>assistant"
-            if assistant_marker in prompt:
-                prompt = prompt.replace(
-                    assistant_marker,
-                    f"\n{auto_tuning_context}\n{assistant_marker}",
-                )
-            else:
-                # Fallback: append to end (shouldn't happen with standard prompts)
-                prompt = f"{prompt}\n{auto_tuning_context}"
+        # Build the prompt using shared _build_prompt (NEM-1665 consolidation)
+        # This eliminates duplication between streaming and non-streaming paths
+        prompt = self._build_prompt(
+            camera_name=camera_name,
+            start_time=start_time,
+            end_time=end_time,
+            detections_list=detections_list,
+            enriched_context=enriched_context,
+            enrichment_result=enrichment_result,
+            camera_health_context=camera_health_context,
+            detection_dicts=detection_dicts,
+            auto_tuning_context=auto_tuning_context,
+            household_context=household_context,
+        )
 
         # Validate and potentially truncate prompt to fit context window (NEM-1666 + NEM-1723)
         prompt = self._validate_and_truncate_prompt(prompt)
@@ -3990,6 +3745,7 @@ class NemotronAnalyzer:
             "top_p": 0.95,
             "max_tokens": max_output_tokens,  # Use settings-based value
             "stop": ["<|im_end|>", "<|im_start|>"],
+            "cache_prompt": True,  # Reuse KV cache for shared prompt prefix (30-50% TTFT reduction)
         }
 
         # Merge auth headers with JSON content-type
@@ -4675,11 +4431,16 @@ class NemotronAnalyzer:
         detections_list: str,
         enriched_context: EnrichedContext | None = None,
         enrichment_result: EnrichmentResult | None = None,
+        camera_health_context: str = "",
+        detection_dicts: list[dict[str, Any]] | None = None,
+        auto_tuning_context: str = "",
+        household_context: str = "",
     ) -> str:
         """Build the LLM prompt for risk analysis (NEM-1665).
 
         This method extracts the prompt-building logic from _call_llm for
-        reuse by streaming methods.
+        reuse by streaming methods. Uses the same enriched prompt template
+        as the non-streaming path when enrichment data is available.
 
         Args:
             camera_name: Sanitized camera name
@@ -4688,21 +4449,249 @@ class NemotronAnalyzer:
             detections_list: Formatted list of detections
             enriched_context: Optional enriched context for enhanced prompts
             enrichment_result: Optional enrichment result with plates/faces
+            camera_health_context: Optional camera health/tampering context
+            detection_dicts: Optional detection dicts for confidence summary
+            auto_tuning_context: Optional auto-tuning recommendations from historical
+                analysis (NEM-3015). Injected into prompt to improve analysis quality.
+            household_context: Optional household matching context (NEM-3024).
+                Contains known person/vehicle matches that should reduce risk scores.
 
         Returns:
             Formatted prompt string ready for LLM
         """
-        # Suppress unused variable warnings - these may be used in future
-        _ = enriched_context
-        _ = enrichment_result
-
-        # Use basic prompt for streaming (enriched prompts are complex)
-        return RISK_ANALYSIS_PROMPT.format(
-            camera_name=camera_name,
-            start_time=start_time,
-            end_time=end_time,
-            detections_list=detections_list,
+        has_enriched_context = (
+            enriched_context is not None and enriched_context.baselines is not None
         )
+
+        if has_enriched_context or enrichment_result is not None:
+            from backend.services.reid_service import format_full_reid_context
+            from backend.services.vision_extractor import format_scene_analysis
+
+            enricher = self._get_context_enricher()
+
+            # Determine time of day
+            time_of_day = "day"
+            if (
+                enrichment_result is not None
+                and enrichment_result.vision_extraction
+                and enrichment_result.vision_extraction.environment_context
+            ):
+                time_of_day = enrichment_result.vision_extraction.environment_context.time_of_day
+
+            # Format scene analysis
+            scene_text = "No scene analysis available."
+            if (
+                enrichment_result is not None
+                and enrichment_result.vision_extraction
+                and enrichment_result.vision_extraction.scene_analysis
+            ):
+                scene_text = format_scene_analysis(
+                    enrichment_result.vision_extraction.scene_analysis
+                )
+
+            # Format re-id context
+            reid_text = format_full_reid_context(
+                enrichment_result.person_reid_matches if enrichment_result else None,
+                enrichment_result.vehicle_reid_matches if enrichment_result else None,
+            )
+
+            # Build detections with all enrichment
+            if enrichment_result is not None and enrichment_result.vision_extraction:
+                detections_with_all_text = format_detections_with_all_enrichment(
+                    [],
+                    enrichment_result,
+                    enrichment_result.vision_extraction,
+                )
+            elif enrichment_result is not None:
+                detections_with_all_text = enrichment_result.to_context_string()
+            else:
+                detections_with_all_text = detections_list
+
+            # Build violence context
+            violence_text = (
+                format_violence_context(enrichment_result.violence_detection)
+                if enrichment_result is not None
+                else "Violence analysis: Not performed"
+            )
+
+            # Build pose analysis context
+            pose_data = None
+            if enrichment_result is not None and enrichment_result.pose_results:
+                pose_data = {
+                    det_id: {
+                        "classification": pose.pose_class,
+                        "confidence": pose.pose_confidence,
+                    }
+                    for det_id, pose in enrichment_result.pose_results.items()
+                }
+
+            # Build action recognition context
+            action_data = None
+            if enrichment_result is not None and enrichment_result.action_results:
+                action_data = {"0": enrichment_result.action_results}
+
+            # Build on-demand enrichment context
+            ondemand_text = (
+                self._build_ondemand_enrichment_context(enrichment_result)
+                if enrichment_result is not None
+                else ""
+            )
+
+            # Build cross-camera person tracking context
+            cross_camera_tracking_text = format_cross_camera_person_tracking(
+                person_reid_matches=(
+                    enrichment_result.person_reid_matches if enrichment_result else None
+                ),
+                vehicle_reid_matches=(
+                    enrichment_result.vehicle_reid_matches if enrichment_result else None
+                ),
+                current_camera_id=(enriched_context.camera_id if enriched_context else None),
+                zone_context=(enriched_context.zones if enriched_context else None),
+            )
+
+            # Use baselines if enriched_context is available, otherwise use safe defaults
+            if enriched_context is not None and enriched_context.baselines is not None:
+                day_of_week = enriched_context.baselines.day_of_week
+                zone_analysis = enricher.format_zone_analysis(enriched_context.zones)
+                baseline_comparison = enricher.format_baseline_comparison(
+                    enriched_context.baselines
+                )
+                deviation_score = f"{enriched_context.baselines.deviation_score:.2f}"
+                cross_camera_summary = enricher.format_cross_camera_summary(
+                    enriched_context.cross_camera
+                )
+            else:
+                day_of_week = "Unknown"
+                zone_analysis = "Zone analysis: Not available"
+                baseline_comparison = "Baseline comparison: Not available"
+                deviation_score = "0.00"
+                cross_camera_summary = "Cross-camera activity: Not available"
+
+            prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                timestamp=f"{start_time} to {end_time}",
+                day_of_week=day_of_week,
+                time_of_day=time_of_day,
+                weather_context=(
+                    format_weather_context(enrichment_result.weather_classification)
+                    if enrichment_result is not None
+                    else "Weather: Unknown (classification unavailable)"
+                ),
+                image_quality_context=(
+                    format_image_quality_context(
+                        enrichment_result.image_quality,
+                        enrichment_result.quality_change_detected,
+                        enrichment_result.quality_change_description,
+                    )
+                    if enrichment_result is not None
+                    else "Image quality: Not assessed"
+                ),
+                camera_health_context=camera_health_context,
+                detections_with_all_attributes=detections_with_all_text,
+                confidence_quality_summary=format_confidence_quality_summary(detection_dicts or []),
+                violence_context=violence_text,
+                pose_analysis=format_pose_analysis_context(pose_data),
+                action_recognition=format_action_recognition_context(action_data),
+                trajectory_context=format_trajectory_context(
+                    enrichment_result.trajectory_analyses if enrichment_result else None
+                ),
+                vehicle_classification_context=format_vehicle_classification_context(
+                    enrichment_result.vehicle_classifications if enrichment_result else {}
+                ),
+                vehicle_damage_context=format_vehicle_damage_context(
+                    enrichment_result.vehicle_damage if enrichment_result else {},
+                    time_of_day=time_of_day,
+                ),
+                clothing_analysis_context=format_clothing_analysis_context(
+                    enrichment_result.clothing_classifications if enrichment_result else {},
+                    enrichment_result.clothing_segmentation if enrichment_result else None,
+                ),
+                pet_classification_context=format_pet_classification_context(
+                    enrichment_result.pet_classifications if enrichment_result else {}
+                ),
+                depth_context=format_depth_context(
+                    enrichment_result.depth_analysis if enrichment_result else None
+                ),
+                reid_context=reid_text,
+                cross_camera_person_tracking=cross_camera_tracking_text,
+                zone_analysis=zone_analysis,
+                baseline_comparison=baseline_comparison,
+                deviation_score=deviation_score,
+                cross_camera_summary=cross_camera_summary,
+                scene_analysis=scene_text,
+                ondemand_enrichment_context=ondemand_text,
+                clip_analysis_context=(
+                    format_clip_analysis_context(enrichment_result)
+                    if enrichment_result is not None
+                    else ""
+                ),
+            )
+        else:
+            # Fall back to basic prompt — no enrichment or context available
+            prompt = RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                start_time=start_time,
+                end_time=end_time,
+                detections_list=detections_list,
+            )
+
+        # Inject household context if available (NEM-3024, NEM-3315)
+        # This provides known person/vehicle matches that should reduce risk scores
+        # NEM-3315: Household context must appear at the TOP of the user prompt,
+        # right after the SCORING REFERENCE table, before EVENT CONTEXT/DETECTIONS
+        if household_context:
+            # Find the ## EVENT CONTEXT section and insert household context before it
+            event_context_marker = "## EVENT CONTEXT"
+            if event_context_marker in prompt:
+                prompt = prompt.replace(
+                    event_context_marker,
+                    f"{household_context}\n\n{event_context_marker}",
+                )
+            else:
+                # Fallback: Insert after SCORING REFERENCE table if EVENT CONTEXT not found
+                scoring_ref_marker = "## SCORING REFERENCE"
+                if scoring_ref_marker in prompt:
+                    idx = prompt.find(scoring_ref_marker)
+                    table_end = prompt.find("\n\n", idx + len(scoring_ref_marker))
+                    if table_end != -1:
+                        prompt = (
+                            prompt[: table_end + 2]
+                            + household_context
+                            + "\n\n"
+                            + prompt[table_end + 2 :]
+                        )
+                    else:
+                        assistant_marker = "<|im_start|>assistant"
+                        if assistant_marker in prompt:
+                            prompt = prompt.replace(
+                                assistant_marker,
+                                f"\n{household_context}\n{assistant_marker}",
+                            )
+                        else:
+                            prompt = f"{prompt}\n{household_context}"
+                else:
+                    assistant_marker = "<|im_start|>assistant"
+                    if assistant_marker in prompt:
+                        prompt = prompt.replace(
+                            assistant_marker,
+                            f"\n{household_context}\n{assistant_marker}",
+                        )
+                    else:
+                        prompt = f"{prompt}\n{household_context}"
+
+        # Inject auto-tuning context if available (NEM-3015)
+        # This provides historical recommendations from self-evaluation to improve analysis
+        if auto_tuning_context:
+            assistant_marker = "<|im_start|>assistant"
+            if assistant_marker in prompt:
+                prompt = prompt.replace(
+                    assistant_marker,
+                    f"\n{auto_tuning_context}\n{assistant_marker}",
+                )
+            else:
+                prompt = f"{prompt}\n{auto_tuning_context}"
+
+        return prompt
 
     async def analyze_batch_streaming(
         self,

@@ -284,12 +284,14 @@ from backend.models.prompt_config import PromptConfig  # noqa: E402
 from backend.models.prompt_version import AIModel, PromptVersion  # noqa: E402
 from backend.models.property import Property  # noqa: E402
 from backend.models.scene_change import SceneChange, SceneChangeType  # noqa: E402
+from backend.models.user import User  # noqa: E402
 from backend.models.user_calibration import UserCalibration  # noqa: E402
 
 # Phase 6 imports
 from backend.models.zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly  # noqa: E402
 from backend.models.zone_baseline import ZoneActivityBaseline  # noqa: E402
 from backend.models.zone_household_config import ZoneHouseholdConfig  # noqa: E402
+from backend.services.auth_service import hash_password  # noqa: E402
 from sqlalchemy import delete, select  # noqa: E402
 
 
@@ -380,6 +382,7 @@ class SyntheticScenario:
     expected_labels: dict[str, Any] = field(default_factory=dict)
     scenario_spec: dict[str, Any] = field(default_factory=dict)
     video_path: Path | None = None
+    image_path: Path | None = None  # For COCO-based scenarios with .jpg/.png images
 
 
 @dataclass
@@ -400,6 +403,16 @@ class ValidationResult:
     prompt_length: int | None = None
     enrichment_sections_present: list[str] = field(default_factory=list)
     llm_latency_ms: float | None = None
+    # Separated accuracy dimensions
+    event_matched: bool = False  # Was any event matched to this scenario?
+    detection_correct: bool = False  # Did YOLO detect the expected classes?
+    scoring_correct: bool = False  # Is risk_score in expected range?
+    scoring_for_detected: bool = False  # Is score reasonable for what was actually detected?
+    actual_classes: set[str] = field(default_factory=set)  # What YOLO actually detected
+    expected_classes: list[str] = field(default_factory=list)  # What was expected
+    detection_errors: list[str] = field(default_factory=list)  # Detection-specific errors
+    scoring_errors: list[str] = field(default_factory=list)  # Scoring-specific errors
+    camera_name: str | None = None  # Which camera the event was on
 
 
 def _safe_read_json(file_path: Path, base_path: Path) -> dict[str, Any] | None:
@@ -508,18 +521,26 @@ def discover_synthetic_scenarios(
             expected_labels = _safe_read_json(expected_labels_path, SYNTHETIC_DATA_PATH) or {}
             scenario_spec = _safe_read_json(scenario_spec_path, SYNTHETIC_DATA_PATH) or {}
 
-            # Find video file
+            # Find media file (video or image)
             media_path = scenario_dir / "media"
             video_path = None
+            image_path = None
             if media_path.exists():
                 videos = list(media_path.glob("*.mp4"))
                 if videos:
                     video_path = videos[0]
+                else:
+                    # Fall back to image files (COCO-based scenarios)
+                    images = list(media_path.glob("*.jpg")) + list(media_path.glob("*.png"))
+                    if images:
+                        image_path = images[0]
 
-            # When there's a limit, only include scenarios with actual video files
+            has_media = video_path is not None or image_path is not None
+
+            # When there's a limit, only include scenarios with actual media files
             if per_category_limit:
-                if not video_path:
-                    continue  # Skip scenarios without videos when limiting
+                if not has_media:
+                    continue  # Skip scenarios without media when limiting
                 if category_with_video_count >= per_category_limit:
                     break  # Got enough for this category
                 category_with_video_count += 1
@@ -533,6 +554,7 @@ def discover_synthetic_scenarios(
                 expected_labels=expected_labels,
                 scenario_spec=scenario_spec,
                 video_path=video_path,
+                image_path=image_path,
             )
             scenarios.append(scenario)
 
@@ -700,8 +722,11 @@ async def seed_synthetic_scenarios(
     now = datetime.now()
 
     for i, scenario in enumerate(scenarios, 1):
-        if not scenario.video_path or not scenario.video_path.exists():
-            print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (no video)")
+        has_video = scenario.video_path and scenario.video_path.exists()
+        has_image = scenario.image_path and scenario.image_path.exists()
+
+        if not has_video and not has_image:
+            print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (no media)")
             continue
 
         # Get the appropriate test camera for this scenario's category
@@ -721,43 +746,57 @@ async def seed_synthetic_scenarios(
 
         scenario_watch_folder.mkdir(parents=True, exist_ok=True)
 
-        # Create temp directory for frame extraction
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
+        if has_video:
+            # Video-based scenario: extract frames from video
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
 
-            # Extract frames from video
-            frames = extract_video_frames(
-                scenario.video_path,
-                temp_path,
-                num_frames=frames_per_video,
+                frames = extract_video_frames(
+                    scenario.video_path,
+                    temp_path,
+                    num_frames=frames_per_video,
+                )
+
+                if not frames:
+                    print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (extraction failed)")
+                    continue
+
+                # Copy frames to watch folder with scenario-specific naming
+                for j, frame_path in enumerate(frames, 1):
+                    dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
+                    dest_path = scenario_watch_folder / dest_name
+
+                    shutil.copy2(frame_path, dest_path)
+                    processed_frames.append(dest_path)
+                    total_extracted += 1
+
+                    # Touch to trigger file watcher
+                    dest_path.touch()
+        else:
+            # Image-based scenario (COCO): copy image directly to watch folder
+            suffix = scenario.image_path.suffix
+            dest_name = f"{scenario.video_id}_{scenario.category}_img{suffix}"
+            dest_path = scenario_watch_folder / dest_name
+
+            shutil.copy2(scenario.image_path, dest_path)
+            processed_frames.append(dest_path)
+            total_extracted += 1
+
+            # Touch to trigger file watcher
+            dest_path.touch()
+
+        if has_video:
+            print(
+                f"  [{i}/{len(scenarios)}] Extracted frames: {scenario.name} ({scenario.category})"
             )
-
-            if not frames:
-                print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (extraction failed)")
-                continue
-
-            # Copy frames to watch folder with scenario-specific naming
-            for j, frame_path in enumerate(frames, 1):
-                # Use naming convention that includes scenario info for traceability
-                dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
-                dest_path = scenario_watch_folder / dest_name
-
-                shutil.copy2(frame_path, dest_path)
-                processed_frames.append(dest_path)
-                total_extracted += 1
-
-                # Touch to trigger file watcher
-                dest_path.touch()
-
-        print(
-            f"  [{i}/{len(scenarios)}] Extracted {len(frames)} frames: {scenario.name} ({scenario.category})"
-        )
+        else:
+            print(f"  [{i}/{len(scenarios)}] Copied image: {scenario.name} ({scenario.category})")
 
         # Small delay between scenarios (use asyncio.sleep in async context)
         if delay_between > 0 and i < len(scenarios):
             await asyncio.sleep(delay_between)
 
-    print(f"\nExtracted {total_extracted} frames from {len(scenarios)} scenarios")
+    print(f"\nProcessed {total_extracted} media files from {len(scenarios)} scenarios")
 
     # Fix SELinux context for files created in temp directories
     # Without this, containers using :z mount option may get Permission denied
@@ -781,6 +820,49 @@ async def seed_synthetic_scenarios(
     return total_extracted, processed_frames
 
 
+def _is_score_reasonable_for_detected(
+    actual_classes: set[str],
+    actual_score: int,
+    category: str,
+) -> bool:
+    """Check if the risk score is reasonable given what was actually detected.
+
+    This provides a "scoring-only" validation that ignores detection accuracy.
+    For example, if YOLO detected only "person" in a normal scene, a score of
+    5 is reasonable even if the scenario expected "car".
+
+    The logic uses broad, permissive ranges based on what was detected:
+    - person only, in any category: 0-100 (person can be anything)
+    - vehicles only: 0-40 (vehicles alone are rarely high-risk)
+    - animals only: 0-20 (animals are almost never concerning)
+    - person + vehicle: 0-100 (depends on context)
+    - nothing detected: 0-15 (no detections = low risk)
+    """
+    if not actual_classes:
+        return actual_score <= 15
+
+    person_present = "person" in actual_classes
+    vehicle_classes = {"car", "truck", "bus", "motorcycle", "bicycle"}
+    animal_classes = {"dog", "cat", "bird", "horse", "cow", "sheep", "bear"}
+    has_vehicles = bool(actual_classes & vehicle_classes)
+    has_animals = bool(actual_classes & animal_classes)
+
+    # If person is detected, almost any score could be reasonable
+    if person_present:
+        return True
+
+    # Vehicles only - low to moderate risk
+    if has_vehicles and not has_animals:
+        return actual_score <= 50
+
+    # Animals only - very low risk
+    if has_animals and not has_vehicles:
+        return actual_score <= 25
+
+    # Mixed objects without person - moderate risk
+    return actual_score <= 50
+
+
 async def validate_synthetic_results(
     scenarios: list[SyntheticScenario],
     timeout_seconds: int = 30,
@@ -788,13 +870,18 @@ async def validate_synthetic_results(
     """Validate pipeline results against expected labels.
 
     Compares actual events created by the pipeline against the expected
-    labels defined in each scenario's expected_labels.json. Validates:
-    - Risk score range (Nemotron LLM)
-    - Detection classes and confidence (YOLO26, with COCO alias support)
-    - Enrichment evidence via LLMInteraction (context_sources, enrichment_snapshot)
-    - Enrichment signals in event summary/reasoning text
-    - Florence captions
-    - Enrichment quality metrics (template, prompt size, sections, latency)
+    labels defined in each scenario's expected_labels.json. Validates
+    four independent accuracy dimensions:
+
+    1. Event Matching: Was an event created and matched to this scenario?
+    2. Detection Accuracy: Did YOLO detect the expected object classes?
+    3. Scoring Accuracy: Is the LLM risk score in the expected range?
+    4. Scoring for Detected: Is the score reasonable for what was actually
+       detected (regardless of whether detection matched expectations)?
+    5. Enrichment Coverage: Did enrichment models provide data?
+
+    The overall "success" requires all dimensions to pass, but each is
+    tracked independently so the report can show where failures occur.
 
     Args:
         scenarios: List of scenarios that were processed
@@ -807,6 +894,42 @@ async def validate_synthetic_results(
     results = []
 
     async with get_session() as session:
+        # Pre-fetch all recent events and their detections once, instead of
+        # re-querying per scenario. This also allows better matching.
+        from sqlalchemy.orm import undefer
+
+        cutoff = datetime.now(UTC) - timedelta(hours=1)
+        result = await session.execute(
+            select(Event)
+            .options(undefer(Event.reasoning), undefer(Event.llm_prompt))
+            .where(Event.started_at >= cutoff)
+            .where(Event.deleted_at.is_(None))
+            .order_by(Event.started_at.desc())
+            .limit(500)
+        )
+        all_recent_events = list(result.scalars().all())
+
+        # Pre-fetch detections for all events
+        event_detection_map: dict[uuid.UUID, list[Detection]] = {}
+        for event in all_recent_events:
+            det_result = await session.execute(
+                select(Detection)
+                .join(EventDetection, EventDetection.detection_id == Detection.id)
+                .where(EventDetection.event_id == event.id)
+            )
+            event_detection_map[event.id] = list(det_result.scalars().all())
+
+        # Pre-fetch LLMInteractions for all events
+        llm_interaction_map: dict[uuid.UUID, LLMInteraction | None] = {}
+        for event in all_recent_events:
+            llm_int_result = await session.execute(
+                select(LLMInteraction).where(LLMInteraction.event_id == event.id)
+            )
+            llm_interaction_map[event.id] = llm_int_result.scalars().first()
+
+        # Track which events have been used, to avoid reusing them
+        used_event_ids: set[uuid.UUID] = set()
+
         for scenario in scenarios:
             expected = scenario.expected_labels
             if not expected:
@@ -819,43 +942,73 @@ async def validate_synthetic_results(
                 )
                 continue
 
-            # Query for recent events (within the last hour)
-            # Use undefer() to load reasoning and llm_prompt which are
-            # deferred by default but needed for enrichment validation.
-            from sqlalchemy.orm import undefer
+            # --- Improved event matching ---
+            # Match events to scenarios using the camera that the scenario
+            # was placed into, then by risk level, then by detection overlap.
+            # This avoids all scenarios matching the same single event.
+            expected_camera = get_test_camera_for_category(scenario.category)
+            expected_risk_level = expected.get("risk", {}).get("level")
+            expected_det_classes = {d.get("class", "") for d in expected.get("detections", [])}
 
-            cutoff = datetime.now(UTC) - timedelta(hours=1)
-            result = await session.execute(
-                select(Event)
-                .options(undefer(Event.reasoning), undefer(Event.llm_prompt))
-                .where(Event.started_at >= cutoff)
-                .where(Event.deleted_at.is_(None))
-                .order_by(Event.started_at.desc())
-                .limit(100)
-            )
-            recent_events = list(result.scalars().all())
-
-            # Try to match events by looking for scenario patterns in detection data
             matched_event = None
-            for event in recent_events:
-                # Simple heuristic: match by risk level and detection patterns
-                # In production, we'd want more sophisticated matching
-                if event.risk_level == expected.get("risk", {}).get("level"):
+            best_score = -1
+
+            for event in all_recent_events:
+                if event.id in used_event_ids:
+                    continue
+
+                score = 0
+
+                # Camera match (strongest signal)
+                if event.camera_id and expected_camera in str(event.camera_id):
+                    score += 10
+
+                # Risk level match
+                if event.risk_level == expected_risk_level:
+                    score += 5
+
+                # Detection class overlap
+                event_dets = event_detection_map.get(event.id, [])
+                event_classes = {d.object_type for d in event_dets if d.object_type}
+                # Expand expected classes through COCO aliases
+                expanded_expected = set()
+                for ec in expected_det_classes:
+                    expanded_expected.add(ec)
+                    if ec in COCO_CLASS_ALIASES:
+                        expanded_expected.update(COCO_CLASS_ALIASES[ec])
+                overlap = len(event_classes & expanded_expected)
+                score += overlap * 2
+
+                if score > best_score:
+                    best_score = score
                     matched_event = event
-                    break
+
+            # If no events exist at all for this camera, try any unmatched event
+            if matched_event is None:
+                for event in all_recent_events:
+                    if event.id not in used_event_ids:
+                        matched_event = event
+                        break
 
             if not matched_event:
                 results.append(
                     ValidationResult(
                         scenario=scenario,
                         success=False,
+                        event_matched=False,
                         errors=[f"No matching event found for {scenario.video_id}"],
+                        expected_classes=list(expected_det_classes),
                     )
                 )
                 continue
 
+            # Mark event as used so other scenarios don't reuse it
+            used_event_ids.add(matched_event.id)
+
             # Validate risk score range (Nemotron)
             errors = []
+            detection_errors_list: list[str] = []
+            scoring_errors_list: list[str] = []
             enrichment_results = {}
             enrichment_errors = []
             risk_config = expected.get("risk", {})
@@ -864,15 +1017,12 @@ async def validate_synthetic_results(
 
             risk_valid = expected_range[0] <= actual_score <= expected_range[1]
             if not risk_valid:
-                errors.append(f"Risk score {actual_score} outside expected range {expected_range}")
+                scoring_errors_list.append(
+                    f"Risk score {actual_score} outside expected range {expected_range}"
+                )
 
-            # Get detections for this event via junction table
-            det_result = await session.execute(
-                select(Detection)
-                .join(EventDetection, EventDetection.detection_id == Detection.id)
-                .where(EventDetection.event_id == matched_event.id)
-            )
-            event_detections = list(det_result.scalars().all())
+            # Get detections for this event (already pre-fetched)
+            event_detections = event_detection_map.get(matched_event.id, [])
             detection_ids = [d.id for d in event_detections]
 
             # --- Detection class validation (YOLO26) ---
@@ -899,23 +1049,31 @@ async def validate_synthetic_results(
                     max_confidence = max((d.confidence or 0 for d in class_dets), default=0)
                     class_found = max_confidence >= min_conf
                     if not class_found:
-                        errors.append(
+                        detection_errors_list.append(
                             f"Detection '{det_class}' (matched: {matched_classes}) "
                             f"confidence {max_confidence:.2f} below threshold {min_conf}"
                         )
                 elif not class_found:
                     if det_class in COCO_CLASS_ALIASES:
-                        errors.append(
+                        detection_errors_list.append(
                             f"Expected detection class '{det_class}' "
                             f"(accepts: {COCO_CLASS_ALIASES[det_class]}) not found "
                             f"in actual classes {actual_classes}"
                         )
                     else:
-                        errors.append(
+                        detection_errors_list.append(
                             f"Expected detection class '{det_class}' not found "
                             f"in actual classes {actual_classes}"
                         )
                 detection_matches[det_class] = class_found
+
+            # Determine if detection was correct (all expected classes found)
+            detection_correct = all(detection_matches.values()) if detection_matches else True
+
+            # Determine if score is reasonable for what was actually detected
+            scoring_for_detected = _is_score_reasonable_for_detected(
+                actual_classes, actual_score, scenario.category
+            )
 
             # =================================================================
             # ENRICHMENT VALIDATION (via LLMInteraction + Event fields)
@@ -933,11 +1091,8 @@ async def validate_synthetic_results(
             #  4. Event.llm_prompt (does the prompt contain enrichment sections?)
             # =================================================================
 
-            # Load LLMInteraction for this event (if it exists)
-            llm_int_result = await session.execute(
-                select(LLMInteraction).where(LLMInteraction.event_id == matched_event.id)
-            )
-            llm_interaction = llm_int_result.scalars().first()
+            # Load LLMInteraction for this event (already pre-fetched)
+            llm_interaction = llm_interaction_map.get(matched_event.id)
 
             # Combine text fields for keyword searching
             llm_prompt_text = (matched_event.llm_prompt or "").lower()
@@ -1111,22 +1266,39 @@ async def validate_synthetic_results(
                     if delta > 0:
                         llm_latency_ms = delta * 1000
 
-            all_errors = errors + enrichment_errors
+            # Combine all errors for backward-compatible 'errors' field
+            all_errors = detection_errors_list + scoring_errors_list + enrichment_errors
+
+            # End-to-end success requires all dimensions to pass
+            end_to_end_success = detection_correct and risk_valid and len(enrichment_errors) == 0
+
             results.append(
                 ValidationResult(
                     scenario=scenario,
-                    success=len(all_errors) == 0,
+                    success=end_to_end_success,
                     event_id=matched_event.id,
                     actual_risk_score=actual_score,
                     expected_risk_range=expected_range,
                     detection_matches=detection_matches,
                     enrichment_results=enrichment_results,
                     enrichment_errors=enrichment_errors,
-                    errors=errors,
+                    errors=all_errors,
                     prompt_template=prompt_template_used,
                     prompt_length=prompt_length,
                     enrichment_sections_present=enrichment_sections_present,
                     llm_latency_ms=llm_latency_ms,
+                    # Separated accuracy dimensions
+                    event_matched=True,
+                    detection_correct=detection_correct,
+                    scoring_correct=risk_valid,
+                    scoring_for_detected=scoring_for_detected,
+                    actual_classes=actual_classes,
+                    expected_classes=[
+                        d.get("class", "unknown") for d in expected.get("detections", [])
+                    ],
+                    detection_errors=detection_errors_list,
+                    scoring_errors=scoring_errors_list,
+                    camera_name=str(matched_event.camera_id) if matched_event.camera_id else None,
                 )
             )
 
@@ -1139,6 +1311,15 @@ def generate_validation_report(
 ) -> dict[str, Any]:
     """Generate a validation report from synthetic scenario results.
 
+    The report separates accuracy into independent dimensions:
+    - Event Matching: How many scenarios had events created?
+    - Detection Accuracy: Of matched events, how many had correct YOLO classes?
+    - Scoring Accuracy: Of matched events, how many had risk scores in range?
+    - Scoring for Detected: Of matched events, how many had reasonable scores
+      for what was actually detected (ignoring detection class mismatches)?
+    - Enrichment Coverage: Did enrichment models provide data?
+    - End-to-End Accuracy: All dimensions correct simultaneously.
+
     Args:
         results: List of validation results
         output_path: Optional path to save JSON report
@@ -1150,17 +1331,97 @@ def generate_validation_report(
     passed = sum(1 for r in results if r.success)
     failed = total - passed
 
-    # Category breakdown
-    by_category: dict[str, dict[str, int]] = {}
+    # --- Separated accuracy dimensions ---
+    events_matched = sum(1 for r in results if r.event_matched)
+    matched_results = [r for r in results if r.event_matched]
+
+    detection_correct = sum(1 for r in matched_results if r.detection_correct)
+    scoring_correct = sum(1 for r in matched_results if r.scoring_correct)
+    scoring_for_detected = sum(1 for r in matched_results if r.scoring_for_detected)
+    enrichment_all_pass = sum(
+        1 for r in matched_results if r.enrichment_results and all(r.enrichment_results.values())
+    )
+
+    accuracy_dimensions = {
+        "event_matching": {
+            "matched": events_matched,
+            "total": total,
+            "rate": f"{(events_matched / total * 100):.1f}%" if total > 0 else "N/A",
+            "description": "Scenarios that produced at least one pipeline event",
+        },
+        "detection_accuracy": {
+            "correct": detection_correct,
+            "total": len(matched_results),
+            "rate": f"{(detection_correct / len(matched_results) * 100):.1f}%"
+            if matched_results
+            else "N/A",
+            "description": "YOLO detected the expected object classes",
+        },
+        "scoring_accuracy": {
+            "correct": scoring_correct,
+            "total": len(matched_results),
+            "rate": f"{(scoring_correct / len(matched_results) * 100):.1f}%"
+            if matched_results
+            else "N/A",
+            "description": "LLM risk score within expected range (for expected detections)",
+        },
+        "scoring_for_detected": {
+            "correct": scoring_for_detected,
+            "total": len(matched_results),
+            "rate": f"{(scoring_for_detected / len(matched_results) * 100):.1f}%"
+            if matched_results
+            else "N/A",
+            "description": "LLM risk score reasonable for what YOLO actually detected",
+        },
+        "enrichment_coverage": {
+            "all_pass": enrichment_all_pass,
+            "total": len(matched_results),
+            "rate": f"{(enrichment_all_pass / len(matched_results) * 100):.1f}%"
+            if matched_results
+            else "N/A",
+            "description": "All expected enrichment models provided data",
+        },
+        "end_to_end": {
+            "passed": passed,
+            "total": total,
+            "rate": f"{(passed / total * 100):.1f}%" if total > 0 else "N/A",
+            "description": "Correct detection + correct score + enrichment (all dimensions)",
+        },
+    }
+
+    # --- Per-category accuracy breakdown ---
+    by_category: dict[str, dict[str, Any]] = {}
     for result in results:
         cat = result.scenario.category
         if cat not in by_category:
-            by_category[cat] = {"total": 0, "passed": 0, "failed": 0}
+            by_category[cat] = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "events_matched": 0,
+                "detection_correct": 0,
+                "scoring_correct": 0,
+                "scoring_for_detected": 0,
+            }
         by_category[cat]["total"] += 1
         if result.success:
             by_category[cat]["passed"] += 1
         else:
             by_category[cat]["failed"] += 1
+        if result.event_matched:
+            by_category[cat]["events_matched"] += 1
+            if result.detection_correct:
+                by_category[cat]["detection_correct"] += 1
+            if result.scoring_correct:
+                by_category[cat]["scoring_correct"] += 1
+            if result.scoring_for_detected:
+                by_category[cat]["scoring_for_detected"] += 1
+
+    # --- Camera distribution ---
+    camera_counts: dict[str, int] = {}
+    for result in matched_results:
+        cam = result.camera_name or "unknown"
+        camera_counts[cam] = camera_counts.get(cam, 0) + 1
 
     # Risk score calibration
     risk_calibration = []
@@ -1176,6 +1437,11 @@ def generate_validation_report(
                     "in_range": result.expected_risk_range[0]
                     <= result.actual_risk_score
                     <= result.expected_risk_range[1],
+                    "actual_classes": sorted(result.actual_classes)
+                    if result.actual_classes
+                    else [],
+                    "expected_classes": result.expected_classes,
+                    "scoring_for_detected": result.scoring_for_detected,
                 }
             )
 
@@ -1192,19 +1458,46 @@ def generate_validation_report(
                 "failed": tested - svc_passed,
             }
 
-    # Failed scenarios details
+    # --- Detection class mismatch analysis ---
+    # Show which expected classes were most commonly missed
+    missed_class_counts: dict[str, int] = {}
+    detected_class_counts: dict[str, int] = {}
+    for result in matched_results:
+        for cls_name, matched in result.detection_matches.items():
+            if not matched:
+                missed_class_counts[cls_name] = missed_class_counts.get(cls_name, 0) + 1
+        for cls in result.actual_classes:
+            detected_class_counts[cls] = detected_class_counts.get(cls, 0) + 1
+
+    detection_analysis = {
+        "most_missed_classes": dict(sorted(missed_class_counts.items(), key=lambda x: -x[1])[:10]),
+        "most_detected_classes": dict(
+            sorted(detected_class_counts.items(), key=lambda x: -x[1])[:10]
+        ),
+    }
+
+    # Failed scenarios details (include separated error types)
     failures = []
     for result in results:
         if not result.success:
-            failures.append(
-                {
-                    "scenario": result.scenario.video_id,
-                    "name": result.scenario.name,
-                    "category": result.scenario.category,
-                    "errors": result.errors,
-                    "enrichment_errors": result.enrichment_errors,
-                }
-            )
+            failure_entry: dict[str, Any] = {
+                "scenario": result.scenario.video_id,
+                "name": result.scenario.name,
+                "category": result.scenario.category,
+                "event_matched": result.event_matched,
+                "errors": result.errors,
+                "enrichment_errors": result.enrichment_errors,
+            }
+            if result.event_matched:
+                failure_entry["detection_correct"] = result.detection_correct
+                failure_entry["scoring_correct"] = result.scoring_correct
+                failure_entry["scoring_for_detected"] = result.scoring_for_detected
+                failure_entry["actual_classes"] = sorted(result.actual_classes)
+                failure_entry["expected_classes"] = result.expected_classes
+                failure_entry["detection_errors"] = result.detection_errors
+                failure_entry["scoring_errors"] = result.scoring_errors
+                failure_entry["camera"] = result.camera_name
+            failures.append(failure_entry)
 
     # =================================================================
     # Enrichment quality metrics (Fix #6)
@@ -1263,7 +1556,10 @@ def generate_validation_report(
             "failed": failed,
             "pass_rate": f"{(passed / total * 100):.1f}%" if total > 0 else "N/A",
         },
+        "accuracy_dimensions": accuracy_dimensions,
         "by_category": by_category,
+        "camera_distribution": camera_counts,
+        "detection_analysis": detection_analysis,
         "enrichment_accuracy": by_service,
         "enrichment_quality": enrichment_quality,
         "risk_calibration": risk_calibration,
@@ -1281,26 +1577,115 @@ def generate_validation_report(
 
 
 def print_validation_summary(report: dict[str, Any]) -> None:
-    """Print a formatted validation summary to stdout."""
+    """Print a formatted validation summary to stdout.
+
+    Displays separated accuracy dimensions so that detection accuracy,
+    scoring accuracy, and enrichment coverage are independently visible.
+    This prevents detection issues (e.g., YOLO model problems) from
+    obscuring LLM scoring accuracy.
+    """
     summary = report.get("summary", {})
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 60)
     print("SYNTHETIC DATA VALIDATION SUMMARY")
-    print("=" * 50)
+    print("=" * 60)
     print(f"Total scenarios: {summary.get('total_scenarios', 0)}")
-    print(f"Passed: {summary.get('passed', 0)}")
-    print(f"Failed: {summary.get('failed', 0)}")
-    print(f"Pass rate: {summary.get('pass_rate', 'N/A')}")
 
-    print("\nBy category:")
+    # --- Accuracy Dimensions (the key improvement) ---
+    dims = report.get("accuracy_dimensions", {})
+    if dims:
+        print("\n" + "-" * 60)
+        print("ACCURACY BY DIMENSION")
+        print("-" * 60)
+        dim_order = [
+            "event_matching",
+            "detection_accuracy",
+            "scoring_accuracy",
+            "scoring_for_detected",
+            "enrichment_coverage",
+            "end_to_end",
+        ]
+        dim_labels = {
+            "event_matching": "Event Matching",
+            "detection_accuracy": "Detection Accuracy (YOLO)",
+            "scoring_accuracy": "Scoring Accuracy (LLM)",
+            "scoring_for_detected": "Scoring for Detected",
+            "enrichment_coverage": "Enrichment Coverage",
+            "end_to_end": "End-to-End (all correct)",
+        }
+        for dim_key in dim_order:
+            dim = dims.get(dim_key, {})
+            if not dim:
+                continue
+            label = dim_labels.get(dim_key, dim_key)
+            # Use the correct numerator key (different dims use different names)
+            numerator = dim.get(
+                "correct", dim.get("matched", dim.get("passed", dim.get("all_pass", 0)))
+            )
+            denominator = dim.get("total", 0)
+            rate = dim.get("rate", "N/A")
+            desc = dim.get("description", "")
+            print(f"  {label + ':':<32} {numerator:>4}/{denominator:<4} ({rate})")
+            if dim_key == "scoring_for_detected":
+                print(f"    ^-- {desc}")
+        print()
+
+    # --- Per-category breakdown with separated dimensions ---
+    print("-" * 60)
+    print("BY CATEGORY")
+    print("-" * 60)
     for category, stats in report.get("by_category", {}).items():
-        rate = f"{(stats['passed'] / stats['total'] * 100):.1f}%" if stats["total"] > 0 else "N/A"
-        print(f"  {category}: {stats['passed']}/{stats['total']} ({rate})")
+        total_cat = stats.get("total", 0)
+        matched = stats.get("events_matched", 0)
+        det_ok = stats.get("detection_correct", 0)
+        score_ok = stats.get("scoring_correct", 0)
+        score_det = stats.get("scoring_for_detected", 0)
+        e2e = stats.get("passed", 0)
+
+        print(f"  {category}:")
+        print(f"    Events matched:      {matched}/{total_cat}")
+        if matched > 0:
+            print(f"    Detection correct:   {det_ok}/{matched}")
+            print(f"    Scoring correct:     {score_ok}/{matched}")
+            print(f"    Scoring for detected:{score_det}/{matched}")
+        print(f"    End-to-end:          {e2e}/{total_cat}")
+
+    # --- Camera distribution ---
+    camera_dist = report.get("camera_distribution", {})
+    if camera_dist:
+        print(f"\n{'-' * 60}")
+        print("CAMERA DISTRIBUTION")
+        print(f"{'-' * 60}")
+        for cam, count in sorted(camera_dist.items(), key=lambda x: -x[1]):
+            print(f"  {cam}: {count} events")
+        if len(camera_dist) == 1:
+            print("  WARNING: Only 1 camera producing events.")
+            print("  Check that frames are being placed in the correct")
+            print("  camera directories for each category.")
+
+    # --- Detection analysis ---
+    det_analysis = report.get("detection_analysis", {})
+    if det_analysis:
+        missed = det_analysis.get("most_missed_classes", {})
+        detected = det_analysis.get("most_detected_classes", {})
+        if missed:
+            print(f"\n{'-' * 60}")
+            print("DETECTION ANALYSIS")
+            print(f"{'-' * 60}")
+            print("  Most commonly missed expected classes:")
+            for cls, count in list(missed.items())[:5]:
+                print(f"    - {cls}: missed {count} times")
+            if detected:
+                print("  Most commonly detected classes:")
+                for cls, count in list(detected.items())[:5]:
+                    print(f"    - {cls}: detected {count} times")
 
     # Enrichment accuracy by service
     enrichment = report.get("enrichment_accuracy", {})
     if enrichment:
-        print("\nEnrichment service accuracy:")
+        print(f"\n{'-' * 60}")
+        print("ENRICHMENT SERVICE ACCURACY")
+        print(f"{'-' * 60}")
         print(f"  {'Service':<15} {'Tested':>7} {'Passed':>7} {'Failed':>7} {'Rate':>8}")
         print(f"  {'-' * 46}")
         for svc, stats in enrichment.items():
@@ -1316,7 +1701,9 @@ def print_validation_summary(report: dict[str, Any]) -> None:
     # Enrichment quality metrics (Fix #6)
     eq = report.get("enrichment_quality", {})
     if eq:
-        print("\nEnrichment quality metrics:")
+        print(f"\n{'-' * 60}")
+        print("ENRICHMENT QUALITY METRICS")
+        print(f"{'-' * 60}")
 
         # Prompt template distribution
         templates = eq.get("prompt_template_distribution", {})
@@ -1349,14 +1736,68 @@ def print_validation_summary(report: dict[str, Any]) -> None:
                 f"p50 {lat['p50']}ms, min {lat['min']}ms, max {lat['max']}ms"
             )
 
+    # --- Failure summary ---
     failures = report.get("failures", [])
     if failures:
-        print(f"\nFailed scenarios ({len(failures)}):")
-        for fail in failures[:10]:  # Show first 10
-            all_errors = fail.get("errors", []) + fail.get("enrichment_errors", [])
-            print(f"  - {fail['scenario']}: {', '.join(all_errors[:3])}")
-        if len(failures) > 10:
-            print(f"  ... and {len(failures) - 10} more")
+        # Categorize failures by type
+        no_event = [f for f in failures if not f.get("event_matched", False)]
+        det_only = [
+            f
+            for f in failures
+            if f.get("event_matched")
+            and not f.get("detection_correct", True)
+            and f.get("scoring_correct", True)
+        ]
+        score_only = [
+            f
+            for f in failures
+            if f.get("event_matched")
+            and f.get("detection_correct", True)
+            and not f.get("scoring_correct", True)
+        ]
+        both_fail = [
+            f
+            for f in failures
+            if f.get("event_matched")
+            and not f.get("detection_correct", True)
+            and not f.get("scoring_correct", True)
+        ]
+        enrich_only = [
+            f
+            for f in failures
+            if f.get("event_matched")
+            and f.get("detection_correct", True)
+            and f.get("scoring_correct", True)
+        ]
+
+        print(f"\n{'-' * 60}")
+        print(f"FAILURE BREAKDOWN ({len(failures)} total)")
+        print(f"{'-' * 60}")
+        if no_event:
+            print(f"  No event created:              {len(no_event)}")
+        if det_only:
+            print(f"  Detection mismatch only:       {len(det_only)}")
+        if score_only:
+            print(f"  Scoring mismatch only:         {len(score_only)}")
+        if both_fail:
+            print(f"  Detection + scoring mismatch:  {len(both_fail)}")
+        if enrich_only:
+            print(f"  Enrichment-only failures:      {len(enrich_only)}")
+
+        # Show sample failures from each type
+        for label, group in [
+            ("No event created", no_event),
+            ("Detection mismatch", det_only + both_fail),
+            ("Scoring mismatch", score_only),
+            ("Enrichment failures", enrich_only),
+        ]:
+            if group:
+                print(f"\n  Sample {label} failures:")
+                for fail in group[:3]:
+                    errors = fail.get("errors", []) + fail.get("enrichment_errors", [])
+                    print(f"    - {fail['scenario']}: {', '.join(errors[:2])}")
+                if len(group) > 3:
+                    print(f"    ... and {len(group) - 3} more")
 
 
 async def wait_for_pipeline_completion(
@@ -2895,6 +3336,45 @@ async def seed_person_embeddings(member_ids: list[int]) -> int:
 
     print(f"  Created {created} person embeddings")
     return created
+
+
+async def seed_admin_user() -> bool:
+    """Ensure a default admin user exists.
+
+    The SetupGuardMiddleware returns HTTP 503 on all API endpoints until at
+    least one user row exists in the database.  This function creates a
+    default admin user (admin / admin@localhost / admin) when the users
+    table is empty so the middleware unblocks immediately.
+
+    The operation is idempotent -- if any user already exists, it is a no-op.
+
+    Returns:
+        True if a new admin user was created, False if one already existed.
+    """
+    from sqlalchemy import func as sa_func
+
+    async with get_session() as session:
+        result = await session.execute(select(sa_func.count(User.id)))
+        count = result.scalar() or 0
+
+        if count > 0:
+            print("  Admin user already exists -- skipping creation")
+            return False
+
+        password_hashed = hash_password("admin")
+        user = User(
+            id=str(uuid.uuid4()),
+            username="admin",
+            email="admin@localhost",
+            password_hash=password_hashed,
+            is_active=True,
+            is_admin=True,
+        )
+        session.add(user)
+        await session.commit()
+
+        print(f"  Created default admin user (username=admin, id={user.id})")
+        return True
 
 
 async def seed_foundation_layer() -> tuple[dict[str, int], dict[str, list]]:
@@ -6677,6 +7157,15 @@ This generates real data including:
     if args.clear:
         print("\nClearing existing data...")
         await clear_all_data()
+
+    # ==========================================================================
+    # ADMIN USER (required before anything else -- SetupGuardMiddleware blocks
+    # all API endpoints with HTTP 503 until at least one user exists)
+    # ==========================================================================
+    print("\n" + "=" * 50)
+    print("ENSURING ADMIN USER EXISTS")
+    print("=" * 50)
+    await seed_admin_user()
 
     total_created = {}
 

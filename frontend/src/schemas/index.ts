@@ -5,7 +5,6 @@
  * All schemas are designed to provide client-side validation that matches
  * server-side validation rules exactly.
  *
-<<<<<<< HEAD
  * ## Modules
  *
  * - **primitives**: Reusable schema primitives (IDs, scores, timestamps, etc.)

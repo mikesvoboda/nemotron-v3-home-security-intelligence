@@ -1,104 +1,614 @@
 {
-  "generated_at": "2026-02-08T01:13:22.309814+00:00",
+  "generated_at": "2026-02-08T14:30:31.340682+00:00",
   "summary": {
-    "total_scenarios": 30,
-    "passed": 1,
-    "failed": 29,
-    "pass_rate": "3.3%"
+    "total_scenarios": 403,
+    "passed": 4,
+    "failed": 399,
+    "pass_rate": "1.0%"
   },
   "by_category": {
     "normal": {
-      "total": 10,
-      "passed": 0,
-      "failed": 10
+      "total": 134,
+      "passed": 4,
+      "failed": 130
     },
     "suspicious": {
-      "total": 10,
+      "total": 130,
       "passed": 0,
-      "failed": 10
+      "failed": 130
     },
     "threats": {
-      "total": 10,
-      "passed": 1,
-      "failed": 9
+      "total": 139,
+      "passed": 0,
+      "failed": 139
     }
   },
   "enrichment_accuracy": {
     "pose": {
-      "tested": 20,
-      "passed": 20,
+      "tested": 128,
+      "passed": 128,
+      "failed": 0
+    },
+    "threat": {
+      "tested": 3,
+      "passed": 3,
       "failed": 0
     },
     "reid": {
-      "tested": 20,
-      "passed": 20,
+      "tested": 134,
+      "passed": 134,
       "failed": 0
     },
     "action": {
-      "tested": 20,
-      "passed": 20,
+      "tested": 128,
+      "passed": 128,
       "failed": 0
     },
     "demographics": {
-      "tested": 15,
-      "passed": 15,
+      "tested": 99,
+      "passed": 99,
       "failed": 0
+    },
+    "florence": {
+      "tested": 16,
+      "passed": 0,
+      "failed": 16
     }
   },
   "enrichment_quality": {
     "prompt_template_distribution": {
-      "model_zoo": 20
+      "enriched": 134
     },
     "prompt_size": {
-      "count": 20,
-      "avg_chars": 18109,
-      "min_chars": 18108,
-      "max_chars": 18110,
-      "estimated_avg_tokens": 4527
+      "count": 134,
+      "avg_chars": 19817,
+      "min_chars": 19817,
+      "max_chars": 19817,
+      "estimated_avg_tokens": 4954
     },
     "enrichment_sections_coverage": {
-      "has_zones": {
-        "count": 20,
-        "pct": "66.7%"
-      },
-      "has_weather": {
-        "count": 20,
-        "pct": "66.7%"
-      },
-      "has_clothing": {
-        "count": 20,
-        "pct": "66.7%"
-      },
       "has_baselines": {
-        "count": 20,
-        "pct": "66.7%"
-      },
-      "has_image_quality": {
-        "count": 20,
-        "pct": "66.7%"
-      },
-      "has_vision_extraction": {
-        "count": 20,
-        "pct": "66.7%"
-      },
-      "has_faces": {
-        "count": 10,
-        "pct": "33.3%"
-      },
-      "has_cross_camera": {
-        "count": 10,
+        "count": 134,
         "pct": "33.3%"
       }
     },
     "llm_latency_ms": {
-      "count": 20,
-      "avg": 81862.1,
-      "min": 74033.8,
-      "max": 89690.3,
-      "p50": 89690.3
+      "count": 134,
+      "avg": 49782.8,
+      "min": 49782.8,
+      "max": 49782.8,
+      "p50": 49782.8
     }
   },
   "risk_calibration": [
+    {
+      "scenario": "coco_coco_val2017_000000017627",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000033854",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000052412",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 25,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000057672",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000067213",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000074058",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000078748",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000087038",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000089556",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 25,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000103548",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000111086",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000122166",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000136715",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000138639",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000139099",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000142324",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000146667",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000156071",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000158548",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000165681",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000173799",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000176857",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000177934",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000181542",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000181666",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000183709",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000191845",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000194875",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000203389",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000210273",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000211674",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000226417",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000226802",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000228436",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 25,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000228942",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000256192",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000259640",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000279278",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000291634",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000296649",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000301135",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000309391",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000314251",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000336232",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000336658",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000338219",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000338304",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000343561",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000345027",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000350122",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000356387",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000361103",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000364322",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 20,
+      "in_range": true
+    },
+    {
+      "scenario": "coco_coco_val2017_000000367680",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000370486",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000374052",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000392722",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000455624",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000463730",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000469192",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000490936",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000492077",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000507037",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000538364",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000574702",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
+    {
+      "scenario": "coco_coco_val2017_000000577932",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 10,
+      "expected_max": 30,
+      "in_range": false
+    },
     {
       "scenario": "E01",
       "category": "normal",
@@ -180,87 +690,1252 @@
       "in_range": true
     },
     {
-      "scenario": "P07",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E11",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "P08",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E12",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "P09",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E13",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "P11",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E14",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "R01",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E15",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "R02",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E16",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "R03",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E17",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "R04",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E18",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "R05",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E19",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "R06",
-      "category": "threats",
-      "actual": 72,
-      "expected_min": 61,
-      "expected_max": 100,
+      "scenario": "E20",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "E21",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "E22",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F01",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F02",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F03",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F04",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F05",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F06",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F07",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F08",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F09",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F10",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F11",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F12",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F13",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F14",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F15",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "F16",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P01",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P25",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P26",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P27",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P28",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P29",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P30",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P31",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P32",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P33",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P34",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P35",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P38",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P47",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "delivery_driver_20260125_180255",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
+      "in_range": true
+    },
+    {
+      "scenario": "delivery_driver_20260125_180256",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
+      "in_range": true
+    },
+    {
+      "scenario": "delivery_driver_20260125_180349",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
+      "in_range": true
+    },
+    {
+      "scenario": "delivery_driver_20260125_180409",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
+      "in_range": true
+    },
+    {
+      "scenario": "pet_activity_20260125_180256",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 5,
+      "in_range": true
+    },
+    {
+      "scenario": "pet_activity_20260125_180531",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 5,
+      "in_range": true
+    },
+    {
+      "scenario": "pet_activity_20260125_180555",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 5,
+      "in_range": true
+    },
+    {
+      "scenario": "resident_arrival_20260125_180256",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 20,
+      "in_range": true
+    },
+    {
+      "scenario": "resident_arrival_20260125_180727",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 20,
+      "in_range": true
+    },
+    {
+      "scenario": "resident_arrival_20260125_180812",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 20,
+      "in_range": true
+    },
+    {
+      "scenario": "vehicle_parking_20260125_180256",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 10,
+      "in_range": true
+    },
+    {
+      "scenario": "vehicle_parking_20260125_180932",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 10,
+      "in_range": true
+    },
+    {
+      "scenario": "vehicle_parking_20260125_180954",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 10,
+      "in_range": true
+    },
+    {
+      "scenario": "yard_maintenance_20260125_183613",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
+      "in_range": true
+    },
+    {
+      "scenario": "yard_maintenance_20260125_185552",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
+      "in_range": true
+    },
+    {
+      "scenario": "yard_maintenance_20260125_185712",
+      "category": "normal",
+      "actual": 5,
+      "expected_min": 0,
+      "expected_max": 15,
       "in_range": true
     }
   ],
   "failures": [
+    {
+      "scenario": "coco_coco_val2017_000000017627",
+      "name": "COCO Scene 17627",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000033854",
+      "name": "COCO Scene 33854",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000052412",
+      "name": "COCO Scene 52412",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 25)",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000057672",
+      "name": "COCO Scene 57672",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000067213",
+      "name": "COCO Scene 67213",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'dog' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000074058",
+      "name": "COCO Scene 74058",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'umbrella' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000078748",
+      "name": "COCO Scene 78748",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000087038",
+      "name": "COCO Scene 87038",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'skateboard' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000089556",
+      "name": "COCO Scene 89556",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 25)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000103548",
+      "name": "COCO Scene 103548",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'sheep' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000111086",
+      "name": "COCO Scene 111086",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000122166",
+      "name": "COCO Scene 122166",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000136715",
+      "name": "COCO Scene 136715",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000138639",
+      "name": "COCO Scene 138639",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000139099",
+      "name": "COCO Scene 139099",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'dog' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'umbrella' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000142324",
+      "name": "COCO Scene 142324",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000146667",
+      "name": "COCO Scene 146667",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000156071",
+      "name": "COCO Scene 156071",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'sheep' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000158548",
+      "name": "COCO Scene 158548",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'sheep' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000165681",
+      "name": "COCO Scene 165681",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000173799",
+      "name": "COCO Scene 173799",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'elephant' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000176857",
+      "name": "COCO Scene 176857",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'cat' not found in actual classes {'person'}",
+        "Expected detection class 'cell phone' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000177934",
+      "name": "COCO Scene 177934",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000181542",
+      "name": "COCO Scene 181542",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000181666",
+      "name": "COCO Scene 181666",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'sheep' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000183709",
+      "name": "COCO Scene 183709",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000191845",
+      "name": "COCO Scene 191845",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'umbrella' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'suitcase' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000194875",
+      "name": "COCO Scene 194875",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000203389",
+      "name": "COCO Scene 203389",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000210273",
+      "name": "COCO Scene 210273",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000211674",
+      "name": "COCO Scene 211674",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000226417",
+      "name": "COCO Scene 226417",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000226802",
+      "name": "COCO Scene 226802",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000228436",
+      "name": "COCO Scene 228436",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 25)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000228942",
+      "name": "COCO Scene 228942",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'train' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000256192",
+      "name": "COCO Scene 256192",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000259640",
+      "name": "COCO Scene 259640",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000279278",
+      "name": "COCO Scene 279278",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'dog' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'skateboard' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000291634",
+      "name": "COCO Scene 291634",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000296649",
+      "name": "COCO Scene 296649",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'bird' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000301135",
+      "name": "COCO Scene 301135",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000309391",
+      "name": "COCO Scene 309391",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000314251",
+      "name": "COCO Scene 314251",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000336232",
+      "name": "COCO Scene 336232",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000336658",
+      "name": "COCO Scene 336658",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000338219",
+      "name": "COCO Scene 338219",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000338304",
+      "name": "COCO Scene 338304",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'sheep' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'cell phone' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000343561",
+      "name": "COCO Scene 343561",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000345027",
+      "name": "COCO Scene 345027",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'umbrella' not found in actual classes {'person'}",
+        "Expected detection class 'kite' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000350122",
+      "name": "COCO Scene 350122",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'train' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000356387",
+      "name": "COCO Scene 356387",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000361103",
+      "name": "COCO Scene 361103",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'cell phone' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000364322",
+      "name": "COCO Scene 364322",
+      "category": "normal",
+      "errors": ["Expected detection class 'sheep' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000367680",
+      "name": "COCO Scene 367680",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'horse' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000370486",
+      "name": "COCO Scene 370486",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'umbrella' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000374052",
+      "name": "COCO Scene 374052",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bird' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000392722",
+      "name": "COCO Scene 392722",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000455624",
+      "name": "COCO Scene 455624",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000463730",
+      "name": "COCO Scene 463730",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000469192",
+      "name": "COCO Scene 469192",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'truck' not found in actual classes {'person'}",
+        "Expected detection class 'kite' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000490936",
+      "name": "COCO Scene 490936",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'truck' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000492077",
+      "name": "COCO Scene 492077",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'bus' not found in actual classes {'person'}",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000507037",
+      "name": "COCO Scene 507037",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000538364",
+      "name": "COCO Scene 538364",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000574702",
+      "name": "COCO Scene 574702",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'motorcycle' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000577932",
+      "name": "COCO Scene 577932",
+      "category": "normal",
+      "errors": [
+        "Risk score 5 outside expected range (10, 30)",
+        "Expected detection class 'bicycle' not found in actual classes {'person'}",
+        "Expected detection class 'car' not found in actual classes {'person'}",
+        "Expected detection class 'backpack' not found in actual classes {'person'}",
+        "Expected detection class 'umbrella' not found in actual classes {'person'}",
+        "Expected detection class 'handbag' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
     {
       "scenario": "E01",
       "name": "Amazon Delivery",
@@ -357,6 +2032,682 @@
       "enrichment_errors": []
     },
     {
+      "scenario": "E11",
+      "name": "Pest Control",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E12",
+      "name": "Meter Reader",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E13",
+      "name": "Electric Company",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E14",
+      "name": "Gas Company",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E15",
+      "name": "Door-to-Door Sales",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E16",
+      "name": "Religious Outreach",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E17",
+      "name": "Political Canvassing",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E18",
+      "name": "Real Estate",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E19",
+      "name": "House Sitter",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E20",
+      "name": "Contractor",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E21",
+      "name": "Property Showing",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "E22",
+      "name": "Neighbor Package",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F01",
+      "name": "Wildlife Deer",
+      "category": "normal",
+      "errors": ["Expected detection class 'deer' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F02",
+      "name": "Wildlife Raccoon",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'raccoon' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F03",
+      "name": "Wildlife Coyote",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F04",
+      "name": "Wildlife Cat",
+      "category": "normal",
+      "errors": ["Expected detection class 'cat' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F05",
+      "name": "Wildlife Birds",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'bird' not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F06",
+      "name": "False Positive Bag",
+      "category": "normal",
+      "errors": ["Expected detection class 'unknown' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F07",
+      "name": "Weather Wind",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F08",
+      "name": "Weather Flag",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F09",
+      "name": "Shadow Movement",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F10",
+      "name": "Cloud Shadow",
+      "category": "normal",
+      "errors": ["Expected detection class 'unknown' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F11",
+      "name": "Sun Glare",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F13",
+      "name": "Jogger",
+      "category": "normal",
+      "errors": ["Expected detection class 'unknown' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F14",
+      "name": "Dog Walker",
+      "category": "normal",
+      "errors": ["Expected detection class 'dog' not found in actual classes {'person'}"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "F15",
+      "name": "Delivery Wrong Address",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P01",
+      "name": "Delivery Baseline",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P25",
+      "name": "Resident Return",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P26",
+      "name": "Resident Groceries",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P27",
+      "name": "Teenager Backpack",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P28",
+      "name": "Door Handle Test",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P29",
+      "name": "Service Worker",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P30",
+      "name": "Utility Worker",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P31",
+      "name": "Known Car",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P32",
+      "name": "Resident Unusual Time",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P33",
+      "name": "Resident Rushed",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P34",
+      "name": "Visitor With Resident",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P38",
+      "name": "Delivery Van",
+      "category": "normal",
+      "errors": [
+        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
+        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
+      ],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "delivery_driver_20260125_180255",
+      "name": "Package Delivery",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'package'"
+      ]
+    },
+    {
+      "scenario": "delivery_driver_20260125_180256",
+      "name": "Package Delivery",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'package'"
+      ]
+    },
+    {
+      "scenario": "delivery_driver_20260125_180349",
+      "name": "Package Delivery",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'package'"
+      ]
+    },
+    {
+      "scenario": "delivery_driver_20260125_180409",
+      "name": "Package Delivery",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'package'"
+      ]
+    },
+    {
+      "scenario": "pet_activity_20260125_180256",
+      "name": "Pet Activity",
+      "category": "normal",
+      "errors": ["Expected detection class 'dog' not found in actual classes {'person'}"],
+      "enrichment_errors": ["Florence caption missing keyword 'dog'"]
+    },
+    {
+      "scenario": "pet_activity_20260125_180531",
+      "name": "Pet Activity",
+      "category": "normal",
+      "errors": ["Expected detection class 'dog' not found in actual classes {'person'}"],
+      "enrichment_errors": ["Florence caption missing keyword 'dog'"]
+    },
+    {
+      "scenario": "pet_activity_20260125_180555",
+      "name": "Pet Activity",
+      "category": "normal",
+      "errors": ["Expected detection class 'dog' not found in actual classes {'person'}"],
+      "enrichment_errors": ["Florence caption missing keyword 'dog'"]
+    },
+    {
+      "scenario": "resident_arrival_20260125_180256",
+      "name": "Resident Arrival",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'door'"
+      ]
+    },
+    {
+      "scenario": "resident_arrival_20260125_180727",
+      "name": "Resident Arrival",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'door'"
+      ]
+    },
+    {
+      "scenario": "resident_arrival_20260125_180812",
+      "name": "Resident Arrival",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'person'",
+        "Florence caption missing keyword 'door'"
+      ]
+    },
+    {
+      "scenario": "vehicle_parking_20260125_180256",
+      "name": "Vehicle Parking",
+      "category": "normal",
+      "errors": ["Expected detection class 'car' not found in actual classes {'person'}"],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'car'",
+        "Florence caption missing keyword 'driveway'"
+      ]
+    },
+    {
+      "scenario": "vehicle_parking_20260125_180932",
+      "name": "Vehicle Parking",
+      "category": "normal",
+      "errors": ["Expected detection class 'car' not found in actual classes {'person'}"],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'car'",
+        "Florence caption missing keyword 'driveway'"
+      ]
+    },
+    {
+      "scenario": "vehicle_parking_20260125_180954",
+      "name": "Vehicle Parking",
+      "category": "normal",
+      "errors": ["Expected detection class 'car' not found in actual classes {'person'}"],
+      "enrichment_errors": [
+        "Florence caption missing keyword 'car'",
+        "Florence caption missing keyword 'driveway'"
+      ]
+    },
+    {
+      "scenario": "yard_maintenance_20260125_183613",
+      "name": "Yard Maintenance",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": ["Florence caption missing keyword 'person'"]
+    },
+    {
+      "scenario": "yard_maintenance_20260125_185552",
+      "name": "Yard Maintenance",
+      "category": "normal",
+      "errors": [],
+      "enrichment_errors": ["Florence caption missing keyword 'person'"]
+    },
+    {
+      "scenario": "yard_maintenance_20260125_185712",
+      "name": "Yard Maintenance",
+      "category": "normal",
+      "errors": ["Expected detection class 'truck' not found in actual classes {'person'}"],
+      "enrichment_errors": ["Florence caption missing keyword 'person'"]
+    },
+    {
+      "scenario": "casing_20260125_180256",
+      "name": "Property Casing",
+      "category": "suspicious",
+      "errors": ["No matching event found for casing_20260125_180256"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "casing_20260125_181140",
+      "name": "Property Casing",
+      "category": "suspicious",
+      "errors": ["No matching event found for casing_20260125_181140"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "casing_20260125_181203",
+      "name": "Property Casing",
+      "category": "suspicious",
+      "errors": ["No matching event found for casing_20260125_181203"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000002592",
+      "name": "COCO Scene 2592",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000002592"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000025096",
+      "name": "COCO Scene 25096",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000025096"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000040471",
+      "name": "COCO Scene 40471",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000040471"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000044279",
+      "name": "COCO Scene 44279",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000044279"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000052996",
+      "name": "COCO Scene 52996",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000052996"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000066231",
+      "name": "COCO Scene 66231",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000066231"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000078266",
+      "name": "COCO Scene 78266",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000078266"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000127182",
+      "name": "COCO Scene 127182",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000127182"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000156278",
+      "name": "COCO Scene 156278",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000156278"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000177935",
+      "name": "COCO Scene 177935",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000177935"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000186980",
+      "name": "COCO Scene 186980",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000186980"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000199771",
+      "name": "COCO Scene 199771",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000199771"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000210032",
+      "name": "COCO Scene 210032",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000210032"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000226984",
+      "name": "COCO Scene 226984",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000226984"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000290768",
+      "name": "COCO Scene 290768",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000290768"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000292060",
+      "name": "COCO Scene 292060",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000292060"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000298396",
+      "name": "COCO Scene 298396",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000298396"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000329219",
+      "name": "COCO Scene 329219",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000329219"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000397133",
+      "name": "COCO Scene 397133",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000397133"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000419974",
+      "name": "COCO Scene 419974",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000419974"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000437898",
+      "name": "COCO Scene 437898",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000437898"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000458992",
+      "name": "COCO Scene 458992",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000458992"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000466986",
+      "name": "COCO Scene 466986",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000466986"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000480122",
+      "name": "COCO Scene 480122",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000480122"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "coco_coco_val2017_000000485844",
+      "name": "COCO Scene 485844",
+      "category": "suspicious",
+      "errors": ["No matching event found for coco_coco_val2017_000000485844"],
+      "enrichment_errors": []
+    },
+    {
       "scenario": "C01",
       "name": "Night Rain Approach",
       "category": "suspicious",
@@ -427,87 +2778,1620 @@
       "enrichment_errors": []
     },
     {
+      "scenario": "C11",
+      "name": "Umbrella Occlusion",
+      "category": "suspicious",
+      "errors": ["No matching event found for C11"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C12",
+      "name": "Large Box Delivery",
+      "category": "suspicious",
+      "errors": ["No matching event found for C12"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C13",
+      "name": "Crowd Occlusion",
+      "category": "suspicious",
+      "errors": ["No matching event found for C13"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C14",
+      "name": "Stroller Occlusion",
+      "category": "suspicious",
+      "errors": ["No matching event found for C14"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C15",
+      "name": "Slow Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C15"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C16",
+      "name": "Fast Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C16"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C17",
+      "name": "Phone Loiter",
+      "category": "suspicious",
+      "errors": ["No matching event found for C17"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C18",
+      "name": "Looking Around",
+      "category": "suspicious",
+      "errors": ["No matching event found for C18"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C19",
+      "name": "Waiting",
+      "category": "suspicious",
+      "errors": ["No matching event found for C19"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C20",
+      "name": "Pacing",
+      "category": "suspicious",
+      "errors": ["No matching event found for C20"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C21",
+      "name": "Hood Up",
+      "category": "suspicious",
+      "errors": ["No matching event found for C21"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C22",
+      "name": "Dark Clothing",
+      "category": "suspicious",
+      "errors": ["No matching event found for C22"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C23",
+      "name": "Backpack",
+      "category": "suspicious",
+      "errors": ["No matching event found for C23"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P02",
+      "name": "Lingering",
+      "category": "suspicious",
+      "errors": ["No matching event found for P02"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P03",
+      "name": "Window Peering",
+      "category": "suspicious",
+      "errors": ["No matching event found for P03"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P04",
+      "name": "Handle Test",
+      "category": "suspicious",
+      "errors": ["No matching event found for P04"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P05",
+      "name": "Circling House",
+      "category": "suspicious",
+      "errors": ["No matching event found for P05"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P06",
+      "name": "Return Visit",
+      "category": "suspicious",
+      "errors": ["No matching event found for P06"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P10",
+      "name": "Hooded Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for P10"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P12",
+      "name": "Flee On Light",
+      "category": "suspicious",
+      "errors": ["No matching event found for P12"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P13",
+      "name": "Driveway To Door",
+      "category": "suspicious",
+      "errors": ["No matching event found for P13"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P14",
+      "name": "Door To Side",
+      "category": "suspicious",
+      "errors": ["No matching event found for P14"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P15",
+      "name": "Full Perimeter",
+      "category": "suspicious",
+      "errors": ["No matching event found for P15"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P16",
+      "name": "Vehicle Exit",
+      "category": "suspicious",
+      "errors": ["No matching event found for P16"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P17",
+      "name": "Backyard Entry",
+      "category": "suspicious",
+      "errors": ["No matching event found for P17"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P18",
+      "name": "Garage Check",
+      "category": "suspicious",
+      "errors": ["No matching event found for P18"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P19",
+      "name": "Walk To Run",
+      "category": "suspicious",
+      "errors": ["No matching event found for P19"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P20",
+      "name": "Disappear Reappear",
+      "category": "suspicious",
+      "errors": ["No matching event found for P20"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P22",
+      "name": "Loiter Zones",
+      "category": "suspicious",
+      "errors": ["No matching event found for P22"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P23",
+      "name": "Quick Traverse",
+      "category": "suspicious",
+      "errors": ["No matching event found for P23"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P24",
+      "name": "Slow Deliberate",
+      "category": "suspicious",
+      "errors": ["No matching event found for P24"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P36",
+      "name": "Unknown Child",
+      "category": "suspicious",
+      "errors": ["No matching event found for P36"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P37",
+      "name": "Sedan Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for P37"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P39",
+      "name": "Unknown Truck",
+      "category": "suspicious",
+      "errors": ["No matching event found for P39"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P40",
+      "name": "Two Exit Vehicle",
+      "category": "suspicious",
+      "errors": ["No matching event found for P40"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P41",
+      "name": "Rear Plate Departing",
+      "category": "suspicious",
+      "errors": ["No matching event found for P41"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P42",
+      "name": "Rear Plate",
+      "category": "suspicious",
+      "errors": ["No matching event found for P42"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P43",
+      "name": "Quick Dropoff",
+      "category": "suspicious",
+      "errors": ["No matching event found for P43"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P44",
+      "name": "Idling Vehicle",
+      "category": "suspicious",
+      "errors": ["No matching event found for P44"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P45",
+      "name": "Reverse In",
+      "category": "suspicious",
+      "errors": ["No matching event found for P45"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P46",
+      "name": "Motorcycle",
+      "category": "suspicious",
+      "errors": ["No matching event found for P46"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P48",
+      "name": "Vehicle Night",
+      "category": "suspicious",
+      "errors": ["No matching event found for P48"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_-Ksthv2x-YM_0014",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_-Ksthv2x-YM_0014"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_06pQ17khyhQ_0004",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_06pQ17khyhQ_0004"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_0Ni71yNnowc_0041",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_0Ni71yNnowc_0041"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_0y1xBOzCjAE_0006",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_0y1xBOzCjAE_0006"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_1D0alSEXDL0_0019",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_1D0alSEXDL0_0019"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_1v-EKhiNxd8_0014",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_1v-EKhiNxd8_0014"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_27efAohfyJk_0000",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_27efAohfyJk_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_3pHRARvFMNk_0001",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_3pHRARvFMNk_0001"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_45yo5uQv9M8_0016",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_45yo5uQv9M8_0016"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_4uBp1SkvoaY_0026",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_4uBp1SkvoaY_0026"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_531i8nKhzJM_0007",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_531i8nKhzJM_0007"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_5Jk4L2XBXEg_0047",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_5Jk4L2XBXEg_0047"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_5eWfwg1gMCE_0344",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_5eWfwg1gMCE_0344"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_752yxYOkebI_0011",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_752yxYOkebI_0011"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_7ef3wncOfV0_0000",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_7ef3wncOfV0_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_7vJd73hRgYA_0026",
+      "name": "Climbing Ladder",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_7vJd73hRgYA_0026"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9-zXC6ymj_Y_0010",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9-zXC6ymj_Y_0010"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_908LOjDmugM_0026",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_908LOjDmugM_0026"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_92U9CMIBSfU_0000",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_92U9CMIBSfU_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_948FDIuzH7Q_0018",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_948FDIuzH7Q_0018"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_96QgfdzSQss_0045",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_96QgfdzSQss_0045"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9CAAGhfyoOo_0040",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9CAAGhfyoOo_0040"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9Iw7zvzcTPw_0002",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9Iw7zvzcTPw_0002"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9QXSapiuhlc_0011",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9QXSapiuhlc_0011"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9S6uuPbTV9Y_0016",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9S6uuPbTV9Y_0016"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9XgA8n0sogM_0043",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9XgA8n0sogM_0043"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9ZDKPbqqoA4_0013",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9ZDKPbqqoA4_0013"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9Zw0lYjghtc_0012",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9Zw0lYjghtc_0012"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9dxXxYQcQ-Q_0002",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9dxXxYQcQ-Q_0002"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9kLdKAlneSE_0004",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9kLdKAlneSE_0004"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9kbw3Xb6OTU_0022",
+      "name": "Climbing A Rope",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9kbw3Xb6OTU_0022"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9pvDGcibLSw_0000",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9pvDGcibLSw_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9qT-JYURqog_0054",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9qT-JYURqog_0054"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9w2A1j_FHFw_0005",
+      "name": "Climbing A Rope",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9w2A1j_FHFw_0005"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_A1Rfa8j3V_c_0004",
+      "name": "Climbing A Rope",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_A1Rfa8j3V_c_0004"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_A30foa0IyMA_0012",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_A30foa0IyMA_0012"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_A8DP_0E_rbM_0015",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_A8DP_0E_rbM_0015"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_AIIsbnz9XKo_0010",
+      "name": "Climbing A Rope",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_AIIsbnz9XKo_0010"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_AJUdjgd4K3U_0292",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_AJUdjgd4K3U_0292"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_ALScAHyNkYo_0008",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_ALScAHyNkYo_0008"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_ANJ9sZPS1wM_0098",
+      "name": "Chasing",
+      "category": "suspicious",
+      "errors": ["No matching event found for kinetics_kinetics_validate_ANJ9sZPS1wM_0098"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "loitering_20260125_180257",
+      "name": "Loitering Person",
+      "category": "suspicious",
+      "errors": ["No matching event found for loitering_20260125_180257"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "loitering_20260125_181341",
+      "name": "Loitering Person",
+      "category": "suspicious",
+      "errors": ["No matching event found for loitering_20260125_181341"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "loitering_20260125_181405",
+      "name": "Loitering Person",
+      "category": "suspicious",
+      "errors": ["No matching event found for loitering_20260125_181405"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "prowling_20260125_180257",
+      "name": "Prowling Person",
+      "category": "suspicious",
+      "errors": ["No matching event found for prowling_20260125_180257"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "prowling_20260125_181525",
+      "name": "Prowling Person",
+      "category": "suspicious",
+      "errors": ["No matching event found for prowling_20260125_181525"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "prowling_20260125_181545",
+      "name": "Prowling Person",
+      "category": "suspicious",
+      "errors": ["No matching event found for prowling_20260125_181545"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "tailgating_20260125_183717",
+      "name": "Tailgating Through Gate",
+      "category": "suspicious",
+      "errors": ["No matching event found for tailgating_20260125_183717"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "tailgating_20260125_185823",
+      "name": "Tailgating Through Gate",
+      "category": "suspicious",
+      "errors": ["No matching event found for tailgating_20260125_185823"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "tailgating_20260125_190322",
+      "name": "Tailgating Through Gate",
+      "category": "suspicious",
+      "errors": ["No matching event found for tailgating_20260125_190322"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "break_in_attempt_20260125_180257",
+      "name": "Break-In Attempt",
+      "category": "threats",
+      "errors": ["No matching event found for break_in_attempt_20260125_180257"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "break_in_attempt_20260125_181718",
+      "name": "Break-In Attempt",
+      "category": "threats",
+      "errors": ["No matching event found for break_in_attempt_20260125_181718"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "break_in_attempt_20260125_181741",
+      "name": "Break-In Attempt",
+      "category": "threats",
+      "errors": ["No matching event found for break_in_attempt_20260125_181741"],
+      "enrichment_errors": []
+    },
+    {
       "scenario": "P07",
       "name": "Crouching",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for P07"],
       "enrichment_errors": []
     },
     {
       "scenario": "P08",
       "name": "Tool Visible",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for P08"],
       "enrichment_errors": []
     },
     {
       "scenario": "P09",
       "name": "Forced Entry",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for P09"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P11",
+      "name": "Multiple Checks",
+      "category": "threats",
+      "errors": ["No matching event found for P11"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "P21",
+      "name": "cosmos_P21_two_people_split_20260128",
+      "category": "threats",
+      "errors": ["No expected labels defined"],
       "enrichment_errors": []
     },
     {
       "scenario": "R01",
       "name": "Package Grab",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
-        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for R01"],
       "enrichment_errors": []
     },
     {
       "scenario": "R02",
       "name": "Distraction Theft",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
-        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for R02"],
       "enrichment_errors": []
     },
     {
       "scenario": "R03",
       "name": "Follow Delivery",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}",
-        "Expected detection class 'package' (accepts: ['backpack', 'suitcase', 'handbag']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for R03"],
       "enrichment_errors": []
     },
     {
       "scenario": "R04",
       "name": "Vehicle Break-in",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for R04"],
       "enrichment_errors": []
     },
     {
       "scenario": "R05",
       "name": "Car Handle Check",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for R05"],
       "enrichment_errors": []
     },
     {
       "scenario": "R06",
       "name": "Vehicle Theft",
       "category": "threats",
-      "errors": [
-        "Expected detection class 'vehicle' (accepts: ['car', 'truck', 'bus', 'motorcycle']) not found in actual classes {'person'}"
-      ],
+      "errors": ["No matching event found for R06"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R07",
+      "name": "Catalytic Converter Theft",
+      "category": "threats",
+      "errors": ["No matching event found for R07"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R08",
+      "name": "Graffiti",
+      "category": "threats",
+      "errors": ["No matching event found for R08"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R09",
+      "name": "Mailbox Vandalism",
+      "category": "threats",
+      "errors": ["No matching event found for R09"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R10",
+      "name": "Egg Throwing",
+      "category": "threats",
+      "errors": ["No matching event found for R10"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R11",
+      "name": "Pre-burglary Casing",
+      "category": "threats",
+      "errors": ["No matching event found for R11"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R12",
+      "name": "Garage Entry",
+      "category": "threats",
+      "errors": ["No matching event found for R12"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R13",
+      "name": "Casing Photos",
+      "category": "threats",
+      "errors": ["No matching event found for R13"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R14",
+      "name": "Marking Property",
+      "category": "threats",
+      "errors": ["No matching event found for R14"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R15",
+      "name": "Lookout",
+      "category": "threats",
+      "errors": ["No matching event found for R15"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R16",
+      "name": "Escape Route",
+      "category": "threats",
+      "errors": ["No matching event found for R16"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R17",
+      "name": "Return Pattern",
+      "category": "threats",
+      "errors": ["No matching event found for R17"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "R18",
+      "name": "Group Approach",
+      "category": "threats",
+      "errors": ["No matching event found for R18"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T03",
+      "name": "Weapon Bat",
+      "category": "threats",
+      "errors": ["No matching event found for T03"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T04",
+      "name": "Aggressive Stance",
+      "category": "threats",
+      "errors": ["No matching event found for T04"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T05",
+      "name": "Kicking Door",
+      "category": "threats",
+      "errors": ["No matching event found for T05"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T06",
+      "name": "Window Break",
+      "category": "threats",
+      "errors": ["No matching event found for T06"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T07",
+      "name": "Pry Bar",
+      "category": "threats",
+      "errors": ["No matching event found for T07"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T08",
+      "name": "Masked Intruder",
+      "category": "threats",
+      "errors": ["No matching event found for T08"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T09",
+      "name": "Multiple Intruders",
+      "category": "threats",
+      "errors": ["No matching event found for T09"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T10",
+      "name": "Vehicle Ramming",
+      "category": "threats",
+      "errors": ["No matching event found for T10"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T11",
+      "name": "Tracking 01",
+      "category": "threats",
+      "errors": ["No matching event found for T11"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T12",
+      "name": "Tracking 02",
+      "category": "threats",
+      "errors": ["No matching event found for T12"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T13",
+      "name": "Tracking 03",
+      "category": "threats",
+      "errors": ["No matching event found for T13"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T14",
+      "name": "Tracking 04",
+      "category": "threats",
+      "errors": ["No matching event found for T14"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T15",
+      "name": "Tracking 05",
+      "category": "threats",
+      "errors": ["No matching event found for T15"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T16",
+      "name": "Tracking 06",
+      "category": "threats",
+      "errors": ["No matching event found for T16"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T17",
+      "name": "Tracking 07",
+      "category": "threats",
+      "errors": ["No matching event found for T17"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T18",
+      "name": "Tracking 08",
+      "category": "threats",
+      "errors": ["No matching event found for T18"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T19",
+      "name": "Tracking 09",
+      "category": "threats",
+      "errors": ["No matching event found for T19"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T20",
+      "name": "Tracking 10",
+      "category": "threats",
+      "errors": ["No matching event found for T20"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T21",
+      "name": "Tracking 11",
+      "category": "threats",
+      "errors": ["No matching event found for T21"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T22",
+      "name": "Tracking 12",
+      "category": "threats",
+      "errors": ["No matching event found for T22"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T23",
+      "name": "Tracking 13",
+      "category": "threats",
+      "errors": ["No matching event found for T23"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T24",
+      "name": "Tracking 14",
+      "category": "threats",
+      "errors": ["No matching event found for T24"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T25",
+      "name": "Tracking 15",
+      "category": "threats",
+      "errors": ["No matching event found for T25"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T26",
+      "name": "Tracking 16",
+      "category": "threats",
+      "errors": ["No matching event found for T26"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T27",
+      "name": "Tracking 17",
+      "category": "threats",
+      "errors": ["No matching event found for T27"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T28",
+      "name": "Tracking 18",
+      "category": "threats",
+      "errors": ["No matching event found for T28"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T29",
+      "name": "Tracking 19",
+      "category": "threats",
+      "errors": ["No matching event found for T29"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T30",
+      "name": "Tracking 20",
+      "category": "threats",
+      "errors": ["No matching event found for T30"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T31",
+      "name": "Tracking 21",
+      "category": "threats",
+      "errors": ["No matching event found for T31"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T32",
+      "name": "Tracking 22",
+      "category": "threats",
+      "errors": ["No matching event found for T32"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T33",
+      "name": "Tracking 23",
+      "category": "threats",
+      "errors": ["No matching event found for T33"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T34",
+      "name": "Tracking 24",
+      "category": "threats",
+      "errors": ["No matching event found for T34"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T35",
+      "name": "Tracking 25",
+      "category": "threats",
+      "errors": ["No matching event found for T35"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T37",
+      "name": "Tracking 27",
+      "category": "threats",
+      "errors": ["No matching event found for T37"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T38",
+      "name": "Tracking 28",
+      "category": "threats",
+      "errors": ["No matching event found for T38"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T39",
+      "name": "Tracking 29",
+      "category": "threats",
+      "errors": ["No matching event found for T39"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "T40",
+      "name": "Tracking 30",
+      "category": "threats",
+      "errors": ["No matching event found for T40"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_0Ffr8tk-hLo_0001",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_0Ffr8tk-hLo_0001"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_0TtUPcnpN2g_0018",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_0TtUPcnpN2g_0018"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_0g813Qgrc-M_0785",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_0g813Qgrc-M_0785"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_11spaUUpuOM_0285",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_11spaUUpuOM_0285"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_1Qy-sU2-M4A_0070",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_1Qy-sU2-M4A_0070"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_35AAE81IspY_0010",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_35AAE81IspY_0010"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_3_90muFUJ7A_0329",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_3_90muFUJ7A_0329"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_3nFLLcUgWw8_0000",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_3nFLLcUgWw8_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_4fd0DxuSX6U_0149",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_4fd0DxuSX6U_0149"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_5853SFNgzQA_0164",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_5853SFNgzQA_0164"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_7IthrWs55Is_0024",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_7IthrWs55Is_0024"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_7_sE8-ybNYk_0001",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_7_sE8-ybNYk_0001"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_7xR7tO-TUSw_0022",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_7xR7tO-TUSw_0022"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_85bO6L4CPCk_0032",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_85bO6L4CPCk_0032"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_88Oa630kD90_0000",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_88Oa630kD90_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8IEdEcVORjU_0019",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8IEdEcVORjU_0019"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8SsvU6caqrQ_0004",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8SsvU6caqrQ_0004"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8WZpuQycmgM_0000",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8WZpuQycmgM_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8YKD2xNYGNg_0004",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8YKD2xNYGNg_0004"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8cvFwACELTw_0019",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8cvFwACELTw_0019"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8eYMO1T8Azs_0001",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8eYMO1T8Azs_0001"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8gqZbcX3WcU_0017",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8gqZbcX3WcU_0017"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_8n5k3CxFJes_0030",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_8n5k3CxFJes_0030"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9-0CHn-kmvM_0003",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9-0CHn-kmvM_0003"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_90oYVArJANE_0015",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_90oYVArJANE_0015"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9AT_d93Mdnc_0003",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9AT_d93Mdnc_0003"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9N6Wwn4kw7c_0008",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9N6Wwn4kw7c_0008"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9Sj-WxSIbHE_0144",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9Sj-WxSIbHE_0144"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9cUcTIpAx3g_0009",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9cUcTIpAx3g_0009"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9gr2QMoLKXM_0000",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9gr2QMoLKXM_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9kAClZJsBtQ_0008",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9kAClZJsBtQ_0008"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9mClKtfzr-o_0010",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9mClKtfzr-o_0010"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9rC-SFN84pE_0020",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9rC-SFN84pE_0020"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9vU_h2kcDmE_0051",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9vU_h2kcDmE_0051"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9vztN73gi38_0010",
+      "name": "Punching Person (Boxing)",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9vztN73gi38_0010"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_9x7NvQLavBo_0000",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_9x7NvQLavBo_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_A3Lc4_--QMQ_0010",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_A3Lc4_--QMQ_0010"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_AJ7-J0lS8mo_0014",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_AJ7-J0lS8mo_0014"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_ANVpobKOMsc_0132",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_ANVpobKOMsc_0132"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_AYEQ0V54sYM_0005",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_AYEQ0V54sYM_0005"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_Abv4MnYIXYo_0003",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_Abv4MnYIXYo_0003"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_AerY0jtw9vQ_0047",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_AerY0jtw9vQ_0047"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_At0KOsYLpMw_0073",
+      "name": "Breaking Glass",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_At0KOsYLpMw_0073"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_CHxbZC161eU_0047",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_CHxbZC161eU_0047"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_CMpbOi6YnzE_0009",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_CMpbOi6YnzE_0009"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_CR3DWNM1eVY_0005",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_CR3DWNM1eVY_0005"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_CcsrmQcGBGI_0015",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_CcsrmQcGBGI_0015"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_CfqWxmuPsEI_0049",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_CfqWxmuPsEI_0049"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_Cr5TQ8GBjvk_0000",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_Cr5TQ8GBjvk_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_D-WooH59lYM_0000",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_D-WooH59lYM_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_D0wMurOLdOY_0016",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_D0wMurOLdOY_0016"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_D672QPTOTy8_0017",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_D672QPTOTy8_0017"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_D9XYemqKjeI_0017",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_D9XYemqKjeI_0017"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_D9XgvOAgfr8_0000",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_D9XgvOAgfr8_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_DEoYZ78fSLw_0050",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_DEoYZ78fSLw_0050"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_DHxJMQWA0Go_0006",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_DHxJMQWA0Go_0006"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_DRAvwd7gxfM_1357",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_DRAvwd7gxfM_1357"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_Dkex0Uc4jlQ_0066",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_Dkex0Uc4jlQ_0066"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_DnIT6WF5qoA_0000",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_DnIT6WF5qoA_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_Dyqs_Eihm-o_0000",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_Dyqs_Eihm-o_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_E0tEZb-MDYk_0088",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_E0tEZb-MDYk_0088"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_EYWW70drvV4_0029",
+      "name": "Headbutting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_EYWW70drvV4_0029"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_EjgqjWwL0wY_0105",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_EjgqjWwL0wY_0105"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_En_m3b8yqX0_0000",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_En_m3b8yqX0_0000"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_F-WyBjOmvsw_0004",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_F-WyBjOmvsw_0004"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "kinetics_kinetics_validate_F5NgOYg2EGA_0028",
+      "name": "Sword Fighting",
+      "category": "threats",
+      "errors": ["No matching event found for kinetics_kinetics_validate_F5NgOYg2EGA_0028"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "package_theft_20260125_180257",
+      "name": "Package Theft",
+      "category": "threats",
+      "errors": ["No matching event found for package_theft_20260125_180257"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "package_theft_20260125_181912",
+      "name": "Package Theft",
+      "category": "threats",
+      "errors": ["No matching event found for package_theft_20260125_181912"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "package_theft_20260125_181949",
+      "name": "Package Theft",
+      "category": "threats",
+      "errors": ["No matching event found for package_theft_20260125_181949"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "vandalism_20260125_184659",
+      "name": "Property Vandalism",
+      "category": "threats",
+      "errors": ["No matching event found for vandalism_20260125_184659"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "vandalism_20260125_185117",
+      "name": "Property Vandalism",
+      "category": "threats",
+      "errors": ["No matching event found for vandalism_20260125_185117"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "vandalism_20260125_190821",
+      "name": "Property Vandalism",
+      "category": "threats",
+      "errors": ["No matching event found for vandalism_20260125_190821"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "vandalism_20260125_191245",
+      "name": "Property Vandalism",
+      "category": "threats",
+      "errors": ["No matching event found for vandalism_20260125_191245"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "weapon_visible_20260125_180258",
+      "name": "Weapon Visible",
+      "category": "threats",
+      "errors": ["No matching event found for weapon_visible_20260125_180258"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "weapon_visible_20260125_182124",
+      "name": "Weapon Visible",
+      "category": "threats",
+      "errors": ["No matching event found for weapon_visible_20260125_182124"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "weapon_visible_20260125_182144",
+      "name": "Weapon Visible",
+      "category": "threats",
+      "errors": ["No matching event found for weapon_visible_20260125_182144"],
       "enrichment_errors": []
     }
   ]

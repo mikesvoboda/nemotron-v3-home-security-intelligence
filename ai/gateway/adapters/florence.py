@@ -27,6 +27,7 @@ expects JSON responses matching the current ai-florence service format.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any
@@ -36,7 +37,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ai.gateway.triton_client import TritonClientError, get_triton_client
-from ai.gateway.utils import decode_base64_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -189,11 +189,11 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     """Send image + prompt to Florence-2 Triton Python backend.
 
     The Python backend model expects:
-    - INPUT_IMAGE: raw image bytes (uint8 array)
-    - INPUT_PROMPT: prompt string (bytes array)
+    - image: TYPE_STRING [1] - base64-encoded image bytes
+    - prompt: TYPE_STRING [1] - Florence-2 task prompt string
 
     And returns:
-    - OUTPUT_TEXT: generated text result (bytes array)
+    - result: TYPE_STRING [1] - JSON string with task-specific result
 
     Args:
         image_b64: Base64-encoded image.
@@ -205,29 +205,33 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     start = time.monotonic()
     triton = get_triton_client()
 
+    # Validate base64 before sending to backend
     try:
-        image_bytes = decode_base64_to_bytes(image_b64)
+        import base64 as _b64
+
+        _b64.b64decode(image_b64, validate=True)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image: {e}") from e
 
-    # Package inputs for Triton Python backend
-    image_input = np.array([image_bytes], dtype=object)
+    # Send raw base64 string to Triton Python backend (which decodes it internally).
+    # Do NOT pre-decode — the Python backend model.py calls base64.b64decode() itself.
+    image_input = np.array([image_b64.encode("utf-8")], dtype=object)
     prompt_input = np.array([prompt.encode("utf-8")], dtype=object)
 
     try:
         result = await triton.infer(
             model_name=MODEL_NAME,
             inputs={
-                "INPUT_IMAGE": image_input,
-                "INPUT_PROMPT": prompt_input,
+                "image": image_input,
+                "prompt": prompt_input,
             },
-            outputs=["OUTPUT_TEXT"],
+            outputs=["result"],
         )
     except TritonClientError as e:
         raise HTTPException(status_code=503, detail=f"Florence inference failed: {e}") from e
 
     # Decode output
-    raw_output = result["OUTPUT_TEXT"]
+    raw_output = result["result"]
     if raw_output.dtype == object:
         text_result = (
             raw_output[0].decode("utf-8")
@@ -236,6 +240,18 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
         )
     else:
         text_result = str(raw_output[0])
+
+    # Unwrap JSON envelope from the Triton Python backend.
+    # The backend returns {"result": ..., "prompt": ...} as a JSON string.
+    # We need to extract just the "result" value.
+    try:
+        envelope = json.loads(text_result)
+        if isinstance(envelope, dict) and "result" in envelope:
+            text_result = envelope["result"]
+            if not isinstance(text_result, str):
+                text_result = json.dumps(text_result)
+    except (json.JSONDecodeError, TypeError):
+        pass
 
     inference_time_ms = (time.monotonic() - start) * 1000
     return text_result, inference_time_ms
@@ -246,8 +262,6 @@ def _parse_json_output(text: str) -> Any:
 
     Florence Python backend may return JSON-serialized structured results.
     """
-    import json
-
     try:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError):

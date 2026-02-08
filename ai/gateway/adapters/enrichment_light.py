@@ -100,6 +100,117 @@ def _softmax(x: np.ndarray) -> np.ndarray:
     return e / (e.sum() + 1e-8)
 
 
+def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[dict[str, Any]]:
+    """Post-process YOLOv8-pose output tensor to keypoint dicts.
+
+    Args:
+        output: Raw model output, shape (1, 56, 8400).
+        conf_threshold: Minimum confidence to keep a detection.
+
+    Returns:
+        List of dicts with 'keypoints' list.
+    """
+    preds = output[0]
+    if preds.shape[0] < preds.shape[1]:
+        preds = preds.T  # (8400, 56)
+
+    confidences = preds[:, 4]
+    mask = confidences >= conf_threshold
+    preds = preds[mask]
+
+    if len(preds) == 0:
+        return []
+
+    COCO_KEYPOINT_NAMES = [
+        "nose",
+        "left_eye",
+        "right_eye",
+        "left_ear",
+        "right_ear",
+        "left_shoulder",
+        "right_shoulder",
+        "left_elbow",
+        "right_elbow",
+        "left_wrist",
+        "right_wrist",
+        "left_hip",
+        "right_hip",
+        "left_knee",
+        "right_knee",
+        "left_ankle",
+        "right_ankle",
+    ]
+
+    results = []
+    for det in preds:
+        kp_data = det[5:]
+        keypoints = []
+        for i in range(17):
+            keypoints.append(
+                {
+                    "name": COCO_KEYPOINT_NAMES[i],
+                    "x": round(float(kp_data[i * 3]), 1),
+                    "y": round(float(kp_data[i * 3 + 1]), 1),
+                    "confidence": round(float(kp_data[i * 3 + 2]), 4),
+                }
+            )
+        results.append({"keypoints": keypoints})
+
+    return results
+
+
+def _postprocess_threat(output: np.ndarray, conf_threshold: float = 0.25) -> list[dict[str, Any]]:
+    """Post-process YOLOv8 threat detection output tensor.
+
+    Args:
+        output: Raw model output, shape (1, 8, 8400).
+            8 = 4 box + 4 class scores.
+        conf_threshold: Minimum confidence to keep a detection.
+
+    Returns:
+        List of detection dicts with class, confidence, bbox.
+    """
+    THREAT_CLASSES = ["knife", "pistol", "rifle", "threat_object"]
+
+    preds = output[0]
+    if preds.shape[0] < preds.shape[1]:
+        preds = preds.T  # (8400, 8)
+
+    boxes_cxcywh = preds[:, :4]
+    class_scores = preds[:, 4:]
+
+    class_ids = np.argmax(class_scores, axis=1)
+    confidences = np.array([class_scores[i, class_ids[i]] for i in range(len(class_ids))])
+
+    mask = confidences >= conf_threshold
+    boxes_cxcywh = boxes_cxcywh[mask]
+    class_ids = class_ids[mask]
+    confidences = confidences[mask]
+
+    if len(confidences) == 0:
+        return []
+
+    detections = []
+    for i in range(len(confidences)):
+        cx, cy, w, h = boxes_cxcywh[i]
+        cls_id = int(class_ids[i])
+        cls_name = THREAT_CLASSES[cls_id] if cls_id < len(THREAT_CLASSES) else f"threat_{cls_id}"
+        detections.append(
+            {
+                "class": cls_name,
+                "confidence": round(float(confidences[i]), 4),
+                "bbox": {
+                    "x": round(float(cx - w / 2)),
+                    "y": round(float(cy - h / 2)),
+                    "width": round(float(w)),
+                    "height": round(float(h)),
+                },
+            }
+        )
+
+    return detections
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -115,26 +226,20 @@ async def pose_analyze(request: BBoxRequest) -> PoseResponse:
     triton = get_triton_client()
 
     try:
+        from ai.gateway.utils import preprocess_yolo
+
         image_bytes = decode_base64_to_bytes(request.image)
-        image_input = np.array([image_bytes], dtype=object)
+        input_tensor = preprocess_yolo(image_bytes, 640)
 
         result = await triton.infer(
             model_name="pose",
-            inputs={"INPUT_IMAGE": image_input},
-            outputs=["OUTPUT_KEYPOINTS"],
+            inputs={"images": input_tensor.astype(np.float32)},
+            outputs=["output0"],
         )
 
-        raw = result["OUTPUT_KEYPOINTS"]
-        if raw.dtype == object:
-            keypoints_data = json.loads(
-                raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0])
-            )
-        else:
-            keypoints_data = []
+        keypoints = _postprocess_pose(result["output0"])
 
         inference_time_ms = (time.monotonic() - start) * 1000
-
-        keypoints = keypoints_data if isinstance(keypoints_data, list) else []
 
         return PoseResponse(
             keypoints=keypoints,
@@ -159,26 +264,21 @@ async def threat_detect(request: BBoxRequest) -> ThreatResponse:
     triton = get_triton_client()
 
     try:
+        from ai.gateway.utils import preprocess_yolo
+
         image_bytes = decode_base64_to_bytes(request.image)
-        image_input = np.array([image_bytes], dtype=object)
+        input_tensor = preprocess_yolo(image_bytes, 640)
 
         result = await triton.infer(
             model_name="threat",
-            inputs={"INPUT_IMAGE": image_input},
-            outputs=["OUTPUT_DETECTIONS"],
+            inputs={"images": input_tensor.astype(np.float32)},
+            outputs=["output0"],
         )
 
-        raw = result["OUTPUT_DETECTIONS"]
-        if raw.dtype == object:
-            detections_data = json.loads(
-                raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0])
-            )
-        else:
-            detections_data = []
+        detections = _postprocess_threat(result["output0"])
 
         inference_time_ms = (time.monotonic() - start) * 1000
 
-        detections = detections_data if isinstance(detections_data, list) else []
         threat_detected = len(detections) > 0
         threat_type = detections[0].get("class", None) if threat_detected else None
         confidence = detections[0].get("confidence", 0.0) if threat_detected else 0.0
@@ -221,10 +321,10 @@ async def person_reid(request: BBoxRequest) -> ReIDResponse:
         result = await triton.infer(
             model_name="reid",
             inputs={"input": tensor},
-            outputs=["output"],
+            outputs=["embedding"],
         )
 
-        embedding = result["output"][0].tolist()
+        embedding = result["embedding"][0].tolist()
 
         # L2 normalize
         import math
@@ -311,10 +411,10 @@ async def depth_estimate(request: ImageRequest) -> DepthResponse:
         result = await triton.infer(
             model_name="depth",
             inputs={"input": tensor},
-            outputs=["output"],
+            outputs=["depth_map"],
         )
 
-        depth_map = result["output"][0]
+        depth_map = result["depth_map"][0]
         if depth_map.ndim > 2:
             depth_map = depth_map.squeeze()
 

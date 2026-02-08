@@ -760,302 +760,6 @@ Output JSON:
 <|im_start|>assistant
 """
 
-# DEPRECATED: This template is no longer used in the template selection cascade.
-# The _call_llm() method now uses only MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
-# (with empty sections for missing data) or RISK_ANALYSIS_PROMPT (basic fallback).
-# Kept for backward compatibility with tests and evaluation harness.
-# See NEM-5525 prompt template consolidation.
-ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security analyst for a residential property.
-
-CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
-delivery workers, and pets represent normal household activity. Your job is to
-identify genuine anomalies, not flag everyday life.
-
-SCORE CALIBRATION:
-- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
-- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
-
-IMPORTANT: Default to LOWER scores without clear threat indicators.
-EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
-
-Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
-<|im_start|>user
-## SCORING REFERENCE
-| Scenario | Score | Reasoning |
-|----------|-------|-----------|
-| Resident arriving home | 0-10 | Expected activity |
-| Pet in yard | 0-5 | Normal household activity |
-| Delivery driver at door | 0-15 | Routine service visit |
-| Person walking past on sidewalk | 5-15 | Public area, transient |
-| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
-| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
-| Person testing door handles | 70-85 | Clear suspicious intent |
-| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
-| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
-| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
-| Active break-in or violence | 90-100 | Immediate threat |
-
-## PROPERTY CRIME SCORING (ALWAYS 60+)
-- Package/delivery theft = 70-90
-- Vandalism (graffiti, property damage) = 65-85
-- Breaking and entering = 80-95
-- Vehicle break-in = 70-85
-
-## NOT RISK FACTORS - NEVER flag these as suspicious:
-- Trees, bushes, plants, vegetation
-- Camera timestamps or time display
-- Weather conditions alone
-- A person simply being present or walking
-- Normal residential items
-- Shadows or lighting artifacts
-- Wildlife (birds, squirrels)
-
-## EVENT CONTEXT
-Camera: {camera_name}
-Time: {start_time} to {end_time}
-Day: {day_of_week}
-
-## DETECTIONS
-{detections_list}
-
-## Zone Analysis
-{zone_analysis}
-
-## Baseline Comparison
-Expected activity for {hour}:00 on {day_of_week}:
-{baseline_comparison}
-
-Deviation score: {deviation_score} (0=normal, 1=highly unusual)
-
-## Cross-Camera Activity
-{cross_camera_summary}
-
-## Risk Interpretation Guide
-- entry_point detections: Higher concern, especially unknown persons
-- Baseline deviation > 0.5: Unusual activity pattern
-- Cross-camera correlation: May indicate coordinated movement
-- Time of day: Late night activity more concerning
-- NOTE: Do NOT flag trees, timestamps, weather, or normal presence
-
-## YOUR TASK
-1. Start from the scoring reference above
-2. Adjust based on ACTUAL threat indicators present
-3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
-4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-29)
-
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
-
-Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
-<|im_start|>assistant
-"""
-
-# DEPRECATED: This template is no longer used in the template selection cascade.
-# The _call_llm() method now uses only MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
-# (with empty sections for missing data) or RISK_ANALYSIS_PROMPT (basic fallback).
-# Kept for backward compatibility with tests and evaluation harness.
-# See NEM-5525 prompt template consolidation.
-FULL_ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security analyst for a residential property.
-
-CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
-delivery workers, and pets represent normal household activity. Your job is to
-identify genuine anomalies, not flag everyday life.
-
-SCORE CALIBRATION:
-- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
-- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
-
-IMPORTANT: Default to LOWER scores without clear threat indicators.
-EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
-
-Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
-<|im_start|>user
-## SCORING REFERENCE
-| Scenario | Score | Reasoning |
-|----------|-------|-----------|
-| Resident arriving home | 0-10 | Expected activity |
-| Pet in yard | 0-5 | Normal household activity |
-| Delivery driver at door | 0-15 | Routine service visit |
-| Person walking past on sidewalk | 5-15 | Public area, transient |
-| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
-| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
-| Person testing door handles | 70-85 | Clear suspicious intent |
-| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
-| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
-| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
-| Active break-in or violence | 90-100 | Immediate threat |
-
-## PROPERTY CRIME SCORING (ALWAYS 60+)
-- Package/delivery theft = 70-90
-- Vandalism (graffiti, property damage) = 65-85
-- Breaking and entering = 80-95
-- Vehicle break-in = 70-85
-
-## NOT RISK FACTORS - NEVER flag these as suspicious:
-- Trees, bushes, plants, vegetation
-- Camera timestamps or time display
-- Weather conditions alone
-- A person simply being present or walking
-- Normal residential items
-- Shadows or lighting artifacts
-- Wildlife (birds, squirrels)
-
-## EVENT CONTEXT
-Camera: {camera_name}
-Time: {start_time} to {end_time}
-Day: {day_of_week}
-
-## DETECTIONS
-{detections_list}
-
-## Vision Enrichment
-{enrichment_context}
-
-## Zone Analysis
-{zone_analysis}
-
-## Baseline Comparison
-Expected activity for {hour}:00 on {day_of_week}:
-{baseline_comparison}
-
-Deviation score: {deviation_score} (0=normal, 1=highly unusual)
-
-## Cross-Camera Activity
-{cross_camera_summary}
-
-## Risk Interpretation Guide
-- entry_point detections: Higher concern, especially unknown persons
-- Baseline deviation > 0.5: Unusual activity pattern
-- Cross-camera correlation: May indicate coordinated movement
-- Time of day: Late night activity more concerning
-- License plates: Known vs unknown vehicles
-- NOTE: Do NOT flag trees, timestamps, weather, or normal presence
-
-## YOUR TASK
-1. Start from the scoring reference above
-2. Adjust based on ACTUAL threat indicators present
-3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
-4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-29)
-
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
-
-Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
-<|im_start|>assistant
-"""
-
-# DEPRECATED: This template is no longer used in the template selection cascade.
-# The _call_llm() method now uses only MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
-# (with empty sections for missing data) or RISK_ANALYSIS_PROMPT (basic fallback).
-# Kept for backward compatibility with tests and evaluation harness.
-# See NEM-5525 prompt template consolidation.
-VISION_ENHANCED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security analyst for a residential property.
-
-CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
-delivery workers, and pets represent normal household activity. Your job is to
-identify genuine anomalies, not flag everyday life.
-
-SCORE CALIBRATION:
-- 0-29 (LOW): Routine activity (deliveries, residents, pets, maintenance)
-- 30-59 (MEDIUM): Unusual but likely benign, or mildly suspicious (unknown visitors, brief loitering)
-- 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
-- 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
-
-IMPORTANT: Default to LOWER scores without clear threat indicators.
-EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
-
-Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
-<|im_start|>user
-## SCORING REFERENCE
-| Scenario | Score | Reasoning |
-|----------|-------|-----------|
-| Resident arriving home | 0-10 | Expected activity |
-| Pet in yard | 0-5 | Normal household activity |
-| Delivery driver at door | 0-15 | Routine service visit |
-| Person walking past on sidewalk | 5-15 | Public area, transient |
-| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
-| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
-| Person testing door handles | 70-85 | Clear suspicious intent |
-| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
-| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
-| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
-| Active break-in or violence | 90-100 | Immediate threat |
-
-## PROPERTY CRIME SCORING (ALWAYS 60+)
-- Package/delivery theft = 70-90
-- Vandalism (graffiti, property damage) = 65-85
-- Breaking and entering = 80-95
-- Vehicle break-in = 70-85
-
-## NOT RISK FACTORS - NEVER flag these as suspicious:
-- Trees, bushes, plants, vegetation
-- Camera timestamps or time display
-- Weather conditions alone
-- A person simply being present or walking
-- Normal residential items
-- Shadows or lighting artifacts
-- Wildlife (birds, squirrels)
-
-## EVENT CONTEXT
-Camera: {camera_name}
-Time: {timestamp}
-Day: {day_of_week}
-Lighting: {time_of_day}
-
-{camera_health_context}
-
-## DETECTIONS WITH ATTRIBUTES
-{detections_with_attributes}
-
-## Re-Identification
-{reid_context}
-
-{cross_camera_person_tracking}
-
-## Zone Analysis
-{zone_analysis}
-
-## Baseline Comparison
-{baseline_comparison}
-Deviation score: {deviation_score}
-
-## Cross-Camera Activity
-{cross_camera_summary}
-
-## Scene Analysis
-{scene_analysis}
-
-## Risk Factors to Consider
-- entry_point detections: Higher concern
-- Unknown persons/vehicles: Note if not seen before
-- Re-identified entities: Track movement patterns
-- Cross-camera person movement: Person moving from perimeter to entry point is more concerning
-- Service workers: Usually LOWER risk (delivery, utility) - score 0-15
-- Unusual objects: Tools, abandoned items increase risk
-- Time context: Late night + artificial light = concerning
-- Behavioral cues: Crouching, loitering, repeated passes
-- NOTE: Do NOT flag trees, timestamps, weather, or normal presence
-
-## YOUR TASK
-1. Start from the scoring reference above
-2. Adjust based on ACTUAL threat indicators present
-3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
-4. Provide clear reasoning for your score
-5. Remember: most events should score LOW (0-29)
-
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
-
-Output JSON:
-{{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "detailed explanation", "entities": [{{"type": "person|vehicle", "description": "text", "threat_level": "low|medium|high"}}], "recommended_action": "text"}}<|im_end|>
-<|im_start|>assistant
-"""
 
 # ==============================================================================
 # MODEL_ZOO_ENHANCED Prompt Template
@@ -1085,6 +789,12 @@ SCORE CALIBRATION:
 - 60-84 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
 - 85-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
+EXPECTED DISTRIBUTION: In a typical day, expect approximately:
+- ~85% LOW (0-29): Normal household activity
+- ~10% MEDIUM (30-59): Worth noting but not alarming
+- ~4% HIGH (60-84): Genuinely suspicious, warrants review
+- ~1% CRITICAL (85-100): Immediate threats only
+
 IMPORTANT: Default to LOWER scores without clear threat indicators.
 EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
@@ -1101,7 +811,10 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
 | Unknown person lingering 5-10 min | 35-50 | Worth monitoring |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
+| Tailgating through secure door/gate | 55-75 | ACCESS VIOLATION - unauthorized entry |
+| Person checking vehicle doors | 65-80 | Clear suspicious intent |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Camera tampering (hand/object at lens) | 60-80 | Visual evidence of obstruction |
 | Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
 | Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
 | Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
@@ -1115,6 +828,21 @@ Property crimes are criminal acts and must ALWAYS be scored as threats:
 - Vehicle break-in = 70-85
 - Nighttime property crimes = Add +5-10 points
 
+## ACCESS CONTROL VIOLATIONS (ALWAYS 45+)
+Tailgating, piggybacking, and unauthorized entry attempts are security policy violations:
+- Tailgating (following authorized person through door) = 55-75
+- Multiple unknown persons entering in quick succession = 50-70
+- Holding door for unknown individual at secure entry = 45-65
+- Bypassing gate/fence via climbing = 55-75
+- Forced entry through access-controlled door = 75-95 (CRITICAL)
+
+## CAMERA TAMPERING (VISUAL EVIDENCE REQUIRED)
+Only score HIGH if specific visual evidence of tampering is present:
+- Hand/object approaching camera lens = 60-80
+- Spray paint or obstruction applied to camera = 65-80
+- Camera physically moved or covered = 60-75
+- NOT tampering: image quality degradation alone, weather effects, lens flare, motion blur
+
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
 - Camera timestamps or time display
@@ -1124,6 +852,15 @@ Property crimes are criminal acts and must ALWAYS be scored as threats:
 - Shadows or lighting artifacts
 - Wildlife (birds, squirrels)
 - Parked vehicles (without unusual context)
+- Camera angle or field of view
+- Image quality or resolution
+- Presence of multiple objects in frame
+
+IMPORTANT DEFAULTS:
+- Without clear threat indicators, DEFAULT to lower scores
+- A person simply standing or walking is NOT suspicious (score 0-15)
+- Presence on property alone does NOT indicate threat
+- Being "unknown" only matters if behavior is also unusual
 
 ## Scoring Examples
 Use these worked examples to calibrate your scoring. Most events (85%+) should be LOW.
@@ -1156,15 +893,19 @@ Reasoning: Unknown visitor but used doorbell, daytime, reasonable hour, no conce
 Saturday 2:00 PM. Street camera. Unfamiliar dark sedan parked on street near property for 20 minutes. No vehicle match in household database. No persons exited vehicle during observation. CLIP scene: 'parked vehicle on street' (0.65). Zone: street (public). Departed without incident.
 Reasoning: Unknown vehicle but on public street, daytime, no persons approached property, short duration — unusual but benign. Score: 32.
 
-**Example 8 — Score: 50 (MEDIUM)**
+**Example 8 — Score: 40 (MEDIUM)**
+Tuesday 7:15 PM. Driveway camera. One person detected (unknown, no face match, no household re-ID). Standing near garage door for 2 minutes, looking at house. No suspicious pose (upright, standing). No face covering. Casual clothing (Florence-2: "person in gray t-shirt and khaki shorts"). CLIP scene: 'person loitering' (0.45). Zone: driveway (semi-private). Dusk lighting. Departed on foot after 2.5 minutes. No suspicious items detected.
+Reasoning: Unknown person lingering near garage at dusk is unusual — not on public sidewalk and no apparent purpose. However, no suspicious behavior (no face covering, no crouching, no testing doors), moderate duration, and still daylight. Worth noting but not alarming. Score: 40.
+
+**Example 9 — Score: 50 (MEDIUM)**
 Wednesday 7:30 PM. Front door camera. One person detected (unknown, no face match). Approached front door but did NOT ring doorbell. Stood at door for 35 seconds, looked through side window (action: looking through window). Casual dark clothing (Florence-2: "person in dark hoodie and jeans"). CLIP scene: 'person loitering' (0.58). Zone: porch (entry point). Departed after 50 seconds total.
 Reasoning: Unknown person at entry point, no doorbell ring, peering through window suggests possible casing behavior, but short duration and evening (not late night) temper concern. Score: 50.
 
-**Example 9 — Score: 72 (HIGH)**
+**Example 10 — Score: 72 (HIGH)**
 Thursday 1:15 AM. Backyard camera. One person detected (unknown, no face match). Wearing dark clothing, hood up, face partially concealed (SegFormer: face_covered=true). Crouching near back door (pose: crouching). Checking door handle (action: checking door handles). CLIP scene: 'suspicious approach' (0.71), threat pattern match: 'person checking door handles' (0.68). Zone: back door (entry point, high-sensitivity). Duration: 90 seconds. Visual anomaly score: 0.62.
 Reasoning: Late night, unknown person, face concealed, crouching at entry point, actively testing door handle — multiple high-risk indicators converging. Score: 72.
 
-**Example 10 — Score: 88 (CRITICAL)**
+**Example 11 — Score: 88 (CRITICAL)**
 Friday 2:40 AM. Front porch camera. One person detected (unknown, no face match). Grabbed delivered package from porch (action: picking up object and running). CLIP scene: 'property intrusion' (0.81), threat pattern match: 'a person stealing a package from a porch' (0.85). Person fled toward street immediately after grabbing package (pose: running, facing away). Dark clothing, face concealed. Zone: porch (entry point). Duration in frame: 8 seconds. Vehicle waiting at curb.
 Reasoning: Active theft — package taken and suspect fled to waiting vehicle. Property crime (package theft) with flight behavior and getaway vehicle. Score: 88.
 
@@ -1566,7 +1307,7 @@ def format_violence_context(
         Formatted string for prompt inclusion, or empty string for marginal tier
     """
     if violence_result is None:
-        return "Violence analysis: Not performed"
+        return ""
 
     # Get confidence tier, defaulting to determining from violent_score for backward compatibility
     tier = getattr(violence_result, "confidence_tier", None)
@@ -1612,7 +1353,7 @@ def format_weather_context(
         Formatted string for prompt inclusion
     """
     if weather_result is None:
-        return "Weather: Unknown (classification unavailable)"
+        return ""
 
     # Add visibility/condition notes based on weather
     visibility_notes = ""
@@ -1699,7 +1440,7 @@ def format_pose_analysis_context(
         Formatted string for prompt inclusion
     """
     if pose_results is None:
-        return "Pose analysis: Not available"
+        return ""
 
     if not pose_results:
         return "Pose analysis: No poses detected"
@@ -1854,7 +1595,7 @@ def format_action_recognition_context(
         Formatted string for prompt inclusion
     """
     if action_results is None:
-        return "Action recognition: Not available"
+        return ""
 
     if not action_results:
         return "Action recognition: No actions detected"
@@ -2111,7 +1852,7 @@ def format_depth_context(
         Formatted string for prompt inclusion
     """
     if depth_results is None:
-        return "Depth analysis: Not available"
+        return ""
 
     if not depth_results.has_detections:
         return "Depth analysis: No detections analyzed"
@@ -2753,7 +2494,12 @@ def format_detections_with_all_enrichment(
 # These templates are used by the SummaryGenerator service to create concise
 # narrative summaries of security events for dashboard display.
 
-SUMMARY_SYSTEM_PROMPT = """You are a home security analyst providing clear, concise summaries for a homeowner. Your summaries should be informative but not alarming. Focus on facts and actionable information."""
+SUMMARY_SYSTEM_PROMPT = """You are a home security analyst providing clear, concise summaries for a homeowner. Your summaries should be informative but not alarming. Focus on facts and actionable information.
+
+CRITICAL RULES:
+- ONLY describe events that are explicitly listed in the data provided to you.
+- If no events are provided, state clearly that no security events were detected. Do NOT fabricate, invent, or hallucinate any activity descriptions.
+- Never infer or imagine events that are not in the provided data."""
 
 SUMMARY_PROMPT_TEMPLATE = """Summarize the following security events for the homeowner.
 
@@ -2775,9 +2521,11 @@ SUMMARY_PROMPT_TEMPLATE = """Summarize the following security events for the hom
 **Response Format:**
 Write only the summary paragraph. No headers, bullets, or formatting. Just natural prose."""
 
-SUMMARY_EMPTY_STATE_INSTRUCTION = """If there are no high/critical events to summarize, write a brief reassuring message like:
-"No high-priority security events in the past {period}. The property has been quiet with only routine activity detected."
-You may mention the count of lower-priority detections if provided."""
+SUMMARY_EMPTY_STATE_INSTRUCTION = """IMPORTANT: There are ZERO events in this period. The event list above is empty.
+You MUST respond with ONLY a brief reassuring "all clear" message such as:
+"No high-priority security events detected in the past {period}. The property has been quiet."
+Do NOT invent, fabricate, or describe any activity. There were no events — say so directly.
+You may mention the count of lower-priority detections if provided, but do NOT describe what those detections were."""
 
 SUMMARY_EVENT_FORMAT = """
 Event {index}:

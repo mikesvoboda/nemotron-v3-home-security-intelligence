@@ -1019,9 +1019,9 @@ class Settings(BaseSettings):
     # Stored as str after validation for compatibility with httpx clients
     # YOLO26 Detector Settings
     # Development: http://localhost:8095 (local dev)
-    # Docker: http://ai-yolo26:8095 (container network)
+    # Docker: http://ai-gateway:8090/yolo26 (via AI gateway)
     yolo26_url: str = Field(
-        default="http://ai-yolo26:8095",
+        default="http://ai-gateway:8090/yolo26",
         description="URL of the YOLO26 detection service",
     )
     # Development: http://localhost:8091 (local dev)
@@ -1678,7 +1678,7 @@ class Settings(BaseSettings):
 
     # Detection settings
     detection_confidence_threshold: float = Field(
-        default=0.5,
+        default=0.40,
         description="Minimum confidence threshold for object detections (0.0-1.0). "
         "Used as fallback when no class-specific threshold is defined.",
         ge=0.0,
@@ -1688,22 +1688,22 @@ class Settings(BaseSettings):
     # Class-specific confidence thresholds for home security (NEM-4522)
     # JSON dict mapping class names to thresholds.
     # Classes not listed fall back to detection_confidence_threshold.
-    # Asymmetric cost: lower thresholds for person/pets (favor recall),
-    # higher for vehicles (favor precision — shadows/reflections cause FPs).
+    # Recall-favoring: YOLO26m produces 0.4-0.7 for vehicles; the gateway's
+    # 0.25 floor already filters noise, and the LLM can discard FPs via context.
     detection_class_thresholds: dict[str, float] = Field(
         default={
-            "person": 0.45,
-            "car": 0.70,
-            "truck": 0.70,
-            "bus": 0.70,
-            "motorcycle": 0.65,
-            "bicycle": 0.65,
-            "dog": 0.55,
-            "cat": 0.55,
-            "bird": 0.55,
-            "backpack": 0.60,
-            "handbag": 0.60,
-            "suitcase": 0.60,
+            "person": 0.40,
+            "car": 0.50,
+            "truck": 0.50,
+            "bus": 0.55,
+            "motorcycle": 0.50,
+            "bicycle": 0.50,
+            "dog": 0.45,
+            "cat": 0.45,
+            "bird": 0.45,
+            "backpack": 0.50,
+            "handbag": 0.50,
+            "suitcase": 0.50,
         },
         description="Per-class confidence thresholds (JSON dict). "
         "Classes not listed use detection_confidence_threshold as fallback.",

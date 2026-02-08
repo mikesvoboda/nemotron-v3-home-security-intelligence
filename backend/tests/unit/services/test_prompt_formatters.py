@@ -129,7 +129,7 @@ class TestFormatViolenceContext:
     def test_none_result(self) -> None:
         """Test formatting when no violence detection result is available."""
         result = format_violence_context(None)
-        assert result == "Violence analysis: Not performed"
+        assert result == ""
 
     def test_violent_detection(self) -> None:
         """Test formatting when violence is detected."""
@@ -192,7 +192,7 @@ class TestFormatWeatherContext:
     def test_none_result(self) -> None:
         """Test formatting when no weather result is available."""
         result = format_weather_context(None)
-        assert result == "Weather: Unknown (classification unavailable)"
+        assert result == ""
 
     def test_clear_weather(self) -> None:
         """Test formatting for clear weather."""
@@ -317,7 +317,7 @@ class TestFormatPoseAnalysisContext:
     def test_none_result(self) -> None:
         """Test formatting when no pose data is available."""
         result = format_pose_analysis_context(None)
-        assert result == "Pose analysis: Not available"
+        assert result == ""
 
     def test_empty_poses(self) -> None:
         """Test formatting when poses dict is empty."""
@@ -355,7 +355,7 @@ class TestFormatActionRecognitionContext:
     def test_none_result(self) -> None:
         """Test formatting when no action data is available."""
         result = format_action_recognition_context(None)
-        assert result == "Action recognition: Not available"
+        assert result == ""
 
     def test_empty_actions(self) -> None:
         """Test formatting when actions dict is empty."""
@@ -576,7 +576,7 @@ class TestFormatDepthContext:
     def test_none_result(self) -> None:
         """Test formatting when no depth data is available."""
         result = format_depth_context(None)
-        assert result == "Depth analysis: Not available"
+        assert result == ""
 
     def test_empty_detections(self) -> None:
         """Test formatting when depth result has no detections."""
@@ -1489,85 +1489,6 @@ class TestPromptTemplatePlaceholders:
             f"Unexpected placeholders. Expected: {expected}, Found: {placeholders}"
         )
 
-    def test_enriched_risk_analysis_prompt_placeholders(self) -> None:
-        """Test ENRICHED_RISK_ANALYSIS_PROMPT has all placeholders documented."""
-        import re
-
-        from backend.services.prompts import ENRICHED_RISK_ANALYSIS_PROMPT
-
-        placeholders = set(re.findall(r"\{(\w+)\}", ENRICHED_RISK_ANALYSIS_PROMPT))
-
-        expected = {
-            "camera_name",
-            "start_time",
-            "end_time",
-            "day_of_week",
-            "detections_list",
-            "zone_analysis",
-            "hour",
-            "baseline_comparison",
-            "deviation_score",
-            "cross_camera_summary",
-        }
-
-        assert placeholders == expected, (
-            f"Unexpected placeholders. Expected: {expected}, Found: {placeholders}"
-        )
-
-    def test_full_enriched_risk_analysis_prompt_placeholders(self) -> None:
-        """Test FULL_ENRICHED_RISK_ANALYSIS_PROMPT has all placeholders documented."""
-        import re
-
-        from backend.services.prompts import FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-
-        placeholders = set(re.findall(r"\{(\w+)\}", FULL_ENRICHED_RISK_ANALYSIS_PROMPT))
-
-        expected = {
-            "camera_name",
-            "start_time",
-            "end_time",
-            "day_of_week",
-            "detections_list",
-            "enrichment_context",
-            "zone_analysis",
-            "hour",
-            "baseline_comparison",
-            "deviation_score",
-            "cross_camera_summary",
-        }
-
-        assert placeholders == expected, (
-            f"Unexpected placeholders. Expected: {expected}, Found: {placeholders}"
-        )
-
-    def test_vision_enhanced_risk_analysis_prompt_placeholders(self) -> None:
-        """Test VISION_ENHANCED_RISK_ANALYSIS_PROMPT has all placeholders documented."""
-        import re
-
-        from backend.services.prompts import VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-
-        placeholders = set(re.findall(r"\{(\w+)\}", VISION_ENHANCED_RISK_ANALYSIS_PROMPT))
-
-        expected = {
-            "camera_name",
-            "timestamp",
-            "day_of_week",
-            "time_of_day",
-            "camera_health_context",
-            "detections_with_attributes",
-            "reid_context",
-            "cross_camera_person_tracking",
-            "zone_analysis",
-            "baseline_comparison",
-            "deviation_score",
-            "cross_camera_summary",
-            "scene_analysis",
-        }
-
-        assert placeholders == expected, (
-            f"Unexpected placeholders. Expected: {expected}, Found: {placeholders}"
-        )
-
     def test_model_zoo_enhanced_prompt_placeholders(self) -> None:
         """Test MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT has all placeholders documented.
 
@@ -1638,88 +1559,6 @@ class TestPromptTemplateFormatting:
         except KeyError as e:
             raise AssertionError(f"Missing placeholder in RISK_ANALYSIS_PROMPT: {e}") from e
 
-    def test_enriched_risk_analysis_prompt_formats_successfully(self) -> None:
-        """Test ENRICHED_RISK_ANALYSIS_PROMPT can be formatted without errors."""
-        from backend.services.prompts import ENRICHED_RISK_ANALYSIS_PROMPT
-
-        params = {
-            "camera_name": "Front Door",
-            "start_time": "2024-01-20 10:00:00",
-            "end_time": "2024-01-20 10:01:30",
-            "day_of_week": "Saturday",
-            "detections_list": "1 person detected",
-            "zone_analysis": "entry_point zone",
-            "hour": 10,
-            "baseline_comparison": "Normal activity",
-            "deviation_score": "0.15",
-            "cross_camera_summary": "No cross-camera activity",
-        }
-
-        try:
-            result = ENRICHED_RISK_ANALYSIS_PROMPT.format(**params)
-            assert len(result) > 0
-            assert "Saturday" in result
-        except KeyError as e:
-            raise AssertionError(
-                f"Missing placeholder in ENRICHED_RISK_ANALYSIS_PROMPT: {e}"
-            ) from e
-
-    def test_full_enriched_risk_analysis_prompt_formats_successfully(self) -> None:
-        """Test FULL_ENRICHED_RISK_ANALYSIS_PROMPT can be formatted without errors."""
-        from backend.services.prompts import FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-
-        params = {
-            "camera_name": "Front Door",
-            "start_time": "2024-01-20 10:00:00",
-            "end_time": "2024-01-20 10:01:30",
-            "day_of_week": "Saturday",
-            "detections_list": "1 person detected",
-            "enrichment_context": "License plate: ABC-1234",
-            "zone_analysis": "entry_point zone",
-            "hour": 10,
-            "baseline_comparison": "Normal activity",
-            "deviation_score": "0.15",
-            "cross_camera_summary": "No cross-camera activity",
-        }
-
-        try:
-            result = FULL_ENRICHED_RISK_ANALYSIS_PROMPT.format(**params)
-            assert len(result) > 0
-            assert "ABC-1234" in result
-        except KeyError as e:
-            raise AssertionError(
-                f"Missing placeholder in FULL_ENRICHED_RISK_ANALYSIS_PROMPT: {e}"
-            ) from e
-
-    def test_vision_enhanced_prompt_formats_successfully(self) -> None:
-        """Test VISION_ENHANCED_RISK_ANALYSIS_PROMPT can be formatted without errors."""
-        from backend.services.prompts import VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-
-        params = {
-            "camera_name": "Front Door",
-            "timestamp": "2024-01-20 10:00:00 to 10:01:30",
-            "day_of_week": "Saturday",
-            "time_of_day": "day",
-            "camera_health_context": "No tampering detected",
-            "detections_with_attributes": "1 person with blue jacket",
-            "reid_context": "No previous sightings",
-            "cross_camera_person_tracking": "No cross-camera person movement detected",
-            "zone_analysis": "entry_point zone",
-            "baseline_comparison": "Normal activity",
-            "deviation_score": "0.15",
-            "cross_camera_summary": "No cross-camera activity",
-            "scene_analysis": "Person approaching door",
-        }
-
-        try:
-            result = VISION_ENHANCED_RISK_ANALYSIS_PROMPT.format(**params)
-            assert len(result) > 0
-            assert "blue jacket" in result
-        except KeyError as e:
-            raise AssertionError(
-                f"Missing placeholder in VISION_ENHANCED_RISK_ANALYSIS_PROMPT: {e}"
-            ) from e
-
     def test_model_zoo_enhanced_prompt_formats_successfully(self) -> None:
         """Test MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT can be formatted without errors.
 
@@ -1736,7 +1575,7 @@ class TestPromptTemplateFormatting:
             "camera_health_context": "No tampering detected",
             "detections_with_all_attributes": "1 person detected",
             "confidence_quality_summary": "Detection confidence: GOOD (75-90%)",
-            "violence_context": "Violence analysis: Not performed",
+            "violence_context": "",
             "pose_analysis": "Pose analysis: standing (90% confidence)",
             "action_recognition": "Action: walking (85% confidence)",
             "trajectory_context": "Movement: approaching entry point",
@@ -1779,7 +1618,7 @@ class TestPromptTemplateFormatting:
             "camera_health_context": "No tampering detected",
             "detections_with_all_attributes": "1 person detected",
             "confidence_quality_summary": "Detection confidence: GOOD",
-            "violence_context": "Violence analysis: Not performed",
+            "violence_context": "",
             "pose_analysis": "Pose: standing",
             "action_recognition": "Action: walking",
             "trajectory_context": "Movement: approaching",

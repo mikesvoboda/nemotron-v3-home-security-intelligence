@@ -59,8 +59,10 @@ from backend.services.dedupe import DedupeService
 from backend.services.file_watcher import (
     MIN_IMAGE_FILE_SIZE,
     FileWatcher,
+    _validate_image_sync,
     is_image_file,
     is_valid_image,
+    is_valid_image_async,
 )
 
 
@@ -260,6 +262,126 @@ def test_is_valid_image_severely_truncated_jpeg(tmp_path):
     # Should fail because it's below minimum file size
     assert image_path.stat().st_size < MIN_IMAGE_FILE_SIZE
     assert is_valid_image(str(image_path)) is False
+
+
+def test_is_valid_image_permission_error_retry_succeeds(tmp_path):
+    """Test is_valid_image retries on PermissionError and succeeds.
+
+    Simulates the race condition where inotify detects a file before it is
+    fully written/closed. The first attempt raises PermissionError, but after
+    a retry the file is accessible and validates successfully.
+    """
+    image_path = tmp_path / "race_condition.jpg"
+    create_valid_test_image(image_path)
+
+    call_count = 0
+
+    def mock_validate(path):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise PermissionError(13, "Permission denied", path)
+        # Second call succeeds (delegating to real implementation)
+        return _validate_image_sync(path)
+
+    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+        with patch("backend.services.file_watcher.time.sleep") as mock_sleep:
+            result = is_valid_image(str(image_path))
+
+    assert result is True
+    assert call_count == 2
+    mock_sleep.assert_called_once_with(1.0)
+
+
+def test_is_valid_image_permission_error_retry_fails(tmp_path):
+    """Test is_valid_image returns False when retry also fails.
+
+    When the PermissionError persists after retry (e.g., actual permission issue
+    rather than a transient race condition), the file should be skipped.
+    """
+    image_path = tmp_path / "locked.jpg"
+    create_valid_test_image(image_path)
+
+    def mock_validate(path):
+        raise PermissionError(13, "Permission denied", path)
+
+    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+        with patch("backend.services.file_watcher.time.sleep"):
+            result = is_valid_image(str(image_path))
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_is_valid_image_async_permission_error_retry_succeeds(tmp_path):
+    """Test is_valid_image_async retries on PermissionError and succeeds.
+
+    Async version of the PermissionError retry test. Verifies that the async
+    code path uses asyncio.sleep (non-blocking) instead of time.sleep.
+    """
+    image_path = tmp_path / "race_condition_async.jpg"
+    create_valid_test_image(image_path)
+
+    call_count = 0
+
+    def mock_validate(path):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise PermissionError(13, "Permission denied", path)
+        return _validate_image_sync(path)
+
+    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+        with patch(
+            "backend.services.file_watcher.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+            # asyncio.to_thread calls the function in a thread; we need to patch
+            # at the level where the PermissionError is caught (is_valid_image_async)
+            result = await is_valid_image_async(str(image_path))
+
+    assert result is True
+    assert call_count == 2
+    mock_sleep.assert_called_once_with(1.0)
+
+
+@pytest.mark.asyncio
+async def test_is_valid_image_async_permission_error_retry_fails(tmp_path):
+    """Test is_valid_image_async returns False when retry also fails."""
+    image_path = tmp_path / "locked_async.jpg"
+    create_valid_test_image(image_path)
+
+    def mock_validate(path):
+        raise PermissionError(13, "Permission denied", path)
+
+    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+        with patch("backend.services.file_watcher.asyncio.sleep", new_callable=AsyncMock):
+            result = await is_valid_image_async(str(image_path))
+
+    assert result is False
+
+
+def test_is_valid_image_oserror_no_retry(tmp_path):
+    """Test that non-PermissionError OSErrors do NOT trigger retry.
+
+    Only PermissionError (a subclass of OSError) should trigger the retry logic.
+    Other OSErrors like corrupt image data should fail immediately.
+    """
+    image_path = tmp_path / "corrupt.jpg"
+    create_valid_test_image(image_path)
+
+    call_count = 0
+
+    def mock_validate(path):
+        nonlocal call_count
+        call_count += 1
+        raise OSError("image file is truncated")
+
+    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+        result = is_valid_image(str(image_path))
+
+    assert result is False
+    # Should only be called once — no retry for generic OSError
+    assert call_count == 1
 
 
 # FileWatcher initialization tests

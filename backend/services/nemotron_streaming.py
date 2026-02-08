@@ -49,6 +49,10 @@ async def call_llm_streaming(
     detections_list: str,
     enriched_context: EnrichedContext | None = None,
     enrichment_result: EnrichmentResult | None = None,
+    camera_health_context: str = "",
+    detection_dicts: list[dict[str, Any]] | None = None,
+    auto_tuning_context: str = "",
+    household_context: str = "",
 ) -> AsyncGenerator[str]:
     """Call Nemotron LLM with streaming response for progressive updates."""
     from backend.services.prompt_sanitizer import (
@@ -66,6 +70,10 @@ async def call_llm_streaming(
         detections_list=detections_list,
         enriched_context=enriched_context,
         enrichment_result=enrichment_result,
+        camera_health_context=camera_health_context,
+        detection_dicts=detection_dicts,
+        auto_tuning_context=auto_tuning_context,
+        household_context=household_context,
     )
     prompt = analyzer._validate_and_truncate_prompt(prompt)
 
@@ -199,6 +207,77 @@ async def analyze_batch_streaming(  # noqa: PLR0911
         if enrichment_tracking is not None and enrichment_tracking.has_data:
             enrichment_result = enrichment_tracking.data
 
+        # Fetch camera health context (NEM-3012)
+        from backend.services.prompts import format_camera_health_context
+
+        camera_health_context = ""
+        try:
+            recent_scene_changes = await analyzer._get_recent_scene_changes(camera_id, session)
+            camera_health_context = format_camera_health_context(camera_id, recent_scene_changes)
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch camera health context for streaming",
+                extra={"batch_id": batch_id, "error": str(e)},
+            )
+
+        # Fetch auto-tuning context from historical audit recommendations (NEM-3015)
+        auto_tuning_context = ""
+        try:
+            auto_tuner = analyzer._get_facade().get_prompt_auto_tuner()
+            auto_tuning_context = await auto_tuner.get_tuning_context(
+                session=session,
+                camera_id=camera_id,
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch auto-tuning context for streaming",
+                extra={"batch_id": batch_id, "error": str(e)},
+            )
+
+        # Fetch household context (NEM-3024)
+        household_context = ""
+        try:
+            detections_for_household = [
+                {
+                    "id": d.id,
+                    "object_type": d.object_type,
+                    "confidence": d.confidence,
+                    "file_path": d.file_path,
+                    "bounding_box": {
+                        "bbox_x": d.bbox_x,
+                        "bbox_y": d.bbox_y,
+                        "bbox_width": d.bbox_width,
+                        "bbox_height": d.bbox_height,
+                    }
+                    if d.bbox_x is not None
+                    else None,
+                    "video_width": d.video_width,
+                    "video_height": d.video_height,
+                    "detected_at": d.detected_at,
+                    "track_id": d.track_id,
+                    "camera_id": d.camera_id,
+                }
+                for d in detections
+            ]
+            household_context = await analyzer._get_household_context(
+                detections_for_household, enrichment_result
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch household context for streaming",
+                extra={"batch_id": batch_id, "error": str(e)},
+            )
+
+        # Build detection dicts for confidence quality summary (NEM-5525)
+        detection_dicts = [
+            {
+                "confidence": d.confidence,
+                "class_name": d.object_type or "unknown",
+            }
+            for d in detections
+            if d.confidence is not None
+        ]
+
         accumulated_text = ""
         llm_start = time.time()
 
@@ -211,6 +290,10 @@ async def analyze_batch_streaming(  # noqa: PLR0911
                 detections_list=detections_list,
                 enriched_context=enriched_context,
                 enrichment_result=enrichment_result,
+                camera_health_context=camera_health_context,
+                detection_dicts=detection_dicts,
+                auto_tuning_context=auto_tuning_context,
+                household_context=household_context,
             ):
                 accumulated_text += chunk
                 yield StreamingProgressEvent(

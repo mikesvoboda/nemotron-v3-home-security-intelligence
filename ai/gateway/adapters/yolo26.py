@@ -130,28 +130,103 @@ def _postprocess_yolo(
     conf_threshold: float = CONFIDENCE_THRESHOLD,
     nms_threshold: float = NMS_THRESHOLD,
 ) -> list[dict[str, Any]]:
-    """Post-process raw YOLO output tensor to detection dicts.
+    """Post-process YOLO output tensor to detection dicts.
 
-    Applies confidence filtering and NMS, then scales bounding boxes
-    back to original image coordinates (reversing letterbox transform).
+    Supports two output formats:
+    - Post-NMS (YOLO26 Ultralytics export): shape (1, 300, 6) where each row
+      is [x1, y1, x2, y2, confidence, class_id]. Already NMS'd.
+    - Pre-NMS (legacy): shape (1, 84, 8400) or (1, 8400, 84) where columns
+      are [cx, cy, w, h, class_scores...]. Requires manual NMS.
+
+    Scales bounding boxes back to original image coordinates
+    (reversing letterbox transform).
 
     Args:
-        output: Raw model output, shape (1, num_classes+4, num_predictions)
-            or (1, num_predictions, num_classes+4).
+        output: Raw model output tensor.
         orig_w: Original image width.
         orig_h: Original image height.
         conf_threshold: Minimum confidence to keep a detection.
-        nms_threshold: IoU threshold for non-maximum suppression.
+        nms_threshold: IoU threshold for non-maximum suppression (pre-NMS only).
 
     Returns:
         List of detection dicts with keys: class, confidence, bbox.
     """
-    # Transpose if needed: (1, 84, 8400) -> (8400, 84)
     preds = output[0]
+
+    # Detect post-NMS format: (N, 6) = [x1, y1, x2, y2, score, class_id]
+    if preds.shape[-1] == 6 and preds.shape[0] <= 1000:
+        return _postprocess_post_nms(preds, orig_w, orig_h, conf_threshold)
+
+    # Legacy pre-NMS format: (84, 8400) or (8400, 84)
+    return _postprocess_pre_nms(preds, orig_w, orig_h, conf_threshold, nms_threshold)
+
+
+def _postprocess_post_nms(
+    preds: np.ndarray,
+    orig_w: int,
+    orig_h: int,
+    conf_threshold: float,
+) -> list[dict[str, Any]]:
+    """Post-process post-NMS YOLO output (Ultralytics export format).
+
+    Input rows: [x1, y1, x2, y2, confidence, class_id] in letterboxed coords.
+    """
+    scale, pad_x, pad_y = letterbox_scale_factors(orig_w, orig_h, TARGET_SIZE)
+
+    detections: list[dict[str, Any]] = []
+    for row in preds:
+        score = float(row[4])
+        if score < conf_threshold:
+            continue
+
+        # Clamp confidence to [0, 1]
+        score = max(0.0, min(1.0, score))
+
+        cls_id = int(row[5])
+        cls_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"class_{cls_id}"
+
+        # Reverse letterbox: coords are in 640x640 space
+        bx1 = max(0, (float(row[0]) - pad_x) / scale)
+        by1 = max(0, (float(row[1]) - pad_y) / scale)
+        bx2 = min(orig_w, (float(row[2]) - pad_x) / scale)
+        by2 = min(orig_h, (float(row[3]) - pad_y) / scale)
+
+        box_w = bx2 - bx1
+        box_h = by2 - by1
+        if box_w <= 0 or box_h <= 0:
+            continue
+
+        detections.append(
+            {
+                "class": cls_name,
+                "confidence": round(score, 4),
+                "bbox": {
+                    "x": round(bx1),
+                    "y": round(by1),
+                    "width": round(box_w),
+                    "height": round(box_h),
+                },
+            }
+        )
+
+    return detections
+
+
+def _postprocess_pre_nms(
+    preds: np.ndarray,
+    orig_w: int,
+    orig_h: int,
+    conf_threshold: float,
+    nms_threshold: float,
+) -> list[dict[str, Any]]:
+    """Post-process pre-NMS YOLO output (raw predictions).
+
+    Input shape: (84, 8400) or (8400, 84) where columns are
+    [cx, cy, w, h, class_score_0, ..., class_score_79].
+    """
+    # Transpose if needed: (84, 8400) -> (8400, 84)
     if preds.shape[0] < preds.shape[1]:
         preds = preds.T
-
-    _num_classes = preds.shape[1] - 4
 
     # Extract boxes (cx, cy, w, h) and class scores
     boxes_cxcywh = preds[:, :4]
@@ -235,10 +310,13 @@ def _postprocess_yolo(
         cls_id = int(class_ids[idx])
         cls_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"class_{cls_id}"
 
+        # Clamp confidence to [0, 1]
+        conf = max(0.0, min(1.0, float(confidences[idx])))
+
         detections.append(
             {
                 "class": cls_name,
-                "confidence": round(float(confidences[idx]), 4),
+                "confidence": round(conf, 4),
                 "bbox": {
                     "x": round(bx1),
                     "y": round(by1),

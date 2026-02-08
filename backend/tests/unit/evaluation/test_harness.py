@@ -258,10 +258,10 @@ class TestPromptEvaluator:
                 enrichment_required="none",
             ),
             PromptTemplate(
-                name="enriched",
-                description="Enriched",
-                template_key="ENRICHED_RISK_ANALYSIS_PROMPT",
-                enrichment_required="basic",
+                name="model_zoo_enhanced",
+                description="Model zoo enhanced",
+                template_key="MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT",
+                enrichment_required="model_zoo",
             ),
         ]
 
@@ -359,13 +359,13 @@ class TestPromptEvaluatorRenderPrompt:
         assert "1 person detected" in prompt
 
     def test_render_enriched_prompt(self) -> None:
-        """Enriched prompt should include zone and baseline data."""
+        """Model zoo enhanced prompt should include zone and baseline data."""
         evaluator = PromptEvaluator()
         template = PromptTemplate(
-            name="enriched",
-            description="Enriched",
-            template_key="ENRICHED_RISK_ANALYSIS_PROMPT",
-            enrichment_required="basic",
+            name="model_zoo_enhanced",
+            description="Model zoo enhanced",
+            template_key="MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT",
+            enrichment_required="model_zoo",
         )
         scenario = {
             "camera_location": "front_door",
