@@ -570,6 +570,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
+      # INT8 quantized model files (NEM-5550)
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
       # PyTorch GPU profiling traces (NEM-4130)
@@ -588,6 +590,11 @@ services:
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
       - ACTION_MODEL_PATH=/models/xclip-base-patch32
+      # INT8 quantized model configuration (NEM-5550)
+      # Run ai/enrichment/scripts/quantize_models.py to generate INT8 .pt files
+      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
+      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
+      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
       # VRAM management for heavy models
       - VRAM_BUDGET_GB=6.0
       - MODEL_LOAD_TIMEOUT=30

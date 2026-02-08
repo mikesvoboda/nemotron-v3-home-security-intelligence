@@ -164,12 +164,14 @@ docs = [
     "tree-sitter-typescript>=0.23.0",
     "rich>=13.0.0",
 ]
-# PaddleOCR for license plate and text recognition (NEM-5372)
-# Usage: `uv sync --extra ocr` (Python 3.13 or earlier only)
-# Note: PaddlePaddle does not yet support Python 3.14+ (requires cp313 or lower)
-# For GPU acceleration, install paddlepaddle-gpu separately
-# This provides CPU-only dependencies suitable for the backend service
-# Dependencies are commented out as they are incompatible with requires-python>=3.14
+# License plate recognition (NEM-5569: FastALPR replaces PaddleOCR)
+# FastALPR: End-to-end plate detection + OCR (~28MB vs PaddleOCR's ~400MB)
+# Works on Python 3.14+ (unlike PaddleOCR which requires <=3.13)
+# Usage: `uv sync --extra alpr`
+alpr = [
+    "fast-alpr[onnx]>=0.3.0",  # FastALPR with ONNX CPU backend (MIT license)
+]
+# Legacy PaddleOCR (deprecated, Python 3.13 or earlier only)
 # OCR functionality is available in the ai/enrichment container which uses Python 3.12
 # ocr = [
 #     "paddlepaddle>=3.0.0",  # PaddlePaddle deep learning framework (CPU)

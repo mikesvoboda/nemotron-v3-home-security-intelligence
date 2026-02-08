@@ -130,12 +130,16 @@ run_export "YOLOv8n threat detection -> ONNX" \
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/threat/1/best.onnx" ] && mv "${CACHE_DIR}/threat/1/best.onnx" "${CACHE_DIR}/threat/1/model.onnx"
 
-# YOLO26m -> ONNX (TensorRT too large for 4GB A400, ONNX Runtime is sufficient)
-run_export "YOLO26m -> ONNX" \
+# YOLO26m -> ONNX INT8 (NEM-5547: ~20-40% faster, ~50% smaller)
+# Uses dynamic quantization by default. For better accuracy, add calibration data:
+#   YOLO26_CALIBRATION_DIR=/export/foscam ./export_all.sh
+run_export "YOLO26m -> ONNX INT8" \
     python3 "${SCRIPT_DIR}/export_yolo26.py" \
         --model-path "${MODELS_ZOO}/yolo26/yolo26m.pt" \
         --output-path "${CACHE_DIR}/yolo26/1/model.onnx" \
-        --device "${CUDA_DEVICE}"
+        --device "${CUDA_DEVICE}" \
+        --int8 \
+        ${YOLO26_CALIBRATION_DIR:+--calibration-data "${YOLO26_CALIBRATION_DIR}"}
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/yolo26/1/yolo26m.onnx" ] && mv "${CACHE_DIR}/yolo26/1/yolo26m.onnx" "${CACHE_DIR}/yolo26/1/model.onnx"
 

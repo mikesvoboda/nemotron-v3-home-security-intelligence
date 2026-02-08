@@ -8,9 +8,10 @@ The ModelManager handles VRAM-efficient loading and unloading of models using
 async context managers that automatically release GPU memory when done.
 
 Models:
-    - yolo11-license-plate: License plate detection on vehicles
+    - fast-alpr: End-to-end license plate detection + OCR (28MB, replaces YOLO11+PaddleOCR)
+    - yolo11-license-plate: License plate detection on vehicles (legacy, 300MB)
     - yolo11-face: Face detection on persons
-    - paddleocr: OCR text extraction from detected plates
+    - paddleocr: OCR text extraction from detected plates (legacy, 100MB)
     - siglip2-base-patch16-224: SigLIP 2 Base embeddings for re-identification (replaces CLIP ViT-L)
     - florence-2-large: Vision-language queries for attribute extraction
     - yolo-world-s: Open-vocabulary zero-shot detection
@@ -53,6 +54,7 @@ from backend.services.age_classifier_loader import load_age_classifier_model
 from backend.services.clip_loader import load_clip_model
 from backend.services.depth_anything_loader import load_depth_model
 from backend.services.fashion_clip_loader import load_fashion_clip_model
+from backend.services.fast_alpr_loader import load_fast_alpr
 from backend.services.florence_loader import load_florence_model
 from backend.services.gender_classifier_loader import load_gender_classifier_model
 from backend.services.image_quality_loader import load_brisque_model
@@ -370,6 +372,18 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="ocr",
             vram_mb=100,
             load_fn=load_paddle_ocr,
+            enabled=True,
+            available=False,
+        ),
+        # NEM-5569: FastALPR end-to-end plate detection + OCR (~28MB total)
+        # Replaces yolo11-license-plate (300MB) + paddleocr (100MB)
+        # MIT license, native ONNX, Python 3.14+ compatible
+        "fast-alpr": ModelConfig(
+            name="fast-alpr",
+            path="fast-alpr",  # Downloads ONNX models on first use
+            category="alpr",
+            vram_mb=28,
+            load_fn=load_fast_alpr,
             enabled=True,
             available=False,
         ),

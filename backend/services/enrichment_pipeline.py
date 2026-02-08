@@ -2337,9 +2337,16 @@ class EnrichmentPipeline:
         if self.face_detection_enabled and persons:
             phase1_tasks["face_detection"] = self._safe_detect_faces(persons, images)
         if self.license_plate_enabled and vehicles:
-            phase1_tasks["license_plate_detection"] = self._safe_detect_license_plates(
-                vehicles, images
-            )
+            # NEM-5569: Use FastALPR (end-to-end detection+OCR, 28MB) if available,
+            # otherwise fall back to YOLO11 + PaddleOCR (400MB)
+            if self._is_fast_alpr_available():
+                phase1_tasks["license_plate_detection"] = self._safe_detect_plates_fast_alpr(
+                    vehicles, images
+                )
+            else:
+                phase1_tasks["license_plate_detection"] = self._safe_detect_license_plates(
+                    vehicles, images
+                )
         if self.violence_detection_enabled and len(persons) >= 2:
             phase1_tasks["violence_detection"] = self._safe_detect_violence(pil_image)
 
@@ -2666,10 +2673,12 @@ class EnrichmentPipeline:
         phase2_start = time.monotonic()
         phase2_tasks: dict[str, Any] = {}
 
-        if self.ocr_enabled and result.license_plates:
+        # NEM-5569: Skip OCR phase when FastALPR was used (text already populated)
+        plates_need_ocr = [p for p in result.license_plates if not p.text]
+        if self.ocr_enabled and plates_need_ocr:
 
             async def _ocr_task() -> None:
-                await self._read_plates(result.license_plates, images)
+                await self._read_plates(plates_need_ocr, images)
 
             phase2_tasks["ocr"] = _ocr_task()
 
@@ -3010,6 +3019,18 @@ class EnrichmentPipeline:
     ) -> list[LicensePlateResult]:
         """Safe wrapper for license plate detection."""
         return await self._detect_license_plates(vehicles, images)
+
+    async def _safe_detect_plates_fast_alpr(
+        self,
+        vehicles: list[DetectionInput],
+        images: dict[int | None, Image.Image | Path | str],
+    ) -> list[LicensePlateResult]:
+        """Safe wrapper for FastALPR end-to-end plate detection + OCR (NEM-5569).
+
+        Uses FastALPR (~28MB) instead of YOLO11 (300MB) + PaddleOCR (100MB).
+        Returns LicensePlateResult with text already populated (skips Phase 2 OCR).
+        """
+        return await self._detect_plates_fast_alpr(vehicles, images)
 
     async def _safe_detect_violence(
         self,
@@ -5916,12 +5937,92 @@ class EnrichmentPipeline:
                                 },
                             )
 
+    def _is_fast_alpr_available(self) -> bool:
+        """Check if FastALPR is available in model zoo (NEM-5569).
+
+        Returns True if the fast-alpr model is registered and enabled.
+        Falls back to YOLO11 + PaddleOCR if not available.
+        """
+        try:
+            from backend.services.model_zoo import get_model_config
+
+            config = get_model_config("fast-alpr")
+            return config is not None and config.enabled
+        except Exception:
+            return False
+
+    async def _detect_plates_fast_alpr(
+        self,
+        vehicles: list[DetectionInput],
+        images: dict[int | None, Image.Image | Path | str],
+    ) -> list[LicensePlateResult]:
+        """Detect license plates using FastALPR end-to-end (NEM-5569).
+
+        FastALPR combines plate detection + OCR in a single pass (~28MB total),
+        replacing the two-step YOLO11 (300MB) + PaddleOCR (100MB) pipeline.
+        Results include text already populated, skipping the Phase 2 OCR step.
+
+        Args:
+            vehicles: List of vehicle detections
+            images: Dictionary mapping detection IDs to images
+
+        Returns:
+            List of LicensePlateResult with text already populated
+        """
+        from backend.services.fast_alpr_loader import run_fast_alpr
+
+        results: list[LicensePlateResult] = []
+
+        try:
+            async with self.model_manager.load("fast-alpr") as alpr:
+                for vehicle in vehicles:
+                    image = self._get_image_for_detection(vehicle, images)
+                    if image is None:
+                        continue
+
+                    # Crop to vehicle bounding box
+                    cropped = await self._crop_to_bbox(image, vehicle.bbox)
+                    if cropped is None:
+                        continue
+
+                    # Run end-to-end detection + OCR
+                    alpr_results = await run_fast_alpr(alpr, cropped)
+
+                    for plate in alpr_results:
+                        results.append(
+                            LicensePlateResult(
+                                bbox=BoundingBox(
+                                    x1=plate.bbox[0],
+                                    y1=plate.bbox[1],
+                                    x2=plate.bbox[2],
+                                    y2=plate.bbox[3],
+                                ),
+                                confidence=plate.detection_confidence,
+                                text=plate.text,
+                                ocr_confidence=plate.confidence,
+                                source_detection_id=vehicle.id,
+                            )
+                        )
+
+        except KeyError:
+            logger.warning("fast-alpr model not available, falling back to YOLO11 + PaddleOCR")
+            return await self._detect_license_plates(vehicles, images)
+        except RuntimeError:
+            logger.warning("FastALPR error, falling back to YOLO11 + PaddleOCR", exc_info=True)
+            return await self._detect_license_plates(vehicles, images)
+
+        if results:
+            logger.info(
+                f"FastALPR: detected {len(results)} plates with text in {len(vehicles)} vehicles"
+            )
+        return results
+
     async def _detect_license_plates(
         self,
         vehicles: list[DetectionInput],
         images: dict[int | None, Image.Image | Path | str],
     ) -> list[LicensePlateResult]:
-        """Detect license plates in vehicle detections.
+        """Detect license plates in vehicle detections (legacy YOLO11 path).
 
         Args:
             vehicles: List of vehicle detections

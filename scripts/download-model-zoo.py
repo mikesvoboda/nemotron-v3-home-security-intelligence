@@ -106,11 +106,23 @@ MODEL_ZOO: list[ModelSpec] = [
     ),
     ModelSpec(
         name="paddleocr-v5",
-        hf_repo="PP-OCRv5",  # PaddleOCR model
+        hf_repo="PP-OCRv5",  # PaddleOCR model (legacy, replaced by FastALPR)
         phase=1,
         vram_mb=500,
-        description="Text/label OCR extraction",
+        description="Text/label OCR extraction (legacy, see fast-alpr)",
         model_type="paddleocr",
+    ),
+    # NEM-5569: FastALPR replaces YOLO11-license-plate + PaddleOCR
+    # Models download automatically on first use via fast-alpr package
+    # No manual download needed — pip install fast-alpr[onnx-gpu] handles it
+    # Included here for inventory tracking only
+    ModelSpec(
+        name="fast-alpr",
+        hf_repo="ankandrew/fast-alpr",  # PyPI package, not HF repo
+        phase=1,
+        vram_mb=28,
+        description="End-to-end license plate detection + OCR (replaces YOLO11+PaddleOCR, -372MB)",
+        model_type="transformers",  # Uses pip install, not HF download
     ),
     ModelSpec(
         name="vit-age-classifier",
