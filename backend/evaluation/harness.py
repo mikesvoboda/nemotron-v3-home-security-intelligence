@@ -96,31 +96,13 @@ class PromptTemplate:
     enrichment_required: str  # "none", "basic", "full", "vision", "model_zoo"
 
 
-# The 5 prompt templates from backend/services/prompts.py
+# The 2 active prompt templates from backend/services/prompts.py
 PROMPT_TEMPLATES = [
     PromptTemplate(
         name="basic",
         description="Basic prompt without enrichment context",
         template_key="RISK_ANALYSIS_PROMPT",
         enrichment_required="none",
-    ),
-    PromptTemplate(
-        name="enriched",
-        description="Enriched prompt with zone/baseline context",
-        template_key="ENRICHED_RISK_ANALYSIS_PROMPT",
-        enrichment_required="basic",
-    ),
-    PromptTemplate(
-        name="full_enriched",
-        description="Full enriched with vision enrichment (plates, faces, OCR)",
-        template_key="FULL_ENRICHED_RISK_ANALYSIS_PROMPT",
-        enrichment_required="full",
-    ),
-    PromptTemplate(
-        name="vision_enhanced",
-        description="Vision-enhanced with Florence-2 attributes and re-ID",
-        template_key="VISION_ENHANCED_RISK_ANALYSIS_PROMPT",
-        enrichment_required="vision",
     ),
     PromptTemplate(
         name="model_zoo_enhanced",
@@ -353,18 +335,12 @@ class PromptEvaluator:
         """
         # Import the actual templates from prompts.py
         from backend.services.prompts import (
-            ENRICHED_RISK_ANALYSIS_PROMPT,
-            FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
             RISK_ANALYSIS_PROMPT,
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
         )
 
         template_map = {
             "RISK_ANALYSIS_PROMPT": RISK_ANALYSIS_PROMPT,
-            "ENRICHED_RISK_ANALYSIS_PROMPT": ENRICHED_RISK_ANALYSIS_PROMPT,
-            "FULL_ENRICHED_RISK_ANALYSIS_PROMPT": FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
-            "VISION_ENHANCED_RISK_ANALYSIS_PROMPT": VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
             "MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT": MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         }
 

@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -32,6 +35,255 @@ from ai.gateway.utils import decode_base64_image, decode_base64_to_bytes, prepro
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# ---------------------------------------------------------------------------
+# Fashion CLIP text encoder for zero-shot clothing classification
+# ---------------------------------------------------------------------------
+
+FASHION_CLIP_EMBED_DIM = 512
+
+FASHION_CLIP_MODEL_ZOO = os.environ.get("FASHION_CLIP_MODEL_ZOO", "/models/zoo/fashion-clip")
+
+_CLOTHING_TYPE_PROMPTS = {
+    "t-shirt": "a person wearing a t-shirt",
+    "hoodie": "a person wearing a hoodie",
+    "jacket": "a person wearing a jacket",
+    "coat": "a person wearing a coat",
+    "sweater": "a person wearing a sweater",
+    "dress_shirt": "a person wearing a dress shirt",
+    "polo": "a person wearing a polo shirt",
+    "tank_top": "a person wearing a tank top",
+    "dress": "a person wearing a dress",
+    "suit": "a person wearing a suit",
+    "vest": "a person wearing a vest",
+    "overalls": "a person wearing overalls",
+    "uniform": "a person wearing a uniform",
+    "athletic_wear": "a person wearing athletic sportswear",
+    "casual": "a person in casual everyday clothing",
+}
+
+_COLOR_PROMPTS = {
+    "black": "person wearing black clothing",
+    "white": "person wearing white clothing",
+    "red": "person wearing red clothing",
+    "blue": "person wearing blue clothing",
+    "green": "person wearing green clothing",
+    "yellow": "person wearing yellow clothing",
+    "orange": "person wearing orange clothing",
+    "brown": "person wearing brown clothing",
+    "gray": "person wearing gray clothing",
+    "navy": "person wearing navy blue clothing",
+    "pink": "person wearing pink clothing",
+    "purple": "person wearing purple clothing",
+    "beige": "person wearing beige clothing",
+    "camouflage": "person wearing camouflage pattern clothing",
+}
+
+_STYLE_PROMPTS = {
+    "casual": "person in casual everyday outfit",
+    "formal": "person in formal business attire",
+    "athletic": "person in athletic sportswear outfit",
+    "workwear": "person in work uniform or workwear",
+    "streetwear": "person in streetwear urban fashion",
+    "outdoor": "person in outdoor hiking gear",
+    "sleepwear": "person in sleepwear or pajamas",
+    "high_visibility": "person wearing high visibility safety vest",
+}
+
+_SUSPICIOUS_PROMPTS = {
+    "ski_mask": "person wearing a ski mask balaclava covering face",
+    "face_covered_hoodie": "person with face obscured by hoodie pulled up",
+    "face_mask_bandana": "person with face covered by bandana or cloth mask",
+    "all_black_outfit": "person dressed entirely in black dark clothing at night",
+    "gloves_at_night": "person wearing gloves and dark clothing at night",
+}
+
+_SERVICE_UNIFORM_PROMPTS = {
+    "delivery": "delivery driver in uniform with package",
+    "postal": "postal worker mail carrier in uniform",
+    "police": "police officer in uniform",
+    "firefighter": "firefighter in uniform or gear",
+    "medical": "medical worker in scrubs or uniform",
+    "maintenance": "maintenance worker in work uniform",
+    "security_guard": "security guard in uniform",
+}
+
+_clothing_text_lock = threading.Lock()
+_clothing_text_cache: dict[str, tuple[list[str], np.ndarray]] | None = None
+_clothing_text_failed = False
+
+
+def _load_fashion_clip_text_encoder() -> Any:
+    """Load the Fashion CLIP text encoder ONNX model via onnxruntime."""
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        logger.warning("onnxruntime not installed; Fashion CLIP text encoding unavailable")
+        return None
+
+    text_model_path = Path(FASHION_CLIP_MODEL_ZOO) / "onnx" / "text_model.onnx"
+    if not text_model_path.exists():
+        logger.warning("Fashion CLIP text model not found at %s", text_model_path)
+        return None
+
+    try:
+        session = ort.InferenceSession(str(text_model_path), providers=["CPUExecutionProvider"])
+        logger.info("Fashion CLIP text encoder loaded from %s", text_model_path)
+        return session
+    except Exception:
+        logger.warning("Failed to load Fashion CLIP text encoder", exc_info=True)
+        return None
+
+
+def _load_fashion_clip_tokenizer() -> Any:
+    """Load the CLIP tokenizer for Fashion CLIP."""
+    try:
+        import open_clip
+
+        tokenizer = open_clip.get_tokenizer("ViT-B-16")
+        logger.info("Fashion CLIP tokenizer loaded via open_clip")
+        return tokenizer
+    except Exception:
+        logger.debug("open_clip tokenizer unavailable, trying transformers")
+
+    try:
+        from transformers import CLIPTokenizer
+
+        tokenizer = CLIPTokenizer.from_pretrained(FASHION_CLIP_MODEL_ZOO)
+        logger.info("Fashion CLIP tokenizer loaded via transformers")
+        return tokenizer
+    except Exception:
+        logger.warning("Failed to load Fashion CLIP tokenizer", exc_info=True)
+        return None
+
+
+def _encode_texts_fashion_clip(session: Any, tokenizer: Any, texts: list[str]) -> np.ndarray:
+    """Encode text strings to L2-normalized 512-dim embeddings."""
+    import torch
+
+    tokens = tokenizer(texts)
+    if isinstance(tokens, torch.Tensor):
+        input_ids = tokens.numpy().astype(np.int64)
+    elif hasattr(tokens, "input_ids"):
+        input_ids = np.array(tokens.input_ids, dtype=np.int64)
+    else:
+        input_ids = np.array(tokens, dtype=np.int64)
+
+    if input_ids.ndim == 1:
+        input_ids = input_ids[np.newaxis, :]
+
+    outputs = session.run(None, {"input_ids": input_ids})
+    embeddings = outputs[0].astype(np.float32)
+
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-8)
+    return embeddings / norms
+
+
+def _ensure_clothing_text_embeddings() -> dict[str, tuple[list[str], np.ndarray]] | None:
+    """Lazy-init and cache text embeddings for all clothing prompt categories.
+
+    Returns a dict mapping category name to (labels_list, embeddings_array),
+    or None if text encoding is unavailable.
+    """
+    global _clothing_text_cache, _clothing_text_failed
+
+    if _clothing_text_cache is not None or _clothing_text_failed:
+        return _clothing_text_cache
+
+    with _clothing_text_lock:
+        if _clothing_text_cache is not None or _clothing_text_failed:
+            return _clothing_text_cache
+
+        session = _load_fashion_clip_text_encoder()
+        tokenizer = _load_fashion_clip_tokenizer()
+
+        if session is None or tokenizer is None:
+            _clothing_text_failed = True
+            logger.warning(
+                "Fashion CLIP text encoder unavailable; "
+                "clothing classification will return placeholder results"
+            )
+            return None
+
+        try:
+            cache: dict[str, tuple[list[str], np.ndarray]] = {}
+
+            for category_name, prompts_dict in [
+                ("clothing_type", _CLOTHING_TYPE_PROMPTS),
+                ("color", _COLOR_PROMPTS),
+                ("style", _STYLE_PROMPTS),
+                ("suspicious", _SUSPICIOUS_PROMPTS),
+                ("service_uniform", _SERVICE_UNIFORM_PROMPTS),
+            ]:
+                labels = list(prompts_dict.keys())
+                texts = list(prompts_dict.values())
+                embeddings = _encode_texts_fashion_clip(session, tokenizer, texts)
+                cache[category_name] = (labels, embeddings)
+                logger.info("Cached %d text embeddings for '%s'", len(labels), category_name)
+
+            _clothing_text_cache = cache
+            logger.info("Fashion CLIP text embeddings cached successfully")
+            return _clothing_text_cache
+
+        except Exception:
+            _clothing_text_failed = True
+            logger.warning("Failed to compute Fashion CLIP text embeddings", exc_info=True)
+            return None
+
+
+def _classify_with_text_embeddings(
+    image_embedding: np.ndarray,
+    text_cache: dict[str, tuple[list[str], np.ndarray]],
+) -> dict[str, Any]:
+    """Classify clothing attributes by comparing image embedding to text embeddings."""
+    if image_embedding.ndim == 2:
+        image_embedding = image_embedding[0]
+
+    norm = np.linalg.norm(image_embedding)
+    if norm > 1e-8:
+        image_embedding = image_embedding / norm
+
+    def _best_match(category: str) -> tuple[str, float]:
+        labels, embeddings = text_cache[category]
+        sims = embeddings @ image_embedding
+        best_idx = int(np.argmax(sims))
+        return labels[best_idx], float(sims[best_idx])
+
+    clothing_type, clothing_conf = _best_match("clothing_type")
+    color, _color_conf = _best_match("color")
+    style, _style_conf = _best_match("style")
+
+    suspicious_labels, suspicious_embeddings = text_cache["suspicious"]
+    suspicious_sims = suspicious_embeddings @ image_embedding
+    max_suspicious_idx = int(np.argmax(suspicious_sims))
+    max_suspicious_sim = float(suspicious_sims[max_suspicious_idx])
+    is_suspicious = max_suspicious_sim > 0.25
+
+    uniform_labels, uniform_embeddings = text_cache["service_uniform"]
+    uniform_sims = uniform_embeddings @ image_embedding
+    max_uniform_idx = int(np.argmax(uniform_sims))
+    max_uniform_sim = float(uniform_sims[max_uniform_idx])
+    is_service_uniform = max_uniform_sim > 0.25
+
+    confidence = clothing_conf
+
+    description = f"Person wearing {color} {clothing_type.replace('_', ' ')}"
+    if is_suspicious:
+        description += f" (suspicious: {suspicious_labels[max_suspicious_idx].replace('_', ' ')})"
+    if is_service_uniform:
+        description += f" ({uniform_labels[max_uniform_idx].replace('_', ' ')} uniform)"
+
+    return {
+        "clothing_type": clothing_type,
+        "color": color,
+        "style": style,
+        "confidence": round(confidence, 4),
+        "top_category": clothing_type,
+        "description": description,
+        "is_suspicious": is_suspicious,
+        "is_service_uniform": is_service_uniform,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +454,12 @@ async def _infer_vehicle(image_b64: str) -> dict[str, Any]:
 
 
 async def _infer_clothing(image_b64: str) -> dict[str, Any]:
-    """Run clothing classification via Triton fashion_clip model."""
+    """Run clothing classification via Triton fashion_clip model.
+
+    Gets image embedding from Triton, then compares against pre-computed
+    text embeddings for zero-shot classification of clothing type, color,
+    style, suspicious attire, and service uniforms.
+    """
     start = time.monotonic()
     triton = get_triton_client()
 
@@ -211,14 +468,21 @@ async def _infer_clothing(image_b64: str) -> dict[str, Any]:
 
     result = await triton.infer(
         model_name="fashion_clip",
-        inputs={"input": tensor},
-        outputs=["output"],
+        inputs={"pixel_values": tensor},
+        outputs=["embedding"],
     )
 
-    _embedding = result["output"][0]
+    embedding = result["embedding"][0]
     inference_time_ms = (time.monotonic() - start) * 1000
 
-    # Return basic clothing result - full classification requires text prompts
+    # Attempt zero-shot classification with cached text embeddings
+    text_cache = _ensure_clothing_text_embeddings()
+    if text_cache is not None:
+        classification = _classify_with_text_embeddings(embedding, text_cache)
+        classification["inference_time_ms"] = round(inference_time_ms, 2)
+        return classification
+
+    # Fallback: text encoder unavailable, return placeholder
     return {
         "clothing_type": "casual",
         "color": "unknown",
@@ -293,36 +557,43 @@ async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]
     start = time.monotonic()
     triton = get_triton_client()
 
-    # Package frames as bytes for Python backend
-    frame_bytes_list = []
-    for b64 in frames_b64:
-        frame_bytes_list.append(decode_base64_to_bytes(b64))
+    # Package frames as JSON array of base64 strings for Python backend
+    import json as _json
 
-    frames_input = np.array(frame_bytes_list, dtype=object)
-    top_k_input = np.array([top_k], dtype=np.int32)
+    frames_json = _json.dumps(frames_b64)
+    frames_input = np.array([frames_json.encode("utf-8")], dtype=object)
 
     result = await triton.infer(
         model_name="xclip_action",
         inputs={
-            "INPUT_FRAMES": frames_input,
-            "INPUT_TOP_K": top_k_input,
+            "frames": frames_input,
         },
-        outputs=["OUTPUT_ACTIONS"],
+        outputs=["action", "confidence", "all_scores"],
     )
 
-    raw = result["OUTPUT_ACTIONS"]
-    # Parse output (Python backend returns JSON string)
-    import json
-
-    if raw.dtype == object:
-        actions = json.loads(raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0]))
+    # Parse outputs from the Python backend
+    all_scores_raw = result["all_scores"]
+    if all_scores_raw.dtype == object:
+        scores_str = (
+            bytes(all_scores_raw.flat[0]).decode("utf-8")
+            if isinstance(all_scores_raw.flat[0], bytes)
+            else str(all_scores_raw.flat[0])
+        )
+        scores_data = _json.loads(scores_str)
     else:
-        actions = []
+        scores_data = {}
 
     inference_time_ms = (time.monotonic() - start) * 1000
 
+    # Build actions list from all_scores for compatibility
+    all_scores_dict = scores_data.get("all_scores", {})
+    actions_list = [
+        {"action": a, "confidence": round(s, 4)}
+        for a, s in sorted(all_scores_dict.items(), key=lambda x: x[1], reverse=True)[:top_k]
+    ]
+
     return {
-        "actions": actions if isinstance(actions, list) else [],
+        "actions": actions_list,
         "inference_time_ms": round(inference_time_ms, 2),
     }
 
@@ -331,6 +602,70 @@ def _softmax(x: np.ndarray) -> np.ndarray:
     """Compute softmax over a 1D array."""
     e = np.exp(x - np.max(x))
     return e / (e.sum() + 1e-8)
+
+
+def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[dict[str, Any]]:
+    """Post-process YOLOv8-pose output tensor to keypoint dicts.
+
+    Args:
+        output: Raw model output, shape (1, 56, 8400).
+            56 = 4 box + 1 conf + 17*3 keypoints (x, y, visibility).
+        conf_threshold: Minimum confidence to keep a detection.
+
+    Returns:
+        List of dicts, each with 'keypoints' (list of {x, y, confidence}).
+    """
+    preds = output[0]  # (56, 8400)
+    if preds.shape[0] < preds.shape[1]:
+        preds = preds.T  # (8400, 56)
+
+    # Extract box confidence (index 4)
+    confidences = preds[:, 4]
+    mask = confidences >= conf_threshold
+    preds = preds[mask]
+
+    if len(preds) == 0:
+        return []
+
+    COCO_KEYPOINT_NAMES = [
+        "nose",
+        "left_eye",
+        "right_eye",
+        "left_ear",
+        "right_ear",
+        "left_shoulder",
+        "right_shoulder",
+        "left_elbow",
+        "right_elbow",
+        "left_wrist",
+        "right_wrist",
+        "left_hip",
+        "right_hip",
+        "left_knee",
+        "right_knee",
+        "left_ankle",
+        "right_ankle",
+    ]
+
+    results = []
+    for det in preds:
+        kp_data = det[5:]  # 17*3 = 51 values
+        keypoints = []
+        for i in range(17):
+            kx = float(kp_data[i * 3])
+            ky = float(kp_data[i * 3 + 1])
+            kc = float(kp_data[i * 3 + 2])
+            keypoints.append(
+                {
+                    "name": COCO_KEYPOINT_NAMES[i],
+                    "x": round(kx, 1),
+                    "y": round(ky, 1),
+                    "confidence": round(kc, 4),
+                }
+            )
+        results.append({"keypoints": keypoints})
+
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -457,10 +792,10 @@ async def depth_estimate(request: ImageRequest) -> DepthEstimateResponse:
         result = await triton.infer(
             model_name="depth",
             inputs={"input": tensor},
-            outputs=["output"],
+            outputs=["depth_map"],
         )
 
-        depth_map = result["output"][0]
+        depth_map = result["depth_map"][0]
         if depth_map.ndim > 2:
             depth_map = depth_map.squeeze()
 
@@ -501,30 +836,24 @@ async def pose_analyze(request: BBoxRequest) -> PoseAnalyzeResponse:
     triton = get_triton_client()
 
     try:
+        from ai.gateway.utils import preprocess_yolo
+
         image_bytes = decode_base64_to_bytes(request.image)
-        image_input = np.array([image_bytes], dtype=object)
+        input_tensor = preprocess_yolo(image_bytes, 640)
 
         result = await triton.infer(
             model_name="pose",
-            inputs={"INPUT_IMAGE": image_input},
-            outputs=["OUTPUT_KEYPOINTS"],
+            inputs={"images": input_tensor.astype(np.float32)},
+            outputs=["output0"],
         )
 
-        import json
-
-        raw = result["OUTPUT_KEYPOINTS"]
-        if raw.dtype == object:
-            keypoints = json.loads(
-                raw[0].decode("utf-8") if isinstance(raw[0], bytes) else str(raw[0])
-            )
-        else:
-            keypoints = []
+        keypoints = _postprocess_pose(result["output0"])
 
         inference_time_ms = (time.monotonic() - start) * 1000
 
         return PoseAnalyzeResponse(
-            keypoints=keypoints if isinstance(keypoints, list) else [],
-            num_people=len(keypoints) if isinstance(keypoints, list) else 0,
+            keypoints=keypoints,
+            num_people=len(keypoints),
             inference_time_ms=round(inference_time_ms, 2),
         )
     except TritonClientError as e:

@@ -189,11 +189,11 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     """Send image + prompt to Florence-2 Triton Python backend.
 
     The Python backend model expects:
-    - INPUT_IMAGE: raw image bytes (uint8 array)
-    - INPUT_PROMPT: prompt string (bytes array)
+    - image: TYPE_STRING [1] - base64-encoded image bytes
+    - prompt: TYPE_STRING [1] - Florence-2 task prompt string
 
     And returns:
-    - OUTPUT_TEXT: generated text result (bytes array)
+    - result: TYPE_STRING [1] - JSON string with task-specific result
 
     Args:
         image_b64: Base64-encoded image.
@@ -210,7 +210,7 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image: {e}") from e
 
-    # Package inputs for Triton Python backend
+    # Package inputs for Triton Python backend (tensor names match config.pbtxt)
     image_input = np.array([image_bytes], dtype=object)
     prompt_input = np.array([prompt.encode("utf-8")], dtype=object)
 
@@ -218,16 +218,16 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
         result = await triton.infer(
             model_name=MODEL_NAME,
             inputs={
-                "INPUT_IMAGE": image_input,
-                "INPUT_PROMPT": prompt_input,
+                "image": image_input,
+                "prompt": prompt_input,
             },
-            outputs=["OUTPUT_TEXT"],
+            outputs=["result"],
         )
     except TritonClientError as e:
         raise HTTPException(status_code=503, detail=f"Florence inference failed: {e}") from e
 
     # Decode output
-    raw_output = result["OUTPUT_TEXT"]
+    raw_output = result["result"]
     if raw_output.dtype == object:
         text_result = (
             raw_output[0].decode("utf-8")

@@ -1,23 +1,14 @@
 """TDD tests for enrichment data consistency (NEM-5488).
 
-These tests are written FIRST (red phase) to verify that:
+These tests verify that:
 1. VehicleClassificationResult.to_dict() includes all fields (display_name, is_commercial, all_scores)
 2. Storage dict matches prompt content (no data loss between runtime and storage paths)
-3. New to_storage_dict() method uses to_dict() methods on result classes
-4. get_enrichment_for_detection() raises DeprecationWarning
-5. Missing to_dict() methods are added to HouseholdMatch, EntityMatch, LicensePlateResult, FaceResult, SceneChangeResult
-
-Problem Summary:
-- get_enrichment_for_detection() (lines 1555-1684) manually constructs dicts, losing fields
-- VehicleClassificationResult loses: display_name, is_commercial, all_scores
-- Runtime path (prompt generation) uses full objects with all fields
-- Storage path uses simplified dict missing critical fields
-- Result classes like HouseholdMatch, EntityMatch, LicensePlateResult lack to_dict() methods
+3. to_storage_dict() method uses to_dict() methods on result classes
+4. Missing to_dict() methods are added to HouseholdMatch, EntityMatch, LicensePlateResult, FaceResult, SceneChangeResult
 """
 
 from __future__ import annotations
 
-import warnings
 from datetime import datetime
 
 import pytest
@@ -272,11 +263,7 @@ class TestStorageDictMatchesPromptContent:
     def test_storage_dict_includes_vehicle_display_name(
         self, enrichment_result_with_vehicle: EnrichmentResult
     ) -> None:
-        """Verify stored enrichment contains vehicle display_name.
-
-        Currently get_enrichment_for_detection() loses display_name when
-        creating the storage dict. This test will FAIL until fixed.
-        """
+        """Verify stored enrichment contains vehicle display_name."""
         # Get storage dict using the new method (to be implemented)
         stored = enrichment_result_with_vehicle.to_storage_dict(detection_id=1)
 
@@ -312,11 +299,7 @@ class TestStorageDictMatchesPromptContent:
     def test_storage_dict_includes_pet_cat_dog_scores(
         self, enrichment_result_with_pet: EnrichmentResult
     ) -> None:
-        """Verify stored enrichment contains pet cat_score and dog_score.
-
-        get_enrichment_for_detection() currently loses cat_score/dog_score
-        which are needed for confidence analysis and debugging.
-        """
+        """Verify stored enrichment contains pet cat_score and dog_score."""
         stored = enrichment_result_with_pet.to_storage_dict(detection_id=3)
 
         assert "pet" in stored
@@ -334,31 +317,6 @@ class TestStorageDictMatchesPromptContent:
         assert "pet" in stored
         assert "is_household_pet" in stored["pet"], "Storage dict must include is_household_pet"
         assert stored["pet"]["is_household_pet"] is True
-
-    def test_old_method_returns_incomplete_vehicle_data(
-        self, enrichment_result_with_vehicle: EnrichmentResult
-    ) -> None:
-        """Document that old get_enrichment_for_detection() loses data.
-
-        This test documents the current broken behavior. It passes today
-        but serves as documentation of the bug being fixed.
-        """
-        # Suppress the deprecation warning for this test
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            old_result = enrichment_result_with_vehicle.get_enrichment_for_detection(1)
-
-        # Old method loses these fields - this documents the bug
-        assert old_result is not None
-        assert "vehicle" in old_result
-        # These assertions document what the OLD method returns (incomplete)
-        assert "display_name" not in old_result["vehicle"], (
-            "Old method is known to lose display_name"
-        )
-        assert "is_commercial" not in old_result["vehicle"], (
-            "Old method is known to lose is_commercial"
-        )
-        assert "all_scores" not in old_result["vehicle"], "Old method is known to lose all_scores"
 
 
 # =============================================================================
@@ -406,36 +364,6 @@ class TestToStorageDictUsesToDictMethods:
         stored = result.to_storage_dict(detection_id=999)
 
         assert stored is None, "Should return None when no enrichment data"
-
-
-# =============================================================================
-# Deprecation Warning Tests
-# =============================================================================
-
-
-class TestDeprecationWarning:
-    """Tests for deprecation warning on old get_enrichment_for_detection()."""
-
-    def test_get_enrichment_for_detection_raises_deprecation_warning(
-        self, enrichment_result_with_vehicle: EnrichmentResult
-    ) -> None:
-        """Verify old method raises DeprecationWarning.
-
-        Once to_storage_dict() is implemented, get_enrichment_for_detection()
-        should warn users to migrate to the new method.
-        """
-        with pytest.warns(DeprecationWarning, match="use to_storage_dict"):
-            enrichment_result_with_vehicle.get_enrichment_for_detection(1)
-
-    def test_deprecation_warning_message_includes_migration_path(
-        self, enrichment_result_with_vehicle: EnrichmentResult
-    ) -> None:
-        """Verify deprecation warning includes clear migration path."""
-        with pytest.warns(DeprecationWarning) as warning_info:
-            enrichment_result_with_vehicle.get_enrichment_for_detection(1)
-
-        warning_message = str(warning_info[0].message)
-        assert "to_storage_dict" in warning_message, "Warning must mention the replacement method"
 
 
 # =============================================================================

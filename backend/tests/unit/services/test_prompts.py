@@ -4,8 +4,7 @@ Comprehensive tests for prompt templates and generation functions used by
 the Nemotron analyzer for risk assessment.
 
 Tests cover:
-- All prompt template constants (RISK_ANALYSIS_PROMPT, ENRICHED_RISK_ANALYSIS_PROMPT,
-  FULL_ENRICHED_RISK_ANALYSIS_PROMPT, VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
+- All prompt template constants (RISK_ANALYSIS_PROMPT,
   MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT)
 - Variable substitution in prompts
 - Prompt formatting for Nemotron ChatML format
@@ -23,8 +22,6 @@ import pytest
 
 from backend.services.prompts import (
     CALIBRATED_SYSTEM_PROMPT,
-    ENRICHED_RISK_ANALYSIS_PROMPT,
-    FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
     HOUSEHOLD_CONTEXT_TEMPLATE,
     MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
     NON_RISK_FACTORS,
@@ -34,7 +31,6 @@ from backend.services.prompts import (
     SUMMARY_EVENT_FORMAT,
     SUMMARY_PROMPT_TEMPLATE,
     SUMMARY_SYSTEM_PROMPT,
-    VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
     ClassAnomalyResult,
     build_summary_prompt,
     # Household context functions (NEM-3024, NEM-3315)
@@ -299,116 +295,6 @@ class TestRiskAnalysisPromptTemplate:
         assert unicode_text in substituted
 
 
-class TestEnrichedRiskAnalysisPromptTemplate:
-    """Tests for the ENRICHED_RISK_ANALYSIS_PROMPT template."""
-
-    def test_template_exists(self) -> None:
-        """Test that the enriched prompt template is defined."""
-        assert ENRICHED_RISK_ANALYSIS_PROMPT is not None
-        assert len(ENRICHED_RISK_ANALYSIS_PROMPT) > len(RISK_ANALYSIS_PROMPT)
-
-    def test_template_has_chatml_format(self) -> None:
-        """Test that the template uses ChatML format."""
-        assert "<|im_start|>system" in ENRICHED_RISK_ANALYSIS_PROMPT
-        assert "<|im_start|>user" in ENRICHED_RISK_ANALYSIS_PROMPT
-        assert "<|im_start|>assistant" in ENRICHED_RISK_ANALYSIS_PROMPT
-
-    def test_template_has_context_enrichment_fields(self) -> None:
-        """Test that the template has context enrichment placeholders."""
-        required_fields = [
-            "{camera_name}",
-            "{start_time}",
-            "{end_time}",
-            "{day_of_week}",
-            "{zone_analysis}",
-            "{hour}",
-            "{baseline_comparison}",
-            "{deviation_score}",
-            "{cross_camera_summary}",
-            "{detections_list}",
-        ]
-        for template_field in required_fields:
-            assert template_field in ENRICHED_RISK_ANALYSIS_PROMPT, (
-                f"Missing field: {template_field}"
-            )
-
-    def test_template_has_recommended_action(self) -> None:
-        """Test that the enriched template includes recommended_action in output."""
-        assert '"recommended_action"' in ENRICHED_RISK_ANALYSIS_PROMPT
-
-    def test_template_variable_substitution(self) -> None:
-        """Test that all template variables can be properly substituted."""
-        substituted = ENRICHED_RISK_ANALYSIS_PROMPT.format(
-            camera_name="driveway_cam",
-            start_time="2024-01-01 22:00:00",
-            end_time="2024-01-01 22:05:00",
-            day_of_week="Monday",
-            zone_analysis="Entry point zone detected",
-            hour="22",
-            baseline_comparison="Normal activity: 2 cars/hour",
-            deviation_score="0.3",
-            cross_camera_summary="Activity also seen on backyard camera",
-            detections_list="person: 90%, car: 85%",
-        )
-        assert "driveway_cam" in substituted
-        assert "Monday" in substituted
-        assert "Entry point zone detected" in substituted
-        assert "22" in substituted
-
-
-class TestFullEnrichedRiskAnalysisPromptTemplate:
-    """Tests for the FULL_ENRICHED_RISK_ANALYSIS_PROMPT template."""
-
-    def test_template_exists(self) -> None:
-        """Test that the full enriched prompt template is defined."""
-        assert FULL_ENRICHED_RISK_ANALYSIS_PROMPT is not None
-
-    def test_template_includes_enrichment_context(self) -> None:
-        """Test that the template includes vision enrichment context."""
-        assert "{enrichment_context}" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-        assert "## Vision Enrichment" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-
-    def test_template_has_license_plate_guidance(self) -> None:
-        """Test that the template includes license plate guidance."""
-        assert "License plates" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-        # NEM-3880: Template now focuses on non-risk factors instead of face detection
-        assert "NOT RISK FACTORS" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-
-
-class TestVisionEnhancedRiskAnalysisPromptTemplate:
-    """Tests for the VISION_ENHANCED_RISK_ANALYSIS_PROMPT template."""
-
-    def test_template_exists(self) -> None:
-        """Test that the vision-enhanced prompt template is defined."""
-        assert VISION_ENHANCED_RISK_ANALYSIS_PROMPT is not None
-
-    def test_template_has_vision_specific_fields(self) -> None:
-        """Test that the template has vision-specific placeholders."""
-        required_fields = [
-            "{camera_name}",
-            "{timestamp}",
-            "{day_of_week}",
-            "{time_of_day}",
-            "{detections_with_attributes}",
-            "{reid_context}",
-            "{zone_analysis}",
-            "{baseline_comparison}",
-            "{deviation_score}",
-            "{cross_camera_summary}",
-            "{scene_analysis}",
-        ]
-        for template_field in required_fields:
-            assert template_field in VISION_ENHANCED_RISK_ANALYSIS_PROMPT, (
-                f"Missing field: {template_field}"
-            )
-
-    def test_template_has_entities_output(self) -> None:
-        """Test that the template includes entities in JSON output."""
-        assert '"entities"' in VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-        assert '"type": "person|vehicle"' in VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-        assert '"threat_level"' in VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-
-
 class TestModelZooEnhancedRiskAnalysisPromptTemplate:
     """Tests for the MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT template."""
 
@@ -418,9 +304,7 @@ class TestModelZooEnhancedRiskAnalysisPromptTemplate:
 
     def test_template_is_largest(self) -> None:
         """Test that model zoo template is the most comprehensive."""
-        assert len(MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT) > len(
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-        )
+        assert len(MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT) > len(RISK_ANALYSIS_PROMPT)
 
     def test_template_has_all_model_zoo_fields(self) -> None:
         """Test that the template has all model zoo enrichment fields."""
@@ -582,9 +466,6 @@ class TestCalibrationGuidelines:
         """Test that all prompt templates mention non-risk factors."""
         prompts_to_check = [
             ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
-            ("ENRICHED_RISK_ANALYSIS_PROMPT", ENRICHED_RISK_ANALYSIS_PROMPT),
-            ("FULL_ENRICHED_RISK_ANALYSIS_PROMPT", FULL_ENRICHED_RISK_ANALYSIS_PROMPT),
-            ("VISION_ENHANCED_RISK_ANALYSIS_PROMPT", VISION_ENHANCED_RISK_ANALYSIS_PROMPT),
             ("MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT", MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT),
         ]
         for name, prompt in prompts_to_check:
@@ -596,9 +477,6 @@ class TestCalibrationGuidelines:
         """Test that all prompt templates have calibrated score ranges matching DB taxonomy."""
         prompts_to_check = [
             ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
-            ("ENRICHED_RISK_ANALYSIS_PROMPT", ENRICHED_RISK_ANALYSIS_PROMPT),
-            ("FULL_ENRICHED_RISK_ANALYSIS_PROMPT", FULL_ENRICHED_RISK_ANALYSIS_PROMPT),
-            ("VISION_ENHANCED_RISK_ANALYSIS_PROMPT", VISION_ENHANCED_RISK_ANALYSIS_PROMPT),
             ("MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT", MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT),
         ]
         for name, prompt in prompts_to_check:
@@ -2694,9 +2572,6 @@ class TestPromptTemplateConsistency:
         """Test all templates end with assistant marker for completion."""
         templates = [
             RISK_ANALYSIS_PROMPT,
-            ENRICHED_RISK_ANALYSIS_PROMPT,
-            FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         ]
         for template in templates:
@@ -2710,9 +2585,6 @@ class TestPromptTemplateConsistency:
         """Test all templates have system message."""
         templates = [
             RISK_ANALYSIS_PROMPT,
-            ENRICHED_RISK_ANALYSIS_PROMPT,
-            FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         ]
         for template in templates:
@@ -2729,9 +2601,6 @@ class TestPromptTemplateConsistency:
         """Test all templates specify JSON output format."""
         templates = [
             RISK_ANALYSIS_PROMPT,
-            ENRICHED_RISK_ANALYSIS_PROMPT,
-            FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         ]
         for template in templates:
@@ -2742,9 +2611,6 @@ class TestPromptTemplateConsistency:
         """Test all templates include risk_score in expected output."""
         templates = [
             RISK_ANALYSIS_PROMPT,
-            ENRICHED_RISK_ANALYSIS_PROMPT,
-            FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
         ]
         for template in templates:
@@ -3192,22 +3058,16 @@ class TestPromptModuleImports:
     def test_all_prompt_templates_importable(self) -> None:
         """Test all prompt templates are importable."""
         from backend.services.prompts import (
-            ENRICHED_RISK_ANALYSIS_PROMPT,
-            FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
             RISK_ANALYSIS_PROMPT,
             SUMMARY_EMPTY_STATE_INSTRUCTION,
             SUMMARY_EVENT_FORMAT,
             SUMMARY_PROMPT_TEMPLATE,
             SUMMARY_SYSTEM_PROMPT,
-            VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
         )
 
         # Verify they are strings
         assert isinstance(RISK_ANALYSIS_PROMPT, str)
-        assert isinstance(ENRICHED_RISK_ANALYSIS_PROMPT, str)
-        assert isinstance(FULL_ENRICHED_RISK_ANALYSIS_PROMPT, str)
-        assert isinstance(VISION_ENHANCED_RISK_ANALYSIS_PROMPT, str)
         assert isinstance(MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT, str)
         assert isinstance(SUMMARY_SYSTEM_PROMPT, str)
         assert isinstance(SUMMARY_PROMPT_TEMPLATE, str)
@@ -4486,37 +4346,6 @@ class TestPromptTemplatesHaveCalibrationAtTop:
                 "Scoring reference should appear before detections in prompt"
             )
 
-    def test_vision_enhanced_prompt_has_scoring_reference_early(self) -> None:
-        """Test that VISION_ENHANCED prompt has scoring reference near the top."""
-        prompt = VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-
-        # Should have scoring reference
-        assert "SCORING REFERENCE" in prompt or "Scoring" in prompt or "| Scenario" in prompt
-
-    def test_enriched_prompt_has_scoring_reference(self) -> None:
-        """Test that ENRICHED_RISK_ANALYSIS_PROMPT has scoring reference."""
-        prompt = ENRICHED_RISK_ANALYSIS_PROMPT
-
-        # Should have scoring reference or calibration guidance
-        has_scoring = "SCORING REFERENCE" in prompt or "| Scenario" in prompt
-        has_calibration = "CALIBRATION" in prompt or "calibration" in prompt
-
-        assert has_scoring or has_calibration, (
-            "ENRICHED prompt should have scoring reference or calibration"
-        )
-
-    def test_full_enriched_prompt_has_scoring_reference(self) -> None:
-        """Test that FULL_ENRICHED_RISK_ANALYSIS_PROMPT has scoring reference."""
-        prompt = FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-
-        # Should have scoring reference or calibration guidance
-        has_scoring = "SCORING REFERENCE" in prompt or "| Scenario" in prompt
-        has_calibration = "CALIBRATION" in prompt or "calibration" in prompt
-
-        assert has_scoring or has_calibration, (
-            "FULL_ENRICHED prompt should have scoring reference or calibration"
-        )
-
     def test_basic_prompt_has_scoring_reference(self) -> None:
         """Test that basic RISK_ANALYSIS_PROMPT has scoring reference."""
         prompt = RISK_ANALYSIS_PROMPT
@@ -4554,69 +4383,6 @@ class TestPromptTemplatesUseCalibrationSystemPrompt:
         )
 
         assert has_calibration, "MODEL_ZOO_ENHANCED system section should have calibration guidance"
-
-    def test_vision_enhanced_prompt_uses_calibrated_system_prompt(self) -> None:
-        """Test that VISION_ENHANCED uses calibrated system message."""
-        prompt = VISION_ENHANCED_RISK_ANALYSIS_PROMPT
-
-        # Should include calibration concepts in system section
-        system_section = (
-            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
-        )
-
-        # Check for key calibration concepts
-        has_calibration = any(
-            [
-                "Most detections are NOT threats" in system_section,
-                "CRITICAL PRINCIPLE" in system_section,
-                "miscalibrated" in system_section,
-                "home security analyst" in system_section,
-            ]
-        )
-
-        assert has_calibration, "VISION_ENHANCED system section should have calibration guidance"
-
-    def test_enriched_prompt_uses_calibrated_system_prompt(self) -> None:
-        """Test that ENRICHED uses calibrated system message."""
-        prompt = ENRICHED_RISK_ANALYSIS_PROMPT
-
-        # Should include calibration concepts in system section
-        system_section = (
-            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
-        )
-
-        # Check for key calibration concepts
-        has_calibration = any(
-            [
-                "Most detections are NOT threats" in system_section,
-                "CRITICAL PRINCIPLE" in system_section,
-                "miscalibrated" in system_section,
-                "home security analyst" in system_section,
-            ]
-        )
-
-        assert has_calibration, "ENRICHED system section should have calibration guidance"
-
-    def test_full_enriched_prompt_uses_calibrated_system_prompt(self) -> None:
-        """Test that FULL_ENRICHED uses calibrated system message."""
-        prompt = FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-
-        # Should include calibration concepts in system section
-        system_section = (
-            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
-        )
-
-        # Check for key calibration concepts
-        has_calibration = any(
-            [
-                "Most detections are NOT threats" in system_section,
-                "CRITICAL PRINCIPLE" in system_section,
-                "miscalibrated" in system_section,
-                "home security analyst" in system_section,
-            ]
-        )
-
-        assert has_calibration, "FULL_ENRICHED system section should have calibration guidance"
 
     def test_basic_prompt_uses_calibrated_system_prompt(self) -> None:
         """Test that basic RISK_ANALYSIS_PROMPT uses calibrated system message."""
@@ -8249,9 +8015,6 @@ class TestPromptTemplatesContainCrossCamera:
 
     def test_model_zoo_enhanced_has_placeholder(self):
         assert "{cross_camera_person_tracking}" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
-
-    def test_vision_enhanced_has_placeholder(self):
-        assert "{cross_camera_person_tracking}" in VISION_ENHANCED_RISK_ANALYSIS_PROMPT
 
     def test_model_zoo_enhanced_has_risk_guide_section(self):
         """The risk interpretation guide should include cross-camera tracking guidance."""

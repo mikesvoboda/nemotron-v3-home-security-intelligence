@@ -43,7 +43,7 @@ def _make_b64_image(width: int = 224, height: int = 224) -> str:
 def _make_triton_text_output(text: str) -> dict[str, np.ndarray]:
     """Create a mock Triton output dict with text encoded as bytes."""
     arr = np.array([text.encode("utf-8")], dtype=object)
-    return {"OUTPUT_TEXT": arr}
+    return {"result": arr}
 
 
 def _make_triton_json_output(data: dict | list) -> dict[str, np.ndarray]:

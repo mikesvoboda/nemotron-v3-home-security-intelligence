@@ -19,6 +19,7 @@ from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
 from ai.gateway.adapters.enrichment import (
+    _classify_with_text_embeddings,
     _infer_vehicle,
     _softmax,
     router,
@@ -130,6 +131,72 @@ class TestSoftmax:
 
 
 # =============================================================================
+# _classify_with_text_embeddings unit tests
+# =============================================================================
+
+
+class TestClassifyWithTextEmbeddings:
+    """Tests for zero-shot clothing classification logic."""
+
+    def _make_text_cache(self) -> dict:
+        """Build a deterministic text embedding cache for testing."""
+        np.random.seed(42)
+        cache = {}
+        defs = {
+            "clothing_type": ["hoodie", "jacket", "t-shirt"],
+            "color": ["black", "red", "white"],
+            "style": ["casual", "formal", "athletic"],
+            "suspicious": ["ski_mask", "all_black_outfit"],
+            "service_uniform": ["delivery", "police"],
+        }
+        for cat, labels in defs.items():
+            embs = np.random.randn(len(labels), 512).astype(np.float32)
+            norms = np.linalg.norm(embs, axis=1, keepdims=True)
+            cache[cat] = (labels, embs / norms)
+        return cache
+
+    def test_returns_all_fields(self):
+        """Classification result contains all required fields."""
+        cache = self._make_text_cache()
+        img_emb = np.random.randn(512).astype(np.float32)
+        result = _classify_with_text_embeddings(img_emb, cache)
+        assert "clothing_type" in result
+        assert "color" in result
+        assert "style" in result
+        assert "confidence" in result
+        assert "description" in result
+        assert "is_suspicious" in result
+        assert "is_service_uniform" in result
+        assert "top_category" in result
+
+    def test_picks_best_match(self):
+        """Classification picks the label whose embedding is closest."""
+        cache = self._make_text_cache()
+        # Use the first clothing_type embedding as the image embedding
+        # so it should match that label
+        labels, embs = cache["clothing_type"]
+        img_emb = embs[0].copy()
+        result = _classify_with_text_embeddings(img_emb, cache)
+        assert result["clothing_type"] == labels[0]
+
+    def test_handles_2d_embedding(self):
+        """Works with shape (1, 512) input."""
+        cache = self._make_text_cache()
+        img_emb = np.random.randn(1, 512).astype(np.float32)
+        result = _classify_with_text_embeddings(img_emb, cache)
+        assert isinstance(result["clothing_type"], str)
+
+    def test_suspicious_flag(self):
+        """High similarity to suspicious prompt sets is_suspicious=True."""
+        cache = self._make_text_cache()
+        # Use the suspicious embedding directly
+        _labels, suspicious_embs = cache["suspicious"]
+        img_emb = suspicious_embs[0].copy() * 10  # amplify to ensure high sim
+        result = _classify_with_text_embeddings(img_emb, cache)
+        assert result["is_suspicious"] is True
+
+
+# =============================================================================
 # /vehicle-classify endpoint tests
 # =============================================================================
 
@@ -199,23 +266,66 @@ class TestVehicleClassifyEndpoint:
 class TestClothingClassifyEndpoint:
     """Tests for the POST /clothing-classify endpoint."""
 
-    async def test_clothing_classify_success(self, client, mock_triton):
-        """Successful clothing classification returns expected fields."""
-        emb = np.random.randn(1, 768).astype(np.float32)
-        mock_triton.infer.return_value = {"output": emb}
+    async def test_clothing_classify_placeholder_fallback(self, client, mock_triton):
+        """Returns placeholder fields when text encoder is unavailable."""
+        emb = np.random.randn(1, 512).astype(np.float32)
+        mock_triton.infer.return_value = {"embedding": emb}
 
-        response = await client.post(
-            "/clothing-classify",
-            json={"image": _make_b64_image()},
-        )
+        with patch(
+            "ai.gateway.adapters.enrichment._ensure_clothing_text_embeddings",
+            return_value=None,
+        ):
+            response = await client.post(
+                "/clothing-classify",
+                json={"image": _make_b64_image()},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["clothing_type"] == "casual"
+        assert data["color"] == "unknown"
+        assert data["style"] == "everyday"
+        assert isinstance(data["is_suspicious"], bool)
+        assert isinstance(data["is_service_uniform"], bool)
+        assert "inference_time_ms" in data
+
+    async def test_clothing_classify_zero_shot(self, client, mock_triton):
+        """Returns real results when text embeddings are available."""
+        emb = np.random.randn(1, 512).astype(np.float32)
+        mock_triton.infer.return_value = {"embedding": emb}
+
+        fake_cache = {}
+        for cat, n in [
+            ("clothing_type", 15),
+            ("color", 14),
+            ("style", 8),
+            ("suspicious", 5),
+            ("service_uniform", 7),
+        ]:
+            labels = [f"label_{i}" for i in range(n)]
+            embeddings = np.random.randn(n, 512).astype(np.float32)
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            fake_cache[cat] = (labels, embeddings / norms)
+
+        with patch(
+            "ai.gateway.adapters.enrichment._ensure_clothing_text_embeddings",
+            return_value=fake_cache,
+        ):
+            response = await client.post(
+                "/clothing-classify",
+                json={"image": _make_b64_image()},
+            )
 
         assert response.status_code == 200
         data = response.json()
         assert "clothing_type" in data
         assert "color" in data
         assert "style" in data
+        assert "confidence" in data
+        assert "description" in data
         assert isinstance(data["is_suspicious"], bool)
         assert isinstance(data["is_service_uniform"], bool)
+        assert "inference_time_ms" in data
 
     async def test_clothing_classify_triton_error(self, client, mock_triton):
         """Triton failure returns 503."""
@@ -278,12 +388,20 @@ class TestActionClassifyEndpoint:
 
     async def test_action_classify_success(self, client, mock_triton):
         """Action classification returns action labels."""
-        actions = [
-            {"action": "walking", "confidence": 0.85},
-            {"action": "running", "confidence": 0.12},
-        ]
-        output = np.array([json.dumps(actions).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_ACTIONS": output}
+        action_output = np.array([b"walking normally"], dtype=object)
+        confidence_output = np.array([0.85], dtype=np.float32)
+        scores_data = {
+            "all_scores": {"walking normally": 0.85, "running": 0.12},
+            "is_suspicious": False,
+            "risk_weight": 0.1,
+            "inference_time_ms": 50.0,
+        }
+        all_scores_output = np.array([json.dumps(scores_data).encode("utf-8")], dtype=object)
+        mock_triton.infer.return_value = {
+            "action": action_output,
+            "confidence": confidence_output,
+            "all_scores": all_scores_output,
+        }
 
         response = await client.post(
             "/action-classify",
@@ -293,7 +411,7 @@ class TestActionClassifyEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert len(data["actions"]) == 2
-        assert data["actions"][0]["action"] == "walking"
+        assert data["actions"][0]["action"] == "walking normally"
 
     async def test_action_classify_empty_frames(self, client, mock_triton):
         """Empty frames list returns 400."""
@@ -375,7 +493,7 @@ class TestDepthEstimateEndpoint:
     async def test_depth_estimate_success(self, client, mock_triton):
         """Depth estimation returns depth stats and base64 map."""
         depth_map = np.random.rand(1, 518, 518).astype(np.float32) * 10.0
-        mock_triton.infer.return_value = {"output": depth_map}
+        mock_triton.infer.return_value = {"depth_map": depth_map}
 
         response = await client.post(
             "/depth-estimate",
@@ -394,7 +512,7 @@ class TestDepthEstimateEndpoint:
     async def test_depth_estimate_flat_depth(self, client, mock_triton):
         """Constant depth map produces equal min/max/mean."""
         depth_map = np.full((1, 518, 518), 5.0, dtype=np.float32)
-        mock_triton.infer.return_value = {"output": depth_map}
+        mock_triton.infer.return_value = {"depth_map": depth_map}
 
         response = await client.post(
             "/depth-estimate",
@@ -425,9 +543,20 @@ class TestPoseAnalyzeEndpoint:
 
     async def test_pose_analyze_success(self, client, mock_triton):
         """Pose analysis returns keypoints."""
-        keypoints = [{"nose": [100, 50], "left_eye": [95, 45]}]
-        output = np.array([json.dumps(keypoints).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_KEYPOINTS": output}
+        # Create a mock YOLOv8-pose output: (1, 56, 8400) with one detection
+        output = np.zeros((1, 56, 8400), dtype=np.float32)
+        # Set one detection with confidence > 0.25
+        output[0, 0, 0] = 320.0  # cx
+        output[0, 1, 0] = 320.0  # cy
+        output[0, 2, 0] = 100.0  # w
+        output[0, 3, 0] = 200.0  # h
+        output[0, 4, 0] = 0.9  # confidence
+        # Set some keypoint data (17 keypoints x 3 values)
+        for i in range(17):
+            output[0, 5 + i * 3, 0] = 300.0 + i  # x
+            output[0, 6 + i * 3, 0] = 200.0 + i  # y
+            output[0, 7 + i * 3, 0] = 0.8  # visibility
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/pose-analyze",
@@ -441,8 +570,9 @@ class TestPoseAnalyzeEndpoint:
 
     async def test_pose_analyze_no_people(self, client, mock_triton):
         """No people returns empty keypoints."""
-        output = np.array([json.dumps([]).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {"OUTPUT_KEYPOINTS": output}
+        # All-zeros output means no detections above threshold
+        output = np.zeros((1, 56, 8400), dtype=np.float32)
+        mock_triton.infer.return_value = {"output0": output}
 
         response = await client.post(
             "/pose-analyze",
@@ -475,13 +605,13 @@ class TestEnrichEndpoint:
 
     async def test_enrich_person(self, client, mock_triton):
         """Person enrichment fans out to clothing + demographics."""
-        # clothing model returns embedding
-        clothing_emb = np.random.randn(1, 768).astype(np.float32)
+        # clothing model returns 512-dim embedding (fashion_clip uses pixel_values/embedding)
+        clothing_emb = np.random.randn(1, 512).astype(np.float32)
         # demographics returns age and gender logits
         age_logits, gender_logits = _make_demographics_logits()
 
         mock_triton.infer.side_effect = [
-            {"output": clothing_emb},  # fashion_clip
+            {"embedding": clothing_emb},  # fashion_clip
             {"output": np.array([age_logits])},  # demographics_age
             {"output": np.array([gender_logits])},  # demographics_gender
         ]
