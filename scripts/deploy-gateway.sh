@@ -48,23 +48,49 @@ podman build --no-cache -f "$PROJECT_ROOT/ai/nemotron/Dockerfile" -t ai-llm "$PR
 
 echo "  All images built."
 
-# Phase 3: Start infrastructure (compose)
+# Phase 3: Export models for Triton (runs inside gateway container with GPU)
 echo ""
-echo "[3/7] Starting infrastructure..."
+echo "[3/8] Exporting models for Triton..."
+echo "  This converts PyTorch/HuggingFace models to TensorRT/ONNX for Triton."
+echo "  Cached exports in /export/ai_models/triton/ are reused if present."
+
+mkdir -p /export/ai_models/triton
+
+# Run export_all.sh inside a temporary gateway container with GPU access
+podman run --rm \
+  --name ai-gateway-export \
+  --device "nvidia.com/gpu=${GPU_AI_SERVICES:-1}" \
+  --security-opt label=disable \
+  -e CUDA_VISIBLE_DEVICES=0 \
+  -e MODELS_ZOO=/models/zoo \
+  -e CACHE_DIR=/models/cache \
+  -e REPO_DIR=/models/repository \
+  -v "/export/ai_models/model-zoo:/models/zoo:ro" \
+  -v "/export/ai_models/triton:/models/cache" \
+  ai-gateway \
+  bash -c "cd /app/gateway/export && bash export_all.sh" 2>&1 | tail -20
+
+echo "  Model exports complete."
+echo "  Exported files:"
+ls -lh /export/ai_models/triton/*/1/ 2>/dev/null | grep -E "model\.(plan|onnx)" || echo "  (no exports found — models will load on demand)"
+
+# Phase 4: Start infrastructure (compose)
+echo ""
+echo "[4/8] Starting infrastructure..."
 podman compose -f "$PROJECT_ROOT/docker-compose.prod.yml" up -d postgres redis go2rtc 2>&1 | tail -3
 echo "  Waiting for postgres/redis..."
 sleep 10
 echo "  Infrastructure up."
 
-# Phase 4: Start observability (compose)
+# Phase 5: Start observability (compose)
 echo ""
-echo "[4/7] Starting observability..."
+echo "[5/8] Starting observability..."
 podman compose -f "$PROJECT_ROOT/docker-compose.prod.yml" up -d prometheus grafana loki jaeger elasticsearch alertmanager alloy node-exporter pyroscope blackbox-exporter json-exporter redis-exporter 2>&1 | tail -3
 echo "  Observability up."
 
-# Phase 5: Start AI services (standalone — gateway mode)
+# Phase 6: Start AI services (standalone — gateway mode)
 echo ""
-echo "[5/7] Starting AI services (gateway mode)..."
+echo "[6/8] Starting AI services (gateway mode)..."
 
 # AI Gateway (Triton + FastAPI) on GPU 1
 echo "  Starting ai-gateway on GPU ${GPU_AI_SERVICES:-1}..."
@@ -98,9 +124,9 @@ podman run -d \
 
 echo "  AI services started (2 containers)."
 
-# Phase 6: Start backend + frontend (standalone)
+# Phase 7: Start backend + frontend (standalone)
 echo ""
-echo "[6/7] Starting backend + frontend..."
+echo "[7/8] Starting backend + frontend..."
 
 echo "  Starting backend..."
 podman run -d \
@@ -133,9 +159,9 @@ podman run -d \
 
 echo "  Backend + frontend started."
 
-# Phase 7: Health check
+# Phase 8: Health check
 echo ""
-echo "[7/7] Checking health..."
+echo "[8/8] Checking health..."
 sleep 15
 
 echo "  Backend:"
