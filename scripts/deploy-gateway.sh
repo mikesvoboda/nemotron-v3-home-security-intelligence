@@ -38,7 +38,7 @@ echo "  Building backend..."
 podman build --no-cache -f "$PROJECT_ROOT/backend/Dockerfile" -t backend "$PROJECT_ROOT" 2>&1 | tail -1
 
 echo "  Building frontend..."
-podman build --no-cache -f "$PROJECT_ROOT/frontend/Dockerfile" -t frontend "$PROJECT_ROOT" 2>&1 | tail -1
+podman build --no-cache --target prod -f "$PROJECT_ROOT/Dockerfile" -t frontend "$PROJECT_ROOT" 2>&1 | tail -1
 
 echo "  Building ai-gateway..."
 podman build --no-cache -f "$PROJECT_ROOT/ai/gateway/Dockerfile" -t ai-gateway "$PROJECT_ROOT" 2>&1 | tail -1

@@ -8,7 +8,9 @@ RUN pip install --no-cache-dir \
     pillow \
     numpy \
     prometheus-client \
-    httpx
+    httpx \
+    python-multipart \
+    packaging
 
 # Copy gateway application code
 COPY ai/gateway/ /app/gateway/

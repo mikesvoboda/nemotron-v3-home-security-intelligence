@@ -52,7 +52,9 @@ tritonserver \
     --http-port="${TRITON_HTTP_PORT}" \
     --grpc-port="${TRITON_GRPC_PORT}" \
     --metrics-port="${TRITON_METRICS_PORT}" \
+    --model-control-mode=explicit \
     --strict-model-config=false \
+    --exit-on-error=false \
     --log-verbose=0 \
     &
 
@@ -92,7 +94,7 @@ fi
 # ---------------------------------------------------------------------------
 echo "[entrypoint] Starting AI Gateway on port ${GATEWAY_PORT}..."
 
-python -m uvicorn ai.gateway.main:app \
+python3 -m uvicorn ai.gateway.main:app \
     --host 0.0.0.0 \
     --port "${GATEWAY_PORT}" \
     --log-level info \
