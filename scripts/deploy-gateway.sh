@@ -65,34 +65,10 @@ else
     podman build --no-cache -f "$PROJECT_ROOT/docker/base.Dockerfile" \
         -t ghcr.io/mikesvoboda/nemotron-base:latest "$PROJECT_ROOT" 2>&1 | tail -1
 
-    # Build all service images in parallel
-    echo "  Building backend + frontend + ai-gateway + ai-llm in parallel..."
-    podman build --no-cache -f "$PROJECT_ROOT/backend/Dockerfile" -t backend "$PROJECT_ROOT" > /tmp/build-backend.log 2>&1 &
-    PID_BACKEND=$!
-    podman build --no-cache --target prod -f "$PROJECT_ROOT/frontend/Dockerfile" -t frontend "$PROJECT_ROOT/frontend" > /tmp/build-frontend.log 2>&1 &
-    PID_FRONTEND=$!
-    podman build --no-cache -f "$PROJECT_ROOT/ai/gateway/Dockerfile" -t ai-gateway "$PROJECT_ROOT" > /tmp/build-gateway.log 2>&1 &
-    PID_GATEWAY=$!
-    podman build --no-cache -f "$PROJECT_ROOT/ai/nemotron/Dockerfile" -t ai-llm "$PROJECT_ROOT" > /tmp/build-llm.log 2>&1 &
-    PID_LLM=$!
+    # Build all service images via compose (ensures correct image naming)
+    echo "  Building all services via compose..."
+    $COMPOSE build --no-cache backend frontend ai-gateway ai-llm 2>&1 | tail -5
 
-    # Wait for all builds
-    FAILED=0
-    for name_pid in "backend:$PID_BACKEND" "frontend:$PID_FRONTEND" "ai-gateway:$PID_GATEWAY" "ai-llm:$PID_LLM"; do
-        name="${name_pid%%:*}"
-        pid="${name_pid##*:}"
-        if wait "$pid"; then
-            echo "    ✓ $name"
-        else
-            echo "    ✗ $name FAILED (see /tmp/build-${name}.log)"
-            FAILED=1
-        fi
-    done
-
-    if [ "$FAILED" -eq 1 ]; then
-        echo "  ERROR: One or more builds failed."
-        exit 1
-    fi
     echo "  All images built."
 fi
 
@@ -129,11 +105,11 @@ fi
 # ==========================================================================
 echo ""
 echo "[4/6] Starting infrastructure + observability..."
-$COMPOSE up -d postgres redis go2rtc 2>&1 | tail -3
+$COMPOSE up -d --no-build postgres redis go2rtc 2>&1 | tail -3
 echo "  Waiting for postgres/redis..."
 sleep 10
 
-$COMPOSE up -d \
+$COMPOSE up -d --no-build \
     prometheus grafana loki tempo alertmanager alloy \
     node-exporter pyroscope blackbox-exporter json-exporter redis-exporter \
     dcgm-exporter cadvisor 2>&1 | tail -3
@@ -157,7 +133,7 @@ fi
 # ==========================================================================
 echo ""
 echo "[5/6] Starting AI + application services..."
-$COMPOSE up -d 2>&1 | tail -5
+$COMPOSE up -d --no-build 2>&1 | tail -5
 echo "  All services started."
 
 # ==========================================================================
