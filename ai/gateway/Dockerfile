@@ -1,7 +1,10 @@
 FROM nvcr.io/nvidia/tritonserver:25.01-py3
 
 # Install gateway Python dependencies
-RUN pip install --no-cache-dir \
+# Note: packaging must be installed explicitly — the Triton base image
+# has a system-managed version that pip skips but tritonclient can't find
+RUN pip install --no-cache-dir --force-reinstall packaging && \
+    pip install --no-cache-dir \
     fastapi \
     uvicorn[standard] \
     "tritonclient[grpc]" \
@@ -9,8 +12,7 @@ RUN pip install --no-cache-dir \
     numpy \
     prometheus-client \
     httpx \
-    python-multipart \
-    packaging
+    python-multipart
 
 # Copy gateway application code
 COPY ai/gateway/ /app/gateway/
