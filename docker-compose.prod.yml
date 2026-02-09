@@ -1088,7 +1088,7 @@ services:
     # See frontend/nginx.conf for proxy configuration.
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
       # FRONTEND_INTERNAL_PORT configures the internal nginx port (default: 8080)
