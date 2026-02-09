@@ -754,10 +754,14 @@ services:
       # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
-      - FLORENCE_URL=http://ai-florence:8092
-      - CLIP_URL=http://ai-clip:8093
-      - ENRICHMENT_URL=http://ai-enrichment:8094
-      - ENRICHMENT_LIGHT_URL=http://ai-enrichment-light:8096
+      # AI Gateway routes — all enrichment models served via Triton through ai-gateway
+      - USE_AI_GATEWAY=true
+      - AI_GATEWAY_URL=http://ai-gateway:8090
+      - YOLO26_URL=http://ai-gateway:8090/yolo26
+      - FLORENCE_URL=http://ai-gateway:8090/florence
+      - CLIP_URL=http://ai-gateway:8090/clip
+      - ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+      - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
       # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
       - GO2RTC_API_URL=http://go2rtc:1984
       # WebRTC URL is the external URL browsers use to connect (via localhost port mapping)

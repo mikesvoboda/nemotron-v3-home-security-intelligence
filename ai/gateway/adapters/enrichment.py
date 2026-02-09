@@ -346,7 +346,11 @@ class ActionClassifyRequest(BaseModel):
 
 
 class ActionClassifyResponse(BaseModel):
-    actions: list[dict[str, Any]] = Field(...)
+    action: str = Field(...)
+    confidence: float = Field(...)
+    is_suspicious: bool = Field(default=False)
+    risk_weight: float = Field(default=0.0)
+    all_scores: dict[str, float] = Field(default_factory=dict)
     inference_time_ms: float = Field(...)
 
 
@@ -543,7 +547,7 @@ async def _infer_demographics(image_b64: str) -> dict[str, Any]:
     }
 
 
-async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]:
+async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]:  # noqa: ARG001
     """Run action classification via Triton xclip_action Python backend."""
     start = time.monotonic()
     triton = get_triton_client()
@@ -576,15 +580,54 @@ async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]
 
     inference_time_ms = (time.monotonic() - start) * 1000
 
-    # Build actions list from all_scores for compatibility
+    # Build all_scores dict and extract top action
     all_scores_dict = scores_data.get("all_scores", {})
-    actions_list = [
-        {"action": a, "confidence": round(s, 4)}
-        for a, s in sorted(all_scores_dict.items(), key=lambda x: x[1], reverse=True)[:top_k]
-    ]
+
+    # Determine top action
+    if all_scores_dict:
+        top_action = max(all_scores_dict, key=all_scores_dict.get)  # type: ignore[arg-type]
+        top_confidence = round(float(all_scores_dict[top_action]), 4)
+    else:
+        # Fall back to Triton's direct outputs
+        action_raw = result.get("action", np.array([b"unknown"]))
+        if action_raw.dtype == object:
+            top_action = (
+                bytes(action_raw.flat[0]).decode("utf-8")
+                if isinstance(action_raw.flat[0], bytes)
+                else str(action_raw.flat[0])
+            )
+        else:
+            top_action = "unknown"
+        conf_raw = result.get("confidence", np.array([0.0]))
+        top_confidence = round(float(conf_raw.flat[0]), 4)
+
+    # Determine if action is suspicious based on security-relevant keywords
+    SUSPICIOUS_ACTIONS = {
+        "loitering",
+        "sneaking",
+        "running away",
+        "fighting",
+        "breaking",
+        "climbing",
+        "crawling",
+        "hiding",
+        "stealing",
+        "vandalism",
+        "throwing",
+        "attacking",
+        "trespassing",
+        "prowling",
+    }
+    action_lower = top_action.lower()
+    is_suspicious = any(s in action_lower for s in SUSPICIOUS_ACTIONS)
+    risk_weight = 0.8 if is_suspicious else 0.2
 
     return {
-        "actions": actions_list,
+        "action": top_action,
+        "confidence": top_confidence,
+        "is_suspicious": is_suspicious,
+        "risk_weight": risk_weight,
+        "all_scores": {k: round(float(v), 4) for k, v in all_scores_dict.items()},
         "inference_time_ms": round(inference_time_ms, 2),
     }
 

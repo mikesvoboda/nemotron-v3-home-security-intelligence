@@ -69,17 +69,16 @@ class BBoxRequest(BaseModel):
 
 class PoseResponse(BaseModel):
     keypoints: list[dict[str, Any]] = Field(...)
-    num_people: int = Field(...)
-    body_orientation: str | None = Field(default=None)
-    pose_quality: str | None = Field(default=None)
+    posture: str = Field(default="unknown")
+    alerts: list[str] = Field(default_factory=list)
+    num_people: int = Field(default=0)
     inference_time_ms: float = Field(...)
 
 
 class ThreatResponse(BaseModel):
-    threat_detected: bool = Field(...)
-    threat_type: str | None = Field(default=None)
-    confidence: float = Field(...)
-    detections: list[dict[str, Any]] = Field(default_factory=list)
+    threats_detected: list[dict[str, Any]] = Field(default_factory=list)
+    is_threat: bool = Field(...)
+    max_confidence: float = Field(default=0.0)
     inference_time_ms: float = Field(...)
 
 
@@ -118,15 +117,41 @@ def _softmax(x: np.ndarray) -> np.ndarray:
     return e / (e.sum() + 1e-8)
 
 
-def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[dict[str, Any]]:
-    """Post-process YOLOv8-pose output tensor to keypoint dicts.
+COCO_KEYPOINT_NAMES = [
+    "nose",
+    "left_eye",
+    "right_eye",
+    "left_ear",
+    "right_ear",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_hip",
+    "right_hip",
+    "left_knee",
+    "right_knee",
+    "left_ankle",
+    "right_ankle",
+]
+
+
+def _postprocess_pose(
+    output: np.ndarray, conf_threshold: float = 0.25
+) -> tuple[list[dict[str, Any]], int]:
+    """Post-process YOLOv8-pose output tensor to a flat keypoint list.
+
+    Returns the keypoints of the highest-confidence person detection as a flat
+    list of dicts, matching the format the backend's EnrichmentClient expects.
 
     Args:
         output: Raw model output, shape (1, 56, 8400).
         conf_threshold: Minimum confidence to keep a detection.
 
     Returns:
-        List of dicts with 'keypoints' list.
+        Tuple of (flat keypoints list, number of people detected).
     """
     preds = output[0]
     if preds.shape[0] < preds.shape[1]:
@@ -137,44 +162,108 @@ def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[
     preds = preds[mask]
 
     if len(preds) == 0:
-        return []
+        return [], 0
 
-    COCO_KEYPOINT_NAMES = [
-        "nose",
-        "left_eye",
-        "right_eye",
-        "left_ear",
-        "right_ear",
-        "left_shoulder",
-        "right_shoulder",
-        "left_elbow",
-        "right_elbow",
-        "left_wrist",
-        "right_wrist",
-        "left_hip",
-        "right_hip",
-        "left_knee",
-        "right_knee",
-        "left_ankle",
-        "right_ankle",
-    ]
+    num_people = len(preds)
 
-    results = []
-    for det in preds:
-        kp_data = det[5:]
-        keypoints = []
-        for i in range(17):
-            keypoints.append(
-                {
-                    "name": COCO_KEYPOINT_NAMES[i],
-                    "x": round(float(kp_data[i * 3]), 1),
-                    "y": round(float(kp_data[i * 3 + 1]), 1),
-                    "confidence": round(float(kp_data[i * 3 + 2]), 4),
-                }
-            )
-        results.append({"keypoints": keypoints})
+    # Take the highest-confidence person
+    best_idx = int(np.argmax(confidences[mask]))
+    det = preds[best_idx]
+    kp_data = det[5:]
 
-    return results
+    keypoints = []
+    for i in range(17):
+        keypoints.append(
+            {
+                "name": COCO_KEYPOINT_NAMES[i],
+                "x": round(float(kp_data[i * 3]), 1),
+                "y": round(float(kp_data[i * 3 + 1]), 1),
+                "confidence": round(float(kp_data[i * 3 + 2]), 4),
+            }
+        )
+
+    return keypoints, num_people
+
+
+def _derive_posture(keypoints: list[dict[str, Any]]) -> str:
+    """Derive a posture label from COCO keypoints.
+
+    Analyzes the spatial relationships between shoulders, hips, knees, and
+    ankles to classify the person's pose.
+
+    Returns one of: standing, crouching, lying, bending, unknown.
+    """
+    if not keypoints:
+        return "unknown"
+
+    # Build a quick lookup by name
+    kp_map: dict[str, dict[str, Any]] = {kp["name"]: kp for kp in keypoints}
+    min_conf = 0.3
+
+    def _y(name: str) -> float | None:
+        kp = kp_map.get(name)
+        if kp and kp["confidence"] >= min_conf:
+            return kp["y"]
+        return None
+
+    def _avg_y(*names: str) -> float | None:
+        vals = [v for n in names if (v := _y(n)) is not None]
+        return sum(vals) / len(vals) if vals else None
+
+    # Get averaged joint Y positions (higher Y = lower in image)
+    shoulder_y = _avg_y("left_shoulder", "right_shoulder")
+    hip_y = _avg_y("left_hip", "right_hip")
+    knee_y = _avg_y("left_knee", "right_knee")
+
+    if shoulder_y is None or hip_y is None:
+        return "unknown"
+
+    torso_height = abs(hip_y - shoulder_y)
+    if torso_height < 5:
+        return "unknown"
+
+    # Classify posture based on joint relationships
+    posture = "unknown"
+
+    if torso_height < 30 and abs(shoulder_y - hip_y) < 30:
+        posture = "lying"
+    elif knee_y is not None and abs(knee_y - hip_y) < torso_height * 0.5:
+        posture = "crouching"
+    elif shoulder_y > hip_y:
+        posture = "bending"
+    elif hip_y > shoulder_y:
+        posture = "standing"
+
+    return posture
+
+
+def _derive_pose_alerts(keypoints: list[dict[str, Any]], posture: str) -> list[str]:
+    """Generate security-relevant alerts from pose analysis.
+
+    Returns a list of alert strings for concerning postures.
+    """
+    alerts: list[str] = []
+
+    if posture == "crouching":
+        alerts.append("Person is crouching - potentially hiding or concealing activity")
+    elif posture == "lying":
+        alerts.append("Person is lying down - possible medical emergency or unusual behavior")
+
+    # Check if hands are raised above head (potential threat gesture)
+    kp_map = {kp["name"]: kp for kp in keypoints}
+    min_conf = 0.3
+
+    nose = kp_map.get("nose", {})
+    l_wrist = kp_map.get("left_wrist", {})
+    r_wrist = kp_map.get("right_wrist", {})
+
+    if nose.get("confidence", 0) >= min_conf:
+        nose_y = nose["y"]
+        if l_wrist.get("confidence", 0) >= min_conf and l_wrist["y"] < nose_y - 20:
+            if r_wrist.get("confidence", 0) >= min_conf and r_wrist["y"] < nose_y - 20:
+                alerts.append("Both hands raised above head")
+
+    return alerts
 
 
 def _postprocess_threat(output: np.ndarray, conf_threshold: float = 0.25) -> list[dict[str, Any]]:
@@ -239,6 +328,8 @@ async def pose_analyze(request: BBoxRequest) -> PoseResponse:
     """Analyze human pose keypoints from an image.
 
     Uses the YOLO-Pose TensorRT model via Triton for fast keypoint detection.
+    Returns a flat keypoints list with derived posture and security alerts,
+    matching the format expected by the backend's EnrichmentClient.
     """
     start = time.monotonic()
     triton = get_triton_client()
@@ -255,15 +346,17 @@ async def pose_analyze(request: BBoxRequest) -> PoseResponse:
             outputs=["output0"],
         )
 
-        keypoints = _postprocess_pose(result["output0"])
+        keypoints, num_people = _postprocess_pose(result["output0"])
+        posture = _derive_posture(keypoints)
+        alerts = _derive_pose_alerts(keypoints, posture)
 
         inference_time_ms = (time.monotonic() - start) * 1000
 
         return PoseResponse(
             keypoints=keypoints,
-            num_people=len(keypoints),
-            body_orientation=None,
-            pose_quality=None,
+            posture=posture,
+            alerts=alerts,
+            num_people=num_people,
             inference_time_ms=round(inference_time_ms, 2),
         )
     except TritonClientError as e:
@@ -277,6 +370,8 @@ async def threat_detect(request: BBoxRequest) -> ThreatResponse:
     """Detect weapons or threats in an image.
 
     Uses the YOLO weapon detection TensorRT model via Triton.
+    Returns fields matching the backend's EnrichmentClient expected format:
+    threats_detected, is_threat, max_confidence.
     """
     start = time.monotonic()
     triton = get_triton_client()
@@ -297,15 +392,13 @@ async def threat_detect(request: BBoxRequest) -> ThreatResponse:
 
         inference_time_ms = (time.monotonic() - start) * 1000
 
-        threat_detected = len(detections) > 0
-        threat_type = detections[0].get("class", None) if threat_detected else None
-        confidence = detections[0].get("confidence", 0.0) if threat_detected else 0.0
+        is_threat = len(detections) > 0
+        max_confidence = max((d.get("confidence", 0.0) for d in detections), default=0.0)
 
         return ThreatResponse(
-            threat_detected=threat_detected,
-            threat_type=threat_type,
-            confidence=round(confidence, 4),
-            detections=detections,
+            threats_detected=detections,
+            is_threat=is_threat,
+            max_confidence=round(max_confidence, 4),
             inference_time_ms=round(inference_time_ms, 2),
         )
     except TritonClientError as e:
