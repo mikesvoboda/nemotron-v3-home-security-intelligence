@@ -231,10 +231,13 @@ pyroscope.write "default" {
 }
 
 // ============================================
-// OTLP TRACE PIPELINE (Backend Services)
+// OTLP TELEMETRY PIPELINE (Backend Services)
 // ============================================
-
-// Receive OTLP traces from backend services
+// Receives OTLP traces and metrics from the backend via gRPC/HTTP.
+//
+// - Traces  -> Tempo (distributed tracing, Grafana Explore)
+// - Metrics -> Prometheus (via remote write for OTEL-exported metrics)
+//
 // NOTE: Binding to 0.0.0.0 is intentional for Docker network access.
 // Other containers (backend, AI services) connect via service name "alloy"
 // which requires the receiver to listen on all interfaces within the container.
@@ -248,7 +251,8 @@ otelcol.receiver.otlp "default" {
     endpoint = "0.0.0.0:4318"
   }
   output {
-    traces = [otelcol.exporter.otlp.tempo.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.default.input]
   }
 }
 
@@ -259,5 +263,16 @@ otelcol.exporter.otlp "tempo" {
     tls {
       insecure = true
     }
+  }
+}
+
+// Export OTEL metrics to Prometheus via remote write
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
   }
 }

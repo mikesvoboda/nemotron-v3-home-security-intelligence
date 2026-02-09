@@ -777,7 +777,7 @@ services:
       - ENRICHMENT_CLOTHING_SERVICE=${ENRICHMENT_CLOTHING_SERVICE:-heavy}
       - ENRICHMENT_ACTION_SERVICE=${ENRICHMENT_ACTION_SERVICE:-heavy}
       - ENRICHMENT_DEMOGRAPHICS_SERVICE=${ENRICHMENT_DEMOGRAPHICS_SERVICE:-heavy}
-      - YOLO26_URL=http://ai-yolo26:8095
+      # YOLO26_URL is set above in the AI Gateway routes block
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
@@ -1178,6 +1178,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}'
       - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
     # NEM-3898: Prometheus must wait for Alertmanager to be healthy before starting
     # This ensures Prometheus can connect to Alertmanager for alert delivery
     depends_on:
