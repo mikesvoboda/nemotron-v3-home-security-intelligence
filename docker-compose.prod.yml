@@ -806,10 +806,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
+          'CMD-SHELL',
+          'python -c "import httpx; r = httpx.get(''http://localhost:8000/api/system/health/ready''); exit(0 if r.status_code == 200 else 1)"',
         ]
       interval: 10s
       timeout: 5s
