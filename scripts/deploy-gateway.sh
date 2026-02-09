@@ -152,7 +152,7 @@ fi
 echo "  Infrastructure + observability up."
 
 # Wait for model export if it was started
-if [ "$SKIP_EXPORT" != true ] && [ "$MISSING_MODELS" -gt 0 ]; then
+if [ "$SKIP_EXPORT" != true ] && [ "${MISSING_MODELS:-0}" -gt 0 ]; then
     echo ""
     echo "  Waiting for model export to complete..."
     if wait "$PID_EXPORT"; then
