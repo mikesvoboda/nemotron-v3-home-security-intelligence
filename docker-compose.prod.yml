@@ -1459,22 +1459,13 @@ services:
   # Provides detailed container-level resource usage metrics
   # Access UI at http://localhost:8088
   cadvisor:
-    # Security hardening (NEM-4499): Use specific capabilities instead of privileged mode
-    # cAdvisor needs these capabilities to access container metrics from /sys and cgroups:
-    # - SYS_ADMIN: Required for cgroup access and container introspection
-    # - SYS_PTRACE: Required for process tracing and metrics collection
-    # - DAC_READ_SEARCH: Read files without permission checks (for /sys and /proc)
-    # Reference: https://github.com/google/cadvisor#quick-start-running-cadvisor-in-a-docker-container
+    # cAdvisor requires privileged mode on cgroups v2 (kernel 6.18+, Fedora 43)
+    # Individual capabilities (SYS_ADMIN, SYS_PTRACE, DAC_READ_SEARCH) are insufficient
+    # because inotify_add_watch on /sys/fs/cgroup requires full privileged access.
+    # See: https://github.com/google/cadvisor/issues/3234
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
-      - DAC_READ_SEARCH
+    privileged: true
     devices:
       - /dev/kmsg:/dev/kmsg
     volumes:
@@ -1548,13 +1539,19 @@ services:
     image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
     container_name: dcgm-exporter
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # KNOWN LIMITATION: DCGM nv-hostengine requires host-level root access to watch GPU fields.
+    # Rootless Podman cannot provide this even with privileged: true (user namespace isolation).
+    # This service is disabled by default (gpu-rootful profile) to prevent crash-looping.
+    # GPU metrics are available via alternative sources:
+    #   - Triton (ai-gateway:8002/metrics): nv_gpu_utilization, nv_gpu_memory_used_bytes
+    #   - Backend API (/api/system/gpu): hsi_gpu_utilization, hsi_gpu_memory_used_mb
+    # To enable: run with rootful podman or use `--profile gpu-rootful`
+    profiles:
+      - gpu-rootful
+    security_opt:
+      - label=disable
+    devices:
+      - nvidia.com/gpu=all
     volumes:
       # Custom counters CSV to enable PCIe throughput metrics (NEM-4150)
       - ./monitoring/dcgm/custom-counters.csv:/etc/dcgm-exporter/default-counters.csv:ro,z

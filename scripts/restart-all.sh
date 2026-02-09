@@ -39,6 +39,10 @@ AI_SERVICES="ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment"
 MONITORING_SERVICES="prometheus grafana redis-exporter json-exporter"
 ALL_SERVICES="$CORE_SERVICES $AI_SERVICES $MONITORING_SERVICES"
 
+# Rootful systemd services (require host-level root, managed outside compose)
+# dcgm-exporter: DCGM nv-hostengine requires UID 0 for GPU field monitoring
+ROOTFUL_SERVICES="dcgm-exporter"
+
 # Load environment variables
 load_env() {
     if [ -f "$ENV_FILE" ]; then
@@ -104,6 +108,32 @@ stop_services() {
     print_success "$group_name services stopped"
 }
 
+# Start rootful systemd services (dcgm-exporter, etc.)
+start_rootful_services() {
+    for svc in $ROOTFUL_SERVICES; do
+        if systemctl is-enabled "${svc}.service" &>/dev/null; then
+            print_status "Starting rootful service: $svc..."
+            sudo systemctl start "$svc" 2>/dev/null \
+                && print_success "$svc started (rootful systemd)" \
+                || print_warning "$svc failed to start (check: sudo journalctl -u $svc)"
+        else
+            print_warning "$svc: not installed (run setup.py or see monitoring/dcgm/)"
+        fi
+    done
+}
+
+# Stop rootful systemd services
+stop_rootful_services() {
+    for svc in $ROOTFUL_SERVICES; do
+        if systemctl is-enabled "${svc}.service" &>/dev/null; then
+            print_status "Stopping rootful service: $svc..."
+            sudo systemctl stop "$svc" 2>/dev/null \
+                && print_success "$svc stopped" \
+                || print_warning "$svc failed to stop"
+        fi
+    done
+}
+
 # Show status
 show_status() {
     echo ""
@@ -114,6 +144,17 @@ show_status() {
 
     podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "nemotron|NAME" || \
     docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "nemotron|NAME"
+
+    # Show rootful services status
+    for svc in $ROOTFUL_SERVICES; do
+        if systemctl is-enabled "${svc}.service" &>/dev/null; then
+            local status
+            status=$(systemctl is-active "${svc}.service" 2>/dev/null || echo "unknown")
+            echo ""
+            echo "Rootful service: $svc ($status)"
+            sudo podman ps -a --filter "name=$svc" --format "  {{.Names}}\t{{.Status}}" 2>/dev/null || true
+        fi
+    done
 
     echo ""
 
@@ -180,6 +221,8 @@ main() {
             echo ""
             start_services "$MONITORING_SERVICES" "Monitoring" "monitoring"
             echo ""
+            start_rootful_services
+            echo ""
 
             print_status "Waiting for services to initialize..."
             sleep 10
@@ -194,6 +237,7 @@ main() {
             echo "=========================================="
             echo ""
 
+            stop_rootful_services
             stop_services "$MONITORING_SERVICES" "Monitoring" "monitoring"
             stop_services "$AI_SERVICES" "AI"
             stop_services "$CORE_SERVICES" "Core"

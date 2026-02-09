@@ -1,0 +1,34 @@
+[Unit]
+Description=NVIDIA DCGM Exporter for GPU Hardware Metrics (Home Security Intelligence)
+Documentation=https://github.com/NVIDIA/dcgm-exporter
+After=network.target nvidia-persistenced.service
+Wants=nvidia-persistenced.service
+
+[Service]
+Type=simple
+# Remove any leftover container before starting
+ExecStartPre=-/usr/bin/podman rm -f dcgm-exporter
+# Run dcgm-exporter via rootful podman.
+# DCGM's nv-hostengine requires host-level root (UID 0) to watch GPU fields.
+# Rootless Podman cannot satisfy this — even privileged mode only grants
+# user-namespace root. This service MUST run under rootful podman.
+#
+# __PROJECT_ROOT__ is substituted by the installer with the actual project path.
+ExecStart=/usr/bin/podman run --rm \
+    --name dcgm-exporter \
+    --net=host \
+    --device nvidia.com/gpu=all \
+    --cap-add SYS_ADMIN \
+    --security-opt label=disable \
+    -e DCGM_EXPORTER_LISTEN=:9400 \
+    -e DCGM_EXPORTER_KUBERNETES=false \
+    -v __PROJECT_ROOT__/monitoring/dcgm/custom-counters.csv:/etc/dcgm-exporter/default-counters.csv:ro \
+    nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
+ExecStop=/usr/bin/podman stop -t 10 dcgm-exporter
+Restart=on-failure
+RestartSec=10s
+TimeoutStartSec=60
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

@@ -38,6 +38,7 @@ from setup_lib.model_downloader import prompt_and_download_models
 from setup_lib.nvidia_detect import prompt_and_check_nvidia
 from setup_lib.platform_detect import get_platform_info, print_platform_info
 from setup_lib.podman_install import prompt_and_install_podman
+from setup_lib.rootful_services import prompt_and_install_dcgm_service
 from setup_lib.ssl_certs import prompt_and_generate_certificates
 from setup_lib.storage_config import prompt_and_configure_storage
 
@@ -1029,6 +1030,12 @@ def main() -> None:
 
             # Step 2/5: NVIDIA GPU detection
             prompt_and_check_nvidia({})
+
+            # Step 2b: DCGM Exporter service (GPU hardware metrics)
+            # Installs a rootful systemd service for DCGM, which requires
+            # host-level root access that rootless Podman cannot provide.
+            project_root = Path(__file__).resolve().parent
+            prompt_and_install_dcgm_service(project_root)
 
             # Step 3/5: Storage configuration
             storage_result = prompt_and_configure_storage({})

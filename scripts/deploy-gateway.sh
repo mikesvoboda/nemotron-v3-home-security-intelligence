@@ -46,6 +46,8 @@ echo "[1/6] Stopping all containers..."
 $COMPOSE down 2>/dev/null || true
 podman stop -a 2>/dev/null || true
 podman rm -a 2>/dev/null || true
+# Stop rootful dcgm-exporter if running (separate from rootless compose)
+sudo systemctl stop dcgm-exporter 2>/dev/null || true
 
 if [ "$DESTROY_VOLUMES" = true ]; then
     echo "  Destroying volumes..."
@@ -136,7 +138,17 @@ sleep 10
 $COMPOSE up -d --no-build \
     prometheus grafana loki tempo alertmanager alloy \
     node-exporter pyroscope blackbox-exporter json-exporter redis-exporter \
-    dcgm-exporter cadvisor 2>&1 | tail -3
+    cadvisor 2>&1 | tail -3
+
+# dcgm-exporter runs as a rootful systemd service (DCGM requires host-level root).
+# It is NOT part of the rootless compose stack. See monitoring/dcgm/dcgm-exporter.service.
+if systemctl is-enabled dcgm-exporter.service &>/dev/null; then
+    sudo systemctl restart dcgm-exporter 2>/dev/null \
+        && echo "  dcgm-exporter: restarted (rootful systemd service)" \
+        || echo "  dcgm-exporter: failed to restart (check: sudo journalctl -u dcgm-exporter)"
+else
+    echo "  dcgm-exporter: skipped (not installed — run setup.py or see monitoring/dcgm/)"
+fi
 echo "  Infrastructure + observability up."
 
 # Wait for model export if it was started
@@ -166,6 +178,21 @@ echo "  All services started."
 echo ""
 echo "[6/6] Health check (waiting 30s for model loading)..."
 sleep 30
+
+# Auto-register default admin if first deploy (resolves SetupGuard 503s)
+SETUP_STATUS=$(curl -sf "http://localhost:${API_PORT:-8000}/api/auth/setup-status" 2>/dev/null)
+if echo "$SETUP_STATUS" | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin).get('setup_required') else 1)" 2>/dev/null; then
+    echo "  Registering default admin user..."
+    REGISTER_RESULT=$(curl -sf -X POST "http://localhost:${API_PORT:-8000}/api/auth/register" \
+        -H "Content-Type: application/json" \
+        -d '{"username":"admin","email":"admin@local.host","password":"ChangeMe123!"}' 2>/dev/null)  # pragma: allowlist secret
+    if [ $? -eq 0 ]; then
+        echo "    Admin registered: admin / ChangeMe123!"
+        echo "    IMPORTANT: Change this password after first login."
+    else
+        echo "    Admin registration failed (may already exist)"
+    fi
+fi
 
 echo "  Backend:"
 curl -s "http://localhost:${API_PORT:-8000}/api/system/health" 2>/dev/null \
