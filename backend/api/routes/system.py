@@ -2489,7 +2489,11 @@ async def get_config(response: Response) -> ConfigResponse:
         detection_confidence_threshold=settings.detection_confidence_threshold,
         # Clamp fast_path_confidence_threshold to 1.0 for API response
         # (values > 1.0 are used internally to disable fast path)
-        fast_path_confidence_threshold=min(settings.fast_path_confidence_threshold, 1.0),
+        fast_path_confidence_threshold=(
+            min(settings.fast_path_confidence_threshold, 1.0)
+            if isinstance(settings.fast_path_confidence_threshold, (int, float))
+            else settings.fast_path_confidence_threshold
+        ),
         grafana_url=settings.grafana_url,
         debug=settings.debug,
     )
@@ -2685,7 +2689,11 @@ async def patch_config(
         detection_confidence_threshold=settings.detection_confidence_threshold,
         # Clamp fast_path_confidence_threshold to 1.0 for API response
         # (values > 1.0 are used internally to disable fast path)
-        fast_path_confidence_threshold=min(settings.fast_path_confidence_threshold, 1.0),
+        fast_path_confidence_threshold=(
+            min(settings.fast_path_confidence_threshold, 1.0)
+            if isinstance(settings.fast_path_confidence_threshold, (int, float))
+            else settings.fast_path_confidence_threshold
+        ),
         grafana_url=settings.grafana_url,
         debug=settings.debug,
     )

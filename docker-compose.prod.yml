@@ -348,6 +348,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
