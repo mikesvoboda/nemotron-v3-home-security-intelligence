@@ -2491,7 +2491,7 @@ async def get_config(response: Response) -> ConfigResponse:
         # (values > 1.0 are used internally to disable fast path)
         fast_path_confidence_threshold=(
             min(settings.fast_path_confidence_threshold, 1.0)
-            if isinstance(settings.fast_path_confidence_threshold, (int, float))
+            if isinstance(settings.fast_path_confidence_threshold, int | float)
             else settings.fast_path_confidence_threshold
         ),
         grafana_url=settings.grafana_url,
@@ -2691,7 +2691,7 @@ async def patch_config(
         # (values > 1.0 are used internally to disable fast path)
         fast_path_confidence_threshold=(
             min(settings.fast_path_confidence_threshold, 1.0)
-            if isinstance(settings.fast_path_confidence_threshold, (int, float))
+            if isinstance(settings.fast_path_confidence_threshold, int | float)
             else settings.fast_path_confidence_threshold
         ),
         grafana_url=settings.grafana_url,
