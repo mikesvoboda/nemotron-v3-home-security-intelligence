@@ -188,6 +188,56 @@ else
     echo -e "${YELLOW}Could not enable lingering (may already be enabled)${NC}"
 fi
 
+# ==========================================================================
+# Rootful systemd services (require host-level root)
+# ==========================================================================
+# DCGM Exporter requires rootful Podman because nv-hostengine needs UID 0.
+# This is installed as a system-level service, separate from user-level services.
+DCGM_SERVICE_TEMPLATE="$PROJECT_ROOT/monitoring/dcgm/dcgm-exporter.service"
+DCGM_SERVICE_DEST="/etc/systemd/system/dcgm-exporter.service"
+
+if [[ -f "$DCGM_SERVICE_TEMPLATE" ]] && command -v nvidia-smi &>/dev/null; then
+    echo ""
+    echo "============================================="
+    echo "Rootful GPU Service: DCGM Exporter"
+    echo "============================================="
+    echo ""
+
+    if systemctl is-enabled dcgm-exporter.service &>/dev/null; then
+        echo -e "  dcgm-exporter.service: ${GREEN}already installed${NC}"
+        if systemctl is-active dcgm-exporter.service &>/dev/null; then
+            echo -e "  Status: ${GREEN}running${NC}"
+        else
+            echo -e "  Status: ${YELLOW}not running${NC}"
+            echo "  Start with: sudo systemctl start dcgm-exporter"
+        fi
+    else
+        echo "DCGM Exporter provides detailed GPU hardware metrics (SM utilization,"
+        echo "temperature, power, PCIe throughput) and requires rootful Podman."
+        echo ""
+        read -p "Install DCGM exporter as system service? (Y/n) " -r
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            echo ""
+            echo "Installing DCGM exporter service (requires sudo)..."
+            # Substitute project root path in the template
+            RESOLVED_ROOT="$(cd "$PROJECT_ROOT" && pwd)"
+            sed "s|__PROJECT_ROOT__|$RESOLVED_ROOT|g" "$DCGM_SERVICE_TEMPLATE" | \
+                sudo tee "$DCGM_SERVICE_DEST" > /dev/null
+            sudo chmod 644 "$DCGM_SERVICE_DEST"
+            sudo systemctl daemon-reload
+            if sudo systemctl enable --now dcgm-exporter.service 2>/dev/null; then
+                echo -e "  dcgm-exporter.service: ${GREEN}installed and started${NC}"
+            else
+                echo -e "  dcgm-exporter.service: ${GREEN}installed${NC} (will start on next boot)"
+            fi
+        else
+            echo -e "  Skipped. Install later with:"
+            echo "    sudo cp $DCGM_SERVICE_TEMPLATE $DCGM_SERVICE_DEST"
+            echo "    sudo systemctl daemon-reload && sudo systemctl enable --now dcgm-exporter"
+        fi
+    fi
+fi
+
 # Summary
 echo ""
 echo "============================================="
@@ -212,3 +262,9 @@ echo "  # Disable auto-start"
 echo "  for s in $SYSTEMD_USER_DIR/nemotron-v3*.service; do"
 echo "    systemctl --user disable \"\$(basename \$s)\""
 echo "  done"
+echo ""
+if systemctl is-enabled dcgm-exporter.service &>/dev/null 2>&1; then
+    echo "  # DCGM exporter (rootful, system-level)"
+    echo "  sudo systemctl status dcgm-exporter"
+    echo "  sudo journalctl -u dcgm-exporter -f"
+fi

@@ -130,6 +130,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     labels:
@@ -190,6 +191,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
@@ -201,6 +203,9 @@ services:
     build:
       context: ./ai/nemotron
       dockerfile: Dockerfile
+    # Podman CDI device passthrough (rootless GPU access)
+    devices:
+      - nvidia.com/gpu=${GPU_LLM:-0}
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
       - '127.0.0.1:${LLM_PORT:-8091}:8091'
@@ -343,6 +348,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
@@ -410,6 +416,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
@@ -476,6 +483,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
@@ -564,6 +572,7 @@ services:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     tmpfs:
@@ -666,11 +675,15 @@ services:
   ai-gateway:
     security_opt:
       - no-new-privileges:true
+      - label=disable
     cap_drop:
       - ALL
     build:
       context: .
       dockerfile: ai/gateway/Dockerfile
+    # Podman CDI device passthrough (rootless GPU access)
+    devices:
+      - nvidia.com/gpu=${GPU_AI_SERVICES:-1}
     ports:
       - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090'
       - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002'
@@ -683,10 +696,11 @@ services:
       - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      # Triton loads 13 models — allow 3 minutes for all to initialize
+      start_period: 180s
     restart: unless-stopped
     networks:
       - security-net
@@ -745,10 +759,14 @@ services:
       # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
-      - FLORENCE_URL=http://ai-florence:8092
-      - CLIP_URL=http://ai-clip:8093
-      - ENRICHMENT_URL=http://ai-enrichment:8094
-      - ENRICHMENT_LIGHT_URL=http://ai-enrichment-light:8096
+      # AI Gateway routes — all enrichment models served via Triton through ai-gateway
+      - USE_AI_GATEWAY=true
+      - AI_GATEWAY_URL=http://ai-gateway:8090
+      - YOLO26_URL=http://ai-gateway:8090/yolo26
+      - FLORENCE_URL=http://ai-gateway:8090/florence
+      - CLIP_URL=http://ai-gateway:8090/clip
+      - ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+      - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
       # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
       - GO2RTC_API_URL=http://go2rtc:1984
       # WebRTC URL is the external URL browsers use to connect (via localhost port mapping)
@@ -764,7 +782,7 @@ services:
       - ENRICHMENT_CLOTHING_SERVICE=${ENRICHMENT_CLOTHING_SERVICE:-heavy}
       - ENRICHMENT_ACTION_SERVICE=${ENRICHMENT_ACTION_SERVICE:-heavy}
       - ENRICHMENT_DEMOGRAPHICS_SERVICE=${ENRICHMENT_DEMOGRAPHICS_SERVICE:-heavy}
-      - YOLO26_URL=http://ai-yolo26:8095
+      # YOLO26_URL is set above in the AI Gateway routes block
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
@@ -797,10 +815,8 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
+          'CMD-SHELL',
+          'python -c "import httpx; r = httpx.get(''http://localhost:8000/api/system/health/ready''); exit(0 if r.status_code == 200 else 1)"',
         ]
       interval: 10s
       timeout: 5s
@@ -1079,7 +1095,7 @@ services:
     # See frontend/nginx.conf for proxy configuration.
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
       # FRONTEND_INTERNAL_PORT configures the internal nginx port (default: 8080)
@@ -1167,6 +1183,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}'
       - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
     # NEM-3898: Prometheus must wait for Alertmanager to be healthy before starting
     # This ensures Prometheus can connect to Alertmanager for alert delivery
     depends_on:
@@ -1450,22 +1467,13 @@ services:
   # Provides detailed container-level resource usage metrics
   # Access UI at http://localhost:8088
   cadvisor:
-    # Security hardening (NEM-4499): Use specific capabilities instead of privileged mode
-    # cAdvisor needs these capabilities to access container metrics from /sys and cgroups:
-    # - SYS_ADMIN: Required for cgroup access and container introspection
-    # - SYS_PTRACE: Required for process tracing and metrics collection
-    # - DAC_READ_SEARCH: Read files without permission checks (for /sys and /proc)
-    # Reference: https://github.com/google/cadvisor#quick-start-running-cadvisor-in-a-docker-container
+    # cAdvisor requires privileged mode on cgroups v2 (kernel 6.18+, Fedora 43)
+    # Individual capabilities (SYS_ADMIN, SYS_PTRACE, DAC_READ_SEARCH) are insufficient
+    # because inotify_add_watch on /sys/fs/cgroup requires full privileged access.
+    # See: https://github.com/google/cadvisor/issues/3234
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
-      - DAC_READ_SEARCH
+    privileged: true
     devices:
       - /dev/kmsg:/dev/kmsg
     volumes:
@@ -1539,13 +1547,19 @@ services:
     image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
     container_name: dcgm-exporter
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # KNOWN LIMITATION: DCGM nv-hostengine requires host-level root access to watch GPU fields.
+    # Rootless Podman cannot provide this even with privileged: true (user namespace isolation).
+    # This service is disabled by default (gpu-rootful profile) to prevent crash-looping.
+    # GPU metrics are available via alternative sources:
+    #   - Triton (ai-gateway:8002/metrics): nv_gpu_utilization, nv_gpu_memory_used_bytes
+    #   - Backend API (/api/system/gpu): hsi_gpu_utilization, hsi_gpu_memory_used_mb
+    # To enable: run with rootful podman or use `--profile gpu-rootful`
+    profiles:
+      - gpu-rootful
+    security_opt:
+      - label=disable
+    devices:
+      - nvidia.com/gpu=all
     volumes:
       # Custom counters CSV to enable PCIe throughput metrics (NEM-4150)
       - ./monitoring/dcgm/custom-counters.csv:/etc/dcgm-exporter/default-counters.csv:ro,z

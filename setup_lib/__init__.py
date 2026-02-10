@@ -55,8 +55,17 @@ from setup_lib.port_scanner import (
     scan_ports,
     scan_required_ports,
 )
+from setup_lib.rootful_services import (
+    DCGM_SERVICE_NAME,
+    install_dcgm_exporter_service,
+    is_dcgm_service_installed,
+    is_dcgm_service_running,
+    prompt_and_install_dcgm_service,
+    uninstall_dcgm_exporter_service,
+)
 
 __all__ = [
+    "DCGM_SERVICE_NAME",
     "REQUIRED_PORTS",
     "WEAK_PASSWORDS",
     "CredentialConfig",
@@ -82,7 +91,10 @@ __all__ = [
     "get_process_using_port",
     "get_toolkit_installation_summary",
     "get_toolkit_version",
+    "install_dcgm_exporter_service",
     "install_toolkit",
+    "is_dcgm_service_installed",
+    "is_dcgm_service_running",
     "is_docker_installed",
     "is_podman_installed",
     "is_toolkit_installed",
@@ -90,6 +102,7 @@ __all__ = [
     "print_conflict_report",
     "prompt_and_configure_runtimes",
     "prompt_and_generate_credentials",
+    "prompt_and_install_dcgm_service",
     "prompt_and_install_toolkit",
     "prompt_and_scan_ports",
     "redact_secret",
@@ -97,6 +110,7 @@ __all__ = [
     "scan_ports",
     "scan_required_ports",
     "setup_nvidia_container_toolkit",
+    "uninstall_dcgm_exporter_service",
     "validate_password_strength",
     "verify_gpu_passthrough",
 ]

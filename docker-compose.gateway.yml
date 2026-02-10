@@ -23,4 +23,4 @@ services:
       - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
     depends_on:
       ai-gateway:
-        condition: service_healthy
+        condition: service_started

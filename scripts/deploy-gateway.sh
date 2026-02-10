@@ -4,9 +4,10 @@
 # All services managed via compose — single source of truth for configuration.
 #
 # Usage:
-#   ./scripts/deploy-gateway.sh                    # Normal deploy
+#   ./scripts/deploy-gateway.sh                    # Normal deploy (auto-skips export if cached)
 #   ./scripts/deploy-gateway.sh --destroy-volumes  # Fresh deploy (destroys all data)
-#   ./scripts/deploy-gateway.sh --skip-export      # Skip model export (use cached)
+#   ./scripts/deploy-gateway.sh --force-export     # Force re-export all models
+#   ./scripts/deploy-gateway.sh --skip-export      # Skip model export entirely
 #   ./scripts/deploy-gateway.sh --skip-build       # Skip image builds (use existing)
 set -euo pipefail
 
@@ -16,11 +17,13 @@ source "$PROJECT_ROOT/.env"
 # Parse arguments
 DESTROY_VOLUMES=false
 SKIP_EXPORT=false
+FORCE_EXPORT=false
 SKIP_BUILD=false
 for arg in "$@"; do
     case "$arg" in
         --destroy-volumes) DESTROY_VOLUMES=true ;;
         --skip-export) SKIP_EXPORT=true ;;
+        --force-export) FORCE_EXPORT=true ;;
         --skip-build) SKIP_BUILD=true ;;
     esac
 done
@@ -43,6 +46,8 @@ echo "[1/6] Stopping all containers..."
 $COMPOSE down 2>/dev/null || true
 podman stop -a 2>/dev/null || true
 podman rm -a 2>/dev/null || true
+# Stop rootful dcgm-exporter if running (separate from rootless compose)
+sudo systemctl stop dcgm-exporter 2>/dev/null || true
 
 if [ "$DESTROY_VOLUMES" = true ]; then
     echo "  Destroying volumes..."
@@ -65,47 +70,44 @@ else
     podman build --no-cache -f "$PROJECT_ROOT/docker/base.Dockerfile" \
         -t ghcr.io/mikesvoboda/nemotron-base:latest "$PROJECT_ROOT" 2>&1 | tail -1
 
-    # Build all service images in parallel
-    echo "  Building backend + frontend + ai-gateway + ai-llm in parallel..."
-    podman build --no-cache -f "$PROJECT_ROOT/backend/Dockerfile" -t backend "$PROJECT_ROOT" > /tmp/build-backend.log 2>&1 &
-    PID_BACKEND=$!
-    podman build --no-cache --target prod -f "$PROJECT_ROOT/frontend/Dockerfile" -t frontend "$PROJECT_ROOT/frontend" > /tmp/build-frontend.log 2>&1 &
-    PID_FRONTEND=$!
-    podman build --no-cache -f "$PROJECT_ROOT/ai/gateway/Dockerfile" -t ai-gateway "$PROJECT_ROOT" > /tmp/build-gateway.log 2>&1 &
-    PID_GATEWAY=$!
-    podman build --no-cache -f "$PROJECT_ROOT/ai/nemotron/Dockerfile" -t ai-llm "$PROJECT_ROOT" > /tmp/build-llm.log 2>&1 &
-    PID_LLM=$!
+    # Build all service images via compose (ensures correct image naming)
+    echo "  Building all services via compose..."
+    $COMPOSE build --no-cache backend frontend ai-gateway ai-llm 2>&1 | tail -5
 
-    # Wait for all builds
-    FAILED=0
-    for name_pid in "backend:$PID_BACKEND" "frontend:$PID_FRONTEND" "ai-gateway:$PID_GATEWAY" "ai-llm:$PID_LLM"; do
-        name="${name_pid%%:*}"
-        pid="${name_pid##*:}"
-        if wait "$pid"; then
-            echo "    ✓ $name"
-        else
-            echo "    ✗ $name FAILED (see /tmp/build-${name}.log)"
-            FAILED=1
-        fi
-    done
-
-    if [ "$FAILED" -eq 1 ]; then
-        echo "  ERROR: One or more builds failed."
-        exit 1
-    fi
     echo "  All images built."
 fi
 
 # ==========================================================================
 # Phase 3: Export models for Triton
 # ==========================================================================
+# Auto-detect if model exports are needed by checking for core model files
+TRITON_CACHE="/export/ai_models/triton"
+CORE_MODELS="yolo26 clip clip_text pose threat reid depth pet vehicle demographics_age demographics_gender fashion_clip"
+MISSING_MODELS=0
+
+if [ "$SKIP_EXPORT" != true ] && [ "$FORCE_EXPORT" != true ]; then
+    for model in $CORE_MODELS; do
+        if [ ! -f "$TRITON_CACHE/$model/1/model.onnx" ] && [ ! -f "$TRITON_CACHE/$model/1/model.plan" ]; then
+            MISSING_MODELS=$((MISSING_MODELS + 1))
+        fi
+    done
+fi
+
+if [ "$FORCE_EXPORT" = true ]; then
+    MISSING_MODELS=999  # Force re-export
+fi
+
 if [ "$SKIP_EXPORT" = true ]; then
     echo ""
     echo "[3/6] Skipping model export (--skip-export)"
+elif [ "$MISSING_MODELS" -eq 0 ]; then
+    echo ""
+    echo "[3/6] All $( echo $CORE_MODELS | wc -w) core models cached — skipping export"
+    echo "  Use --force-export to rebuild, or delete /export/ai_models/triton/ to re-export all"
 else
     echo ""
-    echo "[3/6] Exporting models for Triton..."
-    mkdir -p /export/ai_models/triton
+    echo "[3/6] Exporting models for Triton ($MISSING_MODELS missing)..."
+    mkdir -p "$TRITON_CACHE"
 
     # Run export in background while infrastructure starts
     podman run --rm \
@@ -118,7 +120,7 @@ else
         -e CACHE_DIR=/models/cache \
         -e REPO_DIR=/models/repository \
         -v "/export/ai_models/model-zoo:/models/zoo:ro" \
-        -v "/export/ai_models/triton:/models/cache" \
+        -v "$TRITON_CACHE:/models/cache" \
         ai-gateway \
         -c "cd /app/gateway/export && bash export_all.sh" > /tmp/export-models.log 2>&1 &
     PID_EXPORT=$!
@@ -129,18 +131,28 @@ fi
 # ==========================================================================
 echo ""
 echo "[4/6] Starting infrastructure + observability..."
-$COMPOSE up -d postgres redis go2rtc 2>&1 | tail -3
+$COMPOSE up -d --no-build postgres redis go2rtc 2>&1 | tail -3
 echo "  Waiting for postgres/redis..."
 sleep 10
 
-$COMPOSE up -d \
+$COMPOSE up -d --no-build \
     prometheus grafana loki tempo alertmanager alloy \
     node-exporter pyroscope blackbox-exporter json-exporter redis-exporter \
-    dcgm-exporter cadvisor 2>&1 | tail -3
+    cadvisor 2>&1 | tail -3
+
+# dcgm-exporter runs as a rootful systemd service (DCGM requires host-level root).
+# It is NOT part of the rootless compose stack. See monitoring/dcgm/dcgm-exporter.service.
+if systemctl is-enabled dcgm-exporter.service &>/dev/null; then
+    sudo systemctl restart dcgm-exporter 2>/dev/null \
+        && echo "  dcgm-exporter: restarted (rootful systemd service)" \
+        || echo "  dcgm-exporter: failed to restart (check: sudo journalctl -u dcgm-exporter)"
+else
+    echo "  dcgm-exporter: skipped (not installed — run setup.py or see monitoring/dcgm/)"
+fi
 echo "  Infrastructure + observability up."
 
 # Wait for model export if it was started
-if [ "$SKIP_EXPORT" != true ]; then
+if [ "$SKIP_EXPORT" != true ] && [ "${MISSING_MODELS:-0}" -gt 0 ]; then
     echo ""
     echo "  Waiting for model export to complete..."
     if wait "$PID_EXPORT"; then
@@ -157,7 +169,7 @@ fi
 # ==========================================================================
 echo ""
 echo "[5/6] Starting AI + application services..."
-$COMPOSE up -d 2>&1 | tail -5
+$COMPOSE up -d --no-build 2>&1 | tail -5
 echo "  All services started."
 
 # ==========================================================================
@@ -166,6 +178,21 @@ echo "  All services started."
 echo ""
 echo "[6/6] Health check (waiting 30s for model loading)..."
 sleep 30
+
+# Auto-register default admin if first deploy (resolves SetupGuard 503s)
+SETUP_STATUS=$(curl -sf "http://localhost:${API_PORT:-8000}/api/auth/setup-status" 2>/dev/null)
+if echo "$SETUP_STATUS" | python3 -c "import json,sys; sys.exit(0 if json.load(sys.stdin).get('setup_required') else 1)" 2>/dev/null; then
+    echo "  Registering default admin user..."
+    REGISTER_RESULT=$(curl -sf -X POST "http://localhost:${API_PORT:-8000}/api/auth/register" \
+        -H "Content-Type: application/json" \
+        -d '{"username":"admin","email":"admin@local.host","password":"ChangeMe123!"}' 2>/dev/null)  # pragma: allowlist secret
+    if [ $? -eq 0 ]; then
+        echo "    Admin registered: admin / ChangeMe123!"
+        echo "    IMPORTANT: Change this password after first login."
+    else
+        echo "    Admin registration failed (may already exist)"
+    fi
+fi
 
 echo "  Backend:"
 curl -s "http://localhost:${API_PORT:-8000}/api/system/health" 2>/dev/null \

@@ -1729,16 +1729,46 @@ class Settings(BaseSettings):
         "Scores between this and definitive threshold are flagged for human review.",
     )
 
-    # Fast path settings
+    # =========================================================================
+    # FAST PATH — DISABLED (DO NOT RE-ENABLE)
+    # =========================================================================
+    # WARNING TO ALL AGENTS AND DEVELOPERS:
+    #
+    # Fast path is INTENTIONALLY DISABLED. DO NOT re-enable it.
+    #
+    # When fast path is active, high-confidence person detections bypass the
+    # batch aggregator and go straight to Nemotron WITHOUT enrichment data.
+    # This means Nemotron receives zero context from the enrichment models
+    # (no pose, no clothing, no threat detection, no re-ID, no CLIP scene
+    # intelligence) and produces wildly inaccurate risk scores.
+    #
+    # Example: A break-in scenario with a 92% confidence person detection
+    # was scored as risk=0 ("routine pet activity") because fast path
+    # skipped all enrichment.
+    #
+    # The threshold is set to 2.0 (impossible value) so it never triggers.
+    # The object types list is empty as a second safety net.
+    #
+    # To properly re-enable fast path, enrichment must run BEFORE the LLM
+    # call in the fast path code path (analyze_detection_fast_path).
+    # See: NEM-5525 dashboard bugfixes for context.
+    # =========================================================================
     fast_path_confidence_threshold: float = Field(
-        default=0.90,
-        description="Confidence threshold for fast path high-priority analysis (0.0-1.0)",
+        default=2.0,
+        description=(
+            "DISABLED — set to impossible value (>1.0) to prevent fast path from firing. "
+            "Fast path bypasses enrichment, causing Nemotron to produce inaccurate scores. "
+            "DO NOT lower this value without first adding enrichment to the fast path."
+        ),
         ge=0.0,
-        le=1.0,
+        le=10.0,
     )
     fast_path_object_types: list[str] = Field(
-        default=["person"],
-        description="Object types that trigger fast path analysis when confidence threshold is met",
+        default_factory=list,
+        description=(
+            "DISABLED — empty list prevents fast path from matching any object type. "
+            "DO NOT add types here without first adding enrichment to the fast path."
+        ),
     )
 
     # GPU monitoring settings

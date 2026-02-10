@@ -777,10 +777,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         # - Otherwise, use shell scripts for local development
         use_docker_restart = settings.orchestrator.enabled and settings.ai_restart_enabled
 
+        # Determine health URLs and restart commands based on deployment mode.
+        # When ai-gateway is active, YOLO26 runs inside Triton and should be
+        # health-checked via the gateway's /health endpoint, not the standalone URL.
+        use_gateway = settings.use_ai_gateway and settings.ai_gateway_url
+        gateway_url = settings.ai_gateway_url.rstrip("/") if settings.ai_gateway_url else ""
+
         if use_docker_restart:
             # Containerized deployment: use docker restart with container names
-            # Container names match docker-compose service names: ai-yolo26, ai-llm
-            yolo26_restart_cmd = "docker restart ai-yolo26"
+            if use_gateway:
+                yolo26_restart_cmd = "docker restart ai-gateway"
+            else:
+                yolo26_restart_cmd = "docker restart ai-yolo26"
             nemotron_restart_cmd = "docker restart ai-llm"
         elif settings.ai_restart_enabled:
             # Local development: use shell scripts (relative paths from project root)
@@ -791,10 +799,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             yolo26_restart_cmd = None
             nemotron_restart_cmd = None
 
+        # When using ai-gateway, check the gateway's aggregated /health endpoint
+        # instead of the nonexistent standalone ai-yolo26:8095/health.
+        yolo26_health_url = (
+            f"{gateway_url}/health" if use_gateway else f"{settings.yolo26_url}/health"
+        )
+
         service_configs = [
             ServiceConfig(
                 name="yolo26",
-                health_url=f"{settings.yolo26_url}/health",
+                health_url=yolo26_health_url,
                 restart_cmd=yolo26_restart_cmd,
                 health_timeout=5.0,
                 max_retries=3,

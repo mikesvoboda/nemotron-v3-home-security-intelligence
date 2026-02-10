@@ -1128,6 +1128,17 @@ class BatchAggregator:
     def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
         """Check if detection meets fast path criteria.
 
+        # =================================================================
+        # FAST PATH IS DISABLED — DO NOT RE-ENABLE WITHOUT ENRICHMENT
+        # =================================================================
+        # Fast path bypasses the enrichment pipeline, so Nemotron receives
+        # zero context (no pose, clothing, threat, re-ID, CLIP) and produces
+        # wildly inaccurate risk scores. The config defaults ensure this
+        # method always returns False (threshold=2.0, types=[]).
+        #
+        # To re-enable: add enrichment to analyze_detection_fast_path first.
+        # =================================================================
+
         Fast path is triggered when:
         - Confidence is provided and >= threshold
         - Object type is provided and in fast path types list

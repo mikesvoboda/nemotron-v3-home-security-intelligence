@@ -59,7 +59,7 @@ _clip_tokenizer: Any = None
 _tokenizer_failed: bool = False
 
 # SigLIP 2 tokenizer source — prefers local download, falls back to HuggingFace
-_SIGLIP2_TOKENIZER_PATH = "/models/model-zoo/siglip2-base-patch16-224"
+_SIGLIP2_TOKENIZER_PATH = "/models/zoo/siglip2-base-patch16-224"
 _SIGLIP2_TOKENIZER_HF = "google/siglip2-base-patch16-224"
 
 

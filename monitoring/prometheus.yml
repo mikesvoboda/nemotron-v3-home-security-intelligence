@@ -112,100 +112,26 @@ scrape_configs:
           component: inference-server
     honor_labels: true
 
-  # YOLO26 Object Detection metrics (ai-yolo26)
-  # Key metrics:
-  # - yolo26_inference_requests_total: Total inference requests by endpoint/status
-  # - yolo26_inference_latency_seconds: Inference latency histogram
-  # - yolo26_detections_per_image: Number of detections per image
-  # - yolo26_model_loaded: Model status (1=loaded)
-  # - yolo26_gpu_*: GPU utilization, memory, temperature, power
-  - job_name: 'ai-yolo26-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-yolo26:8095'
-        labels:
-          service: yolo26
-          model_type: detection
-    honor_labels: true
+  # ==========================================================================
+  # Legacy AI Service Metrics (REMOVED)
+  # ==========================================================================
+  # The following standalone AI services have been consolidated into ai-gateway
+  # (Triton Inference Server). Their per-model metrics are now available via
+  # the 'triton-metrics' job above (ai-gateway:8002/metrics).
+  #
+  # Removed targets:
+  # - ai-yolo26:8095 (ai-yolo26-metrics)
+  # - ai-florence:8092 (ai-florence-metrics)
+  # - ai-clip:8093 (ai-clip-metrics)
+  # - ai-enrichment:8094 (ai-enrichment-metrics)
+  # - ai-enrichment-light:8096 (ai-enrichment-light-metrics)
+  #
+  # Triton provides equivalent metrics:
+  # - nv_inference_request_success/failure per model
+  # - nv_inference_queue_duration_us per model
+  # - nv_inference_compute_infer_duration_us per model
+  # - nv_gpu_utilization, nv_gpu_memory_used_bytes
 
-  # Florence-2 Vision-Language metrics (ai-florence)
-  # Key metrics:
-  # - florence_inference_requests_total: Total inference requests by endpoint/status
-  # - florence_inference_latency_seconds: Inference latency histogram
-  # - florence_model_loaded: Model status (1=loaded)
-  # - florence_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-florence-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-florence:8092'
-        labels:
-          service: florence
-          model_type: vlm
-    honor_labels: true
-
-  # CLIP Embedding metrics (ai-clip)
-  # Key metrics:
-  # - clip_inference_requests_total: Total inference requests by endpoint/status
-  # - clip_inference_latency_seconds: Inference latency histogram
-  # - clip_model_loaded: Model status (1=loaded)
-  # - clip_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-clip-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-clip:8093'
-        labels:
-          service: clip
-          model_type: embedding
-    honor_labels: true
-
-  # Enrichment Service metrics (ai-enrichment)
-  # Combined service for vehicle, pet, clothing classification and depth estimation
-  # Key metrics:
-  # - enrichment_inference_requests_total: Total requests by endpoint/status
-  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
-  # - enrichment_*_model_loaded: Model status for vehicle/pet/clothing/depth
-  # - enrichment_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-enrichment-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-enrichment:8094'
-        labels:
-          service: enrichment
-          model_type: classification
-    honor_labels: true
-
-  # Enrichment Light Service metrics (ai-enrichment-light)
-  # Lightweight enrichment for pose, threat, reid, pet, depth models (~1.2GB total)
-  # Key metrics:
-  # - enrichment_inference_requests_total: Total requests by endpoint/status
-  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
-  # - enrichment_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-enrichment-light-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-enrichment-light:8096'
-        labels:
-          service: enrichment-light
-          model_type: classification
-    honor_labels: true
-
-  # YOLO26 TensorRT Object Detection metrics (ai-yolo26)
-  # Alternative detector to YOLO26 with 5.3x faster inference
   # ==========================================================================
   # JSON Exporter Scraped Endpoints (For non-Prometheus format data)
   # ==========================================================================
@@ -473,11 +399,10 @@ scrape_configs:
     scrape_interval: 15s
     scrape_timeout: 10s
     static_configs:
-      # Use host.containers.internal because cAdvisor runs in rootful podman (sudo)
-      # while prometheus runs in rootless podman - separate network namespaces
-      # Port is configurable via CADVISOR_PORT environment variable
+      # cAdvisor runs in the rootless compose network (privileged mode for cgroups v2).
+      # Use the internal container name and port (8080) directly.
       - targets:
-          - 'host.containers.internal:8083'
+          - 'cadvisor:8080'
     # Filter to only include containers from this compose project
     # and add helpful labels
     relabel_configs:
@@ -513,30 +438,11 @@ scrape_configs:
   # ==========================================================================
   # NVIDIA DCGM Exporter - GPU Hardware Metrics (NEM-4132, NEM-4150)
   # ==========================================================================
-  # Scrapes low-level GPU hardware metrics from NVIDIA DCGM (Data Center GPU Manager).
-  # DCGM provides detailed metrics that nvidia-smi cannot:
-  #   - SM (Streaming Multiprocessor) utilization: actual compute usage
-  #   - Memory bandwidth utilization: memory-bound vs compute-bound analysis
-  #   - Power consumption: power efficiency monitoring
-  #   - Temperature: thermal throttling detection
-  #   - PCIe throughput: host<->device transfer rates
-  #
-  # Key metrics:
-  #   - DCGM_FI_DEV_GPU_UTIL: GPU utilization percentage
-  #   - DCGM_FI_DEV_MEM_COPY_UTIL: Memory bandwidth utilization
-  #   - DCGM_FI_DEV_FB_USED: Framebuffer (VRAM) memory used
-  #   - DCGM_FI_DEV_FB_FREE: Framebuffer memory free
-  #   - DCGM_FI_DEV_GPU_TEMP: GPU temperature in Celsius
-  #   - DCGM_FI_DEV_POWER_USAGE: Power consumption in Watts
-  #   - DCGM_FI_DEV_SM_CLOCK: SM clock frequency
-  #   - DCGM_FI_DEV_MEM_CLOCK: Memory clock frequency
-  #   - DCGM_FI_PROF_PCIE_TX_BYTES: PCIe TX throughput (bytes/sec)
-  #   - DCGM_FI_PROF_PCIE_RX_BYTES: PCIe RX throughput (bytes/sec)
+  # dcgm-exporter runs as a rootful systemd service (DCGM nv-hostengine needs
+  # host-level root). It uses --net=host so it's reachable from rootless Prometheus
+  # via host.containers.internal. Install with: setup.py or setup-systemd.sh.
   - job_name: 'dcgm-exporter'
     static_configs:
-      # Use host.containers.internal because dcgm-exporter runs in rootful podman (sudo)
-      # while prometheus runs in rootless podman - separate network namespaces
-      # Port is configurable via DCGM_EXPORTER_PORT environment variable
       - targets: ['host.containers.internal:9400']
     scrape_interval: 15s
     scrape_timeout: 10s
