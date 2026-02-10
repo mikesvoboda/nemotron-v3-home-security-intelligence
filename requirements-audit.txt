@@ -374,7 +374,7 @@ scipy==1.17.0
     # via
     #   scikit-image
     #   ultralytics
-setuptools==80.10.2
+setuptools==82.0.0
     # via torch
 six==1.17.0
     # via python-dateutil
