@@ -688,6 +688,26 @@ def get_test_camera_for_scenario(
     if camera_strategy == "category":
         return get_test_camera_for_category(scenario.category)
 
+    # Semantic routing first: keep scenario intent aligned with camera label
+    # so timeline/event context remains coherent in demos.
+    semantic_text = " ".join(
+        [
+            scenario.video_id or "",
+            scenario.name or "",
+            str(scenario.metadata.get("scenario", "")),
+            str(scenario.scenario_spec.get("id", "")),
+            str(scenario.scenario_spec.get("name", "")),
+            str(scenario.scenario_spec.get("description", "")),
+        ]
+    ).lower()
+    if scenario.category == "threats":
+        if any(k in semantic_text for k in ["weapon", "gun", "knife", "armed", "firearm"]):
+            return "test_threat_weapon"
+        if any(k in semantic_text for k in ["package", "porch", "delivery theft"]):
+            return "test_threat_package_theft"
+        if any(k in semantic_text for k in ["break", "forced entry", "door handle", "intrud"]):
+            return "test_threat_breakin"
+
     # Scenario-isolated mode without creating new top-level camera folders:
     # choose from pre-existing test cameras to avoid permission issues on /export/foscam.
     camera_pool_by_category: dict[str, list[str]] = {
@@ -731,6 +751,7 @@ def _evaluate_reasoning_quality(
         "no threat indicators detected",
         "routine household environment",
         "normal object detections",
+        "routine delivery activity with no suspicious indicators",
     ]
     if any(marker in summary_lower for marker in generic_markers):
         issues.append("Summary is generic and not scenario-specific")
@@ -749,6 +770,101 @@ def _evaluate_reasoning_quality(
         issues.append("Reasoning duplicates summary")
 
     return len(issues) == 0, issues
+
+
+_HARD_THREAT_CLASSES = {
+    "gun",
+    "firearm",
+    "handgun",
+    "pistol",
+    "revolver",
+    "rifle",
+    "shotgun",
+    "long gun",
+    "knife",
+    "machete",
+    "crowbar",
+    "pry bar",
+    "bolt cutters",
+}
+
+_THREAT_REASONING_MARKERS = (
+    "weapon",
+    "gun",
+    "knife",
+    "armed",
+    "firearm",
+    "break-in",
+    "forced entry",
+    "intrusion",
+    "burglary",
+    "vandalism",
+    "package theft",
+)
+
+
+def _evaluate_threat_evidence(
+    *,
+    expected: dict[str, Any],
+    actual_classes: set[str],
+    context_sources: dict[str, bool],
+    enrichment_snapshot: dict[str, Any],
+    combined_text: str,
+    actual_score: int | None,
+) -> tuple[bool, list[str]]:
+    """Validate threat scenarios against concrete upstream evidence.
+
+    For threat scenarios we require at least one strong evidence channel so
+    weak/hallucinated reasoning does not pass validation.
+    """
+    issues: list[str] = []
+    threat_expected = expected.get("threats")
+    if not threat_expected:
+        return True, issues
+
+    has_threat_expected = bool(threat_expected.get("has_threat", False))
+    if not has_threat_expected:
+        return True, issues
+
+    actual_lower = {c.lower() for c in actual_classes}
+    expected_threat_classes = {
+        str(d.get("class", "")).lower()
+        for d in expected.get("detections", [])
+        if str(d.get("class", "")).lower() in _HARD_THREAT_CLASSES
+    }
+
+    has_detected_threat_class = bool(actual_lower & _HARD_THREAT_CLASSES)
+    has_expected_threat_class = bool(actual_lower & expected_threat_classes)
+
+    has_threat_context = bool(
+        context_sources.get("has_violence", False)
+        or context_sources.get("has_threat", False)
+        or enrichment_snapshot.get("threat_results")
+        or enrichment_snapshot.get("violence_result")
+    )
+
+    has_high_risk_threat_reasoning = (actual_score is not None and actual_score >= 60) and any(
+        marker in combined_text for marker in _THREAT_REASONING_MARKERS
+    )
+
+    if expected_threat_classes:
+        # Weapon-specific scenarios must show weapon-class evidence or dedicated threat context.
+        evidence_ok = has_expected_threat_class or has_threat_context
+        if not evidence_ok:
+            issues.append(
+                "Expected weapon-threat evidence missing: no expected threat class detected and "
+                "no threat/violence enrichment context available"
+            )
+        return evidence_ok, issues
+
+    # Non-weapon threat scenarios can pass with strong threat context or high-risk threat reasoning.
+    evidence_ok = has_detected_threat_class or has_threat_context or has_high_risk_threat_reasoning
+    if not evidence_ok:
+        issues.append(
+            "Threat scenario missing concrete evidence: no threat class, no threat/violence context, "
+            "and no high-risk threat reasoning"
+        )
+    return evidence_ok, issues
 
 
 async def ensure_synthetic_camera(camera_name: str = "test_normal_delivery") -> Camera:
@@ -1248,37 +1364,18 @@ async def validate_synthetic_results(
                         "(context_sources.has_pose=False, no pose in prompt or snapshot)"
                     )
 
-            # --- Enrichment: Threat detection ---
-            threat_expected = expected.get("threats")
-            if threat_expected:
-                has_threat_expected = threat_expected.get("has_threat", False)
-                # Check for threat signals in LLM output and prompt
-                threat_keywords = [
-                    "threat",
-                    "weapon",
-                    "danger",
-                    "aggressive",
-                    "break-in",
-                    "break_in",
-                    "intrusion",
-                    "forced_entry",
-                    "burglary",
-                    "violence",
-                    "attack",
-                ]
-                has_threat_in_text = any(kw in combined_text for kw in threat_keywords)
-                has_violence_context = context_sources.get("has_violence", False)
-
-                if has_threat_expected:
-                    enrichment_results["threat"] = has_threat_in_text or has_violence_context
-                    if not enrichment_results["threat"]:
-                        enrichment_errors.append(
-                            "Expected threat signals but none found in LLM summary/reasoning"
-                        )
-                else:
-                    # For non-threat scenarios, threat keywords in text are acceptable
-                    # (LLM might mention "no threat detected"), so we don't fail on this
-                    enrichment_results["threat"] = True
+            # --- Enrichment: Threat evidence quality ---
+            threat_ok, threat_issues = _evaluate_threat_evidence(
+                expected=expected,
+                actual_classes=actual_classes,
+                context_sources=context_sources,
+                enrichment_snapshot=enrichment_snapshot,
+                combined_text=combined_text,
+                actual_score=actual_score,
+            )
+            if "threats" in expected:
+                enrichment_results["threat"] = threat_ok
+                enrichment_errors.extend(threat_issues)
 
             # --- Enrichment: Re-ID context ---
             if event_detections:
@@ -1450,6 +1547,9 @@ def _find_weak_reasoning_results(results: list[ValidationResult]) -> list[Valida
     """Identify scenarios that should be retried with alternate synthetic events."""
     weak: list[ValidationResult] = []
     for result in results:
+        if not result.success:
+            weak.append(result)
+            continue
         if not result.event_matched:
             weak.append(result)
             continue

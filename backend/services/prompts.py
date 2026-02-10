@@ -729,6 +729,13 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 - Breaking and entering = 80-95
 - Vehicle break-in = 70-85
 
+## EVIDENCE INTEGRITY RULES (MANDATORY)
+- Use only evidence explicitly present in EVENT CONTEXT, DETECTIONS, and enrichment sections.
+- Scoring examples are calibration only; never copy example-specific details into this event.
+- If a section says "Not performed" or "Not available", do not claim that model produced findings.
+- Do not claim objects, actions, or identities that are not present in detections/enrichment.
+- In reasoning, clearly separate direct observations from inference.
+
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
 - Camera timestamps or time display
@@ -752,6 +759,9 @@ Time: {start_time} to {end_time}
 3. Do NOT flag trees, timestamps, or normal presence as risk factors
 4. Provide clear reasoning for your score
 5. Remember: most events should score LOW (0-29)
+6. In `reasoning`, use this structure:
+   Observed evidence: <facts seen in detections/enrichment only>
+   Inference: <cautious interpretation, or "none">
 
 Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
@@ -864,6 +874,7 @@ IMPORTANT DEFAULTS:
 
 ## Scoring Examples
 Use these worked examples to calibrate your scoring. Most events (85%+) should be LOW.
+Examples are calibration references only; never copy their specific details into your answer.
 
 **Example 1 — Score: 5 (LOW)**
 Tuesday 2:45 PM. Front door camera. Known resident detected (face match confidence 0.97, household member "Sarah"). Walking from familiar sedan in driveway to front door. CLIP scene: 'normal activity' (0.89). Pose: upright walking. Action: approaching door normally.
@@ -1107,6 +1118,11 @@ Property crimes are CRIMINAL ACTS, not just suspicious behavior:
 3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
 4. Provide clear reasoning for your score
 5. Remember: most events should score LOW (0-29)
+6. Treat examples as calibration only; do not copy their scenario details
+7. In `reasoning`, use this structure:
+   Observed evidence: <facts seen in detections/enrichment only>
+   Inference: <cautious interpretation, or "none">
+8. If key enrichment is unavailable, explicitly say it is unavailable rather than guessing
 
 Output JSON with comprehensive analysis:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-paragraph explanation of all factors considered", "entities": [{{"type": "person|vehicle|pet", "description": "detailed description with attributes", "threat_level": "low|medium|high"}}], "flags": [{{"type": "violence|suspicious_attire|vehicle_damage|unusual_behavior|quality_issue", "description": "text", "severity": "warning|alert|critical"}}], "recommended_action": "specific action to take", "confidence_factors": {{"detection_quality": "good|fair|poor", "weather_impact": "none|minor|significant", "enrichment_coverage": "full|partial|minimal"}}}}<|im_end|>
