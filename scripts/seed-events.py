@@ -867,6 +867,7 @@ def _evaluate_threat_evidence(
     return evidence_ok, issues
 
 
+
 async def ensure_synthetic_camera(camera_name: str = "test_normal_delivery") -> Camera:
     """Ensure a synthetic camera exists in the database.
 
