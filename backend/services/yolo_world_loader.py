@@ -50,19 +50,37 @@ class ObjectCategoryConfig(TypedDict):
 YOLO_WORLD_PROMPTS_V2: dict[str, ObjectCategoryConfig] = {
     "weapons": {
         "prompts": [
-            "knife blade",
+            # Weapon-specific prompts tuned for home-security footage.
+            # Keep both object-only and person+weapon phrasing to improve recall
+            # on occluded porch/driveway views.
             "handgun",
+            "pistol",
+            "revolver",
             "rifle",
+            "shotgun",
+            "long gun",
+            "knife blade",
+            "kitchen knife",
+            "combat knife",
+            "machete",
             "crowbar tool",
+            "pry bar",
             "baseball bat",
             "hammer",
-            "machete",
+            "metal pipe weapon",
+            "person holding handgun",
+            "person holding pistol",
+            "person holding rifle",
+            "person holding knife",
+            "person carrying crowbar",
             # Legacy prompts for compatibility
             "knife",
+            "gun",
+            "firearm",
             "crowbar",
             "bolt cutters",
         ],
-        "threshold": 0.20,
+        "threshold": 0.22,
         "priority": "critical",
     },
     "suspicious_items": {

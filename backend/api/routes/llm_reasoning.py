@@ -9,6 +9,7 @@ This module exposes LLMInteraction data for debugging and transparency:
 Part of NEM-5024: Hidden Backend Exposure epic.
 """
 
+import json
 import re
 from typing import Any
 
@@ -56,6 +57,17 @@ def _extract_think_block(raw_response: str) -> str | None:
     match = re.search(pattern, raw_response, re.DOTALL | re.IGNORECASE)
     if match:
         return match.group(1).strip()
+    return None
+
+
+def _parse_json_response(raw_response: str) -> dict[str, Any] | None:
+    """Parse raw LLM response when it's structured JSON."""
+    try:
+        parsed = json.loads(raw_response)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(parsed, dict):
+        return parsed
     return None
 
 
@@ -483,8 +495,14 @@ async def get_llm_reasoning(
             },
         )
 
-    # Parse think block from raw response
+    # Parse response: prefer explicit <think> block, fall back to JSON reasoning field.
+    parsed_response = _parse_json_response(interaction.raw_response)
     think_block_raw = _extract_think_block(interaction.raw_response)
+    if not think_block_raw and parsed_response:
+        parsed_reasoning = parsed_response.get("reasoning")
+        if isinstance(parsed_reasoning, str) and parsed_reasoning.strip():
+            think_block_raw = parsed_reasoning.strip()
+
     think_block = ThinkBlockContent(
         raw_think_block=think_block_raw,
         reasoning_steps=_parse_reasoning_steps(think_block_raw) if think_block_raw else [],
@@ -511,6 +529,8 @@ async def get_llm_reasoning(
             "validation_result": interaction.validation_result,
             "has_truncation_log": interaction.truncation_log is not None,
             "has_household_matches": interaction.household_matches is not None,
+            "response_format": "json" if parsed_response else "text",
+            "parsed_response_keys": sorted(parsed_response.keys()) if parsed_response else [],
         }
 
     return LLMReasoningResponse(
@@ -518,6 +538,7 @@ async def get_llm_reasoning(
         event_id=interaction.event_id,
         created_at=interaction.created_at,
         raw_response=interaction.raw_response,
+        parsed_response=parsed_response,
         think_block=think_block,
         enrichment_sources=enrichment_sources,
         truncation_info=truncation_info,

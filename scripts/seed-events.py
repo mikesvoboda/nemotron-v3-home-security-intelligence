@@ -292,7 +292,7 @@ from backend.models.zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomal
 from backend.models.zone_baseline import ZoneActivityBaseline  # noqa: E402
 from backend.models.zone_household_config import ZoneHouseholdConfig  # noqa: E402
 from backend.services.auth_service import hash_password  # noqa: E402
-from sqlalchemy import delete, select  # noqa: E402
+from sqlalchemy import delete, func, select  # noqa: E402
 
 
 def find_camera_images(base_path: str = FOSCAM_BASE_PATH, limit: int = 500) -> list[Path]:
@@ -383,6 +383,7 @@ class SyntheticScenario:
     scenario_spec: dict[str, Any] = field(default_factory=dict)
     video_path: Path | None = None
     image_path: Path | None = None  # For COCO-based scenarios with .jpg/.png images
+    assigned_camera_id: str | None = None  # Runtime camera chosen for scenario injection
 
 
 @dataclass
@@ -408,10 +409,12 @@ class ValidationResult:
     detection_correct: bool = False  # Did YOLO detect the expected classes?
     scoring_correct: bool = False  # Is risk_score in expected range?
     scoring_for_detected: bool = False  # Is score reasonable for what was actually detected?
+    reasoning_quality_ok: bool = False  # Is LLM reasoning substantial and non-generic?
     actual_classes: set[str] = field(default_factory=set)  # What YOLO actually detected
     expected_classes: list[str] = field(default_factory=list)  # What was expected
     detection_errors: list[str] = field(default_factory=list)  # Detection-specific errors
     scoring_errors: list[str] = field(default_factory=list)  # Scoring-specific errors
+    reasoning_errors: list[str] = field(default_factory=list)  # Reasoning-specific quality issues
     camera_name: str | None = None  # Which camera the event was on
 
 
@@ -663,6 +666,207 @@ def get_test_camera_for_category(category: str) -> str:
     return category_to_camera.get(category, "test_normal_delivery")
 
 
+def _slugify_camera_token(value: str, max_len: int = 28) -> str:
+    """Create a filesystem-safe short token for camera IDs."""
+    token = re.sub(r"[^a-zA-Z0-9]+", "_", value).strip("_").lower()
+    if not token:
+        # nosemgrep: hardcoded-password - fallback label, not a credential
+        token = "scenario"  # noqa: S105
+    return token[:max_len]
+
+
+def get_test_camera_for_scenario(
+    scenario: SyntheticScenario,
+    camera_strategy: str,
+) -> str:
+    """Resolve camera ID for a scenario based on strategy.
+
+    Strategies:
+      - scenario (default): one synthetic camera per scenario for clean event isolation
+      - category: shared per-category test camera (legacy behavior)
+    """
+    if camera_strategy == "category":
+        return get_test_camera_for_category(scenario.category)
+
+    # Semantic routing first: keep scenario intent aligned with camera label
+    # so timeline/event context remains coherent in demos.
+    semantic_text = " ".join(
+        [
+            scenario.video_id or "",
+            scenario.name or "",
+            str(scenario.metadata.get("scenario", "")),
+            str(scenario.scenario_spec.get("id", "")),
+            str(scenario.scenario_spec.get("name", "")),
+            str(scenario.scenario_spec.get("description", "")),
+        ]
+    ).lower()
+    if scenario.category == "threats":
+        if any(k in semantic_text for k in ["weapon", "gun", "knife", "armed", "firearm"]):
+            return "test_threat_weapon"
+        if any(k in semantic_text for k in ["package", "porch", "delivery theft"]):
+            return "test_threat_package_theft"
+        if any(k in semantic_text for k in ["break", "forced entry", "door handle", "intrud"]):
+            return "test_threat_breakin"
+
+    # Scenario-isolated mode without creating new top-level camera folders:
+    # choose from pre-existing test cameras to avoid permission issues on /export/foscam.
+    camera_pool_by_category: dict[str, list[str]] = {
+        "normal": [
+            "test_normal_delivery",
+            "test_normal_pet",
+            "test_normal_resident",
+            "test_normal_vehicle",
+        ],
+        "suspicious": [
+            "test_suspicious_casing",
+            "test_suspicious_loitering",
+        ],
+        "threats": [
+            "test_threat_breakin",
+            "test_threat_package_theft",
+            "test_threat_weapon",
+        ],
+    }
+    pool = camera_pool_by_category.get(scenario.category, [get_test_camera_for_category("normal")])
+    idx = abs(hash(scenario.video_id)) % len(pool)
+    return pool[idx]
+
+
+def _evaluate_reasoning_quality(
+    summary: str | None,
+    reasoning: str | None,
+    llm_prompt: str | None,
+) -> tuple[bool, list[str]]:
+    """Evaluate whether reasoning content is substantial enough for demos."""
+    issues: list[str] = []
+
+    summary_text = (summary or "").strip()
+    reasoning_text = (reasoning or "").strip()
+    prompt_text = (llm_prompt or "").strip()
+    summary_lower = summary_text.lower()
+    reasoning_lower = reasoning_text.lower()
+
+    # Generic low-value language that looks weak in demos.
+    generic_markers = [
+        "no threat indicators detected",
+        "routine household environment",
+        "normal object detections",
+        "routine delivery activity with no suspicious indicators",
+    ]
+    if any(marker in summary_lower for marker in generic_markers):
+        issues.append("Summary is generic and not scenario-specific")
+
+    if len(summary_text) < 40:
+        issues.append("Summary too short")
+
+    if len(reasoning_text) < 140:
+        issues.append("Reasoning too short")
+
+    if len(prompt_text) < 400:
+        issues.append("LLM prompt missing or too short")
+
+    # If reasoning exists but is effectively identical to summary, it's weak signal.
+    if reasoning_lower and summary_lower and reasoning_lower == summary_lower:
+        issues.append("Reasoning duplicates summary")
+
+    return len(issues) == 0, issues
+
+
+_HARD_THREAT_CLASSES = {
+    "gun",
+    "firearm",
+    "handgun",
+    "pistol",
+    "revolver",
+    "rifle",
+    "shotgun",
+    "long gun",
+    "knife",
+    "machete",
+    "crowbar",
+    "pry bar",
+    "bolt cutters",
+}
+
+_THREAT_REASONING_MARKERS = (
+    "weapon",
+    "gun",
+    "knife",
+    "armed",
+    "firearm",
+    "break-in",
+    "forced entry",
+    "intrusion",
+    "burglary",
+    "vandalism",
+    "package theft",
+)
+
+
+def _evaluate_threat_evidence(
+    *,
+    expected: dict[str, Any],
+    actual_classes: set[str],
+    context_sources: dict[str, bool],
+    enrichment_snapshot: dict[str, Any],
+    combined_text: str,
+    actual_score: int | None,
+) -> tuple[bool, list[str]]:
+    """Validate threat scenarios against concrete upstream evidence.
+
+    For threat scenarios we require at least one strong evidence channel so
+    weak/hallucinated reasoning does not pass validation.
+    """
+    issues: list[str] = []
+    threat_expected = expected.get("threats")
+    if not threat_expected:
+        return True, issues
+
+    has_threat_expected = bool(threat_expected.get("has_threat", False))
+    if not has_threat_expected:
+        return True, issues
+
+    actual_lower = {c.lower() for c in actual_classes}
+    expected_threat_classes = {
+        str(d.get("class", "")).lower()
+        for d in expected.get("detections", [])
+        if str(d.get("class", "")).lower() in _HARD_THREAT_CLASSES
+    }
+
+    has_detected_threat_class = bool(actual_lower & _HARD_THREAT_CLASSES)
+    has_expected_threat_class = bool(actual_lower & expected_threat_classes)
+
+    has_threat_context = bool(
+        context_sources.get("has_violence", False)
+        or context_sources.get("has_threat", False)
+        or enrichment_snapshot.get("threat_results")
+        or enrichment_snapshot.get("violence_result")
+    )
+
+    has_high_risk_threat_reasoning = (actual_score is not None and actual_score >= 60) and any(
+        marker in combined_text for marker in _THREAT_REASONING_MARKERS
+    )
+
+    if expected_threat_classes:
+        # Weapon-specific scenarios must show weapon-class evidence or dedicated threat context.
+        evidence_ok = has_expected_threat_class or has_threat_context
+        if not evidence_ok:
+            issues.append(
+                "Expected weapon-threat evidence missing: no expected threat class detected and "
+                "no threat/violence enrichment context available"
+            )
+        return evidence_ok, issues
+
+    # Non-weapon threat scenarios can pass with strong threat context or high-risk threat reasoning.
+    evidence_ok = has_detected_threat_class or has_threat_context or has_high_risk_threat_reasoning
+    if not evidence_ok:
+        issues.append(
+            "Threat scenario missing concrete evidence: no threat class, no threat/violence context, "
+            "and no high-risk threat reasoning"
+        )
+    return evidence_ok, issues
+
+
 async def ensure_synthetic_camera(camera_name: str = "test_normal_delivery") -> Camera:
     """Ensure a synthetic camera exists in the database.
 
@@ -722,6 +926,7 @@ async def seed_synthetic_scenarios(
     frames_per_video: int = 5,
     delay_between: float = 0.5,
     watch_folder: Path | None = None,
+    camera_strategy: str = "scenario",
 ) -> tuple[int, list[Path]]:
     """Process synthetic scenarios through the AI pipeline.
 
@@ -751,8 +956,10 @@ async def seed_synthetic_scenarios(
             print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (no media)")
             continue
 
-        # Get the appropriate test camera for this scenario's category
-        camera_name = get_test_camera_for_category(scenario.category)
+        # Resolve camera assignment for this scenario.
+        # Default is per-scenario camera isolation to reduce cross-scenario coalescing.
+        camera_name = get_test_camera_for_scenario(scenario, camera_strategy)
+        scenario.assigned_camera_id = camera_name
         camera = await ensure_synthetic_camera(camera_name)
 
         # Use existing test camera folder structure
@@ -978,7 +1185,9 @@ async def validate_synthetic_results(
             # Match events to scenarios using the camera that the scenario
             # was placed into, then by risk level, then by detection overlap.
             # This avoids all scenarios matching the same single event.
-            expected_camera = get_test_camera_for_category(scenario.category)
+            expected_camera = scenario.assigned_camera_id or get_test_camera_for_category(
+                scenario.category
+            )
             expected_risk_level = expected.get("risk", {}).get("level")
             expected_det_classes = {d.get("class", "") for d in expected.get("detections", [])}
 
@@ -1155,37 +1364,18 @@ async def validate_synthetic_results(
                         "(context_sources.has_pose=False, no pose in prompt or snapshot)"
                     )
 
-            # --- Enrichment: Threat detection ---
-            threat_expected = expected.get("threats")
-            if threat_expected:
-                has_threat_expected = threat_expected.get("has_threat", False)
-                # Check for threat signals in LLM output and prompt
-                threat_keywords = [
-                    "threat",
-                    "weapon",
-                    "danger",
-                    "aggressive",
-                    "break-in",
-                    "break_in",
-                    "intrusion",
-                    "forced_entry",
-                    "burglary",
-                    "violence",
-                    "attack",
-                ]
-                has_threat_in_text = any(kw in combined_text for kw in threat_keywords)
-                has_violence_context = context_sources.get("has_violence", False)
-
-                if has_threat_expected:
-                    enrichment_results["threat"] = has_threat_in_text or has_violence_context
-                    if not enrichment_results["threat"]:
-                        enrichment_errors.append(
-                            "Expected threat signals but none found in LLM summary/reasoning"
-                        )
-                else:
-                    # For non-threat scenarios, threat keywords in text are acceptable
-                    # (LLM might mention "no threat detected"), so we don't fail on this
-                    enrichment_results["threat"] = True
+            # --- Enrichment: Threat evidence quality ---
+            threat_ok, threat_issues = _evaluate_threat_evidence(
+                expected=expected,
+                actual_classes=actual_classes,
+                context_sources=context_sources,
+                enrichment_snapshot=enrichment_snapshot,
+                combined_text=combined_text,
+                actual_score=actual_score,
+            )
+            if "threats" in expected:
+                enrichment_results["threat"] = threat_ok
+                enrichment_errors.extend(threat_issues)
 
             # --- Enrichment: Re-ID context ---
             if event_detections:
@@ -1298,11 +1488,25 @@ async def validate_synthetic_results(
                     if delta > 0:
                         llm_latency_ms = delta * 1000
 
+            # --- Reasoning quality validation ---
+            reasoning_quality_ok, reasoning_errors = _evaluate_reasoning_quality(
+                matched_event.summary,
+                matched_event.reasoning,
+                matched_event.llm_prompt,
+            )
+
             # Combine all errors for backward-compatible 'errors' field
-            all_errors = detection_errors_list + scoring_errors_list + enrichment_errors
+            all_errors = (
+                detection_errors_list + scoring_errors_list + enrichment_errors + reasoning_errors
+            )
 
             # End-to-end success requires all dimensions to pass
-            end_to_end_success = detection_correct and risk_valid and len(enrichment_errors) == 0
+            end_to_end_success = (
+                detection_correct
+                and risk_valid
+                and len(enrichment_errors) == 0
+                and reasoning_quality_ok
+            )
 
             results.append(
                 ValidationResult(
@@ -1324,17 +1528,73 @@ async def validate_synthetic_results(
                     detection_correct=detection_correct,
                     scoring_correct=risk_valid,
                     scoring_for_detected=scoring_for_detected,
+                    reasoning_quality_ok=reasoning_quality_ok,
                     actual_classes=actual_classes,
                     expected_classes=[
                         d.get("class", "unknown") for d in expected.get("detections", [])
                     ],
                     detection_errors=detection_errors_list,
                     scoring_errors=scoring_errors_list,
+                    reasoning_errors=reasoning_errors,
                     camera_name=str(matched_event.camera_id) if matched_event.camera_id else None,
                 )
             )
 
     return results
+
+
+def _find_weak_reasoning_results(results: list[ValidationResult]) -> list[ValidationResult]:
+    """Identify scenarios that should be retried with alternate synthetic events."""
+    weak: list[ValidationResult] = []
+    for result in results:
+        if not result.success:
+            weak.append(result)
+            continue
+        if not result.event_matched:
+            weak.append(result)
+            continue
+        if not result.scoring_correct:
+            weak.append(result)
+            continue
+        if not result.reasoning_quality_ok:
+            weak.append(result)
+    return weak
+
+
+def _select_retry_scenarios(
+    all_available: list[SyntheticScenario],
+    weak_results: list[ValidationResult],
+    used_video_ids: set[str],
+    max_per_category: int = 2,
+) -> list[SyntheticScenario]:
+    """Pick alternate scenarios from the same categories as weak results."""
+    by_category_needed: dict[str, int] = {}
+    for result in weak_results:
+        cat = result.scenario.category
+        by_category_needed[cat] = by_category_needed.get(cat, 0) + 1
+
+    selected: list[SyntheticScenario] = []
+    selected_ids: set[str] = set()
+    for category, needed in sorted(by_category_needed.items()):
+        budget = min(max_per_category, needed)
+        candidates = [
+            s
+            for s in all_available
+            if s.category == category
+            and s.video_id not in used_video_ids
+            and s.video_id not in selected_ids
+            and (
+                (s.video_path and s.video_path.exists()) or (s.image_path and s.image_path.exists())
+            )
+        ]
+        if not candidates:
+            continue
+        random.shuffle(candidates)
+        picks = candidates[:budget]
+        selected.extend(picks)
+        selected_ids.update(s.video_id for s in picks)
+
+    return selected
 
 
 def generate_validation_report(
@@ -1837,6 +2097,7 @@ async def wait_for_pipeline_completion(
     expected_min_events: int = 5,
     timeout_seconds: int = 300,
     poll_interval: float = 5.0,
+    expected_camera_ids: set[str] | None = None,
 ) -> tuple[int, int, bool]:
     """Wait for the AI pipeline to process images and create events.
 
@@ -1850,6 +2111,9 @@ async def wait_for_pipeline_completion(
         expected_min_events: Minimum new events to wait for
         timeout_seconds: Maximum wait time (default 5 minutes)
         poll_interval: Seconds between polling
+        expected_camera_ids: Optional set of camera IDs expected to produce events.
+            When provided, wait logic requires event coverage across these cameras
+            and avoids idle-exit while unlinked detections are still pending.
 
     Returns:
         Tuple of (final_event_count, new_events_created, success)
@@ -1867,6 +2131,8 @@ async def wait_for_pipeline_completion(
     last_count = initial_event_count
     last_change_time = start_time
     idle_timeout = 90  # Consider pipeline idle if no new events for 90 seconds
+    last_unlinked_count: int | None = None
+    last_unlinked_change_time = start_time
 
     while True:
         elapsed = time.time() - start_time
@@ -1877,6 +2143,43 @@ async def wait_for_pipeline_completion(
         current_count = len(events)
         new_events = current_count - initial_event_count
 
+        cameras_with_events: set[str] = set()
+        pending_unlinked_detections = 0
+        if expected_camera_ids:
+            async with get_session() as session:
+                camera_event_rows = await session.execute(
+                    select(Event.camera_id, func.count())
+                    .where(Event.deleted_at.is_(None))
+                    .where(Event.camera_id.in_(sorted(expected_camera_ids)))
+                    .group_by(Event.camera_id)
+                )
+                cameras_with_events = {camera_id for camera_id, _count in camera_event_rows}
+
+                # Detections not yet linked to any event for expected cameras.
+                # These are a stronger signal than event-count idle when batches are still draining.
+                unlinked_rows = await session.execute(
+                    select(func.count())
+                    .select_from(Detection)
+                    .outerjoin(
+                        EventDetection,
+                        EventDetection.detection_id == Detection.id,
+                    )
+                    .where(Detection.camera_id.in_(sorted(expected_camera_ids)))
+                    .where(EventDetection.event_id.is_(None))
+                )
+                pending_unlinked_detections = int(unlinked_rows.scalar() or 0)
+
+            if pending_unlinked_detections != last_unlinked_count:
+                last_unlinked_count = pending_unlinked_detections
+                last_unlinked_change_time = time.time()
+
+        camera_coverage_ok = not expected_camera_ids or expected_camera_ids.issubset(
+            cameras_with_events
+        )
+        missing_cameras = (
+            sorted(expected_camera_ids - cameras_with_events) if expected_camera_ids else []
+        )
+
         # Check if new events were created
         if current_count > last_count:
             last_change_time = time.time()
@@ -1884,7 +2187,7 @@ async def wait_for_pipeline_completion(
             last_count = current_count
 
         # Success condition: got enough events
-        if new_events >= expected_min_events:
+        if new_events >= expected_min_events and camera_coverage_ok:
             print("\n✓ Pipeline completed successfully!")
             print(f"  Created {new_events} new events in {elapsed:.0f} seconds")
             return current_count, new_events, True
@@ -1893,17 +2196,54 @@ async def wait_for_pipeline_completion(
         if elapsed >= timeout_seconds:
             print(f"\n⚠ Timeout reached after {timeout_seconds}s")
             print(f"  Created {new_events} events (expected at least {expected_min_events})")
-            return current_count, new_events, new_events > 0
+            if expected_camera_ids:
+                print(f"  Missing cameras with events: {', '.join(missing_cameras) or 'none'}")
+                print(f"  Unlinked detections remaining: {pending_unlinked_detections}")
+            return current_count, new_events, new_events > 0 and camera_coverage_ok
 
         # Idle condition: no new events for a while after some were created
         if new_events > 0 and time_since_last_change >= idle_timeout:
+            # Resilient default: do not declare idle complete while expected cameras
+            # are still missing or detections remain unlinked.
+            unlinked_stalled = (
+                expected_camera_ids
+                and pending_unlinked_detections > 0
+                and (time.time() - last_unlinked_change_time) >= idle_timeout
+            )
+            if expected_camera_ids and (not camera_coverage_ok or pending_unlinked_detections > 0):
+                if camera_coverage_ok and unlinked_stalled:
+                    print(
+                        "\n⚠ Pipeline unlinked detections appear stalled; "
+                        "continuing to next stage with partial linkage"
+                    )
+                    print(
+                        f"  Remaining unlinked detections: {pending_unlinked_detections} "
+                        f"(unchanged for >= {idle_timeout}s)"
+                    )
+                    print(f"  Created {new_events} new events in {elapsed:.0f} seconds")
+                    return current_count, new_events, True
+                if int(elapsed) % 30 == 0:
+                    print(
+                        f"  [{elapsed:.0f}s] Still draining pipeline: "
+                        f"missing_cameras={missing_cameras}, "
+                        f"unlinked_detections={pending_unlinked_detections}"
+                    )
+                await asyncio.sleep(poll_interval)
+                continue
             print(f"\n✓ Pipeline appears idle (no new events for {idle_timeout}s)")
             print(f"  Created {new_events} new events in {elapsed:.0f} seconds")
             return current_count, new_events, True
 
         # Still waiting
         if int(elapsed) % 30 == 0 and int(elapsed) > 0:
-            print(f"  [{elapsed:.0f}s] Waiting... ({new_events} events so far)")
+            if expected_camera_ids:
+                print(
+                    f"  [{elapsed:.0f}s] Waiting... ({new_events} events so far, "
+                    f"missing_cameras={missing_cameras}, "
+                    f"unlinked_detections={pending_unlinked_detections})"
+                )
+            else:
+                print(f"  [{elapsed:.0f}s] Waiting... ({new_events} events so far)")
 
         await asyncio.sleep(poll_interval)
 
@@ -7105,8 +7445,8 @@ This generates real data including:
     parser.add_argument(
         "--trash",
         type=int,
-        default=10,
-        help="Number of events to soft-delete for trash (default: 10)",
+        default=0,
+        help="Number of events to soft-delete for trash (default: 0)",
     )
     parser.add_argument(
         "--clear",
@@ -7173,6 +7513,25 @@ This generates real data including:
             "to prevent cross-camera contamination inflating normal event scores)"
         ),
     )
+    parser.add_argument(
+        "--camera-strategy",
+        choices=["scenario", "category"],
+        default="scenario",
+        help=(
+            "Camera assignment strategy for synthetic scenarios: "
+            "'scenario' (default, isolated camera per scenario for clean timeline mapping) "
+            "or 'category' (legacy shared camera per category)"
+        ),
+    )
+    parser.add_argument(
+        "--reasoning-retries",
+        type=int,
+        default=2,
+        help=(
+            "Automatically retry weakly reasoned scenarios with alternate synthetic events "
+            "(default: 2 rounds, set 0 to disable)"
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -7236,6 +7595,7 @@ This generates real data including:
     # AI PIPELINE (unless --config-only)
     # ==========================================================================
     synthetic_scenarios: list[SyntheticScenario] = []
+    selected_categories: list[str] | None = None
 
     if not args.config_only:
         # Get initial event count
@@ -7296,6 +7656,7 @@ This generates real data including:
             if args.categories:
                 categories = [c.strip() for c in args.categories.split(",")]
                 print(f"  Categories: {', '.join(categories)}")
+            selected_categories = categories
 
             # Discover synthetic scenarios
             # --all overrides --scenarios to process everything
@@ -7324,6 +7685,7 @@ This generates real data including:
                         scenarios=synthetic_scenarios,
                         frames_per_video=args.frames_per_video,
                         delay_between=args.delay,
+                        camera_strategy=args.camera_strategy,
                     )
                 else:
                     # Default: Process one category at a time with a 90-second
@@ -7347,6 +7709,7 @@ This generates real data including:
                             scenarios=cat_scenarios,
                             frames_per_video=args.frames_per_video,
                             delay_between=args.delay,
+                            camera_strategy=args.camera_strategy,
                         )
                         touched += cat_touched
 
@@ -7363,22 +7726,110 @@ This generates real data including:
 
         # Wait for pipeline completion unless --no-wait
         if not args.no_wait and touched > 0:
-            # Fix #4: Calculate realistic expected event count based on batching.
-            # With 30 scenarios and a 90-second batch window, frames get batched
-            # together per camera, producing fewer events than scenarios.
-            # Use ~2/3 of scenario count as baseline, minimum 5.
             num_scenarios = len(synthetic_scenarios) if synthetic_scenarios else touched // 5
-            expected_events = max(5, min(num_scenarios * 2 // 3, touched // 3))
+            if args.camera_strategy == "scenario":
+                # Default isolated mode: target roughly one event per scenario.
+                expected_events = max(1, min(num_scenarios, touched))
+            else:
+                # Legacy category camera mode can coalesce many detections per event.
+                expected_events = max(5, min(num_scenarios * 2 // 3, touched // 3))
+            expected_camera_ids: set[str] | None = None
+            if synthetic_scenarios:
+                expected_camera_ids = {
+                    (s.assigned_camera_id or get_test_camera_for_category(s.category))
+                    for s in synthetic_scenarios
+                }
+                print(
+                    "Waiting for coverage across cameras: " + ", ".join(sorted(expected_camera_ids))
+                )
             _final_count, new_events, success = await wait_for_pipeline_completion(
                 initial_event_count=initial_count,
                 expected_min_events=expected_events,
                 timeout_seconds=max(args.timeout, 600),  # Ensure at least 600s timeout
+                expected_camera_ids=expected_camera_ids,
             )
             total_created["events_created"] = new_events
 
             if not success:
                 print("\nWarning: Pipeline may not have completed fully")
                 print("  Check that AI services (YOLO26, Nemotron) are running")
+
+            # Resilience by default: if reasoning quality is weak, automatically
+            # seed alternate scenarios from the same categories and try again.
+            if synthetic_scenarios and args.reasoning_retries > 0:
+                processed_scenarios = list(synthetic_scenarios)
+                used_video_ids = {s.video_id for s in processed_scenarios}
+                all_available_scenarios = discover_synthetic_scenarios(
+                    categories=selected_categories,
+                    per_category_limit=None,
+                )
+
+                for retry_round in range(1, args.reasoning_retries + 1):
+                    validation_snapshot = await validate_synthetic_results(processed_scenarios)
+                    weak_results = _find_weak_reasoning_results(validation_snapshot)
+                    if not weak_results:
+                        print("\n✓ Reasoning resilience check passed (no weak scenarios detected)")
+                        break
+
+                    print(
+                        f"\nReasoning resilience round {retry_round}/{args.reasoning_retries}: "
+                        f"{len(weak_results)} weak scenarios detected"
+                    )
+                    retry_scenarios = _select_retry_scenarios(
+                        all_available=all_available_scenarios,
+                        weak_results=weak_results,
+                        used_video_ids=used_video_ids,
+                    )
+                    if not retry_scenarios:
+                        print("  No alternate scenarios left to retry for weak categories")
+                        break
+
+                    print(f"  Retrying with {len(retry_scenarios)} alternate scenarios")
+                    retry_initial_events = await get_events()
+                    retry_touched, _retry_paths = await seed_synthetic_scenarios(
+                        scenarios=retry_scenarios,
+                        frames_per_video=args.frames_per_video,
+                        delay_between=args.delay,
+                        camera_strategy=args.camera_strategy,
+                    )
+                    if retry_touched <= 0:
+                        print("  Retry seeding produced no frames; stopping resilience retries")
+                        break
+
+                    if args.camera_strategy == "scenario":
+                        retry_expected_events = max(1, len(retry_scenarios))
+                    else:
+                        retry_expected_events = max(
+                            1, min(len(retry_scenarios), retry_touched // 3)
+                        )
+                    retry_expected_cameras = {
+                        (s.assigned_camera_id or get_test_camera_for_category(s.category))
+                        for s in retry_scenarios
+                    }
+                    (
+                        _retry_final,
+                        retry_new_events,
+                        retry_success,
+                    ) = await wait_for_pipeline_completion(
+                        initial_event_count=len(retry_initial_events),
+                        expected_min_events=retry_expected_events,
+                        timeout_seconds=max(300, args.timeout // 2),
+                        expected_camera_ids=retry_expected_cameras,
+                    )
+                    total_created["events_created"] = (
+                        total_created.get("events_created", 0) + retry_new_events
+                    )
+                    if not retry_success:
+                        print("  Retry pipeline window ended without full success")
+
+                    processed_scenarios.extend(retry_scenarios)
+                    used_video_ids.update(s.video_id for s in retry_scenarios)
+                    total_created["synthetic_scenarios"] = len(processed_scenarios)
+                    total_created["frames_extracted"] = (
+                        total_created.get("frames_extracted", 0) + retry_touched
+                    )
+
+                synthetic_scenarios = processed_scenarios
 
             # Validate results if requested and using synthetic data
             if args.validate and synthetic_scenarios:

@@ -23769,6 +23769,12 @@
           "event_id": 456,
           "household_matches": [],
           "id": 123,
+          "parsed_response": {
+            "reasoning": "Prolonged presence and repeated approach patterns increase risk.",
+            "risk_level": "medium",
+            "risk_score": 72,
+            "summary": "Unknown person loitering near entry point."
+          },
           "raw_response": "Based on the analysis...",
           "think_block": {
             "key_observations": [],
@@ -23818,6 +23824,19 @@
             "description": "LLM interaction record ID",
             "title": "Id",
             "type": "integer"
+          },
+          "parsed_response": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parsed JSON response when raw_response is valid JSON",
+            "title": "Parsed Response"
           },
           "raw_response": {
             "description": "Full raw LLM response",

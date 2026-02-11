@@ -154,6 +154,12 @@ class LLMReasoningResponse(BaseModel):
                 "event_id": 456,
                 "created_at": "2026-01-15T10:30:00Z",
                 "raw_response": "Based on the analysis...",
+                "parsed_response": {
+                    "risk_score": 72,
+                    "risk_level": "medium",
+                    "summary": "Unknown person loitering near entry point.",
+                    "reasoning": "Prolonged presence and repeated approach patterns increase risk.",
+                },
                 "think_block": {
                     "raw_think_block": "<think>First, I observe...",
                     "reasoning_steps": [],
@@ -179,6 +185,10 @@ class LLMReasoningResponse(BaseModel):
 
     # Raw response for debug mode
     raw_response: str = Field(..., description="Full raw LLM response")
+    parsed_response: dict[str, Any] | None = Field(
+        None,
+        description="Parsed JSON response when raw_response is valid JSON",
+    )
 
     # Parsed think block content
     think_block: ThinkBlockContent = Field(

@@ -76,8 +76,18 @@ def test_animal_prompts_contains_common_animals():
 
 
 def test_prompts_are_unique():
-    """Test all prompts within each category are unique."""
-    assert len(SECURITY_PROMPTS) == len(set(SECURITY_PROMPTS))
+    """Test all prompts within each category are unique.
+
+    Note: SECURITY_PROMPTS is a concatenation of multiple categories and may
+    contain intentional overlaps (e.g., "pry bar" in both weapons and
+    suspicious_items). We verify uniqueness within each individual category
+    instead of the combined list.
+    """
+    # Verify uniqueness within each v2 category (strict)
+    for category, config in YOLO_WORLD_PROMPTS_V2.items():
+        prompts = config["prompts"]
+        assert len(prompts) == len(set(prompts)), f"Duplicate prompts in {category}"
+    # Legacy lists derived from multiple categories may have cross-category overlaps
     assert len(VEHICLE_SECURITY_PROMPTS) == len(set(VEHICLE_SECURITY_PROMPTS))
     assert len(ANIMAL_PROMPTS) == len(set(ANIMAL_PROMPTS))
 
@@ -782,7 +792,7 @@ def test_get_object_category_unknown():
 
 def test_get_object_threshold_known():
     """Test get_object_threshold returns correct threshold for known categories."""
-    assert get_object_threshold("weapons") == 0.20
+    assert get_object_threshold("weapons") == 0.22
     assert get_object_threshold("animals") == 0.45
     assert get_object_threshold("vehicles") == 0.40
 
