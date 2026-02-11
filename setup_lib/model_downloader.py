@@ -107,10 +107,10 @@ PHASE1_MODELS: list[ModelSpec] = [
     ),
     # Depth estimation (ai-gateway: depth)
     ModelSpec(
-        name="depth-anything-v2-small",
-        hf_repo="depth-anything/Depth-Anything-V2-Small-hf",
+        name="depth-anything-v2-tiny",
+        hf_repo="depth-anything/Depth-Anything-V2-Tiny-hf",
         phase=1,
-        size_mb=99,  # ~99MB
+        size_mb=25,  # ~25MB (tiny variant)
         description="Monocular depth estimation (ai-gateway)",
         required=False,
     ),

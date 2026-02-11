@@ -168,7 +168,7 @@ run_export "Pet classifier (ResNet-18) -> ONNX" \
 # Depth estimation -> ONNX
 run_export "Depth Anything V2 Tiny -> ONNX" \
     python3 "${SCRIPT_DIR}/export_depth.py" \
-        --model-path "${MODELS_ZOO}/depth-anything-v2-tiny" \
+        --model-path "${MODELS_ZOO}/depth-anything-v2-small" \
         --output-path "${CACHE_DIR}/depth/1/model.onnx"
 
 # Person Re-ID -> ONNX
