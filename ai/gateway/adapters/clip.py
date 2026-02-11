@@ -86,13 +86,16 @@ def _ensure_tokenizer() -> bool:
             from transformers import AutoTokenizer
 
             logger.info("Loading SigLIP 2 tokenizer for Triton text encoder...")
+            candidate: Any = None
             try:
-                _clip_tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
+                candidate = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
             except Exception:
-                _clip_tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
+                candidate = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
+            _clip_tokenizer = candidate
             logger.info("SigLIP 2 tokenizer loaded successfully")
             return True
         except Exception:
+            _clip_tokenizer = None
             _tokenizer_failed = True
             logger.warning(
                 "Failed to load SigLIP 2 tokenizer. "
@@ -136,24 +139,27 @@ def _ensure_text_encoder() -> bool:
             from transformers import AutoModel, AutoTokenizer
 
             logger.info("Loading SigLIP 2 text encoder (CPU)...")
+            candidate_model: torch.nn.Module | None = None
+            candidate_tokenizer: Any = None
             try:
                 model = AutoModel.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
             except Exception:
                 model = AutoModel.from_pretrained(_SIGLIP2_TOKENIZER_HF)
             model = model.eval().cpu()
-            # Extract just the text model for encoding
-            if hasattr(model, "text_model"):
-                _text_model = model
-            else:
-                _text_model = model
+            candidate_model = model
             try:
                 tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
             except Exception:
                 tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
-            _text_tokenizer = tokenizer
+            candidate_tokenizer = tokenizer
+            # Only publish globals after both model and tokenizer are ready.
+            _text_model = candidate_model
+            _text_tokenizer = candidate_tokenizer
             logger.info("SigLIP 2 text encoder loaded successfully")
             return True
         except Exception:
+            _text_model = None
+            _text_tokenizer = None
             _text_encoder_failed = True
             logger.warning(
                 "Failed to load SigLIP 2 text encoder. "
@@ -174,6 +180,8 @@ def _encode_texts_siglip(texts: list[str]) -> np.ndarray:
     Returns:
         Numpy array of shape (len(texts), 768) with L2-normalized embeddings.
     """
+    if _text_model is None or _text_tokenizer is None:
+        raise RuntimeError("SigLIP text encoder is not initialized")
     tokens = _text_tokenizer(
         texts,
         return_tensors="pt",
@@ -318,6 +326,8 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
     # Try Triton text encoder model first (SigLIP 2 ONNX with tokenized inputs)
     try:
         if await triton.is_model_ready(TEXT_MODEL_NAME) and _ensure_tokenizer():
+            if _clip_tokenizer is None:
+                raise RuntimeError("SigLIP tokenizer unavailable after initialization")
             tokens = _clip_tokenizer(
                 texts,
                 return_tensors="np",
@@ -343,7 +353,10 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
 
     # Try in-process SigLIP 2 text encoder (CPU)
     if _ensure_text_encoder():
-        return _encode_texts_siglip(texts)
+        try:
+            return _encode_texts_siglip(texts)
+        except Exception as e:
+            logger.warning("In-process SigLIP text encoding failed: %s", e, exc_info=True)
 
     # Final fallback: zero embeddings
     logger.warning(
@@ -395,6 +408,12 @@ async def classify(request: ClassifyRequest) -> ClassifyResponse:
 
     # Get text embeddings
     text_embeddings = await _get_text_embeddings(request.labels)
+
+    if not np.any(text_embeddings):
+        raise HTTPException(
+            status_code=503,
+            detail="CLIP text encoder unavailable; classification temporarily disabled",
+        )
 
     # Compute similarities and softmax
     similarities = (image_np @ text_embeddings.T)[0]
@@ -452,6 +471,12 @@ async def batch_similarity(request: BatchSimilarityRequest) -> BatchSimilarityRe
     image_embedding, _ = await _get_image_embedding(request.image)
     image_np = np.array(image_embedding, dtype=np.float32).reshape(1, -1)
     text_embeddings = await _get_text_embeddings(request.texts)
+
+    if not np.any(text_embeddings):
+        raise HTTPException(
+            status_code=503,
+            detail="CLIP text encoder unavailable; batch similarity temporarily disabled",
+        )
 
     sims = (image_np @ text_embeddings.T)[0]
     similarities = {text: round(float(sims[i]), 6) for i, text in enumerate(request.texts)}

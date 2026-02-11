@@ -29975,6 +29975,12 @@ export interface components {
          *       "event_id": 456,
          *       "household_matches": [],
          *       "id": 123,
+         *       "parsed_response": {
+         *         "reasoning": "Prolonged presence and repeated approach patterns increase risk.",
+         *         "risk_level": "medium",
+         *         "risk_score": 72,
+         *         "summary": "Unknown person loitering near entry point."
+         *       },
          *       "raw_response": "Based on the analysis...",
          *       "think_block": {
          *         "key_observations": [],
@@ -30021,6 +30027,13 @@ export interface components {
              * @description LLM interaction record ID
              */
             id: number;
+            /**
+             * Parsed Response
+             * @description Parsed JSON response when raw_response is valid JSON
+             */
+            parsed_response?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Raw Response
              * @description Full raw LLM response
