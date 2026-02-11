@@ -70,6 +70,14 @@ if [ "$DESTROY_VOLUMES" = true ]; then
     echo "  Destroying volumes..."
     podman volume prune -f 2>/dev/null || true
 fi
+
+# Ensure network exists (survives reboot)
+NETWORK_NAME="nemotron-v3-home-security-intelligence_security-net"
+if ! podman network exists "$NETWORK_NAME" 2>/dev/null; then
+    echo "  Creating network: $NETWORK_NAME"
+    podman network create "$NETWORK_NAME" 2>/dev/null || true
+fi
+
 echo "  Done."
 
 # ==========================================================================
