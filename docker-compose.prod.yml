@@ -196,7 +196,6 @@ services:
       - ALL
     tmpfs:
       - /tmp
-      - /home/llama/.cache # llama.cpp temp cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-llm'
@@ -211,6 +210,10 @@ services:
       - '127.0.0.1:${LLM_PORT:-8091}:8091'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+      # Persistent CUDA kernel cache (llama.cpp compilation cache)
+      - llama-cache:/home/llama/.cache
+      # Persistent NVIDIA compute cache (CUDA JIT kernels)
+      - llama-nv-cache:/home/llama/.nv
     environment:
       # Pyroscope continuous profiling for LLM inference analysis
       - SERVICE_NAME=ai-llm
@@ -690,6 +693,10 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+      # Persistent CUDA kernel cache (survives container redeploys)
+      - triton-kernel-cache:/root/.nv
+      # TensorRT temp artifacts cache (compilation intermediates)
+      - triton-tmp-cache:/tmp
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
@@ -850,13 +857,14 @@ services:
       - SYS_ADMIN
       - SYS_PTRACE
     # Redis tuning for connection handling
-    # NOTE: vm.overcommit_memory=1 sysctl requires host-level configuration (see below)
-    # and cannot be set in rootless containers. For production deployments, run:
+    # NOTE: Sysctls require host-level configuration for rootless containers
+    # These settings should be configured by setup.py for production deployments:
     #   sudo sysctl -w vm.overcommit_memory=1
-    #   echo "vm.overcommit_memory=1" | sudo tee /etc/sysctl.d/99-redis.conf
+    #   sudo sysctl -w net.core.somaxconn=511
     # See: https://redis.io/docs/management/admin/#background-saving-fails-with-a-fork-error
-    sysctls:
-      - net.core.somaxconn=511
+    # Rootless Podman cannot set sysctls - must be configured at host level
+    # sysctls:
+    #   - net.core.somaxconn=511
     image: docker.io/library/redis:7.4-alpine3.21
     # NEM-4496: Bind to localhost only to prevent external network access
     ports:
@@ -1607,9 +1615,11 @@ services:
       - alloy_symb_cache:/tmp/symb-cache
     ulimits:
       # eBPF profiling requires increased memory lock limit
+      # Rootless containers cannot set unlimited (-1), so use a high limit (8GB)
+      # Host limit should be configured by setup.py in /etc/security/limits.d/
       memlock:
-        soft: -1
-        hard: -1
+        soft: 8589934592
+        hard: 8589934592
     environment:
       - HOST_PROC=/host/proc
     command:
@@ -1680,6 +1690,20 @@ volumes:
   # PyTorch GPU profiling traces shared across AI services (NEM-4130)
   # View traces with Perfetto UI: https://ui.perfetto.dev
   pytorch-profiles:
+    driver: local
+  # Triton/Gateway CUDA kernel cache (NEM-XXXX)
+  # Persists CUDA JIT compilation across container redeploys
+  triton-kernel-cache:
+    driver: local
+  # Triton TensorRT temporary compilation artifacts
+  triton-tmp-cache:
+    driver: local
+  # llama.cpp CUDA kernel cache (ai-llm service)
+  # Persists llama.cpp compilation cache across redeploys
+  llama-cache:
+    driver: local
+  # NVIDIA CUDA JIT kernel cache for ai-llm
+  llama-nv-cache:
     driver: local
 
 networks:

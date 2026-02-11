@@ -4,10 +4,10 @@
 # All services managed via compose — single source of truth for configuration.
 #
 # Usage:
-#   ./scripts/deploy-gateway.sh                    # Normal deploy (auto-skips export if cached)
+#   ./scripts/deploy-gateway.sh                    # Normal deploy (skips export, uses cached models)
+#   ./scripts/deploy-gateway.sh --export           # Export models before deploy (first deploy or model updates)
+#   ./scripts/deploy-gateway.sh --force-export     # Force re-export all models (rebuilds cache)
 #   ./scripts/deploy-gateway.sh --destroy-volumes  # Fresh deploy (destroys all data)
-#   ./scripts/deploy-gateway.sh --force-export     # Force re-export all models
-#   ./scripts/deploy-gateway.sh --skip-export      # Skip model export entirely
 #   ./scripts/deploy-gateway.sh --skip-build       # Skip image builds (use existing)
 set -euo pipefail
 
@@ -16,22 +16,33 @@ source "$PROJECT_ROOT/.env"
 
 # Parse arguments
 DESTROY_VOLUMES=false
-SKIP_EXPORT=false
+SKIP_EXPORT=true  # Default: skip export (use cached models from Triton volume)
 FORCE_EXPORT=false
 SKIP_BUILD=false
 for arg in "$@"; do
     case "$arg" in
         --destroy-volumes) DESTROY_VOLUMES=true ;;
-        --skip-export) SKIP_EXPORT=true ;;
-        --force-export) FORCE_EXPORT=true ;;
+        --export) SKIP_EXPORT=false ;;  # Explicitly enable export
+        --force-export) FORCE_EXPORT=true; SKIP_EXPORT=false ;;
         --skip-build) SKIP_BUILD=true ;;
     esac
 done
 
+# Auto-detect podman compose command (Podman 5.x native vs 4.x external)
+# Fedora 43 (Podman 5.x): "podman compose" (native subcommand, no hyphen)
+# Ubuntu 22.04 (Podman 4.x): "podman-compose" (external Python tool, with hyphen)
+if podman compose version &>/dev/null; then
+    COMPOSE_CMD="podman compose"
+    echo "Detected: podman compose (native, Podman 5.x+)"
+else
+    COMPOSE_CMD="podman-compose"
+    echo "Detected: podman-compose (external, Podman 4.x)"
+fi
+
 # Compose command — gateway mode is the default deployment
 # Individual AI services (ai-yolo26, ai-florence, etc.) are profiled as "standalone"
 # and won't start unless explicitly requested with --profile standalone
-COMPOSE="podman compose -f $PROJECT_ROOT/docker-compose.prod.yml -f $PROJECT_ROOT/docker-compose.gateway.yml"
+COMPOSE="$COMPOSE_CMD -f $PROJECT_ROOT/docker-compose.prod.yml -f $PROJECT_ROOT/docker-compose.gateway.yml"
 
 echo "=== Triton Gateway Deploy ==="
 echo "Branch: $(git -C "$PROJECT_ROOT" branch --show-current)"
@@ -99,7 +110,25 @@ fi
 
 if [ "$SKIP_EXPORT" = true ]; then
     echo ""
-    echo "[3/6] Skipping model export (--skip-export)"
+    echo "[3/6] Skipping model export (default - using cached models)"
+    echo "  Triton loads models from: /export/ai_models/triton/"
+    
+    # Warn if no models are cached (first deploy scenario)
+    if [ "$MISSING_MODELS" -gt 0 ]; then
+        echo ""
+        echo "  ⚠️  WARNING: $MISSING_MODELS models not found in cache!"
+        echo "  First deploy? Run: ./scripts/deploy-gateway.sh --export"
+        echo "  Gateway will fail to start without exported models."
+        echo ""
+        read -p "  Continue anyway? [y/N]: " -r
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "  Aborted. Rerun with --export to export models first."
+            exit 1
+        fi
+    else
+        echo "  ✓ All $( echo $CORE_MODELS | wc -w) models cached"
+    fi
+    echo "  Use --export for first deploy or --force-export to rebuild cache"
 elif [ "$MISSING_MODELS" -eq 0 ]; then
     echo ""
     echo "[3/6] All $( echo $CORE_MODELS | wc -w) core models cached — skipping export"
