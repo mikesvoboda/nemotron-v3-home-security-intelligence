@@ -76,6 +76,29 @@ else
     echo ""
     echo "[2/6] Building images..."
 
+    # Get GPU compute capability for optimized CUDA builds
+    # This reduces ai-llm build time by ~6x by only compiling for the detected GPU
+    # Reads from .env (set by setup.py), or detects at runtime if not configured
+    CUDA_ARCH=""
+    
+    if [ -n "${CUDA_ARCHITECTURES:-}" ]; then
+        # Use value from .env (set by setup.py during initial setup)
+        CUDA_ARCH="--build-arg CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}"
+        echo "  GPU architecture: ${CUDA_ARCHITECTURES:0:1}.${CUDA_ARCHITECTURES:1} (from .env)"
+    elif command -v nvidia-smi &> /dev/null; then
+        # Fallback: detect at runtime
+        COMPUTE_CAP=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | tr -d '.')
+        if [ -n "$COMPUTE_CAP" ]; then
+            CUDA_ARCH="--build-arg CUDA_ARCHITECTURES=${COMPUTE_CAP}"
+            echo "  GPU architecture: ${COMPUTE_CAP:0:1}.${COMPUTE_CAP:1} (detected, consider running setup.py)"
+        fi
+    fi
+    
+    if [ -z "$CUDA_ARCH" ]; then
+        echo "  GPU not detected - building for common architectures (6x slower)"
+        echo "  Run setup.py to configure CUDA_ARCHITECTURES in .env"
+    fi
+
     # Build base image first (backend depends on it)
     echo "  Building base (sequential — backend depends on this)..."
     podman build --no-cache -f "$PROJECT_ROOT/docker/base.Dockerfile" \
@@ -83,7 +106,7 @@ else
 
     # Build all service images via compose (ensures correct image naming)
     echo "  Building all services via compose..."
-    $COMPOSE build --no-cache backend frontend ai-gateway ai-llm 2>&1 | tail -5
+    $COMPOSE build --no-cache $CUDA_ARCH backend frontend ai-gateway ai-llm 2>&1 | tail -5
 
     echo "  All images built."
 fi

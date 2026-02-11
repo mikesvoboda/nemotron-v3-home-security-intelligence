@@ -463,6 +463,13 @@ def generate_env_content(config: dict) -> str:
         f"GPU_LLM={config.get('gpu_llm', 0)}",
         f"GPU_AI_SERVICES={config.get('gpu_ai_services', 1)}",
         "",
+        "# -- CUDA Build Optimization " + "-" * 31,
+        "# Detected GPU compute capability for optimized CUDA builds",
+        "# Reduces ai-llm build time by ~6x by only compiling for detected GPU",
+        "# Format: XY (e.g., 89 = compute capability 8.9)",
+        "# Leave empty to build for all common architectures (slower)",
+        f"CUDA_ARCHITECTURES={config.get('cuda_architectures', '')}",
+        "",
         "# -- Core Service Ports " + "-" * 37,
         f"POSTGRES_PORT={ports.get('postgres', 5432)}",
         f"REDIS_PORT={ports.get('redis', 6379)}",
@@ -664,6 +671,16 @@ def run_quick_mode() -> dict:
             ports[service] = suggested
     print()
 
+    # Detect GPU compute capability for optimized CUDA builds
+    from setup_lib.nvidia_detect import get_gpu_info
+    cuda_arch = ""
+    gpus = get_gpu_info()
+    if gpus and len(gpus) > 0:
+        # Use first GPU's compute capability (e.g., "8.9" -> "89")
+        compute_cap = gpus[0].get("compute_cap", "")
+        if compute_cap and compute_cap != "unknown":
+            cuda_arch = compute_cap.replace(".", "")
+
     return {
         "foscam_base_path": foscam_base_path,
         "ai_models_path": ai_models_path,
@@ -675,6 +692,9 @@ def run_quick_mode() -> dict:
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
+        "gpu_llm": 0,
+        "gpu_ai_services": 1,
+        "cuda_architectures": cuda_arch,
     }
 
 
@@ -824,6 +844,16 @@ def run_guided_mode() -> dict:
         print("Setup cancelled.")
         sys.exit(0)
 
+    # Detect GPU compute capability for optimized CUDA builds
+    from setup_lib.nvidia_detect import get_gpu_info
+    cuda_arch = ""
+    gpus = get_gpu_info()
+    if gpus and len(gpus) > 0:
+        # Use first GPU's compute capability (e.g., "8.9" -> "89")
+        compute_cap = gpus[0].get("compute_cap", "")
+        if compute_cap and compute_cap != "unknown":
+            cuda_arch = compute_cap.replace(".", "")
+
     return {
         "foscam_base_path": foscam_base_path,
         "ai_models_path": ai_models_path,
@@ -835,6 +865,9 @@ def run_guided_mode() -> dict:
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
+        "gpu_llm": 0,
+        "gpu_ai_services": 1,
+        "cuda_architectures": cuda_arch,
     }
 
 
@@ -964,6 +997,16 @@ def run_defaults_mode() -> dict:
     # JWT secret for authentication (NEM-3471)
     jwt_secret = generate_jwt_secret()
 
+    # Detect GPU compute capability for optimized CUDA builds
+    from setup_lib.nvidia_detect import get_gpu_info
+    cuda_arch = ""
+    gpus = get_gpu_info()
+    if gpus and len(gpus) > 0:
+        # Use first GPU's compute capability (e.g., "8.9" -> "89")
+        compute_cap = gpus[0].get("compute_cap", "")
+        if compute_cap and compute_cap != "unknown":
+            cuda_arch = compute_cap.replace(".", "")
+
     return {
         "foscam_base_path": "/export/foscam",
         "ai_models_path": "/export/ai_models",
@@ -975,6 +1018,9 @@ def run_defaults_mode() -> dict:
         "jwt_expiry_hours": 24,
         "refresh_token_days": 30,
         "ports": ports,
+        "gpu_llm": 0,
+        "gpu_ai_services": 1,
+        "cuda_architectures": cuda_arch,
     }
 
 

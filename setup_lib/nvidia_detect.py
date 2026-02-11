@@ -35,6 +35,7 @@ class GpuInfo(TypedDict):
 
     name: str
     vram_mb: int
+    compute_cap: str  # Compute capability (e.g., "8.9")
 
 
 class NvidiaDetectionSummary(TypedDict):
@@ -93,10 +94,10 @@ def is_nvidia_gpu_present() -> bool:
 def get_gpu_info() -> list[GpuInfo] | None:
     """Get information about all detected NVIDIA GPUs.
 
-    Queries nvidia-smi for GPU names and VRAM sizes.
+    Queries nvidia-smi for GPU names, VRAM sizes, and compute capability.
 
     Returns:
-        List of GpuInfo dicts with name and vram_mb, or None if detection fails.
+        List of GpuInfo dicts with name, vram_mb, and compute_cap, or None if detection fails.
     """
     try:
         # Get GPU names
@@ -121,13 +122,24 @@ def get_gpu_info() -> list[GpuInfo] | None:
         if memory_result.returncode != 0:
             return None
 
+        # Get compute capability
+        compute_result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
         names = [n.strip() for n in name_result.stdout.strip().split("\n") if n.strip()]
         memories = [m.strip() for m in memory_result.stdout.strip().split("\n") if m.strip()]
+        compute_caps = [c.strip() for c in compute_result.stdout.strip().split("\n") if c.strip()] if compute_result.returncode == 0 else []
 
         gpus: list[GpuInfo] = []
         for i, name in enumerate(names):
             vram_mb = int(memories[i]) if i < len(memories) else 0
-            gpus.append(GpuInfo(name=name, vram_mb=vram_mb))
+            compute_cap = compute_caps[i] if i < len(compute_caps) else "unknown"
+            gpus.append(GpuInfo(name=name, vram_mb=vram_mb, compute_cap=compute_cap))
 
         return gpus if gpus else None
 
