@@ -15,9 +15,11 @@ Usage:
 
 from __future__ import annotations
 
+import platform
 import re
 import shutil
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from setup_lib.platform_detect import PlatformInfo, get_platform_info
@@ -94,11 +96,11 @@ def is_version_at_least(current: str | None, required: tuple[int, int, int]) -> 
     """
     if current is None:
         return False
-    
+
     parsed = parse_version(current)
     if parsed is None:
         return False
-    
+
     return parsed >= required
 
 
@@ -119,14 +121,13 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
         True if upgrade succeeded, False otherwise.
     """
     # Only supported on Debian/Ubuntu systems with apt
-    package_manager = platform_info.get("package_manager")
-    dist_id = platform_info.get("distribution_id", "").lower()
-    version = platform_info.get("version", "")
-    
+    package_manager = str(platform_info.get("package_manager", ""))
+    version = str(platform_info.get("version", ""))
+
     if package_manager != "apt":
         print("! Podman 4.x+ upgrade only supported on Debian/Ubuntu")
         return False
-    
+
     # Map Ubuntu version to Kubic repository URL
     # Use exact match for Ubuntu, fallback for Debian
     repo_map = {
@@ -134,7 +135,7 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
         "22.04": "xUbuntu_22.04",
         "24.04": "xUbuntu_24.04",
     }
-    
+
     repo_version = repo_map.get(version)
     if repo_version is None:
         # Try to infer for Debian or unknown Ubuntu versions
@@ -148,51 +149,57 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
             print(f"! Unsupported Ubuntu/Debian version for Kubic repo: {version}")
             print("  Supported versions: 20.04, 22.04, 24.04")
             return False
-    
+
     print(f"Upgrading Podman from Kubic repository ({repo_version})...")
-    
+
     try:
         # Add Kubic repository for detected OS version
         base_url = f"https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/{repo_version}"
         repo_line = f"deb {base_url}/ /"
-        
+
         subprocess.run(
-            ["sudo", "tee", "/etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list"],
+            ["sudo", "tee", "/etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list"],  # noqa: S607
             input=repo_line,
             text=True,
             check=True,
             capture_output=True,
         )
-        
+
         # Add GPG key (use detected OS version)
         key_url = f"{base_url}/Release.key"
         result = subprocess.run(
-            ["curl", "-fsSL", key_url],
+            ["curl", "-fsSL", key_url],  # noqa: S607
             capture_output=True,
             check=True,
         )
-        
+
         subprocess.run(
-            ["sudo", "gpg", "--dearmor", "-o", "/etc/apt/trusted.gpg.d/kubic-libcontainers-unstable.gpg"],
+            [  # noqa: S607
+                "sudo",
+                "gpg",
+                "--dearmor",
+                "-o",
+                "/etc/apt/trusted.gpg.d/kubic-libcontainers-unstable.gpg",
+            ],
             input=result.stdout,
             check=True,
             capture_output=True,
         )
-        
+
         # Update package list
         subprocess.run(
-            ["sudo", "apt-get", "update"],
+            ["sudo", "apt-get", "update"],  # noqa: S607
             check=True,
             capture_output=True,
         )
-        
+
         # Upgrade podman
         subprocess.run(
-            ["sudo", "apt-get", "install", "-y", "podman"],
+            ["sudo", "apt-get", "install", "-y", "podman"],  # noqa: S607
             check=True,
             capture_output=True,
         )
-        
+
         # Verify upgrade
         new_version = get_podman_version()
         if new_version and is_version_at_least(new_version, (4, 0, 0)):
@@ -201,7 +208,7 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
         else:
             print(f"! Upgrade may have failed (version: {new_version})")
             return False
-            
+
     except subprocess.CalledProcessError as e:
         print(f"! Upgrade failed: {e}")
         return False
@@ -251,7 +258,7 @@ def install_podman(platform_info: PlatformInfo) -> bool:
         return False
 
     try:
-        result = subprocess.run(command, check=False)  # noqa: S603 - command from get_install_command
+        result = subprocess.run(command, check=False)
         return result.returncode == 0
     except OSError:
         return False
@@ -358,14 +365,14 @@ def is_podman_compose_installed() -> bool:
 def _add_to_shell_profile() -> None:
     """Add ~/.local/bin to PATH in shell profile if not already present."""
     path_export = 'export PATH="$HOME/.local/bin:$PATH"'
-    
+
     # Determine which shell profile to update
     shell_profiles = [
         Path.home() / ".bashrc",
         Path.home() / ".bash_profile",
         Path.home() / ".profile",
     ]
-    
+
     for profile in shell_profiles:
         if profile.exists():
             try:
@@ -378,7 +385,7 @@ def _add_to_shell_profile() -> None:
                     return
             except (OSError, PermissionError):
                 pass
-    
+
     # If no profile found, suggest manual addition
     print(f"  Note: Add to shell profile: {path_export}")
 
@@ -392,34 +399,35 @@ def install_podman_compose() -> bool:
     try:
         # Install via pip3 with user flag
         result = subprocess.run(
-            ["pip3", "install", "--user", "podman-compose"],
+            ["pip3", "install", "--user", "podman-compose"],  # noqa: S607
             check=False,
             capture_output=True,
             text=True,
         )
-        
+
         if result.returncode != 0:
             print(f"! pip install failed: {result.stderr}")
             return False
-        
+
         # Add ~/.local/bin to PATH for current session
         import os
+
         local_bin = str(Path.home() / ".local" / "bin")
         if local_bin not in os.environ.get("PATH", ""):
             os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
-        
+
         # Verify installation
         if is_podman_compose_installed():
             print("+ podman-compose installed successfully")
-            
+
             # Add to shell profile for persistence
             _add_to_shell_profile()
             return True
         else:
             print("! podman-compose installed but not in PATH")
-            print(f"  Add to your ~/.bashrc: export PATH=\"$HOME/.local/bin:$PATH\"")
+            print('  Add to your ~/.bashrc: export PATH="$HOME/.local/bin:$PATH"')
             return True  # Still return True as it's installed
-            
+
     except FileNotFoundError:
         print("! pip3 not found")
         return False
@@ -428,19 +436,19 @@ def install_podman_compose() -> bool:
         return False
 
 
-def configure_rootless_cgroups() -> bool:
+def configure_rootless_cgroups() -> bool:  # noqa: PLR0911
     """Configure cgroup delegation for rootless Podman (Linux only).
-    
+
     Rootless Podman requires cgroup delegation to enforce resource limits
     (CPU, memory) defined in docker-compose.yml. Without delegation, containers
     will fail to start with "cpu controller not available" errors.
-    
+
     This function:
     1. Creates /etc/systemd/system/user@.service.d/delegate.conf
     2. Sets Delegate=yes to enable cgroup passthrough
     3. Reloads systemd daemon
     4. Enables lingering for current user
-    
+
     Returns:
         True if configuration succeeded or is not needed (macOS/Windows),
         False if configuration failed.
@@ -448,7 +456,7 @@ def configure_rootless_cgroups() -> bool:
     # Only needed on Linux
     if platform.system() != "Linux":
         return True
-    
+
     # Check if delegation is already configured
     delegate_file = Path("/etc/systemd/system/user@.service.d/delegate.conf")
     if delegate_file.exists():
@@ -459,14 +467,14 @@ def configure_rootless_cgroups() -> bool:
                 return True
         except (OSError, PermissionError):
             pass
-    
+
     print("\nConfiguring cgroup delegation for rootless Podman...")
     print("  (Required for CPU/memory limits in compose files)")
-    
+
     try:
         # Create systemd drop-in directory
         result = subprocess.run(
-            ["sudo", "mkdir", "-p", "/etc/systemd/system/user@.service.d/"],
+            ["sudo", "mkdir", "-p", "/etc/systemd/system/user@.service.d/"],  # noqa: S607
             capture_output=True,
             text=True,
             timeout=30,
@@ -475,11 +483,11 @@ def configure_rootless_cgroups() -> bool:
         if result.returncode != 0:
             print(f"! Failed to create systemd directory: {result.stderr}")
             return False
-        
+
         # Write delegation configuration
         delegate_config = "[Service]\nDelegate=yes\n"
         result = subprocess.run(
-            ["sudo", "tee", str(delegate_file)],
+            ["sudo", "tee", str(delegate_file)],  # noqa: S607
             input=delegate_config,
             capture_output=True,
             text=True,
@@ -489,10 +497,10 @@ def configure_rootless_cgroups() -> bool:
         if result.returncode != 0:
             print(f"! Failed to write delegation config: {result.stderr}")
             return False
-        
+
         # Reload systemd daemon
         result = subprocess.run(
-            ["sudo", "systemctl", "daemon-reload"],
+            ["sudo", "systemctl", "daemon-reload"],  # noqa: S607
             capture_output=True,
             text=True,
             timeout=30,
@@ -501,23 +509,24 @@ def configure_rootless_cgroups() -> bool:
         if result.returncode != 0:
             print(f"! Failed to reload systemd: {result.stderr}")
             return False
-        
+
         # Enable lingering for current user (allows user services to run at boot)
         import os
+
         username = os.environ.get("USER")
         if username:
             result = subprocess.run(
-                ["loginctl", "enable-linger", username],
+                ["loginctl", "enable-linger", username],  # noqa: S607
                 capture_output=True,
                 text=True,
                 timeout=30,
                 check=False,
             )
             # Ignore errors - lingering is nice-to-have, not required
-        
+
         # Reload user systemd session
         result = subprocess.run(
-            ["systemctl", "--user", "daemon-reload"],
+            ["systemctl", "--user", "daemon-reload"],  # noqa: S607
             capture_output=True,
             text=True,
             timeout=30,
@@ -526,22 +535,22 @@ def configure_rootless_cgroups() -> bool:
         if result.returncode != 0:
             print(f"! Warning: Failed to reload user systemd: {result.stderr}")
             print("  Delegation will take effect after logout/login")
-        
+
         print("+ Cgroup delegation configured successfully")
         print("  CPU/memory limits will now work in rootless containers")
-        
+
         # Configure Redis sysctls (required for rootless containers)
         print("\nConfiguring Redis sysctls...")
         sysctls_to_set = {
             "vm.overcommit_memory": "1",
             "net.core.somaxconn": "511",
         }
-        
+
         for sysctl, value in sysctls_to_set.items():
             # Check current value
             try:
                 current_result = subprocess.run(
-                    ["sysctl", "-n", sysctl],
+                    ["sysctl", "-n", sysctl],  # noqa: S607
                     capture_output=True,
                     text=True,
                     timeout=10,
@@ -554,10 +563,10 @@ def configure_rootless_cgroups() -> bool:
                         continue
             except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
                 pass
-            
+
             # Set sysctl
             result = subprocess.run(
-                ["sudo", "sysctl", "-w", f"{sysctl}={value}"],
+                ["sudo", "sysctl", "-w", f"{sysctl}={value}"],  # noqa: S607
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -565,11 +574,11 @@ def configure_rootless_cgroups() -> bool:
             )
             if result.returncode == 0:
                 print(f"  {sysctl}={value} configured")
-                
+
                 # Make it persistent across reboots
                 sysctl_file = Path("/etc/sysctl.d/99-podman-redis.conf")
                 result = subprocess.run(
-                    ["sudo", "tee", "-a", str(sysctl_file)],
+                    ["sudo", "tee", "-a", str(sysctl_file)],  # noqa: S607
                     input=f"{sysctl}={value}\n",
                     capture_output=True,
                     text=True,
@@ -580,14 +589,14 @@ def configure_rootless_cgroups() -> bool:
                     print(f"    Persisted to {sysctl_file}")
             else:
                 print(f"! Warning: Failed to set {sysctl}: {result.stderr}")
-        
+
         # Configure open files limit (required for frontend builds with Vite/Rollup)
         print("\nConfiguring open files limit...")
         print("  (Required for large Node.js builds in rootless containers)")
-        
+
         limits_file = Path("/etc/security/limits.d/99-podman-nofile.conf")
         limits_config = "* soft nofile 65536\n* hard nofile 65536\n"
-        
+
         # Check if already configured
         if limits_file.exists():
             try:
@@ -597,9 +606,9 @@ def configure_rootless_cgroups() -> bool:
                     return True
             except (OSError, PermissionError):
                 pass
-        
+
         result = subprocess.run(
-            ["sudo", "tee", str(limits_file)],
+            ["sudo", "tee", str(limits_file)],  # noqa: S607
             input=limits_config,
             capture_output=True,
             text=True,
@@ -612,9 +621,9 @@ def configure_rootless_cgroups() -> bool:
         else:
             print(f"! Warning: Failed to set open files limit: {result.stderr}")
             print("  Frontend builds may fail with 'EMFILE: too many open files'")
-        
+
         return True
-        
+
     except (FileNotFoundError, PermissionError, subprocess.TimeoutExpired, OSError) as e:
         print(f"! Failed to configure cgroup delegation: {e}")
         print("  Containers may fail with 'cpu controller not available' errors")
@@ -644,17 +653,17 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
     if platform_info is None:
         print("! Unsupported platform for Podman installation")
         return False
-    
+
     # Check if already installed
     if is_podman_installed():
         # Check version (need 4.0+ for BuildKit cache mount support)
         current_version = get_podman_version()
         if current_version:
             print(f"Podman {current_version} detected")
-            
+
             if not is_version_at_least(current_version, (4, 0, 0)):
                 print("! Podman 3.x detected - need 4.0+ for BuildKit cache mounts")
-                
+
                 auto_install = bool(config and config.get("auto_install"))
                 if auto_install:
                     print("Upgrading to Podman 4.x...")
@@ -663,20 +672,20 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
                     response = input("Upgrade to Podman 4.x for faster builds? [y/N]: ")
                     if response.lower() in ("y", "yes"):
                         upgrade_podman_to_4x(platform_info)
-        
+
         # Also check and install podman-compose
         if not is_podman_compose_installed():
             print("Checking for podman-compose...")
             install_podman_compose()
-        
+
         # Configure rootless cgroups (Linux only, required for resource limits)
         configure_rootless_cgroups()
-        
+
         return True
 
     # Not installed - do fresh installation
     success = _do_install_podman(platform_info, config)
-    
+
     # If Podman was installed successfully, check version and upgrade if needed
     if success:
         current_version = get_podman_version()
@@ -684,13 +693,13 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
             print(f"\nPodman {current_version} installed, but 4.0+ is recommended")
             print("Upgrading to Podman 4.x for BuildKit support...")
             upgrade_podman_to_4x(platform_info)
-        
+
         # Install podman-compose
         if not is_podman_compose_installed():
             print("\nInstalling podman-compose...")
             install_podman_compose()
-        
+
         # Configure rootless cgroups (Linux only, required for resource limits)
         configure_rootless_cgroups()
-    
+
     return success
