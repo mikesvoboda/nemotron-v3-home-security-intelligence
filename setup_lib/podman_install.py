@@ -581,6 +581,38 @@ def configure_rootless_cgroups() -> bool:
             else:
                 print(f"! Warning: Failed to set {sysctl}: {result.stderr}")
         
+        # Configure open files limit (required for frontend builds with Vite/Rollup)
+        print("\nConfiguring open files limit...")
+        print("  (Required for large Node.js builds in rootless containers)")
+        
+        limits_file = Path("/etc/security/limits.d/99-podman-nofile.conf")
+        limits_config = "* soft nofile 65536\n* hard nofile 65536\n"
+        
+        # Check if already configured
+        if limits_file.exists():
+            try:
+                content = limits_file.read_text()
+                if "nofile 65536" in content:
+                    print("  Open files limit already configured")
+                    return True
+            except (OSError, PermissionError):
+                pass
+        
+        result = subprocess.run(
+            ["sudo", "tee", str(limits_file)],
+            input=limits_config,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if result.returncode == 0:
+            print("  Open files limit: 65536 (configured)")
+            print(f"    Persisted to {limits_file}")
+        else:
+            print(f"! Warning: Failed to set open files limit: {result.stderr}")
+            print("  Frontend builds may fail with 'EMFILE: too many open files'")
+        
         return True
         
     except (FileNotFoundError, PermissionError, subprocess.TimeoutExpired, OSError) as e:

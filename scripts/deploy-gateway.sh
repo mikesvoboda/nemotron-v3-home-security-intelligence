@@ -14,6 +14,12 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$PROJECT_ROOT/.env"
 
+# Increase open files limit for frontend builds (Vite/Rollup requires many file handles)
+# This prevents "EMFILE: too many open files" errors during npm build
+# Note: This only affects the current shell session and child processes (build containers)
+# For persistent system-wide config, run setup.py which configures /etc/security/limits.d/
+ulimit -n 65536 2>/dev/null || true
+
 # Parse arguments
 DESTROY_VOLUMES=false
 SKIP_EXPORT=true  # Default: skip export (use cached models from Triton volume)
