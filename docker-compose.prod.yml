@@ -263,8 +263,9 @@ services:
         reservations:
           memory: 8G
           devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
+            # Specific GPU assignment for podman-compose compatibility
             - driver: nvidia
+              device_ids: ['${GPU_LLM:-0}']
               capabilities: [gpu]
 
   # =============================================================================
