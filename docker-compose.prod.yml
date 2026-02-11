@@ -693,7 +693,7 @@ services:
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
-      - CUDA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-0}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
