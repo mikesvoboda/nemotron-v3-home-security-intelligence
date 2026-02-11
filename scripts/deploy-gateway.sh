@@ -162,6 +162,7 @@ else
     mkdir -p "$TRITON_CACHE"
 
     # Run export in background while infrastructure starts
+    # Use full localhost image name to avoid short-name resolution prompt
     podman run --rm \
         --name ai-gateway-export \
         --entrypoint bash \
@@ -173,7 +174,7 @@ else
         -e REPO_DIR=/models/repository \
         -v "/export/ai_models/model-zoo:/models/zoo:ro" \
         -v "$TRITON_CACHE:/models/cache" \
-        ai-gateway \
+        localhost/nemotron-v3-home-security-intelligence_ai-gateway:latest \
         -c "cd /app/gateway/export && bash export_all.sh" > /tmp/export-models.log 2>&1 &
     PID_EXPORT=$!
 fi
