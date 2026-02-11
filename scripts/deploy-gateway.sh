@@ -125,39 +125,33 @@ TRITON_CACHE="/export/ai_models/triton"
 CORE_MODELS="yolo26 clip clip_text pose threat reid depth pet vehicle demographics_age demographics_gender fashion_clip"
 MISSING_MODELS=0
 
-if [ "$SKIP_EXPORT" != true ] && [ "$FORCE_EXPORT" != true ]; then
+# Always check for missing models (unless force export is set)
+if [ "$FORCE_EXPORT" != true ]; then
     for model in $CORE_MODELS; do
         if [ ! -f "$TRITON_CACHE/$model/1/model.onnx" ] && [ ! -f "$TRITON_CACHE/$model/1/model.plan" ]; then
             MISSING_MODELS=$((MISSING_MODELS + 1))
         fi
     done
+else
+    MISSING_MODELS=999  # Force re-export all
 fi
 
-if [ "$FORCE_EXPORT" = true ]; then
-    MISSING_MODELS=999  # Force re-export
+if [ "$MISSING_MODELS" -gt 0 ] && [ "$SKIP_EXPORT" = true ]; then
+    echo ""
+    echo "[3/6] Models missing - automatic export required"
+    echo "  Triton loads models from: /export/ai_models/triton/"
+    echo "  ⚠️  $MISSING_MODELS models not found in cache!"
+    echo ""
+    echo "  Automatically enabling model export (first deploy or cache cleared)"
+    SKIP_EXPORT=false
 fi
 
 if [ "$SKIP_EXPORT" = true ]; then
     echo ""
     echo "[3/6] Skipping model export (default - using cached models)"
     echo "  Triton loads models from: /export/ai_models/triton/"
-    
-    # Warn if no models are cached (first deploy scenario)
-    if [ "$MISSING_MODELS" -gt 0 ]; then
-        echo ""
-        echo "  ⚠️  WARNING: $MISSING_MODELS models not found in cache!"
-        echo "  First deploy? Run: ./scripts/deploy-gateway.sh --export"
-        echo "  Gateway will fail to start without exported models."
-        echo ""
-        read -p "  Continue anyway? [y/N]: " -r
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "  Aborted. Rerun with --export to export models first."
-            exit 1
-        fi
-    else
-        echo "  ✓ All $( echo $CORE_MODELS | wc -w) models cached"
-    fi
-    echo "  Use --export for first deploy or --force-export to rebuild cache"
+    echo "  ✓ All $( echo $CORE_MODELS | wc -w) models cached"
+    echo "  Use --force-export to rebuild cache"
 elif [ "$MISSING_MODELS" -eq 0 ]; then
     echo ""
     echo "[3/6] All $( echo $CORE_MODELS | wc -w) core models cached — skipping export"
