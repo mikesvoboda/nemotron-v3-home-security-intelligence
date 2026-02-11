@@ -1,8 +1,8 @@
 """NVIDIA GPU detection and driver management for setup.py.
 
 Provides detection of NVIDIA GPUs, driver version checking, and installation
-command generation for various Linux distributions. Supports CUDA 12.1+
-compatibility checking (requires driver 535+).
+command generation for various Linux distributions. Supports CUDA 13.1+
+compatibility checking (requires driver 580+).
 
 Usage:
     from setup_lib.nvidia_detect import (
@@ -26,8 +26,9 @@ import shutil
 import subprocess
 from typing import TypedDict
 
-# Minimum driver version for CUDA 12.1 compatibility
-MINIMUM_DRIVER_VERSION = 535
+# Minimum driver version for CUDA 13.1 compatibility
+# CUDA 13.x requires driver 580+ (ai-llm container uses CUDA 13.1.1)
+MINIMUM_DRIVER_VERSION = 580
 
 
 class GpuInfo(TypedDict):
@@ -324,7 +325,7 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
 
         if is_driver_version_sufficient(driver_version):
             config["driver_needs_upgrade"] = False
-            print(f"  Driver Status: OK (>= {MINIMUM_DRIVER_VERSION} required for CUDA 12.1)")
+            print(f"  Driver Status: OK (>= {MINIMUM_DRIVER_VERSION} required for CUDA 13.1)")
         else:
             config["driver_needs_upgrade"] = True
             print(f"  Driver Status: UPGRADE NEEDED (>= {MINIMUM_DRIVER_VERSION} required)")
