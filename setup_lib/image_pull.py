@@ -253,8 +253,10 @@ def prompt_and_pull_images(_config: dict) -> None:  # noqa: PLR0911 - interactiv
     """Prompt user and pull container images.
 
     Args:
-        _config: Configuration dictionary (reserved for future use).
+        _config: Configuration dictionary (may contain skip_pull flag).
     """
+    skip_pull = _config.get("skip_pull", False)
+    
     print()
     print("=" * 60)
     print("Container Image Pull")
@@ -274,6 +276,12 @@ def prompt_and_pull_images(_config: dict) -> None:  # noqa: PLR0911 - interactiv
     runtime_name, compose_cmd = runtime
     print(f"Container runtime: {runtime_name} ({compose_cmd})")
     print()
+
+    if skip_pull:
+        print("Skipping image pull (can be pulled later)")
+        print("  To pull later: docker compose -f docker-compose.prod.yml pull")
+        print()
+        return
 
     # Get available compose files
     compose_files = get_compose_files()

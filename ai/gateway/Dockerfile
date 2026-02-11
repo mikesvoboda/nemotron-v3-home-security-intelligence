@@ -9,10 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 
 # PyTorch/transformers/ultralytics needed for model export pipeline (export_all.sh)
 # Triton 26.01 ships stale numpy-1.26.4.dist-info with broken metadata that prevents
 # transformers from detecting numpy version.  Remove it before installing numpy.
+#
+# Uses BuildKit cache mount to cache pip downloads between builds (~5-10x faster rebuilds)
+# Cache persists even when using --no-cache flag (only image layers are rebuilt)
 # hadolint ignore=DL3013,SC2102
-RUN rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
-    pip install --no-cache-dir --force-reinstall packaging numpy && \
-    pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=shared \
+    rm -rf /usr/local/lib/python3.12/dist-packages/numpy-1.26.4.dist-info && \
+    pip install --force-reinstall packaging numpy && \
+    pip install \
     fastapi \
     uvicorn[standard] \
     "tritonclient[grpc]" \

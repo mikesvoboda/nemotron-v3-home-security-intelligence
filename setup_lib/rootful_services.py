@@ -195,7 +195,9 @@ def uninstall_dcgm_exporter_service() -> bool:
     return True
 
 
-def prompt_and_install_dcgm_service(project_root: str | Path) -> bool:
+def prompt_and_install_dcgm_service(
+    project_root: str | Path, auto_install: bool = False
+) -> bool:
     """Interactive prompt to install the DCGM exporter systemd service.
 
     Checks for NVIDIA GPU presence, then offers to install the service.
@@ -203,6 +205,7 @@ def prompt_and_install_dcgm_service(project_root: str | Path) -> bool:
 
     Args:
         project_root: Root directory of the project.
+        auto_install: If True, install automatically without prompting.
 
     Returns:
         True if service is installed (or was already installed), False if skipped.
@@ -238,11 +241,16 @@ def prompt_and_install_dcgm_service(project_root: str | Path) -> bool:
     print("This will install a system-level systemd service.")
     print()
 
-    try:
-        answer = input("Install DCGM exporter service? [Y/n] ").strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
+    # Auto-install if requested
+    if auto_install:
+        answer = "y"
+        print("Auto-installing DCGM exporter service...")
+    else:
+        try:
+            answer = input("Install DCGM exporter service? [Y/n] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
 
     if answer in ("n", "no"):
         print("  Skipped. You can install later with:")

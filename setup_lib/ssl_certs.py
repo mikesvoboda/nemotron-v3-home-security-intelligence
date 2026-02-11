@@ -13,8 +13,15 @@ from __future__ import annotations
 import ipaddress
 import socket
 import stat
-from datetime import UTC, datetime, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+# Python 3.10 compatibility: UTC was added in 3.11
+if sys.version_info >= (3, 11):
+    from datetime import UTC
+else:
+    UTC = timezone.utc
 
 # Optional: cryptography library for certificate generation
 try:
@@ -220,8 +227,10 @@ def prompt_and_generate_certificates(_config: dict) -> None:
     """Prompt user and generate SSL certificates if needed.
 
     Args:
-        _config: Configuration dictionary (reserved for future custom cert path support).
+        _config: Configuration dictionary (may contain auto_generate flag).
     """
+    auto_generate = _config.get("auto_generate", False)
+    
     print()
     print("=" * 60)
     print("SSL/TLS Certificate Generation")
@@ -242,34 +251,50 @@ def prompt_and_generate_certificates(_config: dict) -> None:
     # Check for existing certificates
     if check_existing_certificates(cert_path, key_path):
         print(f"+ Existing valid certificates found in {cert_dir}")
+        if auto_generate:
+            print("  Keeping existing certificates")
+            return
         answer = input("  Regenerate certificates? [n]: ").strip().lower()
         if answer not in ("y", "yes"):
             print("  Keeping existing certificates")
             return
 
     # Prompt for generation
-    answer = input("Generate self-signed SSL certificate? [y]: ").strip().lower()
-    if answer and answer not in ("y", "yes"):
-        print("  Skipping certificate generation")
-        print("  ! HTTPS will not work without certificates")
-        return
+    if auto_generate:
+        print("Auto-generating self-signed SSL certificate...")
+    else:
+        answer = input("Generate self-signed SSL certificate? [y]: ").strip().lower()
+        if answer and answer not in ("y", "yes"):
+            print("  Skipping certificate generation")
+            print("  ! HTTPS will not work without certificates")
+            return
 
     # Get hostname
     hostname = socket.gethostname()
-    print()
-    hostname = input(f"  Hostname (CN) [{hostname}]: ").strip() or hostname
+    if auto_generate:
+        print(f"  Using hostname: {hostname}")
+    else:
+        print()
+        hostname = input(f"  Hostname (CN) [{hostname}]: ").strip() or hostname
 
     # Get local IP for SAN
     local_ip = get_local_ip()
     san_ips: list[str] = []
     if local_ip:
         print(f"  Detected local IP: {local_ip}")
-        add_ip = input(f"  Add {local_ip} to certificate SANs? [y]: ").strip().lower()
-        if not add_ip or add_ip in ("y", "yes"):
+        if auto_generate:
             san_ips.append(local_ip)
+            print(f"  Adding {local_ip} to certificate SANs")
+        else:
+            add_ip = input(f"  Add {local_ip} to certificate SANs? [y]: ").strip().lower()
+            if not add_ip or add_ip in ("y", "yes"):
+                san_ips.append(local_ip)
 
     # Allow additional IPs
-    extra_ip = input("  Additional IP addresses (comma-separated, or Enter to skip): ").strip()
+    if not auto_generate:
+        extra_ip = input("  Additional IP addresses (comma-separated, or Enter to skip): ").strip()
+    else:
+        extra_ip = ""
     if extra_ip:
         for ip_entry in extra_ip.split(","):
             ip_clean = ip_entry.strip()

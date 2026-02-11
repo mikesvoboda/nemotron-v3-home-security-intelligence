@@ -198,6 +198,88 @@ def _do_install_podman(
     return True
 
 
+def is_podman_compose_installed() -> bool:
+    """Check if podman-compose is installed and available.
+
+    Returns:
+        True if podman-compose is in PATH, False otherwise.
+    """
+    return shutil.which("podman-compose") is not None
+
+
+def _add_to_shell_profile() -> None:
+    """Add ~/.local/bin to PATH in shell profile if not already present."""
+    path_export = 'export PATH="$HOME/.local/bin:$PATH"'
+    
+    # Determine which shell profile to update
+    shell_profiles = [
+        Path.home() / ".bashrc",
+        Path.home() / ".bash_profile",
+        Path.home() / ".profile",
+    ]
+    
+    for profile in shell_profiles:
+        if profile.exists():
+            try:
+                content = profile.read_text()
+                if ".local/bin" not in content:
+                    # Append PATH export to profile
+                    with profile.open("a") as f:
+                        f.write(f"\n# Added by setup.py for podman-compose\n{path_export}\n")
+                    print(f"  + Added ~/.local/bin to PATH in {profile.name}")
+                    return
+            except (OSError, PermissionError):
+                pass
+    
+    # If no profile found, suggest manual addition
+    print(f"  Note: Add to shell profile: {path_export}")
+
+
+def install_podman_compose() -> bool:
+    """Install podman-compose via pip.
+
+    Returns:
+        True if installation succeeded, False otherwise.
+    """
+    try:
+        # Install via pip3 with user flag
+        result = subprocess.run(
+            ["pip3", "install", "--user", "podman-compose"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        
+        if result.returncode != 0:
+            print(f"! pip install failed: {result.stderr}")
+            return False
+        
+        # Add ~/.local/bin to PATH for current session
+        import os
+        local_bin = str(Path.home() / ".local" / "bin")
+        if local_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
+        
+        # Verify installation
+        if is_podman_compose_installed():
+            print("+ podman-compose installed successfully")
+            
+            # Add to shell profile for persistence
+            _add_to_shell_profile()
+            return True
+        else:
+            print("! podman-compose installed but not in PATH")
+            print(f"  Add to your ~/.bashrc: export PATH=\"$HOME/.local/bin:$PATH\"")
+            return True  # Still return True as it's installed
+            
+    except FileNotFoundError:
+        print("! pip3 not found")
+        return False
+    except OSError as e:
+        print(f"! Installation failed: {e}")
+        return False
+
+
 def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
     """Prompt user to install Podman if not already installed.
 
@@ -215,6 +297,10 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
     """
     # Check if already installed
     if is_podman_installed():
+        # Also check and install podman-compose
+        if not is_podman_compose_installed():
+            print("Podman is installed, checking for podman-compose...")
+            install_podman_compose()
         return True
 
     # Get platform information
@@ -223,4 +309,11 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
         print("! Unsupported platform for Podman installation")
         return False
 
-    return _do_install_podman(platform_info, config)
+    success = _do_install_podman(platform_info, config)
+    
+    # If Podman was installed successfully, also install podman-compose
+    if success and not is_podman_compose_installed():
+        print("\nInstalling podman-compose...")
+        install_podman_compose()
+    
+    return success

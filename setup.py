@@ -1006,6 +1006,12 @@ def main() -> None:
         action="store_true",
         help="Developer mode: install pre-commit hooks for code contributions",
     )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Auto-accept all prompts (non-interactive quick mode with model downloads)",
+    )
     args = parser.parse_args()
 
     try:
@@ -1026,19 +1032,21 @@ def main() -> None:
                 sys.exit(1)
 
             # Step 1/5: Container Runtime (Podman)
-            prompt_and_install_podman({})
+            # Auto-install without prompting for streamlined setup
+            prompt_and_install_podman({"auto_install": True})
 
             # Step 2/5: NVIDIA GPU detection
-            prompt_and_check_nvidia({})
+            # Auto-install without prompting for streamlined setup
+            prompt_and_check_nvidia({"auto_install": True})
 
             # Step 2b: DCGM Exporter service (GPU hardware metrics)
             # Installs a rootful systemd service for DCGM, which requires
             # host-level root access that rootless Podman cannot provide.
             project_root = Path(__file__).resolve().parent
-            prompt_and_install_dcgm_service(project_root)
+            prompt_and_install_dcgm_service(project_root, auto_install=True)
 
             # Step 3/5: Storage configuration
-            storage_result = prompt_and_configure_storage({})
+            storage_result = prompt_and_configure_storage({"auto_create": True})
         else:
             storage_result = None
 
@@ -1047,6 +1055,10 @@ def main() -> None:
             print("[setup.py] Running in defaults mode (non-interactive)")
         elif args.guided:
             config = run_guided_mode()
+        elif args.yes:
+            # Non-interactive quick mode with all defaults
+            config = run_defaults_mode()
+            print("[setup.py] Auto-accepting all defaults (--yes mode)")
         else:
             config = run_quick_mode()
 
@@ -1151,23 +1163,27 @@ def main() -> None:
                 config["ports"].get("frontend_https", 8443),
                 config["ports"].get("grafana", 3002),
             ]
-            prompt_and_configure_firewall({"firewall_ports": external_ports})
+            prompt_and_configure_firewall({"firewall_ports": external_ports, "auto_configure": True})
 
         # Step 5/5: Credentials & Security (skip in defaults mode)
         if not args.defaults:
+            config["auto_generate"] = True  # Auto-generate certificates
             prompt_and_generate_certificates(config)
 
-        # Download AI models (skip in defaults mode)
-        if not args.defaults:
+        # Download AI models (skip in defaults mode, but enable for --yes mode)
+        if not args.defaults or args.yes:
+            # Auto-download required + Phase 1 models (full ai-gateway support)
+            config["auto_download"] = True
             prompt_and_download_models(config)
 
         # Pull container images (skip in defaults mode)
         if not args.defaults:
+            config["skip_pull"] = True  # Skip image pull to save time
             prompt_and_pull_images(config)
 
         # Offer AI workstation optimizations on Linux (skip in defaults mode)
         if platform.system() == "Linux" and not args.defaults:
-            prompt_and_run_optimizations()
+            prompt_and_run_optimizations(skip=True)  # Skip optimizations during setup
 
         if not args.defaults:
             print()
