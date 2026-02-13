@@ -84,116 +84,6 @@ services:
               count: 1
               capabilities: [gpu]
 
-  # Florence-2 vision-language model for dense captioning
-  ai-florence:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-florence:${IMAGE_TAG:-latest}
-    # Security: Read-only root filesystem
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /home/florence/.cache
-    profiles:
-      - with-ai
-    ports:
-      - '8092:8092'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-base:/models/florence-2-base:ro
-    environment:
-      - MODEL_PATH=/models/florence-2-base
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - staging-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  # CLIP ViT-L for entity re-identification
-  ai-clip:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-clip:${IMAGE_TAG:-latest}
-    # NOTE: read_only disabled for GPU containers - nvidia-cdi-hook requires capabilities
-    tmpfs:
-      - /tmp
-      - /home/clip/.cache
-    profiles:
-      - with-ai
-    ports:
-      - '8093:8093'
-    volumes:
-      # Read-only model mount (HuggingFace CLIP weights)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
-      # Writable mount for TensorRT engine cache (if enabled)
-      - clip-tensorrt-cache-staging:/cache/tensorrt
-    environment:
-      - CLIP_MODEL_PATH=/models/clip-vit-l
-      # TensorRT disabled by default in staging (enable for faster inference)
-      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
-      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - staging-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  # Combined enrichment service for vehicle, pet, and clothing classification
-  ai-enrichment:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-enrichment:${IMAGE_TAG:-latest}
-    # Security: Read-only root filesystem
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /home/enrichment/.cache
-    profiles:
-      - with-ai
-    ports:
-      - '8094:8094'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
-    environment:
-      - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
-      - PET_MODEL_PATH=/models/pet-classifier
-      - CLOTHING_MODEL_PATH=/models/fashion-clip
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 180s
-    restart: unless-stopped
-    networks:
-      - staging-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
   redis:
     image: redis:7.4-alpine3.21
     tmpfs:
@@ -262,9 +152,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - NEMOTRON_URL=http://ai-llm:8091
-      - FLORENCE_URL=http://ai-florence:8092
-      - CLIP_URL=http://ai-clip:8093
-      - ENRICHMENT_URL=http://ai-enrichment:8094
+      - USE_AI_GATEWAY=true
+      - AI_GATEWAY_URL=http://ai-gateway:8090
       - FRONTEND_URL=http://frontend:5173
       # Always use /cameras (container mount point) regardless of host env var
       - FOSCAM_BASE_PATH=/cameras
@@ -602,8 +491,6 @@ volumes:
   grafana_staging_data:
     driver: local
   alertmanager_staging_data:
-    driver: local
-  clip-tensorrt-cache-staging:
     driver: local
 
 networks:
