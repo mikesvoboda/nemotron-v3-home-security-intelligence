@@ -260,21 +260,20 @@ OBJECT_TYPES = ["person", "vehicle", "animal", "package"]
 
 
 def require_admin_access() -> None:
-    """Require admin access with defense-in-depth security.
+    """Require admin access for destructive/seeding operations.
 
-    SECURITY: Requires BOTH debug=True AND admin_enabled=True (defense-in-depth).
-    This prevents accidentally exposing admin endpoints in production.
+    Admin endpoints are enabled by default for single-user local deployments.
+    Network binding to 127.0.0.1 is the primary security boundary.
 
     Raises:
-        HTTPException: 403 Forbidden if requirements are not met
+        HTTPException: 403 Forbidden if admin_enabled is False
     """
     settings = get_settings()
 
-    # Defense-in-depth: Require BOTH debug AND admin_enabled
-    if not settings.debug or not settings.admin_enabled:
+    if not settings.admin_enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin endpoints require DEBUG=true and ADMIN_ENABLED=true",
+            detail="Admin endpoints require ADMIN_ENABLED=true",
         )
 
 
