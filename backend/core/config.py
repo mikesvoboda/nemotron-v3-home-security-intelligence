@@ -2100,6 +2100,10 @@ class Settings(BaseSettings):
         le=1.0,
         description="Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
     )
+    use_redis_streams: bool = Field(
+        default=False,
+        description="Use Redis Streams (XADD/XREADGROUP) instead of lists (RPUSH/BLPOP) for durable queue persistence with consumer groups and acknowledgment",
+    )
 
     # Video processing settings
     video_frame_interval_seconds: float = Field(
