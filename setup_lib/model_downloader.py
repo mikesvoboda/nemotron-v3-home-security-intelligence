@@ -56,22 +56,22 @@ REQUIRED_MODELS: list[ModelSpec] = [
         description="YOLO26 object detection (n/s/m variants)",
         required=True,
     ),
-    # Florence-2-Large - vision-language model (used by ai-gateway)
+    # Florence-2-Base - vision-language model (used by ai-gateway)
     ModelSpec(
-        name="florence-2-large",
-        hf_repo="microsoft/Florence-2-large",
+        name="florence-2-base",
+        hf_repo="microsoft/Florence-2-base",
         phase=0,
-        size_mb=3072,  # ~3GB
-        description="Florence-2-large vision-language model (ai-gateway)",
+        size_mb=1024,  # ~1GB (base variant saves ~1.2GB VRAM vs large)
+        description="Florence-2-base vision-language model (ai-gateway)",
         required=True,
     ),
-    # CLIP ViT-L - embeddings for re-identification (ai-gateway uses this)
+    # SigLIP 2 Base - embeddings for re-identification (replaces CLIP ViT-L)
     ModelSpec(
-        name="clip-vit-l",
-        hf_repo="openai/clip-vit-large-patch14",
+        name="siglip2-base-patch16-224",
+        hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
         phase=0,
-        size_mb=1741,  # ~1.7GB
-        description="CLIP ViT-L embeddings for entity re-identification (ai-gateway)",
+        size_mb=400,  # ~400MB (replaces CLIP ViT-L, saves ~1035MB VRAM)
+        description="SigLIP 2 Base embeddings for entity re-identification (ai-gateway)",
         required=True,
     ),
 ]
@@ -238,17 +238,17 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
     if model_name == "nemotron-3-nano-30b-a3b-q4km":
         nemotron_file = model_path / "nemotron" / model_name / "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
         return nemotron_file.exists()
-    
+
     # Special handling for OSNet (specific .pth file required)
     if model_name == "osnet-ain-x1-0":
         osnet_file = model_path / "model-zoo" / model_name / "osnet_ain_x1_0_msmt17.pth"
         return osnet_file.exists()
-    
+
     # Special handling for YOLOv8n-pose (specific .pt file)
     if model_name == "yolov8n-pose":
         pose_file = model_path / "model-zoo" / model_name / "yolov8n-pose.pt"
         return pose_file.exists()
-    
+
     model_dir = model_path / "model-zoo" / model_name
     if not model_dir.exists():
         return False
@@ -269,18 +269,20 @@ def download_nemotron_gguf(model_path: Path) -> bool:
     """
     nemotron_dir = model_path / "nemotron" / "nemotron-3-nano-30b-a3b-q4km"
     nemotron_dir.mkdir(parents=True, exist_ok=True)
-    
+
     gguf_file = nemotron_dir / "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
-    
+
     if gguf_file.exists():
         print(f"    Already exists: {gguf_file.name}")
         return True
-    
+
     # Check for existing file in common locations
     search_paths = [
-        Path.home() / ".cache/huggingface/hub" / "models--nvidia--Nemotron-3-Nano-30B-A3B-GGUF/snapshots",
+        Path.home()
+        / ".cache/huggingface/hub"
+        / "models--nvidia--Nemotron-3-Nano-30B-A3B-GGUF/snapshots",
     ]
-    
+
     for search_path in search_paths:
         if search_path.exists():
             for gguf in search_path.rglob("Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"):
@@ -292,17 +294,17 @@ def download_nemotron_gguf(model_path: Path) -> bool:
                 except OSError as e:
                     print(f"    ! Failed to create symlink: {e}")
                     break
-    
+
     # Download using huggingface_hub
     if not HF_HUB_AVAILABLE:
         print("    ! huggingface_hub not installed, cannot download")
         print("    Install with: pip install huggingface_hub")
         return False
-    
-    print(f"    Downloading Nemotron GGUF (~14.7GB, may take 10-30 minutes)...")
+
+    print("    Downloading Nemotron GGUF (~14.7GB, may take 10-30 minutes)...")
     try:
         from huggingface_hub import hf_hub_download
-        
+
         downloaded = hf_hub_download(
             repo_id="nvidia/Nemotron-3-Nano-30B-A3B-GGUF",
             filename="Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
@@ -327,15 +329,15 @@ def download_yolo26_models(model_path: Path) -> bool:
     """
     yolo26_dir = model_path / "model-zoo" / "yolo26"
     yolo26_dir.mkdir(parents=True, exist_ok=True)
-    
+
     release_url = "https://github.com/ultralytics/assets/releases/download/v8.4.0"
-    
+
     models = [
         ("yolo26n.pt", 5.3, "Nano - fastest"),
         ("yolo26s.pt", 19.5, "Small - balanced"),
         ("yolo26m.pt", 42.2, "Medium - highest accuracy"),
     ]
-    
+
     success_count = 0
     for filename, size_mb, desc in models:
         target = yolo26_dir / filename
@@ -343,18 +345,19 @@ def download_yolo26_models(model_path: Path) -> bool:
             print(f"    Already exists: {filename}")
             success_count += 1
             continue
-        
+
         url = f"{release_url}/{filename}"
         print(f"    Downloading {filename} (~{size_mb}MB - {desc})...")
-        
+
         try:
             import urllib.request
-            urllib.request.urlretrieve(url, target)
+
+            urllib.request.urlretrieve(url, target)  # noqa: S310
             print(f"    Downloaded: {filename}")
             success_count += 1
         except Exception as e:
             print(f"    ! Failed to download {filename}: {e}")
-    
+
     return success_count > 0
 
 
@@ -369,23 +372,24 @@ def download_yolov8n_pose(model_path: Path) -> bool:
     """
     pose_dir = model_path / "model-zoo" / "yolov8n-pose"
     pose_dir.mkdir(parents=True, exist_ok=True)
-    
+
     target = pose_dir / "yolov8n-pose.pt"
-    
+
     if target.exists():
-        print(f"    Already exists: yolov8n-pose.pt")
+        print("    Already exists: yolov8n-pose.pt")
         return True
-    
+
     # YOLOv8 pose models from ultralytics releases
     release_url = "https://github.com/ultralytics/assets/releases/download/v8.2.0"
     url = f"{release_url}/yolov8n-pose.pt"
-    
-    print(f"    Downloading yolov8n-pose.pt (~6MB)...")
-    
+
+    print("    Downloading yolov8n-pose.pt (~6MB)...")
+
     try:
         import urllib.request
-        urllib.request.urlretrieve(url, target)
-        print(f"    Downloaded: yolov8n-pose.pt")
+
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print("    Downloaded: yolov8n-pose.pt")
         return True
     except Exception as e:
         print(f"    ! Failed to download: {e}")
@@ -404,24 +408,24 @@ def download_osnet_reid(model_path: Path) -> bool:
     if not HF_HUB_AVAILABLE:
         print("    ! huggingface_hub not installed")
         return False
-    
+
     osnet_dir = model_path / "model-zoo" / "osnet-ain-x1-0"
     osnet_dir.mkdir(parents=True, exist_ok=True)
-    
+
     target = osnet_dir / "osnet_ain_x1_0_msmt17.pth"
-    
+
     if target.exists():
-        print(f"    Already exists: osnet_ain_x1_0_msmt17.pth")
+        print("    Already exists: osnet_ain_x1_0_msmt17.pth")
         return True
-    
-    print(f"    Downloading from kaiyangzhou/osnet (~10MB)...")
-    
+
+    print("    Downloading from kaiyangzhou/osnet (~10MB)...")
+
     try:
         from huggingface_hub import hf_hub_download
-        
+
         # The full filename in the repo
         full_filename = "osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth"
-        
+
         # Download the specific MSMT17-trained weights
         downloaded = hf_hub_download(
             repo_id="kaiyangzhou/osnet",
@@ -429,13 +433,13 @@ def download_osnet_reid(model_path: Path) -> bool:
             local_dir=osnet_dir,
             local_dir_use_symlinks=False,
         )
-        
+
         # Create symlink with shorter name for easier referencing
         downloaded_path = Path(downloaded)
         if downloaded_path.exists() and not target.exists():
             target.symlink_to(downloaded_path.name)  # Relative symlink
-            print(f"    Downloaded: osnet_ain_x1_0_msmt17.pth")
-        
+            print("    Downloaded: osnet_ain_x1_0_msmt17.pth")
+
         return True
     except Exception as e:
         print(f"    ! Failed to download: {e}")
@@ -457,7 +461,9 @@ def download_hf_model(model: ModelSpec, model_path: Path) -> bool:
         return False
 
     if not model.hf_repo:
-        print(f"    ! {model.name} uses alternative download method (will auto-download on first run)")
+        print(
+            f"    ! {model.name} uses alternative download method (will auto-download on first run)"
+        )
         return True  # Not an error - just skipped
 
     # Special handling for Nemotron (different directory structure)
@@ -465,7 +471,7 @@ def download_hf_model(model: ModelSpec, model_path: Path) -> bool:
         model_dir = model_path / "nemotron" / model.name
     else:
         model_dir = model_path / "model-zoo" / model.name
-    
+
     model_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -542,7 +548,7 @@ def prompt_and_download_models(config: dict) -> None:
     """
     skip_download = config.get("skip_download", False)
     auto_download = config.get("auto_download", False)
-    
+
     print()
     print("=" * 60)
     print("AI Model Downloads")
@@ -617,10 +623,10 @@ def prompt_and_download_models(config: dict) -> None:
     # Prompt for download options
     if skip_download:
         print("Skipping model downloads (can be downloaded later).")
-        print(f"  To download later: ./ai/download_models.sh")
+        print("  To download later: ./ai/download_models.sh")
         print()
         return
-    
+
     print("Download options:")
     print("  1. Download required models only (~20GB)")
     print("     - Nemotron LLM, YOLO26, Florence-2, CLIP")
@@ -705,7 +711,7 @@ def prompt_and_download_models(config: dict) -> None:
 
     for model in models_to_download:
         print(f"  [{model.phase}] {model.name}")
-        
+
         # Special handling for different model types
         if model.name == "nemotron-3-nano-30b-a3b-q4km":
             if download_nemotron_gguf(ai_models_path):
@@ -727,11 +733,10 @@ def prompt_and_download_models(config: dict) -> None:
                 success_count += 1
             else:
                 fail_count += 1
+        elif download_hf_model(model, ai_models_path):
+            success_count += 1
         else:
-            if download_hf_model(model, ai_models_path):
-                success_count += 1
-            else:
-                fail_count += 1
+            fail_count += 1
 
     # Summary
     print()
