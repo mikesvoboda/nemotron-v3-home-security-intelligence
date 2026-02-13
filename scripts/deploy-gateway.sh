@@ -94,7 +94,7 @@ else
     # This reduces ai-llm build time by ~6x by only compiling for the detected GPU
     # Reads from .env (set by setup.py), or detects at runtime if not configured
     CUDA_ARCH=""
-    
+
     if [ -n "${CUDA_ARCHITECTURES:-}" ]; then
         # Use value from .env (set by setup.py during initial setup)
         CUDA_ARCH="--build-arg CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}"
@@ -107,7 +107,7 @@ else
             echo "  GPU architecture: ${COMPUTE_CAP:0:1}.${COMPUTE_CAP:1} (detected, consider running setup.py)"
         fi
     fi
-    
+
     if [ -z "$CUDA_ARCH" ]; then
         echo "  GPU not detected - building for common architectures (6x slower)"
         echo "  Run setup.py to configure CUDA_ARCHITECTURES in .env"

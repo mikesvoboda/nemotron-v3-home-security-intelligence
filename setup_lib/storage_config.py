@@ -191,7 +191,7 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
         StorageConfig with validated paths.
     """
     auto_create = config.get("auto_create", False)
-    
+
     print()
     print("=" * 60)
     print("Step 3/5: Storage Configuration")

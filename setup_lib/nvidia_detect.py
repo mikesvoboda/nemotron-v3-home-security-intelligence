@@ -134,7 +134,11 @@ def get_gpu_info() -> list[GpuInfo] | None:
 
         names = [n.strip() for n in name_result.stdout.strip().split("\n") if n.strip()]
         memories = [m.strip() for m in memory_result.stdout.strip().split("\n") if m.strip()]
-        compute_caps = [c.strip() for c in compute_result.stdout.strip().split("\n") if c.strip()] if compute_result.returncode == 0 else []
+        compute_caps = (
+            [c.strip() for c in compute_result.stdout.strip().split("\n") if c.strip()]
+            if compute_result.returncode == 0
+            else []
+        )
 
         gpus: list[GpuInfo] = []
         for i, name in enumerate(names):

@@ -195,9 +195,7 @@ def uninstall_dcgm_exporter_service() -> bool:
     return True
 
 
-def prompt_and_install_dcgm_service(
-    project_root: str | Path, auto_install: bool = False
-) -> bool:
+def prompt_and_install_dcgm_service(project_root: str | Path, auto_install: bool = False) -> bool:
     """Interactive prompt to install the DCGM exporter systemd service.
 
     Checks for NVIDIA GPU presence, then offers to install the service.

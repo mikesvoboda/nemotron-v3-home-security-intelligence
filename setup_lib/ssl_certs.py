@@ -13,15 +13,8 @@ from __future__ import annotations
 import ipaddress
 import socket
 import stat
-import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-
-# Python 3.10 compatibility: UTC was added in 3.11
-if sys.version_info >= (3, 11):
-    from datetime import UTC
-else:
-    UTC = timezone.utc
 
 # Optional: cryptography library for certificate generation
 try:
@@ -230,7 +223,7 @@ def prompt_and_generate_certificates(_config: dict) -> None:
         _config: Configuration dictionary (may contain auto_generate flag).
     """
     auto_generate = _config.get("auto_generate", False)
-    
+
     print()
     print("=" * 60)
     print("SSL/TLS Certificate Generation")

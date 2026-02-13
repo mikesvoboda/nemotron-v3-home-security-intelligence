@@ -112,7 +112,7 @@ def pull_images(compose_file: str, runtime: tuple[str, str]) -> bool:
 
     try:
         # Run with live output
-        result = subprocess.run(  # noqa: S603 - known compose command
+        result = subprocess.run(
             cmd,
             check=False,
         )
@@ -256,7 +256,7 @@ def prompt_and_pull_images(_config: dict) -> None:  # noqa: PLR0911 - interactiv
         _config: Configuration dictionary (may contain skip_pull flag).
     """
     skip_pull = _config.get("skip_pull", False)
-    
+
     print()
     print("=" * 60)
     print("Container Image Pull")

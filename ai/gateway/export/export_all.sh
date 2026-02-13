@@ -46,7 +46,7 @@ log_step() {
 run_export() {
     local description="$1"
     shift
-    
+
     # Extract output path from arguments (look for --output-path or --output-dir)
     local output_path=""
     local args=("$@")
@@ -60,14 +60,14 @@ run_export() {
             break
         fi
     done
-    
+
     # Skip if model already exists (check for .onnx or .plan file)
     if [ -n "$output_path" ] && { [ -f "$output_path" ] || [ -f "${output_path%.onnx}.plan" ]; }; then
         echo "  -> ${description}... CACHED (skipping)"
         SKIP_COUNT=$((SKIP_COUNT + 1))
         return 0
     fi
-    
+
     echo "  -> ${description}..."
     if "$@"; then
         echo "     OK"

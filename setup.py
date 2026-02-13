@@ -673,6 +673,7 @@ def run_quick_mode() -> dict:
 
     # Detect GPU compute capability for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info
+
     cuda_arch = ""
     gpus = get_gpu_info()
     if gpus and len(gpus) > 0:
@@ -846,6 +847,7 @@ def run_guided_mode() -> dict:
 
     # Detect GPU compute capability for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info
+
     cuda_arch = ""
     gpus = get_gpu_info()
     if gpus and len(gpus) > 0:
@@ -999,6 +1001,7 @@ def run_defaults_mode() -> dict:
 
     # Detect GPU compute capability for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info
+
     cuda_arch = ""
     gpus = get_gpu_info()
     if gpus and len(gpus) > 0:
@@ -1209,7 +1212,9 @@ def main() -> None:
                 config["ports"].get("frontend_https", 8443),
                 config["ports"].get("grafana", 3002),
             ]
-            prompt_and_configure_firewall({"firewall_ports": external_ports, "auto_configure": True})
+            prompt_and_configure_firewall(
+                {"firewall_ports": external_ports, "auto_configure": True}
+            )
 
         # Step 5/5: Credentials & Security (skip in defaults mode)
         if not args.defaults:
