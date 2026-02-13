@@ -2618,11 +2618,11 @@ class Settings(BaseSettings):
     # Performance profiling settings (NEM-1644)
     # Enable deep performance debugging with cProfile
     profiling_enabled: bool = Field(
-        default=True,
-        description="Enable performance profiling. "
+        default=False,
+        description="Enable cProfile performance profiling for deep debugging. "
         "When enabled, the @profile_if_enabled decorator will profile decorated functions. "
         "Profile data is saved as .prof files that can be analyzed with snakeviz or py-spy. "
-        "Only functions explicitly decorated are profiled — no overhead on undecorated code.",
+        "For production profiling, use Pyroscope via Grafana instead.",
     )
     profiling_output_dir: str = Field(
         default="data/profiles",
