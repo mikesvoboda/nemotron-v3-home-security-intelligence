@@ -45,7 +45,8 @@
 
 services:
   postgres:
-    # Security hardening: Prevent privilege escalation
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     security_opt:
       - no-new-privileges:true
     # NOTE: Postgres needs CHOWN/DAC_OVERRIDE for data directory initialization
@@ -126,6 +127,7 @@ services:
     profiles:
       - standalone
     # Security hardening: Drop all capabilities, prevent privilege escalation
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
     security_opt:
       - no-new-privileges:true
       - label=disable
@@ -186,7 +188,7 @@ services:
               capabilities: [gpu]
 
   ai-llm:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
     security_opt:
       - no-new-privileges:true
       - label=disable
@@ -348,7 +350,7 @@ services:
   ai-florence:
     profiles:
       - standalone
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
     security_opt:
       - no-new-privileges:true
       - label=disable
@@ -724,7 +726,7 @@ services:
               capabilities: [gpu]
 
   backend:
-    # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
       - /tmp
       - /home/appuser/.cache
@@ -846,6 +848,8 @@ services:
               capabilities: [gpu]
 
   redis:
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     tmpfs:
       - /tmp
     # Security hardening: Prevent privilege escalation
@@ -1029,7 +1033,7 @@ services:
   # API: http://localhost:1984 (stream management)
   # WebRTC: http://localhost:8555 (client connections)
   go2rtc:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1069,7 +1073,8 @@ services:
           memory: 256M
 
   frontend:
-    # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     tmpfs:
       - /tmp
       - /var/run # nginx pid file
@@ -1142,6 +1147,7 @@ services:
   # Grafana Tempo for distributed tracing (NEM-5545, replaces Jaeger+Elasticsearch)
   # Lightweight trace backend with native OTLP ingestion and 30-day retention
   tempo:
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1170,7 +1176,8 @@ services:
           memory: 1G
 
   prometheus:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1213,7 +1220,10 @@ services:
           memory: 512M
 
   grafana:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
+    tmpfs:
+      - /tmp
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1280,7 +1290,7 @@ services:
           memory: 512M
 
   redis-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1310,7 +1320,7 @@ services:
           memory: 64M
 
   json-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1334,7 +1344,7 @@ services:
 
   # Alertmanager for alert routing, grouping, and delivery (NEM-1631)
   alertmanager:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1375,7 +1385,7 @@ services:
   # Blackbox Exporter for synthetic monitoring (NEM-1637)
   # Probes endpoints for availability, latency, and health status
   blackbox-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1407,7 +1417,7 @@ services:
   # Loki for log aggregation (NEM-3093)
   # Receives logs from Alloy and stores them for querying via Grafana
   loki:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1441,7 +1451,7 @@ services:
   # NEM-3514: Upgraded from 1.4.0 to 1.18.0 to fix "unknown profile type: seconds" error.
   # Fix: https://github.com/grafana/pyroscope/pull/4568 (released in v1.9.2+)
   pyroscope:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
