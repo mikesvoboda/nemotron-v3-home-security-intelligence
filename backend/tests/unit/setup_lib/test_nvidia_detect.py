@@ -226,17 +226,17 @@ class TestIsDriverVersionSufficient:
         """Should return True when driver version equals minimum."""
         from setup_lib.nvidia_detect import is_driver_version_sufficient
 
-        assert is_driver_version_sufficient("535.0") is True
-        assert is_driver_version_sufficient("535.0.0") is True
-        assert is_driver_version_sufficient("535.00.00") is True
+        assert is_driver_version_sufficient("580.0") is True
+        assert is_driver_version_sufficient("580.0.0") is True
+        assert is_driver_version_sufficient("580.00.00") is True
 
     def test_driver_version_sufficient_above(self) -> None:
         """Should return True when driver version is above minimum."""
         from setup_lib.nvidia_detect import is_driver_version_sufficient
 
-        assert is_driver_version_sufficient("560.35.03") is True
-        assert is_driver_version_sufficient("545.29.06") is True
-        assert is_driver_version_sufficient("536.0") is True
+        assert is_driver_version_sufficient("590.35.03") is True
+        assert is_driver_version_sufficient("585.29.06") is True
+        assert is_driver_version_sufficient("581.0") is True
 
     def test_driver_version_insufficient_below(self) -> None:
         """Should return False when driver version is below minimum."""
@@ -516,11 +516,11 @@ class TestParseDriverVersion:
 class TestMinimumDriverVersion:
     """Tests for MINIMUM_DRIVER_VERSION constant."""
 
-    def test_minimum_version_is_535(self) -> None:
-        """Minimum driver version should be 535 for CUDA 12.1 compatibility."""
+    def test_minimum_version_is_580(self) -> None:
+        """Minimum driver version should be 580 for CUDA 13.1 compatibility."""
         from setup_lib.nvidia_detect import MINIMUM_DRIVER_VERSION
 
-        assert MINIMUM_DRIVER_VERSION == 535
+        assert MINIMUM_DRIVER_VERSION == 580
 
 
 class TestGetNvidiaDetectionSummary:

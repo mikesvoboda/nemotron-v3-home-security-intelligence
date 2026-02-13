@@ -189,6 +189,7 @@ class BatchAggregator:
         self._fast_path_threshold = settings.fast_path_confidence_threshold
         self._fast_path_types = settings.fast_path_object_types
         self._batch_max_detections = settings.batch_max_detections
+        self._use_redis_streams: bool = getattr(settings, "use_redis_streams", False) is True
 
         # Per-camera locks to prevent race conditions when adding detections
         # Using defaultdict to lazily create locks for each camera
@@ -915,8 +916,7 @@ class BatchAggregator:
                     # Push to analysis queue if there are detections
                     if detections:
                         # NEM-3469: Use Redis Streams when enabled for durable delivery
-                        settings = get_settings()
-                        if settings.use_redis_streams:
+                        if self._use_redis_streams:
                             stream_svc = await get_analysis_stream_service(self._redis)
                             await stream_svc.add_batch(
                                 batch_id=batch_id,
@@ -1085,8 +1085,7 @@ class BatchAggregator:
             # Only push to analysis queue if there are detections
             if detections:
                 # NEM-3469: Use Redis Streams when enabled
-                settings = get_settings()
-                if settings.use_redis_streams:
+                if self._use_redis_streams:
                     stream_svc = await get_analysis_stream_service(self._redis)
                     await stream_svc.add_batch(
                         batch_id=batch_id,
