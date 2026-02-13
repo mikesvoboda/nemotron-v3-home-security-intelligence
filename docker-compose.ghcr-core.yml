@@ -20,8 +20,6 @@
 # To use a specific image version instead of latest:
 #   export IMAGE_TAG=abc1234
 
-version: '3.8'
-
 services:
   postgres:
     image: docker.io/library/postgres:16-alpine

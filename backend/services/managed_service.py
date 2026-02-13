@@ -565,7 +565,8 @@ class ServiceRegistry:
         key = f"{REDIS_KEY_PREFIX}:{name}:state"
         try:
             # RedisClient.set() handles JSON serialization internally
-            await self._redis.set(key, state)
+            # TTL of 24h ensures stale state is cleaned up if services are removed
+            await self._redis.set(key, state, expire=86400)
             logger.debug("Persisted service state to Redis", extra={"service_name": name})
         except Exception as e:
             logger.warning(

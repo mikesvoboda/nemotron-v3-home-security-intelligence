@@ -29,8 +29,6 @@
 #   3. Run: podman-compose -f docker-compose.ghcr.yml pull
 #   4. Run: podman-compose -f docker-compose.ghcr.yml up -d
 
-version: '3.8'
-
 x-ghcr-image: &ghcr-image
   # Override these via environment variables:
   # GHCR_OWNER=your-org GHCR_REPO=your-repo IMAGE_TAG=v1.0.0

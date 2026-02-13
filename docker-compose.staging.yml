@@ -21,8 +21,6 @@
 #   - GPU support (if running AI services locally)
 #   - Sufficient disk space for monitoring data (20GB+ recommended)
 
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine

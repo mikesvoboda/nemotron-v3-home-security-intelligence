@@ -43,8 +43,6 @@
 #   - GPU_CLIP: GPU for CLIP (default: 1)
 #   - GPU_ENRICHMENT: GPU for Enrichment models (default: 1)
 
-version: '3.8'
-
 services:
   postgres:
     # Security hardening: Prevent privilege escalation
