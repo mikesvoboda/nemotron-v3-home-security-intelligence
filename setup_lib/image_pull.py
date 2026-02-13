@@ -66,16 +66,6 @@ def get_compose_files() -> list[tuple[str, str, str]]:
             )
         )
 
-    # Check for GHCR core compose file (hybrid)
-    if Path("docker-compose.ghcr-core.yml").exists():
-        compose_files.append(
-            (
-                "docker-compose.ghcr-core.yml",
-                "GHCR core only (backend/frontend from registry, AI on host)",
-                "ghcr",
-            )
-        )
-
     # Check for production compose file (local builds)
     if Path("docker-compose.prod.yml").exists():
         compose_files.append(

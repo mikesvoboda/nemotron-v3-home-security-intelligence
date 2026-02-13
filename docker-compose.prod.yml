@@ -418,7 +418,6 @@ services:
       redis:
         condition: service_healthy
       # AI services — backend waits for LLM (critical for risk analysis)
-      # Gateway/standalone AI services handled via docker-compose.gateway.yml override
       ai-llm:
         condition: service_healthy
       # go2rtc for live streaming - non-critical, backend can start without it

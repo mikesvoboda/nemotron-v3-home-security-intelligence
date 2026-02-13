@@ -45,10 +45,8 @@ else
     echo "Detected: podman-compose (external, Podman 4.x)"
 fi
 
-# Compose command — gateway mode is the default deployment
-# Individual AI services (ai-yolo26, ai-florence, etc.) are profiled as "standalone"
-# and won't start unless explicitly requested with --profile standalone
-COMPOSE="$COMPOSE_CMD -f $PROJECT_ROOT/docker-compose.prod.yml -f $PROJECT_ROOT/docker-compose.gateway.yml"
+# Compose command — ai-gateway (Triton) is the default AI serving mode
+COMPOSE="$COMPOSE_CMD -f $PROJECT_ROOT/docker-compose.prod.yml"
 
 echo "=== Triton Gateway Deploy ==="
 echo "Branch: $(git -C "$PROJECT_ROOT" branch --show-current)"
