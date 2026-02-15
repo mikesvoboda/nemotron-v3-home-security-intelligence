@@ -26,6 +26,8 @@ from backend.services.unique_counter_service import (
 def mock_redis_client():
     """Mock Redis client for UniqueCounterService tests."""
     mock_client = AsyncMock()
+    # pfadd_with_expire is the atomic Lua script wrapper used by UniqueCounterService
+    mock_client.pfadd_with_expire = AsyncMock(return_value=1)
     mock_client.pfadd = AsyncMock(return_value=1)
     mock_client.pfcount = AsyncMock(return_value=10)
     mock_client.pfmerge = AsyncMock(return_value=True)
@@ -111,14 +113,13 @@ async def test_add_unique_camera(counter_service, mock_redis_client):
     result = await counter_service.add_unique_camera("cam-front-door")
 
     assert result is True
-    mock_redis_client.pfadd.assert_awaited_once()
-    mock_redis_client.expire.assert_awaited_once()
+    mock_redis_client.pfadd_with_expire.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_add_unique_camera_duplicate(counter_service, mock_redis_client):
     """Test adding a duplicate camera returns False."""
-    mock_redis_client.pfadd.return_value = 0
+    mock_redis_client.pfadd_with_expire.return_value = 0
 
     result = await counter_service.add_unique_camera("cam-front-door")
 
@@ -154,7 +155,7 @@ async def test_add_unique_event(counter_service, mock_redis_client):
     result = await counter_service.add_unique_event("event-123")
 
     assert result is True
-    mock_redis_client.pfadd.assert_awaited_once()
+    mock_redis_client.pfadd_with_expire.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -241,9 +242,10 @@ async def test_add_batch_cameras(counter_service, mock_redis_client):
     result = await counter_service.add_batch_cameras(cameras)
 
     assert result == 1
-    mock_redis_client.pfadd.assert_awaited_once()
+    mock_redis_client.pfadd_with_expire.assert_awaited_once()
     # Verify all cameras were passed
-    call_args = mock_redis_client.pfadd.call_args
+    call_args = mock_redis_client.pfadd_with_expire.call_args
+    # First two args are key and ttl, cameras follow
     assert "cam-001" in call_args[0]
     assert "cam-002" in call_args[0]
     assert "cam-003" in call_args[0]
@@ -252,10 +254,13 @@ async def test_add_batch_cameras(counter_service, mock_redis_client):
 @pytest.mark.asyncio
 async def test_add_batch_cameras_empty_list(counter_service, mock_redis_client):
     """Test adding empty list of cameras."""
+    # Reset the mock to clear any previous calls
+    mock_redis_client.pfadd_with_expire.reset_mock()
+
     result = await counter_service.add_batch_cameras([])
 
     assert result == 0
-    mock_redis_client.pfadd.assert_not_awaited()
+    mock_redis_client.pfadd_with_expire.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -271,10 +276,13 @@ async def test_add_batch_events(counter_service, mock_redis_client):
 @pytest.mark.asyncio
 async def test_add_batch_events_empty_list(counter_service, mock_redis_client):
     """Test adding empty list of events."""
+    # Reset the mock to clear any previous calls
+    mock_redis_client.pfadd_with_expire.reset_mock()
+
     result = await counter_service.add_batch_events([])
 
     assert result == 0
-    mock_redis_client.pfadd.assert_not_awaited()
+    mock_redis_client.pfadd_with_expire.assert_not_awaited()
 
 
 # Merged count tests
@@ -410,6 +418,9 @@ def test_cardinality_stats_frozen():
 @pytest.mark.asyncio
 async def test_daily_analytics_workflow(counter_service, mock_redis_client):
     """Test a realistic daily analytics workflow."""
+    # Reset the mock to clear any previous calls
+    mock_redis_client.pfadd_with_expire.reset_mock()
+
     # Simulate events throughout the day
     cameras = ["cam-001", "cam-002", "cam-001", "cam-003"]
     events = ["event-a", "event-b", "event-c"]
@@ -427,14 +438,17 @@ async def test_daily_analytics_workflow(counter_service, mock_redis_client):
     for det_type in detection_types:
         await counter_service.add_detection_type(det_type)
 
-    # Verify pfadd was called appropriate number of times
+    # Verify pfadd_with_expire was called appropriate number of times
     # 4 cameras + 3 events + 4 detection types = 11 calls
-    assert mock_redis_client.pfadd.await_count == 11
+    assert mock_redis_client.pfadd_with_expire.await_count == 11
 
 
 @pytest.mark.asyncio
 async def test_batch_processing_workflow(counter_service, mock_redis_client):
     """Test batch processing for high-throughput scenarios."""
+    # Reset the mock to clear any previous calls
+    mock_redis_client.pfadd_with_expire.reset_mock()
+
     # Simulate batch from detection pipeline
     camera_batch = [f"cam-{i:03d}" for i in range(100)]
     event_batch = [f"event-{i}" for i in range(500)]
@@ -442,5 +456,5 @@ async def test_batch_processing_workflow(counter_service, mock_redis_client):
     await counter_service.add_batch_cameras(camera_batch)
     await counter_service.add_batch_events(event_batch)
 
-    # Should be 2 pfadd calls (one per batch)
-    assert mock_redis_client.pfadd.await_count == 2
+    # Should be 2 pfadd_with_expire calls (one per batch)
+    assert mock_redis_client.pfadd_with_expire.await_count == 2

@@ -1389,6 +1389,8 @@ class TestVisionExtractorExtraction:
         """Test extract_batch_attributes processes multiple detections."""
         from PIL import Image
 
+        from backend.services.vision_extractor import FlorenceEnhancedScene
+
         extractor = VisionExtractor()
 
         # Track calls to identify context
@@ -1431,10 +1433,15 @@ class TestVisionExtractorExtraction:
                 weather=None,
             )
 
+        async def mock_extract_florence_enhanced(image, all_detections, person_dets):
+            """Mock _extract_florence_enhanced - prevents HTTP calls."""
+            return FlorenceEnhancedScene()
+
         extractor._extract_vehicle_internal = mock_extract_vehicle
         extractor._extract_person_internal = mock_extract_person
         extractor._extract_scene_internal = mock_extract_scene
         extractor._extract_environment_internal = mock_extract_env
+        extractor._extract_florence_enhanced = mock_extract_florence_enhanced
 
         img = Image.new("RGB", (400, 400), color="gray")
 
@@ -2048,6 +2055,8 @@ class TestVisionExtractorWithVQAValidation:
         """
         from PIL import Image
 
+        from backend.services.vision_extractor import FlorenceEnhancedScene
+
         extractor = VisionExtractor()
 
         # Mock responses with garbage VQA for person attributes
@@ -2081,7 +2090,46 @@ class TestVisionExtractorWithVQAValidation:
                 return "clear"
             return ""
 
+        # Mock _batch_query_florence to handle batched calls
+        async def mock_batch_query(image, prompts):
+            results = []
+            for p in prompts:
+                if "<CAPTION>" in p:
+                    results.append("Person in blue jacket near white car")
+                elif "color" in p.lower():
+                    results.append("white")
+                elif "type" in p.lower():
+                    results.append("sedan")
+                elif "commercial" in p.lower():
+                    results.append("No")
+                elif "wearing" in p.lower():
+                    results.append("VQA>person wearing<loc_95><loc_86><loc_901><loc_918>")
+                elif "carrying" in p.lower():
+                    results.append("nothing")
+                elif "service worker" in p.lower():
+                    results.append("No")
+                elif "doing" in p.lower():
+                    results.append("walking")
+                elif "unusual" in p.lower() or "tools" in p.lower() or "abandoned" in p.lower():
+                    results.append("No")
+                elif "time of day" in p.lower():
+                    results.append("day")
+                elif "flashlight" in p.lower():
+                    results.append("No")
+                elif "weather" in p.lower():
+                    results.append("clear")
+                else:
+                    results.append("")
+            return results
+
         extractor._query_florence = mock_query
+        extractor._batch_query_florence = mock_batch_query
+
+        # Mock _extract_florence_enhanced to prevent HTTP calls
+        async def mock_extract_florence_enhanced(image, all_detections, person_dets):
+            return FlorenceEnhancedScene()
+
+        extractor._extract_florence_enhanced = mock_extract_florence_enhanced
 
         img = Image.new("RGB", (400, 400), color="gray")
         detections = [
@@ -2633,6 +2681,8 @@ class TestExtractBatchAttributesWithCrossValidation:
         """Test extract_batch_attributes uses YOLO class for cross-validation."""
         from PIL import Image
 
+        from backend.services.vision_extractor import FlorenceEnhancedScene
+
         extractor = VisionExtractor()
 
         # Track what queries were made
@@ -2650,7 +2700,30 @@ class TestExtractBatchAttributesWithCrossValidation:
                 return "no"
             return ""
 
+        # Mock _batch_query_florence to handle batched calls
+        async def mock_batch_query(image, prompts):
+            results = []
+            for p in prompts:
+                if "<CAPTION>" in p:
+                    results.append("A white sedan in the driveway")
+                elif "type" in p.lower():
+                    results.append("sedan")
+                elif "color" in p.lower():
+                    results.append("white")
+                elif "commercial" in p.lower():
+                    results.append("no")
+                else:
+                    results.append("")
+            return results
+
         extractor._query_florence = mock_query
+        extractor._batch_query_florence = mock_batch_query
+
+        # Mock _extract_florence_enhanced to prevent HTTP calls
+        async def mock_extract_florence_enhanced(image, all_detections, person_dets):
+            return FlorenceEnhancedScene()
+
+        extractor._extract_florence_enhanced = mock_extract_florence_enhanced
 
         img = Image.new("RGB", (400, 400), color="gray")
         detections = [
@@ -2681,6 +2754,8 @@ class TestExtractBatchAttributesWithCrossValidation:
         """
         from PIL import Image
 
+        from backend.services.vision_extractor import FlorenceEnhancedScene
+
         extractor = VisionExtractor()
 
         async def mock_query(image, task, text_input=""):
@@ -2694,7 +2769,30 @@ class TestExtractBatchAttributesWithCrossValidation:
                 return "no"
             return ""
 
+        # Mock _batch_query_florence to handle batched calls
+        async def mock_batch_query(image, prompts):
+            results = []
+            for p in prompts:
+                if "<CAPTION>" in p:
+                    results.append("A police car with flashing lights")
+                elif "type" in p.lower():
+                    results.append("police car")
+                elif "color" in p.lower():
+                    results.append("white")
+                elif "commercial" in p.lower():
+                    results.append("no")
+                else:
+                    results.append("")
+            return results
+
         extractor._query_florence = mock_query
+        extractor._batch_query_florence = mock_batch_query
+
+        # Mock _extract_florence_enhanced to prevent HTTP calls
+        async def mock_extract_florence_enhanced(image, all_detections, person_dets):
+            return FlorenceEnhancedScene()
+
+        extractor._extract_florence_enhanced = mock_extract_florence_enhanced
 
         img = Image.new("RGB", (400, 400), color="gray")
         detections = [
@@ -2768,6 +2866,8 @@ class TestExtractBatchAttributesWithCrossValidation:
         """Test that extraction result includes original YOLO class for reference."""
         from PIL import Image
 
+        from backend.services.vision_extractor import FlorenceEnhancedScene
+
         extractor = VisionExtractor()
 
         async def mock_query(image, task, text_input=""):
@@ -2781,7 +2881,30 @@ class TestExtractBatchAttributesWithCrossValidation:
                 return "no"
             return ""
 
+        # Mock _batch_query_florence to handle batched calls
+        async def mock_batch_query(image, prompts):
+            results = []
+            for p in prompts:
+                if "<CAPTION>" in p:
+                    results.append("A pickup truck")
+                elif "type" in p.lower():
+                    results.append("pickup")
+                elif "color" in p.lower():
+                    results.append("red")
+                elif "commercial" in p.lower():
+                    results.append("no")
+                else:
+                    results.append("")
+            return results
+
         extractor._query_florence = mock_query
+        extractor._batch_query_florence = mock_batch_query
+
+        # Mock _extract_florence_enhanced to prevent HTTP calls
+        async def mock_extract_florence_enhanced(image, all_detections, person_dets):
+            return FlorenceEnhancedScene()
+
+        extractor._extract_florence_enhanced = mock_extract_florence_enhanced
 
         img = Image.new("RGB", (400, 400), color="gray")
         detections = [

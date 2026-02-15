@@ -27,6 +27,24 @@ from backend.services.file_watcher import (
     is_video_file,
 )
 
+
+@pytest.fixture(autouse=True)
+def disable_redis_streams():
+    """Disable Redis Streams for video support tests.
+
+    These tests use the legacy list-based queue (add_to_queue_safe) which is simpler to mock.
+    """
+    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+        settings = MagicMock()
+        settings.use_redis_streams = False
+        settings.file_watcher_max_concurrent_queue = 20
+        settings.file_watcher_queue_delay_ms = 0
+        settings.file_watcher_polling = False
+        settings.file_watcher_polling_interval = 1.0
+        mock_settings.return_value = settings
+        yield
+
+
 # =============================================================================
 # Video Extension Detection Tests
 # =============================================================================

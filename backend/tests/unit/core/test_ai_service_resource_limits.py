@@ -4,6 +4,11 @@ This module tests that all AI services have proper CPU and memory resource
 limits configured for production deployments.
 
 NEM-4975: Add CPU/memory resource limits to AI services in production compose
+
+Note: The AI architecture has been consolidated to use ai-gateway (unified
+inference gateway) and ai-llm (Nemotron LLM). Previous separate services
+(ai-yolo26, ai-florence, ai-clip, ai-enrichment, ai-enrichment-light) have
+been removed.
 """
 
 import re
@@ -17,14 +22,10 @@ import yaml
 class TestAIServiceResourceLimits:
     """Tests for AI service resource limits in docker-compose.prod.yml."""
 
-    # AI services that require resource limits
+    # AI services that require resource limits (consolidated architecture)
     AI_SERVICES: ClassVar[list[str]] = [
-        "ai-yolo26",
+        "ai-gateway",
         "ai-llm",
-        "ai-florence",
-        "ai-clip",
-        "ai-enrichment",
-        "ai-enrichment-light",
     ]
 
     @pytest.fixture
@@ -59,15 +60,15 @@ class TestAIServiceResourceLimits:
                 f"Service '{service_name}' not found in docker-compose.prod.yml"
             )
 
-    def test_ai_yolo26_has_resource_limits(self, compose_content: dict) -> None:
-        """Test that ai-yolo26 has CPU and memory limits configured."""
-        service = compose_content["services"]["ai-yolo26"]
-        assert "deploy" in service, "ai-yolo26 should have deploy section"
-        assert "resources" in service["deploy"], "ai-yolo26 deploy should have resources section"
-        assert "limits" in service["deploy"]["resources"], "ai-yolo26 resources should have limits"
+    def test_ai_gateway_has_resource_limits(self, compose_content: dict) -> None:
+        """Test that ai-gateway has CPU and memory limits configured."""
+        service = compose_content["services"]["ai-gateway"]
+        assert "deploy" in service, "ai-gateway should have deploy section"
+        assert "resources" in service["deploy"], "ai-gateway deploy should have resources section"
+        assert "limits" in service["deploy"]["resources"], "ai-gateway resources should have limits"
         limits = service["deploy"]["resources"]["limits"]
-        assert "cpus" in limits, "ai-yolo26 limits should have cpus"
-        assert "memory" in limits, "ai-yolo26 limits should have memory"
+        assert "cpus" in limits, "ai-gateway limits should have cpus"
+        assert "memory" in limits, "ai-gateway limits should have memory"
 
     def test_ai_llm_has_resource_limits(self, compose_content: dict) -> None:
         """Test that ai-llm has CPU and memory limits configured."""
@@ -78,56 +79,6 @@ class TestAIServiceResourceLimits:
         limits = service["deploy"]["resources"]["limits"]
         assert "cpus" in limits, "ai-llm limits should have cpus"
         assert "memory" in limits, "ai-llm limits should have memory"
-
-    def test_ai_florence_has_resource_limits(self, compose_content: dict) -> None:
-        """Test that ai-florence has CPU and memory limits configured."""
-        service = compose_content["services"]["ai-florence"]
-        assert "deploy" in service, "ai-florence should have deploy section"
-        assert "resources" in service["deploy"], "ai-florence deploy should have resources section"
-        assert "limits" in service["deploy"]["resources"], (
-            "ai-florence resources should have limits"
-        )
-        limits = service["deploy"]["resources"]["limits"]
-        assert "cpus" in limits, "ai-florence limits should have cpus"
-        assert "memory" in limits, "ai-florence limits should have memory"
-
-    def test_ai_clip_has_resource_limits(self, compose_content: dict) -> None:
-        """Test that ai-clip has CPU and memory limits configured."""
-        service = compose_content["services"]["ai-clip"]
-        assert "deploy" in service, "ai-clip should have deploy section"
-        assert "resources" in service["deploy"], "ai-clip deploy should have resources section"
-        assert "limits" in service["deploy"]["resources"], "ai-clip resources should have limits"
-        limits = service["deploy"]["resources"]["limits"]
-        assert "cpus" in limits, "ai-clip limits should have cpus"
-        assert "memory" in limits, "ai-clip limits should have memory"
-
-    def test_ai_enrichment_has_resource_limits(self, compose_content: dict) -> None:
-        """Test that ai-enrichment has CPU and memory limits configured."""
-        service = compose_content["services"]["ai-enrichment"]
-        assert "deploy" in service, "ai-enrichment should have deploy section"
-        assert "resources" in service["deploy"], (
-            "ai-enrichment deploy should have resources section"
-        )
-        assert "limits" in service["deploy"]["resources"], (
-            "ai-enrichment resources should have limits"
-        )
-        limits = service["deploy"]["resources"]["limits"]
-        assert "cpus" in limits, "ai-enrichment limits should have cpus"
-        assert "memory" in limits, "ai-enrichment limits should have memory"
-
-    def test_ai_enrichment_light_has_resource_limits(self, compose_content: dict) -> None:
-        """Test that ai-enrichment-light has CPU and memory limits configured."""
-        service = compose_content["services"]["ai-enrichment-light"]
-        assert "deploy" in service, "ai-enrichment-light should have deploy section"
-        assert "resources" in service["deploy"], (
-            "ai-enrichment-light deploy should have resources section"
-        )
-        assert "limits" in service["deploy"]["resources"], (
-            "ai-enrichment-light resources should have limits"
-        )
-        limits = service["deploy"]["resources"]["limits"]
-        assert "cpus" in limits, "ai-enrichment-light limits should have cpus"
-        assert "memory" in limits, "ai-enrichment-light limits should have memory"
 
     def test_all_ai_services_have_complete_resource_limits(self, compose_content: dict) -> None:
         """Test that all AI services have both CPU and memory limits."""
@@ -207,8 +158,8 @@ class TestAIServiceResourceLimits:
         """Test that docker-compose.prod.yml has valid YAML structure.
 
         This ensures the compose file can be parsed by docker-compose tools.
+        Note: Docker Compose v2+ no longer requires the 'version' field.
         """
         # PyYAML successfully parsed the file, which means it's valid YAML
         assert isinstance(compose_content, dict), "docker-compose.prod.yml should parse to a dict"
-        assert "version" in compose_content, "docker-compose.prod.yml should have version field"
         assert "services" in compose_content, "docker-compose.prod.yml should have services section"

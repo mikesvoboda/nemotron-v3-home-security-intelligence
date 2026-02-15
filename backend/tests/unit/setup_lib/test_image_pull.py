@@ -155,7 +155,7 @@ class TestGetComposeFiles:
 
         with patch.object(Path, "exists", mock_exists):
             result = get_compose_files()
-            assert len(result) == 3
+            assert len(result) == 2
             filenames = [f[0] for f in result]
             assert "docker-compose.ghcr.yml" in filenames
             assert "docker-compose.prod.yml" in filenames
@@ -203,7 +203,7 @@ class TestGetComposeFiles:
 
         with patch.object(Path, "exists", mock_exists):
             result = get_compose_files()
-            assert len(result) == 2
+            assert len(result) == 1
             # Check descriptions contain expected keywords
             for filename, description, pull_mode in result:
                 assert pull_mode == "ghcr"

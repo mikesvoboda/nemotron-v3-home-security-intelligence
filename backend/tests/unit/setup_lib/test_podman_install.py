@@ -521,7 +521,8 @@ class TestPromptAndInstallPodman:
                 patch("setup_lib.podman_install.is_podman_installed", return_value=False),
                 patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
                 patch("builtins.input", return_value=response),
-                patch("setup_lib.podman_install.install_podman", return_value=True),
+                patch("setup_lib.podman_install._do_install_podman", return_value=True),
+                patch("setup_lib.podman_install.configure_rootless_cgroups"),
             ):
                 result = prompt_and_install_podman()
                 assert result is True, f"Failed for response: {response}"
