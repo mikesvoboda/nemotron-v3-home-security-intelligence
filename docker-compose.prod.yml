@@ -30,7 +30,7 @@
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: auto = fit to available VRAM)
-#   - CTX_SIZE: LLM context window size (default: 32768, defined in .env)
+#   - CTX_SIZE: LLM context window size (default: 262144, 8 slots × 32K each)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
@@ -38,16 +38,12 @@
 #
 # GPU Assignment (configured in .env - single source of truth):
 #   - GPU_LLM: GPU for Nemotron LLM (default: 0)
-#   - GPU_FLORENCE: GPU for Florence-2 (default: GPU_LLM, shares with LLM)
-#   - GPU_YOLO26: GPU for YOLO26 (default: 1)
-#   - GPU_CLIP: GPU for CLIP (default: 1)
-#   - GPU_ENRICHMENT: GPU for Enrichment models (default: 1)
-
-version: '3.8'
+#   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
 
 services:
   postgres:
-    # Security hardening: Prevent privilege escalation
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     security_opt:
       - no-new-privileges:true
     # NOTE: Postgres needs CHOWN/DAC_OVERRIDE for data directory initialization
@@ -121,74 +117,8 @@ services:
           cpus: '2'
           memory: 1G
 
-  # YOLO26 TensorRT-optimized object detection
-  # Uses pre-exported TensorRT engine for fast inference
-  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
-  ai-yolo26:
-    profiles:
-      - standalone
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-      - label=disable
-    cap_drop:
-      - ALL
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-yolo26'
-    build:
-      context: .
-      dockerfile: ai/yolo26/Dockerfile
-    # NEM-4486: Bind to localhost only - AI services are internal
-    ports:
-      - '127.0.0.1:${YOLO26_PORT:-8095}:8095'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro
-      # PyTorch GPU profiling traces (NEM-4130)
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-yolo26
-      # GPU assignment from .env (single source of truth)
-      - CUDA_VISIBLE_DEVICES=${GPU_YOLO26:-1}
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
-      # Use .pt file to auto-rebuild TensorRT engine for target GPU (A400)
-      - YOLO26_MODEL_PATH=/models/yolo26/yolo26m.pt
-      # PyTorch GPU profiling (NEM-4130)
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8095/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
-        reservations:
-          memory: 2G
-          devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
-            - driver: nvidia
-              capabilities: [gpu]
-
   ai-llm:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
     security_opt:
       - no-new-privileges:true
       - label=disable
@@ -196,7 +126,6 @@ services:
       - ALL
     tmpfs:
       - /tmp
-      - /home/llama/.cache # llama.cpp temp cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-llm'
@@ -211,6 +140,10 @@ services:
       - '127.0.0.1:${LLM_PORT:-8091}:8091'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+      # Persistent CUDA kernel cache (llama.cpp compilation cache)
+      - llama-cache:/home/llama/.cache
+      # Persistent NVIDIA compute cache (CUDA JIT kernels)
+      - llama-nv-cache:/home/llama/.nv
     environment:
       # Pyroscope continuous profiling for LLM inference analysis
       - SERVICE_NAME=ai-llm
@@ -224,11 +157,12 @@ services:
       # All layers on GPU - other AI services moved to GPU 1 (A400) to free up A5500 for LLM
       # auto = llama.cpp --fit determines optimal layer count based on free VRAM
       - GPU_LAYERS=${GPU_LAYERS:-auto}
-      # NEM-5369: Reduced context for home security analysis (was 65536, saves ~4GB VRAM)
-      # 32768 tokens is sufficient for security event analysis prompts
-      - CTX_SIZE=${CTX_SIZE:-32768}
-      # 2 parallel slots (16K each) for concurrent batch processing
-      - PARALLEL=${PARALLEL:-2}
+      # Context window: 8 parallel slots for high-throughput inference
+      # 262144 tokens = 8 slots × 32768 tokens each (~24K words per request)
+      # Enables complex multi-event analysis with extensive context
+      - CTX_SIZE=${CTX_SIZE:-262144}
+      # 8 parallel slots for concurrent batch processing
+      - PARALLEL=${PARALLEL:-8}
       # Thread count for CPU-offloaded layers
       - THREADS=${LLM_THREADS:-4}
       # Batch sizes for prompt processing
@@ -259,8 +193,9 @@ services:
         reservations:
           memory: 8G
           devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
+            # Specific GPU assignment for podman-compose compatibility
             - driver: nvidia
+              device_ids: ['${GPU_LLM:-0}']
               capabilities: [gpu]
 
   # =============================================================================
@@ -340,338 +275,11 @@ services:
             - driver: nvidia
               capabilities: [gpu]
 
-  # Florence-2 vision-language model for dense captioning and visual understanding
-  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
-  ai-florence:
-    profiles:
-      - standalone
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-      - label=disable
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
-      - /home/florence/.cache # PyTorch compile cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-florence'
-    build:
-      context: .
-      dockerfile: ai/florence/Dockerfile
-    # NEM-4486: Bind to localhost only - AI services are internal
-    ports:
-      - '127.0.0.1:${FLORENCE_PORT:-8092}:8092'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
-      # Persistent HuggingFace cache volume (NEM-3812)
-      - hf_cache:/cache/huggingface:U
-      # PyTorch GPU profiling traces (NEM-4130)
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-florence
-      # GPU assignment - Florence stays on GPU 0 (A5500) with LLM
-      - CUDA_VISIBLE_DEVICES=${GPU_FLORENCE:-0}
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - MODEL_PATH=/models/florence-2-large
-      # HuggingFace cache configuration (NEM-3812)
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
-      # PyTorch GPU profiling (NEM-4130)
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 6G
-        reservations:
-          memory: 3G
-          devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
-            - driver: nvidia
-              capabilities: [gpu]
-
-  # SigLIP 2 Base model for entity re-identification embeddings (replaces CLIP ViT-L)
-  # NEM-5561: Swapped from CLIP ViT-L (1.2GB) to SigLIP 2 Base (178MB FP16)
-  # NEM-5369: Pinned to GPU 1 explicitly to prevent random GPU selection
-  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
-  ai-clip:
-    profiles:
-      - standalone
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-      - label=disable
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
-      - /home/clip/.cache # PyTorch compile cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-clip'
-    build:
-      context: .
-      dockerfile: ai/clip/Dockerfile
-    # NEM-4486: Bind to localhost only - AI services are internal
-    ports:
-      - '127.0.0.1:${CLIP_PORT:-8093}:8093'
-    volumes:
-      # Read-only model mount (HuggingFace CLIP weights)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
-      # Writable mount for TensorRT engine cache (persists between restarts)
-      - clip-tensorrt-cache:/cache/tensorrt
-      # PyTorch GPU profiling traces (NEM-4130)
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-clip
-      # GPU assignment from .env (single source of truth)
-      - CUDA_VISIBLE_DEVICES=${GPU_CLIP:-1}
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - CLIP_MODEL_PATH=/models/clip-vit-l
-      # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
-      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
-      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-      # PyTorch GPU profiling (NEM-4130)
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 3G
-        reservations:
-          memory: 2G
-          devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
-            - driver: nvidia
-              capabilities: [gpu]
-
-  # Lightweight enrichment service for small, efficient models (GPU 1)
-  # Hosts: pose, threat, reid, pet, depth models (~1.2GB total)
-  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
-  ai-enrichment-light:
-    profiles:
-      - standalone
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-      - label=disable
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
-      - /home/enrichment/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-enrichment-light'
-    build:
-      context: .
-      dockerfile: ai/enrichment-light/Dockerfile
-    # NEM-4486: Bind to localhost only - AI services are internal
-    ports:
-      - '127.0.0.1:${ENRICHMENT_LIGHT_PORT:-8096}:8096'
-    volumes:
-      # Light models for GPU 1
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-ain-x1-0:/models/osnet-ain-x1-0:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/stgcn-plus-plus:/models/stgcn-plus-plus:ro
-      # TensorRT engine cache (persists compiled engines across restarts)
-      - enrichment-light-tensorrt-cache:/cache/tensorrt
-      # PyTorch GPU profiling traces (NEM-4130)
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-enrichment-light
-      # GPU assignment from .env (single source of truth)
-      - CUDA_VISIBLE_DEVICES=${GPU_ENRICHMENT_LIGHT:-1}
-      - GPU_TIER=light
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      # Model assignment configuration (which models this service loads)
-      # Set to 'light' to load on this service, 'heavy' to skip
-      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
-      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
-      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
-      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
-      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
-      # Light model paths
-      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
-      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
-      - REID_MODEL_PATH=/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth
-      - PET_MODEL_PATH=/models/pet-classifier
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
-      # TensorRT acceleration for YOLO models
-      - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
-      - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-      # Preload models at startup - configured in .env (single source of truth)
-      # See .env.example for available models
-      # Default: All light models (pose, threat, reid, pet, depth) for fast inference
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-pose_estimator,threat_detector,person_reid,pet_classifier,depth_estimator}
-      # PyTorch GPU profiling (NEM-4130)
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 3G
-        reservations:
-          memory: 2G
-          devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
-            - driver: nvidia
-              capabilities: [gpu]
-
-  # Heavy enrichment service for large transformer models (GPU 0)
-  # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
-  # NOTE: Only used in standalone mode (--profile standalone). Gateway mode is default.
-  ai-enrichment:
-    profiles:
-      - standalone
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-      - label=disable
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
-      - /home/enrichment/.cache # PyTorch compile cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-enrichment'
-    build:
-      context: .
-      dockerfile: ai/enrichment/Dockerfile
-    # NEM-4486: Bind to localhost only - AI services are internal
-    ports:
-      - '127.0.0.1:${ENRICHMENT_PORT:-8094}:8094'
-    volumes:
-      # Heavy models only (light models moved to ai-enrichment-light)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
-      # X-CLIP deprecated — replaced by ST-GCN++ on ai-enrichment-light (NEM-5563)
-      # Kept for backward compatibility until fully removed
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
-      # Smoke/fire detection (NEM-5566, CRITICAL safety model)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/smoke-fire-yolov8n:/models/smoke-fire-yolov8n:ro
-      # YOLO-World open-vocabulary detection (NEM-5566)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo-world-s:/models/yolo-world-s:ro
-      # Zero-DCE++ low-light enhancement (NEM-5567)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/zero-dce-plus-plus:/models/zero-dce-plus-plus:ro
-      # INT8 quantized model files (NEM-5550)
-      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
-      # Persistent HuggingFace cache volume (NEM-3812)
-      - hf_cache:/cache/huggingface:U
-      # PyTorch GPU profiling traces (NEM-4130)
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-enrichment
-      # GPU assignment from .env (single source of truth)
-      - CUDA_VISIBLE_DEVICES=${GPU_ENRICHMENT:-1}
-      - GPU_TIER=heavy
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      # Heavy models only (light models on ai-enrichment-light)
-      - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
-      - CLOTHING_MODEL_PATH=/models/fashion-clip
-      - AGE_MODEL_PATH=/models/vit-age-classifier
-      - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - ACTION_MODEL_PATH=/models/xclip-base-patch32 # Legacy X-CLIP, ST-GCN++ is on ai-enrichment-light
-      # INT8 quantized model configuration (NEM-5550)
-      # Run ai/enrichment/scripts/quantize_models.py to generate INT8 .pt files
-      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
-      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
-      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
-      # VRAM management for heavy models
-      - VRAM_BUDGET_GB=6.0
-      - MODEL_LOAD_TIMEOUT=30
-      # HuggingFace cache configuration (NEM-3812)
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
-      # Preload models at startup - configured in .env (single source of truth)
-      # See .env.example for available models
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-}
-      # PyTorch GPU profiling (NEM-4130)
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
-        reservations:
-          memory: 6G
-          devices:
-            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
-            - driver: nvidia
-              capabilities: [gpu]
-
   # =============================================================================
-  # AI Gateway (Triton + FastAPI) — Gateway Mode Only
+  # AI Gateway (Triton + FastAPI)
   # =============================================================================
-  # Replaces ai-yolo26, ai-florence, ai-clip, ai-enrichment, ai-enrichment-light
-  # with a single Triton-backed gateway. Activate with --profile gateway.
-  #
-  # Usage:
-  #   podman compose -f docker-compose.prod.yml -f docker-compose.gateway.yml \
-  #     --profile gateway up -d --scale ai-yolo26=0 --scale ai-florence=0 \
-  #     --scale ai-clip=0 --scale ai-enrichment=0 --scale ai-enrichment-light=0
+  # Serves all AI models (YOLO26, Florence-2, CLIP, enrichment) via Triton
+  # Inference Server with a FastAPI gateway for HTTP routing.
   ai-gateway:
     security_opt:
       - no-new-privileges:true
@@ -690,10 +298,14 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+      # Persistent CUDA kernel cache (survives container redeploys)
+      - triton-kernel-cache:/root/.nv
+      # TensorRT temp artifacts cache (compilation intermediates)
+      - triton-tmp-cache:/tmp
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
-      - CUDA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-0}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
@@ -717,7 +329,7 @@ services:
               capabilities: [gpu]
 
   backend:
-    # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
       - /tmp
       - /home/appuser/.cache
@@ -806,7 +418,6 @@ services:
       redis:
         condition: service_healthy
       # AI services — backend waits for LLM (critical for risk analysis)
-      # Gateway/standalone AI services handled via docker-compose.gateway.yml override
       ai-llm:
         condition: service_healthy
       # go2rtc for live streaming - non-critical, backend can start without it
@@ -839,6 +450,8 @@ services:
               capabilities: [gpu]
 
   redis:
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     tmpfs:
       - /tmp
     # Security hardening: Prevent privilege escalation
@@ -850,13 +463,14 @@ services:
       - SYS_ADMIN
       - SYS_PTRACE
     # Redis tuning for connection handling
-    # NOTE: vm.overcommit_memory=1 sysctl requires host-level configuration (see below)
-    # and cannot be set in rootless containers. For production deployments, run:
+    # NOTE: Sysctls require host-level configuration for rootless containers
+    # These settings should be configured by setup.py for production deployments:
     #   sudo sysctl -w vm.overcommit_memory=1
-    #   echo "vm.overcommit_memory=1" | sudo tee /etc/sysctl.d/99-redis.conf
+    #   sudo sysctl -w net.core.somaxconn=511
     # See: https://redis.io/docs/management/admin/#background-saving-fails-with-a-fork-error
-    sysctls:
-      - net.core.somaxconn=511
+    # Rootless Podman cannot set sysctls - must be configured at host level
+    # sysctls:
+    #   - net.core.somaxconn=511
     image: docker.io/library/redis:7.4-alpine3.21
     # NEM-4496: Bind to localhost only to prevent external network access
     ports:
@@ -1021,7 +635,7 @@ services:
   # API: http://localhost:1984 (stream management)
   # WebRTC: http://localhost:8555 (client connections)
   go2rtc:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1061,7 +675,8 @@ services:
           memory: 256M
 
   frontend:
-    # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     tmpfs:
       - /tmp
       - /var/run # nginx pid file
@@ -1134,6 +749,7 @@ services:
   # Grafana Tempo for distributed tracing (NEM-5545, replaces Jaeger+Elasticsearch)
   # Lightweight trace backend with native OTLP ingestion and 30-day retention
   tempo:
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1162,7 +778,8 @@ services:
           memory: 1G
 
   prometheus:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1205,7 +822,10 @@ services:
           memory: 512M
 
   grafana:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # Security hardening: Read-only root filesystem (NEM-4978)
+    read_only: true
+    tmpfs:
+      - /tmp
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1272,7 +892,7 @@ services:
           memory: 512M
 
   redis-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1302,7 +922,7 @@ services:
           memory: 64M
 
   json-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1326,7 +946,7 @@ services:
 
   # Alertmanager for alert routing, grouping, and delivery (NEM-1631)
   alertmanager:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1367,7 +987,7 @@ services:
   # Blackbox Exporter for synthetic monitoring (NEM-1637)
   # Probes endpoints for availability, latency, and health status
   blackbox-exporter:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1399,7 +1019,7 @@ services:
   # Loki for log aggregation (NEM-3093)
   # Receives logs from Alloy and stores them for querying via Grafana
   loki:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1433,7 +1053,7 @@ services:
   # NEM-3514: Upgraded from 1.4.0 to 1.18.0 to fix "unknown profile type: seconds" error.
   # Fix: https://github.com/grafana/pyroscope/pull/4568 (released in v1.9.2+)
   pyroscope:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -1607,9 +1227,11 @@ services:
       - alloy_symb_cache:/tmp/symb-cache
     ulimits:
       # eBPF profiling requires increased memory lock limit
+      # Rootless containers cannot set unlimited (-1), so use a high limit (8GB)
+      # Host limit should be configured by setup.py in /etc/security/limits.d/
       memlock:
-        soft: -1
-        hard: -1
+        soft: 8589934592
+        hard: 8589934592
     environment:
       - HOST_PROC=/host/proc
     command:
@@ -1650,8 +1272,6 @@ volumes:
   # Shared across all AI services to avoid re-downloading models
   hf_cache:
     driver: local
-  enrichment-light-tensorrt-cache:
-    driver: local
   # Redis Sentinel volumes (uncomment when enabling Sentinel)
   # sentinel1_data:
   #   driver: local
@@ -1665,8 +1285,6 @@ volumes:
     driver: local
   alertmanager_data:
     driver: local
-  clip-tensorrt-cache:
-    driver: local
   loki_data:
     driver: local
   pyroscope_data:
@@ -1677,9 +1295,19 @@ volumes:
   # Frontend SSL certificates volume for auto-generation with read-only filesystem
   frontend_certs:
     driver: local
-  # PyTorch GPU profiling traces shared across AI services (NEM-4130)
-  # View traces with Perfetto UI: https://ui.perfetto.dev
-  pytorch-profiles:
+  # Triton/Gateway CUDA kernel cache (NEM-XXXX)
+  # Persists CUDA JIT compilation across container redeploys
+  triton-kernel-cache:
+    driver: local
+  # Triton TensorRT temporary compilation artifacts
+  triton-tmp-cache:
+    driver: local
+  # llama.cpp CUDA kernel cache (ai-llm service)
+  # Persists llama.cpp compilation cache across redeploys
+  llama-cache:
+    driver: local
+  # NVIDIA CUDA JIT kernel cache for ai-llm
+  llama-nv-cache:
     driver: local
 
 networks:

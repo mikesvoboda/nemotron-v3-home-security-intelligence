@@ -61,6 +61,7 @@ from backend.core.metrics import record_pipeline_stage_latency
 from backend.core.redis import QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
+from backend.services.redis_streams import get_detection_stream_service
 
 logger = get_logger(__name__)
 
@@ -872,6 +873,28 @@ class FileWatcher:
         if file_hash:
             detection_data["file_hash"] = file_hash
 
+        # NEM-3469: Use Redis Streams for durable queue persistence when enabled
+        settings = get_settings()
+        if settings.use_redis_streams:
+            semaphore = self._queue_semaphore or asyncio.Semaphore(self._max_concurrent_queue)
+            async with semaphore:
+                stream_service = await get_detection_stream_service(self.redis_client)
+                await stream_service.add_detection(
+                    camera_id=camera_id,
+                    detection_id=0,  # Not yet persisted - will be assigned by detector
+                    file_path=file_path,
+                    extra_fields={
+                        "timestamp": detection_data["timestamp"],
+                        "media_type": detection_data["media_type"],
+                        "pipeline_start_time": detection_data.get("pipeline_start_time", ""),
+                        **({"file_hash": file_hash} if file_hash else {}),
+                    },
+                )
+                if self._queue_delay_ms > 0:
+                    await asyncio.sleep(self._queue_delay_ms / 1000.0)
+            return
+
+        # Legacy list-based queue
         # Use semaphore to limit concurrent queue operations and prevent Redis connection exhaustion
         # This is critical during bulk file uploads (seed scripts, FTP batch uploads)
         semaphore = self._queue_semaphore or asyncio.Semaphore(self._max_concurrent_queue)

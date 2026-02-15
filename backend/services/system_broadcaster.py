@@ -1116,6 +1116,17 @@ class SystemBroadcaster:
         """
         self._running = False
 
+        # NEM-4987: Broadcast shutdown notice before stopping
+        shutdown_message = {
+            "type": "system.shutdown",
+            "data": {"reason": "Server shutting down", "reconnect": True},
+        }
+        for ws in list(self.connections):
+            try:
+                await ws.send_json(shutdown_message)
+            except Exception:  # noqa: S110
+                pass  # Best-effort — client may already be gone
+
         # Stop the broadcast loop
         if self._broadcast_task:
             self._broadcast_task.cancel()

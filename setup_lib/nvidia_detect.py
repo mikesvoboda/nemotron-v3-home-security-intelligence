@@ -1,8 +1,8 @@
 """NVIDIA GPU detection and driver management for setup.py.
 
 Provides detection of NVIDIA GPUs, driver version checking, and installation
-command generation for various Linux distributions. Supports CUDA 12.1+
-compatibility checking (requires driver 535+).
+command generation for various Linux distributions. Supports CUDA 13.1+
+compatibility checking (requires driver 580+).
 
 Usage:
     from setup_lib.nvidia_detect import (
@@ -26,8 +26,9 @@ import shutil
 import subprocess
 from typing import TypedDict
 
-# Minimum driver version for CUDA 12.1 compatibility
-MINIMUM_DRIVER_VERSION = 535
+# Minimum driver version for CUDA 13.1 compatibility
+# CUDA 13.x requires driver 580+ (ai-llm container uses CUDA 13.1.1)
+MINIMUM_DRIVER_VERSION = 580
 
 
 class GpuInfo(TypedDict):
@@ -35,6 +36,7 @@ class GpuInfo(TypedDict):
 
     name: str
     vram_mb: int
+    compute_cap: str  # Compute capability (e.g., "8.9")
 
 
 class NvidiaDetectionSummary(TypedDict):
@@ -93,10 +95,10 @@ def is_nvidia_gpu_present() -> bool:
 def get_gpu_info() -> list[GpuInfo] | None:
     """Get information about all detected NVIDIA GPUs.
 
-    Queries nvidia-smi for GPU names and VRAM sizes.
+    Queries nvidia-smi for GPU names, VRAM sizes, and compute capability.
 
     Returns:
-        List of GpuInfo dicts with name and vram_mb, or None if detection fails.
+        List of GpuInfo dicts with name, vram_mb, and compute_cap, or None if detection fails.
     """
     try:
         # Get GPU names
@@ -121,13 +123,28 @@ def get_gpu_info() -> list[GpuInfo] | None:
         if memory_result.returncode != 0:
             return None
 
+        # Get compute capability
+        compute_result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
         names = [n.strip() for n in name_result.stdout.strip().split("\n") if n.strip()]
         memories = [m.strip() for m in memory_result.stdout.strip().split("\n") if m.strip()]
+        compute_caps = (
+            [c.strip() for c in compute_result.stdout.strip().split("\n") if c.strip()]
+            if compute_result.returncode == 0
+            else []
+        )
 
         gpus: list[GpuInfo] = []
         for i, name in enumerate(names):
             vram_mb = int(memories[i]) if i < len(memories) else 0
-            gpus.append(GpuInfo(name=name, vram_mb=vram_mb))
+            compute_cap = compute_caps[i] if i < len(compute_caps) else "unknown"
+            gpus.append(GpuInfo(name=name, vram_mb=vram_mb, compute_cap=compute_cap))
 
         return gpus if gpus else None
 
@@ -312,7 +329,7 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
 
         if is_driver_version_sufficient(driver_version):
             config["driver_needs_upgrade"] = False
-            print(f"  Driver Status: OK (>= {MINIMUM_DRIVER_VERSION} required for CUDA 12.1)")
+            print(f"  Driver Status: OK (>= {MINIMUM_DRIVER_VERSION} required for CUDA 13.1)")
         else:
             config["driver_needs_upgrade"] = True
             print(f"  Driver Status: UPGRADE NEEDED (>= {MINIMUM_DRIVER_VERSION} required)")

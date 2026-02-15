@@ -36,10 +36,13 @@ Consumer Groups:
 
 __all__ = [
     # Classes
+    "AnalysisStreamMessage",
+    "AnalysisStreamService",
     "DetectionStreamMessage",
     "DetectionStreamService",
     "StreamConsumerInfo",
     # Functions
+    "get_analysis_stream_service",
     "get_detection_stream_service",
 ]
 
@@ -773,24 +776,374 @@ class DetectionStreamService:
         return removed
 
 
-# Global service instance
+# ---------------------------------------------------------------------------
+# Analysis Stream Service (NEM-3469)
+# ---------------------------------------------------------------------------
+
+ANALYSIS_STREAM_KEY = "analysis:stream"
+ANALYSIS_DLQ_STREAM_KEY = "analysis:stream:dlq"
+ANALYSIS_CONSUMER_GROUP = "analysis-workers"
+
+
+@dataclass(slots=True)
+class AnalysisStreamMessage:
+    """Represents a message from the analysis stream.
+
+    Attributes:
+        id: Redis stream message ID (e.g., "1234567890123-0")
+        batch_id: Batch identifier
+        camera_id: Camera identifier
+        detection_ids: List of detection IDs in this batch
+        pipeline_start_time: Optional pipeline start timestamp
+        delivery_count: Number of times this message has been delivered
+        raw_data: Original message data dictionary
+    """
+
+    id: str
+    batch_id: str
+    camera_id: str
+    detection_ids: list[int]
+    pipeline_start_time: float | None = None
+    delivery_count: int = 1
+    raw_data: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_stream_entry(
+        cls, message_id: str, data: dict[str, str], delivery_count: int = 1
+    ) -> AnalysisStreamMessage:
+        """Create an AnalysisStreamMessage from a Redis stream entry."""
+        import json
+
+        detection_ids_raw = data.get("detection_ids", "[]")
+        try:
+            detection_ids = json.loads(detection_ids_raw)
+        except (json.JSONDecodeError, TypeError):
+            detection_ids = []
+
+        return cls(
+            id=message_id,
+            batch_id=data.get("batch_id", ""),
+            camera_id=data.get("camera_id", ""),
+            detection_ids=[int(d) for d in detection_ids],
+            pipeline_start_time=float(data["pipeline_start_time"])
+            if data.get("pipeline_start_time")
+            else None,
+            delivery_count=delivery_count,
+            raw_data=data,
+        )
+
+    def to_queue_dict(self) -> dict[str, Any]:
+        """Convert to the dict format expected by AnalysisQueueWorker."""
+        result: dict[str, Any] = {
+            "batch_id": self.batch_id,
+            "camera_id": self.camera_id,
+            "detection_ids": self.detection_ids,
+        }
+        if self.pipeline_start_time is not None:
+            result["pipeline_start_time"] = self.pipeline_start_time
+        return result
+
+
+class AnalysisStreamService:
+    """Service for managing analysis streams with Redis Streams.
+
+    Parallel to DetectionStreamService but for the analysis queue.
+    Provides durable message delivery with consumer groups and
+    acknowledgment for batch analysis jobs.
+    """
+
+    def __init__(
+        self,
+        redis_client: RedisClient,
+        stream_key: str = ANALYSIS_STREAM_KEY,
+        consumer_group: str = ANALYSIS_CONSUMER_GROUP,
+        maxlen: int | None = None,
+        block_ms: int = DEFAULT_BLOCK_MS,
+        claim_min_idle_ms: int = DEFAULT_CLAIM_MIN_IDLE_MS,
+        max_delivery_count: int = DEFAULT_MAX_DELIVERY_COUNT,
+    ):
+        self._redis = redis_client
+        self._stream_key = stream_key
+        self._dlq_key = f"{stream_key}:dlq"
+        self._consumer_group = consumer_group
+        self._maxlen = maxlen or DEFAULT_STREAM_MAXLEN
+        self._block_ms = block_ms
+        self._claim_min_idle_ms = claim_min_idle_ms
+        self._max_delivery_count = max_delivery_count
+        self._group_created = False
+        self._group_create_lock = asyncio.Lock()
+
+    async def _ensure_consumer_group(self) -> None:
+        """Ensure the consumer group exists, creating it if necessary."""
+        if self._group_created:
+            return
+
+        async with self._group_create_lock:
+            if self._group_created:
+                return
+
+            if not self._redis._client:
+                raise RuntimeError("Redis client not connected")
+
+            try:
+                await self._redis._client.xgroup_create(
+                    self._stream_key,
+                    self._consumer_group,
+                    id="0",
+                    mkstream=True,
+                )
+                logger.info(
+                    "Created analysis consumer group",
+                    extra={
+                        "stream_key": self._stream_key,
+                        "consumer_group": self._consumer_group,
+                    },
+                )
+            except Exception as e:
+                if "BUSYGROUP" in str(e):
+                    logger.debug("Analysis consumer group already exists")
+                else:
+                    raise
+
+            self._group_created = True
+
+    async def add_batch(
+        self,
+        batch_id: str,
+        camera_id: str,
+        detection_ids: list[int],
+        pipeline_start_time: float | None = None,
+    ) -> str:
+        """Add a batch analysis job to the stream.
+
+        Args:
+            batch_id: Batch identifier
+            camera_id: Camera identifier
+            detection_ids: List of detection IDs
+            pipeline_start_time: Optional pipeline start timestamp
+
+        Returns:
+            Redis stream message ID
+        """
+        import json
+
+        if not self._redis._client:
+            raise RuntimeError("Redis client not connected")
+
+        message_fields: dict[str, str] = {
+            "batch_id": batch_id,
+            "camera_id": camera_id,
+            "detection_ids": json.dumps(detection_ids),
+            "timestamp": str(time.time()),
+        }
+
+        if pipeline_start_time is not None:
+            message_fields["pipeline_start_time"] = str(pipeline_start_time)
+
+        message_id: str = await self._redis._client.xadd(
+            self._stream_key,
+            message_fields,  # type: ignore[arg-type]
+            maxlen=self._maxlen,
+            approximate=DEFAULT_STREAM_APPROXIMATE,
+        )
+
+        logger.debug(
+            "Added batch to analysis stream",
+            extra={
+                "stream_key": self._stream_key,
+                "message_id": message_id,
+                "batch_id": batch_id,
+                "detection_count": len(detection_ids),
+            },
+        )
+
+        return message_id
+
+    async def consume_batches(
+        self,
+        consumer_name: str,
+        count: int = 1,
+        block: bool = True,
+    ) -> list[AnalysisStreamMessage]:
+        """Consume analysis batches from the stream using a consumer group."""
+        if not self._redis._client:
+            raise RuntimeError("Redis client not connected")
+
+        await self._ensure_consumer_group()
+
+        try:
+            block_ms = self._block_ms if block else None
+            result = await self._redis._client.xreadgroup(
+                self._consumer_group,
+                consumer_name,
+                {self._stream_key: ">"},
+                count=count,
+                block=block_ms,
+            )
+
+            if not result:
+                return []
+
+            messages: list[AnalysisStreamMessage] = []
+            for _stream_name, stream_messages in result:
+                for message_id, data in stream_messages:
+                    try:
+                        msg = AnalysisStreamMessage.from_stream_entry(
+                            message_id, data, delivery_count=1
+                        )
+                        messages.append(msg)
+                    except (ValueError, KeyError) as e:
+                        logger.warning(
+                            "Failed to parse analysis stream message",
+                            extra={"message_id": message_id, "error": str(e)},
+                        )
+                        record_pipeline_error("analysis_stream_parse_error")
+                        continue
+
+            return messages
+
+        except Exception as e:
+            logger.error(
+                "Error consuming from analysis stream",
+                extra={
+                    "stream_key": self._stream_key,
+                    "consumer_name": consumer_name,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def acknowledge(self, message_id: str) -> bool:
+        """Acknowledge a message as successfully processed."""
+        if not self._redis._client:
+            raise RuntimeError("Redis client not connected")
+
+        result: int = await self._redis._client.xack(
+            self._stream_key, self._consumer_group, message_id
+        )
+        return result > 0
+
+    async def move_to_dlq(
+        self,
+        message: AnalysisStreamMessage,
+        reason: str = "max_delivery_exceeded",
+    ) -> str:
+        """Move a failed message to the dead-letter queue."""
+        if not self._redis._client:
+            raise RuntimeError("Redis client not connected")
+
+        dlq_fields: dict[str, str] = {
+            **{k: str(v) for k, v in message.raw_data.items()},
+            "original_message_id": message.id,
+            "dlq_reason": reason,
+            "dlq_timestamp": str(time.time()),
+            "delivery_count": str(message.delivery_count),
+        }
+
+        dlq_message_id: str = await self._redis._client.xadd(
+            self._dlq_key,
+            dlq_fields,  # type: ignore[arg-type]
+            maxlen=self._maxlen,
+            approximate=DEFAULT_STREAM_APPROXIMATE,
+        )
+
+        await self.acknowledge(message.id)
+
+        logger.warning(
+            "Moved analysis message to DLQ",
+            extra={
+                "original_message_id": message.id,
+                "dlq_message_id": dlq_message_id,
+                "reason": reason,
+                "batch_id": message.batch_id,
+            },
+        )
+
+        record_pipeline_error("analysis_stream_dlq_move")
+        return dlq_message_id
+
+    async def claim_stale_messages(
+        self,
+        consumer_name: str,
+        count: int = 10,
+    ) -> list[AnalysisStreamMessage]:
+        """Claim messages from consumers that have been idle too long."""
+        if not self._redis._client:
+            raise RuntimeError("Redis client not connected")
+
+        await self._ensure_consumer_group()
+
+        try:
+            result = await self._redis._client.xautoclaim(
+                self._stream_key,
+                self._consumer_group,
+                consumer_name,
+                self._claim_min_idle_ms,
+                start_id="0-0",
+                count=count,
+            )
+
+            if not result or len(result) < 2:
+                return []
+
+            claimed_messages = result[1] if len(result) > 1 else []
+
+            messages: list[AnalysisStreamMessage] = []
+            for message_id, data in claimed_messages:
+                if data is None:
+                    continue
+                try:
+                    pending_info = await self._redis._client.xpending_range(
+                        self._stream_key,
+                        self._consumer_group,
+                        min=message_id,
+                        max=message_id,
+                        count=1,
+                    )
+                    delivery_count = pending_info[0][3] if pending_info else 1
+
+                    msg = AnalysisStreamMessage.from_stream_entry(
+                        message_id, data, delivery_count=delivery_count
+                    )
+                    messages.append(msg)
+                except (ValueError, KeyError, IndexError) as e:
+                    logger.warning(
+                        "Failed to parse claimed analysis message",
+                        extra={"message_id": message_id, "error": str(e)},
+                    )
+                    continue
+
+            if messages:
+                logger.info(
+                    "Claimed stale analysis messages",
+                    extra={
+                        "consumer_name": consumer_name,
+                        "claimed_count": len(messages),
+                    },
+                )
+
+            return messages
+
+        except Exception as e:
+            logger.error(
+                "Error claiming stale analysis messages",
+                extra={"consumer_name": consumer_name, "error": str(e)},
+            )
+            raise
+
+
+# ---------------------------------------------------------------------------
+# Global service instances
+# ---------------------------------------------------------------------------
+
 _detection_stream_service: DetectionStreamService | None = None
+_analysis_stream_service: AnalysisStreamService | None = None
 
 
 async def get_detection_stream_service(
     redis_client: RedisClient,
 ) -> DetectionStreamService:
-    """Get or create the detection stream service.
-
-    This function implements lazy initialization and singleton pattern
-    for the detection stream service.
-
-    Args:
-        redis_client: Redis client instance
-
-    Returns:
-        DetectionStreamService instance
-    """
+    """Get or create the detection stream service."""
     global _detection_stream_service  # noqa: PLW0603
 
     if _detection_stream_service is None:
@@ -801,3 +1154,19 @@ async def get_detection_stream_service(
         )
 
     return _detection_stream_service
+
+
+async def get_analysis_stream_service(
+    redis_client: RedisClient,
+) -> AnalysisStreamService:
+    """Get or create the analysis stream service."""
+    global _analysis_stream_service  # noqa: PLW0603
+
+    if _analysis_stream_service is None:
+        settings = get_settings()
+        _analysis_stream_service = AnalysisStreamService(
+            redis_client=redis_client,
+            maxlen=settings.queue_max_size,
+        )
+
+    return _analysis_stream_service

@@ -76,12 +76,12 @@ class TestModelSpecConstants:
             assert model.phase == 2, f"Model {model.name} should have phase=2"
 
     def test_phase2_models_contain_enrichment_models(self) -> None:
-        """PHASE2_MODELS should contain context enrichment models."""
+        """PHASE2_MODELS should contain demographics and action recognition models."""
         from setup_lib.model_downloader import PHASE2_MODELS
 
         model_names = [m.name for m in PHASE2_MODELS]
-        # These are context enrichment models
-        assert "fashion-clip" in model_names or "xclip-base" in model_names
+        # Phase 2 contains demographics and action recognition models
+        assert "vit-age-classifier" in model_names or "stgcn-plus-plus" in model_names
 
     def test_phase3_models_exists(self) -> None:
         """PHASE3_MODELS should be a list."""
@@ -328,7 +328,7 @@ class TestDownloadHfModel:
             assert result is False
 
     def test_download_no_hf_repo(self) -> None:
-        """Should return False for models without HuggingFace repo."""
+        """Should return True (skipped, not error) for models without HuggingFace repo."""
         from setup_lib.model_downloader import ModelSpec, download_hf_model
 
         model = ModelSpec(
@@ -346,7 +346,7 @@ class TestDownloadHfModel:
         ):
             result = download_hf_model(model, Path("/ai"))
 
-            assert result is False
+            assert result is True  # Not an error - just skipped for alternative download
 
     def test_download_creates_directory(self) -> None:
         """Should create model directory if it doesn't exist."""
@@ -629,13 +629,17 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
             # Should have downloaded florence-2-base and siglip2-base-patch16-224
-            # (yolo26 is skipped because it has no hf_repo)
+            # (nemotron/yolo26 use special handlers, not download_hf_model)
             assert "florence-2-base" in downloaded_models
             assert "siglip2-base-patch16-224" in downloaded_models
 
@@ -708,6 +712,10 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", False),
             patch("subprocess.run") as mock_run,
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
             mock_run.side_effect = [
@@ -741,6 +749,10 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=False),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -764,6 +776,14 @@ class TestPromptAndDownloadModels:
             downloaded_models.append(model.name)
             return True
 
+        # Models with special download handlers (bypass download_hf_model)
+        special_models = {
+            "nemotron-3-nano-30b-a3b-q4km",
+            "yolo26",
+            "yolov8n-pose",
+            "osnet-ain-x1-0",
+        }
+
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
             patch("builtins.input", return_value="2"),
@@ -772,18 +792,26 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should include models from REQUIRED_MODELS with hf_repo
-            required_with_repo = [m.name for m in REQUIRED_MODELS if m.hf_repo]
+            # Should include models from REQUIRED_MODELS with hf_repo (excluding special handlers)
+            required_with_repo = [
+                m.name for m in REQUIRED_MODELS if m.hf_repo and m.name not in special_models
+            ]
             for name in required_with_repo:
                 assert name in downloaded_models
 
-            # Should include models from PHASE1_MODELS with hf_repo
-            phase1_with_repo = [m.name for m in PHASE1_MODELS if m.hf_repo]
+            # Should include models from PHASE1_MODELS with hf_repo (excluding special handlers)
+            phase1_with_repo = [
+                m.name for m in PHASE1_MODELS if m.hf_repo and m.name not in special_models
+            ]
             for name in phase1_with_repo:
                 assert name in downloaded_models
 
@@ -803,6 +831,14 @@ class TestPromptAndDownloadModels:
             downloaded_models.append(model.name)
             return True
 
+        # Models with special download handlers (bypass download_hf_model)
+        special_models = {
+            "nemotron-3-nano-30b-a3b-q4km",
+            "yolo26",
+            "yolov8n-pose",
+            "osnet-ain-x1-0",
+        }
+
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
             patch("builtins.input", return_value="3"),
@@ -811,14 +847,20 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should include all models with hf_repo
+            # Should include all models with hf_repo (excluding special handlers)
             all_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
-            all_with_repo = [m.name for m in all_models if m.hf_repo]
+            all_with_repo = [
+                m.name for m in all_models if m.hf_repo and m.name not in special_models
+            ]
 
             for name in all_with_repo:
                 assert name in downloaded_models
@@ -848,6 +890,10 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -874,6 +920,10 @@ class TestPromptAndDownloadModels:
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
             patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 

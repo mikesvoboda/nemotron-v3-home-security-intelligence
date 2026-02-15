@@ -171,6 +171,20 @@ TEST_STOP_TIMEOUT = 0.5  # Fast stop timeout for tests (instead of 10-30s)
 TEST_POLL_TIMEOUT = 1  # Fast poll timeout for tests
 
 
+@pytest.fixture(autouse=True)
+def disable_redis_streams():
+    """Disable Redis Streams for all pipeline worker tests.
+
+    These tests use the legacy list-based queue (BLPOP) which is simpler to mock.
+    Redis Streams tests should be in a separate test module with proper stream mocking.
+    """
+    with patch("backend.services.pipeline_workers.get_settings") as mock_settings:
+        settings = MagicMock()
+        settings.use_redis_streams = False
+        mock_settings.return_value = settings
+        yield
+
+
 @pytest.fixture
 def mock_redis_client():
     """Create a mock Redis client.

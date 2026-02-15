@@ -52,6 +52,7 @@ from backend.core.constants import ANALYSIS_QUEUE
 from backend.core.logging import get_logger, log_context, sanitize_log_value
 from backend.core.metrics import record_batch_max_reached
 from backend.core.redis import QueueOverflowPolicy, RedisClient
+from backend.services.redis_streams import get_analysis_stream_service
 
 logger = get_logger(__name__)
 
@@ -188,6 +189,7 @@ class BatchAggregator:
         self._fast_path_threshold = settings.fast_path_confidence_threshold
         self._fast_path_types = settings.fast_path_object_types
         self._batch_max_detections = settings.batch_max_detections
+        self._use_redis_streams: bool = getattr(settings, "use_redis_streams", False) is True
 
         # Per-camera locks to prevent race conditions when adding detections
         # Using defaultdict to lazily create locks for each camera
@@ -913,49 +915,61 @@ class BatchAggregator:
 
                     # Push to analysis queue if there are detections
                     if detections:
-                        queue_item: dict[str, Any] = {
-                            "batch_id": batch_id,
-                            "camera_id": camera_id,
-                            "detection_ids": detections,
-                            "timestamp": time.time(),
-                        }
-
-                        # Include pipeline_start_time for total pipeline latency tracking
-                        if pipeline_start_time:
-                            queue_item["pipeline_start_time"] = pipeline_start_time
-
-                        # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
-                        # If the queue is full, items are moved to a dead-letter queue
-                        # Uses retry with exponential backoff for Redis connection failures
-                        result = await self._redis.add_to_queue_safe(
-                            self._analysis_queue,
-                            queue_item,
-                            overflow_policy=QueueOverflowPolicy.DLQ,
-                        )
-
-                        if not result.success:
-                            logger.error(
-                                "Failed to push batch to analysis queue",
-                                extra={
-                                    "detection_count": len(detections),
-                                    "queue_name": self._analysis_queue,
-                                    "queue_length": result.queue_length,
-                                    "error": result.error,
-                                },
+                        # NEM-3469: Use Redis Streams when enabled for durable delivery
+                        if self._use_redis_streams:
+                            stream_svc = await get_analysis_stream_service(self._redis)
+                            await stream_svc.add_batch(
+                                batch_id=batch_id,
+                                camera_id=camera_id,
+                                detection_ids=detections,
+                                pipeline_start_time=float(pipeline_start_time)
+                                if pipeline_start_time
+                                else None,
                             )
-                            raise RuntimeError(f"Queue operation failed: {result.error}")
+                        else:
+                            queue_item: dict[str, Any] = {
+                                "batch_id": batch_id,
+                                "camera_id": camera_id,
+                                "detection_ids": detections,
+                                "timestamp": time.time(),
+                            }
 
-                        if result.had_backpressure:
-                            logger.warning(
-                                "Queue backpressure detected while pushing batch",
-                                extra={
-                                    "detection_count": len(detections),
-                                    "queue_name": self._analysis_queue,
-                                    "queue_length": result.queue_length,
-                                    "moved_to_dlq": result.moved_to_dlq_count,
-                                    "warning": result.warning,
-                                },
+                            # Include pipeline_start_time for total pipeline latency tracking
+                            if pipeline_start_time:
+                                queue_item["pipeline_start_time"] = pipeline_start_time
+
+                            # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+                            # If the queue is full, items are moved to a dead-letter queue
+                            # Uses retry with exponential backoff for Redis connection failures
+                            result = await self._redis.add_to_queue_safe(
+                                self._analysis_queue,
+                                queue_item,
+                                overflow_policy=QueueOverflowPolicy.DLQ,
                             )
+
+                            if not result.success:
+                                logger.error(
+                                    "Failed to push batch to analysis queue",
+                                    extra={
+                                        "detection_count": len(detections),
+                                        "queue_name": self._analysis_queue,
+                                        "queue_length": result.queue_length,
+                                        "error": result.error,
+                                    },
+                                )
+                                raise RuntimeError(f"Queue operation failed: {result.error}")
+
+                            if result.had_backpressure:
+                                logger.warning(
+                                    "Queue backpressure detected while pushing batch",
+                                    extra={
+                                        "detection_count": len(detections),
+                                        "queue_name": self._analysis_queue,
+                                        "queue_length": result.queue_length,
+                                        "moved_to_dlq": result.moved_to_dlq_count,
+                                        "warning": result.warning,
+                                    },
+                                )
 
                         # Calculate batch duration for lifecycle logging
                         batch_duration_ms = (closed_at - started_at) * 1000
@@ -1070,22 +1084,34 @@ class BatchAggregator:
 
             # Only push to analysis queue if there are detections
             if detections:
-                result = await self._redis.add_to_queue_safe(
-                    self._analysis_queue,
-                    summary,
-                    overflow_policy=QueueOverflowPolicy.DLQ,
-                )
-                if result.warning:
-                    logger.warning(
-                        "Queue overflow handling triggered for batch",
-                        extra={
-                            "detection_count": len(detections),
-                            "queue_name": self._analysis_queue,
-                            "queue_length": result.queue_length,
-                            "moved_to_dlq": result.moved_to_dlq_count,
-                            "warning": result.warning,
-                        },
+                # NEM-3469: Use Redis Streams when enabled
+                if self._use_redis_streams:
+                    stream_svc = await get_analysis_stream_service(self._redis)
+                    await stream_svc.add_batch(
+                        batch_id=batch_id,
+                        camera_id=camera_id,
+                        detection_ids=detections,
+                        pipeline_start_time=float(pipeline_start_time)
+                        if pipeline_start_time
+                        else None,
                     )
+                else:
+                    result = await self._redis.add_to_queue_safe(
+                        self._analysis_queue,
+                        summary,
+                        overflow_policy=QueueOverflowPolicy.DLQ,
+                    )
+                    if result.warning:
+                        logger.warning(
+                            "Queue overflow handling triggered for batch",
+                            extra={
+                                "detection_count": len(detections),
+                                "queue_name": self._analysis_queue,
+                                "queue_length": result.queue_length,
+                                "moved_to_dlq": result.moved_to_dlq_count,
+                                "warning": result.warning,
+                            },
+                        )
 
                 # Calculate batch duration for lifecycle logging
                 batch_duration_ms = (ended_at - started_at) * 1000

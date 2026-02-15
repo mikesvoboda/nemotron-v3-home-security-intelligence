@@ -50,16 +50,22 @@ class EventRepository(Repository[Event]):
 
     model_class = Event
 
-    async def get_by_camera_id(self, camera_id: str) -> Sequence[Event]:
+    async def get_by_camera_id(
+        self, camera_id: str, *, eager_load_camera: bool = False
+    ) -> Sequence[Event]:
         """Get all events for a specific camera.
 
         Args:
             camera_id: The ID of the camera to filter by.
+            eager_load_camera: If True, eager-load the camera relationship
+                to avoid N+1 queries when accessing event.camera.
 
         Returns:
             A sequence of events from the specified camera.
         """
         stmt = select(Event).where(Event.camera_id == camera_id)
+        if eager_load_camera:
+            stmt = stmt.options(selectinload(Event.camera))
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

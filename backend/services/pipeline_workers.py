@@ -65,6 +65,12 @@ from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.frame_buffer import FrameBuffer, get_frame_buffer
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.redis_streams import (
+    AnalysisStreamService,
+    DetectionStreamService,
+    get_analysis_stream_service,
+    get_detection_stream_service,
+)
 from backend.services.retry_handler import RetryConfig, RetryHandler
 from backend.services.video_processor import VideoProcessor
 from backend.services.websocket_emitter import WebSocketEmitterService
@@ -356,11 +362,27 @@ class DetectionQueueWorker:
 
     async def _run_loop(self) -> None:
         """Main processing loop for the detection queue worker."""
-        logger.info("DetectionQueueWorker loop started")
+        settings = get_settings()
+        use_streams = settings.use_redis_streams
+        stream_service: DetectionStreamService | None = None
+        consumer_name = f"detection-worker-{id(self)}"
+
+        if use_streams:
+            stream_service = await get_detection_stream_service(self._redis)
+            logger.info(
+                "DetectionQueueWorker loop started (Redis Streams mode)",
+                extra={"consumer_name": consumer_name},
+            )
+        else:
+            logger.info("DetectionQueueWorker loop started")
 
         # NEM-4148: Track last heartbeat time for periodic supervisor updates
         last_heartbeat = time_module.time()
         heartbeat_interval = 20.0  # Send heartbeat every 20 seconds
+
+        # Periodically claim stale messages from crashed consumers (streams only)
+        last_claim_check = time_module.time()
+        claim_interval = 30.0
 
         while self._running:
             try:
@@ -371,18 +393,40 @@ class DetectionQueueWorker:
                         self._supervisor.record_heartbeat(self._worker_name)
                         last_heartbeat = now
 
-                # Pop item from queue with timeout (allows checking shutdown signal)
-                # Uses retry with exponential backoff for Redis connection failures
-                item = await self._redis.get_from_queue(
-                    self._queue_name,
-                    timeout=self._poll_timeout,
-                )
+                if use_streams and stream_service is not None:
+                    # NEM-3469: Claim stale messages from crashed consumers
+                    now = time_module.time()
+                    if now - last_claim_check >= claim_interval:
+                        claimed = await stream_service.claim_stale_messages(consumer_name, count=5)
+                        for msg in claimed:
+                            if await stream_service.should_move_to_dlq(msg):
+                                await stream_service.move_to_dlq(msg, "max_delivery_exceeded")
+                            else:
+                                await self._process_detection_item(msg.raw_data)
+                                await stream_service.acknowledge(msg.id)
+                        last_claim_check = now
 
-                if item is None:
-                    # Timeout - no items in queue, continue loop to check shutdown
-                    continue
+                    # NEM-3469: Read from stream with consumer group (durable)
+                    messages = await stream_service.consume_detections(
+                        consumer_name, count=1, block=True
+                    )
+                    if not messages:
+                        continue
 
-                await self._process_detection_item(item)
+                    for msg in messages:
+                        await self._process_detection_item(msg.raw_data)
+                        await stream_service.acknowledge(msg.id)
+                else:
+                    # Legacy list-based queue (BLPOP)
+                    item = await self._redis.get_from_queue(
+                        self._queue_name,
+                        timeout=self._poll_timeout,
+                    )
+
+                    if item is None:
+                        continue
+
+                    await self._process_detection_item(item)
 
             except asyncio.CancelledError:
                 logger.info("DetectionQueueWorker loop cancelled")
@@ -840,11 +884,27 @@ class AnalysisQueueWorker:
 
     async def _run_loop(self) -> None:
         """Main processing loop for the analysis queue worker."""
-        logger.info("AnalysisQueueWorker loop started")
+        settings = get_settings()
+        use_streams = settings.use_redis_streams
+        stream_service: AnalysisStreamService | None = None
+        consumer_name = f"analysis-worker-{id(self)}"
+
+        if use_streams:
+            stream_service = await get_analysis_stream_service(self._redis)
+            logger.info(
+                "AnalysisQueueWorker loop started (Redis Streams mode)",
+                extra={"consumer_name": consumer_name},
+            )
+        else:
+            logger.info("AnalysisQueueWorker loop started")
 
         # NEM-4148: Track last heartbeat time for periodic supervisor updates
         last_heartbeat = time_module.time()
         heartbeat_interval = 20.0  # Send heartbeat every 20 seconds
+
+        # Periodically claim stale messages from crashed consumers (streams only)
+        last_claim_check = time_module.time()
+        claim_interval = 30.0
 
         while self._running:
             try:
@@ -855,17 +915,40 @@ class AnalysisQueueWorker:
                         self._supervisor.record_heartbeat(self._worker_name)
                         last_heartbeat = now
 
-                # Pop item from queue with timeout
-                # Uses retry with exponential backoff for Redis connection failures
-                item = await self._redis.get_from_queue(
-                    self._queue_name,
-                    timeout=self._poll_timeout,
-                )
+                if use_streams and stream_service is not None:
+                    # NEM-3469: Claim stale messages from crashed consumers
+                    now = time_module.time()
+                    if now - last_claim_check >= claim_interval:
+                        claimed = await stream_service.claim_stale_messages(consumer_name, count=5)
+                        for msg in claimed:
+                            if msg.delivery_count >= stream_service._max_delivery_count:
+                                await stream_service.move_to_dlq(msg, "max_delivery_exceeded")
+                            else:
+                                await self._process_analysis_item(msg.to_queue_dict())
+                                await stream_service.acknowledge(msg.id)
+                        last_claim_check = now
 
-                if item is None:
-                    continue
+                    # NEM-3469: Read from stream with consumer group (durable)
+                    messages = await stream_service.consume_batches(
+                        consumer_name, count=1, block=True
+                    )
+                    if not messages:
+                        continue
 
-                await self._process_analysis_item(item)
+                    for msg in messages:
+                        await self._process_analysis_item(msg.to_queue_dict())
+                        await stream_service.acknowledge(msg.id)
+                else:
+                    # Legacy list-based queue (BLPOP)
+                    item = await self._redis.get_from_queue(
+                        self._queue_name,
+                        timeout=self._poll_timeout,
+                    )
+
+                    if item is None:
+                        continue
+
+                    await self._process_analysis_item(item)
 
             except asyncio.CancelledError:
                 logger.info("AnalysisQueueWorker loop cancelled")

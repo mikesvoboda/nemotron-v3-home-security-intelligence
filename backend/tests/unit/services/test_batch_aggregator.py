@@ -131,6 +131,8 @@ def mock_redis_instance(mock_redis_client):
 async def batch_aggregator(mock_redis_instance):
     """Create a batch aggregator with mocked Redis."""
     aggregator = BatchAggregator(redis_client=mock_redis_instance)
+    # Tests use the legacy queue path (add_to_queue_safe), not Redis Streams
+    aggregator._use_redis_streams = False
     return aggregator
 
 
@@ -1829,6 +1831,7 @@ async def test_check_batch_timeouts_handles_json_deserialization():
     mock_redis_instance.delete = AsyncMock(return_value=1)
 
     aggregator = BatchAggregator(redis_client=mock_redis_instance)
+    aggregator._use_redis_streams = False
 
     # Should handle JSON-deserialized values
     closed_batches = await aggregator.check_batch_timeouts()
@@ -1888,6 +1891,7 @@ async def test_check_batch_timeouts_handles_non_json_values():
     mock_redis_instance.delete = AsyncMock(return_value=1)
 
     aggregator = BatchAggregator(redis_client=mock_redis_instance)
+    aggregator._use_redis_streams = False
 
     # Should handle plain (non-JSON) values
     closed_batches = await aggregator.check_batch_timeouts()
@@ -2138,6 +2142,7 @@ class TestBatchAggregatorProperties:
         from backend.services.batch_aggregator import BatchAggregator
 
         aggregator = BatchAggregator(redis_client=mock_redis_instance)
+        aggregator._use_redis_streams = False
 
         batch_id = "test_batch"
         camera_id = "front_door"
@@ -2182,6 +2187,7 @@ class TestBatchAggregatorProperties:
         from backend.services.batch_aggregator import BatchAggregator
 
         aggregator = BatchAggregator(redis_client=mock_redis_instance)
+        aggregator._use_redis_streams = False
 
         batch_id = "preservation_test"
         camera_id = "back_door"
@@ -2490,6 +2496,7 @@ class TestBatchAggregatorProperties:
         from backend.services.batch_aggregator import BatchAggregator
 
         aggregator = BatchAggregator(redis_client=mock_redis_instance)
+        aggregator._use_redis_streams = False
 
         batch_id = "queue_format_test"
         camera_id = "test_camera"
@@ -3415,6 +3422,7 @@ async def test_concurrent_close_batch_only_processes_once():
     mock_redis_instance.delete = mock_delete
 
     aggregator = BatchAggregator(redis_client=mock_redis_instance)
+    aggregator._use_redis_streams = False
 
     # Run two close_batch calls concurrently
     results = await asyncio.gather(

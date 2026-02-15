@@ -21,15 +21,13 @@
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
 #   - FOSCAM_BASE_PATH: Camera recordings path (default: /export/foscam)
 #   - FRONTEND_HTTPS_PORT: HTTPS port (default: 8443)
-#   - GPU_YOLO26, GPU_FLORENCE, GPU_CLIP, GPU_ENRICHMENT: GPU assignments
+#   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
 #
 # Quick Start:
 #   1. Copy .env.example to .env and configure POSTGRES_PASSWORD
 #   2. Ensure AI models are downloaded to AI_MODELS_PATH
 #   3. Run: podman-compose -f docker-compose.ghcr.yml pull
 #   4. Run: podman-compose -f docker-compose.ghcr.yml up -d
-
-version: '3.8'
 
 x-ghcr-image: &ghcr-image
   # Override these via environment variables:
@@ -148,49 +146,6 @@ services:
   # AI Services (GHCR Images - x86_64 only, requires NVIDIA GPU)
   # =============================================================================
 
-  ai-yolo26:
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-yolo26'
-    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-yolo26:${IMAGE_TAG:-latest}
-    ports:
-      - '127.0.0.1:8095:8095'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-yolo26
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
-      - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8095/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['${GPU_YOLO26}']
-              capabilities: [gpu]
-
   ai-llm:
     tmpfs:
       - /tmp
@@ -230,223 +185,6 @@ services:
               count: 1
               capabilities: [gpu]
 
-  ai-florence:
-    tmpfs:
-      - /tmp
-      - /home/florence/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-florence'
-    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-florence:${IMAGE_TAG:-latest}
-    ports:
-      - '127.0.0.1:8092:8092'
-    volumes:
-      # Using Florence-2-Base (450MB VRAM) instead of Large (2.2GB) for single-GPU deployment
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-base:/models/florence-2-base:ro
-      - hf_cache:/cache/huggingface:U
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-florence
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      # Florence-2-Base for single-GPU deployment
-      - MODEL_PATH=/models/florence-2-base
-      - FLORENCE_MODEL_PATH=/models/florence-2-base
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['${GPU_FLORENCE}']
-              capabilities: [gpu]
-
-  ai-clip:
-    tmpfs:
-      - /tmp
-      - /home/clip/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-clip'
-    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-clip:${IMAGE_TAG:-latest}
-    ports:
-      - '127.0.0.1:8093:8093'
-    volumes:
-      # Using CLIP ViT-B/32 (350MB VRAM) instead of ViT-L (930MB) for single-GPU deployment
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-b-32:/models/clip-vit-b-32:ro
-      - clip-tensorrt-cache:/cache/tensorrt
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-clip
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - CLIP_MODEL_PATH=/models/clip-vit-b-32
-      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
-      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  ai-enrichment-light:
-    tmpfs:
-      - /tmp
-      - /home/enrichment/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-enrichment-light'
-    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-enrichment:${IMAGE_TAG:-latest}
-    ports:
-      - '127.0.0.1:8096:8096'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-ain-x1-0:/models/osnet-ain-x1-0:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-tiny:/models/depth-anything-v2-tiny:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/stgcn-plus-plus:/models/stgcn-plus-plus:ro
-      - enrichment-light-tensorrt-cache:/cache/tensorrt
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-enrichment-light
-      - GPU_TIER=light
-      - PORT=8096
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
-      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
-      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
-      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
-      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
-      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
-      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
-      - REID_MODEL_PATH=/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth
-      - PET_MODEL_PATH=/models/pet-classifier
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-tiny
-      - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
-      - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-      # Default: All light models (pose, threat, reid, pet, depth) for fast inference
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-pose_estimator,threat_detector,person_reid,pet_classifier,depth_estimator}
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['${GPU_CLIP}']
-              capabilities: [gpu]
-
-  ai-enrichment:
-    tmpfs:
-      - /tmp
-      - /home/enrichment/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-enrichment'
-    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-enrichment:${IMAGE_TAG:-latest}
-    ports:
-      - '127.0.0.1:8094:8094'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
-      # X-CLIP deprecated — replaced by ST-GCN++ on ai-enrichment-light (NEM-5563)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
-      # Smoke/fire detection (NEM-5566, CRITICAL safety model)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/smoke-fire-yolov8n:/models/smoke-fire-yolov8n:ro
-      # YOLO-World open-vocabulary detection (NEM-5566)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo-world-s:/models/yolo-world-s:ro
-      # Zero-DCE++ low-light enhancement (NEM-5567)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/zero-dce-plus-plus:/models/zero-dce-plus-plus:ro
-      # INT8 quantized model files (NEM-5550)
-      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
-      - hf_cache:/cache/huggingface:U
-      - pytorch-profiles:/tmp/profiles
-    environment:
-      - SERVICE_NAME=ai-enrichment
-      - GPU_TIER=heavy
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
-      - CLOTHING_MODEL_PATH=/models/fashion-clip
-      - AGE_MODEL_PATH=/models/vit-age-classifier
-      - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - ACTION_MODEL_PATH=/models/xclip-base-patch32 # Legacy X-CLIP, ST-GCN++ is on ai-enrichment-light
-      # INT8 quantized model configuration (NEM-5550)
-      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
-      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
-      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
-      - VRAM_BUDGET_GB=6.0
-      - MODEL_LOAD_TIMEOUT=30
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-}
-      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
-      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
-      - PYTORCH_PROFILE_DIR=/tmp/profiles
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT}']
-              capabilities: [gpu]
-
   # =============================================================================
   # Application Services (GHCR Images)
   # =============================================================================
@@ -472,22 +210,10 @@ services:
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
-      - FLORENCE_URL=http://ai-florence:8092
-      - CLIP_URL=http://ai-clip:8093
-      - ENRICHMENT_URL=http://ai-enrichment:8094
-      - ENRICHMENT_LIGHT_URL=http://ai-enrichment-light:8096
+      - USE_AI_GATEWAY=true
+      - AI_GATEWAY_URL=http://ai-gateway:8090
       - GO2RTC_API_URL=http://go2rtc:1984
       - GO2RTC_WEBRTC_URL=${GO2RTC_WEBRTC_URL:-http://localhost:8555}
-      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
-      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
-      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
-      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
-      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
-      - ENRICHMENT_VEHICLE_SERVICE=${ENRICHMENT_VEHICLE_SERVICE:-heavy}
-      - ENRICHMENT_CLOTHING_SERVICE=${ENRICHMENT_CLOTHING_SERVICE:-heavy}
-      - ENRICHMENT_ACTION_SERVICE=${ENRICHMENT_ACTION_SERVICE:-heavy}
-      - ENRICHMENT_DEMOGRAPHICS_SERVICE=${ENRICHMENT_DEMOGRAPHICS_SERVICE:-heavy}
-      - YOLO26_URL=http://ai-yolo26:8095
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       - FOSCAM_BASE_PATH=/cameras
@@ -504,8 +230,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      ai-yolo26:
         condition: service_healthy
       ai-llm:
         condition: service_healthy
@@ -1113,15 +837,11 @@ volumes:
     driver: local
   hf_cache:
     driver: local
-  enrichment-light-tensorrt-cache:
-    driver: local
   prometheus_data:
     driver: local
   grafana_data:
     driver: local
   alertmanager_data:
-    driver: local
-  clip-tensorrt-cache:
     driver: local
   loki_data:
     driver: local
@@ -1130,8 +850,6 @@ volumes:
   alloy_symb_cache:
     driver: local
   frontend_certs:
-    driver: local
-  pytorch-profiles:
     driver: local
 
 networks:

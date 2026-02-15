@@ -185,11 +185,13 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
     """Prompt user and configure storage paths.
 
     Args:
-        config: Configuration dictionary (may contain existing paths).
+        config: Configuration dictionary (may contain existing paths and auto_create flag).
 
     Returns:
         StorageConfig with validated paths.
     """
+    auto_create = config.get("auto_create", False)
+
     print()
     print("=" * 60)
     print("Step 3/5: Storage Configuration")
@@ -200,7 +202,11 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
     default_foscam = config.get("foscam_base_path", "/export/foscam")
     print(f"Camera recordings path [{default_foscam}]:")
 
-    foscam_path = input(f"  Path [{default_foscam}]: ").strip() or default_foscam
+    if auto_create:
+        foscam_path = default_foscam
+        print(f"  Using: {foscam_path}")
+    else:
+        foscam_path = input(f"  Path [{default_foscam}]: ").strip() or default_foscam
 
     if check_path_exists(foscam_path):
         free_gb = get_free_space_gb(foscam_path)
@@ -210,13 +216,21 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
             print(f"  ! Warning: Low disk space (recommend {MIN_CAMERA_SPACE_GB}+ GB)")
     else:
         print("  ! Directory does not exist")
-        create = input("  Create directory? [Y/n]: ").strip().lower()
-        if not create or create in ("y", "yes"):
+        if auto_create:
+            print("  Creating directory...")
             if create_directory(foscam_path):
                 print("  + Directory created")
             else:
                 print("  ! Failed to create directory (may need sudo)")
                 print(f"    Run: sudo mkdir -p {foscam_path}")
+        else:
+            create = input("  Create directory? [Y/n]: ").strip().lower()
+            if not create or create in ("y", "yes"):
+                if create_directory(foscam_path):
+                    print("  + Directory created")
+                else:
+                    print("  ! Failed to create directory (may need sudo)")
+                    print(f"    Run: sudo mkdir -p {foscam_path}")
 
     print()
 
@@ -224,7 +238,11 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
     default_ai = config.get("ai_models_path", "/export/ai_models")
     print(f"AI models path [{default_ai}]:")
 
-    ai_path = input(f"  Path [{default_ai}]: ").strip() or default_ai
+    if auto_create:
+        ai_path = default_ai
+        print(f"  Using: {ai_path}")
+    else:
+        ai_path = input(f"  Path [{default_ai}]: ").strip() or default_ai
 
     if check_path_exists(ai_path):
         free_gb = get_free_space_gb(ai_path)
@@ -241,8 +259,8 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
             print("  ! HDD detected - SSD recommended for better AI performance")
     else:
         print("  ! Directory does not exist")
-        create = input("  Create directory? [Y/n]: ").strip().lower()
-        if not create or create in ("y", "yes"):
+        if auto_create:
+            print("  Creating directory...")
             if create_directory(ai_path):
                 free_gb = get_free_space_gb(ai_path)
                 print(f"  + Directory created ({free_gb:.1f} GB available)")
@@ -254,6 +272,20 @@ def prompt_and_configure_storage(config: dict) -> StorageConfig:
             else:
                 print("  ! Failed to create directory (may need sudo)")
                 print(f"    Run: sudo mkdir -p {ai_path}")
+        else:
+            create = input("  Create directory? [Y/n]: ").strip().lower()
+            if not create or create in ("y", "yes"):
+                if create_directory(ai_path):
+                    free_gb = get_free_space_gb(ai_path)
+                    print(f"  + Directory created ({free_gb:.1f} GB available)")
+
+                    if free_gb < MIN_AI_MODELS_SPACE_GB:
+                        print(
+                            f"  ! Warning: Low disk space (need {MIN_AI_MODELS_SPACE_GB}+ GB for all models)"
+                        )
+                else:
+                    print("  ! Failed to create directory (may need sudo)")
+                    print(f"    Run: sudo mkdir -p {ai_path}")
 
     print()
 

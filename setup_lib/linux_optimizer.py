@@ -325,7 +325,7 @@ def run_command(cmd: list[str], check: bool = True, verbose: bool = True) -> tup
         print(f"  $ {cmd_str}")
 
     try:
-        result = subprocess.run(  # noqa: S603 - known system commands only
+        result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
@@ -844,8 +844,11 @@ def run_optimizations(
     return overall_success, requires_reboot
 
 
-def prompt_and_run_optimizations() -> bool:
+def prompt_and_run_optimizations(skip: bool = False) -> bool:  # noqa: PLR0911
     """Interactive prompt to run optimizations.
+
+    Args:
+        skip: If True, skip optimizations without prompting.
 
     Returns:
         True if optimizations were applied successfully or skipped,
@@ -859,6 +862,13 @@ def prompt_and_run_optimizations() -> bool:
     print("  Linux AI Workstation Optimizations (Optional)")
     print("=" * 60)
     print()
+
+    if skip:
+        print("Skipping kernel optimizations (can be applied later)")
+        print("  To apply later: sudo python3 scripts/optimize-linux.py")
+        print()
+        return True
+
     print("This applies kernel tunables optimized for AI workloads:")
     print()
     for name, desc in get_phase_descriptions():

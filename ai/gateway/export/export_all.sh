@@ -46,6 +46,28 @@ log_step() {
 run_export() {
     local description="$1"
     shift
+
+    # Extract output path from arguments (look for --output-path or --output-dir)
+    local output_path=""
+    local args=("$@")
+    for ((i=0; i<${#args[@]}; i++)); do
+        if [ "${args[i]}" = "--output-path" ] && [ $((i+1)) -lt ${#args[@]} ]; then
+            output_path="${args[i+1]}"
+            break
+        elif [ "${args[i]}" = "--output-dir" ] && [ $((i+1)) -lt ${#args[@]} ]; then
+            # For demographics, skip check (outputs multiple files)
+            output_path=""
+            break
+        fi
+    done
+
+    # Skip if model already exists (check for .onnx or .plan file)
+    if [ -n "$output_path" ] && { [ -f "$output_path" ] || [ -f "${output_path%.onnx}.plan" ]; }; then
+        echo "  -> ${description}... CACHED (skipping)"
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+        return 0
+    fi
+
     echo "  -> ${description}..."
     if "$@"; then
         echo "     OK"
@@ -89,21 +111,21 @@ echo "  Started at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 log_step "[1/4] Exporting GPU models (TensorRT + ONNX)..."
 
 # SigLIP 2 Base vision encoder (pre-built ONNX from HuggingFace, replaces CLIP ViT-L)
-run_export "SigLIP 2 Base vision -> ONNX (FP16, 178MB)" \
+run_export "SigLIP 2 Base vision -> ONNX (FP16, 178MB)" "${CACHE_DIR}/clip/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_clip.py" \
         --model-path "${MODELS_ZOO}/siglip2-base-patch16-224" \
         --output-path "${CACHE_DIR}/clip/1/model.onnx" \
         --precision fp16
 
 # SigLIP 2 Base text encoder (pre-built quantized ONNX, runs on CPU)
-run_export "SigLIP 2 Base text -> ONNX (quantized, 271MB)" \
+run_export "SigLIP 2 Base text -> ONNX (quantized, 271MB)" "${CACHE_DIR}/clip_text/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_clip_text.py" \
         --model-path "${MODELS_ZOO}/siglip2-base-patch16-224" \
         --output-path "${CACHE_DIR}/clip_text/1/model.onnx" \
         --precision quantized
 
 # Fashion-CLIP -> ONNX
-run_export "Fashion-CLIP -> ONNX" \
+run_export "Fashion-CLIP -> ONNX" "${CACHE_DIR}/fashion_clip/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_fashion_clip.py" \
         --model-path "${MODELS_ZOO}/fashion-clip" \
         --output-path "${CACHE_DIR}/fashion_clip/1/model.plan" \
@@ -111,7 +133,7 @@ run_export "Fashion-CLIP -> ONNX" \
 [ -f "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" ] && mv "${CACHE_DIR}/fashion_clip/1/vision_encoder.onnx" "${CACHE_DIR}/fashion_clip/1/model.onnx"
 
 # YOLOv8n-pose -> ONNX (NEM-5551: promoted to GPU, VRAM constraint removed)
-run_export "YOLOv8n-pose -> ONNX" \
+run_export "YOLOv8n-pose -> ONNX" "${CACHE_DIR}/pose/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_yolo_pose.py" \
         --model-path "${MODELS_ZOO}/yolov8n-pose/yolov8n-pose.pt" \
         --output-path "${CACHE_DIR}/pose/1/model.onnx" \
@@ -120,7 +142,7 @@ run_export "YOLOv8n-pose -> ONNX" \
 [ -f "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" ] && mv "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" "${CACHE_DIR}/pose/1/model.onnx"
 
 # YOLOv8n threat detection -> ONNX (NEM-5551: promoted to GPU, VRAM constraint removed)
-run_export "YOLOv8n threat detection -> ONNX" \
+run_export "YOLOv8n threat detection -> ONNX" "${CACHE_DIR}/threat/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_yolo_threat.py" \
         --model-path "${MODELS_ZOO}/threat-detection-yolov8n/weights/best.pt" \
         --output-path "${CACHE_DIR}/threat/1/model.onnx" \
@@ -131,7 +153,7 @@ run_export "YOLOv8n threat detection -> ONNX" \
 # YOLO26m -> ONNX INT8 (NEM-5547: ~20-40% faster, ~50% smaller)
 # Uses dynamic quantization by default. For better accuracy, add calibration data:
 #   YOLO26_CALIBRATION_DIR=/export/foscam ./export_all.sh
-run_export "YOLO26m -> ONNX INT8" \
+run_export "YOLO26m -> ONNX INT8" "${CACHE_DIR}/yolo26/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_yolo26.py" \
         --model-path "${MODELS_ZOO}/yolo26/yolo26m.pt" \
         --output-path "${CACHE_DIR}/yolo26/1/model.onnx" \
@@ -147,32 +169,32 @@ run_export "YOLO26m -> ONNX INT8" \
 log_step "[2/4] Exporting ONNX models (CPU compatible)..."
 
 # Vehicle classifier -> ONNX
-run_export "Vehicle classifier (ResNet-50) -> ONNX" \
+run_export "Vehicle classifier (ResNet-50) -> ONNX" "${CACHE_DIR}/vehicle/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_vehicle.py" \
         --model-path "${MODELS_ZOO}/vehicle-segment-classification" \
         --output-path "${CACHE_DIR}/vehicle/1/model.onnx"
 
 # Demographics (age + gender) -> ONNX
-run_export "Demographics (age + gender) -> ONNX" \
+run_export "Demographics (age + gender) -> ONNX" "${CACHE_DIR}/demographics_age/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_demographics.py" \
         --model-path-age "${MODELS_ZOO}/vit-age-classifier" \
         --model-path-gender "${MODELS_ZOO}/vit-gender-classifier" \
         --output-dir "${CACHE_DIR}"
 
 # Pet classifier -> ONNX
-run_export "Pet classifier (ResNet-18) -> ONNX" \
+run_export "Pet classifier (ResNet-18) -> ONNX" "${CACHE_DIR}/pet/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_pet.py" \
         --model-path "${MODELS_ZOO}/pet-classifier" \
         --output-path "${CACHE_DIR}/pet/1/model.onnx"
 
 # Depth estimation -> ONNX
-run_export "Depth Anything V2 Tiny -> ONNX" \
+run_export "Depth Anything V2 Small -> ONNX" "${CACHE_DIR}/depth/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_depth.py" \
-        --model-path "${MODELS_ZOO}/depth-anything-v2-tiny" \
+        --model-path "${MODELS_ZOO}/depth-anything-v2-small" \
         --output-path "${CACHE_DIR}/depth/1/model.onnx"
 
 # Person Re-ID -> ONNX
-run_export "OSNet-AIN x1.0 Re-ID -> ONNX" \
+run_export "OSNet-AIN x1.0 Re-ID -> ONNX" "${CACHE_DIR}/reid/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_reid.py" \
         --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
         --output-path "${CACHE_DIR}/reid/1/model.onnx"

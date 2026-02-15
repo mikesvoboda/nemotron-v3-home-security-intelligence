@@ -154,9 +154,7 @@ class UniqueCounterService:
             True if the cardinality estimate changed (new unique camera)
         """
         key = self._build_key("cameras", window)
-        result = await self._redis.pfadd(key, camera_id)
-        # Set TTL if this is a new key
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, camera_id)
         return result == 1
 
     async def get_unique_camera_count(
@@ -191,8 +189,7 @@ class UniqueCounterService:
             True if the cardinality estimate changed (new unique event)
         """
         key = self._build_key("events", window)
-        result = await self._redis.pfadd(key, event_id)
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, event_id)
         return result == 1
 
     async def get_unique_event_count(
@@ -227,8 +224,7 @@ class UniqueCounterService:
             True if the cardinality estimate changed
         """
         key = self._build_key("detections", window)
-        result = await self._redis.pfadd(key, detection_id)
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, detection_id)
         return result == 1
 
     async def get_unique_detection_count(
@@ -263,8 +259,7 @@ class UniqueCounterService:
             True if the cardinality estimate changed
         """
         key = self._build_key("entities", window)
-        result = await self._redis.pfadd(key, entity_id)
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, entity_id)
         return result == 1
 
     async def get_unique_entity_count(
@@ -302,8 +297,7 @@ class UniqueCounterService:
             True if this is a new type for the window
         """
         key = self._build_key("detection_types", window)
-        result = await self._redis.pfadd(key, detection_type)
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, detection_type)
         return result == 1
 
     async def get_unique_detection_type_count(
@@ -342,8 +336,7 @@ class UniqueCounterService:
         if not camera_ids:
             return 0
         key = self._build_key("cameras", window)
-        result = await self._redis.pfadd(key, *camera_ids)
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, *camera_ids)
         return result
 
     async def add_batch_events(
@@ -363,8 +356,7 @@ class UniqueCounterService:
         if not event_ids:
             return 0
         key = self._build_key("events", window)
-        result = await self._redis.pfadd(key, *event_ids)
-        await self._redis.expire(key, self._ttl)
+        result = await self._redis.pfadd_with_expire(key, self._ttl, *event_ids)
         return result
 
     # Aggregation across time windows

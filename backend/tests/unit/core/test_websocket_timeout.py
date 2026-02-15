@@ -538,6 +538,7 @@ class TestKeepaliveMessages:
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
+            mock_settings.return_value.websocket_max_message_size = 65536
 
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
@@ -578,6 +579,7 @@ class TestKeepaliveMessages:
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
+            mock_settings.return_value.websocket_max_message_size = 65536
 
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 

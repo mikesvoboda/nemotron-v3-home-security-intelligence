@@ -23,22 +23,21 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Configuration Files
 
-| File                         | Purpose                                                                 |
-| ---------------------------- | ----------------------------------------------------------------------- |
-| `pyproject.toml`             | Python project config with Ruff, mypy, pytest, and coverage settings    |
-| `.pre-commit-config.yaml`    | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)       |
-| `docker-compose.prod.yml`    | Production Docker services with multi-stage builds and resource limits  |
-| `docker-compose.staging.yml` | Staging environment Docker configuration with staging-specific settings |
-| `docker-compose.ghcr.yml`    | GitHub Container Registry Docker configuration                          |
-| `docker-compose.ci.yml`      | CI-specific Docker configuration for GitHub Actions                     |
-| `docker-compose.test.yml`    | Test containers (postgres-test, redis-test) for CI                      |
-| `.env.example`               | Environment variable template                                           |
-| `semgrep.yml`                | Semgrep security scanning configuration                                 |
-| `vulture_whitelist.py`       | False positive suppressions for Vulture dead code detection             |
-| `lychee.toml`                | Lychee link checker configuration                                       |
-| `.prettierrc`                | Prettier code formatting configuration                                  |
-| `codecov.yml`                | Codecov coverage reporting configuration                                |
-| `commitlint.config.js`       | Commit message linting configuration                                    |
+| File                      | Purpose                                                                |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `pyproject.toml`          | Python project config with Ruff, mypy, pytest, and coverage settings   |
+| `.pre-commit-config.yaml` | Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check)      |
+| `docker-compose.prod.yml` | Production Docker services with multi-stage builds and resource limits |
+| `docker-compose.ghcr.yml` | Pre-built GHCR images for user deployment                              |
+| `docker-compose.ci.yml`   | CI-specific Docker configuration for GitHub Actions                    |
+| `docker-compose.test.yml` | Test containers (postgres-test, redis-test) for CI                     |
+| `.env.example`            | Environment variable template                                          |
+| `semgrep.yml`             | Semgrep security scanning configuration                                |
+| `vulture_whitelist.py`    | False positive suppressions for Vulture dead code detection            |
+| `lychee.toml`             | Lychee link checker configuration                                      |
+| `.prettierrc`             | Prettier code formatting configuration                                 |
+| `codecov.yml`             | Codecov coverage reporting configuration                               |
+| `commitlint.config.js`    | Commit message linting configuration                                   |
 
 ### Documentation
 
