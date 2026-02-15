@@ -9,7 +9,7 @@
 #   engine during container startup before serving requests.
 #   TensorRT engines are GPU-architecture-specific - rebuild for each target GPU.
 
-FROM nvcr.io/nvidia/tensorrt:25.12-py3
+FROM nvcr.io/nvidia/tensorrt:26.01-py3
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="CLIP ViT-L embedding server for entity re-identification"
