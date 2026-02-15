@@ -106,6 +106,36 @@ def create_valid_test_image(path: Path | str, size: tuple[int, int] = (640, 480)
 # Fixtures
 
 
+@pytest.fixture(autouse=True)
+def disable_redis_streams(request):
+    """Disable Redis Streams for file watcher tests that use mock Redis.
+
+    These tests use the legacy list-based queue (add_to_queue_safe) which is simpler to mock.
+    Redis Streams tests should be in a separate test module with proper stream mocking.
+
+    Tests that need to test settings behavior directly (e.g., polling config) are
+    skipped from this fixture based on their test name.
+    """
+    # Skip patching for tests that need to test settings behavior
+    tests_needing_real_settings = (
+        "test_file_watcher_polling_from_settings",
+        "test_file_watcher_explicit_polling_overrides_settings",
+    )
+    if request.node.name in tests_needing_real_settings:
+        yield
+        return
+
+    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+        settings = MagicMock()
+        settings.use_redis_streams = False
+        settings.file_watcher_max_concurrent_queue = 20
+        settings.file_watcher_queue_delay_ms = 0
+        settings.file_watcher_polling = False
+        settings.file_watcher_polling_interval = 1.0
+        mock_settings.return_value = settings
+        yield
+
+
 @pytest.fixture
 def temp_camera_root(tmp_path):
     """Create temporary camera directory structure."""

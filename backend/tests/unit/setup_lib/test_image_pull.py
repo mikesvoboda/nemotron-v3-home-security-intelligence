@@ -150,16 +150,14 @@ class TestGetComposeFiles:
         def mock_exists(self: Path) -> bool:
             return str(self) in (
                 "docker-compose.ghcr.yml",
-                "docker-compose.ghcr-core.yml",
                 "docker-compose.prod.yml",
             )
 
         with patch.object(Path, "exists", mock_exists):
             result = get_compose_files()
-            assert len(result) == 3
+            assert len(result) == 2
             filenames = [f[0] for f in result]
             assert "docker-compose.ghcr.yml" in filenames
-            assert "docker-compose.ghcr-core.yml" in filenames
             assert "docker-compose.prod.yml" in filenames
 
     def test_only_ghcr_file_exists(self) -> None:
@@ -201,21 +199,16 @@ class TestGetComposeFiles:
         from setup_lib.image_pull import get_compose_files
 
         def mock_exists(self: Path) -> bool:
-            return str(self) in (
-                "docker-compose.ghcr.yml",
-                "docker-compose.ghcr-core.yml",
-            )
+            return str(self) in ("docker-compose.ghcr.yml",)
 
         with patch.object(Path, "exists", mock_exists):
             result = get_compose_files()
-            assert len(result) == 2
+            assert len(result) == 1
             # Check descriptions contain expected keywords
             for filename, description, pull_mode in result:
                 assert pull_mode == "ghcr"
                 if filename == "docker-compose.ghcr.yml":
                     assert "Full" in description or "GHCR" in description
-                elif filename == "docker-compose.ghcr-core.yml":
-                    assert "core" in description.lower() or "GHCR" in description
 
 
 class TestPullImages:
@@ -840,7 +833,6 @@ class TestPromptAndPullImages:
 
         compose_files = [
             ("docker-compose.ghcr.yml", "Full GHCR", "ghcr"),
-            ("docker-compose.ghcr-core.yml", "GHCR core only", "ghcr"),
             ("docker-compose.prod.yml", "Local builds", "build"),
         ]
 

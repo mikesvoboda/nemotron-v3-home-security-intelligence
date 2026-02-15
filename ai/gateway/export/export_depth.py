@@ -2,7 +2,7 @@
 """Export Depth Anything V2 Tiny to ONNX format for Triton Inference Server.
 
 Model: Depth Anything V2 Tiny (AutoModelForDepthEstimation)
-Source: /models/zoo/depth-anything-v2-tiny
+Source: /models/zoo/depth-anything-v2-small
 Input: (B, 3, 518, 518) FP32 — processor-normalized (Depth Anything V2 uses 518x518)
 Output: (B, 1, H, W) FP32 — predicted depth map
 
@@ -13,7 +13,7 @@ dimensions as the input.
 
 Usage:
     python export_depth.py \
-        --model-path /models/zoo/depth-anything-v2-tiny \
+        --model-path /models/zoo/depth-anything-v2-small \
         --output-path /models/repository/depth/1/model.onnx
 """
 
@@ -234,7 +234,7 @@ def main() -> int:
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/models/zoo/depth-anything-v2-tiny",
+        default="/models/zoo/depth-anything-v2-small",
         help="Path to the Depth Anything V2 model directory (HuggingFace format)",
     )
     parser.add_argument(

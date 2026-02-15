@@ -30,9 +30,8 @@
 # Free-threading benefits: ~4x speedup for CPU-bound multi-threaded workloads
 # Free-threading overhead: ~5-10% slower for single-threaded code
 # =============================================================================
-# FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS base
-# hadolint ignore=DL3007
-FROM ghcr.io/mikesvoboda/nemotron-base:latest AS base
+# Use public Python base image (self-contained, no external base image dependency)
+FROM python:3.14-slim-bookworm AS base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -42,14 +41,21 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/nemotron-base:latest"
-LABEL org.opencontainers.image.base.digest="ghcr.io/mikesvoboda/nemotron-base:latest"
+LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
 
 WORKDIR /app
 
-# Install backend-specific system dependencies (video processing, web utilities)
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install ALL system dependencies in one layer:
+# - Build tools (gcc, libc6-dev, libffi-dev) for Python C extensions
+# - Backend runtime deps (wget, curl, ffmpeg, OpenGL/glib for video processing)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    libffi-dev \
     wget \
     curl \
     ffmpeg \
@@ -58,7 +64,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy dependency files from project root (context is project root in CI)
+# Copy base requirements (shared dependencies from docker/base.Dockerfile)
+COPY requirements-base.txt .
+
+# Install base Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --no-cache -r requirements-base.txt
+
+# Copy project dependency files
 COPY pyproject.toml uv.lock ./
 
 # =============================================================================

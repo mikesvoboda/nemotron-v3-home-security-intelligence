@@ -671,6 +671,19 @@ class EventBroadcaster:
             await self._redis.unsubscribe(self._channel_name)
             self._pubsub = None
 
+        # NEM-4987: Broadcast shutdown notice before disconnecting clients
+        shutdown_message = json.dumps(
+            {
+                "type": "system.shutdown",
+                "data": {"reason": "Server shutting down", "reconnect": True},
+            }
+        )
+        for ws in list(self._connections):
+            try:
+                await ws.send_text(shutdown_message)
+            except Exception:  # noqa: S110
+                pass  # Best-effort — client may already be gone
+
         # Disconnect all active WebSocket connections
         for ws in list(self._connections):
             await self.disconnect(ws)

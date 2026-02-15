@@ -65,26 +65,26 @@ def create_mock_db_with_id_assignment() -> AsyncMock:
 class TestAdminSecurityControls:
     """Tests for admin endpoint security controls.
 
-    SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True.
-    This provides defense-in-depth against accidentally exposing admin endpoints.
+    SECURITY: Admin endpoints are controlled by the ADMIN_ENABLED setting.
+    Network binding to 127.0.0.1 is the primary security boundary for
+    single-user local deployments.
     """
 
     @pytest.mark.asyncio
-    async def test_admin_access_allowed_when_both_enabled(self) -> None:
-        """Verify admin access is allowed when both debug and admin_enabled are True."""
+    async def test_admin_access_allowed_when_admin_enabled(self) -> None:
+        """Verify admin access is allowed when admin_enabled=True."""
         from unittest.mock import patch
 
         from backend.api.routes.admin import require_admin_access
 
         with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = True
             mock_settings.return_value.admin_enabled = True
             # Should not raise
             require_admin_access()
 
     @pytest.mark.asyncio
-    async def test_admin_access_blocked_in_production_mode(self) -> None:
-        """Verify admin access is blocked when debug=False (production mode)."""
+    async def test_admin_access_blocked_when_admin_disabled(self) -> None:
+        """Verify admin access is blocked when admin_enabled=False."""
         from unittest.mock import patch
 
         from fastapi import HTTPException
@@ -92,12 +92,11 @@ class TestAdminSecurityControls:
         from backend.api.routes.admin import require_admin_access
 
         with patch("backend.api.routes.admin.get_settings") as mock_settings:
-            mock_settings.return_value.debug = False
-            mock_settings.return_value.admin_enabled = True
+            mock_settings.return_value.admin_enabled = False
             with pytest.raises(HTTPException) as exc_info:
                 require_admin_access()
             assert exc_info.value.status_code == 403
-            assert "DEBUG=true" in exc_info.value.detail
+            assert "ADMIN_ENABLED=true" in exc_info.value.detail
 
 
 class TestSeedCamerasEndpoint:

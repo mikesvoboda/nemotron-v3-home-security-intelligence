@@ -851,10 +851,10 @@ class Settings(BaseSettings):
     # SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True
     # This provides defense-in-depth against accidentally exposing admin endpoints
     admin_enabled: bool = Field(
-        default=False,
-        description="Enable admin endpoints (requires debug=True as well). "
-        "SECURITY: Must be explicitly enabled - provides protection against "
-        "accidentally enabling admin endpoints in production.",
+        default=True,
+        description="Enable admin endpoints for data seeding, cache clearing, and cleanup. "
+        "Protected by require_admin_access dependency. Network binding to 127.0.0.1 "
+        "is the primary security boundary for single-user local deployments.",
     )
     admin_api_key: SecretStr | None = Field(
         default=None,
@@ -2100,6 +2100,10 @@ class Settings(BaseSettings):
         le=1.0,
         description="Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
     )
+    use_redis_streams: bool = Field(
+        default=True,
+        description="Use Redis Streams (XADD/XREADGROUP) instead of lists (RPUSH/BLPOP) for durable queue persistence with consumer groups and acknowledgment",
+    )
 
     # Video processing settings
     video_frame_interval_seconds: float = Field(
@@ -2615,9 +2619,10 @@ class Settings(BaseSettings):
     # Enable deep performance debugging with cProfile
     profiling_enabled: bool = Field(
         default=False,
-        description="Enable performance profiling for deep debugging. "
-        "When enabled, the profile_if_enabled decorator will profile decorated functions. "
-        "Profile data is saved as .prof files that can be analyzed with snakeviz or py-spy.",
+        description="Enable cProfile performance profiling for deep debugging. "
+        "When enabled, the @profile_if_enabled decorator will profile decorated functions. "
+        "Profile data is saved as .prof files that can be analyzed with snakeviz or py-spy. "
+        "For production profiling, use Pyroscope via Grafana instead.",
     )
     profiling_output_dir: str = Field(
         default="data/profiles",

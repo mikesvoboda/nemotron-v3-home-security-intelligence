@@ -25,8 +25,14 @@ output [
 
 instance_group [
   {
-    count: 1
+    count: 2
     kind: KIND_CPU
+    rate_limiter {
+      resources [
+        { name: "global" count: 1 }
+      ]
+      priority: 3
+    }
   }
 ]
 

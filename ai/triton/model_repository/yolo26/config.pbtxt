@@ -35,6 +35,12 @@ instance_group [
     count: 1
     kind: KIND_GPU
     gpus: [ 0 ]
+    rate_limiter {
+      resources [
+        { name: "global" count: 1 }
+      ]
+      priority: 1
+    }
   }
 ]
 

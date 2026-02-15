@@ -38,166 +38,187 @@ class ModelSpec(NamedTuple):
 
 # Core models required for the system to function
 REQUIRED_MODELS: list[ModelSpec] = [
+    # Nemotron LLM - risk reasoning (CRITICAL)
+    ModelSpec(
+        name="nemotron-3-nano-30b-a3b-q4km",
+        hf_repo="unsloth/Nemotron-3-Nano-30B-A3B-GGUF",
+        phase=0,
+        size_mb=15073,  # ~14.7GB
+        description="Nemotron-3-Nano-30B LLM for risk reasoning (Q4_K_M quantization)",
+        required=True,
+    ),
     # YOLO26 - primary object detection
     ModelSpec(
         name="yolo26",
-        hf_repo="",  # Downloaded via ultralytics
+        hf_repo="",  # Downloaded via ultralytics GitHub releases
         phase=0,
-        size_mb=50,
-        description="YOLO26 object detection (downloaded via ultralytics on first run)",
+        size_mb=67,  # n/s/m combined
+        description="YOLO26 object detection (n/s/m variants)",
         required=True,
     ),
-    # Florence-2 - vision-language model
+    # Florence-2-Base - vision-language model (used by ai-gateway)
     ModelSpec(
         name="florence-2-base",
         hf_repo="microsoft/Florence-2-base",
-        phase=1,
-        size_mb=450,
-        description="Florence-2-base vision-language model (smaller, saves ~1.2GB VRAM)",
+        phase=0,
+        size_mb=1024,  # ~1GB (base variant saves ~1.2GB VRAM vs large)
+        description="Florence-2-base vision-language model (ai-gateway)",
         required=True,
     ),
     # SigLIP 2 Base - embeddings for re-identification (replaces CLIP ViT-L)
     ModelSpec(
         name="siglip2-base-patch16-224",
         hf_repo="onnx-community/siglip2-base-patch16-224-ONNX",  # pragma: allowlist secret
-        phase=1,
-        size_mb=200,
-        description="SigLIP 2 Base embeddings for entity re-identification (replaces CLIP ViT-L)",
+        phase=0,
+        size_mb=400,  # ~400MB (replaces CLIP ViT-L, saves ~1035MB VRAM)
+        description="SigLIP 2 Base embeddings for entity re-identification (ai-gateway)",
         required=True,
     ),
 ]
 
-# Optional enrichment models (Phase 1 - Core)
+# Phase 1 - Core enrichment models (used by ai-gateway)
 PHASE1_MODELS: list[ModelSpec] = [
+    # Fashion-CLIP - clothing classification (ai-gateway: fashion_clip)
     ModelSpec(
-        name="yolo11-face-detection",
-        hf_repo="AdamCodd/YOLOv11n-face-detection",
+        name="fashion-clip",
+        hf_repo="patrickjohncyh/fashion-clip",
         phase=1,
-        size_mb=11,
-        description="YOLO11 face detection on person crops",
+        size_mb=3584,  # ~3.5GB
+        description="Zero-shot clothing attribute detection (ai-gateway)",
         required=False,
     ),
+    # Vehicle classification (ai-gateway: vehicle)
     ModelSpec(
-        name="yolo11-license-plate",
-        hf_repo="morsetechlab/yolov11-license-plate-detection",
+        name="vehicle-segment-classification",
+        hf_repo="lxyuan/vit-base-patch16-224-vehicle-segment-classification",
         phase=1,
-        size_mb=650,
-        description="YOLO11 license plate detection (multiple variants)",
+        size_mb=358,  # ~350MB
+        description="Vehicle type classification - 11 classes (ai-gateway)",
         required=False,
     ),
+    # Pet classifier (ai-gateway: pet)
     ModelSpec(
-        name="smoke-fire-yolov8n",
-        hf_repo="luminous0219/fire-and-smoke-detection-yolov8",
+        name="pet-classifier",
+        hf_repo="microsoft/resnet-18",
         phase=1,
-        size_mb=25,
-        description="Smoke/fire detection (CRITICAL safety model)",
+        size_mb=46,  # ~45MB
+        description="Dog/cat classification for false positive reduction (ai-gateway)",
         required=False,
     ),
+    # Depth estimation (ai-gateway: depth)
     ModelSpec(
         name="depth-anything-v2-tiny",
         hf_repo="depth-anything/Depth-Anything-V2-Tiny-hf",
         phase=1,
-        size_mb=100,
-        description="Monocular depth estimation (3x faster than Small)",
+        size_mb=25,  # ~25MB (tiny variant)
+        description="Monocular depth estimation (ai-gateway)",
         required=False,
     ),
+    # Person re-identification (ai-gateway: reid)
     ModelSpec(
         name="osnet-ain-x1-0",
-        hf_repo="",  # torchreid model
+        hf_repo="kaiyangzhou/osnet",
         phase=1,
-        size_mb=100,
-        description="Person re-identification embeddings (AIN x1.0)",
+        size_mb=10,  # ~10MB per model file
+        description="Person re-identification embeddings - OSNet-AIN x1.0 (ai-gateway)",
         required=False,
     ),
+    # Pose estimation (ai-gateway: pose)
     ModelSpec(
         name="yolov8n-pose",
-        hf_repo="",  # ultralytics
+        hf_repo="ultralytics/yolov8n-pose",  # ultralytics GitHub releases
         phase=1,
-        size_mb=50,
-        description="Human pose estimation (17 COCO keypoints)",
+        size_mb=6,
+        description="Human pose estimation - 17 COCO keypoints (ai-gateway)",
         required=False,
     ),
-    # YOLO-World open-vocabulary detection (NEM-5566)
+    # Threat detection (ai-gateway: threat)
     ModelSpec(
-        name="yolo-world-s",
-        hf_repo="",  # ultralytics YOLOWorld
+        name="threat-detection-yolov8n",
+        hf_repo="Subh775/Threat-Detection-YOLOv8n",
         phase=1,
-        size_mb=1500,
-        description="Open-vocabulary detection (packages, weapons, tools)",
+        size_mb=25,
+        description="Threat/weapon detection - CRITICAL security model (ai-gateway)",
         required=False,
     ),
 ]
 
-# Optional enrichment models (Phase 2 - Context)
+# Phase 2 - Demographics and action recognition
 PHASE2_MODELS: list[ModelSpec] = [
-    ModelSpec(
-        name="fashion-clip",
-        hf_repo="Marqo/marqo-fashionCLIP",
-        phase=2,
-        size_mb=500,
-        description="Zero-shot clothing attribute detection",
-        required=False,
-    ),
-    # ST-GCN++ replaces X-CLIP for action recognition (NEM-5563, -1986MB VRAM)
-    ModelSpec(
-        name="stgcn-plus-plus",
-        hf_repo="pyskl/stgcnpp_ntu60_xsub_hrnet_j",  # manual download
-        phase=2,
-        size_mb=20,
-        description="ST-GCN++ skeleton-based action recognition (replaces X-CLIP)",
-        required=False,
-    ),
+    # Age estimation (ai-gateway: demographics_age)
     ModelSpec(
         name="vit-age-classifier",
         hf_repo="nateraw/vit-age-classifier",
         phase=2,
-        size_mb=350,
-        description="Age estimation from face",
+        size_mb=358,  # ~350MB
+        description="Age estimation from face crops (ai-gateway)",
         required=False,
     ),
+    # Gender classification (ai-gateway: demographics_gender)
     ModelSpec(
         name="vit-gender-classifier",
         hf_repo="rizvandwiki/gender-classification",
         phase=2,
-        size_mb=350,
-        description="Gender classification from face",
+        size_mb=358,  # ~350MB
+        description="Gender classification from face crops (ai-gateway)",
         required=False,
     ),
-    # Zero-DCE++ low-light enhancement (NEM-5567)
+    # ST-GCN++ action recognition (ai-gateway: xclip_action)
     ModelSpec(
-        name="zero-dce-plus-plus",
-        hf_repo="Li-Chongyi/Zero-DCE_extension",  # manual download from GitHub
+        name="stgcn-plus-plus",
+        hf_repo="pyskl/stgcnpp_ntu60_xsub_hrnet_j",
         phase=2,
-        size_mb=5,
-        description="Zero-DCE++ low-light enhancement preprocessing (40KB, ~0 VRAM)",
+        size_mb=20,
+        description="ST-GCN++ skeleton-based action recognition (ai-gateway)",
         required=False,
     ),
 ]
 
-# Optional enrichment models (Phase 3 - Specialized)
+# Phase 3 - Optional specialized models (not used by ai-gateway default)
 PHASE3_MODELS: list[ModelSpec] = [
+    # Face detection
     ModelSpec(
-        name="vehicle-segment-classification",
-        hf_repo="AventIQ-AI/ResNet-50-Vehicle-Segment-classification",
+        name="yolo11-face-detection",
+        hf_repo="AdamCodd/YOLOv11n-face-detection",
         phase=3,
-        size_mb=1500,
-        description="Vehicle type classification (11 classes)",
+        size_mb=11,
+        description="YOLO11 face detection on person crops",
         required=False,
     ),
+    # License plate detection
     ModelSpec(
-        name="pet-classifier",
-        hf_repo="hilmansw/resnet18-catdog-classifier",
+        name="yolo11-license-plate",
+        hf_repo="morsetechlab/yolov11-license-plate-detection",
         phase=3,
-        size_mb=200,
-        description="Dog/cat classification for false positive reduction",
+        size_mb=650,
+        description="YOLO11 license plate detection (multiple variants)",
         required=False,
     ),
+    # Smoke/fire detection
     ModelSpec(
-        name="threat-detection-yolov8n",
-        hf_repo="Subh775/Threat-Detection-YOLOv8n",
+        name="smoke-fire-yolov8n",
+        hf_repo="luminous0219/fire-and-smoke-detection-yolov8",
         phase=3,
         size_mb=25,
-        description="Threat/weapon detection",
+        description="Smoke/fire detection (CRITICAL safety model)",
+        required=False,
+    ),
+    # YOLO-World open-vocabulary detection
+    ModelSpec(
+        name="yolo-world-s",
+        hf_repo="",  # ultralytics YOLOWorld
+        phase=3,
+        size_mb=1500,
+        description="Open-vocabulary detection (packages, weapons, tools)",
+        required=False,
+    ),
+    # Low-light enhancement
+    ModelSpec(
+        name="zero-dce-plus-plus",
+        hf_repo="Li-Chongyi/Zero-DCE_extension",
+        phase=3,
+        size_mb=5,
+        description="Zero-DCE++ low-light enhancement preprocessing",
         required=False,
     ),
 ]
@@ -213,13 +234,216 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
     Returns:
         True if model directory exists and has model files.
     """
+    # Special handling for Nemotron (stored in different location)
+    if model_name == "nemotron-3-nano-30b-a3b-q4km":
+        nemotron_file = model_path / "nemotron" / model_name / "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
+        return nemotron_file.exists()
+
+    # Special handling for OSNet (specific .pth file required)
+    if model_name == "osnet-ain-x1-0":
+        osnet_file = model_path / "model-zoo" / model_name / "osnet_ain_x1_0_msmt17.pth"
+        return osnet_file.exists()
+
+    # Special handling for YOLOv8n-pose (specific .pt file)
+    if model_name == "yolov8n-pose":
+        pose_file = model_path / "model-zoo" / model_name / "yolov8n-pose.pt"
+        return pose_file.exists()
+
     model_dir = model_path / "model-zoo" / model_name
     if not model_dir.exists():
         return False
 
     # Check for common model file extensions
-    model_extensions = (".pt", ".pth", ".safetensors", ".bin", ".onnx", ".engine")
+    model_extensions = (".pt", ".pth", ".safetensors", ".bin", ".onnx", ".engine", ".gguf")
     return any(list(model_dir.rglob(f"*{ext}")) for ext in model_extensions)
+
+
+def download_nemotron_gguf(model_path: Path) -> bool:
+    """Download Nemotron LLM GGUF file.
+
+    Args:
+        model_path: Base path for AI models.
+
+    Returns:
+        True if download successful, False otherwise.
+    """
+    nemotron_dir = model_path / "nemotron" / "nemotron-3-nano-30b-a3b-q4km"
+    nemotron_dir.mkdir(parents=True, exist_ok=True)
+
+    gguf_file = nemotron_dir / "Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
+
+    if gguf_file.exists():
+        print(f"    Already exists: {gguf_file.name}")
+        return True
+
+    # Check for existing file in common locations
+    search_paths = [
+        Path.home()
+        / ".cache/huggingface/hub"
+        / "models--nvidia--Nemotron-3-Nano-30B-A3B-GGUF/snapshots",
+    ]
+
+    for search_path in search_paths:
+        if search_path.exists():
+            for gguf in search_path.rglob("Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"):
+                print(f"    Found existing: {gguf}")
+                print(f"    Creating symlink to: {gguf_file}")
+                try:
+                    gguf_file.symlink_to(gguf)
+                    return True
+                except OSError as e:
+                    print(f"    ! Failed to create symlink: {e}")
+                    break
+
+    # Download using huggingface_hub
+    if not HF_HUB_AVAILABLE:
+        print("    ! huggingface_hub not installed, cannot download")
+        print("    Install with: pip install huggingface_hub")
+        return False
+
+    print("    Downloading Nemotron GGUF (~14.7GB, may take 10-30 minutes)...")
+    try:
+        from huggingface_hub import hf_hub_download
+
+        downloaded = hf_hub_download(
+            repo_id="nvidia/Nemotron-3-Nano-30B-A3B-GGUF",
+            filename="Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
+            local_dir=nemotron_dir,
+            local_dir_use_symlinks=False,
+        )
+        print(f"    Downloaded to: {downloaded}")
+        return True
+    except Exception as e:
+        print(f"    ! Download failed: {e}")
+        return False
+
+
+def download_yolo26_models(model_path: Path) -> bool:
+    """Download YOLO26 models from ultralytics GitHub releases.
+
+    Args:
+        model_path: Base path for AI models.
+
+    Returns:
+        True if at least one model downloaded successfully.
+    """
+    yolo26_dir = model_path / "model-zoo" / "yolo26"
+    yolo26_dir.mkdir(parents=True, exist_ok=True)
+
+    release_url = "https://github.com/ultralytics/assets/releases/download/v8.4.0"
+
+    models = [
+        ("yolo26n.pt", 5.3, "Nano - fastest"),
+        ("yolo26s.pt", 19.5, "Small - balanced"),
+        ("yolo26m.pt", 42.2, "Medium - highest accuracy"),
+    ]
+
+    success_count = 0
+    for filename, size_mb, desc in models:
+        target = yolo26_dir / filename
+        if target.exists():
+            print(f"    Already exists: {filename}")
+            success_count += 1
+            continue
+
+        url = f"{release_url}/{filename}"
+        print(f"    Downloading {filename} (~{size_mb}MB - {desc})...")
+
+        try:
+            import urllib.request
+
+            urllib.request.urlretrieve(url, target)  # noqa: S310
+            print(f"    Downloaded: {filename}")
+            success_count += 1
+        except Exception as e:
+            print(f"    ! Failed to download {filename}: {e}")
+
+    return success_count > 0
+
+
+def download_yolov8n_pose(model_path: Path) -> bool:
+    """Download YOLOv8n-pose from ultralytics GitHub releases.
+
+    Args:
+        model_path: Base path for AI models.
+
+    Returns:
+        True if download successful.
+    """
+    pose_dir = model_path / "model-zoo" / "yolov8n-pose"
+    pose_dir.mkdir(parents=True, exist_ok=True)
+
+    target = pose_dir / "yolov8n-pose.pt"
+
+    if target.exists():
+        print("    Already exists: yolov8n-pose.pt")
+        return True
+
+    # YOLOv8 pose models from ultralytics releases
+    release_url = "https://github.com/ultralytics/assets/releases/download/v8.2.0"
+    url = f"{release_url}/yolov8n-pose.pt"
+
+    print("    Downloading yolov8n-pose.pt (~6MB)...")
+
+    try:
+        import urllib.request
+
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print("    Downloaded: yolov8n-pose.pt")
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download: {e}")
+        return False
+
+
+def download_osnet_reid(model_path: Path) -> bool:
+    """Download OSNet-AIN x1.0 Re-ID model from HuggingFace.
+
+    Args:
+        model_path: Base path for AI models.
+
+    Returns:
+        True if download successful.
+    """
+    if not HF_HUB_AVAILABLE:
+        print("    ! huggingface_hub not installed")
+        return False
+
+    osnet_dir = model_path / "model-zoo" / "osnet-ain-x1-0"
+    osnet_dir.mkdir(parents=True, exist_ok=True)
+
+    target = osnet_dir / "osnet_ain_x1_0_msmt17.pth"
+
+    if target.exists():
+        print("    Already exists: osnet_ain_x1_0_msmt17.pth")
+        return True
+
+    print("    Downloading from kaiyangzhou/osnet (~10MB)...")
+
+    try:
+        from huggingface_hub import hf_hub_download
+
+        # The full filename in the repo
+        full_filename = "osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth"
+
+        # Download the specific MSMT17-trained weights
+        downloaded = hf_hub_download(
+            repo_id="kaiyangzhou/osnet",
+            filename=full_filename,
+            local_dir=osnet_dir,
+            local_dir_use_symlinks=False,
+        )
+
+        # Create symlink with shorter name for easier referencing
+        downloaded_path = Path(downloaded)
+        if downloaded_path.exists() and not target.exists():
+            target.symlink_to(downloaded_path.name)  # Relative symlink
+            print("    Downloaded: osnet_ain_x1_0_msmt17.pth")
+
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download: {e}")
+        return False
 
 
 def download_hf_model(model: ModelSpec, model_path: Path) -> bool:
@@ -237,10 +461,17 @@ def download_hf_model(model: ModelSpec, model_path: Path) -> bool:
         return False
 
     if not model.hf_repo:
-        print(f"    ! {model.name} is not a HuggingFace model (uses alternative loader)")
-        return False
+        print(
+            f"    ! {model.name} uses alternative download method (will auto-download on first run)"
+        )
+        return True  # Not an error - just skipped
 
-    model_dir = model_path / "model-zoo" / model.name
+    # Special handling for Nemotron (different directory structure)
+    if model.name == "nemotron-3-nano-30b-a3b-q4km":
+        model_dir = model_path / "nemotron" / model.name
+    else:
+        model_dir = model_path / "model-zoo" / model.name
+
     model_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -312,8 +543,12 @@ def prompt_and_download_models(config: dict) -> None:
     """Prompt user and download AI models.
 
     Args:
-        config: Configuration dictionary with 'ai_models_path'.
+        config: Configuration dictionary with 'ai_models_path', optional 'skip_download',
+                and optional 'auto_download' to select option 2 automatically.
     """
+    skip_download = config.get("skip_download", False)
+    auto_download = config.get("auto_download", False)
+
     print()
     print("=" * 60)
     print("AI Model Downloads")
@@ -326,16 +561,14 @@ def prompt_and_download_models(config: dict) -> None:
     model_zoo_path = ai_models_path / "model-zoo"
     if not model_zoo_path.exists():
         print(f"Model directory: {model_zoo_path}")
-        print("  This directory does not exist yet.")
-        create = input("  Create it now? [y]: ").strip().lower()
-        if not create or create in ("y", "yes"):
-            try:
-                model_zoo_path.mkdir(parents=True, exist_ok=True)
-                print("  + Directory created")
-            except PermissionError:
-                print("  ! Permission denied. Create manually:")
-                print(f"    sudo mkdir -p {model_zoo_path}")
-                return
+        print("  Creating directory...")
+        try:
+            model_zoo_path.mkdir(parents=True, exist_ok=True)
+            print("  + Directory created")
+        except PermissionError:
+            print("  ! Permission denied. Create manually:")
+            print(f"    sudo mkdir -p {model_zoo_path}")
+            return
     else:
         print(f"Model directory: {model_zoo_path}")
 
@@ -388,14 +621,28 @@ def prompt_and_download_models(config: dict) -> None:
         pass
 
     # Prompt for download options
+    if skip_download:
+        print("Skipping model downloads (can be downloaded later).")
+        print("  To download later: ./ai/download_models.sh")
+        print()
+        return
+
     print("Download options:")
-    print("  1. Download required models only (Florence-2, CLIP)")
-    print("  2. Download required + Phase 1 (core enrichment)")
-    print("  3. Download all models (full feature set)")
-    print("  4. Skip (download later with scripts/download-model-zoo.py)")
+    print("  1. Download required models only (~20GB)")
+    print("     - Nemotron LLM, YOLO26, Florence-2, CLIP")
+    print("  2. Download required + Phase 1 (~25GB) [RECOMMENDED]")
+    print("     - + Fashion-CLIP, Vehicle, Pet, Depth, Pose, Threat, Re-ID models")
+    print("  3. Download all models (~26GB)")
+    print("     - + Demographics (age/gender), Action recognition")
+    print("  4. Skip (download later manually)")
     print()
 
-    choice = input("Select option [1]: ").strip() or "1"
+    if auto_download:
+        choice = "2"  # Auto-select option 2 (required + Phase 1)
+        print("Auto-selecting option 2: Required + Phase 1 models")
+        print()
+    else:
+        choice = input("Select option [1]: ").strip() or "1"
 
     if choice == "4":
         print()
@@ -408,13 +655,15 @@ def prompt_and_download_models(config: dict) -> None:
     models_to_download: list[ModelSpec] = []
 
     if choice in ("1", "2", "3"):
-        # Always include required models (skip yolo26 as it downloads on first run)
-        models_to_download.extend([m for m in REQUIRED_MODELS if m.hf_repo])
+        # Always include required models (all of them, including Nemotron and YOLO26)
+        models_to_download.extend(REQUIRED_MODELS)
 
     if choice in ("2", "3"):
+        # Include Phase 1 models (only those with HF repos, skip auto-downloaded ones)
         models_to_download.extend([m for m in PHASE1_MODELS if m.hf_repo])
 
     if choice == "3":
+        # Include Phase 2 and 3 models (only those with HF repos)
         models_to_download.extend([m for m in PHASE2_MODELS if m.hf_repo])
         models_to_download.extend([m for m in PHASE3_MODELS if m.hf_repo])
 
@@ -462,23 +711,52 @@ def prompt_and_download_models(config: dict) -> None:
 
     for model in models_to_download:
         print(f"  [{model.phase}] {model.name}")
-        if download_hf_model(model, ai_models_path):
+
+        # Special handling for different model types
+        if model.name == "nemotron-3-nano-30b-a3b-q4km":
+            if download_nemotron_gguf(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif model.name == "yolo26":
+            if download_yolo26_models(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif model.name == "yolov8n-pose":
+            if download_yolov8n_pose(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif model.name == "osnet-ain-x1-0":
+            if download_osnet_reid(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif download_hf_model(model, ai_models_path):
             success_count += 1
         else:
             fail_count += 1
 
     # Summary
     print()
-    print("=" * 40)
-    print(f"Download complete: {success_count} succeeded, {fail_count} failed")
+    print("=" * 60)
+    print(f"Download Summary: {success_count} succeeded, {fail_count} failed")
+    print("=" * 60)
+
+    if success_count > 0:
+        print()
+        print("+ Models downloaded successfully!")
+        print()
+        print("Next steps:")
+        print("  1. Ensure docker-compose.prod.yml has correct AI_MODELS_PATH")
+        print("  2. Start services: podman compose -f docker-compose.prod.yml up -d")
+        print("  3. Wait for AI models to load (~2-3 minutes)")
+        print("  4. Check health: curl http://localhost:8000/api/system/health/ready")
 
     if fail_count > 0:
         print()
         print("! Some models failed to download.")
-        print("  You can retry later with:")
-        print("    python scripts/download-model-zoo.py --all")
-
-    # Note about Nemotron LLM
-    print()
-    print("Note: The Nemotron LLM model (~22GB) is downloaded separately.")
-    print("See docs/operator/nemotron-setup.md for instructions.")
+        print("  Check your internet connection and try again.")
+        print()
+        print("  Models are also auto-downloaded on first container start.")

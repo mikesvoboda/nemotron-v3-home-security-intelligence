@@ -77,6 +77,18 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["websocket"])
 
 
+def _check_message_size(data: str) -> str | None:
+    """Check WebSocket message size against configured limit (NEM-4986).
+
+    Returns:
+        Error message string if oversized, None if within limits.
+    """
+    max_size = get_settings().websocket_max_message_size
+    if len(data) > max_size:
+        return f"Message too large ({len(data)} bytes, max {max_size})"
+    return None
+
+
 async def validate_websocket_message(
     websocket: WebSocket, raw_data: str
 ) -> WebSocketMessage | None:
@@ -528,6 +540,12 @@ async def websocket_events_endpoint(
                 )
                 logger.debug(f"Received message from WebSocket client: {data}")
 
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
+
                 # Support legacy plain "ping" string for backward compatibility
                 if data == "ping":
                     await websocket.send_text('{"type":"pong"}')
@@ -749,6 +767,12 @@ async def websocket_system_status(
                     timeout=idle_timeout,
                 )
                 logger.debug(f"Received message from WebSocket client: {data}")
+
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
 
                 # Support legacy plain "ping" string for backward compatibility
                 if data == "ping":
@@ -998,6 +1022,12 @@ async def websocket_job_logs(
                 )
                 logger.debug(f"Received message from WebSocket client: {data}")
 
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
+
                 # Support legacy plain "ping" string for backward compatibility
                 if data == "ping":
                     await websocket.send_text('{"type":"pong"}')
@@ -1151,6 +1181,12 @@ async def websocket_detections_endpoint(
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=idle_timeout)
                 logger.debug(f"Received message from WebSocket client: {data}")
+
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
 
                 if data == "ping":
                     await websocket.send_text('{"type":"pong"}')

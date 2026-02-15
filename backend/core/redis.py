@@ -1728,6 +1728,13 @@ class RedisClient:
     # HyperLogLog is a probabilistic data structure for cardinality estimation
     # with ~0.81% standard error using only ~12KB of memory regardless of set size
 
+    # Lua script for atomic PFADD + EXPIRE (NEM-4992)
+    _PFADD_EXPIRE_LUA = """
+local result = redis.call('PFADD', KEYS[1], unpack(ARGV, 2))
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+return result
+"""
+
     async def pfadd(self, key: str, *values: str) -> int:
         """Add elements to a HyperLogLog structure for unique counting.
 
@@ -1751,6 +1758,27 @@ class RedisClient:
         """
         client = self._ensure_connected()
         return cast("int", await client.pfadd(key, *values))
+
+    async def pfadd_with_expire(self, key: str, ttl: int, *values: str) -> int:
+        """Atomically add elements to HyperLogLog and set/refresh TTL.
+
+        Uses a Lua script to ensure PFADD and EXPIRE execute as a single
+        atomic operation, preventing keys from being left without a TTL
+        if the connection drops between the two commands (NEM-4992).
+
+        Args:
+            key: HyperLogLog key
+            ttl: TTL in seconds
+            *values: Elements to add
+
+        Returns:
+            1 if the cardinality estimate changed, 0 otherwise
+        """
+        client = self._ensure_connected()
+        result = await client.eval(  # type: ignore[misc]
+            self._PFADD_EXPIRE_LUA, 1, key, str(ttl), *values
+        )
+        return cast("int", result)
 
     async def pfcount(self, *keys: str) -> int:
         """Get the approximate cardinality (unique count) of a HyperLogLog.

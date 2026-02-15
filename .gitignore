@@ -50,6 +50,14 @@ backend/data/thumbnails/*
 !backend/data/thumbnails/.gitkeep
 backend/data/security.db
 
+# Synthetic test data (real images, not LFS pointers)
+# Keep LFS pointers in git, ignore transferred real data
+data/synthetic/cosmos/screenshots/
+data/synthetic/normal/
+data/synthetic/suspicious/
+data/synthetic/threats/
+data/synthetic.lfs-pointers/
+
 # External datasets (downloaded, not committed)
 data/external/.cache/
 data/external/*/raw/
