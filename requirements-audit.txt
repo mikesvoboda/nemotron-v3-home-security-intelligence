@@ -2,7 +2,7 @@
 #    uv export --no-hashes
 accelerate==1.12.0
     # via home-security-intelligence
-alembic==1.18.3
+alembic==1.18.4
     # via home-security-intelligence
 annotated-doc==0.0.4
     # via fastapi
@@ -38,15 +38,15 @@ colorama==0.4.6 ; sys_platform == 'win32'
     #   uvicorn
 contourpy==1.3.3
     # via matplotlib
-cryptography==46.0.4
+cryptography==46.0.5
     # via home-security-intelligence
 cycler==0.12.1
     # via matplotlib
 docker==7.1.0
     # via home-security-intelligence
-fastapi==0.128.6
+fastapi==0.129.0
     # via home-security-intelligence
-filelock==3.20.3
+filelock==3.24.2
     # via
     #   gdown
     #   huggingface-hub
@@ -263,7 +263,7 @@ packaging==26.0
     #   pytest
     #   scikit-image
     #   transformers
-pillow==12.1.0
+pillow==12.1.1
     # via
     #   home-security-intelligence
     #   imageio
@@ -303,7 +303,7 @@ pydantic==2.12.5
     #   pydantic-settings
 pydantic-core==2.41.5
     # via pydantic
-pydantic-settings==2.12.0
+pydantic-settings==2.13.0
     # via home-security-intelligence
 pygments==2.19.2
     # via
@@ -390,7 +390,7 @@ sympy==1.14.0
     # via torch
 termcolor==3.3.0
     # via pytest-sugar
-tifffile==2026.1.28
+tifffile==2026.2.15
     # via scikit-image
 tiktoken==0.12.0
     # via home-security-intelligence
@@ -445,7 +445,7 @@ typing-inspection==0.4.2
     # via
     #   pydantic
     #   pydantic-settings
-ultralytics==8.4.13
+ultralytics==8.4.14
     # via home-security-intelligence
 ultralytics-thop==2.0.18
     # via ultralytics
