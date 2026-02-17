@@ -78,6 +78,11 @@ export default tseslint.config(
       },
     },
     rules: {
+      // Disable rules incompatible with ESLint 9.x flat config
+      // eslint-plugin-react 7.37.5 uses deprecated getFilename() API
+      // TODO: Re-enable when eslint-plugin-react supports flat config natively
+      'react/no-direct-mutation-state': 'off',
+
       // React Refresh - relaxed to allow constant exports alongside components
       'react-refresh/only-export-components': 'off',
 
