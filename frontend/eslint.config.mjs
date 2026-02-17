@@ -21,11 +21,6 @@ export default tseslint.config(
       'tailwind.config.js',
       'postcss.config.js',
       'playwright.config.ts',
-      'playwright.config.build-validation.ts',
-      'scripts/**',
-      'tests/**',
-      'stryker.config.mjs',
-      'validate-storage-event-fix.js',
     ],
   },
 
@@ -35,13 +30,6 @@ export default tseslint.config(
   // TypeScript ESLint recommended rules
   ...tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
-
-  // Disable type-checked rules for non-TypeScript files (*.mjs, *.js, *.cjs)
-  // These files don't have tsconfig and can't provide type information
-  {
-    files: ['**/*.{js,mjs,cjs}'],
-    ...tseslint.configs.disableTypeChecked,
-  },
 
   // Main configuration for TypeScript/React files
   {
@@ -69,11 +57,7 @@ export default tseslint.config(
     },
     settings: {
       react: {
-        // Hardcode version instead of 'detect' to avoid getFilename() crash
-        // in eslint-plugin-react 7.37.5 on ESLint 9.x flat config.
-        // The detect utility uses context.getFilename() which was removed in ESLint 9.
-        // TODO: Switch back to 'detect' when eslint-plugin-react supports flat config
-        version: '19',
+        version: 'detect',
       },
       'import/resolver': {
         node: {
