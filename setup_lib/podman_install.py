@@ -419,16 +419,19 @@ def install_podman_compose() -> bool:
         print('  Add to your ~/.bashrc: export PATH="$HOME/.local/bin:$PATH"')
         return True  # installed, just not in PATH yet
 
-    # 1. Try apt (Debian/Ubuntu)
+    # 1. Try system package manager (preferred — no pip/pipx needed)
+    pkg_cmds: list[list[str]] = []
     if shutil.which("apt"):
-        result = subprocess.run(
-            ["sudo", "apt", "install", "-y", "podman-compose"],  # noqa: S607
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        pkg_cmds.append(["sudo", "apt", "install", "-y", "podman-compose"])  # noqa: S607
+    if shutil.which("dnf"):
+        pkg_cmds.append(["sudo", "dnf", "install", "-y", "podman-compose"])  # noqa: S607
+    if shutil.which("pacman"):
+        pkg_cmds.append(["sudo", "pacman", "-S", "--noconfirm", "podman-compose"])  # noqa: S607
+
+    for pkg_cmd in pkg_cmds:
+        result = subprocess.run(pkg_cmd, check=False, capture_output=True, text=True)  # noqa: S607
         if result.returncode == 0 and is_podman_compose_installed():
-            print("+ podman-compose installed via apt")
+            print(f"+ podman-compose installed via {pkg_cmd[1]}")
             return True
 
     # 2. Try pipx
