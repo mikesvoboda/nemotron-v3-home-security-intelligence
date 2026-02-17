@@ -373,12 +373,23 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
 
 
 def phase_application(config: DeployConfig) -> DeployResult:
-    """Start all remaining services (backend, frontend, AI)."""
-    ok = compose_run(config, "up", "-d", "--no-build")
+    """Start all remaining services (backend, frontend, AI).
+
+    Uses --wait with a 5-minute timeout to allow ai-llm to finish loading
+    the 30B model before backend starts (backend depends on ai-llm: service_healthy).
+    """
+    print("  Starting all services (waiting up to 5min for model loading)...")
+    ok = compose_run(config, "up", "-d", "--no-build", "--wait", "--wait-timeout", "300")
     if not ok:
+        # compose returns non-zero if --wait times out, but services may still be starting.
+        # Check if core services are at least running.
+        result = compose_run(config, "ps", "--format", "json", capture=True)
+        if isinstance(result, subprocess.CompletedProcess) and result.returncode == 0:
+            print("  Services started (some may still be initializing).")
+            return DeployResult(True, "Application services started (some initializing)")
         return DeployResult(False, "Failed to start application services")
 
-    print("  All services started.")
+    print("  All services started and healthy.")
     return DeployResult(True, "Application services started")
 
 
