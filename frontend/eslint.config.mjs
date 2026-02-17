@@ -78,11 +78,6 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Disable rules incompatible with ESLint 9.x flat config
-      // eslint-plugin-react 7.37.5 uses deprecated getFilename() API
-      // TODO: Re-enable when eslint-plugin-react supports flat config natively
-      'react/no-direct-mutation-state': 'off',
-
       // React Refresh - relaxed to allow constant exports alongside components
       'react-refresh/only-export-components': 'off',
 
@@ -100,7 +95,14 @@ export default tseslint.config(
       '@typescript-eslint/no-misused-promises': 'error',
 
       // React (from plugin:react/recommended and plugin:react/jsx-runtime)
-      ...reactPlugin.configs.recommended.rules,
+      // Exclude no-direct-mutation-state — eslint-plugin-react 7.37.5 uses the
+      // deprecated getFilename() API which crashes on ESLint 9.x flat config.
+      // TODO: Re-enable when eslint-plugin-react supports flat config natively
+      ...Object.fromEntries(
+        Object.entries(reactPlugin.configs.recommended.rules).filter(
+          ([key]) => key !== 'react/no-direct-mutation-state',
+        ),
+      ),
       ...reactPlugin.configs['jsx-runtime'].rules,
       'react/prop-types': 'off',
       'react/display-name': 'off',
