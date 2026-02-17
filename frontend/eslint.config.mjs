@@ -69,7 +69,11 @@ export default tseslint.config(
     },
     settings: {
       react: {
-        version: 'detect',
+        // Hardcode version instead of 'detect' to avoid getFilename() crash
+        // in eslint-plugin-react 7.37.5 on ESLint 9.x flat config.
+        // The detect utility uses context.getFilename() which was removed in ESLint 9.
+        // TODO: Switch back to 'detect' when eslint-plugin-react supports flat config
+        version: '19',
       },
       'import/resolver': {
         node: {
@@ -95,14 +99,7 @@ export default tseslint.config(
       '@typescript-eslint/no-misused-promises': 'error',
 
       // React (from plugin:react/recommended and plugin:react/jsx-runtime)
-      // Exclude no-direct-mutation-state — eslint-plugin-react 7.37.5 uses the
-      // deprecated getFilename() API which crashes on ESLint 9.x flat config.
-      // TODO: Re-enable when eslint-plugin-react supports flat config natively
-      ...Object.fromEntries(
-        Object.entries(reactPlugin.configs.recommended.rules).filter(
-          ([key]) => key !== 'react/no-direct-mutation-state',
-        ),
-      ),
+      ...reactPlugin.configs.recommended.rules,
       ...reactPlugin.configs['jsx-runtime'].rules,
       'react/prop-types': 'off',
       'react/display-name': 'off',
