@@ -290,8 +290,12 @@ services:
       context: .
       dockerfile: ai/gateway/Dockerfile
     # Podman CDI device passthrough (rootless GPU access)
+    # Pass ALL GPUs via CDI so /dev/nvidia0 and /dev/nvidia1 both exist.
+    # CUDA_VISIBLE_DEVICES restricts Triton to only the AI services GPU.
+    # Using nvidia.com/gpu=N only creates /dev/nvidiaN which CUDA can't
+    # use if N>0 (it expects /dev/nvidia0 for the first visible device).
     devices:
-      - nvidia.com/gpu=${GPU_AI_SERVICES:-1}
+      - nvidia.com/gpu=all
     ports:
       - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090'
       - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002'
@@ -305,7 +309,10 @@ services:
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
-      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-0}
+      # All GPUs are passed via CDI (nvidia.com/gpu=all) so /dev/nvidia0 and
+      # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
+      # the AI services GPU (default: GPU 1 = A400).
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
