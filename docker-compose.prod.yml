@@ -1086,39 +1086,12 @@ services:
   # cAdvisor for container CPU/memory metrics (NEM-3930)
   # Provides detailed container-level resource usage metrics
   # Access UI at http://localhost:8088
-  cadvisor:
-    # cAdvisor requires privileged mode on cgroups v2 (kernel 6.18+, Fedora 43)
-    # Individual capabilities (SYS_ADMIN, SYS_PTRACE, DAC_READ_SEARCH) are insufficient
-    # because inotify_add_watch on /sys/fs/cgroup requires full privileged access.
-    # See: https://github.com/google/cadvisor/issues/3234
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: cadvisor
-    privileged: true
-    devices:
-      - /dev/kmsg:/dev/kmsg
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /var/lib/containers/:/var/lib/containers:ro
-    ports:
-      - '127.0.0.1:${CADVISOR_PORT:-8088}:8080'
-    healthcheck:
-      test:
-        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/healthz']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
+  # cadvisor: Moved to rootful systemd service (same pattern as dcgm-exporter).
+  # cAdvisor requires privileged + host filesystem access (/sys/fs/cgroup, /proc, /dev/kmsg)
+  # which is incompatible with rootless Podman on cgroups v2 (causes .containerenv OCI errors).
+  # See: monitoring/cadvisor/cadvisor.service
+  # Install: sudo cp monitoring/cadvisor/cadvisor.service /etc/systemd/system/
+  #          sudo systemctl daemon-reload && sudo systemctl enable --now cadvisor
 
   # Node Exporter for host system metrics (NEM-3931)
   # Collects hardware and OS metrics from the host system
@@ -1205,16 +1178,19 @@ services:
   alloy:
     image: docker.io/grafana/alloy:v1.9.2
     container_name: alloy
-    # WORKAROUND (NEM-4499): Using privileged mode due to SELinux blocking /bin/alloy execution
-    # Issue: Rootless Podman + SELinux Enforcing prevents execution of /bin/alloy even with label=disable
-    # Root cause: grafana/alloy:v1.0.0 image has SELinux context that conflicts with rootless execution
-    # Alternative approaches attempted:
-    #   - label=disable alone: Still blocked
-    #   - Specific capabilities (SYS_ADMIN, BPF, PERFMON, etc.): Still blocked
-    #   - apparmor=unconfined + seccomp=unconfined: Still blocked
-    # TODO: Re-test with newer alloy versions or when rootless Podman SELinux handling improves
-    # nosemgrep: yaml.docker-compose.security.privileged-service.privileged-service
-    privileged: true
+    # Minimal capabilities for eBPF profiling (replaces privileged: true)
+    # Requires host memlock limit: /etc/security/limits.d/50-memlock.conf
+    # Previously used privileged mode (NEM-4499) but alloy v1.9.2 works with caps + label=disable
+    cap_add:
+      - SYS_ADMIN # eBPF map creation, cgroup access
+      - BPF # eBPF program loading
+      - PERFMON # perf_event_open for profiling
+      - SYS_PTRACE # Reading /proc/<pid>/maps for symbol resolution
+      - SYS_RESOURCE # setrlimit for memlock
+    cap_drop:
+      - ALL
+    security_opt:
+      - label=disable
     pid: host
     user: root
     volumes:
