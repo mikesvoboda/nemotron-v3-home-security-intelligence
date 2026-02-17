@@ -539,6 +539,76 @@ def calculate_download_size(models: list[ModelSpec], model_path: Path) -> int:
     return total_mb
 
 
+def _bootstrap_venv_and_import_hf() -> bool:
+    """Create a virtualenv and install huggingface_hub if needed.
+
+    On Ubuntu 24.04+ (PEP 668), pip install into the system Python is blocked.
+    This creates a .venv in the project root, installs huggingface_hub there,
+    and adds it to sys.path so the current process can import it.
+
+    Returns:
+        True if huggingface_hub is now importable, False otherwise.
+    """
+    global HF_HUB_AVAILABLE  # noqa: PLW0603
+
+    print("! huggingface_hub not installed")
+
+    # Find project root (directory containing setup.py)
+    project_root = Path(__file__).resolve().parent.parent
+    venv_dir = project_root / ".venv"
+    venv_python = venv_dir / "bin" / "python"
+
+    # Step 1: Create venv if it doesn't exist
+    if not venv_python.exists():
+        print("  Creating virtual environment (.venv/)...")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "venv", str(venv_dir)],
+                check=True,
+                capture_output=True,
+            )
+            print("  + Virtual environment created")
+        except subprocess.CalledProcessError as e:
+            print(f"  ! Failed to create venv: {e}")
+            return False
+
+    # Step 2: Install huggingface_hub into the venv
+    print("  Installing huggingface_hub into .venv/...")
+    venv_pip = venv_dir / "bin" / "pip"
+    try:
+        subprocess.run(
+            [str(venv_pip), "install", "huggingface_hub"],
+            check=True,
+            capture_output=True,
+        )
+        print("  + huggingface_hub installed")
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else str(e.stderr)
+        print(f"  ! Failed to install huggingface_hub: {stderr[:200]}")
+        return False
+
+    # Step 3: Add venv site-packages to sys.path so we can import
+    import glob as glob_mod
+
+    site_pattern = str(venv_dir / "lib" / "python*" / "site-packages")
+    site_dirs = glob_mod.glob(site_pattern)
+    for site_dir in site_dirs:
+        if site_dir not in sys.path:
+            sys.path.insert(0, site_dir)
+
+    # Step 4: Try importing again
+    try:
+        from huggingface_hub import snapshot_download  # noqa: F811
+
+        HF_HUB_AVAILABLE = True
+        # Update module-level reference so download_hf_model can use it
+        globals()["snapshot_download"] = snapshot_download
+        return True
+    except ImportError as e:
+        print(f"  ! Failed to import huggingface_hub after install: {e}")
+        return False
+
+
 def prompt_and_download_models(config: dict) -> None:
     """Prompt user and download AI models.
 
@@ -684,21 +754,8 @@ def prompt_and_download_models(config: dict) -> None:
     # Check if we can use huggingface_hub directly
     hf_available = HF_HUB_AVAILABLE
     if not hf_available:
-        print("! huggingface_hub not installed")
-        print("  Installing: pip install huggingface_hub")
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", "huggingface_hub"],
-                check=True,
-                capture_output=True,
-            )
-            # Re-import after installation
-            from huggingface_hub import snapshot_download  # noqa: F401
-
-            hf_available = True
-            print("  + huggingface_hub installed")
-        except Exception as e:
-            print(f"  ! Failed to install huggingface_hub: {e}")
+        hf_available = _bootstrap_venv_and_import_hf()
+        if not hf_available:
             print("  Falling back to download script...")
             # Try using the download script
             if run_download_script("download-model-zoo.py", ["--all"]):
