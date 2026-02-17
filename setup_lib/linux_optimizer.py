@@ -270,10 +270,20 @@ def is_root() -> bool:
     return os.geteuid() == 0
 
 
+def _run_sudo(args: list[str], *, check: bool = False) -> subprocess.CompletedProcess[str]:
+    """Run a command with sudo."""
+    return subprocess.run(
+        ["sudo", *args],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=check,
+    )
+
+
 def write_config_file(
     path: Path, content: str, backup_dir: Path | None = None
 ) -> tuple[bool, bool]:
-    """Write a configuration file, optionally backing up existing.
+    """Write a configuration file via sudo, optionally backing up existing.
 
     Args:
         path: Path to write the config file
@@ -295,38 +305,61 @@ def write_config_file(
             # Backup existing file if different and backup requested
             if backup_dir:
                 backup_path = backup_dir / path.name
-                print(f"  $ cp {path} {backup_path}")
-                shutil.copy2(path, backup_path)
+                print(f"  $ sudo cp {path} {backup_path}")
+                _run_sudo(["cp", str(path), str(backup_path)])
 
-        # Write new content
-        path.parent.mkdir(parents=True, exist_ok=True)
-        print(f"  $ write {path} ({len(content)} bytes)")
-        path.write_text(content)
-        return True, True  # Success and modified
+        # Write new content via sudo (write to temp file, then sudo cp)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=path.suffix or ".conf", delete=False
+        ) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        try:
+            # Ensure parent directory exists
+            _run_sudo(["mkdir", "-p", str(path.parent)])
+            print(f"  $ sudo write {path} ({len(content)} bytes)")
+            result = _run_sudo(["cp", tmp_path, str(path)])
+            if result.returncode != 0:
+                log_error(f"Failed to write {path}: {result.stderr.strip()}")
+                return False, False
+            _run_sudo(["chmod", "644", str(path)])
+            return True, True  # Success and modified
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
     except (OSError, PermissionError) as e:
         log_error(f"Failed to write {path}: {e}")
         return False, False
 
 
 def run_command(cmd: list[str], check: bool = True, verbose: bool = True) -> tuple[bool, str]:
-    """Run a command and return success status and output.
+    """Run a command with sudo and return success status and output.
+
+    All optimizer commands require root privileges. Instead of requiring
+    the entire setup.py to run as root, we use sudo per-command.
 
     Args:
-        cmd: Command and arguments as list
+        cmd: Command and arguments as list (sudo is prepended automatically)
         check: If True, don't raise on non-zero exit
         verbose: If True, log the command being executed
 
     Returns:
         Tuple of (success, output/error message)
     """
-    cmd_str = " ".join(cmd)
+    # Prepend sudo if not already root
+    if os.geteuid() != 0:
+        full_cmd = ["sudo", *cmd]
+    else:
+        full_cmd = cmd
+
+    cmd_str = " ".join(full_cmd)
 
     if verbose:
         print(f"  $ {cmd_str}")
 
     try:
         result = subprocess.run(
-            cmd,
+            full_cmd,
             capture_output=True,
             text=True,
             check=check,
@@ -338,8 +371,8 @@ def run_command(cmd: list[str], check: bool = True, verbose: bool = True) -> tup
         return False, e.stderr or str(e)
     except FileNotFoundError:
         if verbose:
-            log_error(f"Command not found: {cmd[0]}")
-        return False, f"Command not found: {cmd[0]}"
+            log_error(f"Command not found: {full_cmd[0]}")
+        return False, f"Command not found: {full_cmd[0]}"
 
 
 # =============================================================================
@@ -456,9 +489,9 @@ def _update_grub_parameters(backup_dir: Path, kernel_params: dict[str, str]) -> 
     # Backup current GRUB config (only if not already backed up)
     backup_file = backup_dir / "grub.bak"
     if backup_dir and not backup_file.exists():
-        shutil.copy2(grub_path, backup_file)
+        shutil.copy2(grub_path, backup_file)  # /etc/default/grub is world-readable
 
-    # Read current config
+    # Read current config (world-readable, no sudo needed)
     grub_content = grub_path.read_text()
 
     # Extract current GRUB_CMDLINE_LINUX
@@ -490,9 +523,19 @@ def _update_grub_parameters(backup_dir: Path, kernel_params: dict[str, str]) -> 
         flags=re.MULTILINE,
     )
 
-    # Write updated config
-    grub_path.write_text(new_grub_content)
+    # Write updated config via sudo
     log_info(f"Adding kernel parameters: {' '.join(new_params)}")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".grub", delete=False) as tmp:
+        tmp.write(new_grub_content)
+        tmp_path = tmp.name
+    try:
+        result = _run_sudo(["cp", tmp_path, str(grub_path)])
+        if result.returncode != 0:
+            return OptimizationResult(
+                False, f"Failed to write GRUB config: {result.stderr.strip()}", requires_reboot=True
+            )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
     # Regenerate GRUB config
     log_info("Regenerating GRUB configuration...")
@@ -628,7 +671,7 @@ def apply_ai_environment(backup_dir: Path) -> OptimizationResult:
 
     # Make executable
     if config_path.exists():
-        config_path.chmod(0o755)
+        _run_sudo(["chmod", "755", str(config_path)])
 
     if modified:
         return OptimizationResult(
@@ -638,7 +681,7 @@ def apply_ai_environment(backup_dir: Path) -> OptimizationResult:
 
 
 def install_verification_script() -> OptimizationResult:
-    """Install the verification script."""
+    """Install the verification script via sudo."""
     script_path = Path("/usr/local/bin/verify-ai-optimizations")
 
     # Check if already installed with same content
@@ -652,12 +695,20 @@ def install_verification_script() -> OptimizationResult:
             pass  # Will try to write anyway
 
     log_info("Installing verification script...")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as tmp:
+        tmp.write(VERIFY_SCRIPT)
+        tmp_path = tmp.name
+
     try:
-        script_path.write_text(VERIFY_SCRIPT)
-        script_path.chmod(0o755)
+        result = _run_sudo(["cp", tmp_path, str(script_path)])
+        if result.returncode != 0:
+            return OptimizationResult(
+                False, f"Failed to install verification script: {result.stderr.strip()}"
+            )
+        _run_sudo(["chmod", "755", str(script_path)])
         return OptimizationResult(True, f"Verification script installed: {script_path}")
-    except (OSError, PermissionError) as e:
-        return OptimizationResult(False, f"Failed to install verification script: {e}")
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 # =============================================================================
@@ -747,20 +798,16 @@ def run_optimizations(
         log_error("This optimizer only works on Linux systems")
         return False, False
 
-    if not is_root():
-        log_error("This script must be run as root (sudo)")
-        return False, False
-
-    # Create backup directory
+    # Create backup directory (use /tmp since we may not be root)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_dir = Path(f"/root/ai-optimizer-backup-{timestamp}")
+    backup_dir = Path(f"/tmp/ai-optimizer-backup-{timestamp}")  # noqa: S108
 
     if not dry_run:
         backup_dir.mkdir(parents=True, exist_ok=True)
         log_info(f"Backup directory: {backup_dir}")
 
         # Backup current sysctl
-        success, sysctl_output = run_command(["sysctl", "-a"], check=False)
+        success, sysctl_output = run_command(["sysctl", "-a"], check=False, verbose=False)
         if success:
             (backup_dir / "sysctl-before.conf").write_text(sysctl_output)
 
@@ -844,7 +891,7 @@ def run_optimizations(
     return overall_success, requires_reboot
 
 
-def prompt_and_run_optimizations(skip: bool = False) -> bool:  # noqa: PLR0911
+def prompt_and_run_optimizations(skip: bool = False) -> bool:
     """Interactive prompt to run optimizations.
 
     Args:
@@ -885,14 +932,9 @@ def prompt_and_run_optimizations(skip: bool = False) -> bool:  # noqa: PLR0911
         print("Skipping AI optimizations.")
         return True
 
-    # Check for root
-    if not is_root():
-        print()
-        log_warn("Root privileges required. Run with sudo:")
-        print("  sudo python3 setup.py")
-        print()
-        print("Or apply optimizations separately after setup completes.")
-        return True
+    print()
+    log_info("Optimizations require sudo — you may be prompted for your password.")
+    print()
 
     # Separate prompt for mitigations (security tradeoff)
     print()
