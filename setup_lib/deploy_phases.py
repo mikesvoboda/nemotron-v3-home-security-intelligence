@@ -72,14 +72,17 @@ def phase_stop(config: DeployConfig) -> DeployResult:
         check=False,
     )
 
-    # Detect corrupted container storage
+    # Detect corrupted container storage (Podman 5.x+ only)
     check_result = subprocess.run(
         ["podman", "system", "check"],  # noqa: S607
         capture_output=True,
         text=True,
         check=False,
     )
-    if check_result.returncode != 0:
+    # Only treat as corruption if the command exists (rc=0 or known error).
+    # "unrecognized command" (Podman 4.x) is not corruption — skip it.
+    is_unrecognized = "unrecognized command" in (check_result.stderr or "")
+    if check_result.returncode != 0 and not is_unrecognized:
         print("  WARNING: Corrupted container storage detected!")
         if check_result.stderr:
             for line in check_result.stderr.strip().splitlines()[:5]:
@@ -90,6 +93,13 @@ def phase_stop(config: DeployConfig) -> DeployResult:
             capture_output=True,
             check=False,
         )
+        # Restart the podman socket after reset
+        subprocess.run(
+            ["systemctl", "--user", "restart", "podman.socket"],  # noqa: S607
+            capture_output=True,
+            check=False,
+        )
+        time.sleep(2)
         print("  Storage reset complete. All images will be rebuilt.")
 
     # Verify critical ports are freed
@@ -112,10 +122,37 @@ def phase_stop(config: DeployConfig) -> DeployResult:
 # ---------------------------------------------------------------------------
 
 
+def _ensure_podman_socket() -> None:
+    """Ensure the rootless podman socket is active.
+
+    The docker-compose plugin requires the podman socket at
+    /run/user/<uid>/podman/podman.sock to communicate with podman.
+    """
+    result = subprocess.run(
+        ["systemctl", "--user", "is-active", "podman.socket"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.stdout.strip() == "active":
+        return
+
+    print("  Podman socket not running — starting it...")
+    subprocess.run(
+        ["systemctl", "--user", "enable", "--now", "podman.socket"],  # noqa: S607
+        capture_output=True,
+        check=False,
+    )
+    time.sleep(1)
+
+
 def phase_build(config: DeployConfig) -> DeployResult:
     """Build container images."""
     if config.skip_build:
         return DeployResult(True, "Skipping image builds (--skip-build)")
+
+    # docker-compose plugin needs the podman socket
+    _ensure_podman_socket()
 
     # Detect CUDA architecture
     cuda_args: list[str] = []

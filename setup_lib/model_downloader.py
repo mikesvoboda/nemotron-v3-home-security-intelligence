@@ -90,7 +90,7 @@ PHASE1_MODELS: list[ModelSpec] = [
     # Vehicle classification (ai-gateway: vehicle)
     ModelSpec(
         name="vehicle-segment-classification",
-        hf_repo="lxyuan/vit-base-patch16-224-vehicle-segment-classification",
+        hf_repo="AventIQ-AI/ResNet-50-Vehicle-Segment-classification",
         phase=1,
         size_mb=358,  # ~350MB
         description="Vehicle type classification - 11 classes (ai-gateway)",
@@ -108,9 +108,9 @@ PHASE1_MODELS: list[ModelSpec] = [
     # Depth estimation (ai-gateway: depth)
     ModelSpec(
         name="depth-anything-v2-tiny",
-        hf_repo="depth-anything/Depth-Anything-V2-Tiny-hf",
+        hf_repo="depth-anything/Depth-Anything-V2-Small-hf",
         phase=1,
-        size_mb=25,  # ~25MB (tiny variant)
+        size_mb=98,  # ~98MB (small variant, smallest available)
         description="Monocular depth estimation (ai-gateway)",
         required=False,
     ),
@@ -166,7 +166,7 @@ PHASE2_MODELS: list[ModelSpec] = [
     # ST-GCN++ action recognition (ai-gateway: xclip_action)
     ModelSpec(
         name="stgcn-plus-plus",
-        hf_repo="pyskl/stgcnpp_ntu60_xsub_hrnet_j",
+        hf_repo="",  # Downloaded via direct URL from OpenMMLab
         phase=2,
         size_mb=20,
         description="ST-GCN++ skeleton-based action recognition (ai-gateway)",
@@ -197,7 +197,7 @@ PHASE3_MODELS: list[ModelSpec] = [
     # Smoke/fire detection
     ModelSpec(
         name="smoke-fire-yolov8n",
-        hf_repo="luminous0219/fire-and-smoke-detection-yolov8",
+        hf_repo="SHOU-ISD/fire-and-smoke",
         phase=3,
         size_mb=25,
         description="Smoke/fire detection (CRITICAL safety model)",
@@ -215,7 +215,7 @@ PHASE3_MODELS: list[ModelSpec] = [
     # Low-light enhancement
     ModelSpec(
         name="zero-dce-plus-plus",
-        hf_repo="Li-Chongyi/Zero-DCE_extension",
+        hf_repo="keras-io/low-light-image-enhancement",
         phase=3,
         size_mb=5,
         description="Zero-DCE++ low-light enhancement preprocessing",
@@ -244,6 +244,16 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
         osnet_file = model_path / "model-zoo" / model_name / "osnet_ain_x1_0_msmt17.pth"
         return osnet_file.exists()
 
+    # Special handling for YOLO-World-S (specific .pt file)
+    if model_name == "yolo-world-s":
+        yolo_world_file = model_path / "model-zoo" / model_name / "yolov8s-worldv2.pt"
+        return yolo_world_file.exists()
+
+    # Special handling for ST-GCN++ (specific .pth file)
+    if model_name == "stgcn-plus-plus":
+        stgcn_file = model_path / "model-zoo" / model_name / "stgcnpp_ntu60_xsub_hrnet_j.pth"
+        return stgcn_file.exists()
+
     # Special handling for YOLOv8n-pose (specific .pt file)
     if model_name == "yolov8n-pose":
         pose_file = model_path / "model-zoo" / model_name / "yolov8n-pose.pt"
@@ -254,7 +264,7 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
         return False
 
     # Check for common model file extensions
-    model_extensions = (".pt", ".pth", ".safetensors", ".bin", ".onnx", ".engine", ".gguf")
+    model_extensions = (".pt", ".pth", ".safetensors", ".bin", ".onnx", ".engine", ".gguf", ".pb", ".h5", ".keras")
     return any(list(model_dir.rglob(f"*{ext}")) for ext in model_extensions)
 
 
@@ -280,7 +290,7 @@ def download_nemotron_gguf(model_path: Path) -> bool:
     search_paths = [
         Path.home()
         / ".cache/huggingface/hub"
-        / "models--nvidia--Nemotron-3-Nano-30B-A3B-GGUF/snapshots",
+        / "models--unsloth--Nemotron-3-Nano-30B-A3B-GGUF/snapshots",
     ]
 
     for search_path in search_paths:
@@ -306,7 +316,7 @@ def download_nemotron_gguf(model_path: Path) -> bool:
         from huggingface_hub import hf_hub_download
 
         downloaded = hf_hub_download(
-            repo_id="nvidia/Nemotron-3-Nano-30B-A3B-GGUF",
+            repo_id="unsloth/Nemotron-3-Nano-30B-A3B-GGUF",
             filename="Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
             local_dir=nemotron_dir,
             local_dir_use_symlinks=False,
@@ -440,6 +450,73 @@ def download_osnet_reid(model_path: Path) -> bool:
             target.symlink_to(downloaded_path.name)  # Relative symlink
             print("    Downloaded: osnet_ain_x1_0_msmt17.pth")
 
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download: {e}")
+        return False
+
+
+def download_stgcnpp(model_path: Path) -> bool:
+    """Download ST-GCN++ checkpoint from OpenMMLab.
+
+    Args:
+        model_path: Base path for AI models.
+
+    Returns:
+        True if download successful.
+    """
+    stgcn_dir = model_path / "model-zoo" / "stgcn-plus-plus"
+    stgcn_dir.mkdir(parents=True, exist_ok=True)
+
+    # Joint checkpoint for NTU60 XSub with HRNet 2D keypoints
+    target = stgcn_dir / "stgcnpp_ntu60_xsub_hrnet_j.pth"
+
+    if target.exists():
+        print("    Already exists: stgcnpp_ntu60_xsub_hrnet_j.pth")
+        return True
+
+    url = "http://download.openmmlab.com/mmaction/pyskl/ckpt/stgcnpp/stgcnpp_ntu60_xsub_hrnet/j.pth"
+    print("    Downloading ST-GCN++ from OpenMMLab (~20MB)...")
+
+    try:
+        import urllib.request
+
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print("    Downloaded: stgcnpp_ntu60_xsub_hrnet_j.pth")
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download: {e}")
+        return False
+
+
+def download_yolo_world(model_path: Path) -> bool:
+    """Download YOLO-World-S from ultralytics GitHub releases.
+
+    Args:
+        model_path: Base path for AI models.
+
+    Returns:
+        True if download successful.
+    """
+    yolo_world_dir = model_path / "model-zoo" / "yolo-world-s"
+    yolo_world_dir.mkdir(parents=True, exist_ok=True)
+
+    target = yolo_world_dir / "yolov8s-worldv2.pt"
+
+    if target.exists():
+        print("    Already exists: yolov8s-worldv2.pt")
+        return True
+
+    release_url = "https://github.com/ultralytics/assets/releases/download/v8.2.0"
+    url = f"{release_url}/yolov8s-worldv2.pt"
+
+    print("    Downloading yolov8s-worldv2.pt (~46MB)...")
+
+    try:
+        import urllib.request
+
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print("    Downloaded: yolov8s-worldv2.pt")
         return True
     except Exception as e:
         print(f"    ! Failed to download: {e}")
@@ -697,45 +774,10 @@ def prompt_and_download_models(config: dict) -> None:
         print()
         return
 
-    print("Download options:")
-    print("  1. Download required models only (~20GB)")
-    print("     - Nemotron LLM, YOLO26, Florence-2, CLIP")
-    print("  2. Download required + Phase 1 (~25GB) [RECOMMENDED]")
-    print("     - + Fashion-CLIP, Vehicle, Pet, Depth, Pose, Threat, Re-ID models")
-    print("  3. Download all models (~26GB)")
-    print("     - + Demographics (age/gender), Action recognition")
-    print("  4. Skip (download later manually)")
-    print()
-
-    if auto_download:
-        choice = "2"  # Auto-select option 2 (required + Phase 1)
-        print("Auto-selecting option 2: Required + Phase 1 models")
-        print()
-    else:
-        choice = input("Select option [1]: ").strip() or "1"
-
-    if choice == "4":
-        print()
-        print("Skipping model downloads.")
-        print("To download later, run:")
-        print("  python scripts/download-model-zoo.py --all")
-        return
-
-    # Determine which models to download
+    # Download all models
     models_to_download: list[ModelSpec] = []
-
-    if choice in ("1", "2", "3"):
-        # Always include required models (all of them, including Nemotron and YOLO26)
-        models_to_download.extend(REQUIRED_MODELS)
-
-    if choice in ("2", "3"):
-        # Include Phase 1 models (only those with HF repos, skip auto-downloaded ones)
-        models_to_download.extend([m for m in PHASE1_MODELS if m.hf_repo])
-
-    if choice == "3":
-        # Include Phase 2 and 3 models (only those with HF repos)
-        models_to_download.extend([m for m in PHASE2_MODELS if m.hf_repo])
-        models_to_download.extend([m for m in PHASE3_MODELS if m.hf_repo])
+    all_phase_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
+    models_to_download.extend(all_phase_models)
 
     # Filter out already downloaded models
     models_to_download = [
@@ -787,6 +829,16 @@ def prompt_and_download_models(config: dict) -> None:
                 fail_count += 1
         elif model.name == "osnet-ain-x1-0":
             if download_osnet_reid(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif model.name == "stgcn-plus-plus":
+            if download_stgcnpp(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif model.name == "yolo-world-s":
+            if download_yolo_world(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1

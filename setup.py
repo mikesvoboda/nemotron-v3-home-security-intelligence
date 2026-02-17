@@ -1345,10 +1345,41 @@ def main() -> None:
             config["skip_pull"] = True  # Skip image pull to save time
             prompt_and_pull_images(config)
 
+        # Auto-deploy: bring up all services
         if not args.defaults:
             print()
-            print("Ready! Run: docker compose -f docker-compose.prod.yml up -d")
             print("=" * 60)
+            print("  Deploying Services")
+            print("=" * 60)
+            print()
+
+            from setup_lib.deploy import DeployConfig as _DeployConfig
+            from setup_lib.deploy import detect_compose_command, load_env, run_deploy
+
+            project_root = Path(__file__).resolve().parent
+            env = load_env(project_root)
+            compose_cmd = detect_compose_command()
+
+            deploy_config = _DeployConfig(
+                project_root=project_root,
+                compose_cmd=compose_cmd,
+                skip_build=False,
+                skip_export=True,
+                verbose=False,
+                env=env,
+            )
+
+            success = run_deploy(deploy_config)
+            if success:
+                print()
+                print("=" * 60)
+                print("  Setup complete! All services are running.")
+                print("=" * 60)
+            else:
+                print()
+                print("! Deployment encountered errors.")
+                print("  Check logs with: podman compose -f docker-compose.prod.yml logs")
+                print("  Retry with: python setup.py deploy")
 
     except KeyboardInterrupt:
         print("\n\nSetup cancelled.")
