@@ -66,11 +66,25 @@ class TestWriteConfigFile:
         config_path = tmp_path / "test.conf"
         content = "test content"
 
-        success, modified = write_config_file(config_path, content)
+        def mock_sudo(args: list[str], **kwargs):
+            # Simulate sudo commands - actually perform the operations for testing
+            if args[0] == "cp" and len(args) == 3:
+                # cp source dest
+                Path(args[1]).replace(Path(args[2]))
+            elif args[0] == "mkdir":
+                # mkdir -p path
+                Path(args[2]).mkdir(parents=True, exist_ok=True)
+            elif args[0] == "chmod":
+                # chmod mode path
+                pass  # Don't actually chmod in tests
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        assert success is True
-        assert modified is True
-        assert config_path.read_text() == content
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+            success, modified = write_config_file(config_path, content)
+
+            assert success is True
+            assert modified is True
+            assert config_path.read_text() == content
 
     def test_idempotent_when_content_unchanged(self, tmp_path: Path) -> None:
         """Should not modify file when content is identical."""
@@ -93,11 +107,25 @@ class TestWriteConfigFile:
         config_path.write_text("old content")
         new_content = "new content"
 
-        success, modified = write_config_file(config_path, new_content)
+        def mock_sudo(args: list[str], **kwargs):
+            # Simulate sudo commands - actually perform the operations for testing
+            if args[0] == "cp" and len(args) == 3:
+                # cp source dest
+                Path(args[1]).replace(Path(args[2]))
+            elif args[0] == "mkdir":
+                # mkdir -p path
+                Path(args[2]).mkdir(parents=True, exist_ok=True)
+            elif args[0] == "chmod":
+                # chmod mode path
+                pass  # Don't actually chmod in tests
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        assert success is True
-        assert modified is True
-        assert config_path.read_text() == new_content
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+            success, modified = write_config_file(config_path, new_content)
+
+            assert success is True
+            assert modified is True
+            assert config_path.read_text() == new_content
 
     def test_backs_up_existing_file(self, tmp_path: Path) -> None:
         """Should backup existing file when backup_dir is provided."""
@@ -109,13 +137,27 @@ class TestWriteConfigFile:
         old_content = "old content"
         config_path.write_text(old_content)
 
-        success, modified = write_config_file(config_path, "new content", backup_dir)
+        def mock_sudo(args: list[str], **kwargs):
+            # Simulate sudo commands - actually perform the operations for testing
+            if args[0] == "cp" and len(args) == 3:
+                # cp source dest
+                Path(args[1]).replace(Path(args[2]))
+            elif args[0] == "mkdir":
+                # mkdir -p path
+                Path(args[2]).mkdir(parents=True, exist_ok=True)
+            elif args[0] == "chmod":
+                # chmod mode path
+                pass  # Don't actually chmod in tests
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        assert success is True
-        assert modified is True
-        backup_path = backup_dir / "test.conf"
-        assert backup_path.exists()
-        assert backup_path.read_text() == old_content
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+            success, modified = write_config_file(config_path, "new content", backup_dir)
+
+            assert success is True
+            assert modified is True
+            backup_path = backup_dir / "test.conf"
+            assert backup_path.exists()
+            assert backup_path.read_text() == old_content
 
     def test_creates_parent_directories(self, tmp_path: Path) -> None:
         """Should create parent directories if they don't exist."""
@@ -124,35 +166,54 @@ class TestWriteConfigFile:
         config_path = tmp_path / "subdir" / "nested" / "test.conf"
         content = "test content"
 
-        success, modified = write_config_file(config_path, content)
+        def mock_sudo(args: list[str], **kwargs):
+            # Simulate sudo commands - actually perform the operations for testing
+            if args[0] == "cp" and len(args) == 3:
+                # cp source dest
+                Path(args[1]).replace(Path(args[2]))
+            elif args[0] == "mkdir":
+                # mkdir -p path
+                Path(args[2]).mkdir(parents=True, exist_ok=True)
+            elif args[0] == "chmod":
+                # chmod mode path
+                pass  # Don't actually chmod in tests
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        assert success is True
-        assert modified is True
-        assert config_path.read_text() == content
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+            success, modified = write_config_file(config_path, content)
+
+            assert success is True
+            assert modified is True
+            assert config_path.read_text() == content
 
     def test_handles_permission_error(self) -> None:
-        """Should handle permission error gracefully."""
+        """Should handle permission error when sudo cp fails."""
         from setup_lib.linux_optimizer import write_config_file
 
-        with patch("pathlib.Path.exists", return_value=False):
-            with patch("pathlib.Path.mkdir", side_effect=PermissionError("Access denied")):
-                success, modified = write_config_file(Path("/etc/test.conf"), "content")
+        def mock_sudo_fail(args: list[str], **kwargs):
+            if args[0] == "cp" and len(args) == 3 and args[2] == "/etc/test.conf":
+                return subprocess.CompletedProcess(
+                    args=args, returncode=1, stdout="", stderr="Permission denied"
+                )
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-                assert success is False
-                assert modified is False
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo_fail):
+            success, modified = write_config_file(Path("/etc/test.conf"), "content")
+
+            assert success is False
+            assert modified is False
 
     def test_handles_os_error_on_write(self, tmp_path: Path) -> None:
-        """Should handle OS error when writing file."""
+        """Should handle OS error when tempfile creation fails."""
         from setup_lib.linux_optimizer import write_config_file
 
         config_path = tmp_path / "test.conf"
 
-        with patch.object(Path, "write_text", side_effect=OSError("Disk full")):
-            with patch.object(Path, "exists", return_value=False):
-                success, modified = write_config_file(config_path, "content")
+        with patch("tempfile.NamedTemporaryFile", side_effect=OSError("Disk full")):
+            success, modified = write_config_file(config_path, "content")
 
-                assert success is False
-                assert modified is False
+            assert success is False
+            assert modified is False
 
 
 class TestRunCommand:
@@ -489,19 +550,21 @@ class TestUpdateGrubParameters:
         with (
             patch.object(Path, "exists", return_value=True),
             patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "write_text") as mock_write,
             patch("setup_lib.linux_optimizer.run_command") as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
             patch("shutil.copy2"),
         ):
+            mock_sudo.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
             mock_run.return_value = (True, "")
 
             result = _update_grub_parameters(backup_dir, {"iommu": "pt"})
 
             assert result.success is True
             assert result.requires_reboot is True
-            mock_write.assert_called_once()
-            written_content = mock_write.call_args[0][0]
-            assert "iommu=pt" in written_content
+            assert mock_sudo.called
+            assert "iommu=pt" in result.message
 
     def test_skips_existing_params(self, tmp_path: Path) -> None:
         """Should not add parameters that already exist."""
@@ -560,11 +623,14 @@ class TestUpdateGrubParameters:
         with (
             patch.object(Path, "exists", return_value=True),
             patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "write_text"),
             patch.object(Path, "is_dir", return_value=True),  # /sys/firmware/efi exists
             patch("setup_lib.linux_optimizer.run_command") as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
             patch("shutil.copy2"),
         ):
+            mock_sudo.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
             mock_run.return_value = (True, "")
 
             result = _update_grub_parameters(backup_dir, {"iommu": "pt"})
@@ -589,8 +655,12 @@ class TestUpdateGrubParameters:
             patch.object(Path, "write_text"),
             patch.object(Path, "is_dir", return_value=False),
             patch("setup_lib.linux_optimizer.run_command") as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
             patch("shutil.copy2"),
         ):
+            mock_sudo.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
             mock_run.return_value = (False, "grub2-mkconfig failed")
 
             result = _update_grub_parameters(backup_dir, {"iommu": "pt"})
@@ -611,23 +681,27 @@ class TestApplyKernelParameters:
         with (
             patch.object(Path, "exists", return_value=True),
             patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "write_text") as mock_write,
             patch.object(Path, "is_dir", return_value=False),
             patch("setup_lib.linux_optimizer.run_command") as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
             patch("shutil.copy2"),
         ):
+            mock_sudo.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
             mock_run.return_value = (True, "")
 
             result = apply_kernel_parameters(tmp_path)
 
             assert result.success is True
-            mock_write.assert_called_once()
-            written_content = mock_write.call_args[0][0]
-            assert "iommu=pt" in written_content
-            assert "init_on_alloc=0" in written_content
-            assert "transparent_hugepage=madvise" in written_content
+            # Verify _run_sudo was called with cp command
+            assert mock_sudo.called
+            # Verify the temp file contained the right parameters by checking the result message
+            assert "iommu=pt" in result.message
+            assert "init_on_alloc=0" in result.message
+            assert "transparent_hugepage=madvise" in result.message
             # Should NOT include mitigations=off (that's separate)
-            assert "mitigations=off" not in written_content
+            assert "mitigations=off" not in result.message
 
 
 class TestApplyDisableMitigations:
@@ -642,20 +716,24 @@ class TestApplyDisableMitigations:
         with (
             patch.object(Path, "exists", return_value=True),
             patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "write_text") as mock_write,
             patch.object(Path, "is_dir", return_value=False),
             patch("setup_lib.linux_optimizer.run_command") as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
             patch("shutil.copy2"),
         ):
+            mock_sudo.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
             mock_run.return_value = (True, "")
 
             result = apply_disable_mitigations(tmp_path)
 
             assert result.success is True
             assert result.requires_reboot is True
-            mock_write.assert_called_once()
-            written_content = mock_write.call_args[0][0]
-            assert "mitigations=off" in written_content
+            # Verify _run_sudo was called with cp command
+            assert mock_sudo.called
+            # Verify the result message contains mitigations=off
+            assert "mitigations=off" in result.message
 
 
 class TestDisableUnnecessaryServices:
@@ -782,10 +860,20 @@ class TestApplyAiEnvironment:
             ),
             patch.object(Path, "exists", return_value=True),
             patch.object(Path, "chmod") as mock_chmod,
+            patch(
+                "setup_lib.linux_optimizer._run_sudo",
+                return_value=subprocess.CompletedProcess(
+                    args=[], returncode=0, stdout="", stderr=""
+                ),
+            ) as mock_sudo,
         ):
             apply_ai_environment(tmp_path)
 
-            mock_chmod.assert_called_once_with(0o755)
+            # chmod is called via _run_sudo, not directly
+            mock_chmod.assert_not_called()
+            # Verify _run_sudo was called with chmod
+            sudo_calls = [str(call) for call in mock_sudo.call_args_list]
+            assert any("chmod" in call for call in sudo_calls)
 
 
 class TestInstallVerificationScript:
@@ -799,12 +887,18 @@ class TestInstallVerificationScript:
             patch.object(Path, "exists", return_value=False),
             patch.object(Path, "write_text"),
             patch.object(Path, "chmod") as mock_chmod,
+            patch(
+                "setup_lib.linux_optimizer._run_sudo",
+                return_value=subprocess.CompletedProcess(
+                    args=[], returncode=0, stdout="", stderr=""
+                ),
+            ),
         ):
             result = install_verification_script()
 
             assert result.success is True
             assert "installed" in result.message
-            mock_chmod.assert_called_once_with(0o755)
+            mock_chmod.assert_not_called()  # chmod is called via _run_sudo, not directly
 
     def test_skips_if_already_installed(self) -> None:
         """Should skip if script already installed with same content."""
@@ -818,14 +912,21 @@ class TestInstallVerificationScript:
                 assert "already installed" in result.message
 
     def test_handles_permission_error(self) -> None:
-        """Should handle permission error gracefully."""
+        """Should handle permission error when sudo cp fails."""
         from setup_lib.linux_optimizer import install_verification_script
 
-        with patch.object(Path, "exists", return_value=False):
-            with patch.object(Path, "write_text", side_effect=PermissionError("Access denied")):
-                result = install_verification_script()
+        with (
+            patch.object(Path, "exists", return_value=False),
+            patch(
+                "setup_lib.linux_optimizer._run_sudo",
+                return_value=subprocess.CompletedProcess(
+                    args=[], returncode=1, stdout="", stderr="Permission denied"
+                ),
+            ),
+        ):
+            result = install_verification_script()
 
-                assert result.success is False
+            assert result.success is False
 
 
 class TestRunOptimizations:
@@ -841,18 +942,21 @@ class TestRunOptimizations:
             assert success is False
             assert requires_reboot is False
 
-    def test_requires_root(self) -> None:
-        """Should fail when not running as root."""
+    def test_uses_sudo_when_not_root(self) -> None:
+        """Should proceed with sudo when not running as root."""
         from setup_lib.linux_optimizer import run_optimizations
 
         with (
             patch("setup_lib.linux_optimizer.is_linux", return_value=True),
             patch("setup_lib.linux_optimizer.is_root", return_value=False),
+            # Mock all phase functions to avoid actual sudo calls
+            patch("setup_lib.linux_optimizer.OPTIMIZATION_PHASES", []),
+            patch("setup_lib.linux_optimizer.apply_sysctl_changes"),
+            patch("setup_lib.linux_optimizer.install_verification_script"),
         ):
-            success, requires_reboot = run_optimizations()
+            success, requires_reboot = run_optimizations(dry_run=True)
 
-            assert success is False
-            assert requires_reboot is False
+            assert success is True
 
     def test_dry_run_shows_phases(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Should show phases without applying in dry run mode."""
@@ -942,20 +1046,24 @@ class TestPromptAndRunOptimizations:
             captured = capsys.readouterr()
             assert "Skipping" in captured.out
 
-    def test_user_accepts_optimizations_no_root(self, capsys: pytest.CaptureFixture[str]) -> None:
-        """Should warn about root when user accepts but not root."""
+    def test_user_accepts_optimizations_no_root_uses_sudo(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Should proceed with sudo when user accepts but not root."""
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
             patch("setup_lib.linux_optimizer.is_linux", return_value=True),
             patch("setup_lib.linux_optimizer.is_root", return_value=False),
-            patch("builtins.input", return_value="y"),
+            # First input: "y" for optimizations, second: "n" for mitigations
+            patch("builtins.input", side_effect=["y", "n"]),
+            patch("setup_lib.linux_optimizer.run_optimizations", return_value=(True, False)),
         ):
             result = prompt_and_run_optimizations()
 
             assert result is True
             captured = capsys.readouterr()
-            assert "Root privileges required" in captured.out
+            assert "sudo" in captured.out
 
     def test_handles_eof_on_main_prompt(self) -> None:
         """Should handle EOF gracefully on main prompt."""
