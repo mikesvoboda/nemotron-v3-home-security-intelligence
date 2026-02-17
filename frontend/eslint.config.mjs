@@ -21,6 +21,11 @@ export default tseslint.config(
       'tailwind.config.js',
       'postcss.config.js',
       'playwright.config.ts',
+      'playwright.config.build-validation.ts',
+      'scripts/**',
+      'tests/**',
+      'stryker.config.mjs',
+      'validate-storage-event-fix.js',
     ],
   },
 
@@ -30,6 +35,13 @@ export default tseslint.config(
   // TypeScript ESLint recommended rules
   ...tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
+
+  // Disable type-checked rules for non-TypeScript files (*.mjs, *.js, *.cjs)
+  // These files don't have tsconfig and can't provide type information
+  {
+    files: ['**/*.{js,mjs,cjs}'],
+    ...tseslint.configs.disableTypeChecked,
+  },
 
   // Main configuration for TypeScript/React files
   {
