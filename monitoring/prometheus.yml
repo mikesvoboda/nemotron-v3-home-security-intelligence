@@ -399,10 +399,11 @@ scrape_configs:
     scrape_interval: 15s
     scrape_timeout: 10s
     static_configs:
-      # cAdvisor runs in the rootless compose network (privileged mode for cgroups v2).
-      # Use the internal container name and port (8080) directly.
+      # cAdvisor runs as a rootful systemd service (not in the compose network).
+      # Use host.containers.internal to reach the host from inside Podman containers.
+      # Port 8088 matches the -port flag in monitoring/cadvisor/cadvisor.service.
       - targets:
-          - 'cadvisor:8080'
+          - 'host.containers.internal:8088'
     # Filter to only include containers from this compose project
     # and add helpful labels
     relabel_configs:
