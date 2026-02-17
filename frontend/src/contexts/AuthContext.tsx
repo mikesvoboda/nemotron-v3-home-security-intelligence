@@ -184,9 +184,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const register = useCallback(
     async (data: RegisterRequest) => {
       await registerApi(data);
-      // Refetch setup status and current user after registration
-      await queryClient.invalidateQueries({ queryKey: SETUP_STATUS_KEY });
-      await queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
+      // Refetch setup status and current user after registration.
+      // Use refetchQueries (not invalidateQueries) to ensure the new data
+      // is fetched before returning — prevents race condition where navigation
+      // to '/' sees stale setup_required=true from the cache.
+      await queryClient.refetchQueries({ queryKey: SETUP_STATUS_KEY });
+      await queryClient.refetchQueries({ queryKey: CURRENT_USER_KEY });
     },
     [queryClient]
   );

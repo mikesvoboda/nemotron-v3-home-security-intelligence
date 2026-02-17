@@ -1034,6 +1034,12 @@ def main() -> None:
     """Main entry point for setup script."""
     parser = argparse.ArgumentParser(description="Interactive setup for Home Security Intelligence")
     parser.add_argument(
+        "command",
+        nargs="?",
+        default=None,
+        help="Command to run (e.g., 'deploy')",
+    )
+    parser.add_argument(
         "--guided",
         action="store_true",
         help="Run in guided mode with detailed explanations",
@@ -1064,7 +1070,73 @@ def main() -> None:
         action="store_true",
         help="Auto-accept all prompts (non-interactive quick mode with model downloads)",
     )
+    parser.add_argument(
+        "--destroy-volumes",
+        action="store_true",
+        help="(deploy) Destroy all volumes before deploy",
+    )
+    parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="(deploy) Skip container image builds",
+    )
+    parser.add_argument(
+        "--export",
+        action="store_true",
+        help="(deploy) Export models before deploy",
+    )
+    parser.add_argument(
+        "--force-export",
+        action="store_true",
+        help="(deploy) Force re-export all models",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="(deploy) Show full build output",
+    )
     args = parser.parse_args()
+
+    # Deploy mode: delegate to setup_lib.deploy
+    if args.command == "deploy":
+        from setup_lib.deploy import DeployConfig, detect_compose_command, load_env, run_deploy
+
+        project_root = Path(__file__).resolve().parent
+        env = load_env(project_root)
+        compose_cmd = detect_compose_command()
+
+        config = DeployConfig(
+            project_root=project_root,
+            compose_cmd=compose_cmd,
+            destroy_volumes=args.destroy_volumes,
+            skip_build=args.skip_build,
+            skip_export=not args.export,  # --export enables, default is skip
+            force_export=args.force_export,
+            verbose=args.verbose,
+            env=env,
+        )
+
+        # Print banner
+        branch = subprocess.run(  # noqa: S603
+            ["git", "-C", str(project_root), "branch", "--show-current"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        commit = subprocess.run(  # noqa: S603
+            ["git", "-C", str(project_root), "rev-parse", "--short", "HEAD"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        print("=== Production Deploy ===")
+        print(f"Branch: {branch}")
+        print(f"Commit: {commit}")
+        print()
+
+        success = run_deploy(config)
+        sys.exit(0 if success else 1)
 
     try:
         # Step 0: Platform detection and validation
