@@ -22,6 +22,7 @@ from setup_lib.credentials import (
     validate_password_strength,
 )
 from setup_lib.credentials import generate_password as generate_secure_password
+from setup_lib.deploy import DeployConfig, run_deploy
 from setup_lib.nvidia_toolkit import (
     ToolkitInstallationSummary,
     configure_docker_runtime,
@@ -70,6 +71,7 @@ __all__ = [
     "WEAK_PASSWORDS",
     "CredentialConfig",
     "CredentialsManager",
+    "DeployConfig",
     "PasswordStrength",
     "PortConflict",
     "PortScanResult",
@@ -107,6 +109,7 @@ __all__ = [
     "prompt_and_scan_ports",
     "redact_secret",
     "restart_docker_daemon",
+    "run_deploy",
     "scan_ports",
     "scan_required_ports",
     "setup_nvidia_container_toolkit",
