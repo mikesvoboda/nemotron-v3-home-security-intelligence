@@ -187,28 +187,33 @@ class TestWriteConfigFile:
             assert config_path.read_text() == content
 
     def test_handles_permission_error(self) -> None:
-        """Should handle permission error gracefully."""
+        """Should handle permission error when sudo cp fails."""
         from setup_lib.linux_optimizer import write_config_file
 
-        with patch("pathlib.Path.exists", return_value=False):
-            with patch("pathlib.Path.mkdir", side_effect=PermissionError("Access denied")):
-                success, modified = write_config_file(Path("/etc/test.conf"), "content")
+        def mock_sudo_fail(args: list[str], **kwargs):
+            if args[0] == "cp" and len(args) == 3 and args[2] == "/etc/test.conf":
+                return subprocess.CompletedProcess(
+                    args=args, returncode=1, stdout="", stderr="Permission denied"
+                )
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-                assert success is False
-                assert modified is False
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo_fail):
+            success, modified = write_config_file(Path("/etc/test.conf"), "content")
+
+            assert success is False
+            assert modified is False
 
     def test_handles_os_error_on_write(self, tmp_path: Path) -> None:
-        """Should handle OS error when writing file."""
+        """Should handle OS error when tempfile creation fails."""
         from setup_lib.linux_optimizer import write_config_file
 
         config_path = tmp_path / "test.conf"
 
-        with patch.object(Path, "write_text", side_effect=OSError("Disk full")):
-            with patch.object(Path, "exists", return_value=False):
-                success, modified = write_config_file(config_path, "content")
+        with patch("tempfile.NamedTemporaryFile", side_effect=OSError("Disk full")):
+            success, modified = write_config_file(config_path, "content")
 
-                assert success is False
-                assert modified is False
+            assert success is False
+            assert modified is False
 
 
 class TestRunCommand:
@@ -907,14 +912,21 @@ class TestInstallVerificationScript:
                 assert "already installed" in result.message
 
     def test_handles_permission_error(self) -> None:
-        """Should handle permission error gracefully."""
+        """Should handle permission error when sudo cp fails."""
         from setup_lib.linux_optimizer import install_verification_script
 
-        with patch.object(Path, "exists", return_value=False):
-            with patch.object(Path, "write_text", side_effect=PermissionError("Access denied")):
-                result = install_verification_script()
+        with (
+            patch.object(Path, "exists", return_value=False),
+            patch(
+                "setup_lib.linux_optimizer._run_sudo",
+                return_value=subprocess.CompletedProcess(
+                    args=[], returncode=1, stdout="", stderr="Permission denied"
+                ),
+            ),
+        ):
+            result = install_verification_script()
 
-                assert result.success is False
+            assert result.success is False
 
 
 class TestRunOptimizations:
