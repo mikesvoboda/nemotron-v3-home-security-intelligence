@@ -274,7 +274,7 @@ class DetectionStreamService:
 
         if not camera_id:
             raise ValueError("camera_id is required")
-        if not detection_id:
+        if detection_id is None:
             raise ValueError("detection_id is required")
         if not file_path:
             raise ValueError("file_path is required")

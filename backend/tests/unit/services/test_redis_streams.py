@@ -301,7 +301,7 @@ class TestDetectionStreamServiceAddDetection:
         with pytest.raises(ValueError, match="detection_id is required"):
             await stream_service.add_detection(
                 camera_id="front_door",
-                detection_id=0,
+                detection_id=None,
                 file_path="/path/to/image.jpg",
             )
 
