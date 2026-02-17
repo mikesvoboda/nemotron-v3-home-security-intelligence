@@ -542,7 +542,12 @@ def _update_grub_parameters(backup_dir: Path, kernel_params: dict[str, str]) -> 
     efi_grub = Path("/boot/efi/EFI/fedora/grub.cfg")
     legacy_grub = Path("/boot/grub2/grub.cfg")
 
-    if Path("/sys/firmware/efi").is_dir() and efi_grub.parent.exists():
+    try:
+        efi_parent_exists = efi_grub.parent.exists()
+    except PermissionError:
+        efi_parent_exists = False
+
+    if Path("/sys/firmware/efi").is_dir() and efi_parent_exists:
         success, output = run_command(["grub2-mkconfig", "-o", str(efi_grub)], check=False)
     else:
         success, output = run_command(["grub2-mkconfig", "-o", str(legacy_grub)], check=False)
