@@ -391,42 +391,83 @@ def _add_to_shell_profile() -> None:
 
 
 def install_podman_compose() -> bool:
-    """Install podman-compose via pip.
+    """Install podman-compose.
+
+    Tries in order:
+      1. apt install podman-compose (Debian/Ubuntu)
+      2. pipx install podman-compose
+      3. pip3 install --user --break-system-packages podman-compose
 
     Returns:
         True if installation succeeded, False otherwise.
     """
-    try:
-        # Install via pip3 with user flag
+    import os
+
+    local_bin = str(Path.home() / ".local" / "bin")
+
+    def _ensure_local_bin_in_path() -> None:
+        if local_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
+
+    def _verify_and_report() -> bool:
+        _ensure_local_bin_in_path()
+        if is_podman_compose_installed():
+            print("+ podman-compose installed successfully")
+            _add_to_shell_profile()
+            return True
+        print("! podman-compose installed but not in PATH")
+        print('  Add to your ~/.bashrc: export PATH="$HOME/.local/bin:$PATH"')
+        return True  # installed, just not in PATH yet
+
+    # 1. Try system package manager (preferred — no pip/pipx needed)
+    pkg_cmds: list[list[str]] = []
+    if shutil.which("apt"):
+        pkg_cmds.append(["sudo", "apt", "install", "-y", "podman-compose"])  # noqa: S607
+    if shutil.which("dnf"):
+        pkg_cmds.append(["sudo", "dnf", "install", "-y", "podman-compose"])  # noqa: S607
+    if shutil.which("pacman"):
+        pkg_cmds.append(["sudo", "pacman", "-S", "--noconfirm", "podman-compose"])  # noqa: S607
+
+    for pkg_cmd in pkg_cmds:
+        result = subprocess.run(pkg_cmd, check=False, capture_output=True, text=True)  # noqa: S607
+        if result.returncode == 0 and is_podman_compose_installed():
+            print(f"+ podman-compose installed via {pkg_cmd[1]}")
+            return True
+
+    # 2. Try pipx
+    if shutil.which("pipx"):
         result = subprocess.run(
-            ["pip3", "install", "--user", "podman-compose"],  # noqa: S607
+            ["pipx", "install", "podman-compose"],  # noqa: S607
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return _verify_and_report()
+
+    # 3. Fall back to pip3 with --break-system-packages
+    try:
+        result = subprocess.run(
+            ["pip3", "install", "--user", "--break-system-packages", "podman-compose"],  # noqa: S607
             check=False,
             capture_output=True,
             text=True,
         )
 
         if result.returncode != 0:
+            # Last-ditch attempt without the flag (older pip)
+            result = subprocess.run(
+                ["pip3", "install", "--user", "podman-compose"],  # noqa: S607
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        if result.returncode != 0:
             print(f"! pip install failed: {result.stderr}")
             return False
 
-        # Add ~/.local/bin to PATH for current session
-        import os
-
-        local_bin = str(Path.home() / ".local" / "bin")
-        if local_bin not in os.environ.get("PATH", ""):
-            os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
-
-        # Verify installation
-        if is_podman_compose_installed():
-            print("+ podman-compose installed successfully")
-
-            # Add to shell profile for persistence
-            _add_to_shell_profile()
-            return True
-        else:
-            print("! podman-compose installed but not in PATH")
-            print('  Add to your ~/.bashrc: export PATH="$HOME/.local/bin:$PATH"')
-            return True  # Still return True as it's installed
+        return _verify_and_report()
 
     except FileNotFoundError:
         print("! pip3 not found")
