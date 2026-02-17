@@ -61,6 +61,14 @@ echo "[1/6] Stopping all containers..."
 $COMPOSE down 2>/dev/null || true
 podman stop -a 2>/dev/null || true
 podman rm -a 2>/dev/null || true
+# Stop systemd-managed containers that auto-restart and conflict with compose
+# (Legacy from podman generate systemd — these use underscore naming vs compose's hyphen naming)
+systemctl --user stop container-postgres.service container-redis.service 2>/dev/null || true
+systemctl --user disable container-postgres.service container-redis.service 2>/dev/null || true
+# Kill orphaned rootlessport processes that survive container removal
+# These hold port bindings (5432, 6379, etc.) and cause "address already in use" on redeploy
+pkill -u "$(id -u)" rootlessport 2>/dev/null || true
+sleep 1
 # Stop rootful dcgm-exporter if running (separate from rootless compose)
 sudo systemctl stop dcgm-exporter 2>/dev/null || true
 
@@ -69,11 +77,19 @@ if [ "$DESTROY_VOLUMES" = true ]; then
     podman volume prune -f 2>/dev/null || true
 fi
 
-# Ensure network exists (survives reboot)
-NETWORK_NAME="nemotron-v3-home-security-intelligence_security-net"
-if ! podman network exists "$NETWORK_NAME" 2>/dev/null; then
-    echo "  Creating network: $NETWORK_NAME"
-    podman network create "$NETWORK_NAME" 2>/dev/null || true
+# Remove stale networks so compose can recreate them with correct labels
+# (Manually-created networks lack compose labels and cause "incorrect label" errors)
+podman network rm nemotron-v3-home-security-intelligence_security-net 2>/dev/null || true
+
+# Detect corrupted container storage (broken overlay layers, missing .containerenv, etc.)
+# This can happen after interrupted builds, manual prunes, or unclean shutdowns.
+# "podman system check" exits 0 on healthy storage, non-zero when corruption is found.
+if ! podman system check &>/dev/null; then
+    echo "  WARNING: Corrupted container storage detected!"
+    podman system check 2>&1 | head -5 | sed 's/^/    /'
+    echo "  Repairing with podman system reset..."
+    podman system reset --force 2>/dev/null || true
+    echo "  Storage reset complete. All images will be rebuilt."
 fi
 
 echo "  Done."
@@ -116,9 +132,15 @@ else
     podman build --no-cache -f "$PROJECT_ROOT/docker/base.Dockerfile" \
         -t ghcr.io/mikesvoboda/nemotron-base:latest "$PROJECT_ROOT" 2>&1 | tail -1
 
-    # Build all service images via compose (ensures correct image naming)
-    echo "  Building all services via compose..."
-    $COMPOSE build --no-cache $CUDA_ARCH backend frontend ai-gateway ai-llm 2>&1 | tail -5
+    # Build application services with --no-cache (source code changes frequently)
+    echo "  Building application services (--no-cache)..."
+    $COMPOSE build --no-cache backend frontend ai-gateway 2>&1 | tail -5
+
+    # Build ai-llm WITH cache — it's just llama.cpp pinned to b7972, no app code.
+    # CUDA compilation takes ~5-10 min; caching makes redeploys seconds.
+    # Use --no-cache here only when bumping llama.cpp version or CUDA config.
+    echo "  Building ai-llm (cached — no app code, just llama.cpp b7972)..."
+    $COMPOSE build $CUDA_ARCH ai-llm 2>&1 | tail -5
 
     echo "  All images built."
 fi
@@ -194,19 +216,30 @@ $COMPOSE up -d --no-build postgres redis go2rtc 2>&1 | tail -3
 echo "  Waiting for postgres/redis..."
 sleep 10
 
-$COMPOSE up -d --no-build \
+# No --no-build: monitoring services with build: directives (e.g. pyroscope)
+# need to be built if their images were pruned or don't exist yet
+$COMPOSE up -d \
     prometheus grafana loki tempo alertmanager alloy \
     node-exporter pyroscope blackbox-exporter json-exporter redis-exporter \
-    cadvisor 2>&1 | tail -3
+    2>&1 | tail -3
 
-# dcgm-exporter runs as a rootful systemd service (DCGM requires host-level root).
-# It is NOT part of the rootless compose stack. See monitoring/dcgm/dcgm-exporter.service.
+# Rootful systemd services — these require host-level privileged access that
+# rootless Podman cannot provide. Managed separately from the compose stack.
+# dcgm-exporter: GPU hardware metrics (see monitoring/dcgm/dcgm-exporter.service)
 if systemctl is-enabled dcgm-exporter.service &>/dev/null; then
     sudo systemctl restart dcgm-exporter 2>/dev/null \
         && echo "  dcgm-exporter: restarted (rootful systemd service)" \
         || echo "  dcgm-exporter: failed to restart (check: sudo journalctl -u dcgm-exporter)"
 else
-    echo "  dcgm-exporter: skipped (not installed — run setup.py or see monitoring/dcgm/)"
+    echo "  dcgm-exporter: skipped (not installed — see monitoring/dcgm/)"
+fi
+# cadvisor: container metrics (see monitoring/cadvisor/cadvisor.service)
+if systemctl is-enabled cadvisor.service &>/dev/null; then
+    sudo systemctl restart cadvisor 2>/dev/null \
+        && echo "  cadvisor: restarted (rootful systemd service)" \
+        || echo "  cadvisor: failed to restart (check: sudo journalctl -u cadvisor)"
+else
+    echo "  cadvisor: skipped (not installed — see monitoring/cadvisor/)"
 fi
 echo "  Infrastructure + observability up."
 

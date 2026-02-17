@@ -38,7 +38,10 @@ from setup_lib.model_downloader import prompt_and_download_models
 from setup_lib.nvidia_detect import prompt_and_check_nvidia
 from setup_lib.platform_detect import get_platform_info, print_platform_info
 from setup_lib.podman_install import prompt_and_install_podman
-from setup_lib.rootful_services import prompt_and_install_dcgm_service
+from setup_lib.rootful_services import (
+    prompt_and_install_dcgm_service,
+    prompt_and_install_rootful_services,
+)
 from setup_lib.ssl_certs import prompt_and_generate_certificates
 from setup_lib.storage_config import prompt_and_configure_storage
 
@@ -1094,6 +1097,11 @@ def main() -> None:
             project_root = Path(__file__).resolve().parent
             prompt_and_install_dcgm_service(project_root, auto_install=True)
 
+            # Step 2c: Rootful services + host configuration
+            # - Memlock limits for eBPF profiling (Grafana Alloy)
+            # - cAdvisor systemd service (container metrics)
+            prompt_and_install_rootful_services(project_root, auto_install=True)
+
             # Step 3/5: Storage configuration
             storage_result = prompt_and_configure_storage({"auto_create": True})
         else:
@@ -1234,7 +1242,7 @@ def main() -> None:
 
         # Offer AI workstation optimizations on Linux (skip in defaults mode)
         if platform.system() == "Linux" and not args.defaults:
-            prompt_and_run_optimizations(skip=True)  # Skip optimizations during setup
+            prompt_and_run_optimizations()
 
         if not args.defaults:
             print()
