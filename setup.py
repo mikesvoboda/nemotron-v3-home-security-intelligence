@@ -1194,6 +1194,8 @@ def main() -> None:
         sys.exit(0 if success else 1)
 
     try:
+        driver_was_upgraded = False
+
         # Step 0: Platform detection and validation
         if not args.defaults:
             print("=" * 60)
@@ -1216,7 +1218,9 @@ def main() -> None:
 
             # Step 2/5: NVIDIA GPU detection
             # Auto-install without prompting for streamlined setup
-            prompt_and_check_nvidia({"auto_install": True})
+            nvidia_config: dict[str, object] = {"auto_install": True}
+            prompt_and_check_nvidia(nvidia_config)
+            driver_was_upgraded = bool(nvidia_config.get("driver_upgraded"))
 
             # Step 2b: DCGM Exporter service (GPU hardware metrics)
             # Installs a rootful systemd service for DCGM, which requires
@@ -1360,9 +1364,15 @@ def main() -> None:
         # This runs BEFORE model downloads because it may require a reboot.
         # If the user reboots, they re-run setup.py and models download after
         # the system is fully configured.
-        reboot_required = False
+        optimizer_reboot = False
         if platform.system() == "Linux" and not args.defaults:
-            _opt_success, reboot_required = prompt_and_run_optimizations()
+            _opt_success, optimizer_reboot = prompt_and_run_optimizations()
+
+        # Combine reboot signals: driver upgrade OR kernel parameter changes
+        # Both require a reboot before GPU containers can start.
+        reboot_required = optimizer_reboot or (
+            not args.defaults and driver_was_upgraded
+        )
 
         # Download AI models (skip in defaults mode, but enable for --yes mode)
         if not args.defaults or args.yes:
@@ -1370,8 +1380,13 @@ def main() -> None:
                 print()
                 print("=" * 60)
                 print("! System configuration changes require a reboot")
-                print("  Kernel parameters and driver options will not take")
-                print("  effect until after a restart.")
+                if driver_was_upgraded and not optimizer_reboot:
+                    print("  NVIDIA driver was upgraded — new driver loads after reboot.")
+                elif driver_was_upgraded and optimizer_reboot:
+                    print("  NVIDIA driver was upgraded and kernel parameters were changed.")
+                else:
+                    print("  Kernel parameters and driver options will not take")
+                    print("  effect until after a restart.")
                 print("=" * 60)
                 print()
                 try:
@@ -1400,8 +1415,40 @@ def main() -> None:
             config["skip_pull"] = True  # Skip image pull to save time
             prompt_and_pull_images(config)
 
-        # Auto-deploy: bring up all services
-        if not args.defaults:
+        # Auto-deploy or reboot
+        # Skip deploy if reboot is required — GPU containers will fail without
+        # the new driver's device nodes (/dev/nvidia*).
+        if not args.defaults and reboot_required:
+            print()
+            print("=" * 60)
+            print("  Reboot Required Before Deployment")
+            print("=" * 60)
+            print()
+            if driver_was_upgraded:
+                print("  The NVIDIA driver was upgraded and the new driver will")
+                print("  not load until after a reboot. GPU containers (ai-llm,")
+                print("  ai-gateway) cannot start without /dev/nvidia* devices.")
+            if optimizer_reboot:
+                print("  Kernel parameters were changed that require a reboot.")
+            print()
+            print("  After rebooting, deploy services with:")
+            print("    python3 setup.py deploy")
+            print()
+            try:
+                reboot_now = input("Reboot now? [Y/n]: ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                reboot_now = "n"
+
+            if reboot_now in ("y", "yes", ""):
+                print("  Rebooting...")
+                subprocess.run(["sudo", "reboot"], check=False)  # noqa: S603, S607
+            else:
+                print()
+                print("  Remember to reboot before deploying.")
+                print("  Then run: python3 setup.py deploy")
+
+        elif not args.defaults:
             print()
             print("=" * 60)
             print("  Deploying Services")
