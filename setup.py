@@ -663,15 +663,35 @@ def run_quick_mode() -> dict:
     ftp_password = prompt_with_default("FTP password", default_ftp_pw)
     print()
 
-    # Ports (optional customization)
-    print("-- Ports (press Enter to keep defaults) " + "-" * 21)
+    # Ports - auto-detected free ports (optional manual override)
+    print("-- Ports " + "-" * 52)
+    print("  Auto-detected free ports for all services.")
+    print()
+
+    # Group ports by category for display
+    categories: dict[str, list[tuple[str, int]]] = {}
     for service, info in SERVICES.items():
-        suggested = ports[service]
-        custom = prompt_with_default(f"{info['desc']}", str(suggested))
-        try:
-            ports[service] = int(custom)
-        except ValueError:
-            ports[service] = suggested
+        cat = info["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append((info["desc"], ports[service]))
+
+    for cat, items in categories.items():
+        print(f"  {cat}:")
+        for desc, port in items:
+            print(f"    {desc:<30s} {port}")
+    print()
+
+    manual = prompt_with_default("Configure ports manually?", "n")
+    if manual.lower() in ("y", "yes"):
+        print()
+        for service, info in SERVICES.items():
+            suggested = ports[service]
+            custom = prompt_with_default(f"{info['desc']}", str(suggested))
+            try:
+                ports[service] = int(custom)
+            except ValueError:
+                ports[service] = suggested
     print()
 
     # Detect GPU compute capability for optimized CUDA builds
@@ -817,19 +837,54 @@ def run_guided_mode() -> dict:
     print("  Step 4 of 5: Port Configuration")
     print("=" * 60)
     print()
-    print("Checking for port conflicts...")
+    print("Auto-detecting free ports for all services...")
+    print()
 
     assigned_ports: set[int] = set()
+    conflicts = []
     for service, info in SERVICES.items():
         default_port = info["port"]
-        if not check_port_available(default_port) or default_port in assigned_ports:
-            available = find_available_port(default_port, exclude=assigned_ports)
-            print(f"! {info['desc']} ({service}): port {default_port} in use")
-            ports[service] = int(prompt_with_default("  Alternative port", str(available)))
-        else:
-            print(f"+ {info['desc']}: {default_port}")
+        if check_port_available(default_port) and default_port not in assigned_ports:
             ports[service] = default_port
+        else:
+            available = find_available_port(default_port, exclude=assigned_ports)
+            ports[service] = available
+            conflicts.append(f"  {info['desc']}: {default_port} -> {available}")
         assigned_ports.add(ports[service])
+
+    if conflicts:
+        print("! Port conflicts detected, using alternatives:")
+        for c in conflicts:
+            print(c)
+        print()
+    else:
+        print("+ All default ports available")
+        print()
+
+    # Group ports by category for display
+    categories: dict[str, list[tuple[str, int]]] = {}
+    for service, info in SERVICES.items():
+        cat = info["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append((info["desc"], ports[service]))
+
+    for cat, items in categories.items():
+        print(f"  {cat}:")
+        for desc, port in items:
+            print(f"    {desc:<30s} {port}")
+    print()
+
+    manual = prompt_with_default("Configure ports manually?", "n")
+    if manual.lower() in ("y", "yes"):
+        print()
+        for service, info in SERVICES.items():
+            suggested = ports[service]
+            custom = prompt_with_default(f"  {info['desc']}", str(suggested))
+            try:
+                ports[service] = int(custom)
+            except ValueError:
+                ports[service] = suggested
     print()
 
     # Step 5: Summary
