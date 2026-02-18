@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "R17",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "walking",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "backyard",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. A person climbs over the back fence, walks quickly across the yard, and climbs over the opposite fence, using pro..."
+  }
+}

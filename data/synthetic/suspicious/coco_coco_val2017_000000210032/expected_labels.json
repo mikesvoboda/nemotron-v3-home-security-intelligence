@@ -1,0 +1,46 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000210032",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "bird",
+      "min_confidence": 0.5,
+      "count": 2
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 4
+    },
+    {
+      "class": "knife",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 25,
+    "max_score": 45,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 2 bird, 1 knife, 4 person. From COCO object detection dataset."
+  }
+}

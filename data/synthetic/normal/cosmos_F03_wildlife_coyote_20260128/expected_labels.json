@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "F03",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "side_yard",
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 25,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A coyote trots quickly through the yard along the fence line, alert and moving with purpose. Wild canine movemen..."
+  }
+}

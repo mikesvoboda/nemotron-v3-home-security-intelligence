@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P35_child_playing",
+  "category": "normal",
+  "name": "Child Playing",
+  "description": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A recognized child from the household. The child plays in the backyard, running around and playing with toys. Static elevated viewpoint, wide field of view covering patio and lawn area, wide-angle with slight edge softening, Clear high-quality footage with sharp details. Real-time speed, ",
+  "source": "cosmos",
+  "scene": {
+    "location": "backyard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A recognized child from the household. The child plays in the backyard, running around and playing with toys. Static elevated viewpoint, wide field of view covering patio and lawn area, wide-angle with slight edge softening, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

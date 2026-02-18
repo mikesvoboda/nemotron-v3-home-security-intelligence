@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "T10",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. S..."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "source": "cosmos",
+  "video_id": "T09",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "unknown",
+      "min_confidence": 0.5
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "checking",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home driveway at night, viewed from an elevated position on the garage. Three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Static el..."
+  }
+}

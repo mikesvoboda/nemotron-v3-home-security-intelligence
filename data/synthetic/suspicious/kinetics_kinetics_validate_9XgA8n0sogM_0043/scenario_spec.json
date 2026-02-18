@@ -1,0 +1,20 @@
+{
+  "id": "kinetics_validate_9XgA8n0sogM_0043",
+  "category": "suspicious",
+  "name": "Chasing",
+  "description": "Person performing action: chasing. Video clip from YouTube (9XgA8n0sogM), seconds 43-53.",
+  "source": "kinetics",
+  "scene": {
+    "location": "varies",
+    "camera_type": "varies",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 10.0
+  }
+}

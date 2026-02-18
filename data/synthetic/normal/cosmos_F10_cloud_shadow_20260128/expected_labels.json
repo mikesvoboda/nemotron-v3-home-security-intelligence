@@ -1,0 +1,35 @@
+{
+  "source": "cosmos",
+  "video_id": "F10",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "unknown",
+      "min_confidence": 0.5
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 25,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Large cloud shadows slowly drift across the driveway and lawn as clouds pass overhead. Gradual lighting changes, no pe..."
+  }
+}

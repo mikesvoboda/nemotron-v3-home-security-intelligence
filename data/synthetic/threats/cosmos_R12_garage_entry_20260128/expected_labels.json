@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "R12",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "walking",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A person with a clipboard walks slowly past the house, stopping to write notes while looking at the property, checking..."
+  }
+}

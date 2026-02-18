@@ -1,0 +1,41 @@
+{
+  "source": "cosmos",
+  "video_id": "P08",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
+  }
+}

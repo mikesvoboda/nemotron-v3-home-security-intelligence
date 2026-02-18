@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_F09_shadow_movement",
+  "category": "normal",
+  "name": "Shadow Movement",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Headlights from a passing car sweep across the porch, creating moving shadows that travel across the door and walls. No actual person present. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Headlights from a passing car sweep across the porch, creating moving shadows that travel across the door and walls. No actual person present. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import resource
 import subprocess
 import time
 import urllib.error
@@ -87,20 +88,33 @@ def phase_stop(config: DeployConfig) -> DeployResult:
         if check_result.stderr:
             for line in check_result.stderr.strip().splitlines()[:5]:
                 print(f"    {line}")
-        print("  Repairing with podman system reset...")
-        subprocess.run(
-            ["podman", "system", "reset", "--force"],  # noqa: S607
+        # Try non-destructive repair first (preserves images and build cache).
+        # Only fall back to full reset if repair fails.
+        print("  Attempting non-destructive repair...")
+        repair_result = subprocess.run(
+            ["podman", "system", "check", "--repair", "--force"],  # noqa: S607
             capture_output=True,
+            text=True,
             check=False,
         )
-        # Restart the podman socket after reset
-        subprocess.run(
-            ["systemctl", "--user", "restart", "podman.socket"],  # noqa: S607
-            capture_output=True,
-            check=False,
-        )
-        time.sleep(2)
-        print("  Storage reset complete. All images will be rebuilt.")
+        if repair_result.returncode == 0:
+            print("  Storage repaired (images preserved).")
+        else:
+            # Repair flag may not exist on older Podman — fall back to reset
+            print("  Repair failed, falling back to full reset...")
+            subprocess.run(
+                ["podman", "system", "reset", "--force"],  # noqa: S607
+                capture_output=True,
+                check=False,
+            )
+            # Restart the podman socket after reset
+            subprocess.run(
+                ["systemctl", "--user", "restart", "podman.socket"],  # noqa: S607
+                capture_output=True,
+                check=False,
+            )
+            time.sleep(2)
+            print("  Storage reset complete. All images will be rebuilt.")
 
     # Verify critical ports are freed
     postgres_port = int(config.env.get("POSTGRES_PORT", "5432"))
@@ -364,13 +378,20 @@ _MONITORING_SERVICES = [
     "loki",
     "tempo",
     "alertmanager",
-    "alloy",
+    # alloy started separately — memlock failure must not block other services
     "node-exporter",
     "pyroscope",
     "blackbox-exporter",
     "json-exporter",
     "redis-exporter",
 ]
+
+# Alloy requires high memlock for eBPF profiling (8GB).  Rootless Podman
+# cannot exceed the calling user's memlock ulimit, so if the session hasn't
+# picked up /etc/security/limits.d/50-memlock.conf yet (needs re-login),
+# alloy will fail with RLIMIT_MEMLOCK.  We start it in isolation so the
+# failure doesn't cascade to grafana, frontend, or other services.
+_ALLOY_MEMLOCK_BYTES = 8_589_934_592  # 8 GB — must match docker-compose.prod.yml
 
 
 def phase_infrastructure(config: DeployConfig) -> DeployResult:
@@ -395,6 +416,15 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
     ok = compose_run(config, "up", "-d", *_MONITORING_SERVICES)
     if not ok:
         print("  WARNING: Some monitoring services failed to start")
+
+    # Start alloy separately — its 8GB memlock can fail without re-login
+    soft, _ = resource.getrlimit(resource.RLIMIT_MEMLOCK)
+    if soft != resource.RLIM_INFINITY and soft < _ALLOY_MEMLOCK_BYTES:
+        print(f"  alloy: skipped (memlock {soft // 1024}KB < 8GB — re-login to apply limits)")
+    else:
+        alloy_ok = compose_run(config, "up", "-d", "alloy")
+        if not alloy_ok:
+            print("  alloy: failed to start (check memlock limits)")
 
     # Restart rootful systemd services
     for service_name, label in [
@@ -435,8 +465,13 @@ def phase_application(config: DeployConfig) -> DeployResult:
     print("  Starting all services (waiting up to 5min for model loading)...")
     ok = compose_run(config, "up", "-d", "--no-build", "--wait", "--wait-timeout", "300")
     if not ok:
-        # compose returns non-zero if --wait times out, but services may still be starting.
-        # Check if core services are at least running.
+        # compose --wait returns non-zero if any container fails or times out.
+        # A prior alloy RLIMIT error can leave other containers in "created"
+        # state. Retry critical services individually to ensure they start.
+        print("  Retrying critical services that may not have started...")
+        for svc in ("backend", "frontend", "ai-gateway", "ai-llm"):
+            compose_run(config, "up", "-d", "--no-build", svc)
+
         result = compose_run(config, "ps", "--format", "json", capture=True)
         if isinstance(result, subprocess.CompletedProcess) and result.returncode == 0:
             print("  Services started (some may still be initializing).")

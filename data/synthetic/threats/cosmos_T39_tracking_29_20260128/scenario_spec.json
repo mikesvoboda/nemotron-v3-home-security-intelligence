@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T39_tracking_29",
+  "category": "threats",
+  "name": "Tracking 29",
+  "description": "Suburban home driveway on overcast winter day, viewed from an elevated position on the garage. Snow covering the ground. Person in dark clothing highly visible against white snow. Overcast lighting, snow reflecting light. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway on overcast winter day, viewed from an elevated position on the garage. Snow covering the ground. Person in dark clothing highly visible against white snow. Overcast lighting, snow reflecting light. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}
