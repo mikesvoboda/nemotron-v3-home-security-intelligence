@@ -51,6 +51,7 @@ TRITON_METRICS_URL = os.getenv("TRITON_METRICS_URL", "http://localhost:8002")
 ALL_MODELS: list[str] = [
     "yolo26",
     "clip",
+    "clip_text",
     "florence2",
     "vehicle",
     "fashion_clip",
