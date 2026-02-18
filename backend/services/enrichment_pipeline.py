@@ -2599,16 +2599,31 @@ class EnrichmentPipeline:
                 gpu_keys.append("_florence")
                 gpu_coros.append(florence_task)
 
-            # Run GPU and CPU groups concurrently, each internally bounded
+            # Run GPU and CPU groups concurrently, each internally bounded.
+            # Per-task timeouts ensure individual slow tasks (e.g. CLIP) fail
+            # gracefully before the hard pipeline timeout fires.
+            gpu_task_timeout = self._pipeline_timeout * 0.7
+            cpu_task_timeout = self._pipeline_timeout * 0.5
+
             async def _run_gpu_group() -> list[Any]:
                 if not gpu_coros:
                     return []
-                return await bounded_gather(gpu_coros, limit=2, return_exceptions=True)
+                return await bounded_gather(
+                    gpu_coros,
+                    limit=2,
+                    task_timeout=gpu_task_timeout,
+                    return_exceptions=True,
+                )
 
             async def _run_cpu_group() -> list[Any]:
                 if not cpu_coros:
                     return []
-                return await bounded_gather(cpu_coros, limit=5, return_exceptions=True)
+                return await bounded_gather(
+                    cpu_coros,
+                    limit=5,
+                    task_timeout=cpu_task_timeout,
+                    return_exceptions=True,
+                )
 
             gpu_results_list, cpu_results_list = await asyncio.gather(
                 _run_gpu_group(), _run_cpu_group()

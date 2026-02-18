@@ -244,6 +244,7 @@ async def bounded_gather[T](
     coros: list[Awaitable[T]],
     *,
     limit: int = 10,
+    task_timeout: float | None = None,
     return_exceptions: bool = False,
 ) -> list[T]:
     """Execute awaitables concurrently with a limit on parallelism.
@@ -254,6 +255,11 @@ async def bounded_gather[T](
     Args:
         coros: List of awaitables to execute
         limit: Maximum number of concurrent tasks (default: 10)
+        task_timeout: Optional per-task timeout in seconds. When set, each
+            individual coroutine is wrapped in ``asyncio.timeout()`` so that
+            a single slow task can fail without blocking the entire batch.
+            If a task exceeds this timeout, ``asyncio.TimeoutError`` is raised
+            (or returned as a result when ``return_exceptions=True``).
         return_exceptions: If True, exceptions are returned as results
             instead of being raised
 
@@ -271,13 +277,25 @@ async def bounded_gather[T](
             [fetch_url(url) for url in urls],
             limit=10,
         )
+
+        # With per-task timeout (5s each)
+        results = await bounded_gather(
+            [fetch_url(url) for url in urls],
+            limit=10,
+            task_timeout=5.0,
+            return_exceptions=True,
+        )
     """
     semaphore = asyncio.Semaphore(limit)
 
     async def with_semaphore(index: int, coro: Awaitable[T]) -> tuple[int, T]:
         async with semaphore:
             try:
-                result = await coro
+                if task_timeout is not None:
+                    async with asyncio.timeout(task_timeout):
+                        result = await coro
+                else:
+                    result = await coro
                 return (index, result)
             except Exception as e:
                 # When return_exceptions=True, asyncio.gather will catch this
