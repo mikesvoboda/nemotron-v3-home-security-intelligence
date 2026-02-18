@@ -56,6 +56,7 @@ from backend.services.redis_streams import get_analysis_stream_service
 
 logger = get_logger(__name__)
 
+
 # TTL for batch closing flag (5 minutes) - prevents orphaned lock flags if process crashes
 # NEM-2507: This ensures closing flags auto-expire if the batch close operation doesn't complete
 BATCH_CLOSING_FLAG_TTL_SECONDS = 300
@@ -922,9 +923,7 @@ class BatchAggregator:
                                 batch_id=batch_id,
                                 camera_id=camera_id,
                                 detection_ids=detections,
-                                pipeline_start_time=float(pipeline_start_time)
-                                if pipeline_start_time
-                                else None,
+                                pipeline_start_time=pipeline_start_time,
                             )
                         else:
                             queue_item: dict[str, Any] = {
@@ -1091,9 +1090,7 @@ class BatchAggregator:
                         batch_id=batch_id,
                         camera_id=camera_id,
                         detection_ids=detections,
-                        pipeline_start_time=float(pipeline_start_time)
-                        if pipeline_start_time
-                        else None,
+                        pipeline_start_time=pipeline_start_time,
                     )
                 else:
                     result = await self._redis.add_to_queue_safe(
