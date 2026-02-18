@@ -44,7 +44,7 @@ import json
 import time
 import uuid
 from collections import defaultdict
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from backend.core.config import get_settings
@@ -1447,3 +1447,125 @@ class BatchAggregator:
                 },
                 exc_info=True,
             )
+
+
+# Maximum number of orphaned detections to recover per startup
+ORPHAN_RECOVERY_LIMIT = 500
+
+# Minimum age for a detection to be considered orphaned (must exceed 2x batch window)
+ORPHAN_MIN_AGE_MINUTES = 3
+
+
+async def recover_orphaned_detections(
+    batch_aggregator: BatchAggregator,
+) -> int:
+    """Recover orphaned detections that will never be processed.
+
+    When Redis is flushed or crashes, batch metadata is lost but detections
+    remain in Postgres without any event association. These detections are
+    permanently orphaned because no batch will ever close for them.
+
+    This function scans for such orphaned detections and re-injects them
+    into the batch aggregator pipeline so they can be processed normally.
+
+    Args:
+        batch_aggregator: The BatchAggregator instance to re-inject detections into.
+
+    Returns:
+        Total number of orphaned detections recovered.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import load_only
+
+    from backend.core.database import get_session
+    from backend.models.detection import Detection
+    from backend.models.event_detection import EventDetection
+
+    cutoff_time = datetime.now(UTC) - timedelta(minutes=ORPHAN_MIN_AGE_MINUTES)
+
+    try:
+        async with get_session() as session:
+            # Find detections that have no event association and are old enough
+            # to be considered orphaned (older than 2x batch window of 90s).
+            # Use a LEFT JOIN with event_detections and filter where event_id IS NULL.
+            stmt = (
+                select(Detection)
+                .outerjoin(
+                    EventDetection,
+                    Detection.id == EventDetection.detection_id,
+                )
+                .where(
+                    EventDetection.event_id.is_(None),
+                    Detection.detected_at < cutoff_time,
+                )
+                .options(
+                    load_only(
+                        Detection.id,
+                        Detection.camera_id,
+                        Detection.file_path,
+                        Detection.confidence,
+                        Detection.object_type,
+                    )
+                )
+                .order_by(Detection.detected_at.asc())
+                .limit(ORPHAN_RECOVERY_LIMIT)
+            )
+
+            result = await session.execute(stmt)
+            orphaned_detections = result.scalars().all()
+
+        if not orphaned_detections:
+            return 0
+
+        # Group by camera_id for logging and ordered re-injection
+        camera_groups: dict[str, list[Detection]] = defaultdict(list)
+        for detection in orphaned_detections:
+            camera_groups[detection.camera_id].append(detection)
+
+        total_recovered = 0
+        for camera_id, detections in camera_groups.items():
+            for detection in detections:
+                try:
+                    await batch_aggregator.add_detection(
+                        camera_id=detection.camera_id,
+                        detection_id=detection.id,
+                        _file_path=detection.file_path,
+                        confidence=detection.confidence,
+                        object_type=detection.object_type,
+                    )
+                    total_recovered += 1
+                except Exception as e:
+                    logger.error(
+                        "Failed to recover orphaned detection",
+                        extra={
+                            "detection_id": detection.id,
+                            "camera_id": camera_id,
+                            "error": str(e),
+                        },
+                    )
+
+            logger.warning(
+                "Recovered orphaned detections for camera",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_count": len(detections),
+                },
+            )
+
+        logger.warning(
+            "Recovered orphaned detections across cameras",
+            extra={
+                "total_recovered": total_recovered,
+                "camera_count": len(camera_groups),
+            },
+        )
+
+        return total_recovered
+
+    except Exception as e:
+        logger.error(
+            "Orphaned detection recovery failed",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
+        return 0

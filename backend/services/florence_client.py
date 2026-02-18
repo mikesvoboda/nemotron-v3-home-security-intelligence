@@ -91,6 +91,114 @@ class BoundingBox:
         """Return as dict for JSON serialization."""
         return {"x1": self.x1, "y1": self.y1, "x2": self.x2, "y2": self.y2}
 
+    def to_tuple(self) -> tuple[float, float, float, float]:
+        """Return as (x1, y1, x2, y2) tuple."""
+        return (self.x1, self.y1, self.x2, self.y2)
+
+    def to_int_tuple(self) -> tuple[int, int, int, int]:
+        """Return as (x1, y1, x2, y2) tuple with integer coordinates."""
+        return (int(self.x1), int(self.y1), int(self.x2), int(self.y2))
+
+    @classmethod
+    def from_xywh(
+        cls,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        image_width: int | None = None,
+        image_height: int | None = None,
+    ) -> BoundingBox | None:
+        """Create BoundingBox from (x, y, width, height) format with validation.
+
+        This method handles the conversion from Detection model format (bbox_x, bbox_y,
+        bbox_width, bbox_height) to BoundingBox format (x1, y1, x2, y2), with proper
+        validation and clamping to prevent invalid coordinates.
+
+        Args:
+            x: Top-left X coordinate
+            y: Top-left Y coordinate
+            w: Width of bounding box
+            h: Height of bounding box
+            image_width: Image width for bounds checking (optional)
+            image_height: Image height for bounds checking (optional)
+
+        Returns:
+            BoundingBox instance, or None if the bbox is invalid after clamping
+
+        Examples:
+            >>> BoundingBox.from_xywh(100, 150, 200, 400)
+            BoundingBox(x1=100, y1=150, x2=300, y2=550)
+
+            >>> # Invalid bbox: x=777 > image_width=640
+            >>> BoundingBox.from_xywh(777, 514, 200, 300, 640, 480)
+            None  # x1 >= image_width, completely outside
+        """
+        import math
+
+        from backend.core.logging import get_logger
+
+        logger = get_logger(__name__)
+
+        # Check for NaN or infinite values
+        if any(math.isnan(v) or math.isinf(v) for v in (x, y, w, h)):
+            logger.warning(
+                f"Bounding box contains NaN or infinite values: x={x}, y={y}, w={w}, h={h}"
+            )
+            return None
+
+        # Check for negative/zero dimensions
+        if w <= 0 or h <= 0:
+            logger.warning(f"Bounding box has non-positive dimensions: w={w}, h={h}")
+            return None
+
+        # Convert to (x1, y1, x2, y2) format
+        x1 = x
+        y1 = y
+        x2 = x + w
+        y2 = y + h
+
+        # If image dimensions provided, clamp to bounds
+        if image_width is not None and image_height is not None:
+            # Check if bbox is completely outside image
+            if x1 >= image_width or y1 >= image_height or x2 <= 0 or y2 <= 0:
+                logger.warning(
+                    f"Bounding box ({x}, {y}, {w}, {h}) -> ({x1}, {y1}, {x2}, {y2}) "
+                    f"is completely outside image bounds ({image_width}x{image_height})"
+                )
+                return None
+
+            # Clamp coordinates to image boundaries
+            x1_clamped = max(0, min(x1, image_width))
+            y1_clamped = max(0, min(y1, image_height))
+            x2_clamped = max(0, min(x2, image_width))
+            y2_clamped = max(0, min(y2, image_height))
+
+            # Check if resulting box is still valid
+            width_clamped = x2_clamped - x1_clamped
+            height_clamped = y2_clamped - y1_clamped
+
+            if width_clamped < 1 or height_clamped < 1:
+                logger.warning(
+                    f"Bounding box ({x}, {y}, {w}, {h}) -> ({x1}, {y1}, {x2}, {y2}) "
+                    f"became too small after clamping to ({image_width}x{image_height}): "
+                    f"width={width_clamped}, height={height_clamped}"
+                )
+                return None
+
+            # Log if clamping occurred
+            if x1 != x1_clamped or y1 != y1_clamped or x2 != x2_clamped or y2 != y2_clamped:
+                logger.warning(
+                    f"Bounding box ({x}, {y}, {w}, {h}) was clamped from "
+                    f"({x1}, {y1}, {x2}, {y2}) to ({x1_clamped}, {y1_clamped}, "
+                    f"{x2_clamped}, {y2_clamped}) within image bounds ({image_width}x{image_height})"
+                )
+
+            return cls(x1=x1_clamped, y1=y1_clamped, x2=x2_clamped, y2=y2_clamped)
+
+        # No image bounds provided, return as-is (will be validated later)
+        return cls(x1=x1, y1=y1, x2=x2, y2=y2)
+
 
 @dataclass(slots=True)
 class GroundedPhrase:

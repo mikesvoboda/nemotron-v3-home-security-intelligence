@@ -424,7 +424,7 @@ describe('SetupPage', () => {
       });
     });
 
-    it('redirects away if setup not required', async () => {
+    it('shows login link when setup not required', async () => {
       server.use(
         http.get('/api/auth/setup-status', () => {
           return HttpResponse.json({ setup_required: false });
@@ -438,8 +438,12 @@ describe('SetupPage', () => {
       render(<SetupPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/');
+        expect(screen.getByText(/an account already exists/i)).toBeInTheDocument();
       });
+
+      const loginLink = screen.getByRole('link', { name: /login with existing account/i });
+      expect(loginLink).toBeInTheDocument();
+      expect(loginLink).toHaveAttribute('href', '/login');
     });
   });
 

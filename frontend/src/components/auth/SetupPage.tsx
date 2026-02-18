@@ -19,9 +19,9 @@
  * @see NEM-5322 Phase 4: Frontend Integration
  */
 import { clsx } from 'clsx';
-import { AlertCircle, Shield, UserPlus } from 'lucide-react';
-import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { AlertCircle, LogIn, Shield, UserPlus } from 'lucide-react';
+import { useCallback, useId, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../common/Button';
@@ -136,13 +136,6 @@ export default function SetupPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Redirect away if setup is not required
-  useEffect(() => {
-    if (!isLoading && setupRequired === false) {
-      void navigate('/');
-    }
-  }, [isLoading, setupRequired, navigate]);
 
   /**
    * Handle form field changes.
@@ -385,6 +378,35 @@ export default function SetupPage() {
             {isSubmitting ? 'Creating...' : 'Create Account'}
           </Button>
         </form>
+
+        {/* Login link - shown when users already exist */}
+        {setupRequired === false && (
+          <div className="mt-6 rounded-lg border border-[#76B900]/20 bg-[#76B900]/5 px-4 py-4 text-center">
+            <p className="mb-3 text-sm text-gray-300">
+              An account already exists on this system.
+            </p>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#8ED100] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]"
+            >
+              <LogIn className="h-4 w-4" />
+              Login with existing account
+            </Link>
+          </div>
+        )}
+
+        {/* Setup link to login when setup is still required */}
+        {setupRequired === true && (
+          <p className="mt-6 text-center text-sm text-gray-400">
+            Already have an account?{' '}
+            <Link
+              to="/login"
+              className="text-[#76B900] hover:text-[#8ED100] hover:underline focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]"
+            >
+              Sign in
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

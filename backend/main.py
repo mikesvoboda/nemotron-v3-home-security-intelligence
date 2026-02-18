@@ -640,6 +640,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             "Pipeline workers started (detection, analysis, batch timeout, metrics)"
         )
 
+        # Recover orphaned detections that were left in Postgres without
+        # event associations (e.g., after Redis flush or crash). This must
+        # run after pipeline manager starts so batches can be processed.
+        from backend.services.batch_aggregator import recover_orphaned_detections
+
+        batch_agg = pipeline_manager._aggregator
+        recovered = await recover_orphaned_detections(batch_agg)
+        if recovered > 0:
+            lifespan_logger.warning(f"Recovered {recovered} orphaned detections into new batches")
+
         # Initialize WorkerSupervisor for automatic crash recovery (NEM-2460)
         # The supervisor monitors pipeline workers and restarts them if they crash
         async def on_worker_restart(name: str, attempt: int, error: str | None) -> None:
