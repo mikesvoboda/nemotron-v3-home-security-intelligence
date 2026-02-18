@@ -79,20 +79,25 @@ def detect_compose_command() -> list[str]:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
-    # Try external podman-compose (Podman 4.x)
-    if shutil.which("podman-compose"):
-        try:
-            result = subprocess.run(
-                ["podman-compose", "--version"],  # noqa: S607
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            if result.returncode == 0:
-                return ["podman-compose"]
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
+    # Try external podman-compose (Podman 4.x), including ~/.local/bin fallback
+    local_bin_compose = str(Path.home() / ".local" / "bin" / "podman-compose")
+    for compose_candidate in ["podman-compose", local_bin_compose]:
+        candidate_path = shutil.which(compose_candidate) or (
+            compose_candidate if Path(compose_candidate).is_file() else None
+        )
+        if candidate_path:
+            try:
+                result = subprocess.run(
+                    [candidate_path, "--version"],  # noqa: S607
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    return [candidate_path]
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
 
     raise RuntimeError(
         "No compose command found. Install podman-compose or upgrade to Podman 5.x+."

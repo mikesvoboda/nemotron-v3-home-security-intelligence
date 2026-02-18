@@ -104,15 +104,54 @@ def is_version_at_least(current: str | None, required: tuple[int, int, int]) -> 
     return parsed >= required
 
 
+def _install_podman5_dependencies() -> None:
+    """Install runtime dependencies required by Podman 5.x.
+
+    Podman 5.x uses pasta (from passt) for rootless networking instead of
+    slirp4netns. Without it, container builds and runs fail with:
+      "could not find pasta, the network namespace can't be configured"
+
+    Also migrates the container database from deprecated BoltDB to SQLite
+    to avoid warnings and prepare for Podman 6.0.
+    """
+    # Install passt (provides the pasta binary for rootless networking)
+    if not shutil.which("pasta"):
+        print("  Installing passt (required for Podman 5.x rootless networking)...")
+        result = subprocess.run(
+            ["sudo", "apt-get", "install", "-y", "passt"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            print("  + passt installed")
+        else:
+            print(f"  ! Failed to install passt: {result.stderr.strip()}")
+            print("    Container builds may fail without it")
+    else:
+        print("  + pasta already available")
+
+    # Migrate BoltDB → SQLite (required before Podman 6.0 removes BoltDB)
+    print("  Migrating Podman database to SQLite...")
+    result = subprocess.run(
+        ["podman", "system", "migrate", "--migrate-db"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        print("  + Podman database migrated to SQLite")
+    # Non-zero is fine if already migrated — suppress noise
+
+
 def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
-    """Upgrade Podman to 4.x or newer using Kubic repository.
+    """Upgrade Podman to 5.x (or 4.x as fallback) using Kubic repository.
 
-    Adds the Kubic repository which provides newer Podman versions (4.9+/5.x)
-    with BuildKit cache mount support. Cache mounts enable 5-10x faster rebuilds
-    by persisting pip/uv/npm downloads and CUDA object files between builds.
+    Tries the Kubic testing repo (Podman 5.x) first, then falls back to
+    unstable (Podman 4.x). Adds BuildKit cache mount support enabling
+    5-10x faster rebuilds.
 
-    Supports Ubuntu 20.04, 22.04, 24.04 by detecting version and using
-    appropriate repository.
+    Supports Ubuntu 20.04, 22.04, 24.04.
 
     Args:
         platform_info: Platform information from get_platform_info().
@@ -122,14 +161,14 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
     """
     # Only supported on Debian/Ubuntu systems with apt
     package_manager = str(platform_info.get("package_manager", ""))
-    version = str(platform_info.get("version", ""))
+    distro = platform_info.get("distro") or {}
+    version = str(distro.get("version_id", ""))
 
     if package_manager != "apt":
-        print("! Podman 4.x+ upgrade only supported on Debian/Ubuntu")
+        print("! Podman 5.x upgrade only supported on Debian/Ubuntu")
         return False
 
-    # Map Ubuntu version to Kubic repository URL
-    # Use exact match for Ubuntu, fallback for Debian
+    # Map Ubuntu version to Kubic repository label
     repo_map = {
         "20.04": "xUbuntu_20.04",
         "22.04": "xUbuntu_22.04",
@@ -138,7 +177,6 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
 
     repo_version = repo_map.get(version)
     if repo_version is None:
-        # Try to infer for Debian or unknown Ubuntu versions
         if "20" in version:
             repo_version = "xUbuntu_20.04"
         elif "22" in version:
@@ -150,71 +188,118 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
             print("  Supported versions: 20.04, 22.04, 24.04")
             return False
 
-    print(f"Upgrading Podman from Kubic repository ({repo_version})...")
+    # Ordered list of repos to try, targeting 5.x first.
+    # Each entry: (label, base_url_template, sources_filename, gpg_filename)
+    # {repo_version} is substituted with e.g. "xUbuntu_22.04"
+    repo_candidates = [
+        (
+            "alvistack/podman-5",
+            "https://download.opensuse.org/repositories/home:/alvistack/{repo_version}",
+            "home:alvistack.list",
+            "alvistack.gpg",
+        ),
+        (
+            "Kubic testing",
+            "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/testing/{repo_version}",
+            "devel:kubic:libcontainers:testing.list",
+            "kubic-libcontainers-testing.gpg",
+        ),
+        (
+            "Kubic unstable",
+            "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/{repo_version}",
+            "devel:kubic:libcontainers:unstable.list",
+            "kubic-libcontainers-unstable.gpg",
+        ),
+    ]
 
-    try:
-        # Add Kubic repository for detected OS version
-        base_url = f"https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/{repo_version}"
+    def _remove_source(sources_file: str, gpg_file: str) -> None:
+        """Remove apt source and GPG key files (best-effort cleanup)."""
+        for path in (sources_file, gpg_file):
+            subprocess.run(["sudo", "rm", "-f", path], capture_output=True, check=False)  # noqa: S607
+
+    # Remove any stale sources files from previous failed attempts before starting
+    for _, _, sf, gf in repo_candidates:
+        sf_path = f"/etc/apt/sources.list.d/{sf}"
+        gf_path = f"/etc/apt/trusted.gpg.d/{gf}"
+        if Path(sf_path).exists() or Path(gf_path).exists():
+            _remove_source(sf_path, gf_path)
+
+    for label, url_template, sources_filename, gpg_filename in repo_candidates:
+        base_url = url_template.format(repo_version=repo_version)
         repo_line = f"deb {base_url}/ /"
+        sources_file = f"/etc/apt/sources.list.d/{sources_filename}"
+        gpg_file = f"/etc/apt/trusted.gpg.d/{gpg_filename}"
 
-        subprocess.run(
-            ["sudo", "tee", "/etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list"],  # noqa: S607
-            input=repo_line,
-            text=True,
-            check=True,
-            capture_output=True,
-        )
+        print(f"Trying {label} repo ({repo_version})...")
 
-        # Add GPG key (use detected OS version)
-        key_url = f"{base_url}/Release.key"
-        result = subprocess.run(
-            ["curl", "-fsSL", key_url],  # noqa: S607
-            capture_output=True,
-            check=True,
-        )
+        try:
+            # Fetch GPG key first — if this fails the repo doesn't exist for this OS
+            key_result = subprocess.run(
+                ["curl", "-fsSL", f"{base_url}/Release.key"],  # noqa: S607
+                capture_output=True,
+                check=True,
+                timeout=30,
+            )
+            if not key_result.stdout:
+                print(f"  {label}: empty GPG key, skipping")
+                continue
 
-        subprocess.run(
-            [  # noqa: S607
-                "sudo",
-                "gpg",
-                "--dearmor",
-                "-o",
-                "/etc/apt/trusted.gpg.d/kubic-libcontainers-unstable.gpg",
-            ],
-            input=result.stdout,
-            check=True,
-            capture_output=True,
-        )
+            # Write apt sources entry
+            subprocess.run(
+                ["sudo", "tee", sources_file],  # noqa: S607
+                input=repo_line,
+                text=True,
+                check=True,
+                capture_output=True,
+            )
 
-        # Update package list
-        subprocess.run(
-            ["sudo", "apt-get", "update"],  # noqa: S607
-            check=True,
-            capture_output=True,
-        )
+            # Import GPG key (--yes overwrites existing file)
+            subprocess.run(
+                ["sudo", "gpg", "--yes", "--dearmor", "-o", gpg_file],  # noqa: S607
+                input=key_result.stdout,
+                check=True,
+                capture_output=True,
+            )
 
-        # Upgrade podman
-        subprocess.run(
-            ["sudo", "apt-get", "install", "-y", "podman"],  # noqa: S607
-            check=True,
-            capture_output=True,
-        )
+            # Update only the new source, then install
+            update_result = subprocess.run(
+                ["sudo", "apt-get", "update"],  # noqa: S607
+                capture_output=True,
+                check=False,
+            )
+            # apt-get update returns 100 if ANY repo fails — check the specific source
+            if update_result.returncode != 0:
+                stderr = update_result.stderr.decode(errors="replace")
+                if sources_file.replace("/etc/apt/sources.list.d/", "") in stderr or base_url in stderr:
+                    print(f"  {label}: repo update failed, skipping")
+                    _remove_source(sources_file, gpg_file)
+                    continue
+                # Other repos failed (not our new one) — proceed anyway
 
-        # Verify upgrade
-        new_version = get_podman_version()
-        if new_version and is_version_at_least(new_version, (4, 0, 0)):
-            print(f"+ Podman upgraded to {new_version}")
-            return True
-        else:
-            print(f"! Upgrade may have failed (version: {new_version})")
-            return False
+            subprocess.run(
+                ["sudo", "apt-get", "install", "-y", "podman"],  # noqa: S607
+                check=True,
+                capture_output=True,
+            )
 
-    except subprocess.CalledProcessError as e:
-        print(f"! Upgrade failed: {e}")
-        return False
-    except OSError as e:
-        print(f"! Upgrade failed: {e}")
-        return False
+            new_version = get_podman_version()
+            if new_version and is_version_at_least(new_version, (4, 0, 0)):
+                print(f"+ Podman upgraded to {new_version} (via {label})")
+                _install_podman5_dependencies()
+                return True
+
+            print(f"  {label}: installed but version check failed ({new_version})")
+            _remove_source(sources_file, gpg_file)
+
+        except subprocess.CalledProcessError as e:
+            print(f"  {label} failed: {e}")
+            _remove_source(sources_file, gpg_file)
+        except OSError as e:
+            print(f"  {label} failed: {e}")
+            _remove_source(sources_file, gpg_file)
+
+    print("! Podman upgrade failed via all repositories")
+    return False
 
 
 def get_install_command(platform_info: PlatformInfo) -> list[str] | None:
@@ -337,7 +422,13 @@ def _do_install_podman(
 
     # Run installation
     if not install_podman(platform_info):
-        print("! Podman installation failed")
+        print("! Standard Podman installation failed, trying Kubic repository...")
+        if not upgrade_podman_to_4x(platform_info):
+            print("! Podman installation failed via all methods")
+            return False
+
+    if not is_podman_installed():
+        print("! Podman not found after installation attempt")
         return False
 
     print("Podman installed successfully")
@@ -697,22 +788,26 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
 
     # Check if already installed
     if is_podman_installed():
-        # Check version (need 4.0+ for BuildKit cache mount support)
+        # Check version (need 5.0+ for native podman compose support)
         current_version = get_podman_version()
         if current_version:
             print(f"Podman {current_version} detected")
 
-            if not is_version_at_least(current_version, (4, 0, 0)):
-                print("! Podman 3.x detected - need 4.0+ for BuildKit cache mounts")
+            if not is_version_at_least(current_version, (5, 0, 0)):
+                print("! Podman < 5.0 detected - upgrading for native compose and BuildKit support")
 
                 auto_install = bool(config and config.get("auto_install"))
                 if auto_install:
-                    print("Upgrading to Podman 4.x...")
+                    print("Upgrading to Podman 5.x...")
                     upgrade_podman_to_4x(platform_info)
                 else:
-                    response = input("Upgrade to Podman 4.x for faster builds? [y/N]: ")
+                    response = input("Upgrade to Podman 5.x? [y/N]: ")
                     if response.lower() in ("y", "yes"):
                         upgrade_podman_to_4x(platform_info)
+
+        # Ensure Podman 5.x runtime dependencies are present
+        if is_version_at_least(get_podman_version(), (5, 0, 0)):
+            _install_podman5_dependencies()
 
         # Also check and install podman-compose
         if not is_podman_compose_installed():
@@ -730,9 +825,9 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
     # If Podman was installed successfully, check version and upgrade if needed
     if success:
         current_version = get_podman_version()
-        if current_version and not is_version_at_least(current_version, (4, 0, 0)):
-            print(f"\nPodman {current_version} installed, but 4.0+ is recommended")
-            print("Upgrading to Podman 4.x for BuildKit support...")
+        if current_version and not is_version_at_least(current_version, (5, 0, 0)):
+            print(f"\nPodman {current_version} installed, but 5.0+ is recommended")
+            print("Upgrading to Podman 5.x...")
             upgrade_podman_to_4x(platform_info)
 
         # Install podman-compose

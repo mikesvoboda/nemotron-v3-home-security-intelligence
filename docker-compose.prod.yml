@@ -355,7 +355,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Enables backend to manage AI service containers for self-healing
-      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}:ro
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
@@ -421,7 +421,7 @@ services:
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
       # Container orchestrator: connect to Podman socket for self-healing
       # Socket is mounted read-only from host for container management
-      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///run/user/1000/podman/podman.sock}
+      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///${PODMAN_SOCKET}}
     depends_on:
       postgres:
         condition: service_healthy
@@ -1205,7 +1205,7 @@ services:
     user: root
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
-      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
@@ -1220,9 +1220,11 @@ services:
         hard: 8589934592
     environment:
       - HOST_PROC=/host/proc
+      - PODMAN_SOCKET=${PODMAN_SOCKET}
     command:
       - run
       - --stability.level=public-preview
+      - --storage.path=/tmp/alloy
       - /etc/alloy/config.alloy
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:

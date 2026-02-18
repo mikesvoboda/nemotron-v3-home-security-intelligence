@@ -14,8 +14,9 @@
 // ============================================
 
 // Discover containers via Podman socket
+// PODMAN_SOCKET is set dynamically from the host UID (e.g. /run/user/1002/podman/podman.sock)
 discovery.docker "containers" {
-  host = "unix:///run/user/1000/podman/podman.sock"
+  host = "unix:///" + env("PODMAN_SOCKET")
 }
 
 // Relabel targets to add container metadata as labels
@@ -48,7 +49,7 @@ discovery.relabel "containers" {
 
 // Scrape container logs from Podman
 loki.source.docker "default" {
-  host       = "unix:///run/user/1000/podman/podman.sock"
+  host       = "unix:///" + env("PODMAN_SOCKET")
   targets    = discovery.relabel.containers.output
   forward_to = [loki.process.parse.receiver]
 }
@@ -157,7 +158,7 @@ loki.write "local" {
 // Discover containers for eBPF profiling
 // Uses Podman socket (same as log collection)
 discovery.docker "profiling_targets" {
-  host = "unix:///run/user/1000/podman/podman.sock"
+  host = "unix:///" + env("PODMAN_SOCKET")
 }
 
 // Relabel to filter and configure profiling targets

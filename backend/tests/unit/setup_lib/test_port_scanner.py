@@ -18,33 +18,38 @@ class TestRequiredPorts:
         """Should have required ports defined."""
         from setup_lib.port_scanner import REQUIRED_PORTS
 
-        assert 8080 in REQUIRED_PORTS
         assert 8000 in REQUIRED_PORTS
+        assert 5173 in REQUIRED_PORTS
+        assert 8443 in REQUIRED_PORTS
         assert 5432 in REQUIRED_PORTS
         assert 6379 in REQUIRED_PORTS
-        assert 1883 in REQUIRED_PORTS
-        assert 8883 in REQUIRED_PORTS
-        assert 5000 in REQUIRED_PORTS
-        assert 5001 in REQUIRED_PORTS
+        assert 1984 in REQUIRED_PORTS
+        assert 8555 in REQUIRED_PORTS
+        assert 8095 in REQUIRED_PORTS
+        assert 8091 in REQUIRED_PORTS
+        assert 8092 in REQUIRED_PORTS
+        assert 8093 in REQUIRED_PORTS
+        assert 8094 in REQUIRED_PORTS
+        assert 8096 in REQUIRED_PORTS
 
     def test_required_ports_have_descriptions(self) -> None:
         """Should have descriptions for all ports."""
         from setup_lib.port_scanner import REQUIRED_PORTS
 
-        assert REQUIRED_PORTS[8080] == "Frontend"
         assert REQUIRED_PORTS[8000] == "Backend API"
+        assert REQUIRED_PORTS[5173] == "Frontend"
+        assert REQUIRED_PORTS[8443] == "Frontend HTTPS"
         assert REQUIRED_PORTS[5432] == "PostgreSQL"
         assert REQUIRED_PORTS[6379] == "Redis"
-        assert REQUIRED_PORTS[1883] == "MQTT"
-        assert REQUIRED_PORTS[8883] == "MQTT TLS"
-        assert REQUIRED_PORTS[5000] == "YOLO service"
-        assert REQUIRED_PORTS[5001] == "Nemotron service"
+        assert REQUIRED_PORTS[1984] == "go2rtc API"
+        assert REQUIRED_PORTS[8095] == "YOLO26 detection"
+        assert REQUIRED_PORTS[8091] == "Nemotron LLM"
 
     def test_required_ports_count(self) -> None:
         """Should have expected number of required ports."""
         from setup_lib.port_scanner import REQUIRED_PORTS
 
-        assert len(REQUIRED_PORTS) == 8
+        assert len(REQUIRED_PORTS) == 13
 
 
 class TestProcessInfo:

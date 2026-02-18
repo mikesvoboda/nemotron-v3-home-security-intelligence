@@ -13,7 +13,9 @@ from __future__ import annotations
 import ipaddress
 import socket
 import stat
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from pathlib import Path
 
 # Optional: cryptography library for certificate generation

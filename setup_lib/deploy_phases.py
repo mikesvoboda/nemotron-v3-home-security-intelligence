@@ -136,12 +136,28 @@ def phase_stop(config: DeployConfig) -> DeployResult:
 # ---------------------------------------------------------------------------
 
 
-def _ensure_podman_socket() -> None:
-    """Ensure the rootless podman socket is active.
+def _detect_podman_socket() -> str:
+    """Detect the rootless podman socket path for the current user.
+
+    Returns the path like /run/user/<uid>/podman/podman.sock.
+    """
+    uid = os.getuid()
+    return f"/run/user/{uid}/podman/podman.sock"
+
+
+def _ensure_podman_socket(config: DeployConfig) -> None:
+    """Ensure the rootless podman socket is active and PODMAN_SOCKET is set.
 
     The docker-compose plugin requires the podman socket at
     /run/user/<uid>/podman/podman.sock to communicate with podman.
+    Detects the correct path from the current UID and exports it
+    so docker-compose.prod.yml can reference ${PODMAN_SOCKET}.
     """
+    # Auto-detect socket path if not already set
+    socket_path = config.env.get("PODMAN_SOCKET") or _detect_podman_socket()
+    config.env["PODMAN_SOCKET"] = socket_path
+    os.environ["PODMAN_SOCKET"] = socket_path
+
     result = subprocess.run(
         ["systemctl", "--user", "is-active", "podman.socket"],  # noqa: S607
         capture_output=True,
@@ -162,11 +178,12 @@ def _ensure_podman_socket() -> None:
 
 def phase_build(config: DeployConfig) -> DeployResult:
     """Build container images."""
+    # docker-compose plugin needs the podman socket (even with --skip-build,
+    # later phases like infrastructure/application also use compose)
+    _ensure_podman_socket(config)
+
     if config.skip_build:
         return DeployResult(True, "Skipping image builds (--skip-build)")
-
-    # docker-compose plugin needs the podman socket
-    _ensure_podman_socket()
 
     # Detect CUDA architecture
     cuda_args: list[str] = []

@@ -287,18 +287,79 @@ def get_nvidia_detection_summary() -> NvidiaDetectionSummary:
     )
 
 
-def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
-    """Interactive prompt to check NVIDIA GPU and update configuration.
+def _run_driver_upgrade(distro_family: str, *, is_ubuntu: bool = False) -> bool:
+    """Run the NVIDIA driver upgrade command for the current platform.
 
-    Detects GPU, driver version, and container toolkit. Updates config dict
-    with detection results for use by setup.py.
+    Args:
+        distro_family: Distribution family ('fedora', 'debian', 'arch').
+        is_ubuntu: Whether the system is specifically Ubuntu.
+
+    Returns:
+        True if upgrade succeeded, False otherwise.
+    """
+    cmd = get_driver_install_command(distro_family, is_ubuntu=is_ubuntu)
+    if not cmd:
+        print(f"  No driver install command available for '{distro_family}'")
+        return False
+
+    print(f"  Running: {cmd}")
+    result = subprocess.run(
+        cmd.split(),  # noqa: S603
+        check=False,
+        timeout=600,
+    )
+    return result.returncode == 0
+
+
+def _run_toolkit_install(distro_family: str) -> bool:
+    """Run the NVIDIA Container Toolkit installation.
+
+    Args:
+        distro_family: Distribution family ('fedora', 'debian', 'arch').
+
+    Returns:
+        True if installation succeeded, False otherwise.
+    """
+    cmd = get_toolkit_install_command(distro_family)
+    if not cmd:
+        print(f"  No toolkit install command available for '{distro_family}'")
+        return False
+
+    print(f"  Running: {cmd}")
+    result = subprocess.run(
+        cmd.split(),  # noqa: S603
+        check=False,
+        timeout=300,
+    )
+    if result.returncode == 0:
+        # Regenerate CDI spec after toolkit install
+        subprocess.run(
+            ["sudo", "nvidia-ctk", "cdi", "generate", "--output=/etc/cdi/nvidia.yaml"],  # noqa: S603, S607
+            check=False,
+            timeout=30,
+        )
+    return result.returncode == 0
+
+
+def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
+    """Check NVIDIA GPU, driver version, and container toolkit.
+
+    Detects GPU, driver version, and container toolkit. When auto_install
+    is set in config, automatically upgrades the driver and installs the
+    container toolkit if needed.
 
     Args:
         config: Configuration dictionary to update with detection results.
+            If config['auto_install'] is True, performs upgrades automatically.
 
     Returns:
         True if GPU is detected (regardless of driver status), False otherwise.
     """
+    from setup_lib.platform_detect import (
+        detect_linux_distro,
+        get_distro_family,
+    )
+
     print("\n[NVIDIA GPU Detection]")
 
     if not is_nvidia_gpu_present():
@@ -307,6 +368,12 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
         return False
 
     config["gpu_detected"] = True
+    auto_install = bool(config.get("auto_install"))
+
+    # Detect platform for install commands
+    distro = detect_linux_distro()
+    distro_family = get_distro_family(distro)
+    is_ubuntu = (distro or {}).get("id", "") == "ubuntu"
 
     # Get GPU info
     gpus = get_gpu_info()
@@ -333,6 +400,18 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
         else:
             config["driver_needs_upgrade"] = True
             print(f"  Driver Status: UPGRADE NEEDED (>= {MINIMUM_DRIVER_VERSION} required)")
+
+            if auto_install:
+                print("  Upgrading NVIDIA driver...")
+                if _run_driver_upgrade(distro_family, is_ubuntu=is_ubuntu):
+                    print("  Driver upgrade complete")
+                    config["driver_needs_upgrade"] = False
+                else:
+                    print("  WARNING: Driver upgrade failed — GPU containers may not start")
+            else:
+                cmd = get_driver_install_command(distro_family, is_ubuntu=is_ubuntu)
+                if cmd:
+                    print(f"  To upgrade manually: {cmd}")
     else:
         config["driver_needs_upgrade"] = True
         print("  Driver Version: Unknown")
@@ -345,6 +424,18 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
         print("  Container Toolkit: Installed")
     else:
         print("  Container Toolkit: NOT INSTALLED")
+
+        if auto_install:
+            print("  Installing NVIDIA Container Toolkit...")
+            if _run_toolkit_install(distro_family):
+                print("  Container Toolkit installed")
+                config["toolkit_installed"] = True
+            else:
+                print("  WARNING: Container Toolkit install failed — GPU passthrough may not work")
+        else:
+            cmd = get_toolkit_install_command(distro_family)
+            if cmd:
+                print(f"  To install manually: {cmd}")
 
     return True
 
