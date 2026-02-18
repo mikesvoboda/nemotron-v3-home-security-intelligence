@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 from typing import TypedDict
 
@@ -62,6 +63,8 @@ def check_path_writable(path: str) -> bool:
 def create_directory(path: str) -> bool:
     """Create a directory with parent directories.
 
+    Falls back to sudo when a permission error is encountered (e.g. /export/*).
+
     Args:
         path: Path to create.
 
@@ -71,7 +74,28 @@ def create_directory(path: str) -> bool:
     try:
         Path(path).mkdir(parents=True, exist_ok=True)
         return True
-    except (PermissionError, OSError):
+    except PermissionError:
+        pass
+    except OSError:
+        return False
+
+    # Retry with sudo
+    try:
+        result = subprocess.run(
+            ["sudo", "mkdir", "-p", path],  # noqa: S607
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            # Make the directory writable by the current user
+            subprocess.run(
+                ["sudo", "chown", "-R", f"{Path.home().owner()}:", path],  # noqa: S607
+                check=False,
+            )
+            return True
+        return False
+    except OSError:
         return False
 
 

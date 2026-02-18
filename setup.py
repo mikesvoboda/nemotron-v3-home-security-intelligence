@@ -1301,25 +1301,85 @@ def main() -> None:
             config["auto_generate"] = True  # Auto-generate certificates
             prompt_and_generate_certificates(config)
 
+        # Offer AI workstation optimizations on Linux (skip in defaults mode)
+        # This runs BEFORE model downloads because it may require a reboot.
+        # If the user reboots, they re-run setup.py and models download after
+        # the system is fully configured.
+        reboot_required = False
+        if platform.system() == "Linux" and not args.defaults:
+            _opt_success, reboot_required = prompt_and_run_optimizations()
+
         # Download AI models (skip in defaults mode, but enable for --yes mode)
         if not args.defaults or args.yes:
-            # Auto-download required + Phase 1 models (full ai-gateway support)
-            config["auto_download"] = True
-            prompt_and_download_models(config)
+            if reboot_required:
+                print()
+                print("=" * 60)
+                print("! System configuration changes require a reboot")
+                print("  Kernel parameters and driver options will not take")
+                print("  effect until after a restart.")
+                print("=" * 60)
+                print()
+                try:
+                    proceed = input(
+                        "Continue with model downloads anyway? [y/N]: "
+                    ).strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    print()
+                    proceed = "n"
+
+                if proceed not in ("y", "yes"):
+                    print()
+                    print("Skipping model downloads.")
+                    print("  After rebooting, re-run: python3 setup.py")
+                    print()
+                else:
+                    config["auto_download"] = True
+                    prompt_and_download_models(config)
+            else:
+                # Auto-download required + Phase 1 models (full ai-gateway support)
+                config["auto_download"] = True
+                prompt_and_download_models(config)
 
         # Pull container images (skip in defaults mode)
         if not args.defaults:
             config["skip_pull"] = True  # Skip image pull to save time
             prompt_and_pull_images(config)
 
-        # Offer AI workstation optimizations on Linux (skip in defaults mode)
-        if platform.system() == "Linux" and not args.defaults:
-            prompt_and_run_optimizations()
-
+        # Auto-deploy: bring up all services
         if not args.defaults:
             print()
-            print("Ready! Run: docker compose -f docker-compose.prod.yml up -d")
             print("=" * 60)
+            print("  Deploying Services")
+            print("=" * 60)
+            print()
+
+            from setup_lib.deploy import DeployConfig as _DeployConfig
+            from setup_lib.deploy import detect_compose_command, load_env, run_deploy
+
+            project_root = Path(__file__).resolve().parent
+            env = load_env(project_root)
+            compose_cmd = detect_compose_command()
+
+            deploy_config = _DeployConfig(
+                project_root=project_root,
+                compose_cmd=compose_cmd,
+                skip_build=False,
+                skip_export=True,
+                verbose=False,
+                env=env,
+            )
+
+            success = run_deploy(deploy_config)
+            if success:
+                print()
+                print("=" * 60)
+                print("  Setup complete! All services are running.")
+                print("=" * 60)
+            else:
+                print()
+                print("! Deployment encountered errors.")
+                print("  Check logs with: podman compose -f docker-compose.prod.yml logs")
+                print("  Retry with: python setup.py deploy")
 
     except KeyboardInterrupt:
         print("\n\nSetup cancelled.")

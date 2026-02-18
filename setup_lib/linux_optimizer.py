@@ -542,7 +542,12 @@ def _update_grub_parameters(backup_dir: Path, kernel_params: dict[str, str]) -> 
     efi_grub = Path("/boot/efi/EFI/fedora/grub.cfg")
     legacy_grub = Path("/boot/grub2/grub.cfg")
 
-    if Path("/sys/firmware/efi").is_dir() and efi_grub.parent.exists():
+    try:
+        efi_parent_exists = efi_grub.parent.exists()
+    except PermissionError:
+        efi_parent_exists = False
+
+    if Path("/sys/firmware/efi").is_dir() and efi_parent_exists:
         success, output = run_command(["grub2-mkconfig", "-o", str(efi_grub)], check=False)
     else:
         success, output = run_command(["grub2-mkconfig", "-o", str(legacy_grub)], check=False)
@@ -891,18 +896,19 @@ def run_optimizations(
     return overall_success, requires_reboot
 
 
-def prompt_and_run_optimizations(skip: bool = False) -> bool:
+def prompt_and_run_optimizations(skip: bool = False) -> tuple[bool, bool]:
     """Interactive prompt to run optimizations.
 
     Args:
         skip: If True, skip optimizations without prompting.
 
     Returns:
-        True if optimizations were applied successfully or skipped,
-        False if there was an error.
+        Tuple of (success, requires_reboot).
+        success is True if optimizations were applied successfully or skipped.
+        requires_reboot is True if kernel/driver changes need a reboot to take effect.
     """
     if not is_linux():
-        return True  # Skip silently on non-Linux
+        return True, False  # Skip silently on non-Linux
 
     print()
     print("=" * 60)
@@ -914,7 +920,7 @@ def prompt_and_run_optimizations(skip: bool = False) -> bool:
         print("Skipping kernel optimizations (can be applied later)")
         print("  To apply later: sudo python3 scripts/optimize-linux.py")
         print()
-        return True
+        return True, False
 
     print("This applies kernel tunables optimized for AI workloads:")
     print()
@@ -923,14 +929,14 @@ def prompt_and_run_optimizations(skip: bool = False) -> bool:
     print()
 
     try:
-        answer = input("Apply AI workstation optimizations? [y/N]: ").strip().lower()
+        answer = input("Apply AI workstation optimizations? [Y/n]: ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print()
-        return True
+        return True, False
 
-    if answer not in ("y", "yes"):
+    if answer in ("n", "no"):
         print("Skipping AI optimizations.")
-        return True
+        return True, False
 
     print()
     log_info("Optimizations require sudo — you may be prompted for your password.")
@@ -973,10 +979,10 @@ def prompt_and_run_optimizations(skip: bool = False) -> bool:
             reboot = input("Reboot now? [y/N]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
-            return success
+            return success, requires_reboot
 
         if reboot in ("y", "yes"):
             log_info("Rebooting...")
             run_command(["reboot"])
 
-    return success
+    return success, requires_reboot
