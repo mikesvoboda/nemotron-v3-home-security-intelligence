@@ -406,6 +406,7 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
                 if _run_driver_upgrade(distro_family, is_ubuntu=is_ubuntu):
                     print("  Driver upgrade complete")
                     config["driver_needs_upgrade"] = False
+                    config["driver_upgraded"] = True
                 else:
                     print("  WARNING: Driver upgrade failed — GPU containers may not start")
             else:
