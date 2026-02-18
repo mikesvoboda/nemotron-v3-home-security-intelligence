@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_R14_marking_property",
+  "category": "threats",
+  "name": "Marking Property",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Three people in dark clothing approach the door together, one forces the door while others watch the street, then all rush inside. Coordinated home invasion. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Three people in dark clothing approach the door together, one forces the door while others watch the street, then all rush inside. Coordinated home invasion. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

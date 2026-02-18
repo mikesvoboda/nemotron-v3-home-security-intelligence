@@ -1,0 +1,56 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000181542",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "car",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "motorcycle",
+      "min_confidence": 0.5,
+      "count": 4
+    },
+    {
+      "class": "bus",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 14
+    },
+    {
+      "class": "truck",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 14 person, 4 motorcycle, 1 bus, 1 car, 1 truck. From COCO object detection dataset."
+  }
+}

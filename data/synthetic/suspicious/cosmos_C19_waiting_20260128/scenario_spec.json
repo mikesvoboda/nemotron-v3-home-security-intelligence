@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C19_waiting",
+  "category": "suspicious",
+  "name": "Waiting",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in an elaborate Halloween costume with mask approaches the door. Completely unrecognizable due to costume and mask. Costume challenge. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in an elaborate Halloween costume with mask approaches the door. Completely unrecognizable due to costume and mask. Costume challenge. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P48_vehicle_night",
+  "category": "suspicious",
+  "name": "Vehicle Night",
+  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. Headlights illuminate driveway, car parks, interior light shows occupant exiting. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, IR-tinted foo",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. Headlights illuminate driveway, car parks, interior light shows occupant exiting. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

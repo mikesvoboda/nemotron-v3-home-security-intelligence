@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000480122",
+  "category": "suspicious",
+  "name": "COCO Scene 480122",
+  "description": "Scene containing 6 knife. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}

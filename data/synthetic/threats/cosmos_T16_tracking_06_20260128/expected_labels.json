@@ -1,0 +1,35 @@
+{
+  "source": "cosmos",
+  "video_id": "T16",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "unknown",
+      "min_confidence": 0.5
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Group of four distinct people walking together then separating. Different heights, clothing, and genders. Static eleva..."
+  }
+}
