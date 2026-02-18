@@ -83,14 +83,17 @@ def _ensure_tokenizer() -> bool:
             return False
 
         try:
-            from transformers import AutoTokenizer
+            from transformers import GemmaTokenizer
 
-            logger.info("Loading SigLIP 2 tokenizer for Triton text encoder...")
+            logger.info("Loading SigLIP 2 tokenizer (GemmaTokenizer) for Triton text encoder...")
             candidate: Any = None
             try:
-                candidate = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
+                # SigLIP 2 uses GemmaTokenizer — AutoTokenizer.from_pretrained() fails
+                # because transformers 5.2.0 doesn't recognize 'siglip' model type.
+                # Load GemmaTokenizer directly to bypass auto-detection.
+                candidate = GemmaTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
             except Exception:
-                candidate = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
+                candidate = GemmaTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
             _clip_tokenizer = candidate
             logger.info("SigLIP 2 tokenizer loaded successfully")
             return True
@@ -136,7 +139,7 @@ def _ensure_text_encoder() -> bool:
             return False
 
         try:
-            from transformers import AutoModel, AutoTokenizer
+            from transformers import AutoModel, GemmaTokenizer
 
             logger.info("Loading SigLIP 2 text encoder (CPU)...")
             candidate_model: torch.nn.Module | None = None
@@ -148,9 +151,11 @@ def _ensure_text_encoder() -> bool:
             model = model.eval().cpu()
             candidate_model = model
             try:
-                tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
+                # SigLIP 2 uses GemmaTokenizer — AutoTokenizer.from_pretrained() fails
+                # because transformers 5.2.0 doesn't recognize 'siglip' model type.
+                tokenizer = GemmaTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_PATH)
             except Exception:
-                tokenizer = AutoTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
+                tokenizer = GemmaTokenizer.from_pretrained(_SIGLIP2_TOKENIZER_HF)
             candidate_tokenizer = tokenizer
             # Only publish globals after both model and tokenizer are ready.
             _text_model = candidate_model
