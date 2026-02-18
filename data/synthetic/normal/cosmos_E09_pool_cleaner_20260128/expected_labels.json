@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "E09",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "walking",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "backyard",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 25,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. A pool service technician in uniform walks to the pool area carrying a net and testing kit, begins skimming the p..."
+  }
+}

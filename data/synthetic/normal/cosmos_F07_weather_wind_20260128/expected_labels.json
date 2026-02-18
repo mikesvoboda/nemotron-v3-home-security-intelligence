@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "F07",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 25,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch on windy day, viewed from an elevated vantage point near the door. A tree branch sways back and forth in the wind at the edge of frame, leaves rustling. Repetitive natural mo..."
+  }
+}

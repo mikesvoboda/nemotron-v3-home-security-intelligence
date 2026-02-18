@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T27_tracking_17",
+  "category": "threats",
+  "name": "Tracking 17",
+  "description": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person walking dog on leash up the driveway. Both person and golden retriever clearly visible. Casual dressed owner. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person walking dog on leash up the driveway. Both person and golden retriever clearly visible. Casual dressed owner. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

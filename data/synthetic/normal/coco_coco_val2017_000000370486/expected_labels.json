@@ -1,0 +1,51 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000370486",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "umbrella",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 14
+    },
+    {
+      "class": "handbag",
+      "min_confidence": 0.5,
+      "count": 4
+    },
+    {
+      "class": "backpack",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 4 handbag, 1 backpack, 1 umbrella, 14 person. From COCO object detection dataset."
+  }
+}
