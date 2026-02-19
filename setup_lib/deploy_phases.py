@@ -401,6 +401,10 @@ _MONITORING_SERVICES = [
 # failure doesn't cascade to grafana, frontend, or other services.
 _ALLOY_MEMLOCK_BYTES = 8_589_934_592  # 8 GB — must match docker-compose.prod.yml
 
+# Application services started in Phase 5 (dependency order matters for retry).
+# ai-llm must start first — backend depends on it via service_healthy.
+_APP_SERVICES = ("ai-llm", "ai-gateway", "backend", "frontend")
+
 
 def phase_infrastructure(config: DeployConfig) -> DeployResult:
     """Start infrastructure (postgres, redis, go2rtc) and monitoring stack."""
@@ -464,29 +468,94 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
 # ---------------------------------------------------------------------------
 
 
+def _check_gpu_available() -> bool:
+    """Check if NVIDIA GPU device nodes exist (driver loaded)."""
+    return Path("/dev/nvidia0").exists()
+
+
+def _warn_gpu_missing() -> None:
+    """Print a diagnostic when GPU devices are missing."""
+    # Check if a driver package is installed but kernel module isn't loaded
+    result = subprocess.run(
+        ["dpkg", "-l", "nvidia-driver-*"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    driver_installed = result.returncode == 0 and "nvidia-driver" in result.stdout
+
+    if driver_installed:
+        # Check kernel module mismatch
+        kernel = subprocess.run(
+            ["uname", "-r"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        print(f"  WARNING: NVIDIA driver installed but /dev/nvidia0 missing!")
+        print(f"    Running kernel: {kernel}")
+        print("    Likely cause: kernel/module mismatch — run 'sudo update-grub' and reboot")
+        print("    GPU services (ai-llm, ai-gateway) will not start without GPU devices.")
+    else:
+        print("  WARNING: No NVIDIA GPU detected — GPU services will not start.")
+
+
+def _wait_container_running(service: str, timeout: int = 30) -> bool:
+    """Poll until a compose service container reaches 'running' state.
+
+    Returns True if the container is running within *timeout* seconds.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = subprocess.run(
+            ["podman", "ps", "-a", "--filter", f"name={service}", "--format", "{{.State}}"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        state = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+        if state == "running":
+            return True
+        time.sleep(3)
+    return False
+
+
 def phase_application(config: DeployConfig) -> DeployResult:
     """Start all remaining services (backend, frontend, AI).
 
     Uses --wait with a 5-minute timeout to allow ai-llm to finish loading
     the 30B model before backend starts (backend depends on ai-llm: service_healthy).
+    Only targets _APP_SERVICES to avoid re-triggering alloy (handled in phase 4).
     """
-    print("  Starting all services (waiting up to 5min for model loading)...")
-    ok = compose_run(config, "up", "-d", "--no-build", "--wait", "--wait-timeout", "300")
-    if not ok:
-        # compose --wait returns non-zero if any container fails or times out.
-        # A prior alloy RLIMIT error can leave other containers in "created"
-        # state. Retry critical services individually to ensure they start.
-        print("  Retrying critical services that may not have started...")
-        for svc in ("backend", "frontend", "ai-gateway", "ai-llm"):
-            compose_run(config, "up", "-d", "--no-build", svc)
+    # Pre-flight: warn if GPU devices are missing (containers will fail)
+    if not _check_gpu_available():
+        _warn_gpu_missing()
 
-        result = compose_run(config, "ps", "--format", "json", capture=True)
-        if isinstance(result, subprocess.CompletedProcess) and result.returncode == 0:
-            print("  Services started (some may still be initializing).")
-            return DeployResult(True, "Application services started (some initializing)")
-        return DeployResult(False, "Failed to start application services")
+    print("  Starting app services (waiting up to 5min for model loading)...")
+    ok = compose_run(
+        config, "up", "-d", "--no-build", "--wait", "--wait-timeout", "300", *_APP_SERVICES
+    )
+    if ok:
+        print("  All services started and healthy.")
+        return DeployResult(True, "Application services started")
 
-    print("  All services started and healthy.")
+    # compose --wait returned non-zero.  Retry services one-by-one in
+    # dependency order and verify each actually reaches "running" state.
+    print("  Retrying services in dependency order...")
+    stuck: list[str] = []
+    for svc in _APP_SERVICES:
+        compose_run(config, "up", "-d", "--no-build", svc)
+        if _wait_container_running(svc, timeout=60):
+            print(f"    {svc}: running")
+        else:
+            print(f"    {svc}: still not running")
+            stuck.append(svc)
+
+    if stuck:
+        print(f"  WARNING: {', '.join(stuck)} did not reach running state")
+        return DeployResult(True, f"Application services started ({', '.join(stuck)} may still be initializing)")
+
+    print("  All services running after retry.")
     return DeployResult(True, "Application services started")
 
 
@@ -543,6 +612,32 @@ def _auto_register_admin(config: DeployConfig) -> None:
     print("    Admin registered. Password saved to secrets/admin-password.txt")
 
 
+def _recover_created_containers(config: DeployConfig) -> None:
+    """Detect containers stuck in 'created' state and attempt to start them."""
+    result = subprocess.run(
+        ["podman", "ps", "-a", "--filter", "status=created", "--format", "{{.Names}}"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if not result.stdout.strip():
+        return
+
+    stuck = result.stdout.strip().splitlines()
+    print(f"  Recovering {len(stuck)} container(s) stuck in 'created' state...")
+    for name in stuck:
+        # Extract compose service name from container name
+        # (e.g. "nemotron-v3-home-security-intelligence-backend-1" -> "backend")
+        parts = name.rsplit("-", 1)  # strip trailing "-1"
+        svc = parts[0].split(config.project_root.name + "-", 1)[-1] if config.project_root.name in name else name
+        compose_run(config, "up", "-d", "--no-build", svc)
+        time.sleep(2)
+        if _wait_container_running(svc, timeout=30):
+            print(f"    {svc}: recovered -> running")
+        else:
+            print(f"    {svc}: still not running")
+
+
 def phase_health_check(config: DeployConfig) -> DeployResult:
     """Verify service health and print deployment summary."""
     print("  Health check (waiting for services to initialize)...")
@@ -550,6 +645,9 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
     api_port = config.env.get("API_PORT", "8000")
     gateway_port = config.env.get("AI_GATEWAY_PORT", "8090")
     llm_port = config.env.get("LLM_PORT", "8091")
+
+    # Recover any containers stuck in "created" state before polling endpoints
+    _recover_created_containers(config)
 
     # Auto-register admin (resolves SetupGuard 503s)
     _auto_register_admin(config)

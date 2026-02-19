@@ -297,7 +297,7 @@ describe('Auth Flow Integration', () => {
       });
     });
 
-    it('authenticated user cannot access setup page', async () => {
+    it('setup page shows login link when setup not required', async () => {
       server.use(
         http.get('/api/auth/setup-status', () => {
           return HttpResponse.json({ setup_required: false });
@@ -313,10 +313,10 @@ describe('Auth Flow Integration', () => {
       render(<TestApp />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByText(/welcome to the dashboard/i)).toBeInTheDocument();
+        expect(screen.getByText(/an account already exists/i)).toBeInTheDocument();
       });
 
-      expect(screen.queryByText(/first time setup/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /login with existing account/i })).toBeInTheDocument();
     });
   });
 

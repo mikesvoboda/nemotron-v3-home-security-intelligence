@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from pathlib import Path
 from typing import TypedDict
 
 # Minimum driver version for CUDA 13.1 compatibility
@@ -308,7 +309,20 @@ def _run_driver_upgrade(distro_family: str, *, is_ubuntu: bool = False) -> bool:
         check=False,
         timeout=600,
     )
-    return result.returncode == 0
+    if result.returncode != 0:
+        return False
+
+    # Driver upgrade may install a new kernel (e.g. linux-modules-nvidia-*).
+    # Regenerate GRUB so the new kernel appears in the boot menu.
+    if shutil.which("update-grub"):
+        print("  Regenerating GRUB menu (new kernel installed)...")
+        subprocess.run(["sudo", "update-grub"], check=False, timeout=60)  # noqa: S603, S607
+    elif shutil.which("grub2-mkconfig"):
+        print("  Regenerating GRUB menu (new kernel installed)...")
+        grub_cfg = "/boot/efi/EFI/fedora/grub.cfg" if Path("/sys/firmware/efi").is_dir() else "/boot/grub2/grub.cfg"
+        subprocess.run(["sudo", "grub2-mkconfig", "-o", grub_cfg], check=False, timeout=60)  # noqa: S603, S607
+
+    return True
 
 
 def _run_toolkit_install(distro_family: str) -> bool:

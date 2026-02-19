@@ -1486,6 +1486,63 @@ class DetectorClient:
                         logger.warning(f"Invalid bbox format: {bbox}")
                         continue
 
+                    # Validate and clamp bbox coordinates to image dimensions (NEM-XXXX)
+                    # Invalid bboxes like (x=777, y=514, w=640, h=366) where x > image_width
+                    # cause enrichment to skip detections. Clamp to image bounds.
+                    if response_image_width is not None and response_image_height is not None:
+                        # Check if bbox is completely outside image
+                        if (
+                            bbox_x >= response_image_width
+                            or bbox_y >= response_image_height
+                            or bbox_x + bbox_width <= 0
+                            or bbox_y + bbox_height <= 0
+                        ):
+                            logger.warning(
+                                f"Skipping detection with bbox completely outside image: "
+                                f"bbox=({bbox_x}, {bbox_y}, {bbox_width}, {bbox_height}), "
+                                f"image=({response_image_width}x{response_image_height}), "
+                                f"class={object_class}"
+                            )
+                            continue
+
+                        # Clamp coordinates to image boundaries
+                        original_bbox = (bbox_x, bbox_y, bbox_width, bbox_height)
+                        x1_clamped = max(0, min(bbox_x, response_image_width))
+                        y1_clamped = max(0, min(bbox_y, response_image_height))
+                        x2_clamped = max(0, min(bbox_x + bbox_width, response_image_width))
+                        y2_clamped = max(0, min(bbox_y + bbox_height, response_image_height))
+
+                        # Update bbox to clamped values
+                        bbox_x = int(x1_clamped)
+                        bbox_y = int(y1_clamped)
+                        bbox_width = int(x2_clamped - x1_clamped)
+                        bbox_height = int(y2_clamped - y1_clamped)
+
+                        # Check if resulting box is still valid
+                        if bbox_width < 1 or bbox_height < 1:
+                            logger.warning(
+                                f"Skipping detection with bbox too small after clamping: "
+                                f"original={original_bbox}, clamped=({bbox_x}, {bbox_y}, {bbox_width}, {bbox_height}), "
+                                f"image=({response_image_width}x{response_image_height}), class={object_class}"
+                            )
+                            continue
+
+                        # Log if significant clamping occurred
+                        if original_bbox != (bbox_x, bbox_y, bbox_width, bbox_height):
+                            logger.warning(
+                                f"Clamped invalid bbox coordinates: "
+                                f"original=({original_bbox[0]}, {original_bbox[1]}, {original_bbox[2]}, {original_bbox[3]}), "
+                                f"clamped=({bbox_x}, {bbox_y}, {bbox_width}, {bbox_height}), "
+                                f"image=({response_image_width}x{response_image_height}), class={object_class}"
+                            )
+                    elif bbox_width <= 0 or bbox_height <= 0:
+                        # No image dimensions, but bbox dimensions are invalid
+                        logger.warning(
+                            f"Skipping detection with non-positive bbox dimensions: "
+                            f"bbox=({bbox_x}, {bbox_y}, {bbox_width}, {bbox_height}), class={object_class}"
+                        )
+                        continue
+
                     # Create Detection model with video metadata if applicable
                     detection = Detection(
                         camera_id=camera_id,
