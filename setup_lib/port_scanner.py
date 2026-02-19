@@ -20,15 +20,21 @@ import subprocess
 from dataclasses import dataclass, field
 
 # Required application ports with descriptions
+# These must match .env.example defaults (the single source of truth for ports).
 REQUIRED_PORTS: dict[int, str] = {
-    8080: "Frontend",
     8000: "Backend API",
+    5173: "Frontend",
+    8443: "Frontend HTTPS",
     5432: "PostgreSQL",
     6379: "Redis",
-    1883: "MQTT",
-    8883: "MQTT TLS",
-    5000: "YOLO service",
-    5001: "Nemotron service",
+    1984: "go2rtc API",
+    8555: "go2rtc WebRTC",
+    8095: "YOLO26 detection",
+    8091: "Nemotron LLM",
+    8092: "Florence-2",
+    8093: "CLIP",
+    8094: "Enrichment",
+    8096: "Enrichment light",
 }
 
 
