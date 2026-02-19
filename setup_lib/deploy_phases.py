@@ -158,6 +158,14 @@ def _ensure_podman_socket(config: DeployConfig) -> None:
     config.env["PODMAN_SOCKET"] = socket_path
     os.environ["PODMAN_SOCKET"] = socket_path
 
+    # Persist to .env so manual `podman compose` commands work outside setup.py
+    env_file = config.project_root / ".env"
+    if env_file.exists():
+        content = env_file.read_text()
+        if "PODMAN_SOCKET=" not in content:
+            with env_file.open("a") as f:
+                f.write(f"\nPODMAN_SOCKET={socket_path}\n")
+
     result = subprocess.run(
         ["systemctl", "--user", "is-active", "podman.socket"],  # noqa: S607
         capture_output=True,
