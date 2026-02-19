@@ -592,24 +592,25 @@ class TestPromptAndDownloadModels:
             print_calls = [str(c) for c in mock_print.call_args_list]
             assert any("All models already downloaded" in str(c) for c in print_calls)
 
-    def test_option_4_skips_download(self) -> None:
-        """Should skip downloads when user selects option 4."""
+    def test_skip_download_flag(self) -> None:
+        """Should skip downloads when skip_download config is True."""
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="4"),
             patch("builtins.print") as mock_print,
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)  # 100GB free
 
-            prompt_and_download_models({"ai_models_path": "/export/ai_models"})
+            prompt_and_download_models(
+                {"ai_models_path": "/export/ai_models", "skip_download": True}
+            )
 
             # Should print "Skipping model downloads"
             print_calls = [str(c) for c in mock_print.call_args_list]
-            assert any("Skipping model downloads" in str(c) for c in print_calls)
+            assert any("Skipping" in str(c) for c in print_calls)
 
     def test_option_1_downloads_required_models_only(self) -> None:
         """Should download only required models with HF repo when option 1 selected."""

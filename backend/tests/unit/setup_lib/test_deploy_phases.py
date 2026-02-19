@@ -192,7 +192,9 @@ class TestPhaseBuild:
         call_order = []
 
         def mock_subprocess_run(cmd, **kwargs):
-            call_order.append("base" if "base.Dockerfile" in str(cmd) else "other_subprocess")
+            # Only track the base image build; ignore socket/systemctl calls
+            if "base.Dockerfile" in str(cmd):
+                call_order.append("base")
             return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="built\n", stderr="")
 
         def mock_compose_run(cfg, *args, **kwargs):

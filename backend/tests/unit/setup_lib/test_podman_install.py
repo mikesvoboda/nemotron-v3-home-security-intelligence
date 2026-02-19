@@ -374,10 +374,21 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
+            patch(
+                "setup_lib.podman_install.is_podman_installed",
+                side_effect=[False, True],
+            ),
             patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch(
+                "setup_lib.podman_install.get_install_command",
+                return_value=["dnf", "install", "-y", "podman"],
+            ),
             patch("builtins.input", return_value="y"),
             patch("setup_lib.podman_install.install_podman", return_value=True),
+            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("builtins.print"),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -414,11 +425,22 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
+            patch(
+                "setup_lib.podman_install.is_podman_installed",
+                side_effect=[False, True],
+            ),
             patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch(
+                "setup_lib.podman_install.get_install_command",
+                return_value=["winget", "install", "-e", "--id", "RedHat.Podman"],
+            ),
             patch("builtins.input", return_value="y"),
             patch("setup_lib.podman_install.install_podman", return_value=True),
+            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups"),
             patch("setup_lib.podman_install.init_podman_machine", return_value=True) as mock_init,
+            patch("builtins.print"),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -477,10 +499,21 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
+            patch(
+                "setup_lib.podman_install.is_podman_installed",
+                side_effect=[False, True],
+            ),
             patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch(
+                "setup_lib.podman_install.get_install_command",
+                return_value=["sudo", "dnf", "install", "-y", "podman"],
+            ),
             patch("builtins.input") as mock_input,
             patch("setup_lib.podman_install.install_podman", return_value=True),
+            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("builtins.print"),
         ):
             result = prompt_and_install_podman(config={"auto_install": True})
             assert result is True
