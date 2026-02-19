@@ -22,13 +22,12 @@ class TestDockerComposeSecurityHardening:
     """Tests for Docker Compose production security configuration."""
 
     # AI services that require security hardening
+    # Note: individual per-model services (ai-yolo26, ai-florence, ai-clip,
+    # ai-enrichment, ai-enrichment-light) were consolidated into ai-gateway
+    # (Triton Inference Server + FastAPI gateway)
     AI_SERVICES: ClassVar[list[str]] = [
-        "ai-yolo26",
         "ai-llm",
-        "ai-florence",
-        "ai-clip",
-        "ai-enrichment",
-        "ai-enrichment-light",
+        "ai-gateway",
     ]
 
     @pytest.fixture

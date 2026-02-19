@@ -72,7 +72,8 @@
     "zustand": "^5.0.11"
   },
   "overrides": {
-    "tmp": ">=0.2.4"
+    "tmp": ">=0.2.4",
+    "minimatch": ">=10.2.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
