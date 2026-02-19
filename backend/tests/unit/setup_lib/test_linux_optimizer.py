@@ -1028,9 +1028,10 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with patch("setup_lib.linux_optimizer.is_linux", return_value=False):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
 
     def test_user_declines_optimizations(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Should skip when user declines."""
@@ -1040,9 +1041,10 @@ class TestPromptAndRunOptimizations:
             patch("setup_lib.linux_optimizer.is_linux", return_value=True),
             patch("builtins.input", return_value="n"),
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
             captured = capsys.readouterr()
             assert "Skipping" in captured.out
 
@@ -1059,9 +1061,10 @@ class TestPromptAndRunOptimizations:
             patch("builtins.input", side_effect=["y", "n"]),
             patch("setup_lib.linux_optimizer.run_optimizations", return_value=(True, False)),
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
             captured = capsys.readouterr()
             assert "sudo" in captured.out
 
@@ -1073,9 +1076,10 @@ class TestPromptAndRunOptimizations:
             patch("setup_lib.linux_optimizer.is_linux", return_value=True),
             patch("builtins.input", side_effect=EOFError()),
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
 
     def test_handles_keyboard_interrupt_on_main_prompt(self) -> None:
         """Should handle keyboard interrupt gracefully on main prompt."""
@@ -1085,9 +1089,10 @@ class TestPromptAndRunOptimizations:
             patch("setup_lib.linux_optimizer.is_linux", return_value=True),
             patch("builtins.input", side_effect=KeyboardInterrupt()),
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
 
     def test_user_accepts_with_mitigations(self) -> None:
         """Should run with mitigations disabled when user accepts both prompts."""
@@ -1102,9 +1107,10 @@ class TestPromptAndRunOptimizations:
                 return_value=(True, True),
             ) as mock_run,
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is True
             mock_run.assert_called_once_with(include_mitigations=True)
 
     def test_user_declines_mitigations(self) -> None:
@@ -1120,9 +1126,10 @@ class TestPromptAndRunOptimizations:
                 return_value=(True, False),
             ) as mock_run,
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
             mock_run.assert_called_once_with(include_mitigations=False)
 
     def test_handles_eof_on_mitigations_prompt(self) -> None:
@@ -1138,9 +1145,10 @@ class TestPromptAndRunOptimizations:
                 return_value=(True, False),
             ) as mock_run,
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is False
             mock_run.assert_called_once_with(include_mitigations=False)
 
     def test_prompts_for_reboot_when_required(self) -> None:
@@ -1159,9 +1167,10 @@ class TestPromptAndRunOptimizations:
         ):
             mock_reboot.return_value = (True, "")
 
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is True
             mock_reboot.assert_called_once_with(["reboot"])
 
     def test_handles_eof_on_reboot_prompt(self) -> None:
@@ -1178,9 +1187,10 @@ class TestPromptAndRunOptimizations:
             ),
             patch("setup_lib.linux_optimizer.run_command") as mock_reboot,
         ):
-            result = prompt_and_run_optimizations()
+            success, requires_reboot = prompt_and_run_optimizations()
 
-            assert result is True
+            assert success is True
+            assert requires_reboot is True
             mock_reboot.assert_not_called()
 
 
