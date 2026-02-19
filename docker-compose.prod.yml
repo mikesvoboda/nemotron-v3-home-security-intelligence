@@ -175,6 +175,9 @@ services:
       - MOE_OFFLOAD_PATTERN=${LLM_MOE_OFFLOAD_PATTERN:-}
       # NEM-5369: Enable flash attention to reduce VRAM usage with minimal performance impact
       - FLASH_ATTENTION=${FLASH_ATTENTION:-true}
+      # CUDA Graph optimization: fuses repeated kernel launches into a single graph replay
+      # Up to 35% TPS improvement for autoregressive decoding (eliminates kernel launch overhead)
+      - GGML_CUDA_GRAPH_OPT=${GGML_CUDA_GRAPH_OPT:-1}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -302,6 +305,7 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       # Persistent CUDA kernel cache (survives container redeploys)
       - triton-kernel-cache:/root/.nv
       # TensorRT temp artifacts cache (compilation intermediates)
@@ -313,6 +317,11 @@ services:
       # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
       # the AI services GPU (default: GPU 1 = A400).
       - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
+      # INT8 quantization for vehicle/demographics models (NEM-5533)
+      # Set to true after running ai/enrichment/scripts/quantize_models.py
+      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
+      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
+      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s

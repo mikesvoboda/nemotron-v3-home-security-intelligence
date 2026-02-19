@@ -23,8 +23,8 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:24.09-py3"
-LABEL org.opencontainers.image.base.digest="nvcr.io/nvidia/tensorrt:24.09-py3"
+LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:26.01-py3"
+LABEL org.opencontainers.image.base.digest="nvcr.io/nvidia/tensorrt:26.01-py3"
 
 # Additional service-specific labels
 LABEL maintainer="home-security-intelligence"
