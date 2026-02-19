@@ -707,7 +707,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     except Exception as e:
         lifespan_logger.error(f"Redis connection failed: {e}")
-        lifespan_logger.warning("Continuing without Redis - some features may be unavailable")
+        if settings.allow_redis_failure:
+            lifespan_logger.warning(
+                "ALLOW_REDIS_FAILURE=1: continuing without Redis. "
+                "Pipeline workers, file watcher, and event broadcast will NOT function."
+            )
+        else:
+            raise RuntimeError(
+                "Redis is REQUIRED for pipeline workers, file watcher, and event broadcast. "
+                "Set ALLOW_REDIS_FAILURE=1 to override (dev/testing only)."
+            ) from e
 
     # Initialize system broadcaster (runs independently of Redis, but uses it when available)
     # Pass the Redis client if it was successfully initialized

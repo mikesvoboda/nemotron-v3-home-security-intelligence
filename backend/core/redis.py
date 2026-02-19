@@ -619,6 +619,10 @@ class RedisClient:
                     "max_connections": settings.redis_pool_size,
                 }
 
+                # Add ACL username if configured (Redis 6+ ACL support)
+                if settings.redis_username:
+                    pool_kwargs["username"] = settings.redis_username
+
                 # Add password if configured (non-empty string)
                 # Empty string is treated as no password for backward compatibility
                 # Support both str and SecretStr for password

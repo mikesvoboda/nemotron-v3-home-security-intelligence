@@ -369,8 +369,9 @@ services:
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
-      # SECURITY: Redis password authentication (optional, for production use)
-      # Must match REDIS_PASSWORD set in the redis service
+      # SECURITY: Redis ACL user and password authentication (optional, for production use)
+      # Must match the ACL user/password configured in the redis service
+      - REDIS_USERNAME=${REDIS_USERNAME:-}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       # Rootless Podman bind mounts don't propagate inotify events reliably.
       # Use polling mode for file watcher to detect new camera images.
@@ -491,11 +492,14 @@ services:
     # SECURITY: Password authentication via REDIS_PASSWORD environment variable
     # If REDIS_PASSWORD is set, Redis requires authentication for all connections.
     # If REDIS_PASSWORD is empty or not set, Redis runs without authentication (local dev only).
+    # ACL: When password is set, creates a restricted 'app' user that cannot run
+    # FLUSHDB, FLUSHALL, CONFIG, DEBUG, SHUTDOWN, or other dangerous/admin commands.
+    # The 'default' user is disabled so only the 'app' user can connect.
     command: >-
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
-        echo "Starting Redis with password authentication"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no --requirepass "$$REDIS_PASSWORD"
+        echo "Starting Redis with password authentication and ACL restrictions"
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no --user default off --user app on ">$$REDIS_PASSWORD" "~*" "&*" "+@all" "-@admin" "-@dangerous"
       else
         echo "Starting Redis without authentication (development mode)"
         redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no
@@ -504,11 +508,11 @@ services:
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     healthcheck:
-      # Use AUTH if password is set, otherwise just ping
+      # Use AUTH with ACL user if password is set, otherwise just ping
       test: >-
         sh -c '
         if [ -n "$$REDIS_PASSWORD" ]; then
-          redis-cli -a "$$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
+          redis-cli --user app -a "$$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
         else
           redis-cli ping | grep -q PONG
         fi
@@ -914,7 +918,8 @@ services:
       - '127.0.0.1:${REDIS_EXPORTER_PORT:-9121}:9121'
     environment:
       - REDIS_ADDR=redis://redis:6379
-      # SECURITY: Redis password for exporter authentication (must match redis service)
+      # SECURITY: Redis ACL user/password for exporter authentication (must match redis service)
+      - REDIS_USER=${REDIS_USERNAME:-}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     depends_on:
       redis:
@@ -1047,8 +1052,9 @@ services:
     healthcheck:
       test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/ready']
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
     networks:
       - security-net
@@ -1234,8 +1240,10 @@ services:
       - '4317' # OTLP gRPC (internal only)
       - '4318' # OTLP HTTP (internal only)
     depends_on:
-      - loki
-      - pyroscope
+      loki:
+        condition: service_healthy
+      pyroscope:
+        condition: service_healthy
     healthcheck:
       # Alloy doesn't have wget/curl - use process check instead
       test: ['CMD', 'pgrep', '-f', 'alloy']

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import resource
+import shutil
 import subprocess
 import time
 import urllib.error
@@ -20,6 +21,59 @@ from setup_lib.rootful_services import (
     _is_service_installed,
     _run_sudo,
 )
+
+# ---------------------------------------------------------------------------
+# Phase 0: Pre-flight validation
+# ---------------------------------------------------------------------------
+
+
+def phase_validate(config: DeployConfig) -> DeployResult:
+    """Pre-flight checks to catch configuration issues before building."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # 1. Podman CLI available
+    if not shutil.which("podman"):
+        errors.append("podman CLI not found in PATH")
+
+    # 2. Podman socket exists and is accessible
+    socket_path = config.env.get("PODMAN_SOCKET") or f"/run/user/{os.getuid()}/podman/podman.sock"
+    if not Path(socket_path).exists():
+        errors.append(f"Podman socket not found at {socket_path}")
+
+    # 3. Required env vars
+    for var in ("POSTGRES_PASSWORD", "REDIS_PASSWORD"):
+        if not config.env.get(var):
+            errors.append(f"Required env var {var} is not set in .env")
+
+    # 4. GPU detection (warn only)
+    try:
+        gpu_result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        if gpu_result.returncode == 0 and gpu_result.stdout.strip():
+            gpu_names = [g.strip() for g in gpu_result.stdout.strip().splitlines()]
+            print(f"  GPU detected: {', '.join(gpu_names)}")
+        else:
+            warnings.append("nvidia-smi returned no GPUs — AI services may not work")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        warnings.append("nvidia-smi not found — GPU acceleration unavailable")
+
+    # Report warnings
+    for w in warnings:
+        print(f"  WARNING: {w}")
+
+    if errors:
+        for e in errors:
+            print(f"  ERROR: {e}")
+        return DeployResult(False, f"Pre-flight failed: {'; '.join(errors)}")
+
+    return DeployResult(True, "Pre-flight checks passed")
+
 
 # ---------------------------------------------------------------------------
 # Phase 1: Stop everything
@@ -624,6 +678,12 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
 # ---------------------------------------------------------------------------
 
 DEPLOY_PHASES: list[DeployPhase] = [
+    DeployPhase(
+        name="validate",
+        description="Pre-flight validation",
+        func=phase_validate,
+        required=True,
+    ),
     DeployPhase(
         name="stop",
         description="Stopping all containers and services",

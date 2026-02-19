@@ -496,11 +496,17 @@ class Settings(BaseSettings):
         default="redis://localhost:6379/0",
         description="Redis connection URL. Development: redis://localhost:6379/0, Docker: redis://redis:6379/0",
     )
+    redis_username: str | None = Field(
+        default=None,
+        description="Redis ACL username. Set to 'app' for production deployments where "
+        "Redis ACL is configured to restrict dangerous commands (FLUSHDB, FLUSHALL, etc.). "
+        "Leave unset/None for local development without ACL.",
+    )
     redis_password: SecretStr | None = Field(
         default=None,
         description="Redis password for authentication. Optional for local development (no password). "
         "Set via REDIS_PASSWORD environment variable for production deployments. "
-        "Must match the `requirepass` value configured in Redis.",
+        "Must match the password configured in the Redis ACL user.",
     )
 
     # JWT Authentication settings (NEM-5307)
@@ -678,8 +684,9 @@ class Settings(BaseSettings):
         default=False,
         description="Apply memory settings to Redis server on application startup. "
         "When True, sends CONFIG SET commands to configure maxmemory and maxmemory-policy. "
-        "Requires Redis ACL permissions for CONFIG command. "
-        "Set to False if Redis is configured externally (e.g., via redis.conf).",
+        "WARNING: Incompatible with production ACL setup where the 'app' user has CONFIG "
+        "blocked. Keep False when using Redis ACL (the default). Memory settings are "
+        "configured via redis-server command line flags in docker-compose instead.",
     )
 
     # Redis Cluster settings for horizontal scalability (NEM-3761)
@@ -707,6 +714,14 @@ class Settings(BaseSettings):
         le=50,
         description="Maximum connections per cluster node. "
         "Total connections = max_connections_per_node * number_of_nodes.",
+    )
+
+    allow_redis_failure: bool = Field(
+        default=False,
+        description="Allow backend to start without Redis. "
+        "Default False: backend fails fast if Redis is unavailable. "
+        "Set ALLOW_REDIS_FAILURE=1 for dev/testing environments only. "
+        "Redis is REQUIRED for pipeline workers, file watcher, and event broadcast.",
     )
 
     # HyperLogLog settings for unique entity counting (NEM-3414)
