@@ -148,11 +148,19 @@ class TestLoadSmokeFireModel:
     @pytest.mark.asyncio
     async def test_load_model_raises_import_error_without_ultralytics(self) -> None:
         """Test that ImportError is raised if ultralytics not installed."""
+        import backend.services.smoke_fire_loader as sf_mod
         from backend.services.smoke_fire_loader import load_smoke_fire_model
 
-        with patch.dict("sys.modules", {"ultralytics": None}):
-            with pytest.raises(ImportError):
-                await load_smoke_fire_model("/models/model-zoo/smoke-fire-yolov8n")
+        # Reset the module-level YOLO global so the function actually
+        # attempts the import (previous tests may have set it via mock).
+        original_yolo = sf_mod.YOLO
+        sf_mod.YOLO = None
+        try:
+            with patch.dict("sys.modules", {"ultralytics": None}):
+                with pytest.raises(ImportError):
+                    await load_smoke_fire_model("/models/model-zoo/smoke-fire-yolov8n")
+        finally:
+            sf_mod.YOLO = original_yolo
 
     @pytest.mark.asyncio
     async def test_load_model_raises_runtime_error_on_failure(self) -> None:
