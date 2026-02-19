@@ -355,7 +355,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Enables backend to manage AI service containers for self-healing
-      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}:ro
+      # NOTE: rw required — Docker API sends commands over the socket
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
@@ -1205,7 +1206,8 @@ services:
     user: root
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
-      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}:ro
+      # NOTE: rw required — Alloy reads container logs via Podman API
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
