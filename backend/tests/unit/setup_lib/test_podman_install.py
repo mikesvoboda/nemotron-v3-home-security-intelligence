@@ -374,10 +374,13 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
+            # First call: not installed, subsequent calls: installed successfully
+            patch("setup_lib.podman_install.is_podman_installed", side_effect=[False, True]),
             patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
             patch("builtins.input", return_value="y"),
             patch("setup_lib.podman_install.install_podman", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", return_value=True),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -414,11 +417,14 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
+            # First call: not installed, subsequent calls: installed successfully
+            patch("setup_lib.podman_install.is_podman_installed", side_effect=[False, True]),
             patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
             patch("builtins.input", return_value="y"),
             patch("setup_lib.podman_install.install_podman", return_value=True),
             patch("setup_lib.podman_install.init_podman_machine", return_value=True) as mock_init,
+            patch("setup_lib.podman_install.configure_rootless_cgroups", return_value=True),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -477,10 +483,13 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
+            # First call: not installed, subsequent calls: installed successfully
+            patch("setup_lib.podman_install.is_podman_installed", side_effect=[False, True]),
             patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
             patch("builtins.input") as mock_input,
             patch("setup_lib.podman_install.install_podman", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", return_value=True),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
         ):
             result = prompt_and_install_podman(config={"auto_install": True})
             assert result is True
