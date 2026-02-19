@@ -15,7 +15,6 @@ Test Categories:
 from __future__ import annotations
 
 import resource
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -307,7 +306,7 @@ class TestApplicationPhaseServiceRetry:
         phase_application(mock_config)
 
         # Verify: the --wait call includes app services
-        wait_call = [c for c in mock_compose_run.call_args_list if "--wait" in c.args][0]
+        wait_call = next(c for c in mock_compose_run.call_args_list if "--wait" in c.args)
         for svc in _APP_SERVICES:
             assert svc in wait_call.args, f"{svc} should be in --wait call"
 
@@ -325,9 +324,7 @@ class TestApplicationPhaseServiceRetry:
         """Test application phase retries services individually when --wait fails."""
 
         def compose_run_side_effect(config, *args, **kwargs):
-            if "--wait" in args:
-                return False  # Initial --wait fails
-            return True  # Individual retries succeed
+            return "--wait" not in args  # Initial --wait fails, retries succeed
 
         mock_compose_run.side_effect = compose_run_side_effect
         mock_wait_running.return_value = True  # All containers reach running
@@ -388,13 +385,11 @@ class TestApplicationPhaseServiceRetry:
         """Test that stuck services are reported but phase still succeeds."""
 
         def compose_run_side_effect(config, *args, **kwargs):
-            if "--wait" in args:
-                return False
-            return True
+            return "--wait" not in args
 
         mock_compose_run.side_effect = compose_run_side_effect
         # ai-llm doesn't reach running, others do
-        mock_wait_running.side_effect = lambda svc, timeout=60: svc != "ai-llm"
+        mock_wait_running.side_effect = lambda svc, timeout=60: svc != "ai-llm"  # noqa: ARG005
 
         result = phase_application(mock_config)
 
@@ -791,9 +786,7 @@ class TestDeployPhasesIntegration:
         """Test that application phase retry logic handles various failure modes."""
 
         def compose_run_side_effect(config, *args, **kwargs):
-            if "--wait" in args:
-                return False  # Initial --wait fails
-            return True  # Individual retries succeed
+            return "--wait" not in args  # Initial --wait fails, retries succeed
 
         mock_compose_run.side_effect = compose_run_side_effect
         mock_wait_running.return_value = True
