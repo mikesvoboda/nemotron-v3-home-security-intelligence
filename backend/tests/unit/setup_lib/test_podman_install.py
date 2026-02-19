@@ -339,7 +339,21 @@ class TestPromptAndInstallPodman:
         """Should return True immediately if podman is already installed."""
         from setup_lib.podman_install import prompt_and_install_podman
 
-        with patch("setup_lib.podman_install.is_podman_installed", return_value=True):
+        platform_info: PlatformInfo = {
+            "platform": "linux",
+            "distro": {"id": "fedora"},
+            "package_manager": "dnf",
+            "is_wsl": False,
+        }
+
+        with (
+            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch("setup_lib.podman_install.is_podman_installed", return_value=True),
+            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("builtins.print"),
+        ):
             result = prompt_and_install_podman()
             assert result is True
 
