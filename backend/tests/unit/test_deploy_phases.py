@@ -23,6 +23,7 @@ import pytest
 from setup_lib.deploy import DeployConfig
 from setup_lib.deploy_phases import (
     _ALLOY_MEMLOCK_BYTES,
+    _APP_SERVICES,
     _MONITORING_SERVICES,
     phase_application,
     phase_infrastructure,
@@ -263,6 +264,15 @@ class TestInfrastructurePhaseAlloyMemlock:
 class TestApplicationPhaseServiceRetry:
     """Tests for individual service retry logic in phase_application."""
 
+    def test_app_services_constant_has_all_critical_services(self) -> None:
+        """Test that _APP_SERVICES contains all critical application services."""
+        expected = {"backend", "frontend", "ai-gateway", "ai-llm"}
+        assert set(_APP_SERVICES) == expected
+
+    def test_app_services_starts_with_ai_llm(self) -> None:
+        """Test that ai-llm is first in _APP_SERVICES (backend depends on it)."""
+        assert _APP_SERVICES[0] == "ai-llm"
+
     @patch("setup_lib.deploy_phases.compose_run")
     def test_application_phase_succeeds_when_compose_wait_succeeds(
         self,
@@ -286,43 +296,42 @@ class TestApplicationPhaseServiceRetry:
         assert len(wait_calls) == 1
 
     @patch("setup_lib.deploy_phases.compose_run")
-    def test_application_phase_retries_services_when_compose_wait_fails(
+    def test_application_phase_scopes_to_app_services_only(
         self,
         mock_compose_run: Mock,
         mock_config: DeployConfig,
     ) -> None:
+        """Test that compose --wait only targets app services, not alloy."""
+        mock_compose_run.return_value = True
+
+        phase_application(mock_config)
+
+        # Verify: the --wait call includes app services
+        wait_call = [c for c in mock_compose_run.call_args_list if "--wait" in c.args][0]
+        for svc in _APP_SERVICES:
+            assert svc in wait_call.args, f"{svc} should be in --wait call"
+
+        # Verify: alloy is NOT in the --wait call
+        assert "alloy" not in wait_call.args, "alloy should not be re-started in phase 5"
+
+    @patch("setup_lib.deploy_phases._wait_container_running")
+    @patch("setup_lib.deploy_phases.compose_run")
+    def test_application_phase_retries_services_when_compose_wait_fails(
+        self,
+        mock_compose_run: Mock,
+        mock_wait_running: Mock,
+        mock_config: DeployConfig,
+    ) -> None:
         """Test application phase retries services individually when --wait fails."""
-        # Setup: initial --wait fails, then individual services succeed
-        call_count = 0
 
         def compose_run_side_effect(config, *args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-
-            # First call (--wait) fails
-            if call_count == 1:
-                return False
-
-            # Individual service retries succeed (not capture mode)
-            if any(
-                svc in args for svc in ("backend", "frontend", "ai-gateway", "ai-llm")
-            ) and not kwargs.get("capture", False):
-                return True
-
-            # Final ps call (capture mode - return CompletedProcess)
-            if "ps" in args and kwargs.get("capture", False):
-                return subprocess.CompletedProcess(
-                    args=["podman", "compose", "ps"],
-                    returncode=0,
-                    stdout='[{"State": "running"}]',
-                    stderr="",
-                )
-
-            return True
+            if "--wait" in args:
+                return False  # Initial --wait fails
+            return True  # Individual retries succeed
 
         mock_compose_run.side_effect = compose_run_side_effect
+        mock_wait_running.return_value = True  # All containers reach running
 
-        # Execute
         result = phase_application(mock_config)
 
         # Verify: should succeed after retries
@@ -333,91 +342,65 @@ class TestApplicationPhaseServiceRetry:
         retry_calls = [
             c
             for c in compose_calls
-            if any(svc in c.args for svc in ("backend", "frontend", "ai-gateway", "ai-llm"))
+            if any(svc in c.args for svc in _APP_SERVICES)
             and "up" in c.args
             and "-d" in c.args
             and "--wait" not in c.args
         ]
-        assert len(retry_calls) >= 4, "Should retry backend, frontend, ai-gateway, ai-llm"
+        assert len(retry_calls) == 4, "Should retry all 4 app services"
 
+    @patch("setup_lib.deploy_phases._wait_container_running")
     @patch("setup_lib.deploy_phases.compose_run")
     def test_application_phase_retries_all_critical_services(
         self,
         mock_compose_run: Mock,
+        mock_wait_running: Mock,
         mock_config: DeployConfig,
     ) -> None:
         """Test that all critical services are retried individually."""
-        # Setup: --wait fails, track which services are retried
         retried_services = set()
 
         def compose_run_side_effect(config, *args, **kwargs):
             if "--wait" in args:
                 return False  # Initial --wait fails
-
-            # Track individual service retries
-            for svc in ("backend", "frontend", "ai-gateway", "ai-llm"):
+            for svc in _APP_SERVICES:
                 if svc in args and "up" in args and "-d" in args:
                     retried_services.add(svc)
                     return True
-
-            # ps call (capture mode - return CompletedProcess)
-            if "ps" in args and kwargs.get("capture", False):
-                return subprocess.CompletedProcess(
-                    args=["podman", "compose", "ps"],
-                    returncode=0,
-                    stdout='[{"State": "running"}]',
-                    stderr="",
-                )
-
             return True
 
         mock_compose_run.side_effect = compose_run_side_effect
+        mock_wait_running.return_value = True
 
-        # Execute
         result = phase_application(mock_config)
 
-        # Verify: all critical services were retried
-        expected_services = {"backend", "frontend", "ai-gateway", "ai-llm"}
+        expected_services = set(_APP_SERVICES)
         assert retried_services == expected_services
 
+    @patch("setup_lib.deploy_phases._wait_container_running")
     @patch("setup_lib.deploy_phases.compose_run")
-    def test_application_phase_fails_when_ps_check_fails(
+    def test_application_phase_reports_stuck_services(
         self,
         mock_compose_run: Mock,
+        mock_wait_running: Mock,
         mock_config: DeployConfig,
     ) -> None:
-        """Test application phase fails when final ps check fails."""
+        """Test that stuck services are reported but phase still succeeds."""
 
-        # Setup: --wait fails, retries succeed, but ps check fails
         def compose_run_side_effect(config, *args, **kwargs):
             if "--wait" in args:
-                return False  # Initial --wait fails
-
-            # Individual service retries succeed (not capture mode)
-            if any(
-                svc in args for svc in ("backend", "frontend", "ai-gateway", "ai-llm")
-            ) and not kwargs.get("capture", False):
-                return True
-
-            # ps call fails (capture mode - return CompletedProcess with error)
-            if "ps" in args and kwargs.get("capture", False):
-                return subprocess.CompletedProcess(
-                    args=["podman", "compose", "ps"],
-                    returncode=1,
-                    stdout="",
-                    stderr="podman error",
-                )
-
+                return False
             return True
 
         mock_compose_run.side_effect = compose_run_side_effect
+        # ai-llm doesn't reach running, others do
+        mock_wait_running.side_effect = lambda svc, timeout=60: svc != "ai-llm"
 
-        # Execute
         result = phase_application(mock_config)
 
-        # Verify: should fail
-        assert result.success is False
-        assert "Failed to start application services" in result.message
+        # Phase still succeeds (degraded is OK, deployment continues)
+        assert result.success is True
+        assert "ai-llm" in result.message
 
 
 # =============================================================================
@@ -797,42 +780,23 @@ class TestDeployPhasesIntegration:
                 break
         assert monitoring_started, "monitoring services should be started"
 
+    @patch("setup_lib.deploy_phases._wait_container_running")
     @patch("setup_lib.deploy_phases.compose_run")
     def test_application_phase_retry_logic_is_resilient(
         self,
         mock_compose_run: Mock,
+        mock_wait_running: Mock,
         mock_config: DeployConfig,
     ) -> None:
         """Test that application phase retry logic handles various failure modes."""
-        # Setup: simulate partial failures
-        call_count = 0
 
         def compose_run_side_effect(config, *args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-
-            # Initial --wait fails
-            if call_count == 1 and "--wait" in args:
-                return False
-
-            # Individual service retries (not capture mode)
-            if any(
-                svc in args for svc in ("backend", "frontend", "ai-gateway", "ai-llm")
-            ) and not kwargs.get("capture", False):
-                return True
-
-            # ps check succeeds (capture mode - return CompletedProcess)
-            if "ps" in args and kwargs.get("capture", False):
-                return subprocess.CompletedProcess(
-                    args=["podman", "compose", "ps"],
-                    returncode=0,
-                    stdout='[{"State": "running"}]',
-                    stderr="",
-                )
-
-            return True
+            if "--wait" in args:
+                return False  # Initial --wait fails
+            return True  # Individual retries succeed
 
         mock_compose_run.side_effect = compose_run_side_effect
+        mock_wait_running.return_value = True
 
         # Execute
         result = phase_application(mock_config)

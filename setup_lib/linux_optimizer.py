@@ -537,20 +537,26 @@ def _update_grub_parameters(backup_dir: Path, kernel_params: dict[str, str]) -> 
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
-    # Regenerate GRUB config
+    # Regenerate GRUB config — use the correct tool for the distro
     log_info("Regenerating GRUB configuration...")
-    efi_grub = Path("/boot/efi/EFI/fedora/grub.cfg")
-    legacy_grub = Path("/boot/grub2/grub.cfg")
 
-    try:
-        efi_parent_exists = efi_grub.parent.exists()
-    except PermissionError:
-        efi_parent_exists = False
-
-    if Path("/sys/firmware/efi").is_dir() and efi_parent_exists:
-        success, output = run_command(["grub2-mkconfig", "-o", str(efi_grub)], check=False)
+    if shutil.which("update-grub"):
+        # Debian/Ubuntu
+        success, output = run_command(["update-grub"], check=False)
     else:
-        success, output = run_command(["grub2-mkconfig", "-o", str(legacy_grub)], check=False)
+        # Fedora/RHEL fallback
+        efi_grub = Path("/boot/efi/EFI/fedora/grub.cfg")
+        legacy_grub = Path("/boot/grub2/grub.cfg")
+
+        try:
+            efi_parent_exists = efi_grub.parent.exists()
+        except PermissionError:
+            efi_parent_exists = False
+
+        if Path("/sys/firmware/efi").is_dir() and efi_parent_exists:
+            success, output = run_command(["grub2-mkconfig", "-o", str(efi_grub)], check=False)
+        else:
+            success, output = run_command(["grub2-mkconfig", "-o", str(legacy_grub)], check=False)
 
     if not success:
         return OptimizationResult(
