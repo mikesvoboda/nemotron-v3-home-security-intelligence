@@ -626,6 +626,7 @@ class TestUpdateGrubParameters:
             patch.object(Path, "is_dir", return_value=True),  # /sys/firmware/efi exists
             patch("setup_lib.linux_optimizer.run_command") as mock_run,
             patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
+            patch("setup_lib.linux_optimizer.shutil.which", return_value=None),  # no update-grub
             patch("shutil.copy2"),
         ):
             mock_sudo.return_value = subprocess.CompletedProcess(
@@ -636,7 +637,7 @@ class TestUpdateGrubParameters:
             result = _update_grub_parameters(backup_dir, {"iommu": "pt"})
 
             assert result.success is True
-            # Should use EFI grub path
+            # Should use EFI grub path (grub2-mkconfig fallback)
             mock_run.assert_called()
             call_args = mock_run.call_args[0][0]
             assert "grub2-mkconfig" in call_args

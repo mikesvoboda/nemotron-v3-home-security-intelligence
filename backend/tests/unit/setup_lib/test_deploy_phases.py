@@ -483,8 +483,8 @@ class TestPhaseApplication:
             assert "up" in call_str
             assert "--no-build" in call_str
 
-    def test_fails_on_compose_error(self, tmp_path: Path) -> None:
-        """Should return failure when compose up fails."""
+    def test_degraded_on_compose_error(self, tmp_path: Path) -> None:
+        """Should return success (degraded) when compose up fails but retries proceed."""
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_application
 
@@ -493,10 +493,17 @@ class TestPhaseApplication:
             compose_cmd=["podman", "compose"],
         )
 
-        with patch("setup_lib.deploy_phases.compose_run", return_value=False):
+        with (
+            patch("setup_lib.deploy_phases.compose_run", return_value=False),
+            patch("setup_lib.deploy_phases._check_gpu_available", return_value=True),
+            patch("setup_lib.deploy_phases._wait_container_running", return_value=False),
+            patch("builtins.print"),
+        ):
             result = phase_application(config)
 
-            assert result.success is False
+            # phase_application always returns success (degraded is OK)
+            assert result.success is True
+            assert "may still be initializing" in result.message
 
 
 class TestPhaseHealthCheck:
