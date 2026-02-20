@@ -663,15 +663,35 @@ def run_quick_mode() -> dict:
     ftp_password = prompt_with_default("FTP password", default_ftp_pw)
     print()
 
-    # Ports (optional customization)
-    print("-- Ports (press Enter to keep defaults) " + "-" * 21)
+    # Ports - auto-detected free ports (optional manual override)
+    print("-- Ports " + "-" * 52)
+    print("  Auto-detected free ports for all services.")
+    print()
+
+    # Group ports by category for display
+    categories: dict[str, list[tuple[str, int]]] = {}
     for service, info in SERVICES.items():
-        suggested = ports[service]
-        custom = prompt_with_default(f"{info['desc']}", str(suggested))
-        try:
-            ports[service] = int(custom)
-        except ValueError:
-            ports[service] = suggested
+        cat = info["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append((info["desc"], ports[service]))
+
+    for cat, items in categories.items():
+        print(f"  {cat}:")
+        for desc, port in items:
+            print(f"    {desc:<30s} {port}")
+    print()
+
+    manual = prompt_with_default("Configure ports manually?", "n")
+    if manual.lower() in ("y", "yes"):
+        print()
+        for service, info in SERVICES.items():
+            suggested = ports[service]
+            custom = prompt_with_default(f"{info['desc']}", str(suggested))
+            try:
+                ports[service] = int(custom)
+            except ValueError:
+                ports[service] = suggested
     print()
 
     # Detect GPU compute capability for optimized CUDA builds
@@ -817,19 +837,54 @@ def run_guided_mode() -> dict:
     print("  Step 4 of 5: Port Configuration")
     print("=" * 60)
     print()
-    print("Checking for port conflicts...")
+    print("Auto-detecting free ports for all services...")
+    print()
 
     assigned_ports: set[int] = set()
+    conflicts = []
     for service, info in SERVICES.items():
         default_port = info["port"]
-        if not check_port_available(default_port) or default_port in assigned_ports:
-            available = find_available_port(default_port, exclude=assigned_ports)
-            print(f"! {info['desc']} ({service}): port {default_port} in use")
-            ports[service] = int(prompt_with_default("  Alternative port", str(available)))
-        else:
-            print(f"+ {info['desc']}: {default_port}")
+        if check_port_available(default_port) and default_port not in assigned_ports:
             ports[service] = default_port
+        else:
+            available = find_available_port(default_port, exclude=assigned_ports)
+            ports[service] = available
+            conflicts.append(f"  {info['desc']}: {default_port} -> {available}")
         assigned_ports.add(ports[service])
+
+    if conflicts:
+        print("! Port conflicts detected, using alternatives:")
+        for c in conflicts:
+            print(c)
+        print()
+    else:
+        print("+ All default ports available")
+        print()
+
+    # Group ports by category for display
+    categories: dict[str, list[tuple[str, int]]] = {}
+    for service, info in SERVICES.items():
+        cat = info["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append((info["desc"], ports[service]))
+
+    for cat, items in categories.items():
+        print(f"  {cat}:")
+        for desc, port in items:
+            print(f"    {desc:<30s} {port}")
+    print()
+
+    manual = prompt_with_default("Configure ports manually?", "n")
+    if manual.lower() in ("y", "yes"):
+        print()
+        for service, info in SERVICES.items():
+            suggested = ports[service]
+            custom = prompt_with_default(f"  {info['desc']}", str(suggested))
+            try:
+                ports[service] = int(custom)
+            except ValueError:
+                ports[service] = suggested
     print()
 
     # Step 5: Summary
@@ -1139,6 +1194,8 @@ def main() -> None:
         sys.exit(0 if success else 1)
 
     try:
+        driver_was_upgraded = False
+
         # Step 0: Platform detection and validation
         if not args.defaults:
             print("=" * 60)
@@ -1161,7 +1218,9 @@ def main() -> None:
 
             # Step 2/5: NVIDIA GPU detection
             # Auto-install without prompting for streamlined setup
-            prompt_and_check_nvidia({"auto_install": True})
+            nvidia_config: dict[str, object] = {"auto_install": True}
+            prompt_and_check_nvidia(nvidia_config)
+            driver_was_upgraded = bool(nvidia_config.get("driver_upgraded"))
 
             # Step 2b: DCGM Exporter service (GPU hardware metrics)
             # Installs a rootful systemd service for DCGM, which requires
@@ -1305,9 +1364,15 @@ def main() -> None:
         # This runs BEFORE model downloads because it may require a reboot.
         # If the user reboots, they re-run setup.py and models download after
         # the system is fully configured.
-        reboot_required = False
+        optimizer_reboot = False
         if platform.system() == "Linux" and not args.defaults:
-            _opt_success, reboot_required = prompt_and_run_optimizations()
+            _opt_success, optimizer_reboot = prompt_and_run_optimizations()
+
+        # Combine reboot signals: driver upgrade OR kernel parameter changes
+        # Both require a reboot before GPU containers can start.
+        reboot_required = optimizer_reboot or (
+            not args.defaults and driver_was_upgraded
+        )
 
         # Download AI models (skip in defaults mode, but enable for --yes mode)
         if not args.defaults or args.yes:
@@ -1315,8 +1380,13 @@ def main() -> None:
                 print()
                 print("=" * 60)
                 print("! System configuration changes require a reboot")
-                print("  Kernel parameters and driver options will not take")
-                print("  effect until after a restart.")
+                if driver_was_upgraded and not optimizer_reboot:
+                    print("  NVIDIA driver was upgraded — new driver loads after reboot.")
+                elif driver_was_upgraded and optimizer_reboot:
+                    print("  NVIDIA driver was upgraded and kernel parameters were changed.")
+                else:
+                    print("  Kernel parameters and driver options will not take")
+                    print("  effect until after a restart.")
                 print("=" * 60)
                 print()
                 try:
@@ -1345,8 +1415,40 @@ def main() -> None:
             config["skip_pull"] = True  # Skip image pull to save time
             prompt_and_pull_images(config)
 
-        # Auto-deploy: bring up all services
-        if not args.defaults:
+        # Auto-deploy or reboot
+        # Skip deploy if reboot is required — GPU containers will fail without
+        # the new driver's device nodes (/dev/nvidia*).
+        if not args.defaults and reboot_required:
+            print()
+            print("=" * 60)
+            print("  Reboot Required Before Deployment")
+            print("=" * 60)
+            print()
+            if driver_was_upgraded:
+                print("  The NVIDIA driver was upgraded and the new driver will")
+                print("  not load until after a reboot. GPU containers (ai-llm,")
+                print("  ai-gateway) cannot start without /dev/nvidia* devices.")
+            if optimizer_reboot:
+                print("  Kernel parameters were changed that require a reboot.")
+            print()
+            print("  After rebooting, deploy services with:")
+            print("    python3 setup.py deploy")
+            print()
+            try:
+                reboot_now = input("Reboot now? [Y/n]: ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                reboot_now = "n"
+
+            if reboot_now in ("y", "yes", ""):
+                print("  Rebooting...")
+                subprocess.run(["sudo", "reboot"], check=False)  # noqa: S603, S607
+            else:
+                print()
+                print("  Remember to reboot before deploying.")
+                print("  Then run: python3 setup.py deploy")
+
+        elif not args.defaults:
             print()
             print("=" * 60)
             print("  Deploying Services")

@@ -89,11 +89,33 @@ class TestCreateDirectory:
         assert create_directory(str(existing)) is True
 
     def test_permission_denied(self) -> None:
-        """Should return False on permission error."""
+        """Should return False when mkdir raises PermissionError and sudo also fails."""
         from setup_lib.storage_config import create_directory
 
-        with patch("pathlib.Path.mkdir", side_effect=PermissionError("denied")):
+        mock_result = MagicMock()
+        mock_result.returncode = 1  # sudo fails (e.g. no passwordless sudo)
+
+        with (
+            patch("pathlib.Path.mkdir", side_effect=PermissionError("denied")),
+            patch("subprocess.run", return_value=mock_result),
+        ):
             assert create_directory("/some/path") is False
+
+    def test_permission_denied_sudo_success(self) -> None:
+        """Should return True when mkdir raises PermissionError but sudo succeeds."""
+        from setup_lib.storage_config import create_directory
+
+        sudo_mkdir_result = MagicMock()
+        sudo_mkdir_result.returncode = 0  # sudo mkdir succeeds
+
+        sudo_chown_result = MagicMock()
+        sudo_chown_result.returncode = 0
+
+        with (
+            patch("pathlib.Path.mkdir", side_effect=PermissionError("denied")),
+            patch("subprocess.run", side_effect=[sudo_mkdir_result, sudo_chown_result]),
+        ):
+            assert create_directory("/some/path") is True
 
 
 class TestGetFreeSpaceGb:

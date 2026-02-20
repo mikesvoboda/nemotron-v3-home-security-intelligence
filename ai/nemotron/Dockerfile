@@ -59,6 +59,7 @@ RUN --mount=type=cache,target=/build/llama.cpp/.ccache,sharing=locked \
     cmake -B build \
     -DGGML_CUDA=ON \
     -DGGML_CUDA_FA_ALL_QUANTS=ON \
+    -DGGML_NATIVE=ON \
     ${CUDA_ARCH_FLAG} \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \

@@ -149,7 +149,7 @@ class TestDetectComposeCommand:
 
             result = detect_compose_command()
 
-            assert result == ["podman-compose"]
+            assert result == ["/usr/bin/podman-compose"]
 
     def test_raises_when_none_found(self) -> None:
         """Should raise RuntimeError when no compose command is available."""

@@ -49,6 +49,7 @@ __all__ = [
 import asyncio
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 from backend.core.config import get_settings
@@ -113,6 +114,16 @@ class DetectionStreamMessage:
         Returns:
             DetectionStreamMessage instance
         """
+        # Parse timestamp: accept both float (unix epoch) and ISO 8601 strings
+        raw_ts = data.get("timestamp", "")
+        try:
+            ts = float(raw_ts)
+        except (ValueError, TypeError):
+            try:
+                ts = datetime.fromisoformat(raw_ts).timestamp()
+            except (ValueError, TypeError):
+                ts = time.time()
+
         return cls(
             id=message_id,
             camera_id=data.get("camera_id", ""),
@@ -120,7 +131,7 @@ class DetectionStreamMessage:
             file_path=data.get("file_path", ""),
             confidence=float(data["confidence"]) if data.get("confidence") else None,
             object_type=data.get("object_type"),
-            timestamp=float(data.get("timestamp", time.time())),
+            timestamp=ts,
             delivery_count=delivery_count,
             raw_data=data,
         )
@@ -820,14 +831,25 @@ class AnalysisStreamMessage:
         except (json.JSONDecodeError, TypeError):
             detection_ids = []
 
+        # Parse pipeline_start_time: accept both float and ISO 8601 strings
+        raw_pst = data.get("pipeline_start_time")
+        pst: float | None = None
+        if raw_pst:
+            try:
+                pst = float(raw_pst)
+            except (ValueError, TypeError):
+                try:
+                    # Handle ISO 8601 format (with or without timezone)
+                    pst = datetime.fromisoformat(raw_pst.replace("Z", "+00:00")).timestamp()
+                except (ValueError, TypeError):
+                    pst = None
+
         return cls(
             id=message_id,
             batch_id=data.get("batch_id", ""),
             camera_id=data.get("camera_id", ""),
             detection_ids=[int(d) for d in detection_ids],
-            pipeline_start_time=float(data["pipeline_start_time"])
-            if data.get("pipeline_start_time")
-            else None,
+            pipeline_start_time=pst,
             delivery_count=delivery_count,
             raw_data=data,
         )
@@ -840,7 +862,10 @@ class AnalysisStreamMessage:
             "detection_ids": self.detection_ids,
         }
         if self.pipeline_start_time is not None:
-            result["pipeline_start_time"] = self.pipeline_start_time
+            # AnalysisQueuePayload expects ISO 8601 string
+            result["pipeline_start_time"] = datetime.fromtimestamp(
+                self.pipeline_start_time, tz=UTC
+            ).isoformat()
         return result
 
 
@@ -912,7 +937,7 @@ class AnalysisStreamService:
         batch_id: str,
         camera_id: str,
         detection_ids: list[int],
-        pipeline_start_time: float | None = None,
+        pipeline_start_time: float | str | None = None,
     ) -> str:
         """Add a batch analysis job to the stream.
 

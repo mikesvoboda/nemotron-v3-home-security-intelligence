@@ -563,15 +563,19 @@ class TestPromptAndDownloadModels:
         """Should create model-zoo directory when it doesn't exist."""
         from setup_lib.model_downloader import prompt_and_download_models
 
-        mock_path = MagicMock(spec=Path)
         mock_model_zoo = MagicMock(spec=Path)
-        mock_path.__truediv__ = MagicMock(return_value=mock_model_zoo)
         mock_model_zoo.exists.return_value = False
+        mock_model_zoo.mkdir.return_value = None
+        mock_model_zoo.parent = MagicMock()
+
+        mock_ai_path = MagicMock(spec=Path)
+        mock_ai_path.__truediv__ = MagicMock(return_value=mock_model_zoo)
+        mock_ai_path.exists.return_value = True
 
         with (
-            patch("builtins.input", side_effect=["y", "4"]),  # Create dir, skip download
+            patch("setup_lib.model_downloader.Path", return_value=mock_ai_path),
+            patch("setup_lib.model_downloader.check_model_exists", return_value=True),
             patch("builtins.print"),
-            patch.object(Path, "__new__", return_value=mock_path),
         ):
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
@@ -592,27 +596,28 @@ class TestPromptAndDownloadModels:
             print_calls = [str(c) for c in mock_print.call_args_list]
             assert any("All models already downloaded" in str(c) for c in print_calls)
 
-    def test_option_4_skips_download(self) -> None:
-        """Should skip downloads when user selects option 4."""
+    def test_skip_download_flag(self) -> None:
+        """Should skip downloads when skip_download config is True."""
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="4"),
             patch("builtins.print") as mock_print,
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)  # 100GB free
 
-            prompt_and_download_models({"ai_models_path": "/export/ai_models"})
+            prompt_and_download_models(
+                {"ai_models_path": "/export/ai_models", "skip_download": True}
+            )
 
             # Should print "Skipping model downloads"
             print_calls = [str(c) for c in mock_print.call_args_list]
-            assert any("Skipping model downloads" in str(c) for c in print_calls)
+            assert any("Skipping" in str(c) for c in print_calls)
 
-    def test_option_1_downloads_required_models_only(self) -> None:
-        """Should download only required models with HF repo when option 1 selected."""
+    def test_downloads_all_missing_models(self) -> None:
+        """Should auto-download all missing models including required HF models."""
         from setup_lib.model_downloader import prompt_and_download_models
 
         downloaded_models: list[str] = []
@@ -623,7 +628,6 @@ class TestPromptAndDownloadModels:
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="1"),
             patch("builtins.print"),
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
@@ -633,13 +637,14 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
             patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should have downloaded florence-2-base and siglip2-base-patch16-224
-            # (nemotron/yolo26 use special handlers, not download_hf_model)
+            # Function auto-downloads all missing models; required HF models must be present
             assert "florence-2-base" in downloaded_models
             assert "siglip2-base-patch16-224" in downloaded_models
 
@@ -670,7 +675,6 @@ class TestPromptAndDownloadModels:
         mock_ai_path.__truediv__ = MagicMock(return_value=mock_model_zoo)
 
         with (
-            patch("builtins.input", return_value="y"),
             patch("builtins.print") as mock_print,
             patch("setup_lib.model_downloader.Path", return_value=mock_ai_path),
         ):
@@ -686,10 +690,17 @@ class TestPromptAndDownloadModels:
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="4"),  # Skip download
             patch("builtins.print") as mock_print,
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
+            patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
+            patch("setup_lib.model_downloader.download_hf_model", return_value=True),
+            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
+            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
+            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             # Only 1GB free, need much more for models
             mock_disk.return_value = MagicMock(free=1 * 1024**3)
@@ -706,11 +717,11 @@ class TestPromptAndDownloadModels:
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="1"),
             patch("builtins.print"),
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", False),
+            patch("setup_lib.model_downloader._bootstrap_venv_and_import_hf", return_value=False),
             patch("subprocess.run") as mock_run,
             patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
@@ -718,17 +729,15 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
-            mock_run.side_effect = [
-                MagicMock(returncode=0),  # pip install succeeds
-            ]
+            mock_run.return_value = MagicMock(returncode=0)
 
-            # This will attempt pip install and then fail on import
-            # which falls back to download script
+            # When HF_HUB_AVAILABLE is False, _bootstrap_venv_and_import_hf is called.
+            # Patching it to return False causes fallback to run_download_script which
+            # calls subprocess.run with the download script.
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should have attempted to install huggingface_hub
-            pip_calls = [c for c in mock_run.call_args_list if "pip" in str(c)]
-            assert len(pip_calls) > 0
+            # subprocess.run should have been called (download script fallback)
+            assert mock_run.call_count >= 1
 
     def test_tracks_download_success_and_failures(self) -> None:
         """Should track successful and failed downloads."""
@@ -743,7 +752,6 @@ class TestPromptAndDownloadModels:
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="1"),
             patch("builtins.print") as mock_print,
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
@@ -753,6 +761,8 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=False),
             patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -762,8 +772,8 @@ class TestPromptAndDownloadModels:
             print_calls = [str(c) for c in mock_print.call_args_list]
             assert any("succeeded" in str(c) and "failed" in str(c) for c in print_calls)
 
-    def test_option_2_includes_phase1_models(self) -> None:
-        """Should download required + phase1 models with option 2."""
+    def test_downloads_all_phases_including_phase1(self) -> None:
+        """Should download models from all phases including phase 1."""
         from setup_lib.model_downloader import (
             PHASE1_MODELS,
             REQUIRED_MODELS,
@@ -782,11 +792,12 @@ class TestPromptAndDownloadModels:
             "yolo26",
             "yolov8n-pose",
             "osnet-ain-x1-0",
+            "stgcn-plus-plus",
+            "yolo-world-s",
         }
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="2"),
             patch("builtins.print"),
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
@@ -796,27 +807,28 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
             patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should include models from REQUIRED_MODELS with hf_repo (excluding special handlers)
+            # Function auto-downloads ALL phases; verify required + phase1 HF models are present
             required_with_repo = [
                 m.name for m in REQUIRED_MODELS if m.hf_repo and m.name not in special_models
             ]
             for name in required_with_repo:
-                assert name in downloaded_models
+                assert name in downloaded_models, f"Expected required model {name} to be downloaded"
 
-            # Should include models from PHASE1_MODELS with hf_repo (excluding special handlers)
             phase1_with_repo = [
                 m.name for m in PHASE1_MODELS if m.hf_repo and m.name not in special_models
             ]
             for name in phase1_with_repo:
-                assert name in downloaded_models
+                assert name in downloaded_models, f"Expected phase1 model {name} to be downloaded"
 
-    def test_option_3_downloads_all_models(self) -> None:
-        """Should download all models with option 3."""
+    def test_downloads_all_phases_including_phase2_and_phase3(self) -> None:
+        """Should download models from all phases including phase 2 and 3."""
         from setup_lib.model_downloader import (
             PHASE1_MODELS,
             PHASE2_MODELS,
@@ -837,11 +849,12 @@ class TestPromptAndDownloadModels:
             "yolo26",
             "yolov8n-pose",
             "osnet-ain-x1-0",
+            "stgcn-plus-plus",
+            "yolo-world-s",
         }
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value="3"),
             patch("builtins.print"),
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
@@ -851,19 +864,20 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
             patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should include all models with hf_repo (excluding special handlers)
+            # Should include ALL models with hf_repo from every phase
             all_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
             all_with_repo = [
                 m.name for m in all_models if m.hf_repo and m.name not in special_models
             ]
-
             for name in all_with_repo:
-                assert name in downloaded_models
+                assert name in downloaded_models, f"Expected model {name} to be downloaded"
 
     def test_skips_already_downloaded_models(self) -> None:
         """Should not re-download models that already exist."""
@@ -884,7 +898,6 @@ class TestPromptAndDownloadModels:
                 "setup_lib.model_downloader.check_model_exists",
                 side_effect=mock_check_exists,
             ),
-            patch("builtins.input", return_value="1"),
             patch("builtins.print"),
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
@@ -894,16 +907,18 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
             patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # florence-2-base should not be in downloaded list
+            # florence-2-base should not be in downloaded list (already exists)
             assert "florence-2-base" not in downloaded_models
 
-    def test_default_option_is_1(self) -> None:
-        """Should default to option 1 when empty input provided."""
+    def test_downloads_all_missing_models_without_input(self) -> None:
+        """Should auto-download all missing models without requiring any input."""
         from setup_lib.model_downloader import prompt_and_download_models
 
         downloaded_models: list[str] = []
@@ -914,7 +929,6 @@ class TestPromptAndDownloadModels:
 
         with (
             patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.input", return_value=""),  # Empty = default to 1
             patch("builtins.print"),
             patch.object(Path, "exists", return_value=True),
             patch("shutil.disk_usage") as mock_disk,
@@ -924,12 +938,15 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
             patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
+            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
+            # No input mock needed - function no longer prompts for options
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should download required models (option 1 is default)
+            # Should download all required models automatically
             assert "florence-2-base" in downloaded_models
             assert "siglip2-base-patch16-224" in downloaded_models
 

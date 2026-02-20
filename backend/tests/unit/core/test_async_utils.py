@@ -345,6 +345,160 @@ class TestConcurrencyLimit:
             )
 
 
+class TestBoundedGatherTaskTimeout:
+    """Tests for bounded_gather task_timeout parameter."""
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_none_is_backward_compatible(self) -> None:
+        """Test that task_timeout=None preserves original behavior."""
+        from backend.core.async_utils import bounded_gather
+
+        async def quick_task(n: int) -> int:
+            await asyncio.sleep(0.01)
+            return n
+
+        results = await bounded_gather(
+            [quick_task(i) for i in range(3)],
+            limit=3,
+            task_timeout=None,
+        )
+        assert results == [0, 1, 2]
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_allows_fast_tasks(self) -> None:
+        """Test that tasks completing within the timeout succeed."""
+        from backend.core.async_utils import bounded_gather
+
+        async def fast_task(n: int) -> int:
+            await asyncio.sleep(0.01)
+            return n * 10
+
+        results = await bounded_gather(
+            [fast_task(i) for i in range(4)],
+            limit=4,
+            task_timeout=1.0,
+        )
+        assert results == [0, 10, 20, 30]
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_returns_timeout_error_with_return_exceptions(self) -> None:
+        """Test that timed-out tasks return TimeoutError when return_exceptions=True."""
+        from backend.core.async_utils import bounded_gather
+
+        async def slow_task() -> int:
+            await asyncio.sleep(5.0)
+            return 999
+
+        async def fast_task() -> int:
+            await asyncio.sleep(0.01)
+            return 42
+
+        results = await bounded_gather(
+            [fast_task(), slow_task(), fast_task()],
+            limit=3,
+            task_timeout=0.1,
+            return_exceptions=True,
+        )
+
+        assert results[0] == 42
+        assert isinstance(results[1], TimeoutError)
+        assert results[2] == 42
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_raises_without_return_exceptions(self) -> None:
+        """Test that timed-out tasks raise TimeoutError when return_exceptions=False."""
+        from backend.core.async_utils import bounded_gather
+
+        async def slow_task() -> int:
+            await asyncio.sleep(5.0)
+            return 999
+
+        with pytest.raises(TimeoutError):
+            await bounded_gather(
+                [slow_task()],
+                limit=1,
+                task_timeout=0.1,
+                return_exceptions=False,
+            )
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_does_not_affect_other_tasks(self) -> None:
+        """Test that one task timing out does not cancel other tasks."""
+        from backend.core.async_utils import bounded_gather
+
+        completed: list[int] = []
+
+        async def slow_task() -> int:
+            await asyncio.sleep(5.0)
+            completed.append(-1)
+            return -1
+
+        async def fast_task(n: int) -> int:
+            await asyncio.sleep(0.01)
+            completed.append(n)
+            return n
+
+        results = await bounded_gather(
+            [fast_task(1), slow_task(), fast_task(2)],
+            limit=3,
+            task_timeout=0.1,
+            return_exceptions=True,
+        )
+
+        assert results[0] == 1
+        assert isinstance(results[1], TimeoutError)
+        assert results[2] == 2
+        assert -1 not in completed
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_with_mixed_exceptions(self) -> None:
+        """Test task_timeout alongside regular exceptions with return_exceptions."""
+        from backend.core.async_utils import bounded_gather
+
+        async def slow_task() -> int:
+            await asyncio.sleep(5.0)
+            return 0
+
+        async def error_task() -> int:
+            raise ValueError("boom")
+
+        async def ok_task() -> int:
+            return 42
+
+        results = await bounded_gather(
+            [ok_task(), slow_task(), error_task()],
+            limit=3,
+            task_timeout=0.1,
+            return_exceptions=True,
+        )
+
+        assert results[0] == 42
+        assert isinstance(results[1], TimeoutError)
+        assert isinstance(results[2], ValueError)
+
+    @pytest.mark.asyncio
+    async def test_task_timeout_preserves_order(self) -> None:
+        """Test that result ordering is correct even when some tasks time out."""
+        from backend.core.async_utils import bounded_gather
+
+        async def task(n: int, delay: float) -> int:
+            await asyncio.sleep(delay)
+            return n
+
+        results = await bounded_gather(
+            [task(0, 0.01), task(1, 5.0), task(2, 0.01), task(3, 5.0), task(4, 0.01)],
+            limit=5,
+            task_timeout=0.1,
+            return_exceptions=True,
+        )
+
+        assert results[0] == 0
+        assert isinstance(results[1], TimeoutError)
+        assert results[2] == 2
+        assert isinstance(results[3], TimeoutError)
+        assert results[4] == 4
+
+
 class TestAsyncReadFile:
     """Tests for async file reading utilities."""
 

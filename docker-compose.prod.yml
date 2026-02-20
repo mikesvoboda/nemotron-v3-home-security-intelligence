@@ -175,6 +175,9 @@ services:
       - MOE_OFFLOAD_PATTERN=${LLM_MOE_OFFLOAD_PATTERN:-}
       # NEM-5369: Enable flash attention to reduce VRAM usage with minimal performance impact
       - FLASH_ATTENTION=${FLASH_ATTENTION:-true}
+      # CUDA Graph optimization: fuses repeated kernel launches into a single graph replay
+      # Up to 35% TPS improvement for autoregressive decoding (eliminates kernel launch overhead)
+      - GGML_CUDA_GRAPH_OPT=${GGML_CUDA_GRAPH_OPT:-1}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -302,6 +305,7 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
       # Persistent CUDA kernel cache (survives container redeploys)
       - triton-kernel-cache:/root/.nv
       # TensorRT temp artifacts cache (compilation intermediates)
@@ -313,6 +317,11 @@ services:
       # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
       # the AI services GPU (default: GPU 1 = A400).
       - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
+      # INT8 quantization for vehicle/demographics models (NEM-5533)
+      # Set to true after running ai/enrichment/scripts/quantize_models.py
+      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
+      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
+      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
@@ -355,7 +364,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Enables backend to manage AI service containers for self-healing
-      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      # NOTE: rw required — Docker API sends commands over the socket
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
@@ -421,7 +431,7 @@ services:
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
       # Container orchestrator: connect to Podman socket for self-healing
       # Socket is mounted read-only from host for container management
-      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///run/user/1000/podman/podman.sock}
+      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///${PODMAN_SOCKET}}
     depends_on:
       postgres:
         condition: service_healthy
@@ -1205,7 +1215,8 @@ services:
     user: root
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
-      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      # NOTE: rw required — Alloy reads container logs via Podman API
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
@@ -1220,9 +1231,11 @@ services:
         hard: 8589934592
     environment:
       - HOST_PROC=/host/proc
+      - PODMAN_SOCKET=${PODMAN_SOCKET}
     command:
       - run
       - --stability.level=public-preview
+      - --storage.path=/tmp/alloy
       - /etc/alloy/config.alloy
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:

@@ -70,7 +70,7 @@ MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
 
 Container build configuration:
 
-- **Base image**: `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`
+- **Base image**: `nvcr.io/nvidia/tensorrt:26.01-py3`
 - **Non-root user**: `clip` for security
 - **Health check**: 60s start period
 - **HuggingFace cache**: `/cache/huggingface`

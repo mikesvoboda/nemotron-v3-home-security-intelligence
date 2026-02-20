@@ -113,7 +113,7 @@ The Triton server is configured in `docker-compose.prod.yml`:
 ```yaml
 services:
   triton:
-    image: nvcr.io/nvidia/tritonserver:24.01-py3
+    image: nvcr.io/nvidia/tritonserver:26.01-py3
     ports:
       - '8000:8000' # HTTP
       - '8001:8001' # gRPC
