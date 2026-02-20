@@ -251,7 +251,7 @@ class TestAnalysisStreamService:
         assert result["batch_id"] == "batch_abc"
         assert result["camera_id"] == "front_door"
         assert result["detection_ids"] == [1, 2, 3]
-        assert result["pipeline_start_time"] == 1234567890.0
+        assert result["pipeline_start_time"] == "2009-02-13T23:31:30+00:00"
 
     @pytest.mark.asyncio
     async def test_acknowledge_batch(self, analysis_stream_service, mock_redis_client):
