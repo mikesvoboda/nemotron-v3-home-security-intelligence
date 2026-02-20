@@ -1082,11 +1082,12 @@ class Settings(BaseSettings):
         "complex operations like dense captioning and OCR.",
     )
     clip_read_timeout: float = Field(
-        default=15.0,
-        ge=5.0,
+        default=5.0,
+        ge=1.0,
         le=60.0,
         description="Maximum time (seconds) to wait for CLIP embedding generation. "
-        "CLIP is fast for single embeddings but batch operations may take longer.",
+        "CLIP is fast for single embeddings but batch operations may take longer. "
+        "Set low to fail fast when CLIP text encoder is unavailable.",
     )
     enrichment_read_timeout: float = Field(
         default=60.0,

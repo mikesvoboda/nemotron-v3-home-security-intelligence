@@ -57,6 +57,12 @@ from backend.services.redis_streams import get_analysis_stream_service
 logger = get_logger(__name__)
 
 
+def _parse_pipeline_ts(value: str) -> float:
+    """Parse a pipeline timestamp that may be a Unix float or ISO 8601 string."""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 # TTL for batch closing flag (5 minutes) - prevents orphaned lock flags if process crashes
 # NEM-2507: This ensures closing flags auto-expire if the batch close operation doesn't complete
 BATCH_CLOSING_FLAG_TTL_SECONDS = 300
@@ -923,7 +929,9 @@ class BatchAggregator:
                                 batch_id=batch_id,
                                 camera_id=camera_id,
                                 detection_ids=detections,
-                                pipeline_start_time=pipeline_start_time,
+                                pipeline_start_time=_parse_pipeline_ts(pipeline_start_time)
+                                if pipeline_start_time
+                                else None,
                             )
                         else:
                             queue_item: dict[str, Any] = {
@@ -1090,7 +1098,9 @@ class BatchAggregator:
                         batch_id=batch_id,
                         camera_id=camera_id,
                         detection_ids=detections,
-                        pipeline_start_time=pipeline_start_time,
+                        pipeline_start_time=_parse_pipeline_ts(pipeline_start_time)
+                        if pipeline_start_time
+                        else None,
                     )
                 else:
                     result = await self._redis.add_to_queue_safe(

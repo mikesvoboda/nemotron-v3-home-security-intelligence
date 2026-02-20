@@ -3611,6 +3611,7 @@ class EnrichmentPipeline:
         try:
             from backend.services.clip_client import get_clip_client
             from backend.services.scene_baseline import (
+                MIN_SAMPLES_FOR_RELIABLE_BASELINE,
                 BaselineNotFoundError,
                 get_scene_baseline_service,
             )
@@ -3622,30 +3623,64 @@ class EnrichmentPipeline:
             has_baseline = await baseline_service.has_baseline(camera_id)
 
             if has_baseline:
-                # Compute anomaly score against baseline
-                anomaly_score, similarity = await baseline_service.get_anomaly_score(
-                    camera_id, image
-                )
-                result.clip_anomaly_score = anomaly_score
-                result.clip_anomaly_similarity = similarity
+                # Check baseline reliability before scoring
+                _, sample_count, _ = await baseline_service.get_baseline(camera_id)
 
-                observe_enrichment_model_duration(
-                    "clip-anomaly-detect", time.perf_counter() - start_time
-                )
-                logger.debug(
-                    f"CLIP anomaly detection for camera={camera_id}: "
-                    f"score={anomaly_score:.3f}, similarity={similarity:.3f}",
-                    extra={
-                        "service": "clip-anomaly-detect",
-                        "camera_id": camera_id,
-                        "anomaly_score": anomaly_score,
-                    },
-                )
-
-                # Update baseline with current frame if scene is normal
-                # (anomaly score < 0.3 indicates a normal scene)
-                if anomaly_score < 0.3:
+                if sample_count < MIN_SAMPLES_FOR_RELIABLE_BASELINE:
+                    # Baseline too new — score would be unreliable (possible
+                    # self-poisoning if attack frame seeded the baseline).
+                    # Still update the baseline but don't report score to LLM.
+                    observe_enrichment_model_duration(
+                        "clip-anomaly-detect", time.perf_counter() - start_time
+                    )
+                    logger.info(
+                        f"CLIP baseline for camera={camera_id} unreliable "
+                        f"(samples={sample_count}<{MIN_SAMPLES_FOR_RELIABLE_BASELINE}), "
+                        f"skipping anomaly scoring",
+                        extra={
+                            "service": "clip-anomaly-detect",
+                            "camera_id": camera_id,
+                            "sample_count": sample_count,
+                        },
+                    )
                     await baseline_service.update_baseline_from_image(camera_id, image)
+                else:
+                    # Compute anomaly score against reliable baseline
+                    anomaly_score, similarity = await baseline_service.get_anomaly_score(
+                        camera_id, image
+                    )
+
+                    # Guard against self-referential baseline (same frame as baseline)
+                    if similarity is not None and similarity >= 0.999:
+                        logger.warning(
+                            f"CLIP anomaly similarity={similarity:.4f} for camera={camera_id} "
+                            f"indicates self-referential baseline, suppressing score",
+                            extra={
+                                "service": "clip-anomaly-detect",
+                                "camera_id": camera_id,
+                            },
+                        )
+                    else:
+                        result.clip_anomaly_score = anomaly_score
+                        result.clip_anomaly_similarity = similarity
+
+                    observe_enrichment_model_duration(
+                        "clip-anomaly-detect", time.perf_counter() - start_time
+                    )
+                    logger.debug(
+                        f"CLIP anomaly detection for camera={camera_id}: "
+                        f"score={anomaly_score:.3f}, similarity={similarity:.3f}",
+                        extra={
+                            "service": "clip-anomaly-detect",
+                            "camera_id": camera_id,
+                            "anomaly_score": anomaly_score,
+                        },
+                    )
+
+                    # Update baseline with current frame if scene is normal
+                    # (anomaly score < 0.3 indicates a normal scene)
+                    if anomaly_score < 0.3:
+                        await baseline_service.update_baseline_from_image(camera_id, image)
             else:
                 observe_enrichment_model_duration(
                     "clip-anomaly-detect", time.perf_counter() - start_time
