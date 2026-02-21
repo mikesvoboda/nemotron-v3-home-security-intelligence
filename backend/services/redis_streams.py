@@ -822,7 +822,7 @@ class AnalysisStreamMessage:
     batch_id: str
     camera_id: str
     detection_ids: list[int]
-    pipeline_start_time: str | None = None
+    pipeline_start_time: float | None = None
     delivery_count: int = 1
     raw_data: dict[str, Any] = field(default_factory=dict)
 
