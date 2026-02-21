@@ -688,6 +688,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             "analysis",
             create_analysis_worker(redis_client, supervisor=worker_supervisor),
             max_restarts=settings.worker_supervisor_max_restarts,
+            heartbeat_timeout=180.0,  # LLM calls take 60-120s; enrichment adds more
         )
         await worker_supervisor.register_worker(
             "batch_timeout",

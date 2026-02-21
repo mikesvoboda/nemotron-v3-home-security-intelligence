@@ -74,6 +74,14 @@ DEFAULT_CLAIM_MIN_IDLE_MS = 60000  # 1 minute idle before claiming
 DEFAULT_MAX_DELIVERY_COUNT = 3  # Max redeliveries before DLQ
 
 
+def _parse_timestamp(value: str) -> float:
+    """Parse a timestamp string that may be a Unix float or ISO 8601 format."""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+
+
 @dataclass(slots=True)
 class DetectionStreamMessage:
     """Represents a message from the detection stream.
@@ -116,13 +124,13 @@ class DetectionStreamMessage:
         """
         # Parse timestamp: accept both float (unix epoch) and ISO 8601 strings
         raw_ts = data.get("timestamp", "")
-        try:
-            ts = float(raw_ts)
-        except (ValueError, TypeError):
+        if raw_ts:
             try:
-                ts = datetime.fromisoformat(raw_ts).timestamp()
+                ts = _parse_timestamp(raw_ts)
             except (ValueError, TypeError):
                 ts = time.time()
+        else:
+            ts = time.time()
 
         return cls(
             id=message_id,
@@ -945,7 +953,7 @@ class AnalysisStreamService:
             batch_id: Batch identifier
             camera_id: Camera identifier
             detection_ids: List of detection IDs
-            pipeline_start_time: Optional pipeline start timestamp
+            pipeline_start_time: Optional pipeline start timestamp (ISO string or Unix float)
 
         Returns:
             Redis stream message ID

@@ -1249,6 +1249,10 @@ def format_clip_anomaly_context(
     if anomaly_score is None:
         return "CLIP Visual Anomaly: Not performed (no baseline available)"
 
+    # Guard against self-referential baseline (current frame == baseline)
+    if anomaly_similarity is not None and anomaly_similarity >= 0.999:
+        return "CLIP Visual Anomaly: Unreliable (baseline may be seeded from current frame)"
+
     # Categorize the anomaly level
     if anomaly_score < 0.2:
         level = "normal scene, matches baseline"
