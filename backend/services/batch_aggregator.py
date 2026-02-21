@@ -63,6 +63,8 @@ def _parse_pipeline_ts(value: str) -> float:
         return float(value)
     except (ValueError, TypeError):
         return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+
+
 # TTL for batch closing flag (5 minutes) - prevents orphaned lock flags if process crashes
 # NEM-2507: This ensures closing flags auto-expire if the batch close operation doesn't complete
 BATCH_CLOSING_FLAG_TTL_SECONDS = 300
