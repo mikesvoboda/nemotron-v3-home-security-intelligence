@@ -44,7 +44,12 @@ _PROJECT_ROOT_PLACEHOLDER = "__PROJECT_ROOT__"
 _MEMLOCK_LIMITS_PATH = Path("/etc/security/limits.d/50-memlock.conf")
 
 
-def _run_sudo(args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run_sudo(
+    args: list[str],
+    *,
+    check: bool = True,
+    non_interactive: bool = False,
+) -> subprocess.CompletedProcess[str]:
     """Run a command with sudo.
 
     Args:
@@ -54,8 +59,11 @@ def _run_sudo(args: list[str], *, check: bool = True) -> subprocess.CompletedPro
     Returns:
         CompletedProcess result.
     """
+    sudo_cmd = ["sudo"]
+    if non_interactive:
+        sudo_cmd.append("-n")
     return subprocess.run(
-        ["sudo", *args],  # noqa: S607
+        [*sudo_cmd, *args],
         capture_output=True,
         text=True,
         check=check,

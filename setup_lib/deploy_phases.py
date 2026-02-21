@@ -55,7 +55,12 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     time.sleep(1)
 
     # Stop rootful dcgm-exporter
-    _run_sudo(["systemctl", "stop", "dcgm-exporter"], check=False)
+    result = _run_sudo(["systemctl", "stop", "dcgm-exporter"], check=False, non_interactive=True)
+    if result.returncode != 0 and result.stderr:
+        if "password" in result.stderr.lower():
+            print("  dcgm-exporter: sudo password required; skipping stop")
+        else:
+            print(f"  dcgm-exporter: stop failed ({result.stderr.strip()})")
 
     # Destroy volumes if requested
     if config.destroy_volumes:
@@ -74,12 +79,23 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     )
 
     # Detect corrupted container storage (Podman 5.x+ only)
-    check_result = subprocess.run(
-        ["podman", "system", "check"],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    check_result = None
+    try:
+        check_result = subprocess.run(
+            ["podman", "system", "check"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        print("  WARNING: 'podman system check' timed out after 60s; continuing.")
+        print("  Recommendation:")
+        print("    Run `podman system check` manually to see full output.")
+        print("    If corruption is reported: `podman system check --repair --force`.")
+        print("    If repair fails: `podman system reset --force` (rebuilds images).")
+        print("    If it hangs: `systemctl --user restart podman.socket`.")
+        return DeployResult(True, "Skipped podman system check (timeout)")
     # Only treat as corruption if the command exists (rc=0 or known error).
     # "unrecognized command" (Podman 4.x) is not corruption — skip it.
     is_unrecognized = "unrecognized command" in (check_result.stderr or "")
@@ -444,9 +460,13 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
         (CADVISOR_SERVICE_NAME, "cadvisor"),
     ]:
         if _is_service_installed(service_name):
-            result = _run_sudo(["systemctl", "restart", service_name], check=False)
+            result = _run_sudo(
+                ["systemctl", "restart", service_name], check=False, non_interactive=True
+            )
             if result.returncode == 0:
                 print(f"  {label}: restarted (rootful systemd service)")
+            elif result.stderr and "password" in result.stderr.lower():
+                print(f"  {label}: sudo password required; skipping restart")
             else:
                 print(f"  {label}: failed to restart (check: sudo journalctl -u {service_name})")
         else:
@@ -492,7 +512,7 @@ def _warn_gpu_missing() -> None:
             text=True,
             check=False,
         ).stdout.strip()
-        print(f"  WARNING: NVIDIA driver installed but /dev/nvidia0 missing!")
+        print("  WARNING: NVIDIA driver installed but /dev/nvidia0 missing!")
         print(f"    Running kernel: {kernel}")
         print("    Likely cause: kernel/module mismatch — run 'sudo update-grub' and reboot")
         print("    GPU services (ai-llm, ai-gateway) will not start without GPU devices.")
@@ -553,7 +573,9 @@ def phase_application(config: DeployConfig) -> DeployResult:
 
     if stuck:
         print(f"  WARNING: {', '.join(stuck)} did not reach running state")
-        return DeployResult(True, f"Application services started ({', '.join(stuck)} may still be initializing)")
+        return DeployResult(
+            True, f"Application services started ({', '.join(stuck)} may still be initializing)"
+        )
 
     print("  All services running after retry.")
     return DeployResult(True, "Application services started")
@@ -629,7 +651,11 @@ def _recover_created_containers(config: DeployConfig) -> None:
         # Extract compose service name from container name
         # (e.g. "nemotron-v3-home-security-intelligence-backend-1" -> "backend")
         parts = name.rsplit("-", 1)  # strip trailing "-1"
-        svc = parts[0].split(config.project_root.name + "-", 1)[-1] if config.project_root.name in name else name
+        svc = (
+            parts[0].split(config.project_root.name + "-", 1)[-1]
+            if config.project_root.name in name
+            else name
+        )
         compose_run(config, "up", "-d", "--no-build", svc)
         time.sleep(2)
         if _wait_container_running(svc, timeout=30):
