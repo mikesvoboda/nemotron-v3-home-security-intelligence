@@ -163,13 +163,22 @@ PHASE2_MODELS: list[ModelSpec] = [
         description="Gender classification from face crops (ai-gateway)",
         required=False,
     ),
-    # ST-GCN++ action recognition (ai-gateway: xclip_action)
+    # ST-GCN++ action recognition (ai-gateway: stgcn_action)
     ModelSpec(
         name="stgcn-plus-plus",
         hf_repo="",  # Downloaded via direct URL from OpenMMLab
         phase=2,
         size_mb=20,
         description="ST-GCN++ skeleton-based action recognition (ai-gateway)",
+        required=False,
+    ),
+    # X-CLIP action recognition (ai-gateway: xclip_action)
+    ModelSpec(
+        name="xclip-base-patch32",
+        hf_repo="microsoft/xclip-base-patch32",
+        phase=2,
+        size_mb=600,
+        description="X-CLIP zero-shot video action recognition (ai-gateway)",
         required=False,
     ),
 ]

@@ -5,7 +5,9 @@ Replaces the bash deploy-gateway.sh with proper error handling,
 health check polling, and code reuse from setup_lib.
 
 Usage:
-    python setup.py deploy [--destroy-volumes] [--skip-build] [--verbose]
+    python setup.py deploy [--destroy-volumes] [--skip-build] [--no-verbose]
+    python setup.py deploy --log-file /path/to/deploy.log
+    python setup.py deploy --no-log-file
 """
 
 from __future__ import annotations
@@ -13,8 +15,10 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 
@@ -29,8 +33,9 @@ class DeployConfig:
     skip_build: bool = False
     skip_export: bool = False
     force_export: bool = False
-    verbose: bool = False
+    verbose: bool = True
     env: dict[str, str] = field(default_factory=dict)
+    log_file: Path | None = None
     _export_process: subprocess.Popen | None = field(default=None, repr=False)
 
 
@@ -88,7 +93,7 @@ def detect_compose_command() -> list[str]:
         if candidate_path:
             try:
                 result = subprocess.run(
-                    [candidate_path, "--version"],  # noqa: S607
+                    [candidate_path, "--version"],
                     capture_output=True,
                     text=True,
                     timeout=10,
@@ -126,6 +131,8 @@ def compose_run(
 
     env = {**os.environ, **config.env} if config.env else None
 
+    _log(config, f"$ {' '.join(cmd)}")
+
     if config.verbose:
         print(f"  $ {' '.join(cmd)}")
 
@@ -142,32 +149,37 @@ def compose_run(
             for line in proc.stdout:  # type: ignore[union-attr]
                 print(f"  {line}", end="")
             proc.wait()
+            _log(config, f"Command exited with rc={proc.returncode}")
             return proc.returncode == 0
 
         if capture:
-            return subprocess.run(
+            result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 check=False,
                 env=env,
             )
+            _log(config, f"Command exited with rc={result.returncode}")
+            return result
 
-        result = subprocess.run(
+        run_result = subprocess.run(
             cmd,
             check=False,
             env=env,
         )
-        return result.returncode == 0
+        _log(config, f"Command exited with rc={run_result.returncode}")
+        return run_result.returncode == 0
 
     except FileNotFoundError:
+        _log(config, "Command failed: FileNotFoundError")
         if capture:
             return subprocess.CompletedProcess(
                 args=cmd, returncode=1, stdout="", stderr="Command not found"
             )
         return False
     except KeyboardInterrupt:
-        print("\n  Cancelled by user")
+        _log(config, "Cancelled by user")
         return False
 
 
@@ -208,6 +220,24 @@ def load_env(project_root: Path) -> dict[str, str]:
     return env
 
 
+def _timestamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _log(config: DeployConfig, message: str) -> None:
+    line = f"[{_timestamp()}] {message}"
+    print(line)
+    if not config.log_file:
+        return
+    try:
+        config.log_file.parent.mkdir(parents=True, exist_ok=True)
+        with config.log_file.open("a") as f:
+            f.write(line + "\n")
+    except OSError:
+        # Best-effort logging only.
+        return
+
+
 def run_deploy(config: DeployConfig) -> bool:
     """Run all deployment phases in sequence.
 
@@ -224,20 +254,30 @@ def run_deploy(config: DeployConfig) -> bool:
     passed = 0
     failed = 0
 
+    log_path = os.environ.get("DEPLOY_LOG_FILE")
+    if log_path:
+        config.log_file = Path(log_path)
+    else:
+        config.log_file = config.project_root / "data" / "logs" / "deploy.log"
+
+    _log(config, "=== Production Deploy ===")
+
     for i, phase in enumerate(DEPLOY_PHASES, 1):
-        print(f"\n[{i}/{total}] {phase.description}...")
+        _log(config, f"[{i}/{total}] {phase.description}...")
+        start = time.monotonic()
         result = phase.func(config)
+        elapsed = time.monotonic() - start
 
         if result.success:
-            print(f"  OK: {result.message}")
+            _log(config, f"OK: {result.message} (took {elapsed:.1f}s)")
             passed += 1
         elif phase.required:
-            print(f"  FAILED: {result.message}")
-            print(f"\nDeployment aborted at phase '{phase.name}'.")
+            _log(config, f"FAILED: {result.message} (took {elapsed:.1f}s)")
+            _log(config, f"Deployment aborted at phase '{phase.name}'.")
             return False
         else:
-            print(f"  SKIPPED: {result.message}")
+            _log(config, f"SKIPPED: {result.message} (took {elapsed:.1f}s)")
             failed += 1
 
-    print(f"\nDeployment complete: {passed} passed, {failed} skipped.")
+    _log(config, f"Deployment complete: {passed} passed, {failed} skipped.")
     return True

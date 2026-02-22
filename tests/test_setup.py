@@ -226,8 +226,11 @@ def test_write_config_files_creates_env():
         assert "FOSCAM_BASE_PATH=/test/cameras" in content
 
 
-def test_write_config_files_creates_docker_override():
-    """Test that write_config_files creates docker-compose.override.yml."""
+def test_write_config_files_no_docker_override():
+    """Test that write_config_files does NOT create docker-compose.override.yml.
+
+    .env is the source of truth; docker-compose.prod.yml reads from .env.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         config = {
             "foscam_base_path": "/test/cameras",
@@ -239,9 +242,7 @@ def test_write_config_files_creates_docker_override():
         write_config_files(config, output_dir=tmpdir)
 
         override_path = Path(tmpdir) / "docker-compose.override.yml"
-        assert override_path.exists()
-        content = override_path.read_text()
-        assert "services:" in content
+        assert not override_path.exists()
 
 
 def test_write_config_files_returns_paths():
@@ -257,7 +258,7 @@ def test_write_config_files_returns_paths():
         env_path, override_path, secrets_path = write_config_files(config, output_dir=tmpdir)
 
         assert env_path == Path(tmpdir) / ".env"
-        assert override_path == Path(tmpdir) / "docker-compose.override.yml"
+        assert override_path is None  # No override file - .env is source of truth
         assert secrets_path is None  # Secrets not created by default
 
 
@@ -276,7 +277,6 @@ def test_write_config_files_creates_output_dir():
 
         assert nested_dir.exists()
         assert (nested_dir / ".env").exists()
-        assert (nested_dir / "docker-compose.override.yml").exists()
 
 
 # Tests for firewall configuration (Task 9)

@@ -32,6 +32,47 @@ from transformers import XCLIPModel, XCLIPProcessor
 
 logger = logging.getLogger("triton.xclip_action")
 
+# HF cache repo id for X-CLIP (used when loading from local mirror)
+XCLIP_REPO_ID = "microsoft/xclip-base-patch32"
+
+
+def _ensure_hf_cache_mirror(model_dir, log: logging.Logger) -> str:
+    """Mirror local model into HF cache so from_pretrained can load it.
+
+    HuggingFace's validate_repo_id rejects absolute paths. We create the cache
+    structure (models--microsoft--xclip-base-patch32/snapshots/local) and
+    symlink our model dir there, then return the repo_id for loading.
+    """
+    import os
+
+    cache_dir = os.environ.get("HF_HUB_CACHE") or os.environ.get("HUGGINGFACE_HUB_CACHE")
+    if not cache_dir and os.environ.get("HF_HOME"):
+        cache_dir = os.path.join(os.environ["HF_HOME"], "hub")
+    if not cache_dir:
+        cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+
+    repo_folder = os.path.join(cache_dir, "models--microsoft--xclip-base-patch32")
+    snapshots_dir = os.path.join(repo_folder, "snapshots")
+    snapshot_id = "local"
+    snapshot_path = os.path.join(snapshots_dir, snapshot_id)
+
+    if os.path.islink(snapshot_path) and os.path.realpath(snapshot_path) == str(model_dir.resolve()):
+        return XCLIP_REPO_ID
+
+    os.makedirs(snapshots_dir, exist_ok=True)
+    if os.path.exists(snapshot_path):
+        os.remove(snapshot_path)
+    os.symlink(str(model_dir.resolve()), snapshot_path)
+
+    refs_dir = os.path.join(repo_folder, "refs")
+    os.makedirs(refs_dir, exist_ok=True)
+    with open(os.path.join(refs_dir, "main"), "w") as f:
+        f.write(snapshot_id)
+
+    log.info("X-CLIP: mirrored %s -> cache %s", model_dir, snapshot_path)
+    return XCLIP_REPO_ID
+
+
 # Security-relevant action classes for home surveillance.
 # Replicated from ai/enrichment/models/action_recognizer.py.
 SECURITY_ACTIONS = [
@@ -99,34 +140,39 @@ class TritonPythonModel:
         self.device = "cpu"
         self.num_frames = 16
 
-        # Resolve local paths to avoid HFValidationError.
-        # HuggingFace's from_pretrained validates repo_id format before
-        # checking if the path is a local directory.  Using Path.resolve()
-        # ensures the path is properly normalized so the library recognises
-        # it as a local directory rather than a repo_id.
         from pathlib import Path
 
         model_dir = Path(model_path)
-        if model_dir.exists():
-            local_path = str(model_dir.resolve())
-        else:
-            local_path = model_path
+        if not model_dir.exists():
+            raise FileNotFoundError(
+                f"X-CLIP model not found at {model_path}. "
+                "Download with: huggingface-cli download microsoft/xclip-base-patch32 "
+                "--local-dir /models/zoo/xclip-base-patch32"
+            )
 
-        logger.info("X-CLIP: loading from %s on %s", local_path, self.device)
+        # HuggingFace validates repo_id format before checking local paths;
+        # absolute paths like /models/zoo/xclip-base-patch32 fail validation.
+        # Mirror our model into the HF cache structure so from_pretrained
+        # finds it via "microsoft/xclip-base-patch32" + local_files_only.
+        load_path = _ensure_hf_cache_mirror(model_dir, logger)
 
-        # Load processor
-        self.processor = XCLIPProcessor.from_pretrained(local_path)
+        logger.info("X-CLIP: loading from %s on %s", load_path, self.device)
+        self._load_path = load_path  # for _reload_without_sdpa
+
+        # Load processor and model from cache mirror
+        self.processor = XCLIPProcessor.from_pretrained(load_path, local_files_only=True)
 
         # Try SDPA for faster inference, fall back to default
         try:
             self.model = XCLIPModel.from_pretrained(
-                local_path,
+                load_path,
                 attn_implementation="sdpa",
+                local_files_only=True,
             )
             logger.info("X-CLIP: loaded with SDPA attention (optimized)")
         except (ValueError, ImportError) as exc:
             logger.warning("X-CLIP: SDPA unavailable, using default: %s", exc)
-            self.model = XCLIPModel.from_pretrained(local_path)
+            self.model = XCLIPModel.from_pretrained(load_path, local_files_only=True)
 
         if "cuda" in self.device and torch.cuda.is_available():
             self.model = self.model.to(self.device)
@@ -168,16 +214,11 @@ class TritonPythonModel:
         SDPA can produce None logits on some PyTorch/transformers combinations.
         Reloading with default (eager) attention fixes this.
         """
-        from pathlib import Path
-
-        model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch32")
-        model_dir = Path(model_path)
-        local_path = str(model_dir.resolve()) if model_dir.exists() else model_path
-
+        load_path = getattr(self, "_load_path", XCLIP_REPO_ID)
         logger.warning("X-CLIP: reloading model WITHOUT SDPA attention (fallback)")
         try:
             del self.model
-            self.model = XCLIPModel.from_pretrained(local_path)
+            self.model = XCLIPModel.from_pretrained(load_path, local_files_only=True)
             self.model.eval()
             logger.info("X-CLIP: reloaded with default (eager) attention")
         except Exception as exc:

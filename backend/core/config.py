@@ -2506,6 +2506,18 @@ class Settings(BaseSettings):
         "Health monitoring and status broadcasts still occur when disabled.",
     )
 
+    # Readiness probe: require pipeline workers for 200 OK (NEM-xxxx)
+    # When True (default): /api/system/health/ready returns 503 if pipeline workers
+    # (detection, analysis) are not running. When False: returns 200 when DB and Redis
+    # are healthy, even if pipeline workers failed to start. Use False to unblock
+    # container health when pipeline init has transient failures (e.g. startup race).
+    readiness_require_pipeline_workers: bool = Field(
+        default=True,
+        validation_alias="READINESS_REQUIRE_PIPELINE_WORKERS",
+        description="Require pipeline workers for readiness probe 200. Set false to allow "
+        "healthy when DB+Redis are up but pipeline workers are not.",
+    )
+
     # Worker Supervisor settings (NEM-2460)
     # Controls the asyncio worker supervisor that monitors and auto-restarts crashed workers
     worker_supervisor_check_interval: float = Field(

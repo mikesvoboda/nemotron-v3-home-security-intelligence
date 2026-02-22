@@ -28,6 +28,9 @@ from setup_lib.rootful_services import (
 
 def phase_stop(config: DeployConfig) -> DeployResult:
     """Stop all containers, legacy services, and clean up stale state."""
+    # Ensure podman uses correct storage before any podman commands
+    _ensure_rootless_storage(config)
+
     project_name = config.project_root.name
 
     # Compose down + rm
@@ -83,7 +86,11 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     # Only treat as corruption if the command exists (rc=0 or known error).
     # "unrecognized command" (Podman 4.x) is not corruption — skip it.
     is_unrecognized = "unrecognized command" in (check_result.stderr or "")
-    if check_result.returncode != 0 and not is_unrecognized:
+    # Skip repair/reset when failure is due to permissions (e.g. /var/lib/containers
+    # owned by root). Running reset in that case can leave storage in a bad state.
+    stderr_lower = (check_result.stderr or "").lower()
+    is_permission_error = "permission denied" in stderr_lower or "permission" in stderr_lower
+    if check_result.returncode != 0 and not is_unrecognized and not is_permission_error:
         print("  WARNING: Corrupted container storage detected!")
         if check_result.stderr:
             for line in check_result.stderr.strip().splitlines()[:5]:
@@ -143,6 +150,52 @@ def _detect_podman_socket() -> str:
     """
     uid = os.getuid()
     return f"/run/user/{uid}/podman/podman.sock"
+
+
+def _ensure_rootless_storage(config: DeployConfig) -> None:
+    """Ensure rootless Podman uses project owner's storage, not /var/lib/containers.
+
+    Uses the project directory owner's uid so podman runs correctly when deploy
+    is invoked by root (e.g. CI) but the project belongs to a regular user.
+    Sets CONTAINERS_STORAGE_CONF so all podman subprocesses use this config.
+    """
+    try:
+        stat_info = config.project_root.stat()
+        owner_uid = stat_info.st_uid
+    except OSError:
+        owner_uid = os.getuid()
+
+    # Root's /run/user/0 often doesn't exist; use rootful paths when running as root
+    if owner_uid == 0:
+        return
+
+    try:
+        import pwd
+
+        owner_home = Path(pwd.getpwuid(owner_uid).pw_dir)
+    except (KeyError, ImportError):
+        owner_home = Path.home()
+
+    config_dir = owner_home / ".config" / "containers"
+    storage_conf = config_dir / "storage.conf"
+    storage_root = owner_home / ".local" / "share" / "containers" / "storage"
+    run_root = Path(f"/run/user/{owner_uid}/containers")
+
+    content = f"""# Rootless Podman storage — created by setup.py deploy
+# Ensures /var/lib/containers is not used (permission denied)
+
+[storage]
+driver = "overlay"
+runroot = "{run_root}"
+graphroot = "{storage_root}"
+"""
+    config_dir.mkdir(parents=True, exist_ok=True)
+    storage_conf.write_text(content)
+
+    # Force all podman invocations to use this config
+    conf_path = str(storage_conf.resolve())
+    os.environ["CONTAINERS_STORAGE_CONF"] = conf_path
+    config.env["CONTAINERS_STORAGE_CONF"] = conf_path
 
 
 def _ensure_podman_socket(config: DeployConfig) -> None:
@@ -232,14 +285,16 @@ def phase_build(config: DeployConfig) -> DeployResult:
         "ghcr.io/mikesvoboda/nemotron-base:latest",
         str(config.project_root),
     ]
+    build_env = {**os.environ, **config.env}
     if config.verbose:
-        result = subprocess.run(base_cmd, check=False, text=True)
+        result = subprocess.run(base_cmd, check=False, text=True, env=build_env)
     else:
         result = subprocess.run(
             base_cmd,
             capture_output=True,
             text=True,
             check=False,
+            env=build_env,
         )
         if result.stdout:
             last_line = result.stdout.strip().splitlines()[-1:]
@@ -295,6 +350,7 @@ CORE_MODELS = [
     "demographics_age",
     "demographics_gender",
     "fashion_clip",
+    "stgcn_action",
 ]
 
 

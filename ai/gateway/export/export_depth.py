@@ -43,8 +43,9 @@ DEFAULT_INPUT_WIDTH = 518
 def load_pytorch_model(model_path: str) -> tuple[torch.nn.Module, int, int]:
     """Load the Depth Anything V2 Small model and determine input size.
 
-    Reads the AutoImageProcessor config to find the actual input resolution,
-    falling back to 518x518 if unavailable.
+    Loads config and weights directly from the model directory to avoid
+    HuggingFace repo_id validation (which rejects absolute paths like
+    /models/zoo/depth-anything-v2-small).
 
     Args:
         model_path: Path to the model directory (HuggingFace format).
@@ -52,38 +53,65 @@ def load_pytorch_model(model_path: str) -> tuple[torch.nn.Module, int, int]:
     Returns:
         Tuple of (model, input_height, input_width).
     """
-    from transformers import AutoImageProcessor, AutoModelForDepthEstimation
+    import json
 
-    model_dir = Path(model_path)
-    if model_dir.exists():
-        local_path = str(model_dir.resolve())
-        logger.info(f"Loading DepthEstimator from local path: {local_path}")
-    else:
-        local_path = model_path
-        logger.info(f"Loading DepthEstimator from: {local_path}")
+    from transformers import AutoModelForDepthEstimation
 
-    # Load processor to discover expected input size
-    processor = AutoImageProcessor.from_pretrained(local_path)
+    model_dir = Path(model_path).resolve()
+    if not model_dir.is_dir():
+        raise FileNotFoundError(f"Model directory not found: {model_dir}")
 
+    logger.info(f"Loading DepthEstimator from local path: {model_dir}")
+
+    # Read input size from preprocessor_config.json (avoids HF repo_id validation)
     input_height = DEFAULT_INPUT_HEIGHT
     input_width = DEFAULT_INPUT_WIDTH
-
-    # Try to extract size from processor config
-    if hasattr(processor, "size"):
-        size_config = processor.size
-        if isinstance(size_config, dict):
-            input_height = size_config.get("height", DEFAULT_INPUT_HEIGHT)
-            input_width = size_config.get("width", DEFAULT_INPUT_WIDTH)
-        elif isinstance(size_config, int):
-            input_height = size_config
-            input_width = size_config
-
+    preprocessor_config = model_dir / "preprocessor_config.json"
+    if preprocessor_config.exists():
+        with open(preprocessor_config) as f:
+            proc_cfg = json.load(f)
+        size_cfg = proc_cfg.get("size", {})
+        if isinstance(size_cfg, dict):
+            input_height = size_cfg.get("height", DEFAULT_INPUT_HEIGHT)
+            input_width = size_cfg.get("width", DEFAULT_INPUT_WIDTH)
+        elif isinstance(size_cfg, int):
+            input_height = input_width = size_cfg
     logger.info(f"Processor input size: {input_height}x{input_width}")
 
-    # Load model
-    model = AutoModelForDepthEstimation.from_pretrained(local_path)
-    model.eval()
+    # Load model from config + local weights (bypasses HF path validation)
+    config_path = model_dir / "config.json"
+    if not config_path.exists():
+        raise FileNotFoundError(f"config.json not found in {model_dir}")
 
+    with open(config_path) as f:
+        config_dict = json.load(f)
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+
+    model_type = config_dict.get("model_type", "dpt")
+    config_class = CONFIG_MAPPING[model_type]
+    config = config_class.from_dict(config_dict)
+    model = AutoModelForDepthEstimation.from_config(config)
+
+    # Load weights from safetensors or pytorch
+    safetensors_files = list(model_dir.glob("*.safetensors"))
+    if safetensors_files:
+        from safetensors.torch import load_file
+
+        state = load_file(str(safetensors_files[0]))
+        model.load_state_dict(state, strict=False)
+    else:
+        pt_file = model_dir / "pytorch_model.bin"
+        if pt_file.exists():
+            state = torch.load(pt_file, map_location="cpu", weights_only=True)
+            if isinstance(state, dict) and "state_dict" in state:
+                state = state["state_dict"]
+            model.load_state_dict(state, strict=False)
+        else:
+            raise FileNotFoundError(
+                f"No weights found in {model_dir} (expected .safetensors or pytorch_model.bin)"
+            )
+
+    model.eval()
     logger.info("DepthEstimator loaded successfully")
     return model, input_height, input_width
 

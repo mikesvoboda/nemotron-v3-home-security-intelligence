@@ -312,17 +312,21 @@ _app_start_time = time.time()
 # =============================================================================
 # Health Check Timeouts (NEM-3892)
 # =============================================================================
-# Optimized timeouts to ensure health endpoints respond under 500ms SLO.
-# Individual component timeouts allow parallel checks to fail fast.
+# Timeouts for health check components. These run in parallel via asyncio.gather.
+# The 500ms SLO was too aggressive and caused false "unhealthy" reports when
+# database/Redis had even slight latency under load. Increased to 2s per component
+# which still allows fast responses while avoiding false negatives.
+#
+# For sub-500ms health checks, use /api/system/health/live (liveness probe).
+# For comprehensive checks, use /api/system/health/full (no timeouts).
 
-# Overall timeout for the entire health check (must be under 500ms)
-HEALTH_CHECK_OVERALL_TIMEOUT_SECONDS = 0.4  # 400ms allows 100ms buffer
+# Overall timeout for the entire health check
+HEALTH_CHECK_OVERALL_TIMEOUT_SECONDS = 3.0  # 3s allows buffer for parallel checks
 
 # Individual component timeouts (run in parallel)
-# These should be shorter than overall timeout since they run concurrently
-HEALTH_CHECK_DB_TIMEOUT_SECONDS = 0.3  # Database ping should be fast
-HEALTH_CHECK_REDIS_TIMEOUT_SECONDS = 0.3  # Redis ping should be fast
-HEALTH_CHECK_AI_TIMEOUT_SECONDS = 0.3  # AI service health check
+HEALTH_CHECK_DB_TIMEOUT_SECONDS = 2.0  # Database ping (was 0.3s, too aggressive)
+HEALTH_CHECK_REDIS_TIMEOUT_SECONDS = 2.0  # Redis ping (was 0.3s, too aggressive)
+HEALTH_CHECK_AI_TIMEOUT_SECONDS = 2.0  # AI service health check (was 0.3s)
 
 # Legacy timeout (kept for backwards compatibility with existing code)
 HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
@@ -1530,16 +1534,18 @@ async def get_readiness(
     pipeline_workers_healthy = _are_critical_pipeline_workers_healthy()
 
     # Determine overall readiness
-    # Ready: All critical services healthy (database, redis, and pipeline workers are required)
+    # Ready: All critical services healthy (database, redis, and optionally pipeline workers)
     # Degraded: Database healthy but some other services unhealthy
     # Not Ready: Database unhealthy OR Redis unhealthy OR critical pipeline workers down
 
     db_healthy = db_status.status == "healthy"
     redis_healthy = redis_status.status == "healthy"
+    settings = get_settings()
+    require_pipeline = getattr(settings, "readiness_require_pipeline_workers", True)
 
     # Both database and redis are required to process camera uploads
-    # Critical pipeline workers (detection, analysis) are also required for full functionality
-    if db_healthy and redis_healthy and pipeline_workers_healthy:
+    # Critical pipeline workers (detection, analysis) required when READINESS_REQUIRE_PIPELINE_WORKERS=true
+    if db_healthy and redis_healthy and (not require_pipeline or pipeline_workers_healthy):
         ready = True
         status = "ready"
     elif db_healthy and redis_healthy:

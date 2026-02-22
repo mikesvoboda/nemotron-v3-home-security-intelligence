@@ -45,30 +45,29 @@ log_step() {
 
 run_export() {
     local description="$1"
-    shift
-
-    # Extract output path from arguments (look for --output-path or --output-dir)
-    local output_path=""
-    local args=("$@")
-    for ((i=0; i<${#args[@]}; i++)); do
-        if [ "${args[i]}" = "--output-path" ] && [ $((i+1)) -lt ${#args[@]} ]; then
-            output_path="${args[i+1]}"
-            break
-        elif [ "${args[i]}" = "--output-dir" ] && [ $((i+1)) -lt ${#args[@]} ]; then
-            # For demographics, skip check (outputs multiple files)
-            output_path=""
-            break
-        fi
-    done
+    local skip_check_path="$2"
+    shift 2
 
     # Skip if model already exists (check for .onnx or .plan file)
-    if [ -n "$output_path" ] && { [ -f "$output_path" ] || [ -f "${output_path%.onnx}.plan" ]; }; then
+    if [ -n "$skip_check_path" ] && { [ -f "$skip_check_path" ] || [ -f "${skip_check_path%.onnx}.plan" ]; }; then
         echo "  -> ${description}... CACHED (skipping)"
         SKIP_COUNT=$((SKIP_COUNT + 1))
         return 0
     fi
 
     echo "  -> ${description}..."
+    # Ensure output directories exist for all --output-path and --output-dir args
+    local args=("$@")
+    for ((i=0; i<${#args[@]}; i++)); do
+        if [ "${args[i]}" = "--output-path" ] && [ $((i+1)) -lt ${#args[@]} ]; then
+            mkdir -p "$(dirname "${args[i+1]}")"
+        elif [ "${args[i]}" = "--output-dir" ] && [ $((i+1)) -lt ${#args[@]} ]; then
+            mkdir -p "${args[i+1]}"
+        fi
+    done
+    if [ -n "$skip_check_path" ]; then
+        mkdir -p "$(dirname "$skip_check_path")"
+    fi
     if "$@"; then
         echo "     OK"
         PASS_COUNT=$((PASS_COUNT + 1))
@@ -137,7 +136,8 @@ run_export "YOLOv8n-pose -> ONNX" "${CACHE_DIR}/pose/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_yolo_pose.py" \
         --model-path "${MODELS_ZOO}/yolov8n-pose/yolov8n-pose.pt" \
         --output-path "${CACHE_DIR}/pose/1/model.onnx" \
-        --device "${CUDA_DEVICE}"
+        --device "${CUDA_DEVICE}" \
+        --onnx-only
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" ] && mv "${CACHE_DIR}/pose/1/yolov8n-pose.onnx" "${CACHE_DIR}/pose/1/model.onnx"
 
@@ -146,20 +146,17 @@ run_export "YOLOv8n threat detection -> ONNX" "${CACHE_DIR}/threat/1/model.onnx"
     python3 "${SCRIPT_DIR}/export_yolo_threat.py" \
         --model-path "${MODELS_ZOO}/threat-detection-yolov8n/weights/best.pt" \
         --output-path "${CACHE_DIR}/threat/1/model.onnx" \
-        --device "${CUDA_DEVICE}"
+        --device "${CUDA_DEVICE}" \
+        --onnx-only
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/threat/1/best.onnx" ] && mv "${CACHE_DIR}/threat/1/best.onnx" "${CACHE_DIR}/threat/1/model.onnx"
 
-# YOLO26m -> ONNX INT8 (NEM-5547: ~20-40% faster, ~50% smaller)
-# Uses dynamic quantization by default. For better accuracy, add calibration data:
-#   YOLO26_CALIBRATION_DIR=/export/foscam ./export_all.sh
-run_export "YOLO26m -> ONNX INT8" "${CACHE_DIR}/yolo26/1/model.onnx" \
+# YOLO26m -> ONNX (FP32, no INT8 - avoids ONNX Runtime provider compatibility issues)
+run_export "YOLO26m -> ONNX" "${CACHE_DIR}/yolo26/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_yolo26.py" \
         --model-path "${MODELS_ZOO}/yolo26/yolo26m.pt" \
         --output-path "${CACHE_DIR}/yolo26/1/model.onnx" \
-        --device "${CUDA_DEVICE}" \
-        --int8 \
-        ${YOLO26_CALIBRATION_DIR:+--calibration-data "${YOLO26_CALIBRATION_DIR}"}
+        --device "${CUDA_DEVICE}"
 # Rename if Ultralytics produced a differently-named .onnx file
 [ -f "${CACHE_DIR}/yolo26/1/yolo26m.onnx" ] && mv "${CACHE_DIR}/yolo26/1/yolo26m.onnx" "${CACHE_DIR}/yolo26/1/model.onnx"
 
@@ -187,10 +184,12 @@ run_export "Pet classifier (ResNet-18) -> ONNX" "${CACHE_DIR}/pet/1/model.onnx" 
         --model-path "${MODELS_ZOO}/pet-classifier" \
         --output-path "${CACHE_DIR}/pet/1/model.onnx"
 
-# Depth estimation -> ONNX
-run_export "Depth Anything V2 Small -> ONNX" "${CACHE_DIR}/depth/1/model.onnx" \
+# Depth estimation -> ONNX (try small, fallback to tiny)
+DEPTH_PATH="${MODELS_ZOO}/depth-anything-v2-small"
+[ -d "$DEPTH_PATH" ] || DEPTH_PATH="${MODELS_ZOO}/depth-anything-v2-tiny"
+run_export "Depth Anything V2 -> ONNX" "${CACHE_DIR}/depth/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_depth.py" \
-        --model-path "${MODELS_ZOO}/depth-anything-v2-small" \
+        --model-path "${DEPTH_PATH}" \
         --output-path "${CACHE_DIR}/depth/1/model.onnx"
 
 # Person Re-ID -> ONNX
@@ -198,6 +197,12 @@ run_export "OSNet-AIN x1.0 Re-ID -> ONNX" "${CACHE_DIR}/reid/1/model.onnx" \
     python3 "${SCRIPT_DIR}/export_reid.py" \
         --model-path "${MODELS_ZOO}/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth" \
         --output-path "${CACHE_DIR}/reid/1/model.onnx"
+
+# ST-GCN++ skeleton action recognition -> ONNX
+run_export "ST-GCN++ action recognition -> ONNX" "${CACHE_DIR}/stgcn_action/1/model.onnx" \
+    python3 "${SCRIPT_DIR}/export_stgcn.py" \
+        --checkpoint "${MODELS_ZOO}/stgcn-plus-plus/stgcnpp_ntu60_xsub_hrnet_j.pth" \
+        --output-path "${CACHE_DIR}/stgcn_action/1/model.onnx"
 
 # ---------------------------------------------------------------------------
 # Phase 3: Verify config files

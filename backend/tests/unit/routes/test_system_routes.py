@@ -952,8 +952,8 @@ async def test_get_readiness_database_timeout() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    # Use a short timeout for testing
-    with patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1):
+    # Use a short timeout for testing (patch DB-specific constant used by _check_db_health_with_timeout)
+    with patch.object(system_routes, "HEALTH_CHECK_DB_TIMEOUT_SECONDS", 0.1):
         response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
@@ -981,8 +981,8 @@ async def test_get_readiness_redis_timeout() -> None:
     redis = AsyncMock()
     redis.health_check = slow_redis_health_check
 
-    # Use a short timeout for testing
-    with patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1):
+    # Use a short timeout for testing (patch Redis-specific constant used by _check_redis_health_with_timeout)
+    with patch.object(system_routes, "HEALTH_CHECK_REDIS_TIMEOUT_SECONDS", 0.1):
         response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
@@ -1028,9 +1028,9 @@ async def test_get_readiness_ai_services_timeout() -> None:
                 status="healthy", message="AI services operational", details=None
             )
 
-        # Use a short timeout for testing
+        # Use a short timeout for testing (patch AI-specific constant used by _check_ai_health_with_timeout)
         with (
-            patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
+            patch.object(system_routes, "HEALTH_CHECK_AI_TIMEOUT_SECONDS", 0.1),
             patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
         ):
             response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
@@ -1072,8 +1072,11 @@ async def test_get_readiness_all_services_timeout() -> None:
     redis = AsyncMock()
     redis.health_check = slow_redis_health_check
 
+    # Patch all component timeouts so each check times out
     with (
-        patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
+        patch.object(system_routes, "HEALTH_CHECK_DB_TIMEOUT_SECONDS", 0.1),
+        patch.object(system_routes, "HEALTH_CHECK_REDIS_TIMEOUT_SECONDS", 0.1),
+        patch.object(system_routes, "HEALTH_CHECK_AI_TIMEOUT_SECONDS", 0.1),
         patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
     ):
         response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
