@@ -32,6 +32,40 @@ from typing import TypedDict
 MINIMUM_DRIVER_VERSION = 580
 
 
+def fix_broken_apt_if_needed() -> bool:
+    """Fix broken apt state (e.g. from failed nvidia installs) before any package installs.
+
+    Run this at the start of setup so podman and other installs can succeed.
+    Always attempts purge when nvidia packages exist (apt --fix-broken can report 0
+    while system remains broken). Returns True.
+    """
+    if not shutil.which("apt"):
+        return True
+
+    # First try fix-broken
+    subprocess.run(
+        ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+        capture_output=True,
+        check=False,
+        timeout=300,
+    )
+
+    # Always purge nvidia packages if present (they often cause broken apt)
+    nvidia_pkgs = _get_nvidia_packages_from_dpkg()
+    if nvidia_pkgs:
+        _purge_broken_nvidia_packages()
+    else:
+        # No nvidia pkgs; one more fix-broken in case other deps are broken
+        subprocess.run(
+            ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
+
+    return True
+
+
 class GpuInfo(TypedDict):
     """GPU information from nvidia-smi."""
 
@@ -75,10 +109,7 @@ def _parse_driver_version(version: str) -> tuple[int, int, int] | None:
 def is_nvidia_gpu_present() -> bool:
     """Check if an NVIDIA GPU is present and accessible.
 
-    Attempts to run nvidia-smi to detect NVIDIA GPU presence.
-
-    Returns:
-        True if nvidia-smi runs successfully, False otherwise.
+    Tries nvidia-smi first. If not available (e.g. driver purged), falls back to lspci.
     """
     try:
         result = subprocess.run(
@@ -88,9 +119,25 @@ def is_nvidia_gpu_present() -> bool:
             timeout=10,
             check=False,
         )
-        return result.returncode == 0
+        if result.returncode == 0:
+            return True
     except (FileNotFoundError, PermissionError, subprocess.TimeoutExpired):
-        return False
+        pass
+
+    # Fallback: lspci when nvidia-smi unavailable (e.g. after driver purge)
+    try:
+        result = subprocess.run(
+            ["lspci"],  # noqa: S603, S607
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode == 0 and "NVIDIA" in result.stdout:
+            return True
+    except (FileNotFoundError, PermissionError, subprocess.TimeoutExpired):
+        pass
+    return False
 
 
 def get_gpu_info() -> list[GpuInfo] | None:
@@ -288,6 +335,261 @@ def get_nvidia_detection_summary() -> NvidiaDetectionSummary:
     )
 
 
+def _ensure_ubuntu_repos_enabled() -> None:
+    """Enable restricted, universe, multiverse (libnvidia-* packages are in restricted)."""
+    if not shutil.which("add-apt-repository"):
+        subprocess.run(
+            ["sudo", "apt", "install", "-y", "software-properties-common"],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
+    for component in ["restricted", "universe", "multiverse"]:
+        subprocess.run(
+            ["sudo", "add-apt-repository", "-y", component],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+    subprocess.run(
+        ["sudo", "apt", "update"],  # noqa: S603, S607
+        capture_output=True,
+        check=False,
+        timeout=120,
+    )
+
+
+def _get_nvidia_packages_from_dpkg() -> list[str]:
+    """Get all nvidia-related packages from dpkg -l.
+
+    Includes any status (ii, rc, iF, iU, iH, hi, etc.) to catch half-installed or
+    broken packages that block apt.
+    """
+    result = subprocess.run(
+        ["dpkg", "-l"],  # noqa: S603, S607
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    if result.returncode != 0:
+        return []
+
+    pkgs = []
+    for line in result.stdout.splitlines():
+        if len(line) < 10:
+            continue
+        # Exclude packages not on system (status xx where x[1]='n' = not installed)
+        if len(line) >= 2 and line[1] == "n":
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        pkg = parts[1]
+        if (
+            pkg.startswith("nvidia-")
+            or pkg.startswith("libnvidia-")
+            or pkg.startswith("xserver-xorg-video-nvidia-")
+        ):
+            pkgs.append(pkg)
+    return pkgs
+
+
+def _purge_broken_nvidia_packages() -> bool:
+    """Remove installed nvidia/libnvidia packages to resolve conflicts.
+
+    Uses dpkg --purge --force when apt purge fails. Runs multiple passes until
+    no packages remain (dpkg may need several passes for dependency order).
+    Returns True if purge was attempted.
+    """
+    purged_any = False
+    for pass_num in range(5):  # Max 5 passes
+        nvidia_pkgs = _get_nvidia_packages_from_dpkg()
+        if not nvidia_pkgs:
+            break
+
+        if pass_num == 0:
+            print("  Purging conflicting nvidia packages for clean install...")
+
+        # Unhold
+        for pkg in nvidia_pkgs:
+            subprocess.run(
+                ["sudo", "apt-mark", "unhold", pkg],  # noqa: S603, S607
+                capture_output=True,
+                check=False,
+                timeout=5,
+            )
+
+        # Try apt purge first (only on first pass)
+        if pass_num == 0:
+            purge_result = subprocess.run(
+                ["sudo", "apt", "purge", "-y", "--allow-change-held-packages"] + nvidia_pkgs,  # noqa: S603, S607
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=120,
+            )
+            if purge_result.returncode == 0:
+                purged_any = True
+                subprocess.run(
+                    ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+                    capture_output=True,
+                    check=False,
+                    timeout=120,
+                )
+                continue
+            print("  apt purge failed, using dpkg force-purge...")
+
+        # Force-purge with dpkg (--force-breaks allows breaking dependents)
+        if pass_num > 0:
+            print("  Additional pass to remove remaining packages...")
+        for pkg in nvidia_pkgs:
+            r = subprocess.run(
+                [
+                    "sudo",
+                    "dpkg",
+                    "--purge",
+                    "--force-remove-reinstreq",
+                    "--force-depends",
+                    "--force-breaks",
+                    pkg,
+                ],  # noqa: S603, S607
+                capture_output=True,
+                check=False,
+                timeout=30,
+            )
+            if r.returncode == 0:
+                purged_any = True
+
+        # Fix broken state between passes
+        subprocess.run(
+            ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
+
+    subprocess.run(
+        ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+        capture_output=True,
+        check=False,
+        timeout=120,
+    )
+    subprocess.run(
+        ["sudo", "apt", "autoremove", "-y"],  # noqa: S603, S607
+        capture_output=True,
+        check=False,
+        timeout=60,
+    )
+    subprocess.run(
+        ["sudo", "apt", "update"],  # noqa: S603, S607
+        capture_output=True,
+        check=False,
+        timeout=120,
+    )
+    return purged_any
+
+
+def _warn_driver_upgrade_failed(version: str | None) -> None:
+    """Print warning when driver upgrade did not meet requirements."""
+    print(
+        f"  WARNING: Driver version still {version or 'unknown'} "
+        f"(>= {MINIMUM_DRIVER_VERSION} required). Reboot may be needed, or use CUDA 12.x in ai-llm."
+    )
+
+
+def _run_grub_update() -> None:
+    """Regenerate GRUB menu after driver/kernel install."""
+    if shutil.which("update-grub"):
+        print("  Regenerating GRUB menu (new kernel installed)...")
+        subprocess.run(["sudo", "update-grub"], check=False, timeout=60)  # noqa: S603, S607
+    elif shutil.which("grub2-mkconfig"):
+        print("  Regenerating GRUB menu (new kernel installed)...")
+        grub_cfg = "/boot/efi/EFI/fedora/grub.cfg" if Path("/sys/firmware/efi").is_dir() else "/boot/grub2/grub.cfg"
+        subprocess.run(["sudo", "grub2-mkconfig", "-o", grub_cfg], check=False, timeout=60)  # noqa: S603, S607
+
+
+def _run_apt_nvidia_driver() -> bool:
+    """Fallback: install nvidia-driver via apt (Ubuntu/Debian).
+
+    Handles broken apt state, repo enablement, and conflicts by trying:
+    1. apt --fix-broken install
+    2. Enable restricted/universe/multiverse (libnvidia-* in restricted)
+    3. nvidia-driver meta-package and versioned packages
+    4. Purge conflicting nvidia packages and retry (clean install)
+    5. Add graphics-drivers PPA and retry
+    """
+    # Fix broken apt state first
+    print("  Fixing broken apt dependencies (if any)...")
+    subprocess.run(
+        ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+        capture_output=True,
+        check=False,
+        timeout=300,
+    )
+
+    def _try_packages(pkgs: list[str], no_install_recommends: bool = False) -> bool:
+        extra = ["--no-install-recommends"] if no_install_recommends else []
+        for pkg in pkgs:
+            print(f"  Running: sudo apt install -y {' '.join(extra)} {pkg}")
+            result = subprocess.run(
+                ["sudo", "apt", "install", "-y"] + extra + [pkg],  # noqa: S603, S607
+                check=False,
+                timeout=600,
+            )
+            if result.returncode == 0:
+                _run_grub_update()
+                return True
+        return False
+
+    packages = [
+        "nvidia-driver",
+        "nvidia-driver-580",
+        "nvidia-driver-550",
+        "nvidia-driver-535",
+    ]
+
+    # Enable restricted/universe/multiverse (libnvidia-* packages live in restricted)
+    print("  Ensuring restricted/universe/multiverse repos are enabled...")
+    _ensure_ubuntu_repos_enabled()
+
+    # Purge conflicting nvidia packages first (resolves "not installable" / Conflicts / held)
+    # Do this before install attempts to avoid dependency cycles
+    if _purge_broken_nvidia_packages():
+        subprocess.run(["sudo", "apt", "update"], capture_output=True, check=False, timeout=120)  # noqa: S603, S607
+
+    if _try_packages(packages):
+        return True
+
+    # Retry without recommends (skips i386 libs that may be "not installable" on cloud images)
+    print("  Retrying with --no-install-recommends (skip i386 libs)...")
+    if _try_packages(packages, no_install_recommends=True):
+        return True
+
+    # Add NVIDIA graphics-drivers PPA for newer drivers (580+ for CUDA 13.1)
+    if shutil.which("add-apt-repository"):
+        print("  Adding graphics-drivers PPA (newer drivers for CUDA 13.1)...")
+        ppa_result = subprocess.run(
+            ["sudo", "add-apt-repository", "-y", "ppa:graphics-drivers/ppa"],  # noqa: S603, S607
+            check=False,
+            timeout=60,
+        )
+        if ppa_result.returncode == 0:
+            print("  Running: sudo apt update")
+            subprocess.run(
+                ["sudo", "apt", "update"],  # noqa: S603, S607
+                check=False,
+                timeout=120,
+            )
+            ppa_packages = ["nvidia-driver-580", "nvidia-driver", "nvidia-driver-550", "nvidia-driver-535"]
+            if _try_packages(ppa_packages):
+                return True
+            if _try_packages(ppa_packages, no_install_recommends=True):
+                return True
+
+    return False
+
+
 def _run_driver_upgrade(distro_family: str, *, is_ubuntu: bool = False) -> bool:
     """Run the NVIDIA driver upgrade command for the current platform.
 
@@ -298,31 +600,127 @@ def _run_driver_upgrade(distro_family: str, *, is_ubuntu: bool = False) -> bool:
     Returns:
         True if upgrade succeeded, False otherwise.
     """
-    cmd = get_driver_install_command(distro_family, is_ubuntu=is_ubuntu)
-    if not cmd:
-        print(f"  No driver install command available for '{distro_family}'")
-        return False
+    if distro_family == "debian" and is_ubuntu:
+        # Fix broken apt state and ensure repos (restricted has libnvidia-*)
+        subprocess.run(
+            ["sudo", "apt", "--fix-broken", "install", "-y"],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+            timeout=300,
+        )
+        _ensure_ubuntu_repos_enabled()
+        # ubuntu-drivers is provided by ubuntu-drivers-common; not installed on minimal/cloud images
+        if not shutil.which("ubuntu-drivers"):
+            print("  Installing ubuntu-drivers-common (provides ubuntu-drivers)...")
+            install_common = subprocess.run(
+                ["sudo", "apt", "install", "-y", "ubuntu-drivers-common"],  # noqa: S603, S607
+                check=False,
+                timeout=120,
+            )
+            if install_common.returncode != 0:
+                print("  WARNING: ubuntu-drivers-common install failed — falling back to nvidia-driver")
+                return _run_apt_nvidia_driver()
+        print("  Running: sudo ubuntu-drivers install")
+        result = subprocess.run(
+            ["sudo", "ubuntu-drivers", "install"],  # noqa: S603, S607
+            check=False,
+            timeout=600,
+        )
+    else:
+        cmd = get_driver_install_command(distro_family, is_ubuntu=is_ubuntu)
+        if not cmd:
+            print(f"  No driver install command available for '{distro_family}'")
+            return False
 
-    print(f"  Running: {cmd}")
-    result = subprocess.run(
-        cmd.split(),  # noqa: S603
-        check=False,
-        timeout=600,
-    )
+        print(f"  Running: {cmd}")
+        result = subprocess.run(
+            cmd.split(),  # noqa: S603
+            check=False,
+            timeout=600,
+        )
+
     if result.returncode != 0:
+        if distro_family == "debian" and is_ubuntu:
+            return _run_apt_nvidia_driver()
         return False
 
-    # Driver upgrade may install a new kernel (e.g. linux-modules-nvidia-*).
-    # Regenerate GRUB so the new kernel appears in the boot menu.
-    if shutil.which("update-grub"):
-        print("  Regenerating GRUB menu (new kernel installed)...")
-        subprocess.run(["sudo", "update-grub"], check=False, timeout=60)  # noqa: S603, S607
-    elif shutil.which("grub2-mkconfig"):
-        print("  Regenerating GRUB menu (new kernel installed)...")
-        grub_cfg = "/boot/efi/EFI/fedora/grub.cfg" if Path("/sys/firmware/efi").is_dir() else "/boot/grub2/grub.cfg"
-        subprocess.run(["sudo", "grub2-mkconfig", "-o", grub_cfg], check=False, timeout=60)  # noqa: S603, S607
-
+    _run_grub_update()
     return True
+
+
+def _add_nvidia_container_toolkit_repo() -> bool:
+    """Add NVIDIA Container Toolkit repo (package not in default Ubuntu repos)."""
+    try:
+        key_result = subprocess.run(
+            [
+                "curl",
+                "-fsSL",
+                "https://nvidia.github.io/libnvidia-container/gpgkey",
+            ],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        if key_result.returncode != 0:
+            return False
+        # Remove existing keyring to avoid "Overwrite? (y/N)" prompt
+        subprocess.run(
+            ["sudo", "rm", "-f", "/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg"],  # noqa: S603, S607
+            capture_output=True,
+            check=False,
+        )
+        gpg_result = subprocess.run(
+            [
+                "sudo",
+                "gpg",
+                "--batch",
+                "--dearmor",
+                "-o",
+                "/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg",
+            ],  # noqa: S603, S607
+            input=key_result.stdout,
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+        if gpg_result.returncode != 0:
+            return False
+        list_result = subprocess.run(
+            [
+                "curl",
+                "-sL",
+                "https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list",
+            ],  # noqa: S603, S607
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if list_result.returncode != 0:
+            return False
+        # Add signed-by to repo line for Ubuntu 24.04
+        repo_content = list_result.stdout.replace(
+            "deb https://",
+            "deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://",
+        )
+        proc = subprocess.run(
+            ["sudo", "tee", "/etc/apt/sources.list.d/nvidia-container-toolkit.list"],
+            input=repo_content.encode(),
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+        if proc.returncode != 0:
+            return False
+        subprocess.run(
+            ["sudo", "apt", "update"],
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
+        return True
+    except Exception:
+        return False
 
 
 def _run_toolkit_install(distro_family: str) -> bool:
@@ -342,17 +740,40 @@ def _run_toolkit_install(distro_family: str) -> bool:
     print(f"  Running: {cmd}")
     result = subprocess.run(
         cmd.split(),  # noqa: S603
+        capture_output=True,
+        text=True,
         check=False,
         timeout=300,
     )
     if result.returncode == 0:
-        # Regenerate CDI spec after toolkit install
-        subprocess.run(
-            ["sudo", "nvidia-ctk", "cdi", "generate", "--output=/etc/cdi/nvidia.yaml"],  # noqa: S603, S607
-            check=False,
-            timeout=30,
-        )
-    return result.returncode == 0
+        _run_toolkit_post_install()
+        return True
+
+    # Debian/Ubuntu: add NVIDIA repo if package not found (e.g. after purge)
+    stderr = result.stderr or ""
+    if distro_family == "debian" and ("no installation candidate" in stderr or "not found" in stderr.lower()):
+        print("  Adding NVIDIA Container Toolkit repo...")
+        if _add_nvidia_container_toolkit_repo():
+            print("  Running: sudo apt install -y nvidia-container-toolkit")
+            result = subprocess.run(
+                ["sudo", "apt", "install", "-y", "nvidia-container-toolkit"],  # noqa: S603, S607
+                check=False,
+                timeout=300,
+            )
+            if result.returncode == 0:
+                _run_toolkit_post_install()
+                return True
+
+    return False
+
+
+def _run_toolkit_post_install() -> None:
+    """Regenerate CDI spec after toolkit install."""
+    subprocess.run(
+        ["sudo", "nvidia-ctk", "cdi", "generate", "--output=/etc/cdi/nvidia.yaml"],  # noqa: S603, S607
+        check=False,
+        timeout=30,
+    )
 
 
 def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
@@ -417,10 +838,30 @@ def prompt_and_check_nvidia(config: dict[str, object]) -> bool:
 
             if auto_install:
                 print("  Upgrading NVIDIA driver...")
-                if _run_driver_upgrade(distro_family, is_ubuntu=is_ubuntu):
+                upgraded = _run_driver_upgrade(distro_family, is_ubuntu=is_ubuntu)
+                # Verify driver actually upgraded (ubuntu-drivers can return 0 despite apt errors)
+                new_version = get_driver_version()
+                if is_driver_version_sufficient(new_version):
                     print("  Driver upgrade complete")
+                    config["driver_version"] = new_version
                     config["driver_needs_upgrade"] = False
                     config["driver_upgraded"] = True
+                elif upgraded and distro_family == "debian" and is_ubuntu:
+                    # ubuntu-drivers reported success but version unchanged — try PPA fallback
+                    print("  ubuntu-drivers did not upgrade — trying graphics-drivers PPA...")
+                    if _run_apt_nvidia_driver():
+                        new_version = get_driver_version()
+                        if is_driver_version_sufficient(new_version):
+                            print("  Driver upgrade complete")
+                            config["driver_version"] = new_version
+                            config["driver_needs_upgrade"] = False
+                            config["driver_upgraded"] = True
+                        else:
+                            _warn_driver_upgrade_failed(new_version)
+                    else:
+                        _warn_driver_upgrade_failed(new_version)
+                elif upgraded:
+                    _warn_driver_upgrade_failed(new_version)
                 else:
                     print("  WARNING: Driver upgrade failed — GPU containers may not start")
             else:

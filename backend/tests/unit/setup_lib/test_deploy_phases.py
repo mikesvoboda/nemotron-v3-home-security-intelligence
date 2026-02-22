@@ -332,13 +332,34 @@ class TestPhaseExport:
         mock_proc = MagicMock()
         mock_proc.pid = 12345
 
-        with patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
+        with (
+            patch("setup_lib.deploy_phases._get_compose_image", return_value="test-ai-gateway:latest"),
+            patch("subprocess.Popen", return_value=mock_proc) as mock_popen,
+        ):
             result = phase_export(config)
 
             assert result.success is True
             assert config._export_process is mock_proc
             assert "background" in result.message.lower()
             mock_popen.assert_called_once()
+
+    def test_fails_when_ai_gateway_image_not_found(self, tmp_path: Path) -> None:
+        """Should fail when ai-gateway image cannot be resolved."""
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_export
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"AI_MODELS_PATH": str(tmp_path)},
+        )
+
+        with patch("setup_lib.deploy_phases._get_compose_image", return_value=None):
+            result = phase_export(config)
+
+        assert result.success is False
+        assert "ai-gateway" in result.message.lower()
+        assert "image" in result.message.lower()
 
 
 class TestPhaseInfrastructure:

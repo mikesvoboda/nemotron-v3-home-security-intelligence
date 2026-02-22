@@ -35,7 +35,7 @@ from setup_lib.firewall_config import prompt_and_configure_firewall
 from setup_lib.image_pull import prompt_and_pull_images
 from setup_lib.linux_optimizer import prompt_and_run_optimizations
 from setup_lib.model_downloader import prompt_and_download_models
-from setup_lib.nvidia_detect import prompt_and_check_nvidia
+from setup_lib.nvidia_detect import fix_broken_apt_if_needed, prompt_and_check_nvidia
 from setup_lib.platform_detect import get_platform_info, print_platform_info
 from setup_lib.podman_install import prompt_and_install_podman
 from setup_lib.rootful_services import (
@@ -1280,6 +1280,9 @@ def main() -> None:
                 print("! Unsupported platform. Only Linux and Windows are supported.")
                 print("  macOS is not supported due to lack of NVIDIA CUDA support.")
                 sys.exit(1)
+
+            # Step 0: Fix broken apt (e.g. from failed nvidia installs) so podman can install
+            fix_broken_apt_if_needed()
 
             # Step 1/5: Container Runtime (Podman)
             # Auto-install without prompting for streamlined setup

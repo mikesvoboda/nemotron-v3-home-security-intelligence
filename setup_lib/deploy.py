@@ -238,6 +238,27 @@ def _log(config: DeployConfig, message: str) -> None:
         return
 
 
+def _raise_nofile_limit(target: int = 65536) -> None:
+    """Raise RLIMIT_NOFILE so rootless Podman builds can set it in containers.
+
+    Rootless crun fails with 'setrlimit RLIMIT_NOFILE: Operation not permitted'
+    when the calling process has a low open-files limit. Raising it here
+    allows child processes (podman build) to inherit a sufficient limit.
+    """
+    try:
+        import resource
+    except ImportError:
+        return  # resource is Unix-only
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        if soft < target and hard >= target:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+        elif soft < target and hard < target:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
+    except (ValueError, OSError):
+        pass  # Best-effort; build may still succeed in some environments
+
+
 def run_deploy(config: DeployConfig) -> bool:
     """Run all deployment phases in sequence.
 
@@ -247,6 +268,12 @@ def run_deploy(config: DeployConfig) -> bool:
     Returns:
         True if all required phases succeeded, False otherwise.
     """
+    _raise_nofile_limit()
+
+    # Apply TMPDIR from .env so container builds use a large volume (avoids root disk exhaustion)
+    if tmpdir := config.env.get("TMPDIR"):
+        os.environ["TMPDIR"] = tmpdir
+
     # Lazy import to avoid circular imports
     from setup_lib.deploy_phases import DEPLOY_PHASES
 
