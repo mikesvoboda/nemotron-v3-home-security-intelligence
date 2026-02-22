@@ -333,7 +333,9 @@ class TestPhaseExport:
         mock_proc.pid = 12345
 
         with (
-            patch("setup_lib.deploy_phases._get_compose_image", return_value="test-ai-gateway:latest"),
+            patch(
+                "setup_lib.deploy_phases._get_compose_image", return_value="test-ai-gateway:latest"
+            ),
             patch("subprocess.Popen", return_value=mock_proc) as mock_popen,
         ):
             result = phase_export(config)
