@@ -88,8 +88,9 @@ COPY . .
 
 # Build with production optimizations
 # This runs: tsc && vite build (needs TypeScript from devDependencies)
+# Raise nofile limit to avoid EMFILE during Vite/Rollup build (1457+ modules)
 ENV NODE_ENV=production
-RUN npm run build
+RUN sh -c 'ulimit -n 65536 && npm run build'
 
 # =============================================================================
 # Production target: nginx unprivileged serving static assets

@@ -21,6 +21,36 @@ from setup_lib.rootful_services import (
     _run_sudo,
 )
 
+
+def _get_compose_image(config: DeployConfig, service: str) -> str | None:
+    """Resolve the image name for a compose service (matches compose project-service naming).
+
+    Uses COMPOSE_PROJECT_NAME from env if set, otherwise the project directory name.
+    Falls back to podman images lookup if the derived name is not found.
+    """
+    project_name = config.env.get("COMPOSE_PROJECT_NAME") or config.project_root.name
+    derived = f"{project_name}-{service}:latest"
+    # Verify image exists
+    result = subprocess.run(
+        ["podman", "images", "-q", derived],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return derived
+    # Fallback: find by service name pattern (handles docker.io/library/ prefix)
+    result = subprocess.run(
+        ["podman", "images", "--format", "{{.Repository}}:{{.Tag}}", "--filter", f"reference=*{service}*"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip().splitlines()[0]
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Phase 1: Stop everything
 # ---------------------------------------------------------------------------
@@ -279,6 +309,8 @@ def phase_build(config: DeployConfig) -> DeployResult:
         "podman",
         "build",
         "--no-cache",
+        "--ulimit",
+        "nofile=65536:65536",
         "-f",
         str(config.project_root / "docker" / "base.Dockerfile"),
         "-t",
@@ -305,6 +337,12 @@ def phase_build(config: DeployConfig) -> DeployResult:
         return DeployResult(False, "Base image build failed")
 
     # Build application services with --no-cache
+    # Use CONTAINERS_CONF_OVERRIDE so compose build inherits nofile=65536:65536
+    # (avoids "setrlimit RLIMIT_NOFILE: Operation not permitted" in rootless)
+    ulimit_conf = config.project_root / "docker" / "containers-build-ulimit.conf"
+    if ulimit_conf.exists():
+        config.env["CONTAINERS_CONF_OVERRIDE"] = str(ulimit_conf.resolve())
+
     print("  Building application services (--no-cache)...")
     ok = compose_run(
         config,
@@ -385,6 +423,11 @@ def phase_export(config: DeployConfig) -> DeployResult:
     # Ensure cache directory exists
     Path(triton_cache).mkdir(parents=True, exist_ok=True)
 
+    # Resolve ai-gateway image name (matches compose project-service naming)
+    ai_gateway_image = _get_compose_image(config, "ai-gateway")
+    if not ai_gateway_image:
+        return DeployResult(False, "Could not resolve ai-gateway image (run build phase first)")
+
     # Run export in background
     gpu_device = config.env.get("GPU_AI_SERVICES", "1")
     export_cmd = [
@@ -411,7 +454,7 @@ def phase_export(config: DeployConfig) -> DeployResult:
         "/export/ai_models/model-zoo:/models/zoo:ro",
         "-v",
         f"{triton_cache}:/models/cache",
-        "localhost/nemotron-v3-home-security-intelligence_ai-gateway:latest",
+        ai_gateway_image,
         "-c",
         "cd /app/gateway/export && bash export_all.sh",
     ]

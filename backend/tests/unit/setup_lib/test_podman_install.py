@@ -207,6 +207,9 @@ class TestInstallPodman:
             mock_run.assert_called_once_with(
                 ["sudo", "dnf", "install", "-y", "podman"],
                 check=False,
+                capture_output=True,
+                text=True,
+                timeout=300,
             )
 
     def test_install_failure(self) -> None:
@@ -352,6 +355,8 @@ class TestPromptAndInstallPodman:
             patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
             patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
             patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("setup_lib.podman_install._install_podman5_dependencies"),
+            patch("setup_lib.podman_install._verify_podman_operational"),
             patch("builtins.print"),
         ):
             result = prompt_and_install_podman()
@@ -496,8 +501,23 @@ class TestPromptAndInstallPodman:
         """Should accept an optional config dict parameter."""
         from setup_lib.podman_install import prompt_and_install_podman
 
+        platform_info: PlatformInfo = {
+            "platform": "linux",
+            "distro": {"id": "fedora"},
+            "package_manager": "dnf",
+            "is_wsl": False,
+        }
+
         # Test that function signature accepts config parameter
-        with patch("setup_lib.podman_install.is_podman_installed", return_value=True):
+        with (
+            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch("setup_lib.podman_install.is_podman_installed", return_value=True),
+            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
+            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
+            patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("setup_lib.podman_install._install_podman5_dependencies"),
+            patch("setup_lib.podman_install._verify_podman_operational"),
+        ):
             result = prompt_and_install_podman(config={"auto_install": True})
             assert result is True
 
