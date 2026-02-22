@@ -1541,9 +1541,7 @@ async def get_readiness(
     db_healthy = db_status.status == "healthy"
     redis_healthy = redis_status.status == "healthy"
     settings = get_settings()
-    require_pipeline = getattr(
-        settings, "readiness_require_pipeline_workers", True
-    )
+    require_pipeline = getattr(settings, "readiness_require_pipeline_workers", True)
 
     # Both database and redis are required to process camera uploads
     # Critical pipeline workers (detection, analysis) required when READINESS_REQUIRE_PIPELINE_WORKERS=true
