@@ -13,7 +13,6 @@ from pathlib import Path
 
 from setup_lib.core import check_port_available, generate_password
 from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, compose_run
-from setup_lib.healthcheck import check_service_health, poll_endpoint
 from setup_lib.rootful_services import (
     CADVISOR_SERVICE_NAME,
     DCGM_SERVICE_NAME,
@@ -55,7 +54,12 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     time.sleep(1)
 
     # Stop rootful dcgm-exporter
-    _run_sudo(["systemctl", "stop", "dcgm-exporter"], check=False)
+    result = _run_sudo(["systemctl", "stop", "dcgm-exporter"], check=False, non_interactive=True)
+    if result.returncode != 0 and result.stderr:
+        if "password" in result.stderr.lower():
+            print("  dcgm-exporter: sudo password required; skipping stop")
+        else:
+            print(f"  dcgm-exporter: stop failed ({result.stderr.strip()})")
 
     # Destroy volumes if requested
     if config.destroy_volumes:
@@ -74,12 +78,23 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     )
 
     # Detect corrupted container storage (Podman 5.x+ only)
-    check_result = subprocess.run(
-        ["podman", "system", "check"],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    check_result = None
+    try:
+        check_result = subprocess.run(
+            ["podman", "system", "check"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        print("  WARNING: 'podman system check' timed out after 60s; continuing.")
+        print("  Recommendation:")
+        print("    Run `podman system check` manually to see full output.")
+        print("    If corruption is reported: `podman system check --repair --force`.")
+        print("    If repair fails: `podman system reset --force` (rebuilds images).")
+        print("    If it hangs: `systemctl --user restart podman.socket`.")
+        return DeployResult(True, "Skipped podman system check (timeout)")
     # Only treat as corruption if the command exists (rc=0 or known error).
     # "unrecognized command" (Podman 4.x) is not corruption — skip it.
     is_unrecognized = "unrecognized command" in (check_result.stderr or "")
@@ -445,9 +460,13 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
         (CADVISOR_SERVICE_NAME, "cadvisor"),
     ]:
         if _is_service_installed(service_name):
-            result = _run_sudo(["systemctl", "restart", service_name], check=False)
+            result = _run_sudo(
+                ["systemctl", "restart", service_name], check=False, non_interactive=True
+            )
             if result.returncode == 0:
                 print(f"  {label}: restarted (rootful systemd service)")
+            elif result.stderr and "password" in result.stderr.lower():
+                print(f"  {label}: sudo password required; skipping restart")
             else:
                 print(f"  {label}: failed to restart (check: sudo journalctl -u {service_name})")
         else:
@@ -493,7 +512,7 @@ def _warn_gpu_missing() -> None:
             text=True,
             check=False,
         ).stdout.strip()
-        print(f"  WARNING: NVIDIA driver installed but /dev/nvidia0 missing!")
+        print("  WARNING: NVIDIA driver installed but /dev/nvidia0 missing!")
         print(f"    Running kernel: {kernel}")
         print("    Likely cause: kernel/module mismatch — run 'sudo update-grub' and reboot")
         print("    GPU services (ai-llm, ai-gateway) will not start without GPU devices.")
@@ -554,7 +573,9 @@ def phase_application(config: DeployConfig) -> DeployResult:
 
     if stuck:
         print(f"  WARNING: {', '.join(stuck)} did not reach running state")
-        return DeployResult(True, f"Application services started ({', '.join(stuck)} may still be initializing)")
+        return DeployResult(
+            True, f"Application services started ({', '.join(stuck)} may still be initializing)"
+        )
 
     print("  All services running after retry.")
     return DeployResult(True, "Application services started")
@@ -630,7 +651,11 @@ def _recover_created_containers(config: DeployConfig) -> None:
         # Extract compose service name from container name
         # (e.g. "nemotron-v3-home-security-intelligence-backend-1" -> "backend")
         parts = name.rsplit("-", 1)  # strip trailing "-1"
-        svc = parts[0].split(config.project_root.name + "-", 1)[-1] if config.project_root.name in name else name
+        svc = (
+            parts[0].split(config.project_root.name + "-", 1)[-1]
+            if config.project_root.name in name
+            else name
+        )
         compose_run(config, "up", "-d", "--no-build", svc)
         time.sleep(2)
         if _wait_container_running(svc, timeout=30):
@@ -641,7 +666,7 @@ def _recover_created_containers(config: DeployConfig) -> None:
 
 def phase_health_check(config: DeployConfig) -> DeployResult:
     """Verify service health and print deployment summary."""
-    print("  Health check (waiting for services to initialize)...")
+    print("  Health check (waiting for all services to become healthy)...")
 
     api_port = config.env.get("API_PORT", "8000")
     gateway_port = config.env.get("AI_GATEWAY_PORT", "8090")
@@ -653,22 +678,82 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
     # Auto-register admin (resolves SetupGuard 503s)
     _auto_register_admin(config)
 
-    # Health checks
-    services = [
-        ("Backend", f"http://localhost:{api_port}/api/system/health", 60),
-        ("AI Gateway", f"http://localhost:{gateway_port}/health", 120),
-        ("LLM", f"http://localhost:{llm_port}/health", 180),
-    ]
+    # Services to check with their endpoints
+    # Use /api/system/health/full for backend - it has no aggressive timeouts
+    # and gives accurate results (the main /health endpoint has 0.3s timeouts
+    # for Prometheus SLO which can cause false "unhealthy" reports)
+    services = {
+        "Backend": f"http://localhost:{api_port}/api/system/health/full",
+        "AI Gateway": f"http://localhost:{gateway_port}/health",
+        "LLM": f"http://localhost:{llm_port}/health",
+    }
 
-    all_healthy = True
-    for name, url, timeout in services:
-        ready = poll_endpoint(url, timeout=timeout)
-        if ready:
-            result = check_service_health(name, url, timeout=10)
-            print(f"  {name}: healthy ({result['response_time_ms']}ms)")
-        else:
-            print(f"  {name}: not ready yet")
-            all_healthy = False
+    # Overall timeout: 10 minutes for all services to become healthy
+    overall_timeout = 600
+    poll_interval = 10
+    deadline = time.monotonic() + overall_timeout
+
+    healthy_services: set[str] = set()
+    last_status: dict[str, str] = dict.fromkeys(services, "waiting")
+
+    print(f"  Waiting up to {overall_timeout // 60} minutes for services...")
+
+    while time.monotonic() < deadline:
+        for name, url in services.items():
+            if name in healthy_services:
+                continue
+
+            try:
+                resp = urllib.request.urlopen(url, timeout=10)  # noqa: S310  # nosemgrep: ssrf-requests
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode())
+                    # Check if response indicates healthy status
+                    status = data.get("status", "unknown")
+                    if status in ("healthy", "ok"):
+                        healthy_services.add(name)
+                        elapsed = int(overall_timeout - (deadline - time.monotonic()))
+                        print(f"  {name}: healthy (ready after {elapsed}s)")
+                    elif last_status[name] != status:
+                        print(f"  {name}: {status}")
+                        last_status[name] = status
+            except urllib.error.HTTPError as e:
+                # Backend may return 503 while still initializing but responding
+                # Consider it "ready" if it responds, even with degraded status
+                if e.code == 503 and name == "Backend":
+                    try:
+                        data = json.loads(e.read().decode())
+                        status = data.get("status", "unknown")
+                        if last_status[name] != status:
+                            print(f"  {name}: {status} (service responding)")
+                            last_status[name] = status
+                        # If backend responds with JSON, it's operational
+                        # Mark as healthy after responding for 30+ seconds
+                        if last_status.get(f"{name}_first_response") is None:
+                            last_status[f"{name}_first_response"] = time.monotonic()
+                        elif time.monotonic() - last_status[f"{name}_first_response"] > 30:
+                            healthy_services.add(name)
+                            elapsed = int(overall_timeout - (deadline - time.monotonic()))
+                            print(f"  {name}: operational (ready after {elapsed}s)")
+                    except (json.JSONDecodeError, OSError):
+                        pass
+            except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError):
+                pass
+
+        # All services healthy?
+        if len(healthy_services) == len(services):
+            break
+
+        # Show progress every 30 seconds
+        elapsed = int(overall_timeout - (deadline - time.monotonic()))
+        if elapsed > 0 and elapsed % 30 == 0:
+            pending = [n for n in services if n not in healthy_services]
+            print(f"  [{elapsed}s] Still waiting for: {', '.join(pending)}")
+
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(poll_interval, remaining))
+
+    all_healthy = len(healthy_services) == len(services)
 
     # Deployment summary
     try:
@@ -752,6 +837,6 @@ DEPLOY_PHASES: list[DeployPhase] = [
         name="health_check",
         description="Health check and deployment verification",
         func=phase_health_check,
-        required=False,
+        required=True,
     ),
 ]
