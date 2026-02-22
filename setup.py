@@ -1282,11 +1282,15 @@ def main() -> None:
                 sys.exit(1)
 
             # Step 0: Fix broken apt (e.g. from failed nvidia installs) so podman can install
+            print("\n[Step 0/5] Fixing broken apt state (if needed)...", flush=True)
             fix_broken_apt_if_needed()
+            print("[Step 0/5] Done\n", flush=True)
 
             # Step 1/5: Container Runtime (Podman)
             # Auto-install without prompting for streamlined setup
+            print("\n[Step 1/5] Container Runtime (Podman)...", flush=True)
             prompt_and_install_podman({"auto_install": True})
+            print("[Step 1/5] Done\n", flush=True)
 
             # Step 2/5: NVIDIA GPU detection
             # Auto-install without prompting for streamlined setup

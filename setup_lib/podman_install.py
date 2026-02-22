@@ -230,18 +230,23 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
         sources_file = f"/etc/apt/sources.list.d/{sources_filename}"
         gpg_file = f"/etc/apt/trusted.gpg.d/{gpg_filename}"
 
-        print(f"Trying {label} repo ({repo_version})...")
+        print(f"  [podman] Trying {label} repo ({repo_version})...", flush=True)
 
         try:
             # Fetch GPG key first — if this fails the repo doesn't exist for this OS
             key_result = subprocess.run(
                 ["curl", "-fsSL", f"{base_url}/Release.key"],  # noqa: S607
                 capture_output=True,
-                check=True,
+                text=True,
+                check=False,
                 timeout=30,
             )
+            if key_result.returncode != 0:
+                print(f"  [podman] {label}: curl failed (rc={key_result.returncode}, 22=URL not found)", flush=True)
+                _remove_source(sources_file, gpg_file)
+                continue
             if not key_result.stdout:
-                print(f"  {label}: empty GPG key, skipping")
+                print(f"  [podman] {label}: empty GPG key, skipping", flush=True)
                 continue
 
             # Write apt sources entry
@@ -254,9 +259,10 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
             )
 
             # Import GPG key (--yes overwrites existing file)
+            key_bytes = key_result.stdout.encode() if isinstance(key_result.stdout, str) else key_result.stdout
             subprocess.run(
                 ["sudo", "gpg", "--yes", "--dearmor", "-o", gpg_file],  # noqa: S607
-                input=key_result.stdout,
+                input=key_bytes,
                 check=True,
                 capture_output=True,
             )
@@ -276,11 +282,19 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
                     continue
                 # Other repos failed (not our new one) — proceed anyway
 
-            subprocess.run(
+            install_result = subprocess.run(
                 ["sudo", "apt-get", "install", "-y", "podman"],  # noqa: S607
-                check=True,
+                check=False,
                 capture_output=True,
+                text=True,
+                timeout=300,
             )
+            if install_result.returncode != 0:
+                print(f"  [podman] {label}: apt-get install failed (rc={install_result.returncode})", flush=True)
+                if install_result.stderr:
+                    for line in install_result.stderr.strip().splitlines()[-2:]:
+                        print(f"    {line}", flush=True)
+                raise subprocess.CalledProcessError(install_result.returncode, ["apt-get", "install", "-y", "podman"])
 
             new_version = get_podman_version()
             if new_version and is_version_at_least(new_version, (4, 0, 0)):
@@ -292,13 +306,13 @@ def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
             _remove_source(sources_file, gpg_file)
 
         except subprocess.CalledProcessError as e:
-            print(f"  {label} failed: {e}")
+            print(f"  [podman] {label} failed: {e}", flush=True)
             _remove_source(sources_file, gpg_file)
         except OSError as e:
-            print(f"  {label} failed: {e}")
+            print(f"  [podman] {label} failed: {e}", flush=True)
             _remove_source(sources_file, gpg_file)
 
-    print("! Podman upgrade failed via all repositories")
+    print("! Podman upgrade failed via all repositories (keeping 4.x from Ubuntu)", flush=True)
     return False
 
 
@@ -343,9 +357,15 @@ def install_podman(platform_info: PlatformInfo) -> bool:
         return False
 
     try:
-        result = subprocess.run(command, check=False)
+        result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            print(f"  [podman] apt install exited {result.returncode}", flush=True)
+            if result.stderr:
+                for line in result.stderr.strip().splitlines()[-3:]:
+                    print(f"    {line}", flush=True)
         return result.returncode == 0
-    except OSError:
+    except OSError as e:
+        print(f"  [podman] install failed: {e}", flush=True)
         return False
 
 
@@ -418,20 +438,21 @@ def _do_install_podman(
         if response.lower() not in ("y", "yes"):
             return False
 
-    print(f"Installing Podman using: {' '.join(command)}")
+    print(f"  [podman] Installing Podman using: {' '.join(command)}", flush=True)
 
     # Run installation
     if not install_podman(platform_info):
-        print("! Standard Podman installation failed, trying Kubic repository...")
+        print("  [podman] Standard apt install failed (rc!=0), trying Kubic/alvistack repos...", flush=True)
         if not upgrade_podman_to_4x(platform_info):
-            print("! Podman installation failed via all methods")
+            print("! Podman installation failed via all methods", flush=True)
             return False
 
     if not is_podman_installed():
-        print("! Podman not found after installation attempt")
+        print("! Podman not found after installation attempt (which podman returned nothing)", flush=True)
         return False
 
-    print("Podman installed successfully")
+    print("  [podman] Podman installed successfully", flush=True)
+    _verify_podman_operational()
 
     # On Windows, initialize the Podman machine
     if platform_info.get("platform") == "windows":
@@ -442,6 +463,43 @@ def _do_install_podman(
         print("Podman machine initialized and started")
 
     return True
+
+
+def _verify_podman_operational() -> None:
+    """Verify podman is operational and print the compose command to use."""
+    podman_path = shutil.which("podman")
+    if not podman_path:
+        print("! WARNING: podman not found in PATH after install", flush=True)
+        return
+    try:
+        result = subprocess.run(
+            ["podman", "--version"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            print(f"  [podman] Verified: {result.stdout.strip()} at {podman_path}", flush=True)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        print("! WARNING: podman --version failed", flush=True)
+        return
+
+    # Determine compose command for user (include ~/.local/bin for pip-installed podman-compose)
+    compose_cmd = None
+    local_compose = Path.home() / ".local" / "bin" / "podman-compose"
+    if is_version_at_least(get_podman_version(), (5, 0, 0)):
+        compose_cmd = "podman compose"
+    elif shutil.which("podman-compose"):
+        compose_cmd = "podman-compose"
+    elif local_compose.exists():
+        compose_cmd = "podman-compose"  # assume in PATH after profile reload, or use full path
+        if not shutil.which("podman-compose"):
+            compose_cmd = str(local_compose)
+
+    if compose_cmd:
+        print(f"  [podman] Start containers: {compose_cmd} -f docker-compose.prod.yml up -d", flush=True)
+    else:
+        print("  [podman] Install podman-compose: sudo apt install -y podman-compose", flush=True)
 
 
 def is_podman_compose_installed() -> bool:
@@ -781,24 +839,27 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
         False otherwise.
     """
     # Get platform information early
+    print("  [podman] Detecting platform...", flush=True)
     platform_info = get_platform_info()
     if platform_info is None:
-        print("! Unsupported platform for Podman installation")
+        print("! Unsupported platform for Podman installation", flush=True)
         return False
+    print(f"  [podman] Platform: {platform_info.get('platform', '?')} / {platform_info.get('package_manager', '?')}", flush=True)
 
     # Check if already installed
     if is_podman_installed():
+        print("  [podman] Podman already installed, checking version...", flush=True)
         # Check version (need 5.0+ for native podman compose support)
         current_version = get_podman_version()
         if current_version:
-            print(f"Podman {current_version} detected")
+            print(f"  [podman] Podman {current_version} detected", flush=True)
 
             if not is_version_at_least(current_version, (5, 0, 0)):
-                print("! Podman < 5.0 detected - upgrading for native compose and BuildKit support")
+                print("! Podman < 5.0 detected - upgrading for native compose and BuildKit support", flush=True)
 
                 auto_install = bool(config and config.get("auto_install"))
                 if auto_install:
-                    print("Upgrading to Podman 5.x...")
+                    print("  [podman] Upgrading to Podman 5.x...", flush=True)
                     upgrade_podman_to_4x(platform_info)
                 else:
                     response = input("Upgrade to Podman 5.x? [y/N]: ")
@@ -807,35 +868,49 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
 
         # Ensure Podman 5.x runtime dependencies are present
         if is_version_at_least(get_podman_version(), (5, 0, 0)):
+            print("  [podman] Installing Podman 5.x dependencies (passt)...", flush=True)
             _install_podman5_dependencies()
 
         # Also check and install podman-compose
         if not is_podman_compose_installed():
-            print("Checking for podman-compose...")
+            print("  [podman] podman-compose not found, installing...", flush=True)
             install_podman_compose()
+        else:
+            print("  [podman] podman-compose already installed", flush=True)
 
         # Configure rootless cgroups (Linux only, required for resource limits)
+        print("  [podman] Configuring rootless cgroups...", flush=True)
         configure_rootless_cgroups()
 
+        _verify_podman_operational()
         return True
 
     # Not installed - do fresh installation
+    print("  [podman] Podman not installed, performing fresh install...", flush=True)
     success = _do_install_podman(platform_info, config)
 
     # If Podman was installed successfully, check version and upgrade if needed
     if success:
         current_version = get_podman_version()
+        print(f"  [podman] Fresh install complete, version: {current_version or 'unknown'}", flush=True)
         if current_version and not is_version_at_least(current_version, (5, 0, 0)):
-            print(f"\nPodman {current_version} installed, but 5.0+ is recommended")
-            print("Upgrading to Podman 5.x...")
+            print(f"  [podman] Podman {current_version} installed, but 5.0+ is recommended", flush=True)
+            print("  [podman] Upgrading to Podman 5.x...", flush=True)
             upgrade_podman_to_4x(platform_info)
 
         # Install podman-compose
         if not is_podman_compose_installed():
-            print("\nInstalling podman-compose...")
+            print("  [podman] Installing podman-compose...", flush=True)
             install_podman_compose()
+        else:
+            print("  [podman] podman-compose already installed", flush=True)
 
         # Configure rootless cgroups (Linux only, required for resource limits)
+        print("  [podman] Configuring rootless cgroups...", flush=True)
         configure_rootless_cgroups()
+
+        _verify_podman_operational()
+    else:
+        print("  [podman] Installation failed", flush=True)
 
     return success
