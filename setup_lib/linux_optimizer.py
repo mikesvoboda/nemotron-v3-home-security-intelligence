@@ -653,6 +653,7 @@ def apply_user_limits(backup_dir: Path) -> OptimizationResult:
     """Apply user limits configuration.
 
     Creates /etc/security/limits.d/90-ai-workstation.conf
+    Limits apply to new login sessions — reboot ensures they take effect.
     """
     log_info("Checking user limits...")
 
@@ -663,7 +664,9 @@ def apply_user_limits(backup_dir: Path) -> OptimizationResult:
         return OptimizationResult(False, "Failed to write limits config")
 
     if modified:
-        return OptimizationResult(True, "User limits configured")
+        return OptimizationResult(
+            True, "User limits configured", requires_reboot=True
+        )
     return OptimizationResult(True, "User limits already configured")
 
 
@@ -671,6 +674,7 @@ def apply_ai_environment(backup_dir: Path) -> OptimizationResult:
     """Apply AI framework environment variables.
 
     Creates /etc/profile.d/ai-workstation.sh
+    Environment vars apply to new login sessions — reboot ensures they take effect.
     """
     log_info("Checking AI framework environment variables...")
 
@@ -686,7 +690,9 @@ def apply_ai_environment(backup_dir: Path) -> OptimizationResult:
 
     if modified:
         return OptimizationResult(
-            True, "AI environment variables configured (active after new login)"
+            True,
+            "AI environment variables configured (active after new login)",
+            requires_reboot=True,
         )
     return OptimizationResult(True, "AI environment variables already configured")
 
@@ -834,6 +840,7 @@ def run_optimizations(
     # Run phases
     overall_success = True
     requires_reboot = False
+    reboot_phases: list[str] = []
     results: list[tuple[str, OptimizationResult]] = []
     mitigations_disabled = False
 
@@ -857,6 +864,7 @@ def run_optimizations(
 
         if result.requires_reboot:
             requires_reboot = True
+            reboot_phases.append(phase.name)
 
     # Apply sysctl changes if we modified sysctl configs
     if not dry_run and any(p.name in ("network", "memory") for p in phases_to_run):
@@ -880,13 +888,16 @@ def run_optimizations(
         print()
 
         if requires_reboot:
-            log_warn("REBOOT REQUIRED for kernel parameter changes:")
-            print("  - iommu=pt")
-            print("  - init_on_alloc=0")
-            print("  - transparent_hugepage=madvise")
-            if mitigations_disabled:
-                print("  - mitigations=off")
-            print("  - NVIDIA module options")
+            log_warn("REBOOT REQUIRED for system configuration changes:")
+            if "kernel" in reboot_phases or "mitigations" in reboot_phases or "nvidia" in reboot_phases:
+                print("  - Kernel parameters (iommu=pt, init_on_alloc=0, hugepages)")
+                if mitigations_disabled:
+                    print("  - mitigations=off")
+                print("  - NVIDIA module options")
+            if "limits" in reboot_phases:
+                print("  - User limits (nofile, memlock) — apply to new sessions")
+            if "environment" in reboot_phases:
+                print("  - AI environment variables — apply to new sessions")
             print()
 
         if mitigations_disabled:

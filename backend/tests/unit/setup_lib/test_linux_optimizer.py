@@ -797,7 +797,7 @@ class TestApplyUserLimits:
     """Tests for apply_user_limits() function."""
 
     def test_creates_limits_config(self, tmp_path: Path) -> None:
-        """Should create user limits config file."""
+        """Should create user limits config file and require reboot when modified."""
         from setup_lib.linux_optimizer import LIMITS_CONFIG, apply_user_limits
 
         with patch(
@@ -808,10 +808,24 @@ class TestApplyUserLimits:
 
             assert result.success is True
             assert "configured" in result.message
+            assert result.requires_reboot is True
             mock_write.assert_called_once()
             call_args = mock_write.call_args[0]
             assert call_args[0] == Path("/etc/security/limits.d/90-ai-workstation.conf")
             assert call_args[1] == LIMITS_CONFIG
+
+    def test_no_reboot_when_already_configured(self, tmp_path: Path) -> None:
+        """Should not require reboot when limits already configured."""
+        from setup_lib.linux_optimizer import apply_user_limits
+
+        with patch(
+            "setup_lib.linux_optimizer.write_config_file",
+            return_value=(True, False),  # success, not modified
+        ):
+            result = apply_user_limits(tmp_path)
+
+            assert result.success is True
+            assert result.requires_reboot is False
 
     def test_reports_failure(self, tmp_path: Path) -> None:
         """Should report failure when write fails."""
@@ -830,7 +844,7 @@ class TestApplyAiEnvironment:
     """Tests for apply_ai_environment() function."""
 
     def test_creates_environment_script(self, tmp_path: Path) -> None:
-        """Should create AI environment script."""
+        """Should create AI environment script and require reboot when modified."""
         from setup_lib.linux_optimizer import AI_ENV_SCRIPT, apply_ai_environment
 
         with (
@@ -845,6 +859,7 @@ class TestApplyAiEnvironment:
 
             assert result.success is True
             assert "configured" in result.message
+            assert result.requires_reboot is True
             mock_write.assert_called_once()
             call_args = mock_write.call_args[0]
             assert call_args[0] == Path("/etc/profile.d/ai-workstation.sh")
