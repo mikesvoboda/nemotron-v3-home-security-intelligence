@@ -28,7 +28,7 @@ class TestDeployConfig:
         assert config.skip_build is False
         assert config.skip_export is False
         assert config.force_export is False
-        assert config.verbose is False
+        assert config.verbose is True
         assert config.env == {}
         assert config._export_process is None
 

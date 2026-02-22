@@ -1530,16 +1530,20 @@ async def get_readiness(
     pipeline_workers_healthy = _are_critical_pipeline_workers_healthy()
 
     # Determine overall readiness
-    # Ready: All critical services healthy (database, redis, and pipeline workers are required)
+    # Ready: All critical services healthy (database, redis, and optionally pipeline workers)
     # Degraded: Database healthy but some other services unhealthy
     # Not Ready: Database unhealthy OR Redis unhealthy OR critical pipeline workers down
 
     db_healthy = db_status.status == "healthy"
     redis_healthy = redis_status.status == "healthy"
+    settings = get_settings()
+    require_pipeline = getattr(
+        settings, "readiness_require_pipeline_workers", True
+    )
 
     # Both database and redis are required to process camera uploads
-    # Critical pipeline workers (detection, analysis) are also required for full functionality
-    if db_healthy and redis_healthy and pipeline_workers_healthy:
+    # Critical pipeline workers (detection, analysis) required when READINESS_REQUIRE_PIPELINE_WORKERS=true
+    if db_healthy and redis_healthy and (not require_pipeline or pipeline_workers_healthy):
         ready = True
         status = "ready"
     elif db_healthy and redis_healthy:

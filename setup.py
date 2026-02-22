@@ -134,6 +134,7 @@ def get_default_ports() -> dict[str, int]:
         "backend": "API_PORT",
         "frontend": "FRONTEND_PORT",
         "frontend_https": "FRONTEND_HTTPS_PORT",
+        "frontend_http": "FRONTEND_HTTP_PORT",
         "postgres": "POSTGRES_PORT",
         "redis": "REDIS_PORT",
         "go2rtc_api": "GO2RTC_API_PORT",
@@ -166,7 +167,8 @@ def get_default_ports() -> dict[str, int]:
     fallbacks = {
         "backend": 8000,
         "frontend": 5173,
-        "frontend_https": 8443,
+        "frontend_https": 8444,
+        "frontend_http": 8080,
         "postgres": 5432,
         "redis": 6379,
         "go2rtc_api": 1984,
@@ -217,6 +219,7 @@ def build_services_dict() -> dict[str, ServiceInfo]:
         "backend": {"category": "Core", "desc": "Backend API"},
         "frontend": {"category": "Core", "desc": "Frontend web UI"},
         "frontend_https": {"category": "Core", "desc": "Frontend HTTPS"},
+        "frontend_http": {"category": "Core", "desc": "Frontend HTTP (Cloudflare tunnel)"},
         "postgres": {"category": "Core", "desc": "PostgreSQL database"},
         "redis": {"category": "Core", "desc": "Redis cache/queue"},
         "go2rtc_api": {"category": "Core", "desc": "go2rtc streaming API"},
@@ -452,7 +455,12 @@ def generate_env_content(config: dict) -> str:
         "",
         "# -- Host Ports " + "-" * 45,
         f"FRONTEND_PORT={ports.get('frontend', 5173)}",
-        f"FRONTEND_HTTPS_PORT={ports.get('frontend_https', 8443)}",
+        f"FRONTEND_HTTPS_PORT={ports.get('frontend_https', 8444)}",
+        f"FRONTEND_HTTP_PORT={ports.get('frontend_http', 8080)}",
+        "",
+        "# -- Foscam Init (chown on FOSCAM_BASE_PATH) " + "-" * 22,
+        f"HOST_UID={config.get('host_uid', 1000)}",
+        f"HOST_GID={config.get('host_gid', 1000)}",
         "",
         "# -- Frontend Runtime Config " + "-" * 32,
         f"GRAFANA_URL=http://localhost:{ports.get('grafana', 3002)}",
@@ -925,6 +933,8 @@ def run_guided_mode() -> dict:
         "jwt_expiry_hours": jwt_expiry_hours,
         "refresh_token_days": refresh_token_days,
         "ports": ports,
+        "host_uid": os.getuid(),
+        "host_gid": os.getgid(),
         "gpu_llm": 0,
         "gpu_ai_services": 1,
         "cuda_architectures": cuda_arch,
@@ -933,8 +943,11 @@ def run_guided_mode() -> dict:
 
 def write_config_files(
     config: dict[str, Any], output_dir: str = ".", create_secret_files: bool = False
-) -> tuple[Path, Path, Path | None]:
+) -> tuple[Path, Path | None, Path | None]:
     """Write configuration files to disk.
+
+    .env is the source of truth. docker-compose.prod.yml reads all config from .env.
+    No docker-compose.override.yml is generated.
 
     Args:
         config: Configuration dictionary
@@ -942,19 +955,14 @@ def write_config_files(
         create_secret_files: If True, also create Docker secrets files
 
     Returns:
-        Tuple of (env_path, override_path, secrets_path or None)
+        Tuple of (env_path, None, secrets_path or None)
     """
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
     env_path = output / ".env"
-    override_path = output / "docker-compose.override.yml"
-
     env_content = generate_env_content(config)
-    override_content = generate_docker_override_content(config)
-
     env_path.write_text(env_content)
-    override_path.write_text(override_content)
 
     # Set .env file permissions to 600 (owner read/write only)
     if platform.system() != "Windows":
@@ -982,7 +990,7 @@ def write_config_files(
 
         secrets_path = secrets_dir
 
-    return env_path, override_path, secrets_path
+    return env_path, None, secrets_path
 
 
 def configure_firewall(ports: list[int]) -> bool:
@@ -1079,6 +1087,8 @@ def run_defaults_mode() -> dict:
         "jwt_expiry_hours": 24,
         "refresh_token_days": 30,
         "ports": ports,
+        "host_uid": os.getuid(),
+        "host_gid": os.getgid(),
         "gpu_llm": 0,
         "gpu_ai_services": 1,
         "cuda_architectures": cuda_arch,
@@ -1136,9 +1146,9 @@ def main() -> None:
         help="(deploy) Skip container image builds",
     )
     parser.add_argument(
-        "--export",
+        "--skip-export",
         action="store_true",
-        help="(deploy) Export models before deploy",
+        help="(deploy) Skip model export before deploy",
     )
     parser.add_argument(
         "--force-export",
@@ -1149,7 +1159,25 @@ def main() -> None:
         "--verbose",
         "-v",
         action="store_true",
-        help="(deploy) Show full build output",
+        default=True,
+        help="(deploy) Show full build output (default)",
+    )
+    parser.add_argument(
+        "--no-verbose",
+        action="store_false",
+        dest="verbose",
+        help="(deploy) Suppress build output",
+    )
+    parser.add_argument(
+        "--log-file",
+        metavar="PATH",
+        default="/tmp/deploy.log",
+        help="(deploy) Write output to this log file (default: /tmp/deploy.log)",
+    )
+    parser.add_argument(
+        "--no-log-file",
+        action="store_true",
+        help="(deploy) Do not write output to a log file",
     )
     args = parser.parse_args()
 
@@ -1166,31 +1194,72 @@ def main() -> None:
             compose_cmd=compose_cmd,
             destroy_volumes=args.destroy_volumes,
             skip_build=args.skip_build,
-            skip_export=not args.export,  # --export enables, default is skip
+            skip_export=args.skip_export,
             force_export=args.force_export,
             verbose=args.verbose,
             env=env,
         )
 
-        # Print banner
-        branch = subprocess.run(  # noqa: S603
-            ["git", "-C", str(project_root), "branch", "--show-current"],  # noqa: S607
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout.strip()
-        commit = subprocess.run(  # noqa: S603
-            ["git", "-C", str(project_root), "rev-parse", "--short", "HEAD"],  # noqa: S607
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout.strip()
-        print("=== Production Deploy ===")
-        print(f"Branch: {branch}")
-        print(f"Commit: {commit}")
-        print()
+        def run_deploy_with_logging():
+            """Run deploy, optionally teeing output to a log file."""
+            # Print banner
+            branch = subprocess.run(  # noqa: S603
+                ["git", "-C", str(project_root), "branch", "--show-current"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            commit = subprocess.run(  # noqa: S603
+                ["git", "-C", str(project_root), "rev-parse", "--short", "HEAD"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            print("=== Production Deploy ===")
+            print(f"Branch: {branch}")
+            print(f"Commit: {commit}")
+            if not args.no_log_file:
+                print(f"Log file: {Path(args.log_file).resolve()}")
+            print()
 
-        success = run_deploy(config)
+            return run_deploy(config)
+
+        if args.no_log_file:
+            success = run_deploy_with_logging()
+        else:
+            log_path = Path(args.log_file).resolve()
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            class TeeOutput:
+                """Write to both stdout and a log file."""
+
+                def __init__(self, stream, log_file):  # noqa: D107
+                    self.stream = stream
+                    self.log_file = log_file
+
+                def write(self, data):
+                    self.stream.write(data)
+                    self.stream.flush()
+                    self.log_file.write(data)
+                    self.log_file.flush()
+
+                def flush(self):
+                    self.stream.flush()
+                    self.log_file.flush()
+
+                def __getattr__(self, name):
+                    return getattr(self.stream, name)
+
+            with open(log_path, "w", encoding="utf-8") as log_file:
+                tee = TeeOutput(sys.stdout, log_file)
+                original_stdout = sys.stdout
+                sys.stdout = tee  # type: ignore[assignment]
+
+                try:
+                    success = run_deploy_with_logging()
+                finally:
+                    sys.stdout = original_stdout
+
         sys.exit(0 if success else 1)
 
     try:
@@ -1272,7 +1341,7 @@ def main() -> None:
             create_secrets = answer.lower() in ("y", "yes", "")
 
         # Write configuration files
-        env_path, override_path, secrets_path = write_config_files(
+        env_path, _, secrets_path = write_config_files(
             config, args.output_dir, create_secret_files=create_secrets
         )
 
@@ -1306,12 +1375,12 @@ def main() -> None:
 
         if args.defaults:
             # Minimal output in defaults mode
-            print(f"[setup.py] Generated: {env_path}, {override_path}")
+            print(f"[setup.py] Generated: {env_path}")
         else:
             print("=" * 60)
             print("Generated:")
             print(f"  - {env_path}")
-            print(f"  - {override_path}")
+            print(f"  - Configuration via .env (docker-compose.prod.yml reads from .env)")
             if secrets_path:
                 print(f"  - {secrets_path}")
             print()

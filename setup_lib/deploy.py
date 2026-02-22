@@ -5,7 +5,9 @@ Replaces the bash deploy-gateway.sh with proper error handling,
 health check polling, and code reuse from setup_lib.
 
 Usage:
-    python setup.py deploy [--destroy-volumes] [--skip-build] [--verbose]
+    python setup.py deploy [--destroy-volumes] [--skip-build] [--no-verbose]
+    python setup.py deploy --log-file /path/to/deploy.log
+    python setup.py deploy --no-log-file
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ class DeployConfig:
     skip_build: bool = False
     skip_export: bool = False
     force_export: bool = False
-    verbose: bool = False
+    verbose: bool = True
     env: dict[str, str] = field(default_factory=dict)
     _export_process: subprocess.Popen | None = field(default=None, repr=False)
 

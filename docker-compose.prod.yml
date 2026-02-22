@@ -344,6 +344,19 @@ services:
               device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
 
+  # Ensures FOSCAM_BASE_PATH is writable by host user (seed-events.py runs outside containers)
+  foscam-init:
+    image: docker.io/library/alpine:3.19
+    volumes:
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras
+    command: sh -c "chown -R $${HOST_UID:-1000}:$${HOST_GID:-1000} /cameras 2>/dev/null || true"
+    environment:
+      - HOST_UID=${HOST_UID:-1000}
+      - HOST_GID=${HOST_GID:-1000}
+    restart: "no"
+    networks:
+      - security-net
+
   backend:
     # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
@@ -432,13 +445,20 @@ services:
       # Container orchestrator: connect to Podman socket for self-healing
       # Socket is mounted read-only from host for container management
       - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///${PODMAN_SOCKET}}
+      # Relax readiness: set false when pipeline workers fail to init (e.g. startup race)
+      - READINESS_REQUIRE_PIPELINE_WORKERS=${READINESS_REQUIRE_PIPELINE_WORKERS:-false}
     depends_on:
+      foscam-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       # AI services — backend waits for LLM (critical for risk analysis)
       ai-llm:
+        condition: service_healthy
+      # AI gateway — YOLO26 and enrichment models; backend health checks yolo26 via gateway
+      ai-gateway:
         condition: service_healthy
       # go2rtc for live streaming - non-critical, backend can start without it
       go2rtc:
@@ -706,9 +726,10 @@ services:
       dockerfile: Dockerfile
       target: prod
     ports:
-      # HTTPS only - no HTTP port exposed for security
-      # Default 8443 internal, 8444 external to avoid privileged port issues with rootless containers
-      - '${FRONTEND_HTTPS_PORT:-8443}:8443'
+      # HTTPS (direct access) and HTTP (for Cloudflare tunnel / Brev secure link)
+      # FRONTEND_HTTP_PORT exposes nginx HTTP for tunnels that send plain HTTP
+      - '127.0.0.1:${FRONTEND_HTTPS_PORT:-8444}:8443'
+      - '127.0.0.1:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:
       # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U

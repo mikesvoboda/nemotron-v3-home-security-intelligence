@@ -51,6 +51,7 @@ RUN apk add --no-cache wget
 #
 # Cache mount persistence: "shared" mode for parallel builds, "private" for isolation
 COPY package*.json ./
+COPY scripts/ scripts/
 RUN --mount=type=cache,target=/root/.npm,sharing=shared \
     --mount=type=cache,target=/root/.bun,sharing=shared \
     npm ci --legacy-peer-deps && npm rebuild

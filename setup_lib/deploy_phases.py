@@ -295,6 +295,7 @@ CORE_MODELS = [
     "demographics_age",
     "demographics_gender",
     "fashion_clip",
+    "stgcn_action",
 ]
 
 
