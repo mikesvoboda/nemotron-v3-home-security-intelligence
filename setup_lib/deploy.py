@@ -163,13 +163,13 @@ def compose_run(
             _log(config, f"Command exited with rc={result.returncode}")
             return result
 
-        result = subprocess.run(
+        run_result = subprocess.run(
             cmd,
             check=False,
             env=env,
         )
-        _log(config, f"Command exited with rc={result.returncode}")
-        return result.returncode == 0
+        _log(config, f"Command exited with rc={run_result.returncode}")
+        return run_result.returncode == 0
 
     except FileNotFoundError:
         _log(config, "Command failed: FileNotFoundError")
