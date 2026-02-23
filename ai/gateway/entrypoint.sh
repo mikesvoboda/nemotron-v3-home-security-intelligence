@@ -72,7 +72,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 0. Link exported model files into the Triton model repository
+# 0b. Patch Triton config.pbtxt files based on models.yml triton_kind settings
+# ---------------------------------------------------------------------------
+# patch_triton_configs.py rewrites instance_group kind/count/gpus in each
+# model's config.pbtxt to match the triton_kind declared in models.yml.
+# This runs BEFORE Triton starts so the baked-in configs are overridden in the
+# container's filesystem without requiring an image rebuild.
+#
+# To change a model from CPU→GPU (or back): edit triton_kind in models.yml only.
+
+PATCH_SCRIPT="${PATCH_SCRIPT_PATH:-/app/patch_triton_configs.py}"
+if [ -f "$PATCH_SCRIPT" ]; then
+    echo "[entrypoint] Patching Triton config.pbtxt files from models.yml..."
+    python3 "$PATCH_SCRIPT" || echo "[entrypoint] WARN: patch_triton_configs.py failed (non-fatal)"
+else
+    echo "[entrypoint] WARN: ${PATCH_SCRIPT} not found, using baked-in config.pbtxt values"
+fi
+
+# ---------------------------------------------------------------------------
+# 0c. Link exported model files into the Triton model repository
 # ---------------------------------------------------------------------------
 # Model configs (config.pbtxt) are baked into the image at /models/repository/.
 # Exported model files (.onnx, .plan, .data) live in /models/cache/ (volume).

@@ -1,7 +1,10 @@
-# Vehicle Segment Classification - ONNX Runtime (ResNet-50)
+# Vehicle Segment Classification - ONNX Runtime on GPU (ResNet-50)
 # Input: preprocessed image (B, 3, 224, 224) FP32
 # Output: class logits for 11 vehicle segment classes
 # Source: ai/enrichment/model.py VehicleClassifier (ResNet-50, 224x224)
+#
+# Promoted to GPU: FP32 ONNX — no quantized ops, CUDA EP compatible.
+# Previously KIND_CPU (designed for RTX A400 4GB); promoted to GPU on A100 80GB.
 #
 # Classes: articulated_truck, background, bicycle, bus, car, motorcycle,
 #          non_motorized_vehicle, pedestrian, pickup_truck, single_unit_truck, work_van
@@ -28,8 +31,9 @@ output [
 
 instance_group [
   {
-    count: 2
-    kind: KIND_CPU
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
     rate_limiter {
       resources [
         { name: "global" count: 1 }

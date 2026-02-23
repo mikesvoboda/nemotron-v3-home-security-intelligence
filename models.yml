@@ -3,7 +3,8 @@
 # Consumed by:
 #   setup_lib/model_downloader.py       — download orchestration (setup.py deploy)
 #   backend/services/model_zoo.py       — runtime model loading (backend container)
-#   ai/gateway/entrypoint.sh            — device env var export for Triton Python backends
+#   ai/gateway/entrypoint.sh            — device env var export + config.pbtxt patching
+#   ai/gateway/patch_triton_configs.py  — rewrites Triton instance_group at startup
 #
 # Field reference:
 #   name            Canonical identifier. Matches model_zoo dict key for backend models.
@@ -42,6 +43,17 @@
 #                   Falls back to cpu automatically if cuda is requested but unavailable.
 #   device_env_var  Name of the environment variable the model.py reads for its device.
 #                   docker-compose values take precedence over models.yml defaults.
+#
+#   AI-Gateway Triton instance_group fields (consumed by patch_triton_configs.py):
+#   triton_name     Triton model repository directory name (may differ from models.yml name).
+#                   patch_triton_configs.py patches the matching config.pbtxt at startup.
+#   triton_kind     Triton execution device: KIND_GPU | KIND_CPU.
+#                   KIND_CPU is required for quantized models with MatMulInteger ops
+#                   (e.g. clip_text) or intentionally-CPU skeleton models (stgcn_action).
+#                   To change a model from CPU→GPU (or back), edit only this field.
+#   triton_models   List of {triton_name, triton_kind} for models that map to multiple
+#                   Triton models (e.g. siglip2 exports both clip and clip_text).
+#                   Use instead of top-level triton_name/triton_kind for 1:many mappings.
 
 models:
 
@@ -74,6 +86,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: yolo26
+    triton_kind: KIND_GPU
 
   - name: florence-2-base
     description: "Florence-2-base vision-language model for ai-gateway Triton"
@@ -85,6 +99,8 @@ models:
     required: true
     device: cuda:0
     device_env_var: FLORENCE_DEVICE
+    triton_name: florence2
+    triton_kind: KIND_GPU
 
   - name: siglip2-base-patch16-224
     description: "SigLIP 2 Base ONNX for entity re-identification embeddings (ai-gateway + backend)"
@@ -100,6 +116,11 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_models:
+      - triton_name: clip
+        triton_kind: KIND_GPU
+      - triton_name: clip_text
+        triton_kind: KIND_CPU  # quantized INT8 text model — MatMulInteger ops block CUDA EP
 
   # ===========================================================
   # PHASE 1 — CORE ENRICHMENT (ai-gateway primary models)
@@ -119,6 +140,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: vehicle
+    triton_kind: KIND_GPU
 
   - name: pet-classifier
     description: "ResNet-18 dog/cat classifier for false positive reduction"
@@ -134,6 +157,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: pet
+    triton_kind: KIND_GPU
 
   - name: depth-anything-v2-tiny
     description: "Depth Anything V2 Tiny monocular depth estimation (5.8 M params, 518×518)"
@@ -149,6 +174,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: depth
+    triton_kind: KIND_GPU
 
   - name: osnet-ain-x1-0
     description: "OSNet-AIN x1.0 person re-identification embeddings (MSMT17 Rank-1 73.3%)"
@@ -165,6 +192,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: reid
+    triton_kind: KIND_GPU
 
   - name: yolov8n-pose
     description: "YOLOv8n-pose human pose estimation, 17 COCO keypoints"
@@ -181,6 +210,8 @@ models:
     preload: false
     never_evict: false
     runtime_file: yolov8n-pose.pt
+    triton_name: pose
+    triton_kind: KIND_GPU
 
   - name: threat-detection-yolov8n
     description: "YOLOv8n threat/weapon detection (knives, guns, bats)"
@@ -196,6 +227,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: threat
+    triton_kind: KIND_GPU
 
   # ===========================================================
   # PHASE 2 — DEMOGRAPHICS AND ACTION RECOGNITION
@@ -215,6 +248,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: demographics_age
+    triton_kind: KIND_GPU
 
   - name: vit-gender-classifier
     description: "ViT binary gender classification from face crops"
@@ -230,6 +265,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: demographics_gender
+    triton_kind: KIND_GPU
 
   - name: stgcn-plus-plus
     description: "ST-GCN++ skeleton-based action recognition, 60 classes (NTU RGB+D 60)"
@@ -246,6 +283,8 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    triton_name: stgcn_action
+    triton_kind: KIND_CPU  # 14 MB skeleton model — efficient on CPU, no GPU benefit
 
   - name: xclip-base
     description: "X-CLIP zero-shot video action recognition (DEPRECATED: replaced by stgcn-plus-plus)"
@@ -263,6 +302,8 @@ models:
     never_evict: false
     device: cpu
     device_env_var: XCLIP_DEVICE
+    triton_name: xclip_action
+    triton_kind: KIND_CPU  # Python backend — device controlled by XCLIP_DEVICE env var
 
   # ===========================================================
   # PHASE 3 — SPECIALIZED BACKEND + ADDITIONAL MODELS
@@ -318,6 +359,8 @@ models:
     preload: false
     never_evict: false
     runtime_path: model-zoo/fashion-siglip
+    triton_name: fashion_clip
+    triton_kind: KIND_GPU
 
   - name: yolo11-face
     description: "YOLO11n face detection on person crops"
