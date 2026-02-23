@@ -138,7 +138,7 @@ class TritonPythonModel:
         model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch32")
         # Force CPU to avoid GPU OOM — GPU reserved for CLIP + Florence-2
         self.device = "cpu"
-        self.num_frames = 16
+        self.num_frames = 8  # xclip-base-patch32 vision_config.num_frames=8
 
         from pathlib import Path
 
@@ -275,13 +275,22 @@ class TritonPythonModel:
         # "a person {action}" format for better zero-shot performance
         text_prompts = [f"a person {a}" for a in actions]
 
-        # X-CLIP expects videos as list of frame lists: [[frame1, frame2, ...]]
-        inputs = self.processor(
-            text=text_prompts,
-            videos=[sampled],
-            return_tensors="pt",
-            padding=True,
+        # transformers >=5.x broke the videos= path for XCLIPProcessor: the
+        # processor only has image_processor + tokenizer (no video_processor),
+        # so passing videos= silently drops pixel_values and causes a crash.
+        # Fix: call image_processor directly to get (1, num_frames, C, H, W),
+        # then combine with tokenizer output manually.
+        pixel_values = self.processor.image_processor(
+            sampled, return_tensors="pt"
+        )["pixel_values"]  # (1, num_frames, 3, H, W)
+        text_enc = self.processor.tokenizer(
+            text_prompts, return_tensors="pt", padding=True
         )
+        inputs = {
+            "pixel_values": pixel_values,
+            "input_ids": text_enc["input_ids"],
+            "attention_mask": text_enc["attention_mask"],
+        }
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         with torch.inference_mode():

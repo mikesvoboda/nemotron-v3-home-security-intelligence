@@ -340,10 +340,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
-          memory: 8G
+          cpus: '8'
+          memory: 20G
         reservations:
-          memory: 4G
+          memory: 10G
           devices:
             - driver: nvidia
               device_ids: ['${GPU_AI_SERVICES:-1}']
