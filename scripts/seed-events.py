@@ -995,6 +995,123 @@ async def _fix_selinux_context(file_path: Path) -> None:
         pass  # Best-effort; batch fix at end will catch stragglers
 
 
+async def flush_redis_queues() -> None:
+    """Delete all pipeline Redis streams so stale detections from prior runs are gone.
+
+    Clears:
+      - detections:stream            (file-watcher → YOLO results)
+      - detections:stream:dlq        (dead-letter for above)
+      - analysis:stream              (YOLO batches → Nemotron)
+      - analysis:stream:dlq          (dead-letter for above)
+      - detection_queue              (legacy list key, if present)
+
+    This prevents phantom events when the seed script is re-run against a live
+    backend that still has unprocessed messages from a previous execution.
+    """
+    try:
+        import redis.asyncio as aioredis
+    except ImportError:
+        try:
+            import aioredis  # type: ignore[no-redef]
+        except ImportError:
+            print("  WARNING: redis package not available — skipping queue flush")
+            return
+
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
+    # When running on the host the container hostname (e.g. "redis") won't resolve.
+    # Try the configured URL first; if it fails, fall back to localhost.
+    client = None
+    for url in dict.fromkeys([redis_url, "redis://localhost:6379/0"]):
+        try:
+            c = aioredis.from_url(url, decode_responses=True, socket_connect_timeout=2)
+            await c.ping()
+            client = c
+            break
+        except Exception:
+            continue
+
+    if client is None:
+        print(f"  WARNING: Could not connect to Redis at {redis_url} or localhost — skipping queue flush")
+        return
+
+    keys_to_delete = [
+        "detections:stream",
+        "detections:stream:dlq",
+        "analysis:stream",
+        "analysis:stream:dlq",
+        "detection_queue",
+    ]
+
+    deleted = 0
+    for key in keys_to_delete:
+        n = await client.delete(key)
+        if n:
+            deleted += 1
+            print(f"  Flushed Redis key: {key}")
+
+    # Flush all file-watcher dedup keys (dedupe:{sha256}) so the same image
+    # files can be re-processed on the next seed run without being silently skipped.
+    dedup_keys = await client.keys("dedupe:*")
+    if dedup_keys:
+        await client.delete(*dedup_keys)
+        deleted += len(dedup_keys)
+        print(f"  Flushed {len(dedup_keys)} file-watcher dedup key(s)")
+
+    # Recreate stream keys with their consumer groups so pipeline workers can
+    # resume immediately. Deleting a Redis Stream also destroys its consumer groups;
+    # without them the workers get "NOGROUP No such key" errors until the stream is
+    # recreated by the first XADD. We restore the expected group names here so
+    # there is no gap in processing.
+    stream_groups = {
+        "detections:stream": "detection-workers",
+        "analysis:stream": "analysis-workers",
+    }
+    for stream_key, group_name in stream_groups.items():
+        try:
+            # MKSTREAM: create the stream if it doesn't exist
+            # id="$": consumer group starts after current end (no replay of old messages)
+            await client.xgroup_create(stream_key, group_name, id="$", mkstream=True)
+            print(f"  Recreated consumer group {group_name} on {stream_key}")
+        except Exception:
+            # Group already exists (stream was not deleted) — safe to ignore
+            pass
+
+    await client.aclose()
+
+    if deleted:
+        print(f"  Flushed {deleted} Redis pipeline queue(s)")
+    else:
+        print("  Redis queues were already empty")
+
+    # Also remove detections that are in the DB but not yet linked to any event.
+    # These are leftovers from previous runs and will keep the wait-loop polling
+    # forever (it waits for unlinked_detections == 0).
+    try:
+        from sqlalchemy import delete as sa_delete
+
+        async with get_session() as session:
+            # Find detection IDs that have no matching EventDetection row.
+            unlinked_subq = (
+                select(Detection.id)
+                .outerjoin(EventDetection, EventDetection.detection_id == Detection.id)
+                .where(EventDetection.event_id.is_(None))
+                .scalar_subquery()
+            )
+            result = await session.execute(
+                sa_delete(Detection).where(Detection.id.in_(unlinked_subq))
+            )
+            removed = result.rowcount
+            await session.commit()
+
+        if removed:
+            print(f"  Removed {removed} orphaned detection(s) from database")
+        else:
+            print("  No orphaned database detections to remove")
+    except Exception as exc:
+        print(f"  WARNING: Could not purge orphaned DB detections ({exc})")
+
+
 async def seed_synthetic_scenarios(
     scenarios: list[SyntheticScenario],
     frames_per_video: int = 5,
@@ -1069,6 +1186,8 @@ async def seed_synthetic_scenarios(
                     dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
                     dest_path = scenario_watch_folder / dest_name
 
+                    if dest_path.exists():
+                        dest_path.unlink()
                     shutil.copyfile(frame_path, dest_path)
                     processed_frames.append(dest_path)
                     total_extracted += 1
@@ -1087,6 +1206,8 @@ async def seed_synthetic_scenarios(
             dest_name = f"{scenario.video_id}_{scenario.category}_img{suffix}"
             dest_path = scenario_watch_folder / dest_name
 
+            if dest_path.exists():
+                dest_path.unlink()
             shutil.copyfile(scenario.image_path, dest_path)
             processed_frames.append(dest_path)
             total_extracted += 1
@@ -7607,6 +7728,16 @@ This generates real data including:
         ),
     )
     parser.add_argument(
+        "--no-flush-queues",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip flushing Redis pipeline queues before seeding. "
+            "By default all streams (detections:stream, analysis:stream and their DLQs) "
+            "are deleted so stale detections from previous runs cannot create phantom events."
+        ),
+    )
+    parser.add_argument(
         "--log-file",
         type=str,
         default=None,
@@ -7699,6 +7830,13 @@ This generates real data including:
         print("TRIGGERING REAL AI PIPELINE")
         print("=" * 50)
         print(f"Current events in database: {initial_count}")
+
+        # Flush stale pipeline queues so previous-run detections don't inflate counts.
+        if not args.no_flush_queues:
+            print("\n" + "=" * 50)
+            print("FLUSHING REDIS PIPELINE QUEUES")
+            print("=" * 50)
+            await flush_redis_queues()
 
         # --- Pre-flight health check (Fix #5) ---
         # Verify AI services are healthy before triggering the pipeline.
