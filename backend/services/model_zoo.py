@@ -407,7 +407,7 @@ def _resolve_model_path(m: dict[str, Any], base_path: str) -> str:
     local = m.get("local_path") or ""
     # Strip the "model-zoo/" prefix — base_path already ends at model-zoo/
     if local.startswith("model-zoo/"):
-        rel = local[len("model-zoo/"):]
+        rel = local[len("model-zoo/") :]
     else:
         rel = local
 
