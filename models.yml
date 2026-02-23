@@ -368,6 +368,7 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    runtime_file: yolov8s-worldv2.pt
 
   - name: zero-dce-plus-plus
     description: "Zero-DCE++ low-light enhancement preprocessing (~10 K params, ~1000 FPS on GPU)"

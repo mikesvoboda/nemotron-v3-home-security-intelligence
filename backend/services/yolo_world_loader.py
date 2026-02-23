@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from backend.core.logging import get_logger
@@ -31,6 +32,12 @@ if TYPE_CHECKING:
     from PIL import Image
 
 logger = get_logger(__name__)
+
+# Per-model lock: set_classes() mutates model state and is NOT thread-safe.
+# predict() must run with the same class list that was set — no interleaving allowed.
+# Using a threading.Lock (not asyncio.Lock) because the actual work runs in
+# run_in_executor (a thread pool), so asyncio primitives don't protect us there.
+_yolo_world_lock = threading.Lock()
 
 # ==============================================================================
 # Hierarchical Security Object Categories (NEM-3913)
@@ -320,8 +327,10 @@ async def load_yolo_world_model(model_path: str) -> Any:
             """Load YOLO-World model synchronously."""
             model = YOLOWorld(model_path)
 
-            # Set default security prompts
-            model.set_classes(SECURITY_PROMPTS)
+            # Acquire lock before first set_classes so any concurrent detect
+            # calls that arrive before loading completes don't race us.
+            with _yolo_world_lock:
+                model.set_classes(SECURITY_PROMPTS)
 
             logger.info(f"YOLO-World model loaded with {len(SECURITY_PROMPTS)} default prompts")
             return model
@@ -388,19 +397,28 @@ async def detect_with_prompts(
     detection_prompts = prompts if prompts is not None else SECURITY_PROMPTS
 
     def _run_detection() -> list[dict[str, Any]]:
-        """Run detection synchronously."""
-        # Set the classes/prompts for detection
-        model.set_classes(detection_prompts)
+        """Run detection synchronously.
 
-        # Run inference
-        results = model.predict(
-            source=image,
-            conf=confidence_threshold,
-            iou=iou_threshold,
-            verbose=False,
-        )
+        set_classes() + predict() must be atomic: another thread calling
+        set_classes() between our set and predict would corrupt the class
+        mapping, causing 'str object has no attribute names' on result.names.
+        The threading.Lock serialises all YOLO-World inference calls.
+        """
+        with _yolo_world_lock:
+            model.set_classes(detection_prompts)
 
-        # Parse results
+            results = model.predict(
+                source=image,
+                conf=confidence_threshold,
+                iou=iou_threshold,
+                verbose=False,
+            )
+
+            # Snapshot names immediately while still holding the lock so the
+            # mapping can't be overwritten before we finish parsing boxes.
+            names_snapshot: dict[int, str] = dict(results[0].names) if results else {}
+
+        # Parse results outside the lock — box data is already copied to CPU
         detections: list[dict[str, Any]] = []
 
         for result in results:
@@ -409,13 +427,11 @@ async def detect_with_prompts(
 
             boxes = result.boxes
             for i in range(len(boxes)):
-                # Get bounding box coordinates
                 xyxy = boxes.xyxy[i].cpu().numpy()
                 conf = float(boxes.conf[i].cpu().numpy())
                 cls_id = int(boxes.cls[i].cpu().numpy())
 
-                # Get class name from model
-                class_name = result.names.get(cls_id, f"class_{cls_id}")
+                class_name = names_snapshot.get(cls_id, f"class_{cls_id}")
 
                 detections.append(
                     {
