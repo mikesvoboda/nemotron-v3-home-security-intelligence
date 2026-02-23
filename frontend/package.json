@@ -109,7 +109,7 @@
     "postcss": "^8.4.33",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "rollup-plugin-visualizer": "^6.0.5",
+    "rollup-plugin-visualizer": "^7.0.0",
     "timezone-mock": "^1.4.1",
     "typedoc": "0.28.17",
     "typedoc-plugin-markdown": "4.10.0",
