@@ -677,10 +677,11 @@ class TestPhaseHealthCheck:
                     "response_time_ms": 42,
                 },
             ),
-            patch("subprocess.run") as mock_run,
+            patch("setup_lib.deploy_phases.compose_run"),
+            patch("setup_lib.deploy_phases.subprocess.run") as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
-                args=[], returncode=0, stdout="container1\ncontainer2\n", stderr=""
+                args=[], returncode=0, stdout="", stderr=""
             )
 
             result = phase_health_check(config)
