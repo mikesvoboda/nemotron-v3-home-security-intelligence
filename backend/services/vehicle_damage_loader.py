@@ -191,10 +191,7 @@ def _has_meta_tensors(model: Any) -> bool:
         True if any parameter or buffer is on the meta device
     """
     try:
-        return any(
-            t.device.type == "meta"
-            for t in (*model.parameters(), *model.buffers())
-        )
+        return any(t.device.type == "meta" for t in (*model.parameters(), *model.buffers()))
     except Exception:
         return False
 
@@ -242,9 +239,7 @@ def _materialize_meta_tensors(model: Any, device: str) -> Any:
                 replaced += 1
         for name, buf in list(module._buffers.items()):
             if buf is not None and buf.device.type == "meta":
-                module._buffers[name] = torch.empty(
-                    buf.shape, dtype=buf.dtype, device=target
-                )
+                module._buffers[name] = torch.empty(buf.shape, dtype=buf.dtype, device=target)
                 replaced += 1
 
     logger.info(f"Meta tensors materialized: {replaced} tensors replaced on {device}")
