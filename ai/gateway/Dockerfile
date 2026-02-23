@@ -46,6 +46,9 @@ RUN mkdir -p /app/ai/gateway && \
 # Copy Triton model repository
 COPY ai/triton/model_repository/ /models/repository/
 
+# Copy central model configuration (read by entrypoint.sh to export device env vars)
+COPY models.yml /app/models.yml
+
 # Copy entrypoint script
 COPY ai/gateway/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

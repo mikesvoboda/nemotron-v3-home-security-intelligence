@@ -125,19 +125,19 @@ class TritonPythonModel:
     """Triton Python backend for X-CLIP temporal action recognition."""
 
     def initialize(self, _args):
-        """Load X-CLIP model and processor onto GPU.
+        """Load X-CLIP model and processor onto the configured device.
 
-        Called once when Triton loads this model. The model expects
-        16-frame video clips and performs zero-shot action classification.
+        Device is controlled by the XCLIP_DEVICE environment variable (default:
+        "cpu"), which is exported by entrypoint.sh from models.yml before Triton
+        starts.  This can be overridden at runtime via docker-compose.prod.yml.
 
         Args:
-            args: Dict with model configuration provided by Triton.
+            _args: Dict with model configuration provided by Triton.
         """
         logger.info("X-CLIP: initializing Triton Python backend...")
 
         model_path = os.environ.get("ACTION_MODEL_PATH", "/models/zoo/xclip-base-patch32")
-        # Force CPU to avoid GPU OOM — GPU reserved for CLIP + Florence-2
-        self.device = "cpu"
+        self.device = os.environ.get("XCLIP_DEVICE", "cpu")
         self.num_frames = 8  # xclip-base-patch32 vision_config.num_frames=8
 
         from pathlib import Path

@@ -294,7 +294,14 @@ class TritonPythonModel:
         _apply_transformers5_patches()
 
         model_path = os.environ.get("FLORENCE_MODEL_PATH", "/models/zoo/florence-2-base")
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        # Device is controlled by FLORENCE_DEVICE (exported from models.yml by entrypoint.sh).
+        # Falls back to cpu if a cuda device is requested but CUDA is not available.
+        _requested_device = os.environ.get("FLORENCE_DEVICE", "cuda:0")
+        self.device = (
+            _requested_device
+            if not _requested_device.startswith("cuda") or torch.cuda.is_available()
+            else "cpu"
+        )
 
         # Determine compute dtype
         if self.device != "cpu":
