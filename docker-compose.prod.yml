@@ -358,6 +358,9 @@ services:
       - security-net
 
   backend:
+    # Run as host user for Podman socket and data dir access; keep-id preserves UID across namespace
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    userns_mode: keep-id
     # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
       - /tmp
@@ -376,9 +379,8 @@ services:
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
-      # Enables backend to manage AI service containers for self-healing
-      # NOTE: rw required — Docker API sends commands over the socket
-      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
+      # Mount to fixed path so container has access regardless of /run/user layout
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
@@ -443,8 +445,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy:4317}
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
       # Container orchestrator: connect to Podman socket for self-healing
-      # Socket is mounted read-only from host for container management
-      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///${PODMAN_SOCKET}}
+      # Socket mounted at /var/run/podman/podman.sock (backend runs as host user for access)
+      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///var/run/podman/podman.sock}
       # Relax readiness: set false when pipeline workers fail to init (e.g. startup race)
       - READINESS_REQUIRE_PIPELINE_WORKERS=${READINESS_REQUIRE_PIPELINE_WORKERS:-false}
     depends_on:
@@ -728,8 +730,9 @@ services:
     ports:
       # HTTPS (direct access) and HTTP (for Cloudflare tunnel / Brev secure link)
       # FRONTEND_HTTP_PORT exposes nginx HTTP for tunnels that send plain HTTP
-      - '127.0.0.1:${FRONTEND_HTTPS_PORT:-8444}:8443'
-      - '127.0.0.1:${FRONTEND_HTTP_PORT:-8080}:8080'
+      # Bound to 0.0.0.0 for external access; use firewall to restrict if needed
+      - '0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}:8443'
+      - '0.0.0.0:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:
       # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U
@@ -871,7 +874,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/grafana:12.3.2
+    build:
+      context: ./monitoring/grafana
+      dockerfile: Dockerfile
+    image: nemotron-v3-home-security-intelligence-grafana:latest
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     # Access Grafana via the frontend nginx proxy at /grafana/ for production use
     ports:
@@ -901,8 +907,7 @@ services:
       # Use relative root URL for reverse proxy compatibility (allows any hostname/port)
       - GF_SERVER_ROOT_URL=/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      # JSON API plugin for dashboard data sources (no version pin needed for Grafana 12.x)
-      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
+      # marcusolsson-json-datasource is pre-installed in the custom Grafana image
       # SMTP Configuration for Email Alerts (NEM-3511)
       # Configure via .env file for email alerting capability
       # See docs/operator/smtp-configuration.md for setup instructions
@@ -1065,7 +1070,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/loki:3.5.0
+    image: docker.io/grafana/loki:3.5.1
     container_name: loki
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z

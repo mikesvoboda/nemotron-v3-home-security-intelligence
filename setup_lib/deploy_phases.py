@@ -554,6 +554,10 @@ _APP_SERVICES = ("ai-llm", "ai-gateway", "backend", "frontend")
 
 def phase_infrastructure(config: DeployConfig) -> DeployResult:
     """Start infrastructure (postgres, redis, go2rtc) and monitoring stack."""
+    # Ensure backend data directories exist (thumbnails for video processor)
+    backend_data = config.project_root / "backend" / "data"
+    (backend_data / "thumbnails").mkdir(parents=True, exist_ok=True)
+
     # Core infrastructure (pre-built images only)
     ok = compose_run(
         config,
