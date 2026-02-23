@@ -516,16 +516,21 @@ class TestLifecycleManagement:
     async def test_health_check_loop_runs(self, fallback_service) -> None:
         """Test that health check loop runs periodically."""
         check_count = [0]
+        two_checks_done = asyncio.Event()
 
         async def mock_check():
             check_count[0] += 1
+            if check_count[0] >= 2:
+                two_checks_done.set()
             return True
 
         fallback_service._detector_client.health_check = mock_check
 
         await fallback_service.start()
-        await asyncio.sleep(0.25)  # Allow multiple checks (increased for CI timing)
-        await fallback_service.stop()
+        try:
+            await asyncio.wait_for(two_checks_done.wait(), timeout=5.0)
+        finally:
+            await fallback_service.stop()
 
         assert check_count[0] >= 2
 
