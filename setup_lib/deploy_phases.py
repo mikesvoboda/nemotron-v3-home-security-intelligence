@@ -214,7 +214,67 @@ def phase_stop(config: DeployConfig) -> DeployResult:
 
 
 # ---------------------------------------------------------------------------
-# Phase 2: Build images
+# Phase 2: Prune unused images
+# ---------------------------------------------------------------------------
+
+
+def _get_free_disk_gb() -> float | None:
+    """Return free disk space in GB for the root filesystem, or None on error."""
+    try:
+        import shutil as _shutil
+        usage = _shutil.disk_usage("/")
+        return usage.free / (1024 ** 3)
+    except OSError:
+        return None
+
+
+def phase_prune_images(config: DeployConfig) -> DeployResult:
+    """Remove dangling and unused container images to free disk space.
+
+    Runs ``podman image prune -f`` (dangling only) plus removes images not
+    referenced by any container.  This is safe to run after phase_stop because
+    all project containers have already been stopped and removed.
+
+    Skipped when ``config.skip_prune`` is True or the ``--skip-prune`` flag
+    is passed to ``setup.py deploy``.
+    """
+    if config.skip_prune:
+        return DeployResult(True, "Skipping image prune (--skip-prune)")
+
+    free_before = _get_free_disk_gb()
+
+    # Step 1: Remove dangling images (untagged build intermediates)
+    dangling_result = _run_with_timeout(
+        ["podman", "image", "prune", "-f"],
+        timeout=120,
+    )
+    if "timed out" in (dangling_result.stderr or ""):
+        print("  WARNING: dangling image prune timed out (120s) — skipping")
+
+    # Step 2: Remove unused images (not used by any container)
+    unused_result = _run_with_timeout(
+        ["podman", "image", "prune", "-a", "-f",
+         "--filter", "until=1h"],
+        timeout=180,
+    )
+    if "timed out" in (unused_result.stderr or ""):
+        print("  WARNING: unused image prune timed out (180s) — partial cleanup only")
+
+    free_after = _get_free_disk_gb()
+
+    if free_before is not None and free_after is not None:
+        freed = free_after - free_before
+        freed_str = f"{freed:.1f} GB freed" if freed > 0.05 else "no significant space freed"
+        print(f"  Disk: {free_after:.1f} GB free ({freed_str})")
+        if free_after < 2.0:
+            print(f"  WARNING: only {free_after:.1f} GB free — build may fail. Consider removing unused models.")
+        return DeployResult(True, f"Image prune complete ({freed_str}, {free_after:.1f} GB free)")
+
+    return DeployResult(True, "Image prune complete")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Build images  (was Phase 2)
 # ---------------------------------------------------------------------------
 
 
@@ -523,7 +583,7 @@ def phase_export(config: DeployConfig) -> DeployResult:
 
 
 # ---------------------------------------------------------------------------
-# Phase 4: Start infrastructure + observability
+    # Phase 5: Start infrastructure + observability
 # ---------------------------------------------------------------------------
 
 _MONITORING_SERVICES = [
@@ -891,6 +951,12 @@ DEPLOY_PHASES: list[DeployPhase] = [
         name="stop",
         description="Stopping all containers and services",
         func=phase_stop,
+    ),
+    DeployPhase(
+        name="prune_images",
+        description="Pruning unused container images to free disk space",
+        func=phase_prune_images,
+        required=False,
     ),
     DeployPhase(
         name="build",

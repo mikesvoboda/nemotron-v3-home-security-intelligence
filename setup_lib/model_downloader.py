@@ -185,6 +185,26 @@ PHASE2_MODELS: list[ModelSpec] = [
 
 # Phase 3 - Optional specialized models (not used by ai-gateway default)
 PHASE3_MODELS: list[ModelSpec] = [
+    # Weather classification (backend enrichment pipeline)
+    ModelSpec(
+        name="weather-classification",
+        hf_repo="prithivMLmods/Weather-Image-Classification",
+        phase=3,
+        size_mb=200,  # ~200MB (SigLIP-based)
+        description="Weather condition classification for security camera context (backend)",
+        required=False,
+    ),
+    # Marqo FashionSigLIP — clothing zero-shot classifier used by ai-gateway enrichment
+    # Stored in the HuggingFace hub cache (not model-zoo) because open_clip loads it
+    # via hf-hub: format which requires the standard HF cache directory structure.
+    ModelSpec(
+        name="marqo-fashionSigLIP",
+        hf_repo="Marqo/marqo-fashionSigLIP",
+        phase=3,
+        size_mb=4400,  # ~4.4GB (full vision + text encoder)
+        description="FashionSigLIP clothing classifier for ai-gateway (stored in HF hub cache)",
+        required=False,
+    ),
     # Face detection
     ModelSpec(
         name="yolo11-face-detection",
@@ -267,6 +287,12 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
     if model_name == "yolov8n-pose":
         pose_file = model_path / "model-zoo" / model_name / "yolov8n-pose.pt"
         return pose_file.exists()
+
+    # Special handling for Marqo FashionSigLIP — lives in HF hub cache, not model-zoo
+    if model_name == "marqo-fashionSigLIP":
+        hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+        marqo_snapshots = hf_cache / "models--Marqo--marqo-fashionSigLIP" / "snapshots"
+        return marqo_snapshots.exists() and any(marqo_snapshots.iterdir())
 
     model_dir = model_path / "model-zoo" / model_name
     if not model_dir.exists():
@@ -529,6 +555,41 @@ def download_yolo_world(model_path: Path) -> bool:
         return True
     except Exception as e:
         print(f"    ! Failed to download: {e}")
+        return False
+
+
+def download_marqo_fashionsiglip() -> bool:
+    """Download Marqo FashionSigLIP into the standard HuggingFace hub cache.
+
+    open_clip loads this model via ``hf-hub:Marqo/marqo-fashionSigLIP`` which
+    requires the model to exist in the HF hub cache directory structure at
+    ``~/.cache/huggingface/hub/``.  Unlike other models, it is NOT stored under
+    model-zoo because open_clip does not support arbitrary local directory paths
+    for this model (meta-tensor loading issue).
+
+    Args:
+        None — always downloads to ``~/.cache/huggingface/hub/``.
+
+    Returns:
+        True if download successful or model already cached.
+    """
+    if not HF_HUB_AVAILABLE:
+        print("    ! huggingface_hub not installed, cannot download")
+        return False
+
+    hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+    snapshots_dir = hf_cache / "models--Marqo--marqo-fashionSigLIP" / "snapshots"
+    if snapshots_dir.exists() and any(snapshots_dir.iterdir()):
+        print(f"    Already cached: {snapshots_dir}")
+        return True
+
+    print("    Downloading Marqo/marqo-fashionSigLIP to HF hub cache (~4.4GB)...")
+    try:
+        path = snapshot_download(repo_id="Marqo/marqo-fashionSigLIP")
+        print(f"    Cached at: {path}")
+        return True
+    except Exception as e:
+        print(f"    ! Download failed: {e}")
         return False
 
 
@@ -848,6 +909,11 @@ def prompt_and_download_models(config: dict) -> None:
                 fail_count += 1
         elif model.name == "yolo-world-s":
             if download_yolo_world(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif model.name == "marqo-fashionSigLIP":
+            if download_marqo_fashionsiglip():
                 success_count += 1
             else:
                 fail_count += 1

@@ -48,6 +48,8 @@ Usage:
 
 import asyncio
 import json
+import logging
+import logging.handlers
 import os
 import random
 import re
@@ -62,8 +64,67 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+# Flush stdout/stderr on every write so redirected output isn't lost
+sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+sys.stderr.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+logger = logging.getLogger("seed")
+
+
+def setup_logging(log_level: str = "INFO", log_file: str | None = None) -> None:
+    """Configure logging with timestamps for both console and optional file output."""
+    level = getattr(logging, log_level.upper(), logging.INFO)
+    fmt = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    # Console handler — writes to stdout so it interleaves with print() output
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(fmt)
+    root.addHandler(console)
+
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_path, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
+        file_handler.setFormatter(fmt)
+        root.addHandler(file_handler)
+        logger.info("Logging to file: %s", log_path)
+
+
+class _PrintToLogger:
+    """Wraps a stream so that print() calls are forwarded to the logger with timestamps."""
+
+    def __init__(self, original: Any, log_fn: Any) -> None:
+        self._original = original
+        self._log_fn = log_fn
+        self._buf = ""
+
+    def write(self, msg: str) -> int:
+        self._buf += msg
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            if line:
+                self._log_fn(line)
+        return len(msg)
+
+    def flush(self) -> None:
+        if self._buf:
+            self._log_fn(self._buf)
+            self._buf = ""
+        self._original.flush()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._original, name)
 
 
 def _load_env_and_fix_database_url() -> None:
@@ -7532,8 +7593,27 @@ This generates real data including:
             "(default: 2 rounds, set 0 to disable)"
         ),
     )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="Path to write a log file (rotated at 10 MB, 3 backups). Defaults to no file.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging verbosity level (default: INFO)",
+    )
 
     args = parser.parse_args()
+
+    setup_logging(log_level=args.log_level, log_file=args.log_file)
+
+    # Redirect print() through the logger so all output gets timestamps + file logging
+    sys.stdout = _PrintToLogger(sys.stdout, logger.info)  # type: ignore[assignment]
+    sys.stderr = _PrintToLogger(sys.stderr, logger.warning)  # type: ignore[assignment]
 
     # Determine seeding mode
     mode = "full"

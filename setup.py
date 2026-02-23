@@ -463,7 +463,7 @@ def generate_env_content(config: dict) -> str:
         f"HOST_GID={config.get('host_gid', 1000)}",
         "",
         "# -- Frontend Runtime Config " + "-" * 32,
-        f"GRAFANA_URL=http://localhost:{ports.get('grafana', 3002)}",
+        "GRAFANA_URL=/grafana",
         "",
         "# -- SSL/TLS Configuration " + "-" * 34,
         "SSL_ENABLED=true",
@@ -1151,6 +1151,11 @@ def main() -> None:
         help="(deploy) Skip model export before deploy",
     )
     parser.add_argument(
+        "--skip-prune",
+        action="store_true",
+        help="(deploy) Skip pruning unused container images before build",
+    )
+    parser.add_argument(
         "--force-export",
         action="store_true",
         help="(deploy) Force re-export all models",
@@ -1196,6 +1201,7 @@ def main() -> None:
             skip_build=args.skip_build,
             skip_export=args.skip_export,
             force_export=args.force_export,
+            skip_prune=args.skip_prune,
             verbose=args.verbose,
             env=env,
         )
@@ -1543,6 +1549,7 @@ def main() -> None:
                 compose_cmd=compose_cmd,
                 skip_build=False,
                 skip_export=True,
+                skip_prune=False,
                 verbose=False,
                 env=env,
             )

@@ -310,6 +310,8 @@ services:
       - triton-kernel-cache:/root/.nv
       # TensorRT temp artifacts cache (compilation intermediates)
       - triton-tmp-cache:/tmp
+      # HuggingFace model cache (pre-downloaded models, avoids network downloads)
+      - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/root/.cache/huggingface:ro
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
@@ -322,6 +324,9 @@ services:
       - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
       - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
       - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
+      # Use pre-downloaded HF cache, disable network downloads
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
@@ -390,6 +395,9 @@ services:
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Redirect torch hub cache to /tmp (writable tmpfs) — /home/appuser/.cache tmpfs
+      # mounts as root-owned in rootless Podman, preventing appuser from writing to it
+      - TORCH_HOME=/tmp/torch_cache
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
@@ -908,7 +916,10 @@ services:
       # Use relative root URL for reverse proxy compatibility (allows any hostname/port)
       - GF_SERVER_ROOT_URL=/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      # marcusolsson-json-datasource is pre-installed in the custom Grafana image
+      # Log HTTP requests (useful for debugging dashboard 404s)
+      - GF_SERVER_ROUTER_LOGGING=true
+      # Plugins installed to /opt/grafana/plugins in image (avoids volume overwrite)
+      - GF_PATHS_PLUGINS=/opt/grafana/plugins
       # SMTP Configuration for Email Alerts (NEM-3511)
       # Configure via .env file for email alerting capability
       # See docs/operator/smtp-configuration.md for setup instructions
