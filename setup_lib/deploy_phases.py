@@ -12,6 +12,30 @@ import urllib.request
 from pathlib import Path
 
 from setup_lib.core import check_port_available, generate_password
+
+
+def _run_with_timeout(
+    cmd: list[str],
+    timeout: int = 30,
+    capture_output: bool = True,
+    text: bool = True,
+) -> subprocess.CompletedProcess:
+    """Run subprocess with timeout; on TimeoutExpired, return failed result and continue."""
+    try:
+        return subprocess.run(
+            cmd,  # noqa: S603
+            capture_output=capture_output,
+            text=text,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=-1,
+            stdout="",
+            stderr=f"timed out after {timeout}s",
+        )
 from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, compose_run
 from setup_lib.healthcheck import check_service_health, poll_endpoint
 from setup_lib.rootful_services import (
@@ -63,9 +87,9 @@ def phase_stop(config: DeployConfig) -> DeployResult:
 
     project_name = config.project_root.name
 
-    # Compose down + rm
-    compose_run(config, "down", capture=True)
-    compose_run(config, "rm", "-f", capture=True)
+    # Compose down + rm (short timeout — can hang if storage locked)
+    compose_run(config, "down", capture=True, timeout=60)
+    compose_run(config, "rm", "-f", capture=True, timeout=60)
 
     # Stop legacy systemd user services (container-postgres, container-redis)
     subprocess.run(
@@ -93,26 +117,35 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     # Destroy volumes if requested
     if config.destroy_volumes:
         print("  Destroying volumes...")
-        subprocess.run(
-            ["podman", "volume", "prune", "-f"],  # noqa: S607
-            capture_output=True,
-            check=False,
-        )
+        _run_with_timeout(["podman", "volume", "prune", "-f"], timeout=60)
 
     # Remove stale network (avoids "incorrect label" errors on recreate)
-    subprocess.run(
-        ["podman", "network", "rm", f"{project_name}_security-net"],  # noqa: S607
-        capture_output=True,
-        check=False,
+    # Use timeout — network rm can hang when network is in use
+    net_result = _run_with_timeout(
+        ["podman", "network", "rm", f"{project_name}_security-net"],
+        timeout=15,
     )
+    if net_result.returncode != 0:
+        if "timed out" in (net_result.stderr or ""):
+            print("  WARNING: podman network rm timed out (15s) — continuing")
+        # Non-fatal; compose may recreate network
 
     # Detect corrupted container storage (Podman 5.x+ only)
-    check_result = subprocess.run(
-        ["podman", "system", "check"],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # Use timeout to avoid hanging (podman system check can block on storage locks)
+    try:
+        check_result = subprocess.run(
+            ["podman", "system", "check"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        print("  WARNING: podman system check timed out (30s) — skipping storage verification")
+        check_result = subprocess.CompletedProcess(
+            args=["podman", "system", "check"], returncode=0, stdout="", stderr=""
+        )
+
     # Only treat as corruption if the command exists (rc=0 or known error).
     # "unrecognized command" (Podman 4.x) is not corruption — skip it.
     is_unrecognized = "unrecognized command" in (check_result.stderr or "")
@@ -128,27 +161,39 @@ def phase_stop(config: DeployConfig) -> DeployResult:
         # Try non-destructive repair first (preserves images and build cache).
         # Only fall back to full reset if repair fails.
         print("  Attempting non-destructive repair...")
-        repair_result = subprocess.run(
-            ["podman", "system", "check", "--repair", "--force"],  # noqa: S607
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        try:
+            repair_result = subprocess.run(
+                ["podman", "system", "check", "--repair", "--force"],  # noqa: S607
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            print("  Repair timed out (120s) — skipping")
+            repair_result = subprocess.CompletedProcess(
+                args=["podman", "system", "check", "--repair", "--force"],
+                returncode=1,
+                stdout="",
+                stderr="timeout",
+            )
         if repair_result.returncode == 0:
             print("  Storage repaired (images preserved).")
         else:
             # Repair flag may not exist on older Podman — fall back to reset
             print("  Repair failed, falling back to full reset...")
-            subprocess.run(
-                ["podman", "system", "reset", "--force"],  # noqa: S607
-                capture_output=True,
-                check=False,
+            reset_result = _run_with_timeout(
+                ["podman", "system", "reset", "--force"],
+                timeout=60,
             )
+            if reset_result.returncode != 0 and "timed out" in (reset_result.stderr or ""):
+                print("  WARNING: podman system reset timed out — continuing")
             # Restart the podman socket after reset
             subprocess.run(
                 ["systemctl", "--user", "restart", "podman.socket"],  # noqa: S607
                 capture_output=True,
                 check=False,
+                timeout=10,
             )
             time.sleep(2)
             print("  Storage reset complete. All images will be rebuilt.")
@@ -352,6 +397,7 @@ def phase_build(config: DeployConfig) -> DeployResult:
         "frontend",
         "ai-gateway",
         stream=config.verbose,
+        timeout=900,
     )
     if not ok:
         return DeployResult(False, "Application service build failed")
@@ -364,6 +410,7 @@ def phase_build(config: DeployConfig) -> DeployResult:
         *cuda_args,
         "ai-llm",
         stream=config.verbose,
+        timeout=900,
     )
     if not ok:
         return DeployResult(False, "ai-llm build failed")

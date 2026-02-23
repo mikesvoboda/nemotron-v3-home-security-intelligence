@@ -340,6 +340,18 @@ services:
 
 ---
 
+## Triton CUDA Init Failure (Rootless Podman)
+
+If ai-gateway (Triton) fails with `cudaGetDeviceCount() err=3` while ai-llm works:
+
+- **Symptom:** Triton models UNAVAILABLE, `cudaErrorInitializationError`
+- **Cause:** CUDA Runtime API vs Driver API — Triton uses Runtime API which may require nvidia-cap in rootless
+- **Quick fix:** Run ai-gateway with rootful Podman: `sudo podman compose -f docker-compose.prod.yml up -d ai-gateway`
+
+See: [Triton Rootless CUDA](triton-rootless-cuda.md) for full diagnosis and solutions.
+
+---
+
 ## Next Steps
 
 - [AI Issues](ai-issues.md) - AI service-specific problems
