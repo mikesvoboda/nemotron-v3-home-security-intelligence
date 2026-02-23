@@ -206,15 +206,16 @@ async def load_threat_detection_model(model_path: str) -> Any:
             """
             model_dir = Path(model_path)
 
-            # Find the model weights file
+            # Find the model weights file — check common names first,
+            # then fall back to recursive search (handles weights/best.pt layout).
             weights_file = model_dir / "model.pt"
             if not weights_file.exists():
                 weights_file = model_dir / "best.pt"
             if not weights_file.exists():
                 weights_file = model_dir / "threat-detection-yolov8n.pt"
             if not weights_file.exists():
-                # Try any .pt file
-                pt_files = list(model_dir.glob("*.pt"))
+                # rglob: catches files nested in subdirectories (e.g. weights/best.pt)
+                pt_files = sorted(model_dir.rglob("*.pt"))
                 if pt_files:
                     weights_file = pt_files[0]
                 else:

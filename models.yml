@@ -170,6 +170,7 @@ models:
     priority: medium
     preload: false
     never_evict: false
+    runtime_file: yolov8n-pose.pt
 
   - name: threat-detection-yolov8n
     description: "YOLOv8n threat/weapon detection (knives, guns, bats)"
@@ -370,6 +371,9 @@ models:
     never_evict: false
     runtime_file: yolov8s-worldv2.pt
 
+  # zero-dce-plus-plus: loader expects Epoch99.pth (PyTorch) but
+  # keras-io/low-light-image-enhancement is a TensorFlow SavedModel.
+  # Disabled until a compatible PyTorch checkpoint source is identified.
   - name: zero-dce-plus-plus
     description: "Zero-DCE++ low-light enhancement preprocessing (~10 K params, ~1000 FPS on GPU)"
     service: backend
@@ -378,9 +382,10 @@ models:
     size_mb: 5
     download_phase: 3
     required: false
+    download_method: skip
     category: preprocessing
     vram_mb: 5
-    enabled: true
+    enabled: false
     priority: medium
     preload: false
     never_evict: false
