@@ -17,7 +17,7 @@ Usage (container-side, e.g. backend/services/model_zoo.py):
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     import yaml
@@ -53,7 +53,7 @@ def load_models_yaml(root: Path | None = None) -> list[dict[str, Any]]:
     with yml_path.open() as f:
         data = yaml.safe_load(f)
 
-    return data["models"]
+    return cast("list[dict[str, Any]]", data["models"])
 
 
 def get_backend_models(root: Path | None = None) -> list[dict[str, Any]]:
@@ -61,10 +61,7 @@ def get_backend_models(root: Path | None = None) -> list[dict[str, Any]]:
 
     These are the models that backend/services/model_zoo.py manages.
     """
-    return [
-        m for m in load_models_yaml(root)
-        if m.get("service") in ("backend", "both")
-    ]
+    return [m for m in load_models_yaml(root) if m.get("service") in ("backend", "both")]
 
 
 def get_downloadable_models(root: Path | None = None) -> list[dict[str, Any]]:
@@ -74,7 +71,7 @@ def get_downloadable_models(root: Path | None = None) -> list[dict[str, Any]]:
     and no custom download_method.
     """
     return [
-        m for m in load_models_yaml(root)
-        if m.get("download_method") != "skip"
-        and (m.get("hf_repo") or m.get("download_method"))
+        m
+        for m in load_models_yaml(root)
+        if m.get("download_method") != "skip" and (m.get("hf_repo") or m.get("download_method"))
     ]
