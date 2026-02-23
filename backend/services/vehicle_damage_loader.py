@@ -200,38 +200,54 @@ def _has_meta_tensors(model: Any) -> bool:
 
 
 def _materialize_meta_tensors(model: Any, device: str) -> Any:
-    """Materialize meta tensors by using to_empty() + load_state_dict.
+    """Materialize meta tensors by direct in-place tensor replacement.
 
     When models are saved with meta tensors (lazy initialization), calling
     model.to(device) raises:
         NotImplementedError: Cannot copy out of meta tensor; no data!
 
-    The fix is to use to_empty() to create empty tensors on the target device,
-    then reload the state_dict with assign=True to populate them.
+    We cannot use to_empty() here because ultralytics BaseModel overrides
+    _apply(self, fn) without accepting the 'recurse' kwarg added in PyTorch 2.9+,
+    so to_empty() → _apply(fn, recurse=True) raises TypeError. Instead we walk
+    the module tree directly and replace meta parameters/buffers with empty
+    tensors on the target device.
+
+    Note: this produces uninitialized (empty) tensors. For models that were saved
+    with meta tensors because weights are stored separately (e.g. HF safetensors),
+    call load_state_dict() after this to populate the weights. For YOLO models
+    whose meta tensors come from lazy CUDA initialization, this is sufficient to
+    allow the model to run on the target device.
 
     Args:
         model: Model with potential meta tensors
         device: Target device ("cuda" or "cpu")
 
     Returns:
-        Model with materialized tensors on the target device
+        Model with meta tensors replaced by empty tensors on the target device
     """
     import torch
 
-    logger.info(f"Materializing meta tensors to device: {device}")
+    logger.info(f"Materializing meta tensors via direct replacement to device: {device}")
 
-    # Get the current state dict before to_empty()
-    # We need the actual weights from the checkpoint
-    state_dict = model.state_dict()
+    target = torch.device(device)
+    replaced = 0
 
-    # Move model structure to device without copying tensor data
-    model = model.to_empty(device=torch.device(device))
+    for module in model.modules():
+        for name, param in list(module._parameters.items()):
+            if param is not None and param.device.type == "meta":
+                module._parameters[name] = torch.nn.Parameter(
+                    torch.empty(param.shape, dtype=param.dtype, device=target),
+                    requires_grad=param.requires_grad,
+                )
+                replaced += 1
+        for name, buf in list(module._buffers.items()):
+            if buf is not None and buf.device.type == "meta":
+                module._buffers[name] = torch.empty(
+                    buf.shape, dtype=buf.dtype, device=target
+                )
+                replaced += 1
 
-    # Reload the state dict with assign=True to populate the empty tensors
-    # assign=True replaces parameter tensors in-place rather than copying
-    model.load_state_dict(state_dict, assign=True)
-
-    logger.info("Meta tensors materialized successfully")
+    logger.info(f"Meta tensors materialized: {replaced} tensors replaced on {device}")
     return model
 
 
@@ -258,6 +274,16 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
 
         import torch
         from ultralytics import YOLO
+
+        # YOLO11x-seg is a 295 GFLOPs segmentation model — CPU inference takes several
+        # minutes per image and creates GIL contention that starves the asyncio event
+        # loop, making the API unresponsive. Fail fast here so model_zoo marks this
+        # model unavailable and the enrichment pipeline skips it gracefully.
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "vehicle-damage-detection requires CUDA — YOLO11x-seg (295 GFLOPs) "
+                "is not viable on CPU. Model will be skipped on CPU-only hosts."
+            )
 
         logger.info(f"Loading vehicle damage detection model from {model_path}")
 
