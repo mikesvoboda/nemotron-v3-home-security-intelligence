@@ -1436,7 +1436,7 @@ class TestYoloWorldLoader:
         assert "yolo-world-s" in zoo
         config = zoo["yolo-world-s"]
         assert config.name == "yolo-world-s"
-        assert config.path == "/models/model-zoo/yolo-world-s"
+        assert config.path == "/models/model-zoo/yolo-world-s/yolov8s-worldv2.pt"
         assert config.category == "detection"
         assert config.vram_mb == 1500
         assert config.enabled is True

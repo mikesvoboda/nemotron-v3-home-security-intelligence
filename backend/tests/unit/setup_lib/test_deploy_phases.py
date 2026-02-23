@@ -743,9 +743,14 @@ class TestDeployPhasesRegistry:
         assert health_phase.required is False
 
     def test_other_phases_are_required(self) -> None:
-        """Should mark all non-health-check phases as required."""
+        """Should mark all non-health-check phases as required.
+
+        prune_images is intentionally optional — it is a best-effort disk
+        cleanup step that must not block a deployment if it fails.
+        """
         from setup_lib.deploy_phases import DEPLOY_PHASES
 
+        optional_phases = {"health_check", "prune_images"}
         for phase in DEPLOY_PHASES:
-            if phase.name != "health_check":
+            if phase.name not in optional_phases:
                 assert phase.required is True, f"Phase {phase.name} should be required"
