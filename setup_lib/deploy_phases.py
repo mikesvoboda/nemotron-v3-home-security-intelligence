@@ -851,10 +851,21 @@ def _recover_created_containers(config: DeployConfig) -> None:
     stuck = result.stdout.strip().splitlines()
     print(f"  Recovering {len(stuck)} container(s) stuck in 'created' state...")
     for name in stuck:
-        # Extract compose service name from container name
-        # (e.g. "nemotron-v3-home-security-intelligence-backend-1" -> "backend")
-        parts = name.rsplit("-", 1)  # strip trailing "-1"
-        svc = parts[0].split(config.project_root.name + "-", 1)[-1] if config.project_root.name in name else name
+        # Extract compose service name from container name.
+        # Handles both naming conventions:
+        #   dash-style  (docker-compose v2): <project>-<service>-<replica>
+        #     e.g. "nemotron-v3-home-security-intelligence-backend-1" -> "backend"
+        #   underscore-style (docker-compose v1): <project>_<service>_<replica>
+        #     e.g. "nemotron-v3-home-security-intelligence_ai-gateway_1" -> "ai-gateway"
+        project = config.project_root.name
+        if f"{project}_" in name:
+            # underscore convention: strip project prefix and trailing _<replica>
+            svc = name.split(f"{project}_", 1)[-1].rsplit("_", 1)[0]
+        elif f"{project}-" in name:
+            # dash convention: strip project prefix and trailing -<replica>
+            svc = name.split(f"{project}-", 1)[-1].rsplit("-", 1)[0]
+        else:
+            svc = name
         compose_run(config, "up", "-d", "--no-build", svc)
         time.sleep(2)
         if _wait_container_running(svc, timeout=30):
