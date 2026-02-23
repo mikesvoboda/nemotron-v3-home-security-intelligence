@@ -181,6 +181,9 @@ COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 # Copy application code with proper ownership
 COPY --chown=appuser:appuser backend/ ./backend/
 
+# Copy unified model configuration (single source of truth for model_zoo.py)
+COPY --chown=appuser:appuser models.yml ./
+
 # Create data directory for logs and thumbnails with proper ownership
 RUN mkdir -p /app/data/thumbnails /app/data/logs && \
     chown -R appuser:appuser /app/data

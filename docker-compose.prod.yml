@@ -311,7 +311,7 @@ services:
       # TensorRT temp artifacts cache (compilation intermediates)
       - triton-tmp-cache:/tmp
       # HuggingFace model cache (pre-downloaded models, avoids network downloads)
-      - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/root/.cache/huggingface:ro
+      - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/root/.cache/huggingface
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090

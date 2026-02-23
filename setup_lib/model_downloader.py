@@ -34,7 +34,63 @@ class ModelSpec(NamedTuple):
     size_mb: int
     description: str
     required: bool  # True for essential models, False for optional
+    download_method: str = ""  # empty → snapshot_download; see models.yml for special values
+    local_path: str = ""  # path relative to AI_MODELS_PATH (from models.yml)
 
+
+def build_model_specs() -> list[ModelSpec]:
+    """Build the model download list from models.yml — single source of truth.
+
+    Replaces the hardcoded REQUIRED_MODELS / PHASE*_MODELS lists.
+    Models with download_method='skip' are excluded (no download needed).
+    """
+    try:
+        from setup_lib.models_config import get_downloadable_models
+    except ImportError:
+        # Fallback when called outside the package (e.g. direct script execution)
+        from pathlib import Path as _Path
+        import yaml as _yaml
+        _yml = _Path(__file__).parent.parent / "models.yml"
+        _all = _yaml.safe_load(_yml.read_text())["models"]
+        _downloadable = [
+            m for m in _all
+            if m.get("download_method") != "skip"
+            and (m.get("hf_repo") or m.get("download_method"))
+        ]
+        return [
+            ModelSpec(
+                name=m["name"],
+                hf_repo=m.get("hf_repo") or "",
+                phase=m.get("download_phase", 3),
+                size_mb=int(m.get("size_mb", 0)),
+                description=m.get("description", ""),
+                required=bool(m.get("required", False)),
+                download_method=m.get("download_method") or "",
+                local_path=m.get("local_path") or "",
+            )
+            for m in _downloadable
+        ]
+
+    entries = get_downloadable_models()
+    return [
+        ModelSpec(
+            name=m["name"],
+            hf_repo=m.get("hf_repo") or "",
+            phase=m.get("download_phase", 3),
+            size_mb=int(m.get("size_mb", 0)),
+            description=m.get("description", ""),
+            required=bool(m.get("required", False)),
+            download_method=m.get("download_method") or "",
+            local_path=m.get("local_path") or "",
+        )
+        for m in entries
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Legacy hardcoded lists — DEPRECATED.  Kept only so external callers that
+# still reference them continue to work.  New code should call build_model_specs().
+# ---------------------------------------------------------------------------
 
 # Core models required for the system to function
 REQUIRED_MODELS: list[ModelSpec] = [
@@ -194,6 +250,15 @@ PHASE3_MODELS: list[ModelSpec] = [
         description="Weather condition classification for security camera context (backend)",
         required=False,
     ),
+    # Violence detection (backend enrichment pipeline)
+    ModelSpec(
+        name="violence-detection",
+        hf_repo="jaranohaal/vit-base-violence-detection",
+        phase=3,
+        size_mb=350,  # ~350MB (ViT-base)
+        description="ViT-base binary violence/non-violence classifier for backend pipeline",
+        required=False,
+    ),
     # Marqo FashionSigLIP — clothing zero-shot classifier used by ai-gateway enrichment
     # Stored in the HuggingFace hub cache (not model-zoo) because open_clip loads it
     # via hf-hub: format which requires the standard HF cache directory structure.
@@ -288,8 +353,8 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
         pose_file = model_path / "model-zoo" / model_name / "yolov8n-pose.pt"
         return pose_file.exists()
 
-    # Special handling for Marqo FashionSigLIP — lives in HF hub cache, not model-zoo
-    if model_name == "marqo-fashionSigLIP":
+    # fashion-clip uses Marqo FashionSigLIP stored in HF hub cache (open_clip hf-hub format)
+    if model_name in ("fashion-clip", "marqo-fashionSigLIP"):
         hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
         marqo_snapshots = hf_cache / "models--Marqo--marqo-fashionSigLIP" / "snapshots"
         return marqo_snapshots.exists() and any(marqo_snapshots.iterdir())
@@ -792,7 +857,7 @@ def prompt_and_download_models(config: dict) -> None:
     print()
 
     # Check which models are already downloaded
-    all_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
+    all_models = build_model_specs()
     downloaded = []
     missing = []
 
@@ -845,9 +910,7 @@ def prompt_and_download_models(config: dict) -> None:
         return
 
     # Download all models
-    models_to_download: list[ModelSpec] = []
-    all_phase_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
-    models_to_download.extend(all_phase_models)
+    models_to_download: list[ModelSpec] = list(build_model_specs())
 
     # Filter out already downloaded models
     models_to_download = [
@@ -881,13 +944,14 @@ def prompt_and_download_models(config: dict) -> None:
     for model in models_to_download:
         print(f"  [{model.phase}] {model.name}")
 
-        # Special handling for different model types
-        if model.name == "nemotron-3-nano-30b-a3b-q4km":
+        # Dispatch based on download_method from models.yml (falls back to name for legacy compat)
+        method = model.download_method or model.name
+        if method == "nemotron_gguf" or model.name == "nemotron-3-nano-30b-a3b-q4km":
             if download_nemotron_gguf(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "yolo26":
+        elif method == "yolo26" or model.name == "yolo26":
             if download_yolo26_models(ai_models_path):
                 success_count += 1
             else:
@@ -897,22 +961,22 @@ def prompt_and_download_models(config: dict) -> None:
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "osnet-ain-x1-0":
+        elif method == "osnet" or model.name == "osnet-ain-x1-0":
             if download_osnet_reid(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "stgcn-plus-plus":
+        elif method == "stgcn" or model.name == "stgcn-plus-plus":
             if download_stgcnpp(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "yolo-world-s":
+        elif method == "yolo_world" or model.name == "yolo-world-s":
             if download_yolo_world(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "marqo-fashionSigLIP":
+        elif method == "hf_cache" or model.name in ("fashion-clip", "marqo-fashionSigLIP"):
             if download_marqo_fashionsiglip():
                 success_count += 1
             else:

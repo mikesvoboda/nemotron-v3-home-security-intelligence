@@ -919,6 +919,41 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     )
     lifespan_logger.info("Workers registered for readiness monitoring (DI + legacy)")
 
+    # Eagerly preload all enabled AI models into GPU VRAM when BACKEND_MODEL_PRELOAD=true.
+    # This eliminates cold-load pipeline timeouts on high-VRAM systems (>24GB).
+    # setup.py auto-sets this based on detected VRAM at install time.
+    if settings.backend_model_preload:
+        from backend.services.model_zoo import get_model_manager, get_model_zoo
+
+        model_zoo = get_model_zoo()
+        model_manager = get_model_manager()
+        preload_names = [
+            name for name, cfg in model_zoo.items() if cfg.enabled and not cfg.available
+        ]
+        lifespan_logger.info(
+            f"BACKEND_MODEL_PRELOAD=true — preloading {len(preload_names)} models into GPU VRAM"
+        )
+        load_errors: list[str] = []
+        for model_name in preload_names:
+            try:
+                await model_manager.preload(model_name)
+                lifespan_logger.info(f"  [preload] {model_name} ✓")
+            except Exception as exc:
+                load_errors.append(model_name)
+                lifespan_logger.warning(f"  [preload] {model_name} failed: {exc}")
+        if load_errors:
+            lifespan_logger.warning(
+                f"Preload complete with {len(load_errors)} error(s): {', '.join(load_errors)}"
+            )
+        else:
+            lifespan_logger.info(
+                f"Preload complete — {len(preload_names)} models resident in GPU VRAM"
+            )
+    else:
+        lifespan_logger.info(
+            "BACKEND_MODEL_PRELOAD=false — models will load on first pipeline request (lazy)"
+        )
+
     yield
 
     # Shutdown
