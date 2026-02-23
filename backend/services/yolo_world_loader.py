@@ -449,7 +449,14 @@ async def detect_with_prompts(
 
         return detections
 
-    detections = await loop.run_in_executor(None, _run_detection)
+    try:
+        detections = await asyncio.wait_for(
+            loop.run_in_executor(None, _run_detection),
+            timeout=15.0,
+        )
+    except TimeoutError:
+        logger.warning("YOLO-World inference timed out after 15s — returning empty detections")
+        return []
 
     logger.debug(
         f"YOLO-World detected {len(detections)} objects using {len(detection_prompts)} prompts"

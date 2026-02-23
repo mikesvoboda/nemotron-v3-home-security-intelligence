@@ -285,7 +285,14 @@ async def segment_clothing(
                 raw_mask=predicted_mask,
             )
 
-        return await loop.run_in_executor(None, _segment)
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _segment),
+                timeout=15.0,
+            )
+        except TimeoutError:
+            logger.warning("Clothing segmentation timed out after 15s — skipping")
+            return ClothingSegmentationResult()
 
     except Exception:
         logger.error("Failed to segment clothing", exc_info=True)

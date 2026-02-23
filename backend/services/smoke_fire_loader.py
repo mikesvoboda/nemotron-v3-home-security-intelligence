@@ -341,7 +341,14 @@ async def detect_smoke_fire(
 
             return SmokeFireDetectionResult(detections=detections)
 
-        return await loop.run_in_executor(None, _detect)
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _detect),
+                timeout=15.0,
+            )
+        except TimeoutError:
+            logger.warning("Smoke/fire detection timed out after 15s — skipping")
+            raise RuntimeError("Smoke/fire detection timed out") from None
 
     except Exception as e:
         logger.error("Smoke/fire detection failed", exc_info=True)
