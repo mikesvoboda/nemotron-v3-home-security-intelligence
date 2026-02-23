@@ -687,6 +687,7 @@ cat .env | grep -v PASSWORD | grep -v SECRET | grep -v KEY > env_safe.txt
 ## Troubleshooting Detailed Guides
 
 - [GPU Issues](gpu-issues.md) - CUDA, VRAM, temperature, container GPU access
+- [Triton Rootless CUDA](triton-rootless-cuda.md) - ai-gateway cudaGetDeviceCount err=3 in rootless Podman
 - [Connection Issues](connection-issues.md) - Network, containers, WebSocket, CORS
 - [AI Issues](ai-issues.md) - YOLO26, Nemotron, pipeline, batch processing
 - [Database Issues](database-issues.md) - PostgreSQL connection, migrations, disk space

@@ -114,6 +114,7 @@ def compose_run(
     *args: str,
     capture: bool = False,
     stream: bool = False,
+    timeout: int = 300,
 ) -> subprocess.CompletedProcess | bool:
     """Run a compose command with the given arguments.
 
@@ -122,6 +123,7 @@ def compose_run(
         *args: Additional arguments to pass to the compose command.
         capture: If True, capture stdout/stderr and return CompletedProcess.
         stream: If True, stream stdout line-by-line to the terminal.
+        timeout: Max seconds for the command (default 300). Prevents indefinite hangs.
 
     Returns:
         CompletedProcess if capture=True, else bool indicating success.
@@ -148,7 +150,7 @@ def compose_run(
             )
             for line in proc.stdout:  # type: ignore[union-attr]
                 print(f"  {line}", end="")
-            proc.wait()
+            proc.wait(timeout=timeout)
             _log(config, f"Command exited with rc={proc.returncode}")
             return proc.returncode == 0
 
@@ -159,6 +161,7 @@ def compose_run(
                 text=True,
                 check=False,
                 env=env,
+                timeout=timeout,
             )
             _log(config, f"Command exited with rc={result.returncode}")
             return result
@@ -167,10 +170,20 @@ def compose_run(
             cmd,
             check=False,
             env=env,
+            timeout=timeout,
         )
         _log(config, f"Command exited with rc={run_result.returncode}")
         return run_result.returncode == 0
 
+    except subprocess.TimeoutExpired:
+        _log(config, f"Command timed out after {timeout}s")
+        if config.verbose:
+            print(f"  ! Command timed out after {timeout}s")
+        if capture:
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=-1, stdout="", stderr=f"timed out after {timeout}s"
+            )
+        return False
     except FileNotFoundError:
         _log(config, "Command failed: FileNotFoundError")
         if capture:

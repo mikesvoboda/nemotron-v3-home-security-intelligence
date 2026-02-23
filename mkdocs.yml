@@ -184,6 +184,7 @@ nav:
           - Connection Issues: reference/troubleshooting/connection-issues.md
           - Database Issues: reference/troubleshooting/database-issues.md
           - GPU Issues: reference/troubleshooting/gpu-issues.md
+          - Triton Rootless CUDA: reference/troubleshooting/triton-rootless-cuda.md
   - Decisions:
       - decisions/README.md
 

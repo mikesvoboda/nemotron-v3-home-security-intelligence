@@ -128,6 +128,14 @@ kernel.perf_event_paranoid = -1
 NVIDIA_MODPROBE_CONFIG = """\
 # DGX OS-style NVIDIA driver options
 
+# Rootless container GPU access: nvidia-cap1/cap2 need 0666 for CUDA 12+ init
+options nvidia NVreg_DeviceFileMode=0666
+
+# Open-source kernel modules (nvidia-*-open): cuInit/cudaGetDeviceCount fail with err=3
+# without this. nvidia-smi works but Triton/CUDA Runtime API fails.
+# See: https://github.com/NVIDIA/open-gpu-kernel-modules/issues/947
+options nvidia_uvm uvm_disable_hmm=1
+
 # Enable PCIe relaxed ordering for improved GPU-to-GPU transfers
 options nvidia NVreg_EnablePCIERelaxedOrderingMode=1
 

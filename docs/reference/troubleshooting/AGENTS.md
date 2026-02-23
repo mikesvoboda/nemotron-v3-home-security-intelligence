@@ -122,6 +122,20 @@ curl http://localhost:8000/api/system/pipeline | jq
 
 **When to use:** AI running slow, GPU not being used, CUDA errors.
 
+### triton-rootless-cuda.md
+
+**Purpose:** Triton CUDA init failure in rootless Podman (cudaGetDeviceCount err=3).
+
+**Topics Covered:**
+
+- Root cause: CUDA Runtime API vs Driver API
+- Rootful Podman workaround
+- Rootless CDI spec in user directory
+- nvidia-cap device permissions
+- Explicit nvidia-cap bind mounts
+
+**When to use:** ai-gateway models UNAVAILABLE while ai-llm works; Triton cudaErrorInitializationError.
+
 ## Troubleshooting Approach
 
 All troubleshooting guides follow this pattern:
