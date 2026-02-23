@@ -639,6 +639,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -701,6 +702,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             # Only 1GB free, need much more for models
             mock_disk.return_value = MagicMock(free=1 * 1024**3)
@@ -763,6 +765,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -794,6 +797,7 @@ class TestPromptAndDownloadModels:
             "osnet-ain-x1-0",
             "stgcn-plus-plus",
             "yolo-world-s",
+            "marqo-fashionSigLIP",
         }
 
         with (
@@ -809,6 +813,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -851,6 +856,7 @@ class TestPromptAndDownloadModels:
             "osnet-ain-x1-0",
             "stgcn-plus-plus",
             "yolo-world-s",
+            "marqo-fashionSigLIP",
         }
 
         with (
@@ -866,6 +872,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -909,6 +916,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -940,6 +948,7 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
