@@ -376,7 +376,7 @@ services:
       # :U tells Podman to recursively chown the volume to match container user (appuser)
       # Docker ignores the :U flag, making this backward compatible
       - ./backend/data:/app/data:z,U
-      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Mount to fixed path so container has access regardless of /run/user layout
@@ -742,7 +742,8 @@ services:
       - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
       # SSL/TLS Configuration
       # SSL enabled by default - auto-generates self-signed certs if none mounted
-      - SSL_ENABLED=${SSL_ENABLED:-true}
+      # Set to false to serve HTTP only (no redirect to HTTPS); true enables HTTPS + redirect
+      - SSL_ENABLED=${SSL_ENABLED:-false}
       # Custom certificate paths (relative to /etc/nginx/certs mount)
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}

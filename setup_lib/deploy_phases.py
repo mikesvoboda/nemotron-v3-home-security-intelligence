@@ -558,6 +558,21 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
     backend_data = config.project_root / "backend" / "data"
     (backend_data / "thumbnails").mkdir(parents=True, exist_ok=True)
 
+    # Ensure FOSCAM_BASE_PATH exists and is writable by container user (persistent)
+    foscam_path = Path(config.env.get("FOSCAM_BASE_PATH", "/export/foscam"))
+    host_uid = config.env.get("HOST_UID", "1000")
+    host_gid = config.env.get("HOST_GID", "1000")
+    if not foscam_path.exists():
+        mkdir_result = _run_sudo(["mkdir", "-p", str(foscam_path)], check=False)
+        if mkdir_result.returncode != 0:
+            print(f"  foscam: failed to create {foscam_path} (run: sudo mkdir -p {foscam_path})")
+    if foscam_path.exists():
+        chown_result = _run_sudo(["chown", "-R", f"{host_uid}:{host_gid}", str(foscam_path)], check=False)
+        if chown_result.returncode == 0:
+            print(f"  foscam: {foscam_path} owned by {host_uid}:{host_gid}")
+        else:
+            print(f"  foscam: {foscam_path} (chown skipped - run: sudo chown -R {host_uid}:{host_gid} {foscam_path})")
+
     # Core infrastructure (pre-built images only)
     ok = compose_run(
         config,
