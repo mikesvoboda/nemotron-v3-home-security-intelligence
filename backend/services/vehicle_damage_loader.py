@@ -181,14 +181,20 @@ def _has_meta_tensors(model: Any) -> bool:
     Meta tensors are placeholders without actual data, used for lazy weight loading.
     Calling .to(device) on such tensors raises NotImplementedError.
 
+    Checks both parameters() and buffers() — YOLO models can store meta tensors
+    in registered buffers (e.g. anchor grids) that parameters() does not enumerate.
+
     Args:
         model: PyTorch model to check
 
     Returns:
-        True if any parameter is on the meta device
+        True if any parameter or buffer is on the meta device
     """
     try:
-        return any(param.device.type == "meta" for param in model.parameters())
+        return any(
+            t.device.type == "meta"
+            for t in (*model.parameters(), *model.buffers())
+        )
     except Exception:
         return False
 
@@ -386,16 +392,31 @@ async def detect_vehicle_damage(
             except ImportError:
                 device = "cpu"
 
-            # Run inference with explicit device parameter to avoid meta tensor issues
-            # The device parameter ensures proper tensor initialization and avoids
-            # "Cannot copy out of meta tensor" errors when using .to(device)
-            results = model.predict(
-                source=image,
-                conf=confidence_threshold,
-                iou=iou_threshold,
-                device=device,
-                verbose=False,
-            )
+            # Run inference. If meta tensors escaped the load-time check (e.g. buffers
+            # not enumerated by parameters()), materialize them and retry once.
+            try:
+                results = model.predict(
+                    source=image,
+                    conf=confidence_threshold,
+                    iou=iou_threshold,
+                    device=device,
+                    verbose=False,
+                )
+            except NotImplementedError as exc:
+                if "meta tensor" not in str(exc) or not hasattr(model, "model"):
+                    raise
+                logger.warning(
+                    "Meta tensor error during vehicle damage inference; "
+                    "materializing model tensors and retrying."
+                )
+                model.model = _materialize_meta_tensors(model.model, device)
+                results = model.predict(
+                    source=image,
+                    conf=confidence_threshold,
+                    iou=iou_threshold,
+                    device=device,
+                    verbose=False,
+                )
 
             detections: list[DamageDetection] = []
 
