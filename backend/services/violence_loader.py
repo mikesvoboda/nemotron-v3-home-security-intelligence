@@ -102,12 +102,25 @@ async def load_violence_model(model_path: str) -> Any:
             processor = AutoImageProcessor.from_pretrained(model_path)
             model = AutoModelForImageClassification.from_pretrained(model_path)
 
-            # Move to GPU if available
+            # Move to GPU if available, with meta-tensor guard.
+            # HuggingFace models can be saved with lazy (meta) weights; calling
+            # model.cuda() on them raises:
+            #   NotImplementedError: Cannot copy out of meta tensor; no data!
+            # Use to_empty() + load_state_dict(assign=True) to materialize first.
             try:
                 import torch
 
                 if torch.cuda.is_available():
-                    model = model.cuda()
+                    if any(p.device.type == "meta" for p in model.parameters()):
+                        logger.warning(
+                            "Violence detection model contains meta tensors "
+                            "(lazy-loaded weights). Materializing before moving to CUDA."
+                        )
+                        state_dict = model.state_dict()
+                        model = model.to_empty(device=torch.device("cuda"))
+                        model.load_state_dict(state_dict, assign=True)
+                    else:
+                        model = model.cuda()
                     model.eval()
                     logger.info("Violence detection model moved to CUDA")
                 else:

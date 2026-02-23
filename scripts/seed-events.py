@@ -597,7 +597,20 @@ def discover_synthetic_scenarios(
                     # Fall back to image files (COCO-based scenarios)
                     images = list(media_path.glob("*.jpg")) + list(media_path.glob("*.png"))
                     if images:
-                        image_path = images[0]
+                        # Filter out Git LFS pointer files (130-135 bytes of ASCII text,
+                        # not actual image data). LFS objects must be pulled before seeding.
+                        real_images = [
+                            p for p in images
+                            if p.stat().st_size > 1024
+                        ]
+                        if not real_images and images:
+                            print(
+                                f"  Warning: {scenario_dir.name} media files appear to be "
+                                f"Git LFS pointers ({images[0].stat().st_size} bytes). "
+                                "Run 'git lfs pull' to download actual image data."
+                            )
+                        elif real_images:
+                            image_path = real_images[0]
 
             has_media = video_path is not None or image_path is not None
 
@@ -1056,7 +1069,7 @@ async def seed_synthetic_scenarios(
                     dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
                     dest_path = scenario_watch_folder / dest_name
 
-                    shutil.copy2(frame_path, dest_path)
+                    shutil.copyfile(frame_path, dest_path)
                     processed_frames.append(dest_path)
                     total_extracted += 1
 
@@ -1074,7 +1087,7 @@ async def seed_synthetic_scenarios(
             dest_name = f"{scenario.video_id}_{scenario.category}_img{suffix}"
             dest_path = scenario_watch_folder / dest_name
 
-            shutil.copy2(scenario.image_path, dest_path)
+            shutil.copyfile(scenario.image_path, dest_path)
             processed_frames.append(dest_path)
             total_extracted += 1
 

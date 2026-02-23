@@ -293,22 +293,36 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
                 try:
                     model.model = _materialize_meta_tensors(model.model, device)
                 except Exception as e:
-                    # If materialization fails, try alternative approach:
-                    # Force a warmup inference which may trigger proper initialization
-                    logger.warning(
-                        f"Meta tensor materialization failed: {e}. Trying warmup inference."
-                    )
-                    try:
-                        import numpy as np
-                        from PIL import Image as PILImage
+                    if device != "cuda":
+                        # Skip warmup on CPU: YOLO11x-seg is 295 GFLOPs and takes
+                        # several minutes on CPU. Running it in the thread pool creates
+                        # GIL contention that starves the asyncio event loop and makes
+                        # the API unresponsive. It also triggers ultralytics'
+                        # check_requirements() which attempts to install CLIP from GitHub
+                        # (fails in the container) and adds tens of seconds of blocking
+                        # subprocess retries. The model will be unavailable until the
+                        # service has a GPU; log and continue rather than hang.
+                        logger.warning(
+                            f"Meta tensor materialization failed on CPU ({e}). "
+                            "Skipping warmup inference — vehicle damage detection will be "
+                            "unavailable on this host until the model is loaded on a GPU."
+                        )
+                    else:
+                        # On CUDA, warmup inference is fast; use it as a last resort
+                        # to trigger proper weight initialization.
+                        logger.warning(
+                            f"Meta tensor materialization failed: {e}. Trying warmup inference."
+                        )
+                        try:
+                            import numpy as np
+                            from PIL import Image as PILImage
 
-                        # Create a small dummy image for warmup
-                        dummy_img = PILImage.fromarray(np.zeros((64, 64, 3), dtype=np.uint8))
-                        model.predict(source=dummy_img, device=device, verbose=False)
-                        logger.info("Model initialized via warmup inference")
-                    except Exception as warmup_error:
-                        logger.error(f"Warmup inference also failed: {warmup_error}")
-                        raise
+                            dummy_img = PILImage.fromarray(np.zeros((64, 64, 3), dtype=np.uint8))
+                            model.predict(source=dummy_img, device=device, verbose=False)
+                            logger.info("Model initialized via warmup inference")
+                        except Exception as warmup_error:
+                            logger.error(f"Warmup inference also failed: {warmup_error}")
+                            raise
 
             logger.info(f"Vehicle damage model loaded: {len(model.names)} classes")
             logger.debug(f"Model classes: {model.names}")

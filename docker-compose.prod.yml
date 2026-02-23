@@ -395,9 +395,19 @@ services:
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Logging verbosity: WARNING (default) suppresses all INFO/DEBUG pipeline messages.
+      # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
+      # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.
+      - LOG_LEVEL=${LOG_LEVEL:-WARNING}
       # Redirect torch hub cache to /tmp (writable tmpfs) — /home/appuser/.cache tmpfs
       # mounts as root-owned in rootless Podman, preventing appuser from writing to it
       - TORCH_HOME=/tmp/torch_cache
+      # Prevent ultralytics from attempting to install packages (e.g. CLIP from GitHub)
+      # at runtime via check_requirements(). The container has no git and no PyPI access,
+      # so these attempts block for tens of seconds before failing, which causes GIL
+      # contention in the thread pool that starves the asyncio event loop.
+      - ULTRALYTICS_OFFLINE=1
+      - YOLO_VERBOSE=False
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
