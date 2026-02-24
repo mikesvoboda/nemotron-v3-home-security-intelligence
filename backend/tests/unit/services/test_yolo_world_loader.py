@@ -262,6 +262,7 @@ async def test_load_yolo_world_model_runtime_error(monkeypatch):
 async def test_load_yolo_world_model_success(monkeypatch):
     """Test load_yolo_world_model success path."""
     import sys
+    from unittest.mock import patch
 
     # Create mock YOLOWorld model
     mock_model = MagicMock()
@@ -272,7 +273,8 @@ async def test_load_yolo_world_model_success(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
 
-    result = await load_yolo_world_model("yolov8s-worldv2.pt")
+    with patch("torch.cuda.is_available", return_value=True):
+        result = await load_yolo_world_model("yolov8s-worldv2.pt")
 
     assert result is mock_model
     mock_ultralytics.YOLOWorld.assert_called_once_with("yolov8s-worldv2.pt")
@@ -284,6 +286,7 @@ async def test_load_yolo_world_model_success(monkeypatch):
 async def test_load_yolo_world_model_sets_default_prompts(monkeypatch):
     """Test load_yolo_world_model sets default security prompts."""
     import sys
+    from unittest.mock import patch
 
     mock_model = MagicMock()
 
@@ -292,7 +295,8 @@ async def test_load_yolo_world_model_sets_default_prompts(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
 
-    await load_yolo_world_model("yolov8s-worldv2.pt")
+    with patch("torch.cuda.is_available", return_value=True):
+        await load_yolo_world_model("yolov8s-worldv2.pt")
 
     # Verify set_classes was called with SECURITY_PROMPTS
     mock_model.set_classes.assert_called_once()

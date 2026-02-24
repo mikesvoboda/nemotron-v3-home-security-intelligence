@@ -96,30 +96,13 @@ class TestLoadXclipModel:
 
     @pytest.mark.asyncio
     async def test_load_model_success_cpu_no_torch(self) -> None:
-        """Test successful model loading on CPU when torch not available."""
-        mock_processor = MagicMock()
-        mock_model = MagicMock()
-        mock_model.eval = MagicMock(return_value=None)
-
-        mock_xclip_processor_cls = MagicMock()
-        mock_xclip_processor_cls.from_pretrained.return_value = mock_processor
-
-        mock_xclip_model_cls = MagicMock()
-        mock_xclip_model_cls.from_pretrained.return_value = mock_model
-
-        # Create mock transformers module
+        """Test model loading raises RuntimeError when torch is not available."""
         mock_transformers = MagicMock()
-        mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
-        mock_transformers.XCLIPModel = mock_xclip_model_cls
 
-        # Mock sys.modules so transformers is available but torch is not
-        # Setting torch to None will cause import to fail
+        # torch=None causes RuntimeError since CUDA guard can't be evaluated
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": None}):
-            result = await load_xclip_model("/path/to/model")
-
-        assert "model" in result
-        assert "processor" in result
-        mock_model.eval.assert_called_once()
+            with pytest.raises((RuntimeError, ImportError)):
+                await load_xclip_model("/path/to/model")
 
     @pytest.mark.asyncio
     async def test_load_model_success_with_gpu(self) -> None:
@@ -199,31 +182,14 @@ class TestLoadXclipModelInternal:
 
     @pytest.mark.asyncio
     async def test_load_model_cpu_no_cuda(self) -> None:
-        """Test model loading when CUDA is not available."""
-        mock_processor = MagicMock()
-        mock_model = MagicMock()
-        mock_model.eval = MagicMock(return_value=None)
-
-        mock_xclip_processor_cls = MagicMock()
-        mock_xclip_processor_cls.from_pretrained.return_value = mock_processor
-
-        mock_xclip_model_cls = MagicMock()
-        mock_xclip_model_cls.from_pretrained.return_value = mock_model
-
+        """Test model loading raises RuntimeError when CUDA is not available."""
         mock_transformers = MagicMock()
-        mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
-        mock_transformers.XCLIPModel = mock_xclip_model_cls
-
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": mock_torch}):
-            result = await load_xclip_model("/path/to/model")
-
-        assert "model" in result
-        assert "processor" in result
-        # Should not call cuda() when CUDA not available
-        mock_model.cuda.assert_not_called()
+            with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+                await load_xclip_model("/path/to/model")
 
     @pytest.mark.asyncio
     async def test_load_model_with_huggingface_path(self) -> None:
@@ -243,7 +209,7 @@ class TestLoadXclipModelInternal:
         mock_transformers.XCLIPModel = mock_xclip_model_cls
 
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
 
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": mock_torch}):
             result = await load_xclip_model("microsoft/xclip-base-patch16-16-frames")
@@ -1229,7 +1195,7 @@ class TestXclipLoaderIntegration:
 
         # Set up mock torch
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
         mock_torch.float16 = "float16"
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)

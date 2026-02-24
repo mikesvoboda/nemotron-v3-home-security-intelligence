@@ -328,22 +328,11 @@ class TestLoadFashionClipModel:
 
     @pytest.mark.asyncio
     async def test_load_model_success_without_cuda(self) -> None:
-        """Test successful model loading without CUDA."""
-        mock_model = MagicMock()
-        mock_preprocess = MagicMock()
-        mock_tokenizer = MagicMock()
-
-        # Create mock torch module with submodules
+        """Test FashionSigLIP raises RuntimeError on CPU-only hosts (CUDA required)."""
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        # Create mock open_clip module
         mock_open_clip = MagicMock()
-        mock_open_clip.create_model_from_pretrained.return_value = (
-            mock_model,
-            mock_preprocess,
-        )
-        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
@@ -354,23 +343,19 @@ class TestLoadFashionClipModel:
                 "open_clip": mock_open_clip,
             },
         ):
-            result = await load_fashion_clip_model("/path/to/model")
-
-            assert result["model"] == mock_model
-            assert result["preprocess"] == mock_preprocess
-            assert result["tokenizer"] == mock_tokenizer
-            mock_model.cuda.assert_not_called()
-            mock_model.eval.assert_called_once()
+            with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+                await load_fashion_clip_model("/path/to/model")
 
     @pytest.mark.asyncio
     async def test_load_model_from_huggingface_path(self) -> None:
         """Test loading model from HuggingFace path."""
         mock_model = MagicMock()
+        mock_model.cuda.return_value = mock_model  # cuda() returns same object
         mock_preprocess = MagicMock()
         mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
 
         mock_open_clip = MagicMock()
         mock_open_clip.create_model_from_pretrained.return_value = (
@@ -400,7 +385,7 @@ class TestLoadFashionClipModel:
     async def test_load_model_runtime_error(self) -> None:
         """Test RuntimeError when model loading fails."""
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
 
         mock_open_clip = MagicMock()
         mock_open_clip.create_model_from_pretrained.side_effect = OSError("Model not found at path")
@@ -427,7 +412,7 @@ class TestLoadFashionClipModel:
         mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
 
         mock_open_clip = MagicMock()
         mock_open_clip.create_model_from_pretrained.return_value = (
@@ -458,11 +443,12 @@ class TestLoadFashionClipModel:
     async def test_load_model_with_hf_hub_prefix(self) -> None:
         """Test loading model with hf-hub: prefix (line 165 else branch)."""
         mock_model = MagicMock()
+        mock_model.cuda.return_value = mock_model  # cuda() returns same object
         mock_preprocess = MagicMock()
         mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
 
         mock_open_clip = MagicMock()
         mock_open_clip.create_model_from_pretrained.return_value = (
@@ -1002,20 +988,11 @@ class TestDeviceHandling:
 
     @pytest.mark.asyncio
     async def test_model_stays_on_cpu_when_cuda_unavailable(self) -> None:
-        """Test model stays on CPU when CUDA unavailable."""
-        mock_model = MagicMock()
-        mock_preprocess = MagicMock()
-        mock_tokenizer = MagicMock()
-
+        """Test FashionSigLIP raises RuntimeError when CUDA is unavailable."""
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
         mock_open_clip = MagicMock()
-        mock_open_clip.create_model_from_pretrained.return_value = (
-            mock_model,
-            mock_preprocess,
-        )
-        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
@@ -1026,20 +1003,19 @@ class TestDeviceHandling:
                 "open_clip": mock_open_clip,
             },
         ):
-            await load_fashion_clip_model("/path/to/model")
-
-            mock_torch.cuda.is_available.assert_called_once()
-            mock_model.cuda.assert_not_called()
+            with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+                await load_fashion_clip_model("/path/to/model")
 
     @pytest.mark.asyncio
     async def test_model_is_set_to_eval_mode(self) -> None:
         """Test model is set to evaluation mode."""
         mock_model = MagicMock()
+        mock_model.cuda.return_value = mock_model  # cuda() returns same object
         mock_preprocess = MagicMock()
         mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
-        mock_torch.cuda.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = True
 
         mock_open_clip = MagicMock()
         mock_open_clip.create_model_from_pretrained.return_value = (

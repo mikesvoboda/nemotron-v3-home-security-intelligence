@@ -1505,7 +1505,8 @@ class TestYoloWorldLoader:
         mock_ultralytics.YOLOWorld = mock_yolo_world_class
 
         with patch.dict("sys.modules", {"ultralytics": mock_ultralytics}):
-            result = await load_yolo_world_model("yolov8s-worldv2.pt")
+            with patch("torch.cuda.is_available", return_value=True):
+                result = await load_yolo_world_model("yolov8s-worldv2.pt")
 
             assert result is mock_model
             mock_yolo_world_class.assert_called_once_with("yolov8s-worldv2.pt")
