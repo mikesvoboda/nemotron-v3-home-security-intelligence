@@ -585,7 +585,7 @@ class _ThreadWatchdog(threading.Thread):
         self._freeze_threshold = freeze_threshold
         self._last_tick: float = 0.0
         self._stop_evt = threading.Event()
-        self._log = None  # initialised lazily inside the thread
+        self._log: Any = None  # initialised lazily inside the thread (logging.Logger)
 
     def tick(self) -> None:
         """Called by the asyncio loop to signal it is alive."""
@@ -629,9 +629,7 @@ class _ThreadWatchdog(threading.Thread):
                 if "loop-freeze-watchdog" in tname or "_ThreadWatchdog" in joined:
                     continue
                 label = "[daemon]" if tdaemon else "[live]  "
-                parts.append(
-                    f"{label} Thread '{tname}' (tid={tid}):\n{joined}"
-                )
+                parts.append(f"{label} Thread '{tname}' (tid={tid}):\n{joined}")
 
             summary = "\n\n".join(parts) if parts else "(no threads to report)"
             self._log.error(
@@ -1128,7 +1126,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         )
         lifespan_logger.info("Tiktoken encoding pre-warmed (cl100k_base ready)")
     except Exception as _tc_exc:
-        lifespan_logger.warning("Tiktoken pre-warm failed (will retry on first LLM call): %s", _tc_exc)
+        lifespan_logger.warning(
+            "Tiktoken pre-warm failed (will retry on first LLM call): %s", _tc_exc
+        )
 
     # Start event-loop watchdog — logs thread stacks whenever the loop lags > 100ms
     # so we can identify which run_in_executor thread is holding the GIL.
