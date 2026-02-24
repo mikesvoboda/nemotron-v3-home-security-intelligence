@@ -132,6 +132,8 @@ services:
     build:
       context: ./ai/nemotron
       dockerfile: Dockerfile
+      args:
+        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
     # Podman CDI device passthrough (rootless GPU access)
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
@@ -526,9 +528,9 @@ services:
       resources:
         limits:
           cpus: '2'
-          # NEM-3890: Increased from 4G to 6G to prevent OOM kills
-          # Backend was at 94.45% memory usage (4.057GB / 4.295GB)
-          memory: 6G
+          # NEM-3890: Increased from 6G to 10G to prevent OOM kills
+          # Backend was at 90.74% memory usage (5.846GB / 6.442GB) before SIGKILL
+          memory: 10G
         reservations:
           devices:
             - driver: nvidia
