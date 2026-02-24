@@ -471,6 +471,44 @@ def download_yolo26_models(model_path: Path) -> bool:
     return success_count > 0
 
 
+def download_brisque_weights(model_path: Path) -> bool:
+    """Download piq BRISQUE SVR weights to the persistent torch hub cache.
+
+    piq.brisque() fetches these weights via torch.hub.load_state_dict_from_url
+    on first use.  By pre-downloading them into the persistent TORCH_HOME path
+    (model-zoo/.torch_cache/hub/checkpoints/) they survive container restarts
+    and work with TORCH_HOME=/models/model-zoo/.torch_cache in the container.
+
+    Args:
+        model_path: Base path for AI models (AI_MODELS_PATH).
+
+    Returns:
+        True if the weights are present (already existed or freshly downloaded).
+    """
+    import urllib.request
+
+    cache_dir = model_path / "model-zoo" / ".torch_cache" / "hub" / "checkpoints"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    target = cache_dir / "brisque_svm_weights.pt"
+    if target.exists():
+        print("    Already exists: brisque_svm_weights.pt")
+        return True
+
+    url = (
+        "https://github.com/photosynthesis-team/piq/"
+        "releases/download/v0.4.0/brisque_svm_weights.pt"
+    )
+    print("    Downloading brisque_svm_weights.pt (~1MB)...")
+    try:
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print("    Downloaded: brisque_svm_weights.pt")
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download brisque_svm_weights.pt: {e}")
+        return False
+
+
 def download_yolov8n_pose(model_path: Path) -> bool:
     """Download YOLOv8n-pose from ultralytics GitHub releases.
 
@@ -985,6 +1023,11 @@ def prompt_and_download_models(config: dict) -> None:
             success_count += 1
         else:
             fail_count += 1
+
+    # Download auxiliary weights that aren't HuggingFace models.
+    # These are small files fetched from other hosting (e.g. GitHub releases).
+    print("  [aux] brisque-quality (SVR weights)")
+    download_brisque_weights(ai_models_path)
 
     # Summary
     print()

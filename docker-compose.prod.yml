@@ -402,12 +402,10 @@ services:
       # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
       # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.
       - LOG_LEVEL=${LOG_LEVEL:-WARNING}
-      # Redirect torch/HF caches out of /home/appuser/.cache (which is tmpfs and
-      # therefore wiped on every container restart, forcing fresh downloads each boot).
-      # Both caches point to /tmp so any weights that must be fetched at first run
-      # at least survive the process lifetime.  In practice, all weights should be
-      # pre-downloaded to the host HF_CACHE_PATH and made available via HF_HOME below.
-      - TORCH_HOME=/tmp/torch_cache
+      # Redirect torch hub cache to the persistent model-zoo mount so weights
+      # (e.g. piq BRISQUE SVR) downloaded during setup.py survive container restarts.
+      # Path must be writable by appuser (UID 1000) inside the container.
+      - TORCH_HOME=/models/model-zoo/.torch_cache
       # Point HuggingFace to the pre-downloaded model cache (persistent host directory
       # mounted at /models/huggingface-cache below).  This avoids re-downloading on
       # every container restart and lets HF_HUB_OFFLINE=1 work correctly.

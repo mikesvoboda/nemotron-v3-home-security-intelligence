@@ -453,8 +453,8 @@ class BatchCoalescer:
         # Get batch IDs from sorted set
         batch_ids = await redis.zrangebyscore(
             candidates_key,
-            min=min_time,
-            max=max_time,
+            min_score=min_time,
+            max_score=max_time,
         )
 
         if not batch_ids:

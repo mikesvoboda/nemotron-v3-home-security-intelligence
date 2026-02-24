@@ -1187,8 +1187,19 @@ async def seed_synthetic_scenarios(
                     dest_path = scenario_watch_folder / dest_name
 
                     if dest_path.exists():
-                        dest_path.unlink()
-                    shutil.copyfile(frame_path, dest_path)
+                        try:
+                            dest_path.unlink()
+                        except PermissionError:
+                            subprocess.run(
+                                ["podman", "unshare", "rm", "-f", str(dest_path)], check=True
+                            )
+                    try:
+                        shutil.copyfile(frame_path, dest_path)
+                    except PermissionError:
+                        subprocess.run(
+                            ["podman", "unshare", "cp", "-f", str(frame_path), str(dest_path)],
+                            check=True,
+                        )
                     processed_frames.append(dest_path)
                     total_extracted += 1
 
@@ -1207,8 +1218,19 @@ async def seed_synthetic_scenarios(
             dest_path = scenario_watch_folder / dest_name
 
             if dest_path.exists():
-                dest_path.unlink()
-            shutil.copyfile(scenario.image_path, dest_path)
+                try:
+                    dest_path.unlink()
+                except PermissionError:
+                    subprocess.run(
+                        ["podman", "unshare", "rm", "-f", str(dest_path)], check=True
+                    )
+            try:
+                shutil.copyfile(scenario.image_path, dest_path)
+            except PermissionError:
+                subprocess.run(
+                    ["podman", "unshare", "cp", "-f", str(scenario.image_path), str(dest_path)],
+                    check=True,
+                )
             processed_frames.append(dest_path)
             total_extracted += 1
 
