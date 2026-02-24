@@ -459,48 +459,18 @@ async def test_load_segformer_model_runtime_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_load_segformer_model_success_cpu(monkeypatch):
-    """Test load_segformer_model success path with CPU."""
+    """Test load_segformer_model raises RuntimeError on CPU-only hosts (CUDA required)."""
     import sys
 
-    # Create mock torch
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
-    mock_torch.float32 = "float32"
 
-    # Create mock model
-    mock_model = MagicMock()
-    mock_model.to.return_value = mock_model
-    mock_model.eval.return_value = None
-
-    # Create mock processor
-    mock_processor = MagicMock()
-
-    # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.SegformerImageProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.AutoModelForSemanticSegmentation.from_pretrained.return_value = mock_model
-
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_segformer_model("/test/model")
-
-    # Should return a tuple of (model, processor)
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    model, processor = result
-    assert model is mock_model
-    assert processor is mock_processor
-
-    # Verify model was moved to CPU and set to eval mode
-    mock_model.to.assert_called_once_with("cpu")
-    mock_model.eval.assert_called_once()
-
-    # Verify model was loaded with float32 on CPU
-    mock_transformers.AutoModelForSemanticSegmentation.from_pretrained.assert_called_once_with(
-        "/test/model",
-        torch_dtype="float32",
-    )
+    with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+        await load_segformer_model("/test/model")
 
 
 @pytest.mark.asyncio
