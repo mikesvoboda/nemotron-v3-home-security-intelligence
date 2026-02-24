@@ -508,8 +508,8 @@ async def _event_loop_watchdog(
     run_in_executor thread is holding the GIL and blocking the event loop.
 
     Thresholds (all in seconds):
-        warn_lag  – log WARNING + stacks  (default 1.5s)
-        error_lag – log ERROR  + stacks   (default 4.0s, health-check-threatening)
+        warn_lag  - log WARNING + stacks  (default 1.5s)
+        error_lag - log ERROR  + stacks   (default 4.0s, health-check-threatening)
     """
     from backend.core.logging import get_logger
 
@@ -540,7 +540,7 @@ async def _event_loop_watchdog(
             joined = "".join(stack_lines).rstrip()
             if "event_loop_watchdog" in joined or len(stack_lines) < 4:
                 continue
-            label = f"[daemon]" if tdaemon else "[live]  "
+            label = "[daemon]" if tdaemon else "[live]  "
             parts.append(f"{label} Thread '{tname}' tid={tid}:\n{joined}")
 
         summary = "\n\n".join(parts) if parts else "(no non-trivial threads found)"

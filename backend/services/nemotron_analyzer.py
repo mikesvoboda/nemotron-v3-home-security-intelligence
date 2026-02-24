@@ -2730,6 +2730,7 @@ class NemotronAnalyzer:
             ]
 
             import threading as _threading
+
             logger.info(
                 "Starting LLM analysis for batch (active threads: %d)",
                 _threading.active_count(),
