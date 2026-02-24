@@ -197,6 +197,7 @@ def _extract_json_objects(text: str) -> list[str]:
             break
     return results
 
+
 logger = get_logger(__name__)
 
 
@@ -4319,7 +4320,11 @@ class NemotronAnalyzer:
 
         # --- Truncation recovery: model hit max_tokens mid-JSON ---
         if first_brace >= 0:
-            fragment = cleaned_text if cleaned_text.startswith("{") else cleaned_text[cleaned_text.find("{"):]
+            fragment = (
+                cleaned_text
+                if cleaned_text.startswith("{")
+                else cleaned_text[cleaned_text.find("{") :]
+            )
             for suffix in ('"}', '"}', '" }', "}", '"}}}'):
                 try:
                     data = json.loads(fragment + suffix)
