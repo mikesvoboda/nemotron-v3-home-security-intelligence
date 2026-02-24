@@ -682,31 +682,6 @@ class ModelManager:
                 f"Model {model_name} load timed out after {_MODEL_LOAD_TIMEOUT}s"
             ) from None
 
-            # Record load duration metric (NEM-4145)
-            load_duration = time.perf_counter() - start_time
-            set_model_load_duration(model_name, load_duration)
-
-            self._loaded_models[model_name] = model
-
-            # Mark as available after successful load
-            config.available = True
-
-            # Track that this model has been loaded (for restart detection)
-            self._previously_loaded.add(model_name)
-
-            # Record restart metric if this is a reload (NEM-4145)
-            if is_restart:
-                reason = restart_reason if restart_reason else "manual"
-                record_model_restart(model_name, reason)
-                logger.info(
-                    f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
-                    f"(restart reason: {reason})"
-                )
-            else:
-                logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
-
-            return model
-
         except RuntimeError as e:
             # Check if this is an optional dependency not being installed
             # (e.g., paddleocr). Log at INFO level for missing optional deps.
@@ -727,6 +702,31 @@ class ModelManager:
         except Exception:
             logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
             raise
+
+        # Happy path: all except branches raise, so reaching here means success.
+        load_duration = time.perf_counter() - start_time
+        set_model_load_duration(model_name, load_duration)
+
+        self._loaded_models[model_name] = model
+
+        # Mark as available after successful load
+        config.available = True
+
+        # Track that this model has been loaded (for restart detection)
+        self._previously_loaded.add(model_name)
+
+        # Record restart metric if this is a reload (NEM-4145)
+        if is_restart:
+            reason = restart_reason if restart_reason else "manual"
+            record_model_restart(model_name, reason)
+            logger.info(
+                f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
+                f"(restart reason: {reason})"
+            )
+        else:
+            logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
+
+        return model
 
     async def _unload_model(self, model_name: str) -> None:
         """Unload a model from memory and clear CUDA cache.
