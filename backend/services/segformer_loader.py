@@ -125,6 +125,13 @@ async def load_segformer_model(model_path: str) -> Any:
         import torch
         from transformers import AutoModelForSemanticSegmentation, SegformerImageProcessor
 
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "SegFormer B2 Clothes requires a CUDA GPU — CPU inference holds "
+                "the GIL for 5-25 s per frame and starves the async event loop. "
+                "Skipping on CPU-only host."
+            )
+
         logger.info(f"Loading SegFormer B2 Clothes model from {model_path}")
 
         # Validate local model path has required files when directory exists

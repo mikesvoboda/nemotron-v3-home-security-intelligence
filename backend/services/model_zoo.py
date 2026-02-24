@@ -211,21 +211,26 @@ async def load_yolo_model(model_path: str) -> Any:
             is ready for concurrent use without race conditions.
 
             See: https://github.com/ultralytics/yolov5/issues/12071
+
+            GIL note: model.fuse() calls model.info() → thop.profile(deepcopy(model))
+            which deep-copies the full network in pure Python, holding the GIL for
+            seconds.  On CPU this overhead is not worth the BN-fusion speedup (which
+            only matters on GPU anyway), so we skip fuse() on CPU-only hosts.
             """
+            import torch as _torch
+
             model = YOLO(model_path)
-            # Pre-fuse to avoid race condition when multiple threads call predict()
-            # The first predict() normally triggers automatic fusion, but this is
-            # not thread-safe. Explicit fuse() before concurrent use prevents the
-            # "'Conv' object has no attribute 'bn'" error.
-            if hasattr(model, "fuse"):
-                # Check if model has inner model with is_fused method
+
+            # fuse() only provides speedup via BN-Conv merging on CUDA;
+            # on CPU the thop deepcopy holds the GIL for seconds with no benefit.
+            if _torch.cuda.is_available() and hasattr(model, "fuse"):
                 inner_model = getattr(model, "model", None)
                 if inner_model is not None and hasattr(inner_model, "is_fused"):
                     if not inner_model.is_fused():
                         model.fuse()
                 else:
-                    # Fallback: just call fuse if we can't check fused state
                     model.fuse()
+
             return model
 
         # Run model loading in thread pool to avoid blocking

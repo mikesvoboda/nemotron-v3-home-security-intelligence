@@ -694,9 +694,14 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
         # Initialize file watcher (monitors camera directories for new images)
         # Pass camera_creator callback to enable auto-creation of camera records
+        # force inotify on Linux — overrides FILE_WATCHER_POLLING env var.
+        # PollingObserver scans /cameras every second in a Python loop, holding
+        # the GIL for 100-730 ms per pass and starving the async event loop.
+        # inotify is fully interrupt-driven and does not scan.
         file_watcher = FileWatcher(
             redis_client=redis_client,
             camera_creator=create_camera_callback,
+            use_polling=False,
         )
         await file_watcher.start()
         lifespan_logger.info(f"File watcher started: {settings.foscam_base_path}")

@@ -316,7 +316,15 @@ async def load_yolo_world_model(model_path: str) -> Any:
         results = model.predict(image)
     """
     try:
+        import torch
         from ultralytics import YOLOWorld
+
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "YOLO-World requires a CUDA GPU — CPU inference with open-vocabulary "
+                "prompts holds the GIL for 10-30 s per frame and starves the async "
+                "event loop.  Skipping on CPU-only host."
+            )
 
         logger.info(f"Loading YOLO-World model from {model_path}")
 

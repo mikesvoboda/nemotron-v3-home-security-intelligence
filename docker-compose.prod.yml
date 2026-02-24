@@ -417,7 +417,11 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       # Rootless Podman bind mounts don't propagate inotify events reliably.
       # Use polling mode for file watcher to detect new camera images.
-      - FILE_WATCHER_POLLING=${FILE_WATCHER_POLLING:-true}
+      # inotify is event-driven (no scanning loop, minimal GIL).  Polling was
+      # only needed for Docker Desktop/macOS volume mounts; on Linux/podman
+      # bind-mounts inotify works correctly.  Override with
+      # FILE_WATCHER_POLLING=true in .env if running on macOS/Docker Desktop.
+      - FILE_WATCHER_POLLING=${FILE_WATCHER_POLLING:-false}
       # Pyroscope continuous profiling (enabled by default, set PYROSCOPE_ENABLED=false to disable)
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
