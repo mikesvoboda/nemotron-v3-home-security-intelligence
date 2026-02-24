@@ -73,40 +73,20 @@ class TestLoadViolenceModel:
 
     @pytest.mark.asyncio
     async def test_load_violence_model_with_real_path(self, monkeypatch) -> None:
-        """Test that the model can be loaded from the real path.
-
-        This test verifies that the model loading logic works correctly.
-        Uses mocking to avoid requiring actual model files.
-        """
+        """Test load_violence_model raises RuntimeError on CPU-only hosts (CUDA required)."""
         import sys
 
         model_path = "/models/model-zoo/violence-detection"
 
-        # Create mock torch
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        # Create mock model
-        mock_model = MagicMock()
-        mock_model.eval.return_value = None
-
-        # Create mock processor
-        mock_processor = MagicMock()
-
-        # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
-
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        result = await load_violence_model(model_path)
-
-        assert "model" in result
-        assert "processor" in result
-        assert result["model"] is not None
-        assert result["processor"] is not None
+        with pytest.raises(RuntimeError, match="requires CUDA"):
+            await load_violence_model(model_path)
 
     @pytest.mark.asyncio
     async def test_load_violence_model_missing_path(self) -> None:
@@ -347,34 +327,18 @@ class TestLoadViolenceModelMocked:
 
     @pytest.mark.asyncio
     async def test_load_violence_model_cpu_path(self, monkeypatch) -> None:
-        """Test load_violence_model success path with CPU (no CUDA)."""
+        """Test load_violence_model raises RuntimeError on CPU-only hosts (CUDA required)."""
         import sys
 
-        # Create mock torch
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        # Create mock model
-        mock_model = MagicMock()
-        mock_model.eval.return_value = None
-
-        # Create mock processor
-        mock_processor = MagicMock()
-
-        # Create mock transformers
         mock_transformers = MagicMock()
-        mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
-
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-        result = await load_violence_model("/test/model/cpu")
-
-        assert "model" in result
-        assert "processor" in result
-        mock_model.eval.assert_called_once()
-        mock_model.cuda.assert_not_called()
+        with pytest.raises(RuntimeError, match="requires CUDA"):
+            await load_violence_model("/test/model/cpu")
 
     @pytest.mark.asyncio
     async def test_load_violence_model_cuda_path(self, monkeypatch) -> None:
@@ -412,51 +376,18 @@ class TestLoadViolenceModelMocked:
 
     @pytest.mark.asyncio
     async def test_load_violence_model_torch_import_error(self, monkeypatch) -> None:
-        """Test load_violence_model handles torch ImportError gracefully.
+        """Test load_violence_model raises RuntimeError when torch is not available.
 
-        When torch is not available, the model should still load but
-        without CUDA acceleration (eval() still called on CPU).
-        The code catches the ImportError for torch and continues.
+        With the CUDA-only guard, the loader raises before reaching any model
+        loading logic when torch cannot be imported.
         """
-        import builtins
         import sys
 
-        # Create mock transformers that loads successfully
-        mock_processor = MagicMock()
-        mock_model = MagicMock()
-        mock_model.eval.return_value = None
+        # Setting torch to None in sys.modules causes ImportError on 'import torch'
+        monkeypatch.setitem(sys.modules, "torch", None)
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
-
-        # Store original import
-        original_import = builtins.__import__
-
-        # Flag to track if we're in the _load function's torch import
-
-        def mock_import(name, globals=None, locals=None, fromlist=(), level=0):
-            # Only block torch import if it's a fresh import (not cached)
-            if name == "torch":
-                # Check if this is from within the _load function by looking at trace
-                import traceback
-
-                stack = traceback.extract_stack()
-                for frame in stack:
-                    if "violence_loader.py" in frame.filename and "_load" in frame.name:
-                        raise ImportError("No module named 'torch'")
-            return original_import(name, globals, locals, fromlist, level)
-
-        monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
-        monkeypatch.setattr(builtins, "__import__", mock_import)
-
-        # The _load() function should handle torch ImportError and still work
-        result = await load_violence_model("/test/model/no-torch")
-
-        assert "model" in result
-        assert "processor" in result
-        # Model.eval() should still be called even without torch
-        mock_model.eval.assert_called_once()
+        with pytest.raises((RuntimeError, ImportError)):
+            await load_violence_model("/test/model/no-torch")
 
     @pytest.mark.asyncio
     async def test_load_violence_model_transformers_import_error(self, monkeypatch) -> None:
