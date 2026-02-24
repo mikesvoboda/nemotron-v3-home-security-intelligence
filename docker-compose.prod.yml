@@ -383,6 +383,12 @@ services:
       - ./backend/data:/app/data:z,U
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
+      # Pre-downloaded HuggingFace model cache (matches ai-gateway mount).
+      # Required for fashion-clip (open_clip hf-hub format) and any other model
+      # whose loader uses from_pretrained() with a HuggingFace repo ID.
+      # HF_HOME in environment points here so HF_HUB_OFFLINE=1 can serve models
+      # without network access.
+      - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/models/huggingface-cache:ro
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Mount to fixed path so container has access regardless of /run/user layout
       - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock
@@ -400,9 +406,24 @@ services:
       # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
       # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.
       - LOG_LEVEL=${LOG_LEVEL:-WARNING}
-      # Redirect torch hub cache to /tmp (writable tmpfs) — /home/appuser/.cache tmpfs
-      # mounts as root-owned in rootless Podman, preventing appuser from writing to it
+      # Redirect torch/HF caches out of /home/appuser/.cache (which is tmpfs and
+      # therefore wiped on every container restart, forcing fresh downloads each boot).
+      # Both caches point to /tmp so any weights that must be fetched at first run
+      # at least survive the process lifetime.  In practice, all weights should be
+      # pre-downloaded to the host HF_CACHE_PATH and made available via HF_HOME below.
       - TORCH_HOME=/tmp/torch_cache
+      # Point HuggingFace to the pre-downloaded model cache (persistent host directory
+      # mounted at /models/huggingface-cache below).  This avoids re-downloading on
+      # every container restart and lets HF_HUB_OFFLINE=1 work correctly.
+      - HF_HOME=/models/huggingface-cache
+      # Enforce offline mode — all HuggingFace weights must be pre-downloaded to
+      # HF_CACHE_PATH on the host before the container starts.  Any from_pretrained()
+      # or open_clip hf-hub: call that cannot find the model in the local cache will
+      # raise an OSError immediately rather than attempting a network download at
+      # runtime.  Override with HF_HUB_OFFLINE=0 only during initial model setup.
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
+      # Belt-and-suspenders: also covers Transformers-specific offline check
+      - TRANSFORMERS_OFFLINE=${TRANSFORMERS_OFFLINE:-1}
       # Prevent ultralytics from attempting to install packages (e.g. CLIP from GitHub)
       # at runtime via check_requirements(). The container has no git and no PyPI access,
       # so these attempts block for tens of seconds before failing, which causes GIL
