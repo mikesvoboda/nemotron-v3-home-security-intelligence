@@ -405,7 +405,7 @@ class BatchCoalescer:
         await redis.set(
             candidate_key,
             candidate.to_json(),
-            ex=self.CANDIDATE_TTL_SECONDS,
+            expire=self.CANDIDATE_TTL_SECONDS,
         )
 
         # Add to sorted set by timestamp
