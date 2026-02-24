@@ -217,7 +217,10 @@ async def load_yolo_model(model_path: str) -> Any:
             seconds.  On CPU this overhead is not worth the BN-fusion speedup (which
             only matters on GPU anyway), so we skip fuse() on CPU-only hosts.
             """
+            import threading as _threading
             import torch as _torch
+
+            _threading.current_thread().name = f"load-yolo[{model_path.name}]"
 
             model = YOLO(model_path)
 

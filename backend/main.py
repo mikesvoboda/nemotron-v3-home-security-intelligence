@@ -559,6 +559,89 @@ async def _event_loop_watchdog(
             )
 
 
+class _ThreadWatchdog(threading.Thread):
+    """Background thread that detects event-loop freezes and dumps all thread stacks.
+
+    Unlike the coroutine watchdog (which cannot fire when the loop is frozen),
+    this thread uses ``time.sleep`` and a shared monotonic timestamp updated by
+    the asyncio loop. When the timestamp stops advancing, the loop is assumed
+    blocked and every Python thread's stack is written to the log.
+
+    Usage::
+
+        wd = _ThreadWatchdog(interval=1.0, freeze_threshold=2.0)
+        wd.start()
+        # … inside the asyncio loop, call wd.tick() from a periodic task …
+        wd.stop()
+    """
+
+    def __init__(
+        self,
+        interval: float = 1.0,
+        freeze_threshold: float = 3.0,
+    ) -> None:
+        super().__init__(name="loop-freeze-watchdog", daemon=True)
+        self._interval = interval
+        self._freeze_threshold = freeze_threshold
+        self._last_tick: float = 0.0
+        self._stop_evt = threading.Event()
+        self._log = None  # initialised lazily inside the thread
+
+    def tick(self) -> None:
+        """Called by the asyncio loop to signal it is alive."""
+        import time
+
+        self._last_tick = time.monotonic()
+
+    def stop(self) -> None:
+        self._stop_evt.set()
+
+    def run(self) -> None:
+        import time
+
+        from backend.core.logging import get_logger
+
+        self._log = get_logger("backend.diagnostics.thread_watchdog")
+        # Give the event loop a moment to start ticking.
+        time.sleep(self._interval * 2)
+        self._last_tick = time.monotonic()
+
+        while not self._stop_evt.wait(timeout=self._interval):
+            now = time.monotonic()
+            silence = now - self._last_tick
+            if silence < self._freeze_threshold:
+                continue
+
+            # ----------------------------------------------------------------
+            # Loop has been silent for > freeze_threshold — dump everything.
+            # ----------------------------------------------------------------
+            current_frames = sys._current_frames()
+            thread_index = {t.ident: t for t in threading.enumerate()}
+
+            parts: list[str] = []
+            for tid, frame in sorted(current_frames.items()):
+                t = thread_index.get(tid)
+                tname = getattr(t, "name", f"tid-{tid}")
+                tdaemon = getattr(t, "daemon", True)
+                stack_lines = traceback.format_stack(frame)
+                joined = "".join(stack_lines).rstrip()
+                # Skip this watchdog thread itself
+                if "loop-freeze-watchdog" in tname or "_ThreadWatchdog" in joined:
+                    continue
+                label = "[daemon]" if tdaemon else "[live]  "
+                parts.append(
+                    f"{label} Thread '{tname}' (tid={tid}):\n{joined}"
+                )
+
+            summary = "\n\n".join(parts) if parts else "(no threads to report)"
+            self._log.error(
+                "EVENT-LOOP FROZEN for %.1fs — dumping %d thread stacks:\n\n%s",
+                silence,
+                len(parts),
+                summary,
+            )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -1027,6 +1110,26 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             "BACKEND_MODEL_PRELOAD=false — models will load on first pipeline request (lazy)"
         )
 
+    # Pre-warm tiktoken encoding in a thread executor.
+    # tiktoken.get_encoding() downloads the BPE vocabulary file (~1.7 MB) from
+    # OpenAI's CDN on first call using synchronous requests.get().  If called
+    # lazily on the event loop (e.g., inside _validate_and_truncate_prompt) it
+    # blocks the entire asyncio loop while doing a TLS handshake and network
+    # download, causing health-check failures.  Initialising it here during
+    # startup — inside run_in_executor — downloads/caches the file in a thread
+    # and ensures all subsequent calls use the warm singleton.
+    _loop = asyncio.get_running_loop()
+    try:
+        await _loop.run_in_executor(
+            None,
+            lambda: __import__(
+                "backend.services.token_counter", fromlist=["get_token_counter"]
+            ).get_token_counter(),
+        )
+        lifespan_logger.info("Tiktoken encoding pre-warmed (cl100k_base ready)")
+    except Exception as _tc_exc:
+        lifespan_logger.warning("Tiktoken pre-warm failed (will retry on first LLM call): %s", _tc_exc)
+
     # Start event-loop watchdog — logs thread stacks whenever the loop lags > 100ms
     # so we can identify which run_in_executor thread is holding the GIL.
     # Thresholds are intentionally low: burst GIL starvation from many short-lived
@@ -1037,12 +1140,30 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     )
     lifespan_logger.info("Event-loop watchdog started (warn=0.1s, error=0.5s)")
 
+    # Thread-based freeze detector — fires even when the event loop is completely
+    # frozen (the coroutine watchdog above cannot run in that state).
+    # freeze_threshold=3s: a loop blocked this long will cause health-check failures.
+    thread_watchdog = _ThreadWatchdog(interval=1.0, freeze_threshold=3.0)
+    thread_watchdog.start()
+
+    async def _tick_thread_watchdog() -> None:
+        while True:
+            thread_watchdog.tick()
+            await asyncio.sleep(0.5)
+
+    tick_task = asyncio.create_task(_tick_thread_watchdog(), name="loop_tick")
+    lifespan_logger.info("Thread freeze-watchdog started (freeze_threshold=3.0s)")
+
     yield
 
     # Shutdown
     watchdog_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await watchdog_task
+    tick_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await tick_task
+    thread_watchdog.stop()
     # Stop container orchestrator first (before stopping docker client)
     if container_orchestrator is not None:
         await container_orchestrator.stop()

@@ -509,6 +509,49 @@ def download_brisque_weights(model_path: Path) -> bool:
         return False
 
 
+def download_tiktoken_encoding(model_path: Path) -> bool:
+    """Download the tiktoken cl100k_base BPE encoding file to a persistent cache.
+
+    tiktoken.get_encoding('cl100k_base') fetches this ~1.7 MB file from
+    OpenAI's CDN on first call using a synchronous requests.get().  When called
+    lazily inside the asyncio event loop (e.g. from _validate_and_truncate_prompt
+    during LLM analysis) it blocks the entire loop while performing a TLS
+    handshake and download — causing health-check failures and GIL starvation.
+
+    Pre-downloading here and pointing TIKTOKEN_CACHE_DIR at this directory means
+    the container never reaches the network at runtime.  tiktoken's cache key is
+    the SHA-1 of the URL (see tiktoken/load.py::read_file_cached).
+
+    Args:
+        model_path: Base path for AI models (AI_MODELS_PATH).
+
+    Returns:
+        True if the file is present (already existed or freshly downloaded).
+    """
+    import hashlib
+    import urllib.request
+
+    url = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+    cache_key = hashlib.sha1(url.encode()).hexdigest()  # noqa: S324
+
+    cache_dir = model_path / "model-zoo" / ".tiktoken_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    target = cache_dir / cache_key
+    if target.exists():
+        print(f"    Already exists: tiktoken cl100k_base ({cache_key[:12]}…)")
+        return True
+
+    print("    Downloading tiktoken cl100k_base (~1.7MB)...")
+    try:
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print(f"    Downloaded: tiktoken cl100k_base → {cache_key[:12]}…")
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download tiktoken cl100k_base: {e}")
+        return False
+
+
 def download_yolov8n_pose(model_path: Path) -> bool:
     """Download YOLOv8n-pose from ultralytics GitHub releases.
 
@@ -1028,6 +1071,9 @@ def prompt_and_download_models(config: dict) -> None:
     # These are small files fetched from other hosting (e.g. GitHub releases).
     print("  [aux] brisque-quality (SVR weights)")
     download_brisque_weights(ai_models_path)
+
+    print("  [aux] tiktoken cl100k_base (LLM prompt tokenizer)")
+    download_tiktoken_encoding(ai_models_path)
 
     # Summary
     print()

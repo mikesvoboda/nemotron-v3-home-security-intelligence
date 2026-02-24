@@ -406,6 +406,12 @@ services:
       # (e.g. piq BRISQUE SVR) downloaded during setup.py survive container restarts.
       # Path must be writable by appuser (UID 1000) inside the container.
       - TORCH_HOME=/models/model-zoo/.torch_cache
+      # Point tiktoken to the pre-downloaded BPE encoding cache (persistent host
+      # directory).  tiktoken.get_encoding() downloads ~1.7 MB from OpenAI's CDN on
+      # first call using synchronous requests.get(), which blocks the asyncio event
+      # loop and causes health-check failures.  setup.py pre-downloads the file and
+      # sets this variable so the container never reaches the network at runtime.
+      - TIKTOKEN_CACHE_DIR=/models/model-zoo/.tiktoken_cache
       # Point HuggingFace to the pre-downloaded model cache (persistent host directory
       # mounted at /models/huggingface-cache below).  This avoids re-downloading on
       # every container restart and lets HF_HUB_OFFLINE=1 work correctly.
