@@ -619,12 +619,13 @@ async def test_load_vitpose_model_import_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_load_vitpose_model_runtime_error(monkeypatch):
-    """Test load_vitpose_model handles RuntimeError."""
+    """Test load_vitpose_model handles RuntimeError during model loading on CUDA."""
     import sys
 
-    # Mock torch and transformers to exist but fail on model load
+    # Mock torch with CUDA available but fail on model load
     mock_torch = MagicMock()
-    mock_torch.cuda.is_available.return_value = False
+    mock_torch.cuda.is_available.return_value = True
+    mock_torch.float16 = "float16"
     mock_transformers = MagicMock()
     mock_transformers.AutoProcessor.from_pretrained.side_effect = RuntimeError("Model not found")
 
@@ -637,11 +638,12 @@ async def test_load_vitpose_model_runtime_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_load_vitpose_model_generic_exception(monkeypatch):
-    """Test load_vitpose_model handles generic exceptions."""
+    """Test load_vitpose_model handles generic exceptions during model loading on CUDA."""
     import sys
 
     mock_torch = MagicMock()
-    mock_torch.cuda.is_available.return_value = False
+    mock_torch.cuda.is_available.return_value = True
+    mock_torch.float16 = "float16"
     mock_transformers = MagicMock()
     mock_transformers.AutoProcessor.from_pretrained.side_effect = Exception("Unknown error")
 
@@ -656,37 +658,23 @@ async def test_load_vitpose_model_generic_exception(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_load_vitpose_model_success_cpu(monkeypatch):
-    """Test load_vitpose_model success path with CPU."""
+async def test_load_vitpose_model_rejects_cpu_only_host(monkeypatch):
+    """Test load_vitpose_model raises RuntimeError on CPU-only hosts.
+
+    ViTPose CPU inference holds the GIL for 5-20s per frame and would
+    starve the async event loop, so CPU-only hosts are explicitly rejected.
+    """
     import sys
 
-    # Create mock torch
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
-    mock_torch.float32 = "float32"
-
-    # Create mock model
-    mock_model = MagicMock()
-    mock_model.to.return_value = mock_model
-    mock_model.eval.return_value = None
-
-    # Create mock processor
-    mock_processor = MagicMock()
-
-    # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.VitPoseForPoseEstimation.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_vitpose_model("/test/model")
-
-    # Returns tuple (model, processor)
-    assert result == (mock_model, mock_processor)
-    mock_model.to.assert_called_once_with("cpu")
-    mock_model.eval.assert_called_once()
+    with pytest.raises(RuntimeError, match="Failed to load ViTPose"):
+        await load_vitpose_model("/test/model")
 
 
 @pytest.mark.asyncio

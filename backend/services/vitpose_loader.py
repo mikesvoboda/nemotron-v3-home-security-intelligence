@@ -160,25 +160,14 @@ async def load_vitpose_model(model_path: str) -> Any:
 
         def _load_model() -> tuple[Any, Any]:
             """Load model and processor synchronously."""
-            # Load processor
             processor = AutoProcessor.from_pretrained(model_path)
 
-            # Determine device and dtype
-            if torch.cuda.is_available():
-                device = "cuda"
-                dtype = torch.float16
-            else:
-                device = "cpu"
-                dtype = torch.float32
-
-            # Load model
             model = VitPoseForPoseEstimation.from_pretrained(
                 model_path,
-                torch_dtype=dtype,
+                torch_dtype=torch.float16,
             )
 
-            # Move to device and set eval mode
-            model = model.to(device)
+            model = model.to("cuda")
             model.eval()
 
             return model, processor
