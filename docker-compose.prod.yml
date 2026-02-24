@@ -389,9 +389,10 @@ services:
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
-      # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
-      # To enable, use python:3.14t-slim-bookworm image and uncomment:
-      # - PYTHON_GIL=0
+      # Free-threaded Python 3.14t: GIL disabled so run_in_executor threads
+      # (ML inference, model loading, file-watcher polling) cannot block the asyncio
+      # event loop and cause health-check failures.
+      - PYTHON_GIL=0
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}

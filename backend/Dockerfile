@@ -30,8 +30,9 @@
 # Free-threading benefits: ~4x speedup for CPU-bound multi-threaded workloads
 # Free-threading overhead: ~5-10% slower for single-threaded code
 # =============================================================================
-# Use public Python base image (self-contained, no external base image dependency)
-FROM python:3.14-slim-bookworm AS base
+# Free-threaded Python 3.14t: no GIL — run_in_executor threads (PyTorch inference,
+# model loading, watchdog polling) no longer block the asyncio event loop.
+FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -41,7 +42,7 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
+LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
 
 WORKDIR /app
 
@@ -131,11 +132,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # =============================================================================
 # Production target: minimal runtime image without build tools
-# Uses Python 3.14 (standard build)
-# Note: Free-threaded Python (3.14t) is not yet available in official Docker images.
-# The application will gracefully fall back to GIL-enabled mode.
+# Uses Python 3.14t free-threaded build (no GIL).
 # =============================================================================
-FROM python:3.14-slim-bookworm AS prod
+FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS prod
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -145,8 +144,8 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
-LABEL org.opencontainers.image.base.digest="python:3.14-slim-bookworm"
+LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
+LABEL org.opencontainers.image.base.digest="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
 
 WORKDIR /app
 
