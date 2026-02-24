@@ -155,6 +155,48 @@ _THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
 _THINK_EXTRACT_PATTERN = re.compile(r"<think>(.*?)</think>", re.DOTALL)
 _JSON_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
 
+
+def _extract_json_objects(text: str) -> list[str]:
+    """Extract top-level JSON objects using balanced brace matching.
+
+    Unlike ``_JSON_PATTERN`` (single nesting level), this handles arbitrary
+    depth and correctly skips braces inside JSON string literals.
+    """
+    results: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        depth = 0
+        in_string = False
+        j = i
+        found_end = False
+        while j < n:
+            c = text[j]
+            if in_string:
+                if c == "\\" and j + 1 < n:
+                    j += 2
+                    continue
+                if c == '"':
+                    in_string = False
+            elif c == '"':
+                in_string = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    results.append(text[i : j + 1])
+                    found_end = True
+                    i = j + 1
+                    break
+            j += 1
+        if not found_end:
+            break
+    return results
+
 logger = get_logger(__name__)
 
 
@@ -2790,12 +2832,12 @@ class NemotronAnalyzer:
                 },
                 exc_info=True,
             )
-            # Create fallback risk data - use sanitized error for user-facing content
             risk_data = {
                 "risk_score": 50,
                 "risk_level": "medium",
                 "summary": "Analysis unavailable - LLM service error",
                 "reasoning": "Failed to analyze detections due to service error",
+                "raw_response": getattr(e, "raw_completion", ""),
             }
 
         # =========================================================================
@@ -3303,12 +3345,12 @@ class NemotronAnalyzer:
                 },
                 exc_info=True,
             )
-            # Create fallback risk data - use generic message for user-facing content
             risk_data = {
                 "risk_score": 50,
                 "risk_level": "medium",
                 "summary": "Analysis unavailable - LLM service error",
                 "reasoning": "Failed to analyze detection due to service error",
+                "raw_response": getattr(e, "raw_completion", ""),
             }
 
         # =========================================================================
@@ -4169,8 +4211,13 @@ class NemotronAnalyzer:
                         ) from last_exception
                     raise AnalyzerUnavailableError(error_msg)
 
-        # Parse JSON from completion
-        risk_data = self._parse_llm_response(completion_text)
+        # Parse JSON from completion — attach raw text to parse errors so
+        # callers can still persist it for debugging (NEM-4234)
+        try:
+            risk_data = self._parse_llm_response(completion_text)
+        except ValueError as parse_err:
+            parse_err.raw_completion = completion_text  # type: ignore[attr-defined]
+            raise
 
         # Validate and normalize risk data
         risk_data = self._validate_risk_data(risk_data)
@@ -4209,8 +4256,16 @@ class NemotronAnalyzer:
     def _parse_llm_response(self, text: str) -> dict[str, Any]:
         """Parse JSON response from LLM completion.
 
-        Handles Nemotron-3-Nano output which includes <think>...</think> reasoning
-        blocks before the actual JSON response.
+        Handles Nemotron output that may include ``<think>`` reasoning blocks,
+        free-form chain-of-thought preamble, or deeply nested JSON.
+
+        Strategy (in order):
+        1. Strip ``<think>`` blocks and preamble text before the first ``{``.
+        2. Fast-path: ``json.loads`` on the entire cleaned text.
+        3. Balanced-brace extraction (``_extract_json_objects``) — supports
+           arbitrary nesting depth unlike the old single-level regex.
+        4. Truncation recovery: try closing an incomplete final object.
+        5. Regex fallback (``_JSON_PATTERN``) on the original text.
 
         Args:
             text: LLM completion text
@@ -4222,56 +4277,68 @@ class NemotronAnalyzer:
             ValueError: If JSON cannot be extracted or parsed
         """
         # Strip <think>...</think> reasoning blocks (Nemotron-3-Nano format)
-        # The model outputs reasoning in <think> tags before the JSON
-        # Uses pre-compiled _THINK_PATTERN for performance
         cleaned_text = _THINK_PATTERN.sub("", text).strip()
 
-        # Also handle incomplete think blocks (model may not close the tag)
+        # Handle incomplete think blocks (model may not close the tag)
         if "<think>" in cleaned_text:
-            # Find content after the last </think> or after <think>...
             parts = cleaned_text.split("</think>")
             if len(parts) > 1:
                 cleaned_text = parts[-1].strip()
             else:
-                # No closing tag, try to find JSON after <think> block
                 think_start = cleaned_text.find("<think>")
-                # Look for JSON start after think
                 json_start = cleaned_text.find("{", think_start)
                 if json_start != -1:
                     cleaned_text = cleaned_text[json_start:]
 
-        # Handle "thinking out loud" without <think> tags
-        # If text starts with non-JSON content, skip to first {
+        # Skip chain-of-thought preamble before the first brace
         first_brace = cleaned_text.find("{")
         if first_brace > 0:
-            # Check if there's preamble text before the JSON
             preamble = cleaned_text[:first_brace].strip()
-            if preamble and not preamble.startswith("{"):
-                logger.debug(f"Skipping LLM preamble: {preamble[:100]}...")
+            if preamble:
+                logger.debug(f"Skipping LLM preamble ({len(preamble)} chars): {preamble[:100]}...")
                 cleaned_text = cleaned_text[first_brace:]
 
-        # Try to extract JSON from the cleaned text
-        # Look for JSON object pattern (handles nested objects)
-        # Uses pre-compiled _JSON_PATTERN for performance
-        matches = _JSON_PATTERN.findall(cleaned_text)
+        # --- Fast path: try parsing entire cleaned text as JSON directly ---
+        if cleaned_text.startswith("{"):
+            try:
+                data = json.loads(cleaned_text)
+                if isinstance(data, dict) and "risk_score" in data:
+                    return dict(data)
+            except json.JSONDecodeError:
+                pass
 
-        # If no matches in cleaned text, try original text as fallback
-        if not matches:
-            matches = _JSON_PATTERN.findall(text)
+        # --- Balanced-brace extraction (handles arbitrary nesting) ---
+        for source in (cleaned_text, text):
+            for candidate in _extract_json_objects(source):
+                try:
+                    data = json.loads(candidate)
+                    if isinstance(data, dict) and "risk_score" in data:
+                        return dict(data)
+                except json.JSONDecodeError:
+                    continue
 
-        if not matches:
-            raise ValueError(f"No JSON found in LLM response: {text[:200]}")
+        # --- Truncation recovery: model hit max_tokens mid-JSON ---
+        if first_brace >= 0:
+            fragment = cleaned_text if cleaned_text.startswith("{") else cleaned_text[cleaned_text.find("{"):]
+            for suffix in ('"}', '"}', '" }', "}", '"}}}'):
+                try:
+                    data = json.loads(fragment + suffix)
+                    if isinstance(data, dict) and "risk_score" in data:
+                        logger.warning("Recovered truncated JSON with closing suffix")
+                        return dict(data)
+                except json.JSONDecodeError:
+                    continue
 
-        # Try each match until we get valid JSON
-        for match in matches:
+        # --- Legacy regex fallback on original text ---
+        for match in _JSON_PATTERN.findall(text):
             try:
                 data = json.loads(match)
-                if "risk_score" in data and "risk_level" in data:
-                    return dict(data)  # Ensure we return a dict
-            except json.JSONDecodeError:  # pragma: no cover
-                continue  # pragma: no cover
+                if isinstance(data, dict) and "risk_score" in data:
+                    return dict(data)
+            except json.JSONDecodeError:
+                continue
 
-        raise ValueError(f"Could not parse valid risk JSON from: {text[:200]}")
+        raise ValueError(f"No JSON found in LLM response: {text[:200]}")
 
     def _validate_risk_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate and normalize risk assessment data using Pydantic schemas.

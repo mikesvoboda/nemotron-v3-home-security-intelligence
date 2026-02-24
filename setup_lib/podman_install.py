@@ -144,6 +144,39 @@ def _install_podman5_dependencies() -> None:
     # Non-zero is fine if already migrated — suppress noise
 
 
+def _install_host_tools() -> None:
+    """Install host-level tools required by setup and seed scripts.
+
+    These are system binaries that must be present on the host (not inside
+    containers) because they are invoked by scripts running on the host:
+
+      - ffmpeg / ffprobe: Used by scripts/seed-events.py to extract frames
+        from synthetic video scenarios for AI pipeline testing.
+    """
+    tools: list[tuple[str, str, str]] = [
+        # (binary_name, apt_package, description)
+        ("ffmpeg", "ffmpeg", "video frame extraction for seed-events.py"),
+    ]
+
+    for binary, package, description in tools:
+        if shutil.which(binary):
+            print(f"  + {binary} already available")
+            continue
+
+        print(f"  Installing {package} ({description})...")
+        result = subprocess.run(
+            ["sudo", "apt-get", "install", "-y", package],  # noqa: S603, S607
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            print(f"  + {package} installed")
+        else:
+            print(f"  ! Failed to install {package}: {result.stderr.strip()}")
+            print(f"    Install manually with: sudo apt-get install -y {package}")
+
+
 def upgrade_podman_to_4x(platform_info: PlatformInfo) -> bool:
     """Upgrade Podman to 5.x (or 4.x as fallback) using Kubic repository.
 
@@ -871,6 +904,10 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
             print("  [podman] Installing Podman 5.x dependencies (passt)...", flush=True)
             _install_podman5_dependencies()
 
+        # Install host tools required by setup and seed scripts (e.g. ffmpeg)
+        print("  [podman] Installing host tools...", flush=True)
+        _install_host_tools()
+
         # Also check and install podman-compose
         if not is_podman_compose_installed():
             print("  [podman] podman-compose not found, installing...", flush=True)
@@ -897,6 +934,10 @@ def prompt_and_install_podman(config: dict[str, Any] | None = None) -> bool:
             print(f"  [podman] Podman {current_version} installed, but 5.0+ is recommended", flush=True)
             print("  [podman] Upgrading to Podman 5.x...", flush=True)
             upgrade_podman_to_4x(platform_info)
+
+        # Install host tools required by setup and seed scripts (e.g. ffmpeg)
+        print("  [podman] Installing host tools...", flush=True)
+        _install_host_tools()
 
         # Install podman-compose
         if not is_podman_compose_installed():
