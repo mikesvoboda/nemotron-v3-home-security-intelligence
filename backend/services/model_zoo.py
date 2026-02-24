@@ -642,16 +642,40 @@ class ModelManager:
         # Track load time for metrics (NEM-4145)
         start_time = time.perf_counter()
 
+        # Hard timeout for model loading: prevents a single slow model from
+        # blocking the enrichment pipeline indefinitely and keeps the event loop
+        # responsive for health checks.  The underlying run_in_executor thread
+        # will keep running, but the asyncio coroutine is freed so other tasks
+        # (watchdog, health endpoints) can execute.
+        _MODEL_LOAD_TIMEOUT = 20.0
+
         try:
             # Add Pyroscope label for per-model profiling
             try:
                 import pyroscope
 
                 with pyroscope.tag_wrapper({"model": model_name}):
-                    model = await config.load_fn(config.path)
+                    model = await asyncio.wait_for(
+                        config.load_fn(config.path),
+                        timeout=_MODEL_LOAD_TIMEOUT,
+                    )
             except ImportError:
                 # Pyroscope not installed, load without tagging
-                model = await config.load_fn(config.path)
+                model = await asyncio.wait_for(
+                    config.load_fn(config.path),
+                    timeout=_MODEL_LOAD_TIMEOUT,
+                )
+        except TimeoutError:
+            load_duration = time.perf_counter() - start_time
+            logger.error(
+                "Model load timed out after %.1fs — skipping %s "
+                "(background thread will finish but event loop is now free)",
+                load_duration,
+                model_name,
+            )
+            raise RuntimeError(
+                f"Model {model_name} load timed out after {_MODEL_LOAD_TIMEOUT}s"
+            ) from None
 
             # Record load duration metric (NEM-4145)
             load_duration = time.perf_counter() - start_time

@@ -2679,7 +2679,8 @@ class NemotronAnalyzer:
                 # Coalescing is optional - don't fail the pipeline if it errors
                 logger.warning(
                     "Failed to perform batch coalescing",
-                    extra={"batch_id": batch_id, "error": str(e)},
+                    exc_info=True,
+                    extra={"batch_id": batch_id, "error": str(e), "error_type": type(e).__name__},
                 )
 
         # =========================================================================
@@ -2727,6 +2728,13 @@ class NemotronAnalyzer:
                 for d in detections
                 if d.confidence is not None
             ]
+
+            import threading as _threading
+            logger.info(
+                "Starting LLM analysis for batch (active threads: %d)",
+                _threading.active_count(),
+                extra={"batch_id": batch_id, "camera_id": camera_id},
+            )
 
             risk_data = await self._call_llm(
                 camera_name=camera_name,

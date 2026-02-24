@@ -8,9 +8,13 @@ This module provides:
 """
 
 import asyncio
+import contextlib
 import pathlib
 import signal
 import ssl
+import sys
+import threading
+import traceback
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from functools import lru_cache
@@ -491,6 +495,70 @@ async def validate_camera_paths_on_startup() -> tuple[int, int]:
         return (valid_count, invalid_count)
 
 
+async def _event_loop_watchdog(
+    interval: float = 0.5,
+    warn_lag: float = 1.5,
+    error_lag: float = 4.0,
+) -> None:
+    """Monitor event loop lag and dump thread stacks on GIL starvation.
+
+    Wakes every `interval` seconds and measures how long asyncio.sleep actually
+    took.  When the observed lag exceeds a threshold every live Python thread's
+    stack trace is written to the log so we can identify which
+    run_in_executor thread is holding the GIL and blocking the event loop.
+
+    Thresholds (all in seconds):
+        warn_lag  – log WARNING + stacks  (default 1.5s)
+        error_lag – log ERROR  + stacks   (default 4.0s, health-check-threatening)
+    """
+    from backend.core.logging import get_logger
+
+    _log = get_logger("backend.diagnostics.watchdog")
+    loop = asyncio.get_running_loop()
+
+    while True:
+        t0 = loop.time()
+        await asyncio.sleep(interval)
+        lag = loop.time() - t0 - interval
+
+        if lag < warn_lag:
+            continue
+
+        # Build per-thread stack snapshot while frames are still "live".
+        # run_in_executor threads running 60-120s of CPU inference will still
+        # be visible here even if the asyncio task was already cancelled.
+        current_frames = sys._current_frames()
+        thread_index = {t.ident: t for t in threading.enumerate()}
+
+        parts: list[str] = []
+        for tid, frame in sorted(current_frames.items()):
+            t = thread_index.get(tid)
+            tname = getattr(t, "name", f"tid-{tid}")
+            tdaemon = getattr(t, "daemon", False)
+            stack_lines = traceback.format_stack(frame)
+            # Skip trivial stacks (idle threads / the watchdog itself)
+            joined = "".join(stack_lines).rstrip()
+            if "event_loop_watchdog" in joined or len(stack_lines) < 4:
+                continue
+            label = f"[daemon]" if tdaemon else "[live]  "
+            parts.append(f"{label} Thread '{tname}' tid={tid}:\n{joined}")
+
+        summary = "\n\n".join(parts) if parts else "(no non-trivial threads found)"
+
+        if lag >= error_lag:
+            _log.error(
+                "Event-loop lag %.2fs — GIL starvation (health checks WILL fail).\n%s",
+                lag,
+                summary,
+            )
+        else:
+            _log.warning(
+                "Event-loop lag %.2fs — possible GIL contention.\n%s",
+                lag,
+                summary,
+            )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -954,9 +1022,22 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             "BACKEND_MODEL_PRELOAD=false — models will load on first pipeline request (lazy)"
         )
 
+    # Start event-loop watchdog — logs thread stacks whenever the loop lags > 100ms
+    # so we can identify which run_in_executor thread is holding the GIL.
+    # Thresholds are intentionally low: burst GIL starvation from many short-lived
+    # inference threads shows as many 100-400ms lags rather than one 1.5s lag.
+    watchdog_task = asyncio.create_task(
+        _event_loop_watchdog(interval=0.5, warn_lag=0.1, error_lag=0.5),
+        name="event_loop_watchdog",
+    )
+    lifespan_logger.info("Event-loop watchdog started (warn=0.1s, error=0.5s)")
+
     yield
 
     # Shutdown
+    watchdog_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await watchdog_task
     # Stop container orchestrator first (before stopping docker client)
     if container_orchestrator is not None:
         await container_orchestrator.stop()
