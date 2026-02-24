@@ -209,6 +209,13 @@ async def load_depth_model(model_path: str) -> Any:
         import torch
         from transformers import AutoImageProcessor, AutoModelForDepthEstimation, pipeline
 
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Depth Anything V2 requires a CUDA GPU — transformer depth estimation "
+                "CPU inference holds the GIL for 5-20 s per frame and starves the "
+                "async event loop. Skipping on CPU-only host."
+            )
+
         logger.info(f"Loading Depth Anything V2 model from {model_path}")
 
         # Validate local model path has required files when directory exists

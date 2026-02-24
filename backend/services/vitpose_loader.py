@@ -147,6 +147,13 @@ async def load_vitpose_model(model_path: str) -> Any:
         import torch
         from transformers import AutoProcessor, VitPoseForPoseEstimation
 
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "ViTPose requires a CUDA GPU — ViT pose estimation CPU inference "
+                "holds the GIL for 5-20 s per frame and starves the async event loop. "
+                "Skipping on CPU-only host."
+            )
+
         logger.info(f"Loading ViTPose model from {model_path}")
 
         loop = asyncio.get_running_loop()

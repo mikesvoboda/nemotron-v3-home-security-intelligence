@@ -39,7 +39,15 @@ async def load_clip_model(model_path: str) -> Any:
         RuntimeError: If model loading fails
     """
     try:
+        import torch
         from transformers import AutoModel, AutoProcessor
+
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "SigLIP 2 requires a CUDA GPU — vision-language transformer CPU "
+                "inference holds the GIL for 5-20 s per image and starves the async "
+                "event loop. Skipping on CPU-only host."
+            )
 
         logger.info(f"Loading SigLIP 2 model from {model_path}")
 

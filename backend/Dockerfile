@@ -30,9 +30,10 @@
 # Free-threading benefits: ~4x speedup for CPU-bound multi-threaded workloads
 # Free-threading overhead: ~5-10% slower for single-threaded code
 # =============================================================================
-# Free-threaded Python 3.14t: no GIL — run_in_executor threads (PyTorch inference,
-# model loading, watchdog polling) no longer block the asyncio event loop.
-FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS base
+# Standard Python 3.14 (GIL enabled).  GIL starvation is mitigated via targeted
+# fixes: inotify observer, CUDA-only model guards, and skip fuse() on CPU — all
+# committed in the source.  See docs on free-threading option above if needed.
+FROM python:3.14-slim-bookworm AS base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -132,9 +133,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # =============================================================================
 # Production target: minimal runtime image without build tools
-# Uses Python 3.14t free-threaded build (no GIL).
 # =============================================================================
-FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS prod
+FROM python:3.14-slim-bookworm AS prod
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -144,8 +144,7 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
-LABEL org.opencontainers.image.base.digest="ghcr.io/mikesvoboda/python:3.14t-slim-bookworm"
+LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
 
 WORKDIR /app
 
