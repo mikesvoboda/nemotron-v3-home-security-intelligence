@@ -97,6 +97,13 @@ async def load_gender_classifier_model(model_path: str) -> dict[str, Any]:
         import torch
         from transformers import AutoImageProcessor, AutoModelForImageClassification
 
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Gender Classifier requires a CUDA GPU — ViT CPU inference holds "
+                "the GIL for 5-15 s per frame and starves the async event loop. "
+                "Skipping on CPU-only host."
+            )
+
         logger.info(f"Loading gender classifier model from {model_path}")
 
         loop = asyncio.get_running_loop()

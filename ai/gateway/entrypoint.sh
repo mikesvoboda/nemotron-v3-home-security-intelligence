@@ -39,7 +39,58 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # ---------------------------------------------------------------------------
-# 0. Link exported model files into the Triton model repository
+# 0. Export per-model device settings from models.yml
+# ---------------------------------------------------------------------------
+# Triton Python backend workers (florence2, xclip_action) read their target
+# device from environment variables.  models.yml is the single source of truth
+# for which device each model should use.  We export those env vars here so
+# the tritonserver subprocess inherits them.
+#
+# docker-compose / host env vars that are already set take precedence:
+# the Python snippet only exports a variable if it is not already defined.
+
+MODELS_YAML="${MODELS_YAML_PATH:-/app/models.yml}"
+if [ -f "$MODELS_YAML" ]; then
+    echo "[entrypoint] Exporting model device settings from models.yml..."
+    while IFS= read -r line; do
+        [ -n "$line" ] && eval "$line" && echo "[entrypoint]   $line"
+    done < <(python3 -c "
+import yaml, os, sys
+try:
+    with open('${MODELS_YAML}') as f:
+        config = yaml.safe_load(f)
+    for m in config.get('models', []):
+        var = m.get('device_env_var')
+        dev = m.get('device')
+        if var and dev and var not in os.environ:
+            print('export {}={}'.format(var, dev))
+except Exception as e:
+    print('echo [entrypoint] WARN: models.yml device export failed: {}'.format(e), file=sys.stderr)
+" 2>/dev/null)
+else
+    echo "[entrypoint] WARN: ${MODELS_YAML} not found, using model.py defaults"
+fi
+
+# ---------------------------------------------------------------------------
+# 0b. Patch Triton config.pbtxt files based on models.yml triton_kind settings
+# ---------------------------------------------------------------------------
+# patch_triton_configs.py rewrites instance_group kind/count/gpus in each
+# model's config.pbtxt to match the triton_kind declared in models.yml.
+# This runs BEFORE Triton starts so the baked-in configs are overridden in the
+# container's filesystem without requiring an image rebuild.
+#
+# To change a model from CPU→GPU (or back): edit triton_kind in models.yml only.
+
+PATCH_SCRIPT="${PATCH_SCRIPT_PATH:-/app/patch_triton_configs.py}"
+if [ -f "$PATCH_SCRIPT" ]; then
+    echo "[entrypoint] Patching Triton config.pbtxt files from models.yml..."
+    python3 "$PATCH_SCRIPT" || echo "[entrypoint] WARN: patch_triton_configs.py failed (non-fatal)"
+else
+    echo "[entrypoint] WARN: ${PATCH_SCRIPT} not found, using baked-in config.pbtxt values"
+fi
+
+# ---------------------------------------------------------------------------
+# 0c. Link exported model files into the Triton model repository
 # ---------------------------------------------------------------------------
 # Model configs (config.pbtxt) are baked into the image at /models/repository/.
 # Exported model files (.onnx, .plan, .data) live in /models/cache/ (volume).

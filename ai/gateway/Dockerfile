@@ -46,6 +46,11 @@ RUN mkdir -p /app/ai/gateway && \
 # Copy Triton model repository
 COPY ai/triton/model_repository/ /models/repository/
 
+# Copy central model configuration (read by entrypoint.sh to export device env vars
+# and by patch_triton_configs.py to rewrite Triton instance_group at startup)
+COPY models.yml /app/models.yml
+COPY ai/gateway/patch_triton_configs.py /app/patch_triton_configs.py
+
 # Copy entrypoint script
 COPY ai/gateway/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

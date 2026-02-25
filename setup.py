@@ -463,7 +463,7 @@ def generate_env_content(config: dict) -> str:
         f"HOST_GID={config.get('host_gid', 1000)}",
         "",
         "# -- Frontend Runtime Config " + "-" * 32,
-        f"GRAFANA_URL=http://localhost:{ports.get('grafana', 3002)}",
+        "GRAFANA_URL=/grafana",
         "",
         "# -- SSL/TLS Configuration " + "-" * 34,
         "SSL_ENABLED=true",
@@ -473,6 +473,12 @@ def generate_env_content(config: dict) -> str:
         "# GPU 1: All other AI models (YOLO26, Florence, CLIP, Enrichment)",
         f"GPU_LLM={config.get('gpu_llm', 0)}",
         f"GPU_AI_SERVICES={config.get('gpu_ai_services', 1)}",
+        "",
+        "# -- Backend Model Loading " + "-" * 34,
+        "# BACKEND_MODEL_PRELOAD: Eagerly load all AI models into GPU VRAM at startup.",
+        "# Auto-set to true when total VRAM > 24GB (eliminates cold-load pipeline timeouts).",
+        "# Set to false on memory-constrained systems to use on-demand lazy loading.",
+        f"BACKEND_MODEL_PRELOAD={'true' if config.get('model_preload', False) else 'false'}",
         "",
         "# -- CUDA Build Optimization " + "-" * 31,
         "# Detected GPU compute capability for optimized CUDA builds",
@@ -702,16 +708,22 @@ def run_quick_mode() -> dict:
                 ports[service] = suggested
     print()
 
-    # Detect GPU compute capability for optimized CUDA builds
+    # Detect GPU compute capability and VRAM for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info
 
     cuda_arch = ""
+    total_vram_mb = 0
     gpus = get_gpu_info()
     if gpus and len(gpus) > 0:
         # Use first GPU's compute capability (e.g., "8.9" -> "89")
         compute_cap = gpus[0].get("compute_cap", "")
         if compute_cap and compute_cap != "unknown":
             cuda_arch = compute_cap.replace(".", "")
+        total_vram_mb = sum(g.get("vram_mb", 0) for g in gpus)
+
+    # Preload all backend models resident in GPU VRAM when total VRAM > 24GB.
+    # On high-VRAM systems this eliminates pipeline timeouts from cold model loads.
+    model_preload = total_vram_mb > 24 * 1024
 
     return {
         "foscam_base_path": foscam_base_path,
@@ -727,6 +739,7 @@ def run_quick_mode() -> dict:
         "gpu_llm": 0,
         "gpu_ai_services": 1,
         "cuda_architectures": cuda_arch,
+        "model_preload": model_preload,
     }
 
 
@@ -911,16 +924,22 @@ def run_guided_mode() -> dict:
         print("Setup cancelled.")
         sys.exit(0)
 
-    # Detect GPU compute capability for optimized CUDA builds
+    # Detect GPU compute capability and VRAM for optimized CUDA builds
     from setup_lib.nvidia_detect import get_gpu_info
 
     cuda_arch = ""
+    total_vram_mb = 0
     gpus = get_gpu_info()
     if gpus and len(gpus) > 0:
         # Use first GPU's compute capability (e.g., "8.9" -> "89")
         compute_cap = gpus[0].get("compute_cap", "")
         if compute_cap and compute_cap != "unknown":
             cuda_arch = compute_cap.replace(".", "")
+        total_vram_mb = sum(g.get("vram_mb", 0) for g in gpus)
+
+    # Preload all backend models resident in GPU VRAM when total VRAM > 24GB.
+    # On high-VRAM systems this eliminates pipeline timeouts from cold model loads.
+    model_preload = total_vram_mb > 24 * 1024
 
     return {
         "foscam_base_path": foscam_base_path,
@@ -938,6 +957,7 @@ def run_guided_mode() -> dict:
         "gpu_llm": 0,
         "gpu_ai_services": 1,
         "cuda_architectures": cuda_arch,
+        "model_preload": model_preload,
     }
 
 
@@ -1069,12 +1089,18 @@ def run_defaults_mode() -> dict:
     from setup_lib.nvidia_detect import get_gpu_info
 
     cuda_arch = ""
+    total_vram_mb = 0
     gpus = get_gpu_info()
     if gpus and len(gpus) > 0:
         # Use first GPU's compute capability (e.g., "8.9" -> "89")
         compute_cap = gpus[0].get("compute_cap", "")
         if compute_cap and compute_cap != "unknown":
             cuda_arch = compute_cap.replace(".", "")
+        total_vram_mb = sum(g.get("vram_mb", 0) for g in gpus)
+
+    # Preload all backend models resident in GPU VRAM when total VRAM > 24GB.
+    # On high-VRAM systems this eliminates pipeline timeouts from cold model loads.
+    model_preload = total_vram_mb > 24 * 1024
 
     return {
         "foscam_base_path": "/export/foscam",
@@ -1092,6 +1118,7 @@ def run_defaults_mode() -> dict:
         "gpu_llm": 0,
         "gpu_ai_services": 1,
         "cuda_architectures": cuda_arch,
+        "model_preload": model_preload,
     }
 
 
@@ -1151,6 +1178,11 @@ def main() -> None:
         help="(deploy) Skip model export before deploy",
     )
     parser.add_argument(
+        "--skip-prune",
+        action="store_true",
+        help="(deploy) Skip pruning unused container images before build",
+    )
+    parser.add_argument(
         "--force-export",
         action="store_true",
         help="(deploy) Force re-export all models",
@@ -1196,6 +1228,7 @@ def main() -> None:
             skip_build=args.skip_build,
             skip_export=args.skip_export,
             force_export=args.force_export,
+            skip_prune=args.skip_prune,
             verbose=args.verbose,
             env=env,
         )
@@ -1543,6 +1576,7 @@ def main() -> None:
                 compose_cmd=compose_cmd,
                 skip_build=False,
                 skip_export=True,
+                skip_prune=False,
                 verbose=False,
                 env=env,
             )

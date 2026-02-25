@@ -39,10 +39,12 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
-def mock_config() -> DeployConfig:
-    """Create mock deployment configuration."""
+def mock_config(tmp_path: Path) -> DeployConfig:
+    """Create mock deployment configuration with writable project root."""
+    project_root = tmp_path / "project"
+    project_root.mkdir()
     config = DeployConfig(
-        project_root=Path("/test/project"),
+        project_root=project_root,
         compose_file="docker-compose.prod.yml",
         compose_cmd=["podman", "compose"],
         env={
@@ -121,8 +123,10 @@ class TestInfrastructurePhaseAlloyMemlock:
         # Execute
         result = phase_infrastructure(mock_config)
 
-        # Verify: alloy should NOT be started
-        alloy_calls = [c for c in mock_compose_run.call_args_list if "alloy" in str(c)]
+        # Verify: alloy should NOT be started (check args, not str(c) which includes test name)
+        alloy_calls = [
+            c for c in mock_compose_run.call_args_list if len(c.args) > 0 and "alloy" in c.args
+        ]
         assert len(alloy_calls) == 0, "alloy should not be started when memlock is low"
 
         # Verify: result should still succeed (alloy failure doesn't block)

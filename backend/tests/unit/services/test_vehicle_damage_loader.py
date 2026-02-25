@@ -261,24 +261,26 @@ class TestMetaTensorHelpers:
 
         assert _has_meta_tensors(mock_model) is False
 
-    def test_materialize_meta_tensors_calls_to_empty_and_load_state_dict(self) -> None:
-        """Test that _materialize_meta_tensors uses to_empty() + load_state_dict()."""
-        from unittest.mock import patch
+    def test_materialize_meta_tensors_replaces_meta_params_with_empty_tensors(self) -> None:
+        """Test that _materialize_meta_tensors replaces meta-device params via direct replacement.
 
-        mock_model = MagicMock()
-        mock_state_dict = {"weight": MagicMock()}
-        mock_model.state_dict.return_value = mock_state_dict
-        mock_model.to_empty.return_value = mock_model
+        The implementation walks module._parameters and _buffers, replacing any
+        meta-device tensors with torch.empty() on the target device.
+        """
+        import torch
 
-        with patch("torch.device") as mock_torch_device:
-            mock_torch_device.return_value = "cpu"
+        # Create a simple module on meta device so we have real meta tensors to exercise
+        module = torch.nn.Linear(4, 2)
+        meta_module = module.to("meta")
+        assert all(p.device.type == "meta" for p in meta_module.parameters())
 
-            result = _materialize_meta_tensors(mock_model, "cpu")
+        result = _materialize_meta_tensors(meta_module, "cpu")
 
-            mock_model.state_dict.assert_called_once()
-            mock_model.to_empty.assert_called_once()
-            mock_model.load_state_dict.assert_called_once_with(mock_state_dict, assign=True)
-            assert result == mock_model
+        # All parameters should now be on CPU (empty tensors, not meta)
+        for param in result.parameters():
+            assert param.device.type == "cpu"
+        # Function should return the same object (modified in-place)
+        assert result is meta_module
 
 
 @pytest.mark.slow
@@ -306,11 +308,12 @@ class TestLoadVehicleDamageModel:
 
         # Patch YOLO where it's imported (inside the function)
         with patch("ultralytics.YOLO", return_value=mock_model):
-            model = await load_vehicle_damage_model(model_path)
+            with patch("torch.cuda.is_available", return_value=True):
+                model = await load_vehicle_damage_model(model_path)
 
-            assert model is not None
-            # YOLO model should have names attribute
-            assert hasattr(model, "names")
+                assert model is not None
+                # YOLO model should have names attribute
+                assert hasattr(model, "names")
 
     @pytest.mark.asyncio
     async def test_load_model_missing_path(self) -> None:
@@ -345,9 +348,8 @@ class TestLoadVehicleDamageModel:
 
         # Patch YOLO where it's imported
         with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=False):
-                # The model should load without calling .to() directly
-                # YOLO models handle device placement during inference via predict(device=...)
+            with patch("torch.cuda.is_available", return_value=True):
+                # The model should load without raising — no meta tensors on this mock
                 model = await load_vehicle_damage_model(model_path)
 
                 assert model is not None
@@ -383,16 +385,16 @@ class TestLoadVehicleDamageModel:
         mock_model.model = mock_inner_model
 
         with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=False):
-                with patch("torch.device") as mock_torch_device:
-                    mock_torch_device.return_value = "cpu"
-
+            with patch("torch.cuda.is_available", return_value=True):
+                with patch(
+                    "backend.services.vehicle_damage_loader._materialize_meta_tensors",
+                    return_value=mock_inner_model,
+                ) as mock_materialize:
                     model = await load_vehicle_damage_model(model_path)
 
                     assert model is not None
-                    # Verify meta tensor handling was triggered
-                    mock_inner_model.to_empty.assert_called_once()
-                    mock_inner_model.load_state_dict.assert_called_once()
+                    # Verify meta tensor materialization was triggered
+                    mock_materialize.assert_called_once_with(mock_inner_model, "cuda")
 
     @pytest.mark.asyncio
     async def test_load_model_with_task_parameter(self) -> None:
@@ -412,7 +414,7 @@ class TestLoadVehicleDamageModel:
         mock_yolo_class = MagicMock(return_value=mock_model)
 
         with patch("ultralytics.YOLO", mock_yolo_class):
-            with patch("torch.cuda.is_available", return_value=False):
+            with patch("torch.cuda.is_available", return_value=True):
                 await load_vehicle_damage_model(model_path)
 
                 # Verify YOLO was called with the correct weights path
@@ -437,12 +439,9 @@ class TestLoadVehicleDamageModel:
         mock_meta_device.type = "meta"
         mock_meta_param.device = mock_meta_device
 
-        # Create the mock inner model that fails on materialization
+        # Create the mock inner model that has meta tensors
         mock_inner_model = MagicMock()
         mock_inner_model.parameters.return_value = iter([mock_meta_param])
-        mock_inner_model.state_dict.return_value = {"weight": MagicMock()}
-        # Simulate to_empty() failing
-        mock_inner_model.to_empty.side_effect = RuntimeError("to_empty failed")
 
         # Create the mock YOLO model
         mock_model = MagicMock()
@@ -450,12 +449,18 @@ class TestLoadVehicleDamageModel:
         mock_model.model = mock_inner_model
 
         with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=False):
-                model = await load_vehicle_damage_model(model_path)
+            with patch("torch.cuda.is_available", return_value=True):
+                # Simulate _materialize_meta_tensors failing — on CUDA the loader
+                # falls back to warmup inference via model.predict()
+                with patch(
+                    "backend.services.vehicle_damage_loader._materialize_meta_tensors",
+                    side_effect=RuntimeError("materialization failed"),
+                ):
+                    model = await load_vehicle_damage_model(model_path)
 
-                assert model is not None
-                # Verify warmup inference was attempted
-                mock_model.predict.assert_called_once()
+                    assert model is not None
+                    # Verify warmup inference was attempted as fallback
+                    mock_model.predict.assert_called_once()
 
 
 class TestDetectVehicleDamage:

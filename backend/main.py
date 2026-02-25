@@ -8,9 +8,13 @@ This module provides:
 """
 
 import asyncio
+import contextlib
 import pathlib
 import signal
 import ssl
+import sys
+import threading
+import traceback
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from functools import lru_cache
@@ -491,6 +495,151 @@ async def validate_camera_paths_on_startup() -> tuple[int, int]:
         return (valid_count, invalid_count)
 
 
+async def _event_loop_watchdog(
+    interval: float = 0.5,
+    warn_lag: float = 1.5,
+    error_lag: float = 4.0,
+) -> None:
+    """Monitor event loop lag and dump thread stacks on GIL starvation.
+
+    Wakes every `interval` seconds and measures how long asyncio.sleep actually
+    took.  When the observed lag exceeds a threshold every live Python thread's
+    stack trace is written to the log so we can identify which
+    run_in_executor thread is holding the GIL and blocking the event loop.
+
+    Thresholds (all in seconds):
+        warn_lag  - log WARNING + stacks  (default 1.5s)
+        error_lag - log ERROR  + stacks   (default 4.0s, health-check-threatening)
+    """
+    from backend.core.logging import get_logger
+
+    _log = get_logger("backend.diagnostics.watchdog")
+    loop = asyncio.get_running_loop()
+
+    while True:
+        t0 = loop.time()
+        await asyncio.sleep(interval)
+        lag = loop.time() - t0 - interval
+
+        if lag < warn_lag:
+            continue
+
+        # Build per-thread stack snapshot while frames are still "live".
+        # run_in_executor threads running 60-120s of CPU inference will still
+        # be visible here even if the asyncio task was already cancelled.
+        current_frames = sys._current_frames()
+        thread_index = {t.ident: t for t in threading.enumerate()}
+
+        parts: list[str] = []
+        for tid, frame in sorted(current_frames.items()):
+            t = thread_index.get(tid)
+            tname = getattr(t, "name", f"tid-{tid}")
+            tdaemon = getattr(t, "daemon", False)
+            stack_lines = traceback.format_stack(frame)
+            # Skip trivial stacks (idle threads / the watchdog itself)
+            joined = "".join(stack_lines).rstrip()
+            if "event_loop_watchdog" in joined or len(stack_lines) < 4:
+                continue
+            label = "[daemon]" if tdaemon else "[live]  "
+            parts.append(f"{label} Thread '{tname}' tid={tid}:\n{joined}")
+
+        summary = "\n\n".join(parts) if parts else "(no non-trivial threads found)"
+
+        if lag >= error_lag:
+            _log.error(
+                "Event-loop lag %.2fs — GIL starvation (health checks WILL fail).\n%s",
+                lag,
+                summary,
+            )
+        else:
+            _log.warning(
+                "Event-loop lag %.2fs — possible GIL contention.\n%s",
+                lag,
+                summary,
+            )
+
+
+class _ThreadWatchdog(threading.Thread):
+    """Background thread that detects event-loop freezes and dumps all thread stacks.
+
+    Unlike the coroutine watchdog (which cannot fire when the loop is frozen),
+    this thread uses ``time.sleep`` and a shared monotonic timestamp updated by
+    the asyncio loop. When the timestamp stops advancing, the loop is assumed
+    blocked and every Python thread's stack is written to the log.
+
+    Usage::
+
+        wd = _ThreadWatchdog(interval=1.0, freeze_threshold=2.0)
+        wd.start()
+        # … inside the asyncio loop, call wd.tick() from a periodic task …
+        wd.stop()
+    """
+
+    def __init__(
+        self,
+        interval: float = 1.0,
+        freeze_threshold: float = 3.0,
+    ) -> None:
+        super().__init__(name="loop-freeze-watchdog", daemon=True)
+        self._interval = interval
+        self._freeze_threshold = freeze_threshold
+        self._last_tick: float = 0.0
+        self._stop_evt = threading.Event()
+        self._log: Any = None  # initialised lazily inside the thread (logging.Logger)
+
+    def tick(self) -> None:
+        """Called by the asyncio loop to signal it is alive."""
+        import time
+
+        self._last_tick = time.monotonic()
+
+    def stop(self) -> None:
+        self._stop_evt.set()
+
+    def run(self) -> None:
+        import time
+
+        from backend.core.logging import get_logger
+
+        self._log = get_logger("backend.diagnostics.thread_watchdog")
+        # Give the event loop a moment to start ticking.
+        time.sleep(self._interval * 2)
+        self._last_tick = time.monotonic()
+
+        while not self._stop_evt.wait(timeout=self._interval):
+            now = time.monotonic()
+            silence = now - self._last_tick
+            if silence < self._freeze_threshold:
+                continue
+
+            # ----------------------------------------------------------------
+            # Loop has been silent for > freeze_threshold — dump everything.
+            # ----------------------------------------------------------------
+            current_frames = sys._current_frames()
+            thread_index = {t.ident: t for t in threading.enumerate()}
+
+            parts: list[str] = []
+            for tid, frame in sorted(current_frames.items()):
+                t = thread_index.get(tid)
+                tname = getattr(t, "name", f"tid-{tid}")
+                tdaemon = getattr(t, "daemon", True)
+                stack_lines = traceback.format_stack(frame)
+                joined = "".join(stack_lines).rstrip()
+                # Skip this watchdog thread itself
+                if "loop-freeze-watchdog" in tname or "_ThreadWatchdog" in joined:
+                    continue
+                label = "[daemon]" if tdaemon else "[live]  "
+                parts.append(f"{label} Thread '{tname}' (tid={tid}):\n{joined}")
+
+            summary = "\n\n".join(parts) if parts else "(no threads to report)"
+            self._log.error(
+                "EVENT-LOOP FROZEN for %.1fs — dumping %d thread stacks:\n\n%s",
+                silence,
+                len(parts),
+                summary,
+            )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -626,9 +775,14 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
         # Initialize file watcher (monitors camera directories for new images)
         # Pass camera_creator callback to enable auto-creation of camera records
+        # force inotify on Linux — overrides FILE_WATCHER_POLLING env var.
+        # PollingObserver scans /cameras every second in a Python loop, holding
+        # the GIL for 100-730 ms per pass and starving the async event loop.
+        # inotify is fully interrupt-driven and does not scan.
         file_watcher = FileWatcher(
             redis_client=redis_client,
             camera_creator=create_camera_callback,
+            use_polling=False,
         )
         await file_watcher.start()
         lifespan_logger.info(f"File watcher started: {settings.foscam_base_path}")
@@ -919,9 +1073,97 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     )
     lifespan_logger.info("Workers registered for readiness monitoring (DI + legacy)")
 
+    # Eagerly preload all enabled AI models into GPU VRAM when BACKEND_MODEL_PRELOAD=true.
+    # This eliminates cold-load pipeline timeouts on high-VRAM systems (>24GB).
+    # setup.py auto-sets this based on detected VRAM at install time.
+    if settings.backend_model_preload:
+        from backend.services.model_zoo import get_model_manager, get_model_zoo
+
+        model_zoo = get_model_zoo()
+        model_manager = get_model_manager()
+        preload_names = [
+            name for name, cfg in model_zoo.items() if cfg.enabled and not cfg.available
+        ]
+        lifespan_logger.info(
+            f"BACKEND_MODEL_PRELOAD=true — preloading {len(preload_names)} models into GPU VRAM"
+        )
+        load_errors: list[str] = []
+        for model_name in preload_names:
+            try:
+                await model_manager.preload(model_name)
+                lifespan_logger.info(f"  [preload] {model_name} ✓")
+            except Exception as exc:
+                load_errors.append(model_name)
+                lifespan_logger.warning(f"  [preload] {model_name} failed: {exc}")
+        if load_errors:
+            lifespan_logger.warning(
+                f"Preload complete with {len(load_errors)} error(s): {', '.join(load_errors)}"
+            )
+        else:
+            lifespan_logger.info(
+                f"Preload complete — {len(preload_names)} models resident in GPU VRAM"
+            )
+    else:
+        lifespan_logger.info(
+            "BACKEND_MODEL_PRELOAD=false — models will load on first pipeline request (lazy)"
+        )
+
+    # Pre-warm tiktoken encoding in a thread executor.
+    # tiktoken.get_encoding() downloads the BPE vocabulary file (~1.7 MB) from
+    # OpenAI's CDN on first call using synchronous requests.get().  If called
+    # lazily on the event loop (e.g., inside _validate_and_truncate_prompt) it
+    # blocks the entire asyncio loop while doing a TLS handshake and network
+    # download, causing health-check failures.  Initialising it here during
+    # startup — inside run_in_executor — downloads/caches the file in a thread
+    # and ensures all subsequent calls use the warm singleton.
+    _loop = asyncio.get_running_loop()
+    try:
+        await _loop.run_in_executor(
+            None,
+            lambda: __import__(
+                "backend.services.token_counter", fromlist=["get_token_counter"]
+            ).get_token_counter(),
+        )
+        lifespan_logger.info("Tiktoken encoding pre-warmed (cl100k_base ready)")
+    except Exception as _tc_exc:
+        lifespan_logger.warning(
+            "Tiktoken pre-warm failed (will retry on first LLM call): %s", _tc_exc
+        )
+
+    # Start event-loop watchdog — logs thread stacks whenever the loop lags > 100ms
+    # so we can identify which run_in_executor thread is holding the GIL.
+    # Thresholds are intentionally low: burst GIL starvation from many short-lived
+    # inference threads shows as many 100-400ms lags rather than one 1.5s lag.
+    watchdog_task = asyncio.create_task(
+        _event_loop_watchdog(interval=0.5, warn_lag=0.1, error_lag=0.5),
+        name="event_loop_watchdog",
+    )
+    lifespan_logger.info("Event-loop watchdog started (warn=0.1s, error=0.5s)")
+
+    # Thread-based freeze detector — fires even when the event loop is completely
+    # frozen (the coroutine watchdog above cannot run in that state).
+    # freeze_threshold=3s: a loop blocked this long will cause health-check failures.
+    thread_watchdog = _ThreadWatchdog(interval=1.0, freeze_threshold=3.0)
+    thread_watchdog.start()
+
+    async def _tick_thread_watchdog() -> None:
+        while True:
+            thread_watchdog.tick()
+            await asyncio.sleep(0.5)
+
+    tick_task = asyncio.create_task(_tick_thread_watchdog(), name="loop_tick")
+    lifespan_logger.info("Thread freeze-watchdog started (freeze_threshold=3.0s)")
+
     yield
 
     # Shutdown
+    watchdog_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await watchdog_task
+    tick_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await tick_task
+    thread_watchdog.stop()
     # Stop container orchestrator first (before stopping docker client)
     if container_orchestrator is not None:
         await container_orchestrator.stop()

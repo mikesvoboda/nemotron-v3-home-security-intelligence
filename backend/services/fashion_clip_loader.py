@@ -297,37 +297,35 @@ async def load_fashion_clip_model(model_path: str) -> Any:
         import torch
         from open_clip import create_model_from_pretrained, get_tokenizer
 
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "FashionSigLIP requires a CUDA GPU — CPU inference holds the GIL "
+                "for 10-30 s per frame and starves the async event loop. "
+                "Skipping on CPU-only host."
+            )
+
         logger.info(f"Loading FashionSigLIP model from {model_path}")
 
         loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             """Load model, preprocess, and tokenizer synchronously."""
-            # Convert path to HuggingFace hub format if needed
-            # Local paths should be converted to hf-hub format for open_clip
-            if model_path.startswith("/") or model_path.startswith("./"):
-                # Local path - use hf-hub format with Marqo FashionSigLIP model
-                # This assumes the local path contains a copy of the model,
-                # but open_clip needs the hf-hub format for Marqo models
-                hub_path = "hf-hub:Marqo/marqo-fashionSigLIP"
-                logger.info(f"Local path {model_path} detected, using HuggingFace hub: {hub_path}")
-            elif "/" in model_path and not model_path.startswith("hf-hub:"):
-                # HuggingFace model ID without prefix
-                hub_path = f"hf-hub:{model_path}"
-            else:
-                hub_path = model_path
+            # Marqo/marqo-fashionSigLIP uses open_clip's hf-hub format.
+            # The weights live in the HuggingFace cache (HF_HOME), pre-downloaded
+            # by the model-downloader setup script.  We always use the canonical
+            # hf-hub: identifier so open_clip looks in the HF cache; the local
+            # runtime_path (model-zoo/fashion-siglip) is used by the Triton
+            # ai-gateway and is unrelated to the backend loader.
+            # HF_HUB_OFFLINE=1 ensures this never triggers a network download —
+            # it will raise OSError if the model is not already in the HF cache.
+            hub_path = "hf-hub:Marqo/marqo-fashionSigLIP"
 
-            # Load model and preprocess using open_clip
             model, preprocess = create_model_from_pretrained(hub_path)
             tokenizer = get_tokenizer(hub_path)
 
-            # Determine target device and move model
-            target_device = "cuda" if torch.cuda.is_available() else "cpu"
-            if target_device == "cuda":
-                model = model.cuda()
-            logger.info(f"FashionSigLIP model loaded on {target_device}")
-
+            model = model.cuda()
             model.eval()
+            logger.info("FashionSigLIP model loaded on cuda")
 
             return {"model": model, "preprocess": preprocess, "tokenizer": tokenizer}
 

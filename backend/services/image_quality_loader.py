@@ -226,7 +226,14 @@ async def assess_image_quality(
                 quality_issues=quality_issues,
             )
 
-        return await loop.run_in_executor(None, _assess)
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _assess),
+                timeout=15.0,
+            )
+        except TimeoutError:
+            logger.warning("Image quality assessment timed out after 15s — skipping")
+            raise RuntimeError("Image quality assessment timed out") from None
 
     except ImportError as e:
         logger.error("torch/torchvision required for image quality assessment")

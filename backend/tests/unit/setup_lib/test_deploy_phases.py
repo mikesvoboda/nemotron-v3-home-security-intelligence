@@ -677,10 +677,11 @@ class TestPhaseHealthCheck:
                     "response_time_ms": 42,
                 },
             ),
-            patch("subprocess.run") as mock_run,
+            patch("setup_lib.deploy_phases.compose_run"),
+            patch("setup_lib.deploy_phases.subprocess.run") as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
-                args=[], returncode=0, stdout="container1\ncontainer2\n", stderr=""
+                args=[], returncode=0, stdout="", stderr=""
             )
 
             result = phase_health_check(config)
@@ -742,9 +743,14 @@ class TestDeployPhasesRegistry:
         assert health_phase.required is False
 
     def test_other_phases_are_required(self) -> None:
-        """Should mark all non-health-check phases as required."""
+        """Should mark all non-health-check phases as required.
+
+        prune_images is intentionally optional — it is a best-effort disk
+        cleanup step that must not block a deployment if it fails.
+        """
         from setup_lib.deploy_phases import DEPLOY_PHASES
 
+        optional_phases = {"health_check", "prune_images"}
         for phase in DEPLOY_PHASES:
-            if phase.name != "health_check":
+            if phase.name not in optional_phases:
                 assert phase.required is True, f"Phase {phase.name} should be required"

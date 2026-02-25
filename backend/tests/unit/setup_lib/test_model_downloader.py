@@ -639,6 +639,9 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -701,6 +704,9 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             # Only 1GB free, need much more for models
             mock_disk.return_value = MagicMock(free=1 * 1024**3)
@@ -763,6 +769,9 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -774,11 +783,7 @@ class TestPromptAndDownloadModels:
 
     def test_downloads_all_phases_including_phase1(self) -> None:
         """Should download models from all phases including phase 1."""
-        from setup_lib.model_downloader import (
-            PHASE1_MODELS,
-            REQUIRED_MODELS,
-            prompt_and_download_models,
-        )
+        from setup_lib.model_downloader import build_model_specs, prompt_and_download_models
 
         downloaded_models: list[str] = []
 
@@ -786,7 +791,7 @@ class TestPromptAndDownloadModels:
             downloaded_models.append(model.name)
             return True
 
-        # Models with special download handlers (bypass download_hf_model)
+        # Models dispatched via non-hf_model special handlers (bypass download_hf_model)
         special_models = {
             "nemotron-3-nano-30b-a3b-q4km",
             "yolo26",
@@ -794,6 +799,8 @@ class TestPromptAndDownloadModels:
             "osnet-ain-x1-0",
             "stgcn-plus-plus",
             "yolo-world-s",
+            "marqo-fashionSigLIP",
+            "fashion-clip",  # hf_cache method → download_marqo_fashionsiglip
         }
 
         with (
@@ -809,33 +816,28 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Function auto-downloads ALL phases; verify required + phase1 HF models are present
-            required_with_repo = [
-                m.name for m in REQUIRED_MODELS if m.hf_repo and m.name not in special_models
+            # Use build_model_specs() — the same source prompt_and_download_models uses —
+            # so name mismatches between legacy constants and models.yml can't cause false failures.
+            all_specs = build_model_specs()
+            hf_models = [
+                m.name
+                for m in all_specs
+                if m.hf_repo and m.name not in special_models and m.download_method != "hf_cache"
             ]
-            for name in required_with_repo:
-                assert name in downloaded_models, f"Expected required model {name} to be downloaded"
-
-            phase1_with_repo = [
-                m.name for m in PHASE1_MODELS if m.hf_repo and m.name not in special_models
-            ]
-            for name in phase1_with_repo:
-                assert name in downloaded_models, f"Expected phase1 model {name} to be downloaded"
+            for name in hf_models:
+                assert name in downloaded_models, f"Expected model {name} to be downloaded"
 
     def test_downloads_all_phases_including_phase2_and_phase3(self) -> None:
         """Should download models from all phases including phase 2 and 3."""
-        from setup_lib.model_downloader import (
-            PHASE1_MODELS,
-            PHASE2_MODELS,
-            PHASE3_MODELS,
-            REQUIRED_MODELS,
-            prompt_and_download_models,
-        )
+        from setup_lib.model_downloader import build_model_specs, prompt_and_download_models
 
         downloaded_models: list[str] = []
 
@@ -843,7 +845,7 @@ class TestPromptAndDownloadModels:
             downloaded_models.append(model.name)
             return True
 
-        # Models with special download handlers (bypass download_hf_model)
+        # Models dispatched via non-hf_model special handlers (bypass download_hf_model)
         special_models = {
             "nemotron-3-nano-30b-a3b-q4km",
             "yolo26",
@@ -851,6 +853,8 @@ class TestPromptAndDownloadModels:
             "osnet-ain-x1-0",
             "stgcn-plus-plus",
             "yolo-world-s",
+            "marqo-fashionSigLIP",
+            "fashion-clip",  # hf_cache method → download_marqo_fashionsiglip
         }
 
         with (
@@ -866,17 +870,23 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should include ALL models with hf_repo from every phase
-            all_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
-            all_with_repo = [
-                m.name for m in all_models if m.hf_repo and m.name not in special_models
+            # Use build_model_specs() — same source as prompt_and_download_models — to avoid
+            # false failures from name mismatches between legacy constants and models.yml.
+            all_specs = build_model_specs()
+            hf_models = [
+                m.name
+                for m in all_specs
+                if m.hf_repo and m.name not in special_models and m.download_method != "hf_cache"
             ]
-            for name in all_with_repo:
+            for name in hf_models:
                 assert name in downloaded_models, f"Expected model {name} to be downloaded"
 
     def test_skips_already_downloaded_models(self) -> None:
@@ -909,6 +919,9 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -940,6 +953,9 @@ class TestPromptAndDownloadModels:
             patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
             patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
+            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
+            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
+            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 

@@ -2553,6 +2553,15 @@ class Settings(BaseSettings):
         description="Transcode cache configuration for LRU-based video transcode caching",
     )
 
+    # Model preloading - eagerly load all models into GPU VRAM at startup
+    backend_model_preload: bool = Field(
+        default=False,
+        description="Eagerly load all enabled AI models into GPU VRAM at startup. "
+        "Auto-set to true by setup.py when total VRAM > 24GB. "
+        "Eliminates cold-load pipeline timeouts on high-VRAM systems. "
+        "Set to false on memory-constrained systems to use on-demand lazy loading.",
+    )
+
     # Background evaluation settings
     # Run AI audit evaluations automatically when GPU is idle
     background_evaluation_enabled: bool = Field(

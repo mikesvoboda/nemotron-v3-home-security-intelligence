@@ -48,6 +48,8 @@ Usage:
 
 import asyncio
 import json
+import logging
+import logging.handlers
 import os
 import random
 import re
@@ -62,8 +64,67 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+# Flush stdout/stderr on every write so redirected output isn't lost
+sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+sys.stderr.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+logger = logging.getLogger("seed")
+
+
+def setup_logging(log_level: str = "INFO", log_file: str | None = None) -> None:
+    """Configure logging with timestamps for both console and optional file output."""
+    level = getattr(logging, log_level.upper(), logging.INFO)
+    fmt = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    # Console handler — writes to stdout so it interleaves with print() output
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(fmt)
+    root.addHandler(console)
+
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_path, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
+        file_handler.setFormatter(fmt)
+        root.addHandler(file_handler)
+        logger.info("Logging to file: %s", log_path)
+
+
+class _PrintToLogger:
+    """Wraps a stream so that print() calls are forwarded to the logger with timestamps."""
+
+    def __init__(self, original: Any, log_fn: Any) -> None:
+        self._original = original
+        self._log_fn = log_fn
+        self._buf = ""
+
+    def write(self, msg: str) -> int:
+        self._buf += msg
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            if line:
+                self._log_fn(line)
+        return len(msg)
+
+    def flush(self) -> None:
+        if self._buf:
+            self._log_fn(self._buf)
+            self._buf = ""
+        self._original.flush()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._original, name)
 
 
 def _load_env_and_fix_database_url() -> None:
@@ -536,7 +597,20 @@ def discover_synthetic_scenarios(
                     # Fall back to image files (COCO-based scenarios)
                     images = list(media_path.glob("*.jpg")) + list(media_path.glob("*.png"))
                     if images:
-                        image_path = images[0]
+                        # Filter out Git LFS pointer files (130-135 bytes of ASCII text,
+                        # not actual image data). LFS objects must be pulled before seeding.
+                        real_images = [
+                            p for p in images
+                            if p.stat().st_size > 1024
+                        ]
+                        if not real_images and images:
+                            print(
+                                f"  Warning: {scenario_dir.name} media files appear to be "
+                                f"Git LFS pointers ({images[0].stat().st_size} bytes). "
+                                "Run 'git lfs pull' to download actual image data."
+                            )
+                        elif real_images:
+                            image_path = real_images[0]
 
             has_media = video_path is not None or image_path is not None
 
@@ -921,6 +995,123 @@ async def _fix_selinux_context(file_path: Path) -> None:
         pass  # Best-effort; batch fix at end will catch stragglers
 
 
+async def flush_redis_queues() -> None:
+    """Delete all pipeline Redis streams so stale detections from prior runs are gone.
+
+    Clears:
+      - detections:stream            (file-watcher → YOLO results)
+      - detections:stream:dlq        (dead-letter for above)
+      - analysis:stream              (YOLO batches → Nemotron)
+      - analysis:stream:dlq          (dead-letter for above)
+      - detection_queue              (legacy list key, if present)
+
+    This prevents phantom events when the seed script is re-run against a live
+    backend that still has unprocessed messages from a previous execution.
+    """
+    try:
+        import redis.asyncio as aioredis
+    except ImportError:
+        try:
+            import aioredis  # type: ignore[no-redef]
+        except ImportError:
+            print("  WARNING: redis package not available — skipping queue flush")
+            return
+
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
+    # When running on the host the container hostname (e.g. "redis") won't resolve.
+    # Try the configured URL first; if it fails, fall back to localhost.
+    client = None
+    for url in dict.fromkeys([redis_url, "redis://localhost:6379/0"]):
+        try:
+            c = aioredis.from_url(url, decode_responses=True, socket_connect_timeout=2)
+            await c.ping()
+            client = c
+            break
+        except Exception:
+            continue
+
+    if client is None:
+        print(f"  WARNING: Could not connect to Redis at {redis_url} or localhost — skipping queue flush")
+        return
+
+    keys_to_delete = [
+        "detections:stream",
+        "detections:stream:dlq",
+        "analysis:stream",
+        "analysis:stream:dlq",
+        "detection_queue",
+    ]
+
+    deleted = 0
+    for key in keys_to_delete:
+        n = await client.delete(key)
+        if n:
+            deleted += 1
+            print(f"  Flushed Redis key: {key}")
+
+    # Flush all file-watcher dedup keys (dedupe:{sha256}) so the same image
+    # files can be re-processed on the next seed run without being silently skipped.
+    dedup_keys = await client.keys("dedupe:*")
+    if dedup_keys:
+        await client.delete(*dedup_keys)
+        deleted += len(dedup_keys)
+        print(f"  Flushed {len(dedup_keys)} file-watcher dedup key(s)")
+
+    # Recreate stream keys with their consumer groups so pipeline workers can
+    # resume immediately. Deleting a Redis Stream also destroys its consumer groups;
+    # without them the workers get "NOGROUP No such key" errors until the stream is
+    # recreated by the first XADD. We restore the expected group names here so
+    # there is no gap in processing.
+    stream_groups = {
+        "detections:stream": "detection-workers",
+        "analysis:stream": "analysis-workers",
+    }
+    for stream_key, group_name in stream_groups.items():
+        try:
+            # MKSTREAM: create the stream if it doesn't exist
+            # id="$": consumer group starts after current end (no replay of old messages)
+            await client.xgroup_create(stream_key, group_name, id="$", mkstream=True)
+            print(f"  Recreated consumer group {group_name} on {stream_key}")
+        except Exception:
+            # Group already exists (stream was not deleted) — safe to ignore
+            pass
+
+    await client.aclose()
+
+    if deleted:
+        print(f"  Flushed {deleted} Redis pipeline queue(s)")
+    else:
+        print("  Redis queues were already empty")
+
+    # Also remove detections that are in the DB but not yet linked to any event.
+    # These are leftovers from previous runs and will keep the wait-loop polling
+    # forever (it waits for unlinked_detections == 0).
+    try:
+        from sqlalchemy import delete as sa_delete
+
+        async with get_session() as session:
+            # Find detection IDs that have no matching EventDetection row.
+            unlinked_subq = (
+                select(Detection.id)
+                .outerjoin(EventDetection, EventDetection.detection_id == Detection.id)
+                .where(EventDetection.event_id.is_(None))
+                .scalar_subquery()
+            )
+            result = await session.execute(
+                sa_delete(Detection).where(Detection.id.in_(unlinked_subq))
+            )
+            removed = result.rowcount
+            await session.commit()
+
+        if removed:
+            print(f"  Removed {removed} orphaned detection(s) from database")
+        else:
+            print("  No orphaned database detections to remove")
+    except Exception as exc:
+        print(f"  WARNING: Could not purge orphaned DB detections ({exc})")
+
+
 async def seed_synthetic_scenarios(
     scenarios: list[SyntheticScenario],
     frames_per_video: int = 5,
@@ -995,7 +1186,20 @@ async def seed_synthetic_scenarios(
                     dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
                     dest_path = scenario_watch_folder / dest_name
 
-                    shutil.copy2(frame_path, dest_path)
+                    if dest_path.exists():
+                        try:
+                            dest_path.unlink()
+                        except PermissionError:
+                            subprocess.run(
+                                ["podman", "unshare", "rm", "-f", str(dest_path)], check=True
+                            )
+                    try:
+                        shutil.copyfile(frame_path, dest_path)
+                    except PermissionError:
+                        subprocess.run(
+                            ["podman", "unshare", "cp", "-f", str(frame_path), str(dest_path)],
+                            check=True,
+                        )
                     processed_frames.append(dest_path)
                     total_extracted += 1
 
@@ -1013,7 +1217,20 @@ async def seed_synthetic_scenarios(
             dest_name = f"{scenario.video_id}_{scenario.category}_img{suffix}"
             dest_path = scenario_watch_folder / dest_name
 
-            shutil.copy2(scenario.image_path, dest_path)
+            if dest_path.exists():
+                try:
+                    dest_path.unlink()
+                except PermissionError:
+                    subprocess.run(
+                        ["podman", "unshare", "rm", "-f", str(dest_path)], check=True
+                    )
+            try:
+                shutil.copyfile(scenario.image_path, dest_path)
+            except PermissionError:
+                subprocess.run(
+                    ["podman", "unshare", "cp", "-f", str(scenario.image_path), str(dest_path)],
+                    check=True,
+                )
             processed_frames.append(dest_path)
             total_extracted += 1
 
@@ -7532,8 +7749,37 @@ This generates real data including:
             "(default: 2 rounds, set 0 to disable)"
         ),
     )
+    parser.add_argument(
+        "--no-flush-queues",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip flushing Redis pipeline queues before seeding. "
+            "By default all streams (detections:stream, analysis:stream and their DLQs) "
+            "are deleted so stale detections from previous runs cannot create phantom events."
+        ),
+    )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="Path to write a log file (rotated at 10 MB, 3 backups). Defaults to no file.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging verbosity level (default: INFO)",
+    )
 
     args = parser.parse_args()
+
+    setup_logging(log_level=args.log_level, log_file=args.log_file)
+
+    # Redirect print() through the logger so all output gets timestamps + file logging
+    sys.stdout = _PrintToLogger(sys.stdout, logger.info)  # type: ignore[assignment]
+    sys.stderr = _PrintToLogger(sys.stderr, logger.warning)  # type: ignore[assignment]
 
     # Determine seeding mode
     mode = "full"
@@ -7606,6 +7852,13 @@ This generates real data including:
         print("TRIGGERING REAL AI PIPELINE")
         print("=" * 50)
         print(f"Current events in database: {initial_count}")
+
+        # Flush stale pipeline queues so previous-run detections don't inflate counts.
+        if not args.no_flush_queues:
+            print("\n" + "=" * 50)
+            print("FLUSHING REDIS PIPELINE QUEUES")
+            print("=" * 50)
+            await flush_redis_queues()
 
         # --- Pre-flight health check (Fix #5) ---
         # Verify AI services are healthy before triggering the pipeline.

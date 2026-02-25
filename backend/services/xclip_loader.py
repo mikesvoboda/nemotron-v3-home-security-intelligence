@@ -233,7 +233,15 @@ async def load_xclip_model(model_path: str) -> Any:
         RuntimeError: If model loading fails
     """
     try:
+        import torch
         from transformers import XCLIPModel, XCLIPProcessor
+
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "X-CLIP requires a CUDA GPU — video transformer CPU inference "
+                "holds the GIL for 10-30 s per clip and starves the async event loop. "
+                "Skipping on CPU-only host."
+            )
 
         logger.info(f"Loading X-CLIP model from {model_path}")
 

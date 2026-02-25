@@ -132,6 +132,8 @@ services:
     build:
       context: ./ai/nemotron
       dockerfile: Dockerfile
+      args:
+        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
     # Podman CDI device passthrough (rootless GPU access)
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
@@ -310,6 +312,8 @@ services:
       - triton-kernel-cache:/root/.nv
       # TensorRT temp artifacts cache (compilation intermediates)
       - triton-tmp-cache:/tmp
+      # HuggingFace model cache (pre-downloaded models, avoids network downloads)
+      - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/root/.cache/huggingface
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
@@ -322,6 +326,9 @@ services:
       - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
       - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
       - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
+      # Use pre-downloaded HF cache, disable network downloads
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
       interval: 15s
@@ -335,10 +342,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
-          memory: 8G
+          cpus: '8'
+          memory: 20G
         reservations:
-          memory: 4G
+          memory: 10G
           devices:
             - driver: nvidia
               device_ids: ['${GPU_AI_SERVICES:-1}']
@@ -358,6 +365,9 @@ services:
       - security-net
 
   backend:
+    # Run as host user for Podman socket and data dir access; keep-id preserves UID across namespace
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    userns_mode: keep-id
     # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
       - /tmp
@@ -373,21 +383,55 @@ services:
       # :U tells Podman to recursively chown the volume to match container user (appuser)
       # Docker ignores the :U flag, making this backward compatible
       - ./backend/data:/app/data:z,U
-      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
+      # Pre-downloaded HuggingFace model cache (matches ai-gateway mount).
+      # Required for fashion-clip (open_clip hf-hub format) and any other model
+      # whose loader uses from_pretrained() with a HuggingFace repo ID.
+      # HF_HOME in environment points here so HF_HUB_OFFLINE=1 can serve models
+      # without network access.
+      - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/models/huggingface-cache:ro
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
-      # Enables backend to manage AI service containers for self-healing
-      # NOTE: rw required — Docker API sends commands over the socket
-      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
+      # Mount to fixed path so container has access regardless of /run/user layout
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:/var/run/podman/podman.sock
       # Docker compose file for dynamic service discovery by orchestrator
       - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
-      # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
-      # To enable, use python:3.14t-slim-bookworm image and uncomment:
-      # - PYTHON_GIL=0
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Logging verbosity: WARNING (default) suppresses all INFO/DEBUG pipeline messages.
+      # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
+      # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.
+      - LOG_LEVEL=${LOG_LEVEL:-WARNING}
+      # Redirect torch hub cache to the persistent model-zoo mount so weights
+      # (e.g. piq BRISQUE SVR) downloaded during setup.py survive container restarts.
+      # Path must be writable by appuser (UID 1000) inside the container.
+      - TORCH_HOME=/models/model-zoo/.torch_cache
+      # Point tiktoken to the pre-downloaded BPE encoding cache (persistent host
+      # directory).  tiktoken.get_encoding() downloads ~1.7 MB from OpenAI's CDN on
+      # first call using synchronous requests.get(), which blocks the asyncio event
+      # loop and causes health-check failures.  setup.py pre-downloads the file and
+      # sets this variable so the container never reaches the network at runtime.
+      - TIKTOKEN_CACHE_DIR=/models/model-zoo/.tiktoken_cache
+      # Point HuggingFace to the pre-downloaded model cache (persistent host directory
+      # mounted at /models/huggingface-cache below).  This avoids re-downloading on
+      # every container restart and lets HF_HUB_OFFLINE=1 work correctly.
+      - HF_HOME=/models/huggingface-cache
+      # Enforce offline mode — all HuggingFace weights must be pre-downloaded to
+      # HF_CACHE_PATH on the host before the container starts.  Any from_pretrained()
+      # or open_clip hf-hub: call that cannot find the model in the local cache will
+      # raise an OSError immediately rather than attempting a network download at
+      # runtime.  Override with HF_HUB_OFFLINE=0 only during initial model setup.
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
+      # Belt-and-suspenders: also covers Transformers-specific offline check
+      - TRANSFORMERS_OFFLINE=${TRANSFORMERS_OFFLINE:-1}
+      # Prevent ultralytics from attempting to install packages (e.g. CLIP from GitHub)
+      # at runtime via check_requirements(). The container has no git and no PyPI access,
+      # so these attempts block for tens of seconds before failing, which causes GIL
+      # contention in the thread pool that starves the asyncio event loop.
+      - ULTRALYTICS_OFFLINE=1
+      - YOLO_VERBOSE=False
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
@@ -396,7 +440,11 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       # Rootless Podman bind mounts don't propagate inotify events reliably.
       # Use polling mode for file watcher to detect new camera images.
-      - FILE_WATCHER_POLLING=${FILE_WATCHER_POLLING:-true}
+      # inotify is event-driven (no scanning loop, minimal GIL).  Polling was
+      # only needed for Docker Desktop/macOS volume mounts; on Linux/podman
+      # bind-mounts inotify works correctly.  Override with
+      # FILE_WATCHER_POLLING=true in .env if running on macOS/Docker Desktop.
+      - FILE_WATCHER_POLLING=${FILE_WATCHER_POLLING:-false}
       # Pyroscope continuous profiling (enabled by default, set PYROSCOPE_ENABLED=false to disable)
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
@@ -443,8 +491,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy:4317}
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
       # Container orchestrator: connect to Podman socket for self-healing
-      # Socket is mounted read-only from host for container management
-      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///${PODMAN_SOCKET}}
+      # Socket mounted at /var/run/podman/podman.sock (backend runs as host user for access)
+      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///var/run/podman/podman.sock}
       # Relax readiness: set false when pipeline workers fail to init (e.g. startup race)
       - READINESS_REQUIRE_PIPELINE_WORKERS=${READINESS_REQUIRE_PIPELINE_WORKERS:-false}
     depends_on:
@@ -480,9 +528,9 @@ services:
       resources:
         limits:
           cpus: '2'
-          # NEM-3890: Increased from 4G to 6G to prevent OOM kills
-          # Backend was at 94.45% memory usage (4.057GB / 4.295GB)
-          memory: 6G
+          # NEM-3890: Increased from 6G to 10G to prevent OOM kills
+          # Backend was at 90.74% memory usage (5.846GB / 6.442GB) before SIGKILL
+          memory: 10G
         reservations:
           devices:
             - driver: nvidia
@@ -728,8 +776,9 @@ services:
     ports:
       # HTTPS (direct access) and HTTP (for Cloudflare tunnel / Brev secure link)
       # FRONTEND_HTTP_PORT exposes nginx HTTP for tunnels that send plain HTTP
-      - '127.0.0.1:${FRONTEND_HTTPS_PORT:-8444}:8443'
-      - '127.0.0.1:${FRONTEND_HTTP_PORT:-8080}:8080'
+      # Bound to 0.0.0.0 for external access; use firewall to restrict if needed
+      - '0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}:8443'
+      - '0.0.0.0:${FRONTEND_HTTP_PORT:-8080}:8080'
     volumes:
       # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U
@@ -739,7 +788,8 @@ services:
       - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
       # SSL/TLS Configuration
       # SSL enabled by default - auto-generates self-signed certs if none mounted
-      - SSL_ENABLED=${SSL_ENABLED:-true}
+      # Set to false to serve HTTP only (no redirect to HTTPS); true enables HTTPS + redirect
+      - SSL_ENABLED=${SSL_ENABLED:-false}
       # Custom certificate paths (relative to /etc/nginx/certs mount)
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
@@ -871,7 +921,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/grafana:12.3.2
+    build:
+      context: ./monitoring/grafana
+      dockerfile: Dockerfile
+    image: nemotron-v3-home-security-intelligence-grafana:latest
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     # Access Grafana via the frontend nginx proxy at /grafana/ for production use
     ports:
@@ -901,8 +954,10 @@ services:
       # Use relative root URL for reverse proxy compatibility (allows any hostname/port)
       - GF_SERVER_ROOT_URL=/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      # JSON API plugin for dashboard data sources (no version pin needed for Grafana 12.x)
-      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
+      # Log HTTP requests (useful for debugging dashboard 404s)
+      - GF_SERVER_ROUTER_LOGGING=true
+      # Plugins installed to /opt/grafana/plugins in image (avoids volume overwrite)
+      - GF_PATHS_PLUGINS=/opt/grafana/plugins
       # SMTP Configuration for Email Alerts (NEM-3511)
       # Configure via .env file for email alerting capability
       # See docs/operator/smtp-configuration.md for setup instructions
@@ -1065,7 +1120,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/loki:3.5.0
+    image: docker.io/grafana/loki:3.5.1
     container_name: loki
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z

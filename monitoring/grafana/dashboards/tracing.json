@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Distributed tracing dashboard for HSI AI pipeline with Jaeger integration",
+  "description": "Distributed tracing dashboard for HSI AI pipeline with Tempo integration",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -27,11 +27,11 @@
       "includeVars": false,
       "keepTime": true,
       "tags": [],
-      "targetBlank": true,
-      "title": "Jaeger UI",
-      "tooltip": "Open Jaeger UI for advanced trace analysis",
+      "targetBlank": false,
+      "title": "Tempo Explore",
+      "tooltip": "Open Grafana Explore for advanced trace analysis with Tempo",
       "type": "link",
-      "url": "http://localhost:16686"
+      "url": "/grafana/explore?schemaVersion=1&panes=%7B%22main%22:%7B%22datasource%22:%22tempo%22%7D%7D"
     }
   ],
   "liveNow": true,
@@ -556,8 +556,8 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "Full pipeline analysis traces showing detection to enrichment to LLM analysis flow",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Full pipeline analysis traces showing detection to enrichment to LLM analysis flow (via Tempo)",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -597,9 +597,16 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View in Jaeger",
-                    "url": "http://localhost:16686/trace/${__value.raw}",
-                    "targetBlank": true
+                    "title": "View Trace in Tempo",
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "queryType": "traceql",
+                        "query": "${__value.raw}"
+                      }
+                    }
                   }
                 ]
               }
@@ -618,10 +625,9 @@
       "pluginVersion": "10.2.3",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "jaeger" },
-          "queryType": "search",
-          "service": "nemotron-backend",
-          "operation": "analysis_processing",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"nemotron-backend\" && name = \"analysis_processing\" }",
           "limit": 15,
           "refId": "A"
         }
@@ -638,8 +644,8 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "Object detection traces from YOLO26 - click traceID to view in Jaeger",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Object detection traces from YOLO26 - click traceID to view in Tempo",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -679,9 +685,16 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View in Jaeger",
-                    "url": "http://localhost:16686/trace/${__value.raw}",
-                    "targetBlank": true
+                    "title": "View Trace in Tempo",
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "queryType": "traceql",
+                        "query": "${__value.raw}"
+                      }
+                    }
                   }
                 ]
               }
@@ -700,10 +713,9 @@
       "pluginVersion": "10.2.3",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "jaeger" },
-          "queryType": "search",
-          "service": "nemotron-backend",
-          "operation": "detection_processing",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"nemotron-backend\" && name = \"detection_processing\" }",
           "limit": 10,
           "refId": "A"
         }
@@ -712,8 +724,8 @@
       "type": "table"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "LLM inference traces from Nemotron - click traceID to view in Jaeger",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "LLM inference traces from Nemotron - click traceID to view in Tempo",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -753,9 +765,16 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View in Jaeger",
-                    "url": "http://localhost:16686/trace/${__value.raw}",
-                    "targetBlank": true
+                    "title": "View Trace in Tempo",
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "queryType": "traceql",
+                        "query": "${__value.raw}"
+                      }
+                    }
                   }
                 ]
               }
@@ -774,10 +793,9 @@
       "pluginVersion": "10.2.3",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "jaeger" },
-          "queryType": "search",
-          "service": "nemotron-backend",
-          "operation": "llm_inference",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"nemotron-backend\" && name = \"llm_inference\" }",
           "limit": 10,
           "refId": "A"
         }
@@ -794,7 +812,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "datasource": { "type": "tempo", "uid": "tempo" },
       "description": "Traces with error=true tag - these require investigation",
       "fieldConfig": {
         "defaults": {
@@ -821,9 +839,16 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View in Jaeger",
-                    "url": "http://localhost:16686/trace/${__value.raw}",
-                    "targetBlank": true
+                    "title": "View Trace in Tempo",
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "queryType": "traceql",
+                        "query": "${__value.raw}"
+                      }
+                    }
                   }
                 ]
               }
@@ -842,10 +867,9 @@
       "pluginVersion": "10.2.3",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "jaeger" },
-          "queryType": "search",
-          "service": "nemotron-backend",
-          "tags": "error=true",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"nemotron-backend\" && status = error }",
           "limit": 20,
           "refId": "A"
         }
@@ -862,7 +886,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "datasource": { "type": "tempo", "uid": "tempo" },
       "description": "Service dependency graph showing how services communicate. Click nodes to explore traces.",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 51 },
       "id": 221,
@@ -877,8 +901,8 @@
       "pluginVersion": "10.2.3",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "jaeger" },
-          "queryType": "dependencyGraph",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "serviceMap",
           "refId": "A"
         }
       ],
@@ -894,8 +918,8 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "All recent traces from the backend service - click traceID to view details in Jaeger",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "All recent traces from the backend service - click traceID to view details in Tempo",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -935,9 +959,16 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View in Jaeger",
-                    "url": "http://localhost:16686/trace/${__value.raw}",
-                    "targetBlank": true
+                    "title": "View Trace in Tempo",
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "queryType": "traceql",
+                        "query": "${__value.raw}"
+                      }
+                    }
                   }
                 ]
               }
@@ -956,9 +987,9 @@
       "pluginVersion": "10.2.3",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "jaeger" },
-          "queryType": "search",
-          "service": "nemotron-backend",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"nemotron-backend\" }",
           "limit": 30,
           "refId": "A"
         }
@@ -970,7 +1001,7 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["tracing", "jaeger", "hsi", "distributed-tracing"],
+  "tags": ["tracing", "tempo", "hsi", "distributed-tracing"],
   "templating": {
     "list": [
       {

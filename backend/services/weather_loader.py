@@ -118,6 +118,13 @@ async def load_weather_model(model_path: str) -> Any:
         import torch
         from transformers import AutoImageProcessor, AutoModelForImageClassification
 
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Weather Classification requires a CUDA GPU — ViT CPU inference "
+                "holds the GIL for 5-15 s per frame and starves the async event loop. "
+                "Skipping on CPU-only host."
+            )
+
         logger.info(f"Loading Weather Classification model from {model_path}")
 
         # Validate local model path has required files when directory exists

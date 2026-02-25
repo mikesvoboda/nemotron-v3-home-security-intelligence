@@ -33,6 +33,7 @@ class DeployConfig:
     skip_build: bool = False
     skip_export: bool = False
     force_export: bool = False
+    skip_prune: bool = False
     verbose: bool = True
     env: dict[str, str] = field(default_factory=dict)
     log_file: Path | None = None

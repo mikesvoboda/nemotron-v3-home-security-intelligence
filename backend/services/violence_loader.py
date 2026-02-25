@@ -78,7 +78,19 @@ async def load_violence_model(model_path: str) -> Any:
     try:
         from pathlib import Path
 
+        import torch
         from transformers import AutoImageProcessor, AutoModelForImageClassification
+
+        # ViT-base inference on CPU takes 60-120+ seconds per image, holding the GIL
+        # the entire time and starving the asyncio event loop (uvicorn health checks
+        # time out, container goes unhealthy). Fail fast here so model_zoo marks this
+        # model unavailable and the enrichment pipeline skips it gracefully on CPU hosts.
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "violence-detection requires CUDA — ViT-base CPU inference holds the GIL "
+                "for 60-120s per image, starving the asyncio event loop. "
+                "Model will be skipped on CPU-only hosts."
+            )
 
         logger.info(f"Loading violence detection model from {model_path}")
 
@@ -102,12 +114,25 @@ async def load_violence_model(model_path: str) -> Any:
             processor = AutoImageProcessor.from_pretrained(model_path)
             model = AutoModelForImageClassification.from_pretrained(model_path)
 
-            # Move to GPU if available
+            # Move to GPU if available, with meta-tensor guard.
+            # HuggingFace models can be saved with lazy (meta) weights; calling
+            # model.cuda() on them raises:
+            #   NotImplementedError: Cannot copy out of meta tensor; no data!
+            # Use to_empty() + load_state_dict(assign=True) to materialize first.
             try:
                 import torch
 
                 if torch.cuda.is_available():
-                    model = model.cuda()
+                    if any(p.device.type == "meta" for p in model.parameters()):
+                        logger.warning(
+                            "Violence detection model contains meta tensors "
+                            "(lazy-loaded weights). Materializing before moving to CUDA."
+                        )
+                        state_dict = model.state_dict()
+                        model = model.to_empty(device=torch.device("cuda"))
+                        model.load_state_dict(state_dict, assign=True)
+                    else:
+                        model = model.cuda()
                     model.eval()
                     logger.info("Violence detection model moved to CUDA")
                 else:
@@ -233,7 +258,26 @@ async def classify_violence(
                 confidence_tier=confidence_tier,
             )
 
-        return await loop.run_in_executor(None, _classify)
+        # Hard timeout: the executor thread cannot be cancelled, but asyncio.wait_for
+        # frees the event loop once the timeout fires so health checks and other
+        # coroutines are not starved while the inference thread finishes.
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(None, _classify),
+                timeout=10.0,
+            )
+        except TimeoutError:
+            logger.warning(
+                "Violence classification timed out after 10s — skipping",
+                extra={"model_path": str(getattr(model, "__class__", "unknown"))},
+            )
+            return ViolenceDetectionResult(
+                is_violent=False,
+                confidence=0.0,
+                violent_score=0.0,
+                non_violent_score=1.0,
+                confidence_tier="marginal",
+            )
 
     except Exception as e:
         logger.error("Violence classification failed", exc_info=True)

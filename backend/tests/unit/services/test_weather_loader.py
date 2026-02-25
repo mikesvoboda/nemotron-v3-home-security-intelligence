@@ -406,33 +406,18 @@ async def test_load_weather_model_runtime_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_load_weather_model_success_cpu(monkeypatch):
-    """Test load_weather_model success path with CPU."""
+    """Test load_weather_model raises RuntimeError on CPU-only hosts (CUDA required)."""
     import sys
 
-    # Create mock torch
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
 
-    # Create mock model
-    mock_model = MagicMock()
-    mock_model.eval.return_value = None
-
-    # Create mock processor
-    mock_processor = MagicMock()
-
-    # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
-
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_weather_model("/test/model")
-
-    assert "model" in result
-    assert "processor" in result
-    mock_model.eval.assert_called_once()
+    with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+        await load_weather_model("/test/model")
 
 
 @pytest.mark.asyncio

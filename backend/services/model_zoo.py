@@ -46,7 +46,10 @@ import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
+
+import yaml
 
 from backend.core.logging import get_logger
 from backend.core.metrics import record_model_restart, set_model_load_duration
@@ -208,21 +211,30 @@ async def load_yolo_model(model_path: str) -> Any:
             is ready for concurrent use without race conditions.
 
             See: https://github.com/ultralytics/yolov5/issues/12071
+
+            GIL note: model.fuse() calls model.info() → thop.profile(deepcopy(model))
+            which deep-copies the full network in pure Python, holding the GIL for
+            seconds.  On CPU this overhead is not worth the BN-fusion speedup (which
+            only matters on GPU anyway), so we skip fuse() on CPU-only hosts.
             """
+            import threading as _threading
+
+            import torch as _torch
+
+            _threading.current_thread().name = f"load-yolo[{Path(model_path).name}]"
+
             model = YOLO(model_path)
-            # Pre-fuse to avoid race condition when multiple threads call predict()
-            # The first predict() normally triggers automatic fusion, but this is
-            # not thread-safe. Explicit fuse() before concurrent use prevents the
-            # "'Conv' object has no attribute 'bn'" error.
-            if hasattr(model, "fuse"):
-                # Check if model has inner model with is_fused method
+
+            # fuse() only provides speedup via BN-Conv merging on CUDA;
+            # on CPU the thop deepcopy holds the GIL for seconds with no benefit.
+            if _torch.cuda.is_available() and hasattr(model, "fuse"):
                 inner_model = getattr(model, "model", None)
                 if inner_model is not None and hasattr(inner_model, "is_fused"):
                     if not inner_model.is_fused():
                         model.fuse()
                 else:
-                    # Fallback: just call fuse if we can't check fused state
                     model.fuse()
+
             return model
 
         # Run model loading in thread pool to avoid blocking
@@ -337,365 +349,144 @@ def _get_model_zoo_base_path() -> str:
     return os.environ.get("MODEL_ZOO_PATH", "/models/model-zoo")
 
 
-def _init_model_zoo() -> dict[str, ModelConfig]:
-    """Initialize the MODEL_ZOO registry with default models.
+# ---------------------------------------------------------------------------
+# Loader map — single place that binds a model name to its load_fn.
+# All loader imports live at the top of this file; this dict just wires names.
+# ---------------------------------------------------------------------------
+_LOADER_MAP: dict[str, Callable[[str], Awaitable[Any]]] = {
+    # Detection
+    "yolo11-face": load_yolo_model,
+    "yolo11-license-plate": load_yolo_model,
+    "yolov8n-pose": load_yolo_model,
+    "threat-detection-yolov8n": load_threat_detection_model,
+    "smoke-fire-yolov8n": load_smoke_fire_model,
+    "yolo-world-s": load_yolo_world_model,
+    "vehicle-damage-detection": load_vehicle_damage_model,
+    "yolo26-general": load_yolo_model,
+    # Classification
+    "vehicle-segment-classification": load_vehicle_classifier,
+    "pet-classifier": load_pet_classifier_model,
+    "fashion-clip": load_fashion_clip_model,
+    "violence-detection": load_violence_model,
+    "weather-classification": load_weather_model,
+    "vit-age-classifier": load_age_classifier_model,
+    "vit-gender-classifier": load_gender_classifier_model,
+    # Segmentation
+    "segformer-b2-clothes": load_segformer_model,
+    # Embedding / Re-ID
+    "siglip2-base-patch16-224": load_clip_model,
+    "osnet-ain-x1-0": load_osnet_model,
+    # Pose
+    "vitpose-small": load_vitpose_model,
+    # Depth
+    "depth-anything-v2-tiny": load_depth_model,
+    # Action recognition
+    "stgcn-plus-plus": load_stgcn_model,
+    "xclip-base": load_xclip_model,
+    # Vision-language
+    "florence-2-large": load_florence_model,
+    # Preprocessing
+    "zero-dce-plus-plus": load_zero_dce_model,
+    # Quality assessment
+    "brisque-quality": load_brisque_model,
+    # OCR / ALPR
+    "paddleocr": load_paddle_ocr,
+    "fast-alpr": load_fast_alpr,
+}
 
-    This function is called lazily to avoid issues at import time.
-    The base path can be configured via MODEL_ZOO_PATH environment variable.
+# Path to models.yml — placed at /app/models.yml inside the container by Dockerfile
+_MODELS_YML = Path(__file__).parents[2] / "models.yml"
+
+
+def _resolve_model_path(m: dict[str, Any], base_path: str) -> str:
+    """Compute the runtime filesystem path for a model entry from models.yml.
+
+    Priority:
+      1. runtime_path  — used verbatim (library sentinels like "piq", "fast-alpr")
+      2. local_path + runtime_file  — directory model with a specific weight file
+      3. local_path  — directory model (most common case)
+
+    local_path values in models.yml are relative to AI_MODELS_PATH and start
+    with "model-zoo/". The container's MODEL_ZOO_PATH env var already points
+    to that "model-zoo/" directory, so we strip the prefix before joining.
+    """
+    if m.get("runtime_path"):
+        return str(m["runtime_path"])
+
+    local = m.get("local_path") or ""
+    # Strip the "model-zoo/" prefix — base_path already ends at model-zoo/
+    if local.startswith("model-zoo/"):
+        rel = local[len("model-zoo/") :]
+    else:
+        rel = local
+
+    if not rel:
+        return base_path
+
+    if m.get("runtime_file"):
+        return f"{base_path}/{rel}/{m['runtime_file']}"
+    return f"{base_path}/{rel}"
+
+
+def _init_model_zoo() -> dict[str, ModelConfig]:
+    """Initialize the MODEL_ZOO registry from models.yml (single source of truth).
+
+    Reads /app/models.yml (placed there by the Dockerfile COPY instruction),
+    filters to models with service "backend" or "both" that have a known
+    loader in _LOADER_MAP, and constructs a ModelConfig for each.
+
+    The base path is resolved via _get_model_zoo_base_path() which reads the
+    MODEL_ZOO_PATH environment variable (default: /models/model-zoo).
 
     Returns:
-        Dictionary mapping model names to ModelConfig instances
+        Dictionary mapping model names to ModelConfig instances.
     """
     base_path = _get_model_zoo_base_path()
-    return {
-        "yolo11-license-plate": ModelConfig(
-            name="yolo11-license-plate",
-            path=f"{base_path}/yolo11-license-plate/license-plate-finetune-v1n.pt",
-            category="detection",
-            vram_mb=300,
-            load_fn=load_yolo_model,
-            enabled=True,
+
+    if not _MODELS_YML.exists():
+        logger.error(
+            f"models.yml not found at {_MODELS_YML}. "
+            "Ensure the Dockerfile copies models.yml into /app/. "
+            "Falling back to empty model zoo."
+        )
+        return {}
+
+    try:
+        entries: list[dict[str, Any]] = yaml.safe_load(_MODELS_YML.read_text())["models"]
+    except Exception:
+        logger.exception(f"Failed to parse {_MODELS_YML}. Falling back to empty model zoo.")
+        return {}
+
+    result: dict[str, ModelConfig] = {}
+    for m in entries:
+        if m.get("service") not in ("backend", "both"):
+            continue
+
+        name = m["name"]
+        if name not in _LOADER_MAP:
+            logger.debug(f"models.yml entry '{name}' has no entry in _LOADER_MAP — skipped")
+            continue
+
+        path = _resolve_model_path(m, base_path)
+        result[name] = ModelConfig(
+            name=name,
+            path=path,
+            category=m.get("category", "other"),
+            vram_mb=int(m.get("vram_mb", 0)),
+            load_fn=_LOADER_MAP[name],
+            enabled=bool(m.get("enabled", True)),
             available=False,
-        ),
-        "yolo11-face": ModelConfig(
-            name="yolo11-face",
-            path=f"{base_path}/yolo11-face-detection/model.pt",
-            category="detection",
-            vram_mb=200,
-            load_fn=load_yolo_model,
-            enabled=True,
-            available=False,
-        ),
-        "paddleocr": ModelConfig(
-            name="paddleocr",
-            path=f"{base_path}/paddleocr",
-            category="ocr",
-            vram_mb=100,
-            load_fn=load_paddle_ocr,
-            enabled=True,
-            available=False,
-        ),
-        # NEM-5569: FastALPR end-to-end plate detection + OCR (~28MB total)
-        # Replaces yolo11-license-plate (300MB) + paddleocr (100MB)
-        # MIT license, native ONNX, Python 3.14+ compatible
-        "fast-alpr": ModelConfig(
-            name="fast-alpr",
-            path="fast-alpr",  # Downloads ONNX models on first use
-            category="alpr",
-            vram_mb=28,
-            load_fn=load_fast_alpr,
-            enabled=True,
-            available=False,
-        ),
-        # Future: YOLO26 when released
-        "yolo26-general": ModelConfig(
-            name="yolo26-general",
-            path="ultralytics/yolo26",  # TBD
-            category="detection",
-            vram_mb=400,
-            load_fn=load_yolo_model,
-            enabled=False,  # Disabled until available
-            available=False,
-        ),
-        # SigLIP 2 Base for re-identification embeddings (replaces CLIP ViT-L)
-        # 178MB FP16 vs 1.2GB = 1,035MB VRAM savings
-        # Same 768-dim embeddings, compatible with all downstream code
-        "siglip2-base-patch16-224": ModelConfig(
-            name="siglip2-base-patch16-224",
-            path=f"{base_path}/siglip2-base-patch16-224",
-            category="embedding",
-            vram_mb=200,
-            load_fn=load_clip_model,
-            enabled=True,
-            available=False,
-        ),
-        # Florence-2-large for vision-language queries (attributes, behavior, scene)
-        # DISABLED: Florence-2 now runs as a dedicated HTTP service at http://ai-florence:8092
-        # The backend calls the service via florence_client.py instead of loading the model directly.
-        # This improves VRAM management by keeping Florence-2 in a separate container.
-        "florence-2-large": ModelConfig(
-            name="florence-2-large",
-            path=f"{base_path}/florence-2-large",
-            category="vision-language",
-            vram_mb=1200,  # ~1.2GB with float16
-            load_fn=load_florence_model,
-            enabled=False,  # Disabled - now runs as dedicated ai-florence service
-            available=False,
-        ),
-        # YOLO-World-S for open-vocabulary detection via text prompts
-        # Enables zero-shot detection of security-relevant objects (knives, packages, etc.)
-        "yolo-world-s": ModelConfig(
-            name="yolo-world-s",
-            path=f"{base_path}/yolo-world-s",
-            category="detection",
-            vram_mb=1500,  # ~1.5GB
-            load_fn=load_yolo_world_model,
-            enabled=True,
-            available=False,
-        ),
-        # ViTPose+ Small for human pose keypoint detection
-        # Detects 17 COCO keypoints for pose classification (standing, crouching, running)
-        "vitpose-small": ModelConfig(
-            name="vitpose-small",
-            path=f"{base_path}/vitpose-small",
-            category="pose",
-            vram_mb=1500,  # ~1.5GB with float16
-            load_fn=load_vitpose_model,
-            enabled=True,
-            available=False,
-        ),
-        # Depth Anything V2 Tiny for monocular depth estimation (3x faster than Small)
-        # Provides relative distance estimation for detected objects
-        # Output: depth map where lower values = closer to camera
-        # Parameters: 5.8M (vs 24.8M Small) — same 518x518 input resolution
-        "depth-anything-v2-tiny": ModelConfig(
-            name="depth-anything-v2-tiny",
-            path=f"{base_path}/depth-anything-v2-tiny",
-            category="depth-estimation",
-            vram_mb=100,  # ~50-100MB (smaller than Small variant)
-            load_fn=load_depth_model,
-            enabled=True,
-            available=False,
-        ),
-        # ViT Violence Detection for identifying violent content
-        # Binary classification: violent vs non-violent
-        # Runs on full frame when 2+ persons detected (optimization)
-        # Reported accuracy: 98.80%
-        "violence-detection": ModelConfig(
-            name="violence-detection",
-            path=f"{base_path}/violence-detection",
-            category="classification",
-            vram_mb=500,  # ~500MB
-            load_fn=load_violence_model,
-            enabled=True,
-            available=False,
-        ),
-        # Weather Classification for environmental context
-        # SigLIP-based model fine-tuned for weather classification
-        # Classes: cloudy/overcast, foggy/hazy, rain/storm, snow/frosty, sun/clear
-        # Runs once per batch on full frame (not per detection)
-        # Weather context helps Nemotron calibrate risk assessments
-        "weather-classification": ModelConfig(
-            name="weather-classification",
-            path=f"{base_path}/weather-classification",
-            category="classification",
-            vram_mb=200,  # ~200MB
-            load_fn=load_weather_model,
-            enabled=True,
-            available=False,
-        ),
-        # SegFormer B2 Clothes for clothing segmentation on person detections
-        # Segments 18 clothing/body part categories for re-identification
-        # Enables clothing-based person identification and suspicious attire detection
-        "segformer-b2-clothes": ModelConfig(
-            name="segformer-b2-clothes",
-            path=f"{base_path}/segformer-b2-clothes",
-            category="segmentation",
-            vram_mb=1500,  # ~1.5GB
-            load_fn=load_segformer_model,
-            enabled=True,
-            available=False,
-        ),
-        # ST-GCN++ for skeleton-based action recognition (NEM-5563)
-        # Replaces X-CLIP (~2GB) with skeleton-based approach (~14MB)
-        # Uses pose keypoints already extracted by ViTPose/YOLOv8n-Pose
-        # Trained on NTU RGB+D 60 with COCO 2D keypoints (HRNet)
-        # 60 action classes including security-relevant: falling, fighting, etc.
-        # Input: buffered keypoints per tracked person (30-60 frames)
-        "stgcn-plus-plus": ModelConfig(
-            name="stgcn-plus-plus",
-            path=f"{base_path}/stgcn-plus-plus",
-            category="action-recognition",
-            vram_mb=20,  # ~14MB (extremely lightweight)
-            load_fn=load_stgcn_model,
-            enabled=True,
-            available=False,
-        ),
-        # DEPRECATED: X-CLIP for temporal action recognition in video sequences
-        # Replaced by ST-GCN++ (NEM-5563) — saves 1,986MB VRAM
-        # Kept for backward compatibility but disabled by default
-        # Based on microsoft/xclip-base-patch16-16-frames (NEM-3908 upgrade for +4% accuracy)
-        # Requires 16 frames for optimal performance
-        "xclip-base": ModelConfig(
-            name="xclip-base",
-            path=f"{base_path}/xclip-base",
-            category="action-recognition",
-            vram_mb=2000,  # ~2GB with float16
-            load_fn=load_xclip_model,
-            enabled=False,  # DEPRECATED: Replaced by stgcn-plus-plus (NEM-5563)
-            available=False,
-        ),
-        # Marqo-FashionSigLIP for zero-shot clothing classification (57% accuracy improvement)
-        # FashionSigLIP provides superior accuracy over FashionCLIP:
-        # - Text-to-Image MRR: 0.239 vs 0.165 (FashionCLIP2.0)
-        # - Text-to-Image Recall@1: 0.121 vs 0.077 (FashionCLIP2.0)
-        # - Text-to-Image Recall@10: 0.340 vs 0.249 (FashionCLIP2.0)
-        # Identifies security-relevant clothing attributes on person crops:
-        # - Suspicious attire (dark hoodie, face mask, gloves, all black)
-        # - Service uniforms (Amazon, FedEx, UPS, high-vis vest)
-        # - General clothing categories (casual, business, athletic)
-        # Runs on person crop bounding boxes from YOLO26v2
-        "fashion-clip": ModelConfig(
-            name="fashion-clip",
-            path=f"{base_path}/fashion-siglip",  # Updated to FashionSigLIP
-            category="classification",
-            vram_mb=500,  # ~500MB (unchanged from FashionCLIP)
-            load_fn=load_fashion_clip_model,
-            enabled=True,
-            available=False,
-        ),
-        # BRISQUE image quality assessment via piq (Photosynthesis Image Quality)
-        # No-reference image quality metric for detecting:
-        # - Camera obstruction/tampering (sudden quality drop)
-        # - Motion blur (fast movement detection)
-        # - General quality degradation (noise, artifacts)
-        # CPU-based, no VRAM required
-        "brisque-quality": ModelConfig(
-            name="brisque-quality",
-            path="piq",  # Uses piq library, not a model path
-            category="quality-assessment",
-            vram_mb=0,  # CPU-based, no VRAM needed
-            load_fn=load_brisque_model,
-            enabled=True,  # Enabled: piq is NumPy 2.0 compatible
-            available=False,
-        ),
-        # ResNet-50 Vehicle Segment Classification for detailed vehicle type ID
-        # Classifies vehicles into 11 categories beyond YOLO26v2's generic types:
-        # car, pickup_truck, single_unit_truck, articulated_truck, bus,
-        # motorcycle, bicycle, work_van, non_motorized_vehicle, pedestrian, background
-        # Helps distinguish delivery vehicles (work_van) from personal vehicles
-        # Trained on MIO-TCD Traffic Dataset (50K images)
-        "vehicle-segment-classification": ModelConfig(
-            name="vehicle-segment-classification",
-            path=f"{base_path}/vehicle-segment-classification",
-            category="classification",
-            vram_mb=1500,  # ~1.5GB (conservative estimate for ResNet-50)
-            load_fn=load_vehicle_classifier,
-            enabled=True,
-            available=False,
-        ),
-        # YOLOv11 Vehicle Damage Segmentation
-        # Classes: cracks, dents, glass_shatter, lamp_broken, scratches, tire_flat
-        # Security: glass_shatter + lamp_broken at night = suspicious (break-in)
-        "vehicle-damage-detection": ModelConfig(
-            name="vehicle-damage-detection",
-            path=f"{base_path}/vehicle-damage-detection",
-            category="detection",
-            vram_mb=2000,  # ~2GB (yolo11x-seg architecture)
-            load_fn=load_vehicle_damage_model,
-            enabled=True,
-            available=False,
-        ),
-        # ResNet-18 Pet Classifier for false positive reduction
-        # Classifies dog vs cat from animal crop detections
-        # High-confidence pet detections can skip Nemotron analysis
-        # Lightweight model for quick load/unload cycles
-        "pet-classifier": ModelConfig(
-            name="pet-classifier",
-            path=f"{base_path}/pet-classifier",
-            category="classification",
-            vram_mb=200,  # ~200MB (very lightweight ResNet-18)
-            load_fn=load_pet_classifier_model,
-            enabled=True,
-            available=False,
-        ),
-        # OSNet-AIN x1.0 for person re-identification embeddings (NEM-5562)
-        # Upgraded from OSNet-x0.25 for 4x better accuracy
-        # MSMT17 domain-generalization trained (Rank-1: 73.3%)
-        # Same 512-dim embeddings, same 256x128 input — drop-in replacement
-        "osnet-ain-x1-0": ModelConfig(
-            name="osnet-ain-x1-0",
-            path=f"{base_path}/osnet-ain-x1-0",
-            category="embedding",
-            vram_mb=100,  # ~100MB
-            load_fn=load_osnet_model,
-            enabled=True,
-            available=False,
-        ),
-        # YOLOv8n Threat/Weapon Detection
-        # Detects weapons and threatening objects (knives, guns, bats, etc.)
-        # Run on full frame when suspicious activity detected
-        # Triggers high-priority alerts for weapon detection
-        "threat-detection-yolov8n": ModelConfig(
-            name="threat-detection-yolov8n",
-            path=f"{base_path}/threat-detection-yolov8n",
-            category="detection",
-            vram_mb=300,  # ~300MB (YOLOv8n)
-            load_fn=load_threat_detection_model,
-            enabled=True,
-            available=False,
-        ),
-        # YOLOv8n Smoke/Fire Detection (CRITICAL PRIORITY)
-        # Detects smoke and fire for immediate safety alerts
-        # Source: luminous0219/fire-and-smoke-detection-yolov8
-        # CRITICAL priority: Never evict from VRAM, preload at startup
-        # Smoke requires consecutive detections to reduce false positives (steam/fog)
-        # Fire triggers immediate alert on single high-confidence detection
-        "smoke-fire-yolov8n": ModelConfig(
-            name="smoke-fire-yolov8n",
-            path=f"{base_path}/smoke-fire-yolov8n",
-            category="detection",
-            vram_mb=350,  # ~350MB (YOLOv8n, within 300-400MB range)
-            load_fn=load_smoke_fire_model,
-            enabled=True,
-            available=False,
-            priority="critical",  # CRITICAL: Never evict from VRAM
-            preload=True,  # Preload at startup for safety-critical detection
-            never_evict=True,  # Explicit flag for VRAM management
-        ),
-        # ViT Age Classifier for age estimation from face/person crops
-        # Classifies into age groups: child, teenager, young_adult, adult, middle_aged, senior
-        # Combined with gender for comprehensive person descriptions
-        "vit-age-classifier": ModelConfig(
-            name="vit-age-classifier",
-            path=f"{base_path}/vit-age-classifier",
-            category="classification",
-            vram_mb=200,  # ~200MB
-            load_fn=load_age_classifier_model,
-            enabled=True,
-            available=False,
-        ),
-        # ViT Gender Classifier for gender estimation from face/person crops
-        # Binary classification: male/female
-        # Supports generating detailed person descriptions for security reports
-        "vit-gender-classifier": ModelConfig(
-            name="vit-gender-classifier",
-            path=f"{base_path}/vit-gender-classifier",
-            category="classification",
-            vram_mb=200,  # ~200MB
-            load_fn=load_gender_classifier_model,
-            enabled=True,
-            available=False,
-        ),
-        # YOLOv8n Pose - Alternative pose estimation model
-        # Backup/alternative to vitpose-small for pose detection
-        # Can be used when ViTPose is unavailable or for faster inference
-        "yolov8n-pose": ModelConfig(
-            name="yolov8n-pose",
-            path=f"{base_path}/yolov8n-pose",
-            category="pose",
-            vram_mb=200,  # ~200MB (lightweight)
-            load_fn=load_yolo_model,  # Uses standard YOLO loading
-            enabled=True,
-            available=False,
-        ),
-        # Zero-DCE++ Low-Light Image Enhancement
-        # Learns brightness curve adjustments for low-light images (no reference needed)
-        # 10K parameters, ~40KB weights, ~1000 FPS on GPU — essentially zero overhead
-        # Applied conditionally as a preprocessing step before YOLO detection:
-        # - Only when image brightness is below threshold (low-light conditions)
-        # - OR during nighttime hours
-        # Improves detection accuracy in dark scenes without impacting bright-scene performance
-        "zero-dce-plus-plus": ModelConfig(
-            name="zero-dce-plus-plus",
-            path=f"{base_path}/zero-dce-plus-plus",
-            category="preprocessing",
-            vram_mb=5,  # ~40KB weights, essentially zero
-            load_fn=load_zero_dce_model,
-            enabled=True,
-            available=False,
-        ),
-    }
+            priority=str(m.get("priority", "medium")),
+            preload=bool(m.get("preload", False)),
+            never_evict=bool(m.get("never_evict", False)),
+        )
+
+    logger.info(
+        f"Model zoo initialised from models.yml: "
+        f"{sum(1 for c in result.values() if c.enabled)} enabled, "
+        f"{sum(1 for c in result.values() if not c.enabled)} disabled"
+    )
+    return result
 
 
 def get_model_zoo() -> dict[str, ModelConfig]:
@@ -860,41 +651,40 @@ class ModelManager:
         # Track load time for metrics (NEM-4145)
         start_time = time.perf_counter()
 
+        # Hard timeout for model loading: prevents a single slow model from
+        # blocking the enrichment pipeline indefinitely and keeps the event loop
+        # responsive for health checks.  The underlying run_in_executor thread
+        # will keep running, but the asyncio coroutine is freed so other tasks
+        # (watchdog, health endpoints) can execute.
+        _MODEL_LOAD_TIMEOUT = 20.0
+
         try:
             # Add Pyroscope label for per-model profiling
             try:
                 import pyroscope
 
                 with pyroscope.tag_wrapper({"model": model_name}):
-                    model = await config.load_fn(config.path)
+                    model = await asyncio.wait_for(
+                        config.load_fn(config.path),
+                        timeout=_MODEL_LOAD_TIMEOUT,
+                    )
             except ImportError:
                 # Pyroscope not installed, load without tagging
-                model = await config.load_fn(config.path)
-
-            # Record load duration metric (NEM-4145)
-            load_duration = time.perf_counter() - start_time
-            set_model_load_duration(model_name, load_duration)
-
-            self._loaded_models[model_name] = model
-
-            # Mark as available after successful load
-            config.available = True
-
-            # Track that this model has been loaded (for restart detection)
-            self._previously_loaded.add(model_name)
-
-            # Record restart metric if this is a reload (NEM-4145)
-            if is_restart:
-                reason = restart_reason if restart_reason else "manual"
-                record_model_restart(model_name, reason)
-                logger.info(
-                    f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
-                    f"(restart reason: {reason})"
+                model = await asyncio.wait_for(
+                    config.load_fn(config.path),
+                    timeout=_MODEL_LOAD_TIMEOUT,
                 )
-            else:
-                logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
-
-            return model
+        except TimeoutError:
+            load_duration = time.perf_counter() - start_time
+            logger.error(
+                "Model load timed out after %.1fs — skipping %s "
+                "(background thread will finish but event loop is now free)",
+                load_duration,
+                model_name,
+            )
+            raise RuntimeError(
+                f"Model {model_name} load timed out after {_MODEL_LOAD_TIMEOUT}s"
+            ) from None
 
         except RuntimeError as e:
             # Check if this is an optional dependency not being installed
@@ -916,6 +706,31 @@ class ModelManager:
         except Exception:
             logger.error("Failed to load model", exc_info=True, extra={"model_name": model_name})
             raise
+
+        # Happy path: all except branches raise, so reaching here means success.
+        load_duration = time.perf_counter() - start_time
+        set_model_load_duration(model_name, load_duration)
+
+        self._loaded_models[model_name] = model
+
+        # Mark as available after successful load
+        config.available = True
+
+        # Track that this model has been loaded (for restart detection)
+        self._previously_loaded.add(model_name)
+
+        # Record restart metric if this is a reload (NEM-4145)
+        if is_restart:
+            reason = restart_reason if restart_reason else "manual"
+            record_model_restart(model_name, reason)
+            logger.info(
+                f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
+                f"(restart reason: {reason})"
+            )
+        else:
+            logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
+
+        return model
 
     async def _unload_model(self, model_name: str) -> None:
         """Unload a model from memory and clear CUDA cache.

@@ -507,31 +507,18 @@ async def test_load_depth_model_runtime_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_load_depth_model_success_cpu(monkeypatch):
-    """Test load_depth_model success path with CPU."""
+    """Test load_depth_model raises RuntimeError on CPU-only hosts (CUDA required)."""
     import sys
 
-    # Create mock torch
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
 
-    # Create mock pipeline
-    mock_pipeline = MagicMock()
-
-    # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.pipeline.return_value = mock_pipeline
-
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
-
-    assert result is mock_pipeline
-    mock_transformers.pipeline.assert_called_once_with(
-        task="depth-estimation",
-        model="depth-anything/Depth-Anything-V2-Tiny-hf",
-        device=-1,  # CPU
-    )
+    with pytest.raises(RuntimeError, match="requires a CUDA GPU"):
+        await load_depth_model("depth-anything/Depth-Anything-V2-Tiny-hf")
 
 
 @pytest.mark.asyncio

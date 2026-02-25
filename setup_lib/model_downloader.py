@@ -34,7 +34,63 @@ class ModelSpec(NamedTuple):
     size_mb: int
     description: str
     required: bool  # True for essential models, False for optional
+    download_method: str = ""  # empty → snapshot_download; see models.yml for special values
+    local_path: str = ""  # path relative to AI_MODELS_PATH (from models.yml)
 
+
+def build_model_specs() -> list[ModelSpec]:
+    """Build the model download list from models.yml — single source of truth.
+
+    Replaces the hardcoded REQUIRED_MODELS / PHASE*_MODELS lists.
+    Models with download_method='skip' are excluded (no download needed).
+    """
+    try:
+        from setup_lib.models_config import get_downloadable_models
+    except ImportError:
+        # Fallback when called outside the package (e.g. direct script execution)
+        from pathlib import Path as _Path
+        import yaml as _yaml
+        _yml = _Path(__file__).parent.parent / "models.yml"
+        _all = _yaml.safe_load(_yml.read_text())["models"]
+        _downloadable = [
+            m for m in _all
+            if m.get("download_method") != "skip"
+            and (m.get("hf_repo") or m.get("download_method"))
+        ]
+        return [
+            ModelSpec(
+                name=m["name"],
+                hf_repo=m.get("hf_repo") or "",
+                phase=m.get("download_phase", 3),
+                size_mb=int(m.get("size_mb", 0)),
+                description=m.get("description", ""),
+                required=bool(m.get("required", False)),
+                download_method=m.get("download_method") or "",
+                local_path=m.get("local_path") or "",
+            )
+            for m in _downloadable
+        ]
+
+    entries = get_downloadable_models()
+    return [
+        ModelSpec(
+            name=m["name"],
+            hf_repo=m.get("hf_repo") or "",
+            phase=m.get("download_phase", 3),
+            size_mb=int(m.get("size_mb", 0)),
+            description=m.get("description", ""),
+            required=bool(m.get("required", False)),
+            download_method=m.get("download_method") or "",
+            local_path=m.get("local_path") or "",
+        )
+        for m in entries
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Legacy hardcoded lists — DEPRECATED.  Kept only so external callers that
+# still reference them continue to work.  New code should call build_model_specs().
+# ---------------------------------------------------------------------------
 
 # Core models required for the system to function
 REQUIRED_MODELS: list[ModelSpec] = [
@@ -185,6 +241,35 @@ PHASE2_MODELS: list[ModelSpec] = [
 
 # Phase 3 - Optional specialized models (not used by ai-gateway default)
 PHASE3_MODELS: list[ModelSpec] = [
+    # Weather classification (backend enrichment pipeline)
+    ModelSpec(
+        name="weather-classification",
+        hf_repo="prithivMLmods/Weather-Image-Classification",
+        phase=3,
+        size_mb=200,  # ~200MB (SigLIP-based)
+        description="Weather condition classification for security camera context (backend)",
+        required=False,
+    ),
+    # Violence detection (backend enrichment pipeline)
+    ModelSpec(
+        name="violence-detection",
+        hf_repo="jaranohaal/vit-base-violence-detection",
+        phase=3,
+        size_mb=350,  # ~350MB (ViT-base)
+        description="ViT-base binary violence/non-violence classifier for backend pipeline",
+        required=False,
+    ),
+    # Marqo FashionSigLIP — clothing zero-shot classifier used by ai-gateway enrichment
+    # Stored in the HuggingFace hub cache (not model-zoo) because open_clip loads it
+    # via hf-hub: format which requires the standard HF cache directory structure.
+    ModelSpec(
+        name="marqo-fashionSigLIP",
+        hf_repo="Marqo/marqo-fashionSigLIP",
+        phase=3,
+        size_mb=4400,  # ~4.4GB (full vision + text encoder)
+        description="FashionSigLIP clothing classifier for ai-gateway (stored in HF hub cache)",
+        required=False,
+    ),
     # Face detection
     ModelSpec(
         name="yolo11-face-detection",
@@ -267,6 +352,12 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
     if model_name == "yolov8n-pose":
         pose_file = model_path / "model-zoo" / model_name / "yolov8n-pose.pt"
         return pose_file.exists()
+
+    # fashion-clip uses Marqo FashionSigLIP stored in HF hub cache (open_clip hf-hub format)
+    if model_name in ("fashion-clip", "marqo-fashionSigLIP"):
+        hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+        marqo_snapshots = hf_cache / "models--Marqo--marqo-fashionSigLIP" / "snapshots"
+        return marqo_snapshots.exists() and any(marqo_snapshots.iterdir())
 
     model_dir = model_path / "model-zoo" / model_name
     if not model_dir.exists():
@@ -378,6 +469,87 @@ def download_yolo26_models(model_path: Path) -> bool:
             print(f"    ! Failed to download {filename}: {e}")
 
     return success_count > 0
+
+
+def download_brisque_weights(model_path: Path) -> bool:
+    """Download piq BRISQUE SVR weights to the persistent torch hub cache.
+
+    piq.brisque() fetches these weights via torch.hub.load_state_dict_from_url
+    on first use.  By pre-downloading them into the persistent TORCH_HOME path
+    (model-zoo/.torch_cache/hub/checkpoints/) they survive container restarts
+    and work with TORCH_HOME=/models/model-zoo/.torch_cache in the container.
+
+    Args:
+        model_path: Base path for AI models (AI_MODELS_PATH).
+
+    Returns:
+        True if the weights are present (already existed or freshly downloaded).
+    """
+    import urllib.request
+
+    cache_dir = model_path / "model-zoo" / ".torch_cache" / "hub" / "checkpoints"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    target = cache_dir / "brisque_svm_weights.pt"
+    if target.exists():
+        print("    Already exists: brisque_svm_weights.pt")
+        return True
+
+    url = (
+        "https://github.com/photosynthesis-team/piq/"
+        "releases/download/v0.4.0/brisque_svm_weights.pt"
+    )
+    print("    Downloading brisque_svm_weights.pt (~1MB)...")
+    try:
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print("    Downloaded: brisque_svm_weights.pt")
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download brisque_svm_weights.pt: {e}")
+        return False
+
+
+def download_tiktoken_encoding(model_path: Path) -> bool:
+    """Download the tiktoken cl100k_base BPE encoding file to a persistent cache.
+
+    tiktoken.get_encoding('cl100k_base') fetches this ~1.7 MB file from
+    OpenAI's CDN on first call using a synchronous requests.get().  When called
+    lazily inside the asyncio event loop (e.g. from _validate_and_truncate_prompt
+    during LLM analysis) it blocks the entire loop while performing a TLS
+    handshake and download — causing health-check failures and GIL starvation.
+
+    Pre-downloading here and pointing TIKTOKEN_CACHE_DIR at this directory means
+    the container never reaches the network at runtime.  tiktoken's cache key is
+    the SHA-1 of the URL (see tiktoken/load.py::read_file_cached).
+
+    Args:
+        model_path: Base path for AI models (AI_MODELS_PATH).
+
+    Returns:
+        True if the file is present (already existed or freshly downloaded).
+    """
+    import hashlib
+    import urllib.request
+
+    url = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+    cache_key = hashlib.sha1(url.encode()).hexdigest()  # noqa: S324
+
+    cache_dir = model_path / "model-zoo" / ".tiktoken_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    target = cache_dir / cache_key
+    if target.exists():
+        print(f"    Already exists: tiktoken cl100k_base ({cache_key[:12]}…)")
+        return True
+
+    print("    Downloading tiktoken cl100k_base (~1.7MB)...")
+    try:
+        urllib.request.urlretrieve(url, target)  # noqa: S310
+        print(f"    Downloaded: tiktoken cl100k_base → {cache_key[:12]}…")
+        return True
+    except Exception as e:
+        print(f"    ! Failed to download tiktoken cl100k_base: {e}")
+        return False
 
 
 def download_yolov8n_pose(model_path: Path) -> bool:
@@ -529,6 +701,41 @@ def download_yolo_world(model_path: Path) -> bool:
         return True
     except Exception as e:
         print(f"    ! Failed to download: {e}")
+        return False
+
+
+def download_marqo_fashionsiglip() -> bool:
+    """Download Marqo FashionSigLIP into the standard HuggingFace hub cache.
+
+    open_clip loads this model via ``hf-hub:Marqo/marqo-fashionSigLIP`` which
+    requires the model to exist in the HF hub cache directory structure at
+    ``~/.cache/huggingface/hub/``.  Unlike other models, it is NOT stored under
+    model-zoo because open_clip does not support arbitrary local directory paths
+    for this model (meta-tensor loading issue).
+
+    Args:
+        None — always downloads to ``~/.cache/huggingface/hub/``.
+
+    Returns:
+        True if download successful or model already cached.
+    """
+    if not HF_HUB_AVAILABLE:
+        print("    ! huggingface_hub not installed, cannot download")
+        return False
+
+    hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+    snapshots_dir = hf_cache / "models--Marqo--marqo-fashionSigLIP" / "snapshots"
+    if snapshots_dir.exists() and any(snapshots_dir.iterdir()):
+        print(f"    Already cached: {snapshots_dir}")
+        return True
+
+    print("    Downloading Marqo/marqo-fashionSigLIP to HF hub cache (~4.4GB)...")
+    try:
+        path = snapshot_download(repo_id="Marqo/marqo-fashionSigLIP")
+        print(f"    Cached at: {path}")
+        return True
+    except Exception as e:
+        print(f"    ! Download failed: {e}")
         return False
 
 
@@ -731,7 +938,7 @@ def prompt_and_download_models(config: dict) -> None:
     print()
 
     # Check which models are already downloaded
-    all_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
+    all_models = build_model_specs()
     downloaded = []
     missing = []
 
@@ -784,9 +991,7 @@ def prompt_and_download_models(config: dict) -> None:
         return
 
     # Download all models
-    models_to_download: list[ModelSpec] = []
-    all_phase_models = REQUIRED_MODELS + PHASE1_MODELS + PHASE2_MODELS + PHASE3_MODELS
-    models_to_download.extend(all_phase_models)
+    models_to_download: list[ModelSpec] = list(build_model_specs())
 
     # Filter out already downloaded models
     models_to_download = [
@@ -820,13 +1025,14 @@ def prompt_and_download_models(config: dict) -> None:
     for model in models_to_download:
         print(f"  [{model.phase}] {model.name}")
 
-        # Special handling for different model types
-        if model.name == "nemotron-3-nano-30b-a3b-q4km":
+        # Dispatch based on download_method from models.yml (falls back to name for legacy compat)
+        method = model.download_method or model.name
+        if method == "nemotron_gguf" or model.name == "nemotron-3-nano-30b-a3b-q4km":
             if download_nemotron_gguf(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "yolo26":
+        elif method == "yolo26" or model.name == "yolo26":
             if download_yolo26_models(ai_models_path):
                 success_count += 1
             else:
@@ -836,18 +1042,23 @@ def prompt_and_download_models(config: dict) -> None:
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "osnet-ain-x1-0":
+        elif method == "osnet" or model.name == "osnet-ain-x1-0":
             if download_osnet_reid(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "stgcn-plus-plus":
+        elif method == "stgcn" or model.name == "stgcn-plus-plus":
             if download_stgcnpp(ai_models_path):
                 success_count += 1
             else:
                 fail_count += 1
-        elif model.name == "yolo-world-s":
+        elif method == "yolo_world" or model.name == "yolo-world-s":
             if download_yolo_world(ai_models_path):
+                success_count += 1
+            else:
+                fail_count += 1
+        elif method == "hf_cache" or model.name in ("fashion-clip", "marqo-fashionSigLIP"):
+            if download_marqo_fashionsiglip():
                 success_count += 1
             else:
                 fail_count += 1
@@ -855,6 +1066,14 @@ def prompt_and_download_models(config: dict) -> None:
             success_count += 1
         else:
             fail_count += 1
+
+    # Download auxiliary weights that aren't HuggingFace models.
+    # These are small files fetched from other hosting (e.g. GitHub releases).
+    print("  [aux] brisque-quality (SVR weights)")
+    download_brisque_weights(ai_models_path)
+
+    print("  [aux] tiktoken cl100k_base (LLM prompt tokenizer)")
+    download_tiktoken_encoding(ai_models_path)
 
     # Summary
     print()
