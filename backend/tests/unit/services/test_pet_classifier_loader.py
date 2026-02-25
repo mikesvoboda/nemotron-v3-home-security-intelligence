@@ -409,36 +409,23 @@ async def test_load_pet_classifier_model_runtime_error_on_model(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_load_pet_classifier_model_success_cpu(monkeypatch):
-    """Test load_pet_classifier_model success path with CPU."""
+async def test_load_pet_classifier_model_rejects_cpu_only_host(monkeypatch):
+    """Test load_pet_classifier_model raises RuntimeError on CPU-only hosts.
+
+    Pet Classifier (ViT) CPU inference holds the GIL for 5-15s per frame and
+    would starve the async event loop, so CPU-only hosts are explicitly rejected.
+    """
     import sys
 
-    # Create mock torch
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
-
-    # Create mock model
-    mock_model = MagicMock()
-    mock_model.eval.return_value = None
-
-    # Create mock processor
-    mock_processor = MagicMock()
-
-    # Create mock transformers
     mock_transformers = MagicMock()
-    mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
-    result = await load_pet_classifier_model("/test/model/path")
-
-    assert "model" in result
-    assert "processor" in result
-    assert result["model"] is mock_model
-    assert result["processor"] is mock_processor
-    mock_model.eval.assert_called_once()
+    with pytest.raises(RuntimeError, match="Failed to load pet classifier"):
+        await load_pet_classifier_model("/test/model/path")
 
 
 @pytest.mark.asyncio

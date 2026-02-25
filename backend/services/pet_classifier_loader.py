@@ -103,17 +103,9 @@ async def load_pet_classifier_model(model_path: str) -> Any:
         def _load() -> dict[str, Any]:
             processor = AutoImageProcessor.from_pretrained(model_path)
             model = AutoModelForImageClassification.from_pretrained(model_path)
-
-            # Move to GPU if available
-            if torch.cuda.is_available():
-                model = model.cuda().half()  # Use fp16 for efficiency
-                logger.info("Pet classifier model moved to CUDA with fp16")
-            else:
-                logger.info("Pet classifier model using CPU")
-
-            # Set to eval mode
+            model = model.cuda().half()
+            logger.info("Pet classifier model moved to CUDA with fp16")
             model.eval()
-
             return {"model": model, "processor": processor}
 
         result = await loop.run_in_executor(None, _load)

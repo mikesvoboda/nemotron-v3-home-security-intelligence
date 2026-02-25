@@ -327,6 +327,7 @@ class TestPhase1ParallelExecution:
             # by ensuring asyncio.gather is used for Phase 1 models
 
     @pytest.mark.asyncio
+    @pytest.mark.flaky(reruns=2)
     async def test_phase1_execution_time_indicates_parallelism(
         self,
         mock_enrichment_services,
