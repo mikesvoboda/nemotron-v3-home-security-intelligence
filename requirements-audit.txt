@@ -19,7 +19,7 @@ asyncpg==0.31.0
     # via home-security-intelligence
 beautifulsoup4==4.14.3
     # via gdown
-certifi==2026.1.4
+certifi==2026.2.25
     # via
     #   httpcore
     #   httpx
@@ -44,9 +44,9 @@ cycler==0.12.1
     # via matplotlib
 docker==7.1.0
     # via home-security-intelligence
-fastapi==0.129.0
+fastapi==0.135.1
     # via home-security-intelligence
-filelock==3.24.2
+filelock==3.25.0
     # via
     #   gdown
     #   huggingface-hub
@@ -66,7 +66,7 @@ googleapis-common-protos==1.72.0
     # via
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
-greenlet==3.3.1
+greenlet==3.3.2
     # via
     #   home-security-intelligence
     #   sqlalchemy
@@ -76,7 +76,7 @@ h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
-hf-xet==1.2.0 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
+hf-xet==1.3.2 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
     # via huggingface-hub
 httpcore==1.0.9
     # via httpx
@@ -84,7 +84,7 @@ httptools==0.7.1
     # via uvicorn
 httpx==0.28.1
     # via home-security-intelligence
-huggingface-hub==1.4.1
+huggingface-hub==1.5.0
     # via
     #   accelerate
     #   home-security-intelligence
@@ -123,7 +123,7 @@ matplotlib==3.10.8
     # via ultralytics
 mdurl==0.1.2
     # via markdown-it-py
-mpmath==1.3.0
+mpmath==1.4.0
     # via sympy
 networkx==3.6.1
     # via
@@ -180,11 +180,11 @@ nvidia-nvjitlink-cu12==12.9.86 ; platform_machine == 'x86_64' and sys_platform =
     #   nvidia-cusolver-cu12
     #   nvidia-cusparse-cu12
     #   torch
-nvidia-nvshmem-cu12==3.5.19 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-nvshmem-cu12==3.5.21 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
 nvidia-nvtx-cu12==12.9.79 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-open-clip-torch==3.2.0
+open-clip-torch==3.3.0
     # via home-security-intelligence
 opencv-python==4.13.0.92
     # via ultralytics
@@ -301,9 +301,9 @@ pydantic==2.12.5
     #   fastapi
     #   home-security-intelligence
     #   pydantic-settings
-pydantic-core==2.41.5
+pydantic-core==2.42.0
     # via pydantic
-pydantic-settings==2.13.0
+pydantic-settings==2.13.1
     # via home-security-intelligence
 pygments==2.19.2
     # via
@@ -325,7 +325,7 @@ pytest-randomly==4.0.1
 pytest-sugar==1.1.1
 python-dateutil==2.9.0.post0
     # via matplotlib
-python-dotenv==1.2.1
+python-dotenv==1.2.2
     # via
     #   home-security-intelligence
     #   pydantic-settings
@@ -344,9 +344,9 @@ pyyaml==6.0.3
     #   transformers
     #   ultralytics
     #   uvicorn
-redis==7.2.0
+redis==7.2.1
     # via home-security-intelligence
-regex==2026.1.15
+regex==2026.2.28
     # via
     #   open-clip-torch
     #   tiktoken
@@ -360,7 +360,7 @@ requests==2.32.5
     #   tiktoken
     #   transformers
     #   ultralytics
-rich==14.3.2
+rich==14.3.3
     # via pytest-clarity
 safetensors==0.7.0
     # via
@@ -370,7 +370,7 @@ safetensors==0.7.0
     #   transformers
 scikit-image==0.26.0
     # via home-security-intelligence
-scipy==1.17.0
+scipy==1.17.1
     # via
     #   scikit-image
     #   ultralytics
@@ -380,7 +380,7 @@ six==1.17.0
     # via python-dateutil
 soupsieve==2.8.3
     # via beautifulsoup4
-sqlalchemy==2.0.46
+sqlalchemy==2.0.47
     # via
     #   alembic
     #   home-security-intelligence
@@ -390,11 +390,11 @@ sympy==1.14.0
     # via torch
 termcolor==3.3.0
     # via pytest-sugar
-tifffile==2026.2.16
+tifffile==2026.2.24
     # via scikit-image
 tiktoken==0.12.0
     # via home-security-intelligence
-timm==1.0.24
+timm==1.0.25
     # via open-clip-torch
 tokenizers==0.22.2
     # via transformers
@@ -445,7 +445,7 @@ typing-inspection==0.4.2
     # via
     #   pydantic
     #   pydantic-settings
-ultralytics==8.4.14
+ultralytics==8.4.19
     # via home-security-intelligence
 ultralytics-thop==2.0.18
     # via ultralytics
