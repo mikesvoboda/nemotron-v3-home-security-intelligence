@@ -19,7 +19,7 @@
 # =============================================================================
 # Base stage: shared Node.js setup and dependencies
 # =============================================================================
-FROM node:20.19.6-alpine3.23 AS base
+FROM node:25.7.0-alpine3.23 AS base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
