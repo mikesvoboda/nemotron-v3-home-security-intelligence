@@ -13,7 +13,7 @@
 #   TensorRT engines are GPU-architecture-specific - document the target GPU.
 #   If pre-build is skipped, engines are built on first inference (existing behavior).
 
-FROM nvcr.io/nvidia/tensorrt:26.01-py3 AS tensorrt_base
+FROM nvcr.io/nvidia/tensorrt:26.03-py3 AS tensorrt_base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
