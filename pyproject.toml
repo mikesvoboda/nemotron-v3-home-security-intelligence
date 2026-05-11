@@ -64,7 +64,7 @@ dependencies = [
     "opentelemetry-resourcedetector-docker>=0.4.0",
     # NEM-3792: OpenTelemetry Logs SDK for unified telemetry (logs-traces correlation)
     "opentelemetry-instrumentation-logging>=0.44b0",
-    "urllib3==2.6.3",
+    "urllib3==2.7.0",
     "openpyxl>=3.1.5",
     # Continuous profiling (NEM-3102)
     "pyroscope-io>=0.8.7",
