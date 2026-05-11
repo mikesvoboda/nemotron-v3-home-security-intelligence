@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Security labels
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
