@@ -279,11 +279,21 @@ run_backend_validation() {
     # load-tests.yml), never from the unit+integration gate. backend/tests/e2e is out
     # for the same reason (R-T7-BACKEND-SCOPE: PR pytest jobs collect only
     # contracts/integration/security/unit; its :680 '-k' name-list does not match the
-    # e2e test_pipeline_integration names). No CLI '-m' is passed here
-    # because it would replace pyproject.toml's addopts expression (which carries
-    # "-m 'not gpu'").
+    # e2e test_pipeline_integration names). backend/tests/chaos is out per the
+    # pre-approved conditional in R-T7-POISON-CASCADE + AMENDMENT-RESOLUTION
+    # (SDD ledger 2026-09-12, progress.md :1203+/:1272+): its solo -n0 arbiter rerun
+    # HUNG (pytest-timeout fired, RC=1 stack dump — not SIGSEGV 139/137), and in the
+    # full lane its test_worker_chaos.py dispatch bracket exactly matches an 11-worker
+    # node-down cascade (lane 2: lines 26414-27010; lane 3: 12742-13415) — the suite
+    # is xdist-unsafe by its own conftest "deadlock" docs. CI strictness is unchanged:
+    # grep of .github/workflows shows zero references to tests/chaos (path-scoped
+    # pytest jobs collect only contracts/integration/security/unit), so CI never
+    # collected it — same convention class as load/benchmarks/e2e. Chaos deserves
+    # its own xdist-unsafe workflow someday; NOT this milestone. No CLI '-m' is
+    # passed here because it would replace pyproject.toml's addopts expression
+    # (which carries "-m 'not gpu'").
     print_step "Running pytest (Tests & Coverage)..."
-    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80 --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks" --ignore="$PROJECT_ROOT/backend/tests/e2e"; then
+    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80 --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks" --ignore="$PROJECT_ROOT/backend/tests/e2e" --ignore="$PROJECT_ROOT/backend/tests/chaos"; then
         print_error "Backend tests failed or coverage below 80%"
         echo ""
         echo "Fix failing tests, then re-run validation."
