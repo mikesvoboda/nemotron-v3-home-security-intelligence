@@ -1319,6 +1319,21 @@ This is the measurement task: no code unless the numbers demand it. It closes th
 
 Pre-existing content to absorb at scaffold time (M1 ledger datapoints that predate this plan — the R-T7-POISON-CASCADE ruling references this file as their canonical home; Task 15's owner merges them in when scaffolding): the 443 GB lane-1 kernel-OOM worker datapoint (spec §3.3 heap rationale) and the D2 late-lane hard-crash tail (same tests pass elsewhere; shared-DB DDL storm hypothesis — spec §3.1 problem statement). Verbatim text lives in the M1 ledger row (R-T7-POISON-CASCADE + AMENDMENT-RESOLUTION) and impl-t7's Task-7 docs draft; the scaffold's first two rows ARE these two datapoints, labeled "measured during M1, pre-plan".
 
+**D1 arbiter verdict (M1 Task 7, 2026-09-12, controller ruling applied):** the solo `-n0`
+rerun of `backend/tests/chaos/test_worker_chaos.py` HUNG — pytest-timeout fired (thread
+method) with a stack dump pinned to `redis_streams.py:402 consume_detections`, RC=1; NOT
+SIGSEGV (139) and NOT OOM-kill (137). Per the pre-approved conditional in
+AMENDMENT-RESOLUTION, D1 is hang-class (ordering/fixture), and the poison cascade was
+REPRODUCED in a controlled lane with the arbiter verdict in hand: lane 3's death cluster
+(11 node-downs, gw0+gw8-17, log lines 12742-13415) brackets test_worker_chaos.py's dispatch
+span (12718-13415) exactly, matching lane 2's signature (11 node-downs, 26414-27010,
+dispatch bracket 26407-27011). Consequence already landed on the M1 branch: validate.sh
+scopes backend/tests/chaos out of the combined gate (commit 0b1f8882, citing both rulings;
+CI never collected tests/chaos — verified grep of .github/workflows). The chaos cascade is
+itself a spec-§3.1 datapoint: per-worker DB + isolation-quality problems compound under
+xdist contention, and an xdist-unsafe suite hidden inside the whole-tree run poisoned the
+fast-loop measurements the same way it poisoned the gates.
+
 - [ ] **Step 1: Confirm the flag question**
 
 ```bash
