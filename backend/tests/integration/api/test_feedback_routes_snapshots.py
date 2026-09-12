@@ -278,7 +278,13 @@ async def test_get_feedback_stats_response_schema_snapshot(
     response = await client.get("/api/feedback/stats")
     assert response.status_code == 200
 
-    schema = extract_schema(response.json())
+    data = response.json()
+    # by_camera is keyed by dynamic test camera ids (unique_id()); collapse it
+    # to one representative entry so the snapshot stays key-stable across runs.
+    if isinstance(data.get("by_camera"), dict) and data["by_camera"]:
+        first = next(iter(data["by_camera"]))
+        data["by_camera"] = {"<camera_id>": data["by_camera"][first]}
+    schema = extract_schema(data)
     assert schema == snapshot
 
 
