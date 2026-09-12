@@ -276,11 +276,14 @@ run_backend_validation() {
     # CI enforces per-test-type thresholds: unit=85%, integration=50%
     # backend/tests/load and backend/tests/benchmarks are out of the PR-gate contract:
     # CI runs them only from their own path-scoped workflows (benchmarks.yml,
-    # load-tests.yml), never from the unit+integration gate. No CLI '-m' is passed here
+    # load-tests.yml), never from the unit+integration gate. backend/tests/e2e is out
+    # for the same reason (R-T7-BACKEND-SCOPE: PR pytest jobs collect only
+    # contracts/integration/security/unit; its :680 '-k' name-list does not match the
+    # e2e test_pipeline_integration names). No CLI '-m' is passed here
     # because it would replace pyproject.toml's addopts expression (which carries
     # "-m 'not gpu'").
     print_step "Running pytest (Tests & Coverage)..."
-    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80 --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks"; then
+    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80 --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks" --ignore="$PROJECT_ROOT/backend/tests/e2e"; then
         print_error "Backend tests failed or coverage below 80%"
         echo ""
         echo "Fix failing tests, then re-run validation."
