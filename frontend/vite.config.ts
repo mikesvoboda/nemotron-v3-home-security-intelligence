@@ -349,6 +349,11 @@ export default defineConfig(({ mode }) => {
       // EventCard 5, ReidHistoryPanel 5, WorkerManagementPanel 5, auth-flow 4,
       // PyroscopePage 3, SummaryCards 2, TrustClassification 2 (snapshot),
       // race-conditions 1, useHouseholdApi 1, useSettingsApi 1.
+      // R-T7-VITEST delta (2026-09-12, quarantine 13->16): + 3 ZERO-BYTE test
+      // files on main (git cat-file -s = 0 at HEAD and main; "No test suite
+      // found" reproduced alone at 07:16 idle-box). Zero tests exist to run —
+      // quarantine-as-config is the honest placeholder; writing the missing
+      // suites is M2 test-repair work.
       exclude: [
         ...configDefaults.exclude,
         'tests/e2e/**',
@@ -366,6 +371,9 @@ export default defineConfig(({ mode }) => {
         'src/hooks/__tests__/integration/race-conditions.integration.test.ts',
         'src/hooks/__tests__/useHouseholdApi.test.ts',
         'src/hooks/__tests__/useSettingsApi.test.tsx',
+        'src/components/events/TimeGroupedEvents.simple.test.tsx',
+        'src/components/system/SystemHealthIndicator.test.tsx',
+        'src/components/zones/ZoneTimelineScrubber.test.tsx',
       ],
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
