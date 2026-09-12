@@ -21,6 +21,20 @@ services:
       - ./monitoring/profiling-regression-alerts.yml:/etc/prometheus/profiling-regression-alerts.yml:ro,z
       - ./monitoring/ai-pipeline-alerts.yml:/etc/prometheus/ai-pipeline-alerts.yml:ro,z
 
+  node-exporter:
+    # Host-proven delta (Phase A bring-up, 2026-09-12): the prod mount `/:/host:ro,rslave`
+    # fails ONLY through the compose->podman-API path on this rootless host: podman records
+    # Options ["bind"] (non-rbind) + rslave and runc init dies with
+    # `mounting "/" to rootfs at "/host" ... MS_RDONLY|MS_BIND: invalid argument` (3/3,
+    # variants with rw+rslave also fail; `podman run` CLI with the identical string passes).
+    # Dropping propagation (private) starts + serves :9100/metrics (verified live).
+    # node-exporter only reads /host; live mount propagation is not needed, BUT degraded:
+    # host mounts created after node-exporter starts do NOT appear in its filesystem
+    # collector until it restarts (rslave only provided that). rootful amd64 users keep the
+    # prod rslave form — this file is host-side only (convergence item C3).
+    volumes: !override
+      - /:/host:ro
+
   backend:
     # Single-GPU host (GB300, spec §3.2): the GPU-serving deps are trimmed so
     # `up backend` does not drag the model stack along. ai-llm and ai-gateway are
