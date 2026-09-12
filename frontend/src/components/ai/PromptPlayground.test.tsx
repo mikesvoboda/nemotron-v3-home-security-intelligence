@@ -18,7 +18,7 @@ vi.mock('../../services/api', () => ({
   createCamera: vi.fn(() => Promise.resolve({})),
   updateCamera: vi.fn(() => Promise.resolve({})),
   deleteCamera: vi.fn(() => Promise.resolve({})),
-  fetchEvents: vi.fn(() => Promise.resolve([])),
+  // fetchEvents: the richer original below stays authoritative (dup keys are TS1117).
   fetchFullHealth: vi.fn(() => Promise.resolve({})),
   fetchNotificationPreferences: vi.fn(() => Promise.resolve([])),
   fetchAllPrompts: vi.fn(() =>
