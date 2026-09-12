@@ -417,7 +417,12 @@ cmd_gate() {
 		# Worker evidence: the main.py:794 lifespan line. Requires LOG_LEVEL=INFO in
 		# .env (compose default WARNING masks it — proven task-6). Podman-level logs
 		# (container name is deterministic for this provider: project-service-1).
-		if podman logs "$BACKEND_CONTAINER" 2>&1 | grep -qE "$WORKER_LOG_PATTERN"; then
+		# R-PIPEFAIL-GREPQ: under `set -o pipefail`, `... | grep -q` on content larger
+		# than the 64 KiB pipe buffer returns 141 (the writer takes SIGPIPE when
+		# grep -q exits at the first match) — a successful match reads as FAILURE.
+		# grep -c/-n read to EOF and are immune. Capture once; test without a pipe.
+		backend_worker_log="$(podman logs "$BACKEND_CONTAINER" 2>&1 || true)"
+		if [[ "$backend_worker_log" == *"Pipeline workers started"* ]]; then
 			pass "pipeline workers evidenced in backend logs (main.py:794 line)"
 		else
 			fail "worker line '$WORKER_LOG_PATTERN' not in backend logs — check LOG_LEVEL=INFO in .env and recreate backend"
