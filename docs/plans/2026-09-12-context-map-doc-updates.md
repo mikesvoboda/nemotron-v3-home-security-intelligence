@@ -100,7 +100,86 @@ socket), `TMPDIR=/home/msvoboda/.cache/nemotron-tmp` (`.env.example`'s `/ephemer
 belong to a co-resident install, uid 1001; `foscam-init` chowns `-R` whatever `FOSCAM_BASE_PATH` names).
 `HOST_UID/HOST_GID=1000`; `.env` mode 600; secrets generated (values not recorded here).
 
+### Phase A bring-up (2026-09-12) — 15 services via `podman compose -f docker-compose.prod.yml -f config/docker-compose.gb300.yml`
+
+Provider note: `podman compose` delegates to docker-compose v2.40.3 against the **rootless podman
+socket** — all 15 containers live in podman's DB (`podman ps`), while `docker` CLI talks to the
+co-resident **rootful dockerd** (dgx-inference). The two daemons share host ports: a stray
+dockerd-side container on :9100 caused one spurious `rootlessport ... bind: address already in use`
+during bring-up (removed; dockerd now holds only dgx-inference-*).
+
+First pulls: all 16 registry images (15 bases + grafana base) pulled clean on arm64, zero errors;
+grafana + pyroscope built local (`build --no-cache`, exit 0). `up -d` attempt 5: **UP_EXIT=0**.
+
+| service | status | health |
+|---|---|---|
+| postgres | Up | healthy |
+| redis | Up | healthy |
+| foscam-init | Exited (0) | (one-shot chown, by design) |
+| go2rtc (`hsi-go2rtc`) | Up | healthy |
+| prometheus | Up | healthy |
+| grafana | Up | healthy |
+| loki | Up | healthy |
+| tempo | Up | healthy |
+| alloy | Up | healthy |
+| alertmanager | Up | healthy |
+| pyroscope | Up | healthy |
+| node-exporter | Up | healthy |
+| redis-exporter | Up | (healthcheck `disable: true` — plain Up correct) |
+| json-exporter | Up | (no healthcheck defined — plain Up correct) |
+| blackbox-exporter | Up | healthy |
+
+Prometheus probes: `curl :9090/-/ready` → `Prometheus Server is Ready.` (exit 0); `/-/healthy` →
+`Prometheus Server is Healthy.` (exit 0); config `lastError: ''`. All 7 rule_files resolve (Task 4
+C1 mounts confirmed in-container).
+
+`TARGETS-DOWN` (9, every one maps to an M1-absent service; nothing unexpected):
+
+| job | reason |
+|---|---|
+| ai-llm-metrics | ai-llm absent in M1 (GPU) — DNS `no such host` |
+| triton-metrics | ai-gateway absent in M1 (GPU) — DNS `no such host` |
+| cadvisor | host.containers.internal:8088 refused — cadvisor not started in M1 |
+| dcgm-exporter | host.containers.internal:9400 refused — no GPU stack in M1 |
+| hsi-backend-metrics | backend absent until Task 6 — DNS `no such host` |
+| hsi-health / hsi-telemetry / hsi-stats / hsi-gpu | via json-exporter → backend:8000 returns 503 from co-resident :8000 service until Task 6 |
+
+`TARGETS-UP` (12 jobs incl. node-exporter after the delta below): alertmanager, blackbox-exporter,
+blackbox-http-2xx/health/live/ready, blackbox-tcp (postgres:5432 + redis:6379 `probe_success=1`),
+json-exporter, node-exporter, prometheus, pyroscope, redis. Note: blackbox-http-* jobs report
+target `up` even while every `probe_success=0` (probe-failure is inside the exporter response) —
+real probe targets (backend/ai-*/frontend) turn green with Task 6.
+
+Findings:
+- **NE-MOUNT (fixed additively, C3):** prod `/:/host:ro,rslave` fails ONLY through the
+  compose→podman-API path (podman records bind Options `["bind"]` non-rbind + rslave; runc init:
+  `mounting "/" to rootfs at "/host" ... MS_RDONLY|MS_BIND: invalid argument`; 3/3 deterministic;
+  rw+rslave also fails; `podman run` CLI with the identical string succeeds — CLI vs API path
+  differ). Overlay delta `/:/host:ro` (propagation dropped) starts + serves :9100/metrics,
+  healthy (own commit `fix(gb300): node-exporter root bind without rslave (rootless compose)`).
+  **M1 degradation:** rslave only provided live mount propagation — host mounts created AFTER
+  node-exporter starts won't appear in its filesystem collector until node-exporter restarts.
+  Controller independently reproduced the EINVAL standalone and ruled this fix (2026-09-12).
+  Host-state observation during bring-up: attempt 3 hit `rootlessport listen tcp 127.0.0.1:9100:
+  bind: address already in use`. Cause: a DEBUG container accidentally created in the co-resident
+  rootful dockerd (docker CLI defaults there; project lives in rootless podman) held host :9100 —
+  the two daemons share host ports. Removing the dockerd-side container freed it (verified via
+  `ss`) before the final up; no netavark reservation leak remained, so the controller's ordered
+  remedy (project-scoped `podman network reload --fresh` + orphan-rootlessport hunt) was not
+  ultimately needed. Not blocking; lesson: debug this stack with `podman`, never bare `docker`.
+- **alloy UI unreachable on host:** alloy binds 127.0.0.1:12345 *inside* the container, so the
+  rootless port-forward connects-then-resets (`curl` → connection reset). Healthcheck is
+  `pgrep -f alloy` → healthy; OTLP 4317/4318 bind 0.0.0.0 (forwarded fine). Cosmetic host-access
+  gap only.
+- **alloy eBPF profiler gives up:** `pyroscope.ebpf.native_profiling` → `map create: operation not
+  permitted (MEMLOCK ...)` after 4 tries — expected under rootless without BPF/cap privileges;
+  recorded, non-gating (M2 lane if eBPF profiling wanted).
+- **go2rtc / loki / tempo / pyroscope** host probes OK (`/api/streams` 200, `/ready` 200s;
+  pyroscope `/healthy` 301→index, container healthcheck green).
+
 ## Convergence Queue
 <!-- additive-only fixes that graduate into prod files once arch-neutral proven -->
 - C1: prometheus rule mounts (Task 4 override) → docker-compose.prod.yml once M1 green
 - C2: .env.example four vars (Task 2) — already prod-file-neutral; stays
+- C3: node-exporter `/:/host:ro` (drop rslave; rootless-podman compose-API EINVAL, see Phase A
+  findings) → prod file only if amd64 rootless users hit it; rootful keeps working either way
