@@ -1317,6 +1317,8 @@ This is the measurement task: no code unless the numbers demand it. It closes th
 - Consumes: Tasks 5–7 on disk; the M1 ledger's R-T7-DBRACE-FINAL cluster list (alert_repository 41, zone/queues/admin/dlq, api_protection) as the acceptance set.
 - Produces: the two green full-run records that unblock Task 9's clean attribution and Task 10's "selection over a non-contended suite" precondition; the measurements doc's first row.
 
+Pre-existing content to absorb at scaffold time (M1 ledger datapoints that predate this plan — the R-T7-POISON-CASCADE ruling references this file as their canonical home; Task 15's owner merges them in when scaffolding): the 443 GB lane-1 kernel-OOM worker datapoint (spec §3.3 heap rationale) and the D2 late-lane hard-crash tail (same tests pass elsewhere; shared-DB DDL storm hypothesis — spec §3.1 problem statement). Verbatim text lives in the M1 ledger row (R-T7-POISON-CASCADE + AMENDMENT-RESOLUTION) and impl-t7's Task-7 docs draft; the scaffold's first two rows ARE these two datapoints, labeled "measured during M1, pre-plan".
+
 - [ ] **Step 1: Confirm the flag question**
 
 ```bash
