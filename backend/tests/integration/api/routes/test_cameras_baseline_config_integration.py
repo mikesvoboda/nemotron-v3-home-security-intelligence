@@ -46,7 +46,7 @@ async def test_full_config_flow_get_update_verify(client, integration_db):
     }
 
     # Note: PATCH requires API key authentication
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
     response = await client.patch(
         "/api/system/anomaly-config",
         json=update_payload,
@@ -133,7 +133,7 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
     assert not is_anomalous, "Score at threshold should not be anomalous"
 
     # Now lower the threshold to 1.5 via API
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
     response = await client.patch(
         "/api/system/anomaly-config",
         json={"threshold_stdev": 1.5},
@@ -166,7 +166,7 @@ async def test_concurrent_config_updates_race_condition(client, integration_db):
     """
     import asyncio
 
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Define two different updates
     update1 = {"threshold_stdev": 2.5, "min_samples": 15}
@@ -213,21 +213,24 @@ async def test_config_update_validation_errors(client, integration_db):
     3. Error messages are descriptive
     4. Invalid updates don't change the configuration
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
     assert response.status_code == 200
     initial_config = response.json()
 
+    # NOTE: request-body validation errors return 422 with the standardized
+    # structured error payload (validation_exception_handler in
+    # backend/api/exception_handlers.py), not the legacy 400 + detail string.
     # Test 1: Negative threshold_stdev
     response = await client.patch(
         "/api/system/anomaly-config",
         json={"threshold_stdev": -1.0},
         headers=headers,
     )
-    assert response.status_code == 400
-    assert "positive" in response.json()["detail"].lower()
+    assert response.status_code == 422
+    assert "greater than 0" in response.json()["error"]["errors"][0]["message"].lower()
 
     # Test 2: Zero threshold_stdev
     response = await client.patch(
@@ -235,7 +238,7 @@ async def test_config_update_validation_errors(client, integration_db):
         json={"threshold_stdev": 0.0},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test 3: Zero min_samples
     response = await client.patch(
@@ -243,7 +246,7 @@ async def test_config_update_validation_errors(client, integration_db):
         json={"min_samples": 0},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test 4: Negative min_samples
     response = await client.patch(
@@ -251,7 +254,7 @@ async def test_config_update_validation_errors(client, integration_db):
         json={"min_samples": -5},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test 5: Invalid type (string instead of number)
     response = await client.patch(
@@ -277,7 +280,7 @@ async def test_config_update_partial_updates(client, integration_db):
     This test verifies that updating only threshold_stdev doesn't
     affect min_samples, and vice versa.
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
@@ -322,15 +325,22 @@ async def test_config_update_requires_authentication(client, integration_db):
     response = await client.get("/api/system/anomaly-config")
     assert response.status_code == 200
 
-    # PATCH should fail without authentication
-    response = await client.patch(
-        "/api/system/anomaly-config",
-        json={"threshold_stdev": 2.5},
-    )
-    assert response.status_code == 401  # Unauthorized
+    # PATCH should fail without authentication. The shared client fixture sets
+    # a default valid X-API-Key on every request, so build a header-less client
+    # to exercise the unauthenticated path.
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.main import app
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as no_auth_client:
+        response = await no_auth_client.patch(
+            "/api/system/anomaly-config",
+            json={"threshold_stdev": 2.5},
+        )
+        assert response.status_code == 401  # Unauthorized
 
     # PATCH should succeed with authentication
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
     response = await client.patch(
         "/api/system/anomaly-config",
         json={"threshold_stdev": 2.5},
@@ -352,7 +362,7 @@ async def test_config_update_creates_audit_log(client, integration_db, db_sessio
 
     from backend.models.audit import AuditAction, AuditLog
 
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
@@ -414,7 +424,7 @@ async def test_config_update_idempotent(client, integration_db):
     2. No changes are recorded when values don't change
     3. Service state remains consistent
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
@@ -449,7 +459,7 @@ async def test_config_endpoint_readonly_fields(client, integration_db):
     These fields are returned by GET but cannot be modified via PATCH
     as they affect historical data calculations.
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
