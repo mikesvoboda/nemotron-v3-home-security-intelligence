@@ -50,9 +50,7 @@ describe('useCameraAnomaliesQuery', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockAnomaliesResponse
-    );
+    (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockResolvedValue(mockAnomaliesResponse);
   });
 
   afterEach(() => {
@@ -61,9 +59,7 @@ describe('useCameraAnomaliesQuery', () => {
 
   describe('initialization', () => {
     it('starts with isLoading true', () => {
-      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useCameraAnomaliesQuery(mockCameraId), {
         wrapper: createQueryWrapper(),
@@ -73,9 +69,7 @@ describe('useCameraAnomaliesQuery', () => {
     });
 
     it('starts with empty anomalies array', () => {
-      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useCameraAnomaliesQuery(mockCameraId), {
         wrapper: createQueryWrapper(),
@@ -85,9 +79,7 @@ describe('useCameraAnomaliesQuery', () => {
     });
 
     it('starts with count of 0', () => {
-      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useCameraAnomaliesQuery(mockCameraId), {
         wrapper: createQueryWrapper(),
@@ -241,13 +233,10 @@ describe('useCameraAnomaliesQuery', () => {
 
   describe('camera ID changes', () => {
     it('re-fetches when camera ID changes', async () => {
-      const { result, rerender } = renderHook(
-        ({ cameraId }) => useCameraAnomaliesQuery(cameraId),
-        {
-          wrapper: createQueryWrapper(),
-          initialProps: { cameraId: mockCameraId },
-        }
-      );
+      const { result, rerender } = renderHook(({ cameraId }) => useCameraAnomaliesQuery(cameraId), {
+        wrapper: createQueryWrapper(),
+        initialProps: { cameraId: mockCameraId },
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

@@ -151,11 +151,7 @@ export interface UseCameraPathValidationQueryReturn {
 export function useCameraPathValidationQuery(
   options: UseCameraPathValidationQueryOptions = {}
 ): UseCameraPathValidationQueryReturn {
-  const {
-    enabled = true,
-    staleTime = STATIC_STALE_TIME,
-    refetchInterval = false,
-  } = options;
+  const { enabled = true, staleTime = STATIC_STALE_TIME, refetchInterval = false } = options;
 
   const query = useQuery<CameraPathValidationResponse, Error>({
     queryKey: queryKeys.cameras.pathValidation(),
@@ -182,7 +178,10 @@ export function useCameraPathValidationQuery(
   const validCount = useMemo(() => query.data?.valid_count ?? 0, [query.data]);
   const invalidCount = useMemo(() => query.data?.invalid_count ?? 0, [query.data]);
   const basePath = useMemo(() => query.data?.base_path, [query.data]);
-  const allValid = useMemo(() => invalidCount === 0 && totalCameras > 0, [invalidCount, totalCameras]);
+  const allValid = useMemo(
+    () => invalidCount === 0 && totalCameras > 0,
+    [invalidCount, totalCameras]
+  );
 
   return {
     data: query.data,

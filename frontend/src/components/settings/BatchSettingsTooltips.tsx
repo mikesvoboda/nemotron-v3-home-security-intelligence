@@ -12,10 +12,7 @@ import { Text } from '@tremor/react';
 import { clsx } from 'clsx';
 import { AlertTriangle, AlertCircle, Clock } from 'lucide-react';
 
-import {
-  validateBatchSettings,
-  calculateLatencyImpact,
-} from '../../utils/batchSettingsValidation';
+import { validateBatchSettings, calculateLatencyImpact } from '../../utils/batchSettingsValidation';
 
 // ============================================================================
 // Props
@@ -76,7 +73,7 @@ export function BatchSettingsValidationDisplay({
           className="rounded-lg border border-red-500/30 bg-red-500/10 p-3"
         >
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400 mt-0.5" />
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
             <div className="space-y-1">
               {validation.errors.map((error, index) => (
                 <Text key={index} className="text-sm text-red-400">
@@ -95,7 +92,7 @@ export function BatchSettingsValidationDisplay({
           className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3"
         >
           <div className="flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-yellow-400 mt-0.5" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-400" />
             <div className="space-y-1">
               {validation.warnings.map((warning, index) => (
                 <Text key={index} className="text-sm text-yellow-400">
@@ -123,33 +120,22 @@ export function BatchSettingsLatencyPreview({
   return (
     <div
       data-testid="batch-latency-preview"
-      className={clsx(
-        'rounded-lg border border-gray-700 bg-[#1A1A1A] p-3',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-700 bg-[#1A1A1A] p-3', className)}
     >
       <div className="flex items-start gap-2">
-        <Clock className="h-4 w-4 flex-shrink-0 text-gray-400 mt-0.5" />
+        <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" />
         <div>
-          <Text className="text-sm font-medium text-gray-300">
-            Estimated Event Latency
-          </Text>
-          <Text className="mt-1 text-xs text-gray-400">
-            {latency.description}
-          </Text>
+          <Text className="text-sm font-medium text-gray-300">Estimated Event Latency</Text>
+          <Text className="mt-1 text-xs text-gray-400">{latency.description}</Text>
           <div className="mt-2 flex items-center gap-3">
             <div className="text-center">
               <Text className="text-xs text-gray-500">Min</Text>
-              <Text className="text-lg font-semibold text-white">
-                {latency.minLatencySeconds}s
-              </Text>
+              <Text className="text-lg font-semibold text-white">{latency.minLatencySeconds}s</Text>
             </div>
             <div className="text-gray-600">-</div>
             <div className="text-center">
               <Text className="text-xs text-gray-500">Max</Text>
-              <Text className="text-lg font-semibold text-white">
-                {latency.maxLatencySeconds}s
-              </Text>
+              <Text className="text-lg font-semibold text-white">{latency.maxLatencySeconds}s</Text>
             </div>
             <div className="ml-auto text-center">
               <Text className="text-xs text-gray-500">Typical</Text>
@@ -179,10 +165,7 @@ export default function BatchSettingsTooltips({
   className,
 }: BatchSettingsTooltipsProps) {
   return (
-    <div
-      data-testid="batch-settings-tooltips"
-      className={clsx('space-y-3', className)}
-    >
+    <div data-testid="batch-settings-tooltips" className={clsx('space-y-3', className)}>
       {/* Validation warnings/errors */}
       <BatchSettingsValidationDisplay
         windowSeconds={windowSeconds}

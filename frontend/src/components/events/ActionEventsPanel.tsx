@@ -159,9 +159,7 @@ function ActionEventItem({
           <Video className="h-3 w-3" />
           {event.frame_count} frames analyzed
         </span>
-        {event.track_id && (
-          <span className="text-gray-600">Track #{event.track_id}</span>
-        )}
+        {event.track_id && <span className="text-gray-600">Track #{event.track_id}</span>}
       </div>
 
       {/* Expandable all_scores section */}
@@ -184,10 +182,7 @@ function ActionEventItem({
           {showAllScores && (
             <div className="mt-2 grid grid-cols-2 gap-1 rounded-md bg-black/30 p-2">
               {sortedScores.map(([action, score]) => (
-                <div
-                  key={action}
-                  className="flex items-center justify-between text-xs"
-                >
+                <div key={action} className="flex items-center justify-between text-xs">
                   <span className="truncate text-gray-400">{formatActionName(action)}</span>
                   <span className="font-mono text-gray-300">{Math.round(score * 100)}%</span>
                 </div>
@@ -390,9 +385,7 @@ export default function ActionEventsPanel({
 
       {/* Footer with X-CLIP info */}
       <div className="border-t border-gray-800 bg-black/20 px-4 py-2">
-        <p className="text-xs text-gray-500">
-          Actions detected by X-CLIP video analysis model
-        </p>
+        <p className="text-xs text-gray-500">Actions detected by X-CLIP video analysis model</p>
       </div>
     </div>
   );

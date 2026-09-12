@@ -110,12 +110,8 @@ export interface CameraApproachVectorsResponse {
 /**
  * Fetch approach vectors for a specific polygon zone.
  */
-async function fetchZoneApproachVectors(
-  zoneId: number
-): Promise<ZoneApproachVectorsResponse> {
-  const response = await fetch(
-    `${API_BASE}/polygon-zones/${zoneId}/approach-vectors`
-  );
+async function fetchZoneApproachVectors(zoneId: number): Promise<ZoneApproachVectorsResponse> {
+  const response = await fetch(`${API_BASE}/polygon-zones/${zoneId}/approach-vectors`);
   if (!response.ok) {
     throw new Error(`Failed to fetch approach vectors: ${response.statusText}`);
   }
@@ -128,9 +124,7 @@ async function fetchZoneApproachVectors(
 async function fetchCameraApproachVectors(
   cameraId: string
 ): Promise<CameraApproachVectorsResponse> {
-  const response = await fetch(
-    `${API_BASE}/approach-vectors/camera/${cameraId}`
-  );
+  const response = await fetch(`${API_BASE}/approach-vectors/camera/${cameraId}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch camera approach vectors: ${response.statusText}`);
   }
@@ -143,10 +137,8 @@ async function fetchCameraApproachVectors(
 
 export const approachVectorsQueryKeys = {
   all: ['approach-vectors'] as const,
-  zone: (zoneId: number) =>
-    [...approachVectorsQueryKeys.all, 'zone', zoneId] as const,
-  camera: (cameraId: string) =>
-    [...approachVectorsQueryKeys.all, 'camera', cameraId] as const,
+  zone: (zoneId: number) => [...approachVectorsQueryKeys.all, 'zone', zoneId] as const,
+  camera: (cameraId: string) => [...approachVectorsQueryKeys.all, 'camera', cameraId] as const,
 };
 
 // ============================================================================

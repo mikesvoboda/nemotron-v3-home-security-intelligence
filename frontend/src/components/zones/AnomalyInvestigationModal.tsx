@@ -72,7 +72,11 @@ function SeverityBadge({ severity }: { severity: string }) {
 
   return (
     <span
-      className={clsx('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium', bg, color)}
+      className={clsx(
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium',
+        bg,
+        color
+      )}
       data-testid="severity-badge"
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -84,13 +88,7 @@ function SeverityBadge({ severity }: { severity: string }) {
 /**
  * Visual comparison of expected vs actual values.
  */
-function ValueComparison({
-  expected,
-  actual,
-}: {
-  expected: number | null;
-  actual: number | null;
-}) {
+function ValueComparison({ expected, actual }: { expected: number | null; actual: number | null }) {
   if (expected === null && actual === null) {
     return null;
   }
@@ -109,7 +107,10 @@ function ValueComparison({
         {/* Expected value */}
         <div className="text-center">
           <span className="block text-xs text-gray-500">Expected</span>
-          <span className="mt-1 block text-2xl font-semibold text-gray-300" data-testid="expected-value">
+          <span
+            className="mt-1 block text-2xl font-semibold text-gray-300"
+            data-testid="expected-value"
+          >
             {expected !== null ? expected.toFixed(1) : '-'}
           </span>
         </div>
@@ -117,10 +118,7 @@ function ValueComparison({
         {/* Arrow indicator */}
         <div className="flex flex-col items-center">
           <ArrowRight
-            className={clsx(
-              'h-6 w-6',
-              isHigher ? 'text-red-400' : 'text-green-400'
-            )}
+            className={clsx('h-6 w-6', isHigher ? 'text-red-400' : 'text-green-400')}
             aria-hidden="true"
           />
           {difference !== null && (
@@ -131,7 +129,8 @@ function ValueComparison({
               )}
               data-testid="difference-value"
             >
-              {isHigher ? '+' : ''}{difference.toFixed(1)}
+              {isHigher ? '+' : ''}
+              {difference.toFixed(1)}
             </span>
           )}
         </div>
@@ -193,9 +192,7 @@ function DetectionCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between">
           <div>
-            <span className="font-medium capitalize text-white">
-              {detection.object_class}
-            </span>
+            <span className="font-medium capitalize text-white">{detection.object_class}</span>
             <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
               <span>Confidence: {(detection.confidence * 100).toFixed(0)}%</span>
               {detection.risk_score !== null && (
@@ -259,12 +256,7 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
       <AlertTriangle className="h-8 w-8 text-red-400" aria-hidden="true" />
       <h3 className="mt-3 font-medium text-red-400">Failed to load anomaly details</h3>
       <p className="mt-1 text-sm text-gray-400">{error.message}</p>
-      <Button
-        variant="outline-primary"
-        size="sm"
-        onClick={onRetry}
-        className="mt-4"
-      >
+      <Button variant="outline-primary" size="sm" onClick={onRetry} className="mt-4">
         Try Again
       </Button>
     </div>
@@ -344,10 +336,7 @@ function AnomalyInvestigationModalComponent({
               <Search className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
             <div>
-              <h2
-                id="investigation-modal-title"
-                className="text-lg font-semibold text-white"
-              >
+              <h2 id="investigation-modal-title" className="text-lg font-semibold text-white">
                 Anomaly Investigation
               </h2>
               {context && (
@@ -386,24 +375,17 @@ function AnomalyInvestigationModalComponent({
               </div>
               <div className="flex items-center gap-1.5 text-gray-400">
                 <Clock className="h-4 w-4" aria-hidden="true" />
-                <span data-testid="timestamp">
-                  {format(new Date(context.timestamp), 'PPp')}
-                </span>
+                <span data-testid="timestamp">{format(new Date(context.timestamp), 'PPp')}</span>
               </div>
             </div>
 
             {/* Value comparison */}
-            <ValueComparison
-              expected={context.expected_value}
-              actual={context.actual_value}
-            />
+            <ValueComparison expected={context.expected_value} actual={context.actual_value} />
 
             {/* Explanation */}
             {context.explanation && (
               <div className="mt-4 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-                <h4 className="mb-2 text-sm font-medium text-gray-300">
-                  AI Analysis
-                </h4>
+                <h4 className="mb-2 text-sm font-medium text-gray-300">AI Analysis</h4>
                 <p className="text-sm text-gray-400" data-testid="explanation">
                   {context.explanation}
                 </p>
@@ -444,10 +426,7 @@ function AnomalyInvestigationModalComponent({
           <div className="flex items-center justify-between border-t border-gray-700 p-4">
             <div>
               {context.acknowledged && (
-                <span
-                  className="text-sm text-green-400"
-                  data-testid="acknowledged-status"
-                >
+                <span className="text-sm text-green-400" data-testid="acknowledged-status">
                   Acknowledged
                   {context.acknowledged_at && (
                     <span className="text-gray-500">

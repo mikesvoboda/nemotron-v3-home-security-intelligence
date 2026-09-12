@@ -505,7 +505,9 @@ describe('AdminSettings', () => {
       renderWithProviders(<AdminSettings />);
 
       // OrphanCleanupPanel description
-      expect(screen.getByText(/Scan and remove files that are no longer referenced/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Scan and remove files that are no longer referenced/)
+      ).toBeInTheDocument();
       // Quick actions descriptions
       expect(screen.getByText('Purge all cached data from Redis')).toBeInTheDocument();
       expect(screen.getByText('Clear all processing queues')).toBeInTheDocument();
@@ -521,9 +523,7 @@ describe('AdminSettings', () => {
       // Confirmation dialog should appear
       await waitFor(() => {
         expect(screen.getByText('Confirm Orphan Cleanup')).toBeInTheDocument();
-        expect(
-          screen.getByText(/This will permanently delete orphaned files/)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/This will permanently delete orphaned files/)).toBeInTheDocument();
       });
     });
 

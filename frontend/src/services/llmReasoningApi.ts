@@ -150,7 +150,9 @@ function transformReasoningStep(step: ApiReasoningStep): ReasoningStep {
     content: step.content ?? '',
     keyFactors: step.key_factors ?? [],
     confidenceIndicator:
-      confidenceIndicator === 'high' || confidenceIndicator === 'medium' || confidenceIndicator === 'low'
+      confidenceIndicator === 'high' ||
+      confidenceIndicator === 'medium' ||
+      confidenceIndicator === 'low'
         ? confidenceIndicator
         : null,
   };
@@ -283,7 +285,7 @@ export async function fetchLLMPromptDebug(eventId: number): Promise<LLMPromptDeb
     const detailObj = typeof detail === 'object' ? detail : null;
 
     throw new LLMReasoningApiError(
-      typeof detail === 'string' ? detail : detailObj?.message ?? 'Failed to fetch prompt data',
+      typeof detail === 'string' ? detail : (detailObj?.message ?? 'Failed to fetch prompt data'),
       response.status,
       eventId
     );

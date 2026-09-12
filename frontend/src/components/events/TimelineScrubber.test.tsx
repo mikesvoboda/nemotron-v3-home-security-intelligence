@@ -490,16 +490,16 @@ describe('TimelineScrubber', () => {
 
     it('does not render custom range button when onCustomRangeSelect is not provided', () => {
       const { container } = render(<TimelineScrubber {...defaultProps} />);
-      expect(container.querySelector('[data-testid="custom-range-button"]')).not.toBeInTheDocument();
+      expect(
+        container.querySelector('[data-testid="custom-range-button"]')
+      ).not.toBeInTheDocument();
     });
 
     it('opens date picker modal when custom range button is clicked', async () => {
       vi.useRealTimers();
       const user = userEvent.setup();
       const onCustomRangeSelect = vi.fn();
-      render(
-        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
-      );
+      render(<TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />);
 
       const customRangeButton = screen.getByTestId('custom-range-button');
       await user.click(customRangeButton);
@@ -648,9 +648,7 @@ describe('TimelineScrubber', () => {
       vi.useRealTimers();
       const user = userEvent.setup();
       const onCustomRangeSelect = vi.fn();
-      render(
-        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
-      );
+      render(<TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />);
 
       // Open the date picker
       const customRangeButton = screen.getByTestId('custom-range-button');
@@ -670,9 +668,7 @@ describe('TimelineScrubber', () => {
 
     it('has accessible label on custom range button', () => {
       const onCustomRangeSelect = vi.fn();
-      render(
-        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
-      );
+      render(<TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />);
       const customRangeButton = screen.getByTestId('custom-range-button');
       expect(customRangeButton).toHaveAttribute('aria-label', 'Select custom date range');
     });

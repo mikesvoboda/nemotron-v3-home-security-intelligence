@@ -27,8 +27,6 @@
  * development mode. Use the `enabled` prop to control at runtime.
  */
 
-
-
 import { ComponentType, Profiler, ProfilerOnRenderCallback, ReactNode } from 'react';
 
 import { performanceTracker, type RenderPhase } from '@/services/performanceTracker';

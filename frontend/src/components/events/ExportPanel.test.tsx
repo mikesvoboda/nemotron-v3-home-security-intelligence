@@ -437,7 +437,9 @@ describe('ExportPanel', () => {
       const user = userEvent.setup();
       const handleExportComplete = vi.fn();
       // Make startExportJob fail
-      (api as Record<string, unknown>).startExportJob = vi.fn().mockRejectedValue(new Error('Export failed'));
+      (api as Record<string, unknown>).startExportJob = vi
+        .fn()
+        .mockRejectedValue(new Error('Export failed'));
 
       render(<ExportPanel onExportComplete={handleExportComplete} />);
 

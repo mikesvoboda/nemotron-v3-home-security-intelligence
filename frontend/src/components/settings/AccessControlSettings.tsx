@@ -34,7 +34,6 @@ import { useZonesQuery } from '../../hooks/useZones';
  * - Zone Access tab: Zone-specific access control settings
  */
 export default function AccessControlSettings() {
-
   const tabs = [
     {
       id: 'household',
@@ -91,16 +90,12 @@ export default function AccessControlSettings() {
 
         <Tab.Panels className="mt-4">
           {/* Household Tab */}
-          <Tab.Panel
-            className="focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]"
-          >
+          <Tab.Panel className="focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]">
             <HouseholdSettings />
           </Tab.Panel>
 
           {/* Zone Access Tab */}
-          <Tab.Panel
-            className="focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]"
-          >
+          <Tab.Panel className="focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]">
             <ZoneAccessSettingsWithZones />
           </Tab.Panel>
         </Tab.Panels>

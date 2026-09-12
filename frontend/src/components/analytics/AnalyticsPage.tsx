@@ -210,7 +210,6 @@ export default function AnalyticsPage() {
               Refresh
             </button>
           )}
-
         </div>
       </div>
 

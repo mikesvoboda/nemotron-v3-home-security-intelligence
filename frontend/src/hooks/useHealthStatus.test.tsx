@@ -517,7 +517,8 @@ describe('useHealthStatus', () => {
       rerender({ enabled: true });
 
       // Get the call count before refresh
-      const callCountBeforeRefresh = (api.fetchHealth as ReturnType<typeof vi.fn>).mock.calls.length;
+      const callCountBeforeRefresh = (api.fetchHealth as ReturnType<typeof vi.fn>).mock.calls
+        .length;
 
       // Now manual refresh should work since enabled is true
       await act(async () => {

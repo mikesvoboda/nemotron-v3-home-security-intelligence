@@ -122,9 +122,7 @@ function createTestQueryClient() {
 function renderWithQueryClient(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
   return {
-    ...render(
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    ),
+    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
     queryClient,
   };
 }
@@ -137,9 +135,7 @@ describe('PlateDetailModal', () => {
   describe('rendering', () => {
     it('renders modal when plateText is provided', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-detail-modal')).toBeInTheDocument();
@@ -148,18 +144,14 @@ describe('PlateDetailModal', () => {
 
     it('does not render when plateText is null', () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText={null} onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText={null} onClose={onClose} />);
 
       expect(screen.queryByTestId('plate-detail-modal')).not.toBeInTheDocument();
     });
 
     it('displays the plate text prominently in header', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-text-display')).toHaveTextContent('ABC123');
@@ -170,9 +162,7 @@ describe('PlateDetailModal', () => {
   describe('loading state', () => {
     it('shows loading skeleton while fetching data', () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       expect(screen.getByTestId('plate-detail-loading')).toBeInTheDocument();
     });
@@ -181,9 +171,7 @@ describe('PlateDetailModal', () => {
   describe('data display', () => {
     it('displays summary statistics after loading', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-summary')).toBeInTheDocument();
@@ -197,9 +185,7 @@ describe('PlateDetailModal', () => {
 
     it('displays camera breakdown', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('camera-breakdown')).toBeInTheDocument();
@@ -212,9 +198,7 @@ describe('PlateDetailModal', () => {
 
     it('displays plate reads timeline', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-reads-timeline')).toBeInTheDocument();
@@ -228,9 +212,7 @@ describe('PlateDetailModal', () => {
 
     it('displays enhanced badge for enhanced reads', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByText('Enhanced')).toBeInTheDocument();
@@ -239,9 +221,7 @@ describe('PlateDetailModal', () => {
 
     it('displays blurry badge for blurry reads', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByText('Blurry')).toBeInTheDocument();
@@ -252,9 +232,7 @@ describe('PlateDetailModal', () => {
   describe('empty state', () => {
     it('shows empty state when no plate reads found', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="NOTFOUND" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="NOTFOUND" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-detail-empty')).toBeInTheDocument();
@@ -267,9 +245,7 @@ describe('PlateDetailModal', () => {
   describe('error state', () => {
     it('shows error state when API fails', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ERROR" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ERROR" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-detail-error')).toBeInTheDocument();
@@ -283,9 +259,7 @@ describe('PlateDetailModal', () => {
     it('calls onClose when X button is clicked', async () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('close-modal-button')).toBeInTheDocument();
@@ -299,9 +273,7 @@ describe('PlateDetailModal', () => {
     it('calls onClose when footer close button is clicked', async () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('footer-close-button')).toBeInTheDocument();
@@ -328,9 +300,7 @@ describe('PlateDetailModal', () => {
       );
 
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('pagination-controls')).toBeInTheDocument();
@@ -354,9 +324,7 @@ describe('PlateDetailModal', () => {
       );
 
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('prev-page-button')).toBeDisabled();
@@ -380,9 +348,7 @@ describe('PlateDetailModal', () => {
 
       const user = userEvent.setup();
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('next-page-button')).toBeInTheDocument();
@@ -399,9 +365,7 @@ describe('PlateDetailModal', () => {
   describe('accessibility', () => {
     it('has accessible dialog role', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -410,9 +374,7 @@ describe('PlateDetailModal', () => {
 
     it('has accessible dialog title', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('plate-detail-title')).toBeInTheDocument();
@@ -421,9 +383,7 @@ describe('PlateDetailModal', () => {
 
     it('close button has accessible label', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('Close modal')).toBeInTheDocument();
@@ -434,9 +394,7 @@ describe('PlateDetailModal', () => {
   describe('confidence display', () => {
     it('displays confidence badges for plate reads', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         // ConfidenceBadge has role="status" with aria-label containing confidence
@@ -447,9 +405,7 @@ describe('PlateDetailModal', () => {
 
     it('displays average confidence in summary', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         const avgConfidence = screen.getByTestId('avg-confidence');
@@ -463,9 +419,7 @@ describe('PlateDetailModal', () => {
   describe('quality indicators', () => {
     it('displays quality labels for plate reads', async () => {
       const onClose = vi.fn();
-      renderWithQueryClient(
-        <PlateDetailModal plateText="ABC123" onClose={onClose} />
-      );
+      renderWithQueryClient(<PlateDetailModal plateText="ABC123" onClose={onClose} />);
 
       await waitFor(() => {
         // Quality labels: Excellent (>90), Good (>70), Fair (>50), Poor (<50)

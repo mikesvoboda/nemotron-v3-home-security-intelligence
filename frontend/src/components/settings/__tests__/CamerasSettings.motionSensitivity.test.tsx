@@ -77,7 +77,11 @@ const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
       };
     }
   >() as UseCameraMutationReturn['updateMutation'],
-  deleteMutation: createMockMutation<void, Error, string>() as UseCameraMutationReturn['deleteMutation'],
+  deleteMutation: createMockMutation<
+    void,
+    Error,
+    string
+  >() as UseCameraMutationReturn['deleteMutation'],
 });
 
 describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
@@ -191,7 +195,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      const slider = screen.getByTestId('motion-sensitivity-slider') ;
+      const slider = screen.getByTestId('motion-sensitivity-slider');
       expect(slider).toHaveAttribute('type', 'range');
       expect(slider).toHaveAttribute('min', '0');
       expect(slider).toHaveAttribute('max', '1');
@@ -357,7 +361,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
         expect(screen.getByTestId('motion-sensitivity-slider')).toBeInTheDocument();
       });
 
-      const slider = screen.getByTestId('motion-sensitivity-slider') ;
+      const slider = screen.getByTestId('motion-sensitivity-slider');
       // Change slider value using fireEvent (range inputs don't support clear/type)
       fireEvent.change(slider, { target: { value: '0.6' } });
 
@@ -404,7 +408,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      const slider = screen.getByTestId('motion-sensitivity-slider') ;
+      const slider = screen.getByTestId('motion-sensitivity-slider');
       // Change slider value using fireEvent (range inputs don't support clear/type)
       fireEvent.change(slider, { target: { value: '0.8' } });
 

@@ -134,10 +134,7 @@ describe('useEventDetectionsQuery', () => {
     // Override handler to return error
     server.use(
       http.get('/api/events/:eventId/detections', () => {
-        return HttpResponse.json(
-          { error: 'Internal server error' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ error: 'Internal server error' }, { status: 500 });
       })
     );
 

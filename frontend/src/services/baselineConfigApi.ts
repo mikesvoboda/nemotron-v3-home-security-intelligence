@@ -150,10 +150,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * @param options - Optional fetch options
  * @returns Parsed JSON response
  */
-async function fetchBaselineConfigApiInner<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchBaselineConfigApiInner<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}/api/cameras${endpoint}`;
 
   const fetchOptions: RequestInit = {

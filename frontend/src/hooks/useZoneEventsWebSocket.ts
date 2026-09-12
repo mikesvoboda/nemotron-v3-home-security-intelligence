@@ -210,7 +210,8 @@ function getWebSocketUrl(customUrl?: string): string {
   if (customUrl) return customUrl;
 
   // Build URL based on current location
-  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const protocol =
+    typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
   return `${protocol}//${host}/ws/events`;
 }
@@ -265,9 +266,10 @@ export function useZoneEventsWebSocket(
   // Create stable event handlers
   const handleZoneCrossing = useCallback((data: unknown) => {
     // Extract data from WebSocket message format
-    const eventData = typeof data === 'object' && data !== null && 'data' in data
-      ? (data as { data: unknown }).data
-      : data;
+    const eventData =
+      typeof data === 'object' && data !== null && 'data' in data
+        ? (data as { data: unknown }).data
+        : data;
 
     if (isZoneCrossingEvent(eventData)) {
       callbacksRef.current.onZoneCrossing?.(eventData);
@@ -280,9 +282,10 @@ export function useZoneEventsWebSocket(
   }, []);
 
   const handleZoneDwellStarted = useCallback((data: unknown) => {
-    const eventData = typeof data === 'object' && data !== null && 'data' in data
-      ? (data as { data: unknown }).data
-      : data;
+    const eventData =
+      typeof data === 'object' && data !== null && 'data' in data
+        ? (data as { data: unknown }).data
+        : data;
 
     if (isZoneDwellStartedEvent(eventData)) {
       callbacksRef.current.onZoneDwellStarted?.(eventData);
@@ -295,9 +298,10 @@ export function useZoneEventsWebSocket(
   }, []);
 
   const handleZoneDwellAlert = useCallback((data: unknown) => {
-    const eventData = typeof data === 'object' && data !== null && 'data' in data
-      ? (data as { data: unknown }).data
-      : data;
+    const eventData =
+      typeof data === 'object' && data !== null && 'data' in data
+        ? (data as { data: unknown }).data
+        : data;
 
     if (isZoneDwellAlertEvent(eventData)) {
       callbacksRef.current.onZoneDwellAlert?.(eventData);
@@ -310,9 +314,10 @@ export function useZoneEventsWebSocket(
   }, []);
 
   const handleZoneApproach = useCallback((data: unknown) => {
-    const eventData = typeof data === 'object' && data !== null && 'data' in data
-      ? (data as { data: unknown }).data
-      : data;
+    const eventData =
+      typeof data === 'object' && data !== null && 'data' in data
+        ? (data as { data: unknown }).data
+        : data;
 
     if (isZoneApproachEvent(eventData)) {
       callbacksRef.current.onZoneApproach?.(eventData);

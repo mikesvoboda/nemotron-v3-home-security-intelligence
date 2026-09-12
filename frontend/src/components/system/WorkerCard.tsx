@@ -233,9 +233,7 @@ const WorkerCard = memo(function WorkerCard({
                       <div className="mt-1 text-xs text-gray-500">
                         {formatTimestamp(item.timestamp)}
                       </div>
-                      {item.error && (
-                        <div className="mt-1 text-xs text-red-400">{item.error}</div>
-                      )}
+                      {item.error && <div className="mt-1 text-xs text-red-400">{item.error}</div>}
                     </div>
                   ))}
                 </div>

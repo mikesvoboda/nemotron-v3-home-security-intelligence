@@ -29,11 +29,7 @@ describe('BulkActionBar', () => {
   describe('visibility', () => {
     it('should not render when selectedCount is 0', () => {
       const { container } = render(
-        <BulkActionBar
-          selectedCount={0}
-          actions={defaultActions}
-          onClearSelection={vi.fn()}
-        />
+        <BulkActionBar selectedCount={0} actions={defaultActions} onClearSelection={vi.fn()} />
       );
 
       expect(container.firstChild).toBeNull();
@@ -54,11 +50,7 @@ describe('BulkActionBar', () => {
 
     it('should render when selectedCount is greater than 0', () => {
       render(
-        <BulkActionBar
-          selectedCount={5}
-          actions={defaultActions}
-          onClearSelection={vi.fn()}
-        />
+        <BulkActionBar selectedCount={5} actions={defaultActions} onClearSelection={vi.fn()} />
       );
 
       expect(screen.getByRole('toolbar')).toBeInTheDocument();
@@ -68,11 +60,7 @@ describe('BulkActionBar', () => {
   describe('selection display', () => {
     it('should display selected count', () => {
       render(
-        <BulkActionBar
-          selectedCount={10}
-          actions={defaultActions}
-          onClearSelection={vi.fn()}
-        />
+        <BulkActionBar selectedCount={10} actions={defaultActions} onClearSelection={vi.fn()} />
       );
 
       expect(screen.getByText('10')).toBeInTheDocument();
@@ -106,11 +94,7 @@ describe('BulkActionBar', () => {
 
     it('should display default item label', () => {
       render(
-        <BulkActionBar
-          selectedCount={3}
-          actions={defaultActions}
-          onClearSelection={vi.fn()}
-        />
+        <BulkActionBar selectedCount={3} actions={defaultActions} onClearSelection={vi.fn()} />
       );
 
       expect(screen.getByText(/items selected/)).toBeInTheDocument();
@@ -151,13 +135,7 @@ describe('BulkActionBar', () => {
         },
       ];
 
-      render(
-        <BulkActionBar
-          selectedCount={5}
-          actions={actions}
-          onClearSelection={vi.fn()}
-        />
-      );
+      render(<BulkActionBar selectedCount={5} actions={actions} onClearSelection={vi.fn()} />);
 
       expect(screen.getByLabelText('Action 1')).toBeInTheDocument();
       expect(screen.getByLabelText('Action 2')).toBeInTheDocument();
@@ -173,13 +151,7 @@ describe('BulkActionBar', () => {
         },
       ];
 
-      render(
-        <BulkActionBar
-          selectedCount={5}
-          actions={actions}
-          onClearSelection={vi.fn()}
-        />
-      );
+      render(<BulkActionBar selectedCount={5} actions={actions} onClearSelection={vi.fn()} />);
 
       fireEvent.click(screen.getByLabelText('Test'));
       expect(onClick).toHaveBeenCalledTimes(1);
@@ -195,13 +167,7 @@ describe('BulkActionBar', () => {
         },
       ];
 
-      render(
-        <BulkActionBar
-          selectedCount={5}
-          actions={actions}
-          onClearSelection={vi.fn()}
-        />
-      );
+      render(<BulkActionBar selectedCount={5} actions={actions} onClearSelection={vi.fn()} />);
 
       expect(screen.getByLabelText('Disabled')).toBeDisabled();
     });
@@ -216,13 +182,7 @@ describe('BulkActionBar', () => {
         },
       ];
 
-      render(
-        <BulkActionBar
-          selectedCount={5}
-          actions={actions}
-          onClearSelection={vi.fn()}
-        />
-      );
+      render(<BulkActionBar selectedCount={5} actions={actions} onClearSelection={vi.fn()} />);
 
       expect(screen.getByLabelText('Loading')).toBeDisabled();
     });
@@ -238,13 +198,7 @@ describe('BulkActionBar', () => {
         },
       ];
 
-      render(
-        <BulkActionBar
-          selectedCount={5}
-          actions={actions}
-          onClearSelection={vi.fn()}
-        />
-      );
+      render(<BulkActionBar selectedCount={5} actions={actions} onClearSelection={vi.fn()} />);
 
       const deleteButton = screen.getByLabelText('Delete');
       expect(deleteButton).toHaveClass('text-red-400');

@@ -77,10 +77,7 @@ interface ErrorStateProps {
 
 function EntityRecognitionError({ onRetry }: ErrorStateProps) {
   return (
-    <Card
-      className="border-red-500/30 bg-[#1A1A1A]"
-      data-testid="entity-recognition-error"
-    >
+    <Card className="border-red-500/30 bg-[#1A1A1A]" data-testid="entity-recognition-error">
       <div className="flex flex-col items-center gap-3 py-2">
         <AlertCircle className="h-6 w-6 text-red-400" aria-hidden="true" />
         <Text className="text-sm text-gray-400">Failed to load entity stats</Text>
@@ -114,7 +111,9 @@ function EntityRecognitionError({ onRetry }: ErrorStateProps) {
  * <EntityRecognitionSummary className="mb-4" />
  * ```
  */
-export default function EntityRecognitionSummary({ className = '' }: EntityRecognitionSummaryProps) {
+export default function EntityRecognitionSummary({
+  className = '',
+}: EntityRecognitionSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Fetch entity recognition stats
@@ -175,18 +174,12 @@ export default function EntityRecognitionSummary({ className = '' }: EntityRecog
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span
-                className="text-2xl font-semibold text-white"
-                data-testid="persons-total"
-              >
+              <span className="text-2xl font-semibold text-white" data-testid="persons-total">
                 {stats.persons.total}
               </span>
               <span className="text-sm text-gray-400">persons</span>
             </div>
-            <span
-              className="text-xs text-gray-500"
-              data-testid="persons-breakdown"
-            >
+            <span className="text-xs text-gray-500" data-testid="persons-breakdown">
               {stats.persons.breakdown}
             </span>
           </div>
@@ -202,18 +195,12 @@ export default function EntityRecognitionSummary({ className = '' }: EntityRecog
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span
-                className="text-2xl font-semibold text-white"
-                data-testid="vehicles-total"
-              >
+              <span className="text-2xl font-semibold text-white" data-testid="vehicles-total">
                 {stats.vehicles.total}
               </span>
               <span className="text-sm text-gray-400">vehicles</span>
             </div>
-            <span
-              className="text-xs text-gray-500"
-              data-testid="vehicles-breakdown"
-            >
+            <span className="text-xs text-gray-500" data-testid="vehicles-breakdown">
               {stats.vehicles.breakdown}
             </span>
           </div>

@@ -26,7 +26,6 @@ import * as useRecentThreatsModule from '../../hooks/useRecentThreats';
 
 import type { RecentThreat } from '../../types/threat';
 
-
 // Mock the useRecentThreats hook
 vi.mock('../../hooks/useRecentThreats', () => ({
   useRecentThreats: vi.fn(),

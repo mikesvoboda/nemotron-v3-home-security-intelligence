@@ -136,7 +136,9 @@ describe('ZoneEntityDistributionPanel', () => {
       expect(screen.getByTestId('entity-distribution-panel')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('No entity activity detected in the last 24 hours.')).toBeInTheDocument();
+    expect(
+      screen.getByText('No entity activity detected in the last 24 hours.')
+    ).toBeInTheDocument();
   });
 
   it('should show error state on fetch failure', async () => {

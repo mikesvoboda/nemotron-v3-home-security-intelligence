@@ -20,8 +20,18 @@ vi.mock('../../hooks/usePipelineLatencyHistory', () => ({
 
 // Mock Tremor AreaChart since it requires browser APIs
 vi.mock('@tremor/react', () => ({
-  Card: ({ children, className, 'data-testid': testId }: { children: React.ReactNode; className?: string; 'data-testid'?: string }) => (
-    <div className={className} data-testid={testId}>{children}</div>
+  Card: ({
+    children,
+    className,
+    'data-testid': testId,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+    'data-testid'?: string;
+  }) => (
+    <div className={className} data-testid={testId}>
+      {children}
+    </div>
   ),
   Title: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <h3 className={className}>{children}</h3>
@@ -29,8 +39,16 @@ vi.mock('@tremor/react', () => ({
   Text: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <p className={className}>{children}</p>
   ),
-  AreaChart: ({ 'data-testid': testId, 'aria-label': ariaLabel }: { 'data-testid'?: string; 'aria-label'?: string }) => (
-    <div data-testid={testId} aria-label={ariaLabel}>AreaChart Mock</div>
+  AreaChart: ({
+    'data-testid': testId,
+    'aria-label': ariaLabel,
+  }: {
+    'data-testid'?: string;
+    'aria-label'?: string;
+  }) => (
+    <div data-testid={testId} aria-label={ariaLabel}>
+      AreaChart Mock
+    </div>
   ),
 }));
 
@@ -85,7 +103,9 @@ describe('PipelineLatencyHistoryPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(usePipelineLatencyHistoryModule.usePipelineLatencyHistory).mockReturnValue(defaultHookReturn);
+    vi.mocked(usePipelineLatencyHistoryModule.usePipelineLatencyHistory).mockReturnValue(
+      defaultHookReturn
+    );
   });
 
   afterEach(() => {
@@ -124,7 +144,9 @@ describe('PipelineLatencyHistoryPanel', () => {
 
       expect(screen.getByTestId('pipeline-latency-history-panel-view-toggle')).toBeInTheDocument();
       expect(screen.getByTestId('pipeline-latency-history-panel-view-stages')).toBeInTheDocument();
-      expect(screen.getByTestId('pipeline-latency-history-panel-view-percentiles')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('pipeline-latency-history-panel-view-percentiles')
+      ).toBeInTheDocument();
     });
   });
 
@@ -205,14 +227,20 @@ describe('PipelineLatencyHistoryPanel', () => {
       render(<PipelineLatencyHistoryPanel />);
 
       expect(screen.getByTestId('pipeline-latency-history-panel-chart-stages')).toBeInTheDocument();
-      expect(screen.queryByTestId('pipeline-latency-history-panel-chart-percentiles')).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('pipeline-latency-history-panel-chart-percentiles')
+      ).not.toBeInTheDocument();
     });
 
     it('can start with percentiles view when initialViewMode is set', () => {
       render(<PipelineLatencyHistoryPanel initialViewMode="percentiles" />);
 
-      expect(screen.getByTestId('pipeline-latency-history-panel-chart-percentiles')).toBeInTheDocument();
-      expect(screen.queryByTestId('pipeline-latency-history-panel-chart-stages')).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId('pipeline-latency-history-panel-chart-percentiles')
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId('pipeline-latency-history-panel-chart-stages')
+      ).not.toBeInTheDocument();
     });
 
     it('switches to percentiles view when percentiles button is clicked', async () => {
@@ -226,32 +254,44 @@ describe('PipelineLatencyHistoryPanel', () => {
 
       // Now shows percentiles view
       await waitFor(() => {
-        expect(screen.getByTestId('pipeline-latency-history-panel-chart-percentiles')).toBeInTheDocument();
+        expect(
+          screen.getByTestId('pipeline-latency-history-panel-chart-percentiles')
+        ).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('pipeline-latency-history-panel-chart-stages')).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('pipeline-latency-history-panel-chart-stages')
+      ).not.toBeInTheDocument();
     });
 
     it('switches back to stages view when stages button is clicked', async () => {
       render(<PipelineLatencyHistoryPanel initialViewMode="percentiles" />);
 
       // Initially shows percentiles view
-      expect(screen.getByTestId('pipeline-latency-history-panel-chart-percentiles')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('pipeline-latency-history-panel-chart-percentiles')
+      ).toBeInTheDocument();
 
       // Click stages button
       fireEvent.click(screen.getByTestId('pipeline-latency-history-panel-view-stages'));
 
       // Now shows stages view
       await waitFor(() => {
-        expect(screen.getByTestId('pipeline-latency-history-panel-chart-stages')).toBeInTheDocument();
+        expect(
+          screen.getByTestId('pipeline-latency-history-panel-chart-stages')
+        ).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('pipeline-latency-history-panel-chart-percentiles')).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('pipeline-latency-history-panel-chart-percentiles')
+      ).not.toBeInTheDocument();
     });
 
     it('sets aria-pressed correctly on toggle buttons', () => {
       render(<PipelineLatencyHistoryPanel />);
 
       const stagesButton = screen.getByTestId('pipeline-latency-history-panel-view-stages');
-      const percentilesButton = screen.getByTestId('pipeline-latency-history-panel-view-percentiles');
+      const percentilesButton = screen.getByTestId(
+        'pipeline-latency-history-panel-view-percentiles'
+      );
 
       expect(stagesButton).toHaveAttribute('aria-pressed', 'true');
       expect(percentilesButton).toHaveAttribute('aria-pressed', 'false');
@@ -268,14 +308,20 @@ describe('PipelineLatencyHistoryPanel', () => {
       render(<PipelineLatencyHistoryPanel />);
 
       const chart = screen.getByTestId('pipeline-latency-history-panel-chart-stages');
-      expect(chart).toHaveAttribute('aria-label', 'Pipeline latency history chart showing stage averages');
+      expect(chart).toHaveAttribute(
+        'aria-label',
+        'Pipeline latency history chart showing stage averages'
+      );
     });
 
     it('percentiles chart has proper aria-label', () => {
       render(<PipelineLatencyHistoryPanel initialViewMode="percentiles" />);
 
       const chart = screen.getByTestId('pipeline-latency-history-panel-chart-percentiles');
-      expect(chart).toHaveAttribute('aria-label', 'Pipeline latency history chart showing P50, P95, and P99 percentiles');
+      expect(chart).toHaveAttribute(
+        'aria-label',
+        'Pipeline latency history chart showing P50, P95, and P99 percentiles'
+      );
     });
   });
 

@@ -223,7 +223,7 @@ const DateRangePicker = memo(function DateRangePicker({
       {/* Date inputs */}
       <div className="flex flex-wrap items-end gap-4">
         {/* Start date */}
-        <div className="flex-1 min-w-[140px]">
+        <div className="min-w-[140px] flex-1">
           <label
             htmlFor="date-range-start"
             className="mb-1 block text-xs font-medium text-gray-400"
@@ -249,7 +249,7 @@ const DateRangePicker = memo(function DateRangePicker({
         </div>
 
         {/* End date */}
-        <div className="flex-1 min-w-[140px]">
+        <div className="min-w-[140px] flex-1">
           <label htmlFor="date-range-end" className="mb-1 block text-xs font-medium text-gray-400">
             {labels.end}
           </label>

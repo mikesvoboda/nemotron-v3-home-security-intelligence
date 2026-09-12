@@ -2,11 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
-import EventCard, {
-  CollapsibleDetections,
-  type Detection,
-  type EventCardProps,
-} from './EventCard';
+import EventCard, { CollapsibleDetections, type Detection, type EventCardProps } from './EventCard';
 
 describe('EventCard', () => {
   // Base time for consistent testing
@@ -2168,7 +2164,7 @@ describe('EventCard', () => {
     });
   });
 
-describe('snooze functionality', () => {
+  describe('snooze functionality', () => {
     it('renders snooze button when onSnooze is provided', () => {
       const handleSnooze = vi.fn();
       render(<EventCard {...mockProps} onSnooze={handleSnooze} />);
@@ -2435,11 +2431,7 @@ describe('snooze functionality', () => {
     it('shows spinner when isGeneratingClip is true', () => {
       const handleGenerateClip = vi.fn();
       render(
-        <EventCard
-          {...mockProps}
-          onGenerateClip={handleGenerateClip}
-          isGeneratingClip={true}
-        />
+        <EventCard {...mockProps} onGenerateClip={handleGenerateClip} isGeneratingClip={true} />
       );
 
       const clipButton = screen.getByRole('button', { name: /generating clip/i });
@@ -2583,7 +2575,11 @@ describe('snooze functionality', () => {
       render(
         <EventCard
           {...mockProps}
-          approachVector={{ ...mockApproachVector, urgency: 'imminent', estimatedArrivalSeconds: 2 }}
+          approachVector={{
+            ...mockApproachVector,
+            urgency: 'imminent',
+            estimatedArrivalSeconds: 2,
+          }}
         />
       );
 
@@ -2608,7 +2604,11 @@ describe('snooze functionality', () => {
       render(
         <EventCard
           {...mockProps}
-          approachVector={{ ...mockApproachVector, urgency: 'distant', estimatedArrivalSeconds: 15 }}
+          approachVector={{
+            ...mockApproachVector,
+            urgency: 'distant',
+            estimatedArrivalSeconds: 15,
+          }}
         />
       );
 

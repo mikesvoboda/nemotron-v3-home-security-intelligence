@@ -70,7 +70,11 @@
 
 /* Success toast - NVIDIA green accent */
 [data-sonner-toast][data-type='success'] {
-  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.primary.900') 30%, theme('colors.gray.900') 70%) 0%, theme('colors.gray.900') 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, theme('colors.primary.900') 30%, theme('colors.gray.900') 70%) 0%,
+    theme('colors.gray.900') 100%
+  );
   border-color: theme('colors.primary.500 / 30%');
 }
 
@@ -91,7 +95,11 @@
 
 /* Error toast - Red accent */
 [data-sonner-toast][data-type='error'] {
-  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.status.error.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%, theme('colors.gray.900') 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, theme('colors.status.error.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%,
+    theme('colors.gray.900') 100%
+  );
   border-color: theme('colors.status.error.DEFAULT / 30%');
 }
 
@@ -112,7 +120,11 @@
 
 /* Warning toast - Amber accent */
 [data-sonner-toast][data-type='warning'] {
-  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.status.warning.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%, theme('colors.gray.900') 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, theme('colors.status.warning.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%,
+    theme('colors.gray.900') 100%
+  );
   border-color: theme('colors.status.warning.DEFAULT / 30%');
 }
 
@@ -133,7 +145,11 @@
 
 /* Info toast - Blue accent */
 [data-sonner-toast][data-type='info'] {
-  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.link.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%, theme('colors.gray.900') 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, theme('colors.link.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%,
+    theme('colors.gray.900') 100%
+  );
   border-color: theme('colors.link.DEFAULT / 30%');
 }
 

@@ -76,8 +76,16 @@ function calculateContributions(
     contributions.push({
       label: 'Entities',
       weight: entityWeight,
-      colorClass: hasHighThreat ? 'text-red-400' : hasMediumThreat ? 'text-yellow-400' : 'text-green-400',
-      bgColorClass: hasHighThreat ? 'bg-red-500' : hasMediumThreat ? 'bg-yellow-500' : 'bg-green-500',
+      colorClass: hasHighThreat
+        ? 'text-red-400'
+        : hasMediumThreat
+          ? 'text-yellow-400'
+          : 'text-green-400',
+      bgColorClass: hasHighThreat
+        ? 'bg-red-500'
+        : hasMediumThreat
+          ? 'bg-yellow-500'
+          : 'bg-green-500',
     });
   }
 
@@ -164,7 +172,13 @@ export default function RiskFactorsBreakdown({
   const hasReasoning = reasoning !== null && reasoning !== undefined && reasoning.trim() !== '';
 
   // If no data to display, render nothing
-  if (!hasEntities && !hasFlags && !hasConfidenceFactors && !hasRecommendedAction && !hasReasoning) {
+  if (
+    !hasEntities &&
+    !hasFlags &&
+    !hasConfidenceFactors &&
+    !hasRecommendedAction &&
+    !hasReasoning
+  ) {
     return null;
   }
 
@@ -172,7 +186,8 @@ export default function RiskFactorsBreakdown({
   const contributions = calculateContributions(entities, flags, confidenceFactors);
 
   // Count total contributing factors
-  const totalFactors = (hasEntities ? (entities?.length ?? 0) : 0) + (hasFlags ? (flags?.length ?? 0) : 0);
+  const totalFactors =
+    (hasEntities ? (entities?.length ?? 0) : 0) + (hasFlags ? (flags?.length ?? 0) : 0);
 
   return (
     <div
@@ -198,9 +213,7 @@ export default function RiskFactorsBreakdown({
             <Scale className={clsx('h-4 w-4', getRiskTextClass(riskLevel))} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white">
-              Risk Factors Breakdown
-            </h3>
+            <h3 className="text-sm font-semibold text-white">Risk Factors Breakdown</h3>
             <p className="text-xs text-gray-400">
               {totalFactors > 0
                 ? `${totalFactors} factor${totalFactors !== 1 ? 's' : ''} contributing to risk score`
@@ -262,7 +275,10 @@ export default function RiskFactorsBreakdown({
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-gray-800">
                       <div
-                        className={clsx('h-full rounded-full transition-all duration-300', contribution.bgColorClass)}
+                        className={clsx(
+                          'h-full rounded-full transition-all duration-300',
+                          contribution.bgColorClass
+                        )}
                         style={{ width: `${contribution.weight}%` }}
                         data-testid={`contribution-bar-${contribution.label.toLowerCase().replace(/\s/g, '-')}`}
                       />

@@ -162,15 +162,15 @@ describe('Type Guards', () => {
       expect(
         isThreatDetection({ threat_type: 'gun', confidence: -0.1, severity: 'critical' })
       ).toBe(false);
-      expect(
-        isThreatDetection({ threat_type: 'gun', confidence: 1.5, severity: 'critical' })
-      ).toBe(false);
+      expect(isThreatDetection({ threat_type: 'gun', confidence: 1.5, severity: 'critical' })).toBe(
+        false
+      );
     });
 
     it('returns false for invalid severity', () => {
-      expect(
-        isThreatDetection({ threat_type: 'gun', confidence: 0.5, severity: 'invalid' })
-      ).toBe(false);
+      expect(isThreatDetection({ threat_type: 'gun', confidence: 0.5, severity: 'invalid' })).toBe(
+        false
+      );
     });
   });
 });

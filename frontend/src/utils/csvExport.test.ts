@@ -116,7 +116,9 @@ describe('csvExport utilities', () => {
         click: vi.fn(),
       };
 
-      createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown as HTMLAnchorElement);
+      createElementSpy = vi
+        .spyOn(document, 'createElement')
+        .mockReturnValue(mockAnchor as unknown as HTMLAnchorElement);
       createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test-url');
       revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
     });
@@ -192,8 +194,18 @@ describe('csvExport utilities', () => {
         },
         cameraUptime: {
           cameras: [
-            { camera_id: 'cam1', camera_name: 'Front Door', uptime_percentage: 98.5, detection_count: 150 },
-            { camera_id: 'cam2', camera_name: 'Backyard', uptime_percentage: 95.2, detection_count: 100 },
+            {
+              camera_id: 'cam1',
+              camera_name: 'Front Door',
+              uptime_percentage: 98.5,
+              detection_count: 150,
+            },
+            {
+              camera_id: 'cam2',
+              camera_name: 'Backyard',
+              uptime_percentage: 95.2,
+              detection_count: 100,
+            },
           ],
         },
         riskScoreDistribution: {
@@ -334,7 +346,12 @@ describe('csvExport utilities', () => {
         objectDistribution: { objectTypes: [], totalDetections: 0 },
         cameraUptime: {
           cameras: [
-            { camera_id: 'cam1', camera_name: 'Front, "Main" Door', uptime_percentage: 98.5, detection_count: 150 },
+            {
+              camera_id: 'cam1',
+              camera_name: 'Front, "Main" Door',
+              uptime_percentage: 98.5,
+              detection_count: 150,
+            },
           ],
         },
         riskScoreDistribution: { buckets: [], totalEvents: 0 },

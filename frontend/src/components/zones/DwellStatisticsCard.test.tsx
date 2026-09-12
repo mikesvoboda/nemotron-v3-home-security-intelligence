@@ -152,11 +152,7 @@ describe('DwellStatisticsCard', () => {
   describe('Loading State', () => {
     it('should display loading spinner when isLoading is true', () => {
       render(
-        <DwellStatisticsCard
-          zone={createMockZone()}
-          isLoading={true}
-          statistics={undefined}
-        />
+        <DwellStatisticsCard zone={createMockZone()} isLoading={true} statistics={undefined} />
       );
 
       expect(screen.getByTestId('loading-state')).toBeInTheDocument();
@@ -177,12 +173,7 @@ describe('DwellStatisticsCard', () => {
 
   describe('No Data State', () => {
     it('should display "No statistics available" when no statistics provided', () => {
-      render(
-        <DwellStatisticsCard
-          zone={createMockZone()}
-          statistics={undefined}
-        />
-      );
+      render(<DwellStatisticsCard zone={createMockZone()} statistics={undefined} />);
 
       expect(screen.getByTestId('no-data-state')).toBeInTheDocument();
       expect(screen.getByText('No statistics available')).toBeInTheDocument();

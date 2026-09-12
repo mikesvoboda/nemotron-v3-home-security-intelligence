@@ -10,7 +10,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { useBaselineConfigQuery, useUpdateBaselineConfig, useResetBaseline } from './useBaselineConfig';
+import {
+  useBaselineConfigQuery,
+  useUpdateBaselineConfig,
+  useResetBaseline,
+} from './useBaselineConfig';
 import * as baselineConfigApi from '../services/baselineConfigApi';
 
 import type { ReactNode } from 'react';
@@ -76,7 +80,9 @@ describe('useBaselineConfigQuery', () => {
   });
 
   it('handles loading state', () => {
-    vi.mocked(baselineConfigApi.fetchBaselineConfig).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(baselineConfigApi.fetchBaselineConfig).mockImplementation(
+      () => new Promise(() => {})
+    );
 
     const { result } = renderHook(() => useBaselineConfigQuery(mockCameraId), {
       wrapper: createWrapper(),
@@ -188,7 +194,9 @@ describe('useUpdateBaselineConfig', () => {
   });
 
   it('provides loading state during mutation', async () => {
-    vi.mocked(baselineConfigApi.updateBaselineConfig).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(baselineConfigApi.updateBaselineConfig).mockImplementation(
+      () => new Promise(() => {})
+    );
 
     const queryClient = createTestQueryClient();
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -287,7 +295,9 @@ describe('useResetBaseline', () => {
   });
 
   it('provides loading state during reset', async () => {
-    vi.mocked(baselineConfigApi.resetCameraBaseline).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(baselineConfigApi.resetCameraBaseline).mockImplementation(
+      () => new Promise(() => {})
+    );
 
     const queryClient = createTestQueryClient();
     const wrapper = ({ children }: { children: ReactNode }) => (

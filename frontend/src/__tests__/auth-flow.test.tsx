@@ -316,7 +316,9 @@ describe('Auth Flow Integration', () => {
         expect(screen.getByText(/an account already exists/i)).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('link', { name: /login with existing account/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: /login with existing account/i })
+      ).toBeInTheDocument();
     });
   });
 

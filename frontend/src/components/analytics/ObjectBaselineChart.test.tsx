@@ -208,9 +208,7 @@ describe('ObjectBaselineChart', () => {
     it('shows helpful message in empty state', () => {
       render(<ObjectBaselineChart baselines={{}} />);
 
-      expect(
-        screen.getByText(/Data will appear after objects are detected/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Data will appear after objects are detected/i)).toBeInTheDocument();
     });
   });
 

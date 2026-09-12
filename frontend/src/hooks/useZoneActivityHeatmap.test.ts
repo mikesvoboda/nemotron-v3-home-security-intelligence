@@ -8,21 +8,9 @@
  * - Data transformation
  */
 import { renderHook, waitFor, act } from '@testing-library/react';
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  beforeAll,
-  afterAll,
-} from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
-import {
-  useZoneActivityHeatmap,
-  zoneActivityHeatmapQueryKeys,
-} from './useZoneActivityHeatmap';
+import { useZoneActivityHeatmap, zoneActivityHeatmapQueryKeys } from './useZoneActivityHeatmap';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
 import type { ZoneActivityHeatmapResponse } from './useZoneActivityHeatmap';
@@ -78,10 +66,9 @@ describe('useZoneActivityHeatmap', () => {
     it('starts with isLoading true when fetching', () => {
       mockFetch.mockReturnValue(new Promise(() => {})); // Never resolving
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.isLoading).toBe(true);
       expect(result.current.weeklyData).toEqual([]);
@@ -91,10 +78,9 @@ describe('useZoneActivityHeatmap', () => {
     it('starts with empty data arrays', () => {
       mockFetch.mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.weeklyData).toEqual([]);
       expect(result.current.hourlyData).toEqual([]);
@@ -128,15 +114,12 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse({ time_range: '30d' })),
       });
 
-      renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1, timeRange: '30d' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneActivityHeatmap({ zoneId: 1, timeRange: '30d' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('time_range=30d')
-        );
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('time_range=30d'));
       });
     });
 
@@ -147,10 +130,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.weeklyData).toHaveLength(3);
@@ -168,10 +150,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.weeklyData).toHaveLength(3);
@@ -191,10 +172,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -207,10 +187,9 @@ describe('useZoneActivityHeatmap', () => {
         statusText: 'Internal Server Error',
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -229,10 +208,9 @@ describe('useZoneActivityHeatmap', () => {
         statusText: 'Not Found',
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 999 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 999 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -257,9 +235,7 @@ describe('useZoneActivityHeatmap', () => {
       });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('time_range=7d')
-        );
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('time_range=7d'));
       });
     });
 
@@ -269,15 +245,12 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse({ time_range: '1h' })),
       });
 
-      renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1, timeRange: '1h' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneActivityHeatmap({ zoneId: 1, timeRange: '1h' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('time_range=1h')
-        );
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('time_range=1h'));
       });
     });
 
@@ -287,35 +260,28 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse({ time_range: '24h' })),
       });
 
-      renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1, timeRange: '24h' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneActivityHeatmap({ zoneId: 1, timeRange: '24h' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('time_range=24h')
-        );
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('time_range=24h'));
       });
     });
   });
 
   describe('enabled option', () => {
     it('does not fetch when enabled is false', async () => {
-      renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1, enabled: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneActivityHeatmap({ zoneId: 1, enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await new Promise((r) => setTimeout(r, 100));
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('does not fetch when zoneId is empty string', async () => {
-      renderHook(
-        () => useZoneActivityHeatmap({ zoneId: '' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneActivityHeatmap({ zoneId: '' }), { wrapper: createQueryWrapper() });
 
       await new Promise((r) => setTimeout(r, 100));
       expect(mockFetch).not.toHaveBeenCalled();
@@ -329,10 +295,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -347,10 +312,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -374,10 +338,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -390,11 +353,7 @@ describe('useZoneActivityHeatmap', () => {
   describe('query keys', () => {
     it('generates correct query keys', () => {
       expect(zoneActivityHeatmapQueryKeys.all).toEqual(['zone-activity-heatmap']);
-      expect(zoneActivityHeatmapQueryKeys.byZone(1)).toEqual([
-        'zone-activity-heatmap',
-        'zone',
-        1,
-      ]);
+      expect(zoneActivityHeatmapQueryKeys.byZone(1)).toEqual(['zone-activity-heatmap', 'zone', 1]);
       expect(zoneActivityHeatmapQueryKeys.withRange(1, '7d')).toEqual([
         'zone-activity-heatmap',
         'zone',
@@ -424,10 +383,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -446,10 +404,9 @@ describe('useZoneActivityHeatmap', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const { result } = renderHook(
-        () => useZoneActivityHeatmap({ zoneId: 1 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneActivityHeatmap({ zoneId: 1 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

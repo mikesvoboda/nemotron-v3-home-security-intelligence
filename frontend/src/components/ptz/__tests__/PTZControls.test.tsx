@@ -63,10 +63,9 @@ describe('PTZControls - rendering', () => {
   });
 
   it('renders D-pad buttons correctly', () => {
-    const { container } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { container } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     // TODO: Update selectors when component is implemented
     // Should render directional buttons
@@ -113,10 +112,7 @@ describe('PTZControls - rendering', () => {
       })
     );
 
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} showPresets />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} showPresets />, { queryClient });
 
     // TODO: Update selector when component is implemented
     // await waitFor(() => {
@@ -135,10 +131,9 @@ describe('PTZControls - rendering', () => {
   });
 
   it('does not show preset selector when showPresets is false', () => {
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} showPresets={false} />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} showPresets={false} />, {
+      queryClient,
+    });
 
     // Preset selector should not be shown
     expect(screen.queryByTestId('ptz-preset-selector')).not.toBeInTheDocument();
@@ -152,10 +147,7 @@ describe('PTZControls - rendering', () => {
       })
     );
 
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} showPresets />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} showPresets />, { queryClient });
 
     await waitFor(() => {
       expect(screen.getByTestId('ptz-controls')).toBeInTheDocument();
@@ -191,10 +183,9 @@ describe('PTZControls - button clicks', () => {
   });
 
   it('calls moveDirection with "up" when up button clicked', async () => {
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const upButton = screen.getByTestId('ptz-up');
     await user.click(upButton);
@@ -206,10 +197,9 @@ describe('PTZControls - button clicks', () => {
   });
 
   it('calls moveDirection with "down" when down button clicked', async () => {
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const downButton = screen.getByTestId('ptz-down');
     await user.click(downButton);
@@ -221,10 +211,9 @@ describe('PTZControls - button clicks', () => {
   });
 
   it('calls moveDirection with "left" when left button clicked', async () => {
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const leftButton = screen.getByTestId('ptz-left');
     await user.click(leftButton);
@@ -236,10 +225,9 @@ describe('PTZControls - button clicks', () => {
   });
 
   it('calls moveDirection with "right" when right button clicked', async () => {
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const rightButton = screen.getByTestId('ptz-right');
     await user.click(rightButton);
@@ -251,10 +239,9 @@ describe('PTZControls - button clicks', () => {
   });
 
   it('calls moveDirection with "zoom-in" when zoom in button clicked', async () => {
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const zoomInButton = screen.getByTestId('ptz-zoom-in');
     await user.click(zoomInButton);
@@ -266,10 +253,9 @@ describe('PTZControls - button clicks', () => {
   });
 
   it('calls moveDirection with "zoom-out" when zoom out button clicked', async () => {
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const zoomOutButton = screen.getByTestId('ptz-zoom-out');
     await user.click(zoomOutButton);
@@ -292,10 +278,9 @@ describe('PTZControls - button clicks', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     // First click a direction button to start movement (which enables the stop button)
     const upButton = screen.getByTestId('ptz-up');
@@ -341,10 +326,9 @@ describe('PTZControls - loading state', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const upButton = screen.getByTestId('ptz-up');
     await user.click(upButton);
@@ -368,10 +352,9 @@ describe('PTZControls - loading state', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const upButton = screen.getByTestId('ptz-up');
     await user.click(upButton);
@@ -395,10 +378,9 @@ describe('PTZControls - loading state', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const upButton = screen.getByTestId('ptz-up');
     const stopButton = screen.getByTestId('ptz-stop');
@@ -448,10 +430,9 @@ describe('PTZControls - preset selection', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} showPresets />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} showPresets />, {
+      queryClient,
+    });
 
     // Wait for presets to actually load (not just the selector element, but the options)
     await waitFor(() => {
@@ -478,10 +459,9 @@ describe('PTZControls - preset selection', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} showPresets />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} showPresets />, {
+      queryClient,
+    });
 
     // Wait for presets to actually load (not just the selector element, but the options)
     await waitFor(() => {
@@ -521,10 +501,7 @@ describe('PTZControls - accessibility', () => {
   });
 
   it('has proper ARIA labels for all buttons', () => {
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, { queryClient });
 
     // All D-pad buttons should have aria-labels
     expect(screen.getByTestId('ptz-up')).toHaveAttribute('aria-label', 'Tilt camera up');
@@ -544,10 +521,9 @@ describe('PTZControls - accessibility', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const upButton = screen.getByTestId('ptz-up');
     expect(upButton).toHaveAttribute('aria-busy', 'false');
@@ -564,10 +540,7 @@ describe('PTZControls - accessibility', () => {
   });
 
   it('is keyboard navigable', () => {
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, { queryClient });
 
     // All buttons should be keyboard focusable
     const buttons = screen.getAllByRole('button');
@@ -578,10 +551,7 @@ describe('PTZControls - accessibility', () => {
   });
 
   it('provides clear visual focus indicators', () => {
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, { queryClient });
 
     // Verify controls container exists with proper role
     expect(screen.getByTestId('ptz-controls')).toHaveAttribute('role', 'group');
@@ -612,10 +582,9 @@ describe('PTZControls - error handling', () => {
       })
     );
 
-    const { user } = renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} />,
-      { queryClient }
-    );
+    const { user } = renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} />, {
+      queryClient,
+    });
 
     const upButton = screen.getByTestId('ptz-up');
     await user.click(upButton);
@@ -633,10 +602,7 @@ describe('PTZControls - error handling', () => {
       })
     );
 
-    renderWithProviders(
-      <PTZControls cameraId={TEST_CAMERA_ID} showPresets />,
-      { queryClient }
-    );
+    renderWithProviders(<PTZControls cameraId={TEST_CAMERA_ID} showPresets />, { queryClient });
 
     // Component should still render even with preset fetch error
     await waitFor(() => {

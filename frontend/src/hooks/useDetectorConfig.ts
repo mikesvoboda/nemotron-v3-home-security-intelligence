@@ -100,9 +100,7 @@ export interface UseDetectorConfigResult {
  * }
  * ```
  */
-export function useDetectorConfig(
-  options: UseDetectorConfigOptions = {}
-): UseDetectorConfigResult {
+export function useDetectorConfig(options: UseDetectorConfigOptions = {}): UseDetectorConfigResult {
   const { autoFetch = true, pollingInterval = 0, includeHealth = false } = options;
 
   const [detectors, setDetectors] = useState<DetectorInfo[]>([]);
@@ -166,12 +164,9 @@ export function useDetectorConfig(
   /**
    * Check health of a specific detector.
    */
-  const checkHealth = useCallback(
-    async (detectorType: string): Promise<DetectorHealth> => {
-      return checkDetectorHealth(detectorType);
-    },
-    []
-  );
+  const checkHealth = useCallback(async (detectorType: string): Promise<DetectorHealth> => {
+    return checkDetectorHealth(detectorType);
+  }, []);
 
   // Initial fetch on mount
   useEffect(() => {

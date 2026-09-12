@@ -569,9 +569,9 @@ describe('HeatmapsPage', () => {
       const timeRangeSelector = screen.getByTestId('time-range-selector');
       expect(timeRangeSelector).toHaveAttribute('role', 'group');
 
-      const timeRangeButtons = screen.getAllByRole('button').filter(
-        (btn) => btn.closest('[data-testid="time-range-selector"]')
-      );
+      const timeRangeButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.closest('[data-testid="time-range-selector"]'));
       timeRangeButtons.forEach((btn) => {
         expect(btn).toHaveAttribute('aria-pressed');
       });

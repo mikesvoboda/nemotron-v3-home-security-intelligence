@@ -85,10 +85,9 @@ describe('useZoneComparison', () => {
     it('starts with undefined data', () => {
       mockFetch.mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.data).toBeUndefined();
     });
@@ -102,10 +101,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2], metric: 'crossings', period: 'day' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2], metric: 'crossings', period: 'day' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
@@ -128,10 +126,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const { result } = renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.data).toEqual(mockResponse);
@@ -146,10 +143,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      const { result } = renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -162,10 +158,9 @@ describe('useZoneComparison', () => {
         statusText: 'Internal Server Error',
       });
 
-      const { result } = renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(
         () => {
@@ -178,20 +173,16 @@ describe('useZoneComparison', () => {
 
   describe('enabled option', () => {
     it('does not fetch when enabled is false', async () => {
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2], enabled: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2], enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await new Promise((r) => setTimeout(r, 100));
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('does not fetch when zoneIds is empty', async () => {
-      renderHook(
-        () => useZoneComparison({ zoneIds: [] }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [] }), { wrapper: createQueryWrapper() });
 
       await new Promise((r) => setTimeout(r, 100));
       expect(mockFetch).not.toHaveBeenCalled();
@@ -205,10 +196,7 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         const callUrl = mockFetch.mock.calls[0][0] as string;
@@ -222,10 +210,7 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
         const callUrl = mockFetch.mock.calls[0][0] as string;
@@ -241,10 +226,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse({ metric: 'dwell_time' })),
       });
 
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2], metric: 'dwell_time' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2], metric: 'dwell_time' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         const callUrl = mockFetch.mock.calls[0][0] as string;
@@ -258,10 +242,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse({ comparison_period: 'week' })),
       });
 
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2], period: 'week' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2], period: 'week' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         const callUrl = mockFetch.mock.calls[0][0] as string;
@@ -275,10 +258,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse({ comparison_period: 'month' })),
       });
 
-      renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2], period: 'month' }),
-        { wrapper: createQueryWrapper() }
-      );
+      renderHook(() => useZoneComparison({ zoneIds: [1, 2], period: 'month' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         const callUrl = mockFetch.mock.calls[0][0] as string;
@@ -294,10 +276,9 @@ describe('useZoneComparison', () => {
         json: () => Promise.resolve(createMockResponse()),
       });
 
-      const { result } = renderHook(
-        () => useZoneComparison({ zoneIds: [1, 2] }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useZoneComparison({ zoneIds: [1, 2] }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

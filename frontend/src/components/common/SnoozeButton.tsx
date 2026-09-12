@@ -155,12 +155,12 @@ const SnoozeButton = memo(function SnoozeButton({
           'transition-all duration-200',
           // Color scheme based on snooze state
           currentlySnoozed
-            ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30'
-            : 'bg-gray-700/50 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:border-gray-600',
+            ? 'border border-indigo-500/30 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+            : 'border border-gray-700 bg-gray-700/50 text-gray-300 hover:border-gray-600 hover:bg-gray-700',
           // Focus states
           'focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
           // Disabled/loading states
-          (disabled || isLoading) && 'opacity-50 cursor-not-allowed',
+          (disabled || isLoading) && 'cursor-not-allowed opacity-50',
           // Size classes
           sizeClasses.button
         )}
@@ -179,7 +179,7 @@ const SnoozeButton = memo(function SnoozeButton({
         <div
           className={clsx(
             'absolute right-0 z-20 mt-1 rounded-lg',
-            'bg-[#1F1F1F] border border-gray-700 shadow-lg',
+            'border border-gray-700 bg-[#1F1F1F] shadow-lg',
             'py-1',
             sizeClasses.dropdown
           )}
@@ -189,7 +189,7 @@ const SnoozeButton = memo(function SnoozeButton({
         >
           {/* Snooze Status (if currently snoozed) */}
           {currentlySnoozed && snoozeStatus && (
-            <div className="px-3 py-2 text-xs text-indigo-400/80 border-b border-gray-700">
+            <div className="border-b border-gray-700 px-3 py-2 text-xs text-indigo-400/80">
               {snoozeStatus}
             </div>
           )}
@@ -201,7 +201,7 @@ const SnoozeButton = memo(function SnoozeButton({
               onClick={handleUnsnooze}
               disabled={isLoading}
               className={clsx(
-                'w-full flex items-center gap-2 text-left',
+                'flex w-full items-center gap-2 text-left',
                 'text-red-400 hover:bg-red-500/10',
                 'transition-colors',
                 sizeClasses.option
@@ -215,12 +215,10 @@ const SnoozeButton = memo(function SnoozeButton({
           )}
 
           {/* Divider between unsnooze and duration options */}
-          {currentlySnoozed && (
-            <div className="my-1 border-t border-gray-700" role="separator" />
-          )}
+          {currentlySnoozed && <div className="my-1 border-t border-gray-700" role="separator" />}
 
           {/* Snooze duration label */}
-          <div className="px-3 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <div className="px-3 py-1 text-xs font-medium uppercase tracking-wider text-gray-500">
             {currentlySnoozed ? 'Change duration' : 'Snooze for'}
           </div>
 
@@ -232,7 +230,7 @@ const SnoozeButton = memo(function SnoozeButton({
               onClick={() => handleSnooze(option.value)}
               disabled={isLoading}
               className={clsx(
-                'w-full flex items-center gap-2 text-left',
+                'flex w-full items-center gap-2 text-left',
                 'text-gray-300 hover:bg-gray-700/50 hover:text-white',
                 'transition-colors',
                 sizeClasses.option

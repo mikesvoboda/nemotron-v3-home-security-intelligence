@@ -1,4 +1,3 @@
-
 /**
  * DebugModeContext - React context for sharing debug mode state
  *

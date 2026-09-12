@@ -294,7 +294,8 @@ describe('usePlateSearchQuery', () => {
 
     it('respects exact match parameter', async () => {
       renderHook(
-        () => usePlateSearchQuery({ text: 'ABC123', exact: true }, { enabled: true, debounceMs: 0 }),
+        () =>
+          usePlateSearchQuery({ text: 'ABC123', exact: true }, { enabled: true, debounceMs: 0 }),
         {
           wrapper: createQueryWrapper(),
         }

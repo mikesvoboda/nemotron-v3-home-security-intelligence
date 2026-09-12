@@ -208,10 +208,9 @@ describe('useIntegratedNotifications', () => {
 
   describe('custom options', () => {
     it('uses custom initial volume', async () => {
-      const { result } = renderHook(
-        () => useIntegratedNotifications({ initialVolume: 0.8 }),
-        { wrapper }
-      );
+      const { result } = renderHook(() => useIntegratedNotifications({ initialVolume: 0.8 }), {
+        wrapper,
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

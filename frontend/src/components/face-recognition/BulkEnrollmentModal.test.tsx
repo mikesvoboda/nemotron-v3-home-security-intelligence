@@ -109,8 +109,20 @@ describe.skip('BulkEnrollmentModal', () => {
         successful: 2,
         failed: 0,
         results: [
-          { filename: 'face1.jpg', success: true, embedding_id: 1, quality_score: 0.92, error: null },
-          { filename: 'face2.jpg', success: true, embedding_id: 2, quality_score: 0.88, error: null },
+          {
+            filename: 'face1.jpg',
+            success: true,
+            embedding_id: 1,
+            quality_score: 0.92,
+            error: null,
+          },
+          {
+            filename: 'face2.jpg',
+            success: true,
+            embedding_id: 2,
+            quality_score: 0.88,
+            error: null,
+          },
         ],
         person_id: 1,
         person_name: 'John Smith',
@@ -264,9 +276,7 @@ describe.skip('BulkEnrollmentModal', () => {
 
       await user.upload(input, file);
 
-      expect(warningToast).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid file type')
-      );
+      expect(warningToast).toHaveBeenCalledWith(expect.stringContaining('Invalid file type'));
     });
 
     it('limits to maximum 10 files', async () => {
@@ -281,16 +291,12 @@ describe.skip('BulkEnrollmentModal', () => {
 
       renderModal();
 
-      const files = Array.from({ length: 11 }, (_, i) =>
-        createMockFile(`test${i}.jpg`)
-      );
+      const files = Array.from({ length: 11 }, (_, i) => createMockFile(`test${i}.jpg`));
       const input = screen.getByTestId('file-input');
 
       await user.upload(input, files);
 
-      expect(warningToast).toHaveBeenCalledWith(
-        expect.stringContaining('Maximum 10 files')
-      );
+      expect(warningToast).toHaveBeenCalledWith(expect.stringContaining('Maximum 10 files'));
     });
 
     it('updates file count display', async () => {
@@ -439,7 +445,9 @@ describe.skip('BulkEnrollmentModal', () => {
         total_images: 1,
         successful: 1,
         failed: 0,
-        results: [{ filename: 'test.jpg', success: true, embedding_id: 1, quality_score: 0.9, error: null }],
+        results: [
+          { filename: 'test.jpg', success: true, embedding_id: 1, quality_score: 0.9, error: null },
+        ],
         person_id: 1,
         person_name: 'John Smith',
         created_new_person: false,
@@ -517,8 +525,20 @@ describe.skip('BulkEnrollmentModal', () => {
           successful: 2,
           failed: 0,
           results: [
-            { filename: 'face1.jpg', success: true, embedding_id: 1, quality_score: 0.92, error: null },
-            { filename: 'face2.jpg', success: true, embedding_id: 2, quality_score: 0.88, error: null },
+            {
+              filename: 'face1.jpg',
+              success: true,
+              embedding_id: 1,
+              quality_score: 0.92,
+              error: null,
+            },
+            {
+              filename: 'face2.jpg',
+              success: true,
+              embedding_id: 2,
+              quality_score: 0.88,
+              error: null,
+            },
           ],
           person_id: 1,
           person_name: 'John Smith',
@@ -562,8 +582,20 @@ describe.skip('BulkEnrollmentModal', () => {
           successful: 1,
           failed: 1,
           results: [
-            { filename: 'good.jpg', success: true, embedding_id: 1, quality_score: 0.92, error: null },
-            { filename: 'bad.jpg', success: false, embedding_id: null, quality_score: 0.55, error: 'Quality too low' },
+            {
+              filename: 'good.jpg',
+              success: true,
+              embedding_id: 1,
+              quality_score: 0.92,
+              error: null,
+            },
+            {
+              filename: 'bad.jpg',
+              success: false,
+              embedding_id: null,
+              quality_score: 0.55,
+              error: 'Quality too low',
+            },
           ],
           person_id: 1,
           person_name: 'John Smith',
@@ -634,7 +666,9 @@ describe.skip('BulkEnrollmentModal', () => {
         total_images: 1,
         successful: 1,
         failed: 0,
-        results: [{ filename: 'test.jpg', success: true, embedding_id: 1, quality_score: 0.9, error: null }],
+        results: [
+          { filename: 'test.jpg', success: true, embedding_id: 1, quality_score: 0.9, error: null },
+        ],
         person_id: 4,
         person_name: 'New Person',
         created_new_person: true,
@@ -710,9 +744,7 @@ describe.skip('BulkEnrollmentModal', () => {
       await user.click(screen.getByTestId('enroll-button'));
 
       await waitFor(() => {
-        expect(errorToast).toHaveBeenCalledWith(
-          expect.stringContaining('Bulk enrollment failed')
-        );
+        expect(errorToast).toHaveBeenCalledWith(expect.stringContaining('Bulk enrollment failed'));
       });
     });
 
@@ -726,9 +758,7 @@ describe.skip('BulkEnrollmentModal', () => {
       await user.click(screen.getByText('John Smith'));
 
       // Upload more files than slots available (8 files)
-      const files = Array.from({ length: 8 }, (_, i) =>
-        createMockFile(`test${i}.jpg`)
-      );
+      const files = Array.from({ length: 8 }, (_, i) => createMockFile(`test${i}.jpg`));
       const input = screen.getByTestId('file-input');
       await user.upload(input, files);
 

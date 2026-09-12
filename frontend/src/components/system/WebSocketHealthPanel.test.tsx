@@ -121,7 +121,9 @@ describe('WebSocketHealthPanel', () => {
     expect(screen.getByTestId('websocket-overall-badge')).toHaveTextContent('Issues Detected');
 
     // Check event broadcaster shows open/failing state
-    expect(screen.getByTestId('broadcaster-status-badge-event')).toHaveTextContent('Open (Failing)');
+    expect(screen.getByTestId('broadcaster-status-badge-event')).toHaveTextContent(
+      'Open (Failing)'
+    );
     expect(screen.getByTestId('broadcaster-degraded-badge-event')).toHaveTextContent('Degraded');
 
     // Check failure count is displayed

@@ -221,10 +221,7 @@ describe('useOnvifDiscovery', () => {
     it('should handle invalid subnet validation error', async () => {
       server.use(
         http.post('/api/cameras/onvif/discover', () => {
-          return HttpResponse.json(
-            { detail: 'Invalid subnet format' },
-            { status: 422 }
-          );
+          return HttpResponse.json({ detail: 'Invalid subnet format' }, { status: 422 });
         })
       );
 

@@ -472,9 +472,7 @@ export const selectPipelineHealthStatus = (
  * ```
  */
 export function useGPUMetrics() {
-  return useRealtimeMetricsStore(
-    useShallow((state) => state.gpu.data)
-  );
+  return useRealtimeMetricsStore(useShallow((state) => state.gpu.data));
 }
 
 /**
@@ -486,9 +484,7 @@ export function useGPUMetrics() {
  * ```
  */
 export function usePipelineMetrics() {
-  return useRealtimeMetricsStore(
-    useShallow((state) => state.pipeline.data)
-  );
+  return useRealtimeMetricsStore(useShallow((state) => state.pipeline.data));
 }
 
 /**
@@ -500,9 +496,7 @@ export function usePipelineMetrics() {
  * ```
  */
 export function useInferenceMetrics() {
-  return useRealtimeMetricsStore(
-    useShallow((state) => state.inference.data)
-  );
+  return useRealtimeMetricsStore(useShallow((state) => state.inference.data));
 }
 
 /**

@@ -23,12 +23,7 @@
  * @see docs/plans/2025-01-31-face-recognition-ui-design.md
  */
 
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  useInfiniteQuery,
-} from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 
 import { REALTIME_STALE_TIME, STATIC_STALE_TIME } from '../services/queryClient';
 
@@ -716,8 +711,15 @@ export async function compareFaceSimilarity(
  */
 export function useCompareFaceSimilarity() {
   return useMutation({
-    mutationFn: ({ image1, image2, threshold }: { image1: File; image2: File; threshold?: number }) =>
-      compareFaceSimilarity(image1, image2, threshold),
+    mutationFn: ({
+      image1,
+      image2,
+      threshold,
+    }: {
+      image1: File;
+      image2: File;
+      threshold?: number;
+    }) => compareFaceSimilarity(image1, image2, threshold),
   });
 }
 

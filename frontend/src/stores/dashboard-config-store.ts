@@ -388,8 +388,7 @@ export const useDashboardConfigStore = create<DashboardConfigStore>()(
  * Returns stable reference when widgets haven't changed.
  */
 export const selectVisibleWidgets = createComputedSelector(
-  (state: DashboardConfigStore): WidgetConfig[] =>
-    state.widgets.filter((widget) => widget.visible)
+  (state: DashboardConfigStore): WidgetConfig[] => state.widgets.filter((widget) => widget.visible)
 );
 
 /**

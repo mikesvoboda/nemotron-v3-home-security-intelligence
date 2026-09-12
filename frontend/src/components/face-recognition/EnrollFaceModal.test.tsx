@@ -136,7 +136,9 @@ describe('EnrollFaceModal', () => {
 
     mockUseEnrollFace.mockReturnValue({
       mutate: vi.fn(),
-      mutateAsync: vi.fn().mockResolvedValue({ success: true, embedding_id: 1, quality_score: 0.85 }),
+      mutateAsync: vi
+        .fn()
+        .mockResolvedValue({ success: true, embedding_id: 1, quality_score: 0.85 }),
       isPending: false,
       isError: false,
       error: null,

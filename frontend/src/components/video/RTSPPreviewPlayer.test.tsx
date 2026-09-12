@@ -388,9 +388,7 @@ describe('RTSPPreviewPlayer', () => {
         stopPreview: mockStopPreview,
       });
 
-      rerender(
-        <RTSPPreviewPlayer config={defaultConfig} autoStart onStopped={onStopped} />
-      );
+      rerender(<RTSPPreviewPlayer config={defaultConfig} autoStart onStopped={onStopped} />);
 
       await waitFor(() => {
         expect(onStopped).toHaveBeenCalled();

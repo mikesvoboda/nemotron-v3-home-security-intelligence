@@ -136,9 +136,7 @@ describe('usePrometheusAlertWebSocket', () => {
     it('should handle firing alert messages with data field', () => {
       const onAlertFiring = vi.fn();
       const onAlert = vi.fn();
-      const { result } = renderHook(() =>
-        usePrometheusAlertWebSocket({ onAlertFiring, onAlert })
-      );
+      const { result } = renderHook(() => usePrometheusAlertWebSocket({ onAlertFiring, onAlert }));
 
       const alertPayload = createAlertPayload();
 

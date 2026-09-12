@@ -222,10 +222,7 @@ export type {
 
 // Top events by risk score (NEM-5412)
 export { useTopEventsQuery, topEventsQueryKeys } from './useTopEventsQuery';
-export type {
-  UseTopEventsQueryOptions,
-  UseTopEventsQueryReturn,
-} from './useTopEventsQuery';
+export type { UseTopEventsQueryOptions, UseTopEventsQueryReturn } from './useTopEventsQuery';
 
 export { useDetectionsInfiniteQuery, detectionsQueryKeys } from './useDetectionsQuery';
 export type {
@@ -801,10 +798,7 @@ export type {
 
 // React 19 deferred list rendering hook (NEM-3750)
 export { useDeferredList, default as useDeferredListDefault } from './useDeferredList';
-export type {
-  UseDeferredListOptions,
-  UseDeferredListResult,
-} from './useDeferredList';
+export type { UseDeferredListOptions, UseDeferredListResult } from './useDeferredList';
 
 // Virtualized list hook (NEM-3423)
 export { useVirtualizedList, default as useVirtualizedListDefault } from './useVirtualizedList';
@@ -1030,7 +1024,10 @@ export type {
 } from './usePrometheusAlertWebSocket';
 
 // Enrichment progress tracking hook
-export { useEnrichmentProgress, default as useEnrichmentProgressDefault } from './useEnrichmentProgress';
+export {
+  useEnrichmentProgress,
+  default as useEnrichmentProgressDefault,
+} from './useEnrichmentProgress';
 export type {
   EventEnrichmentProgress,
   UseEnrichmentProgressOptions,
@@ -1039,7 +1036,4 @@ export type {
 
 // Threat detection hook (NEM-5024)
 export { useThreatDetection } from './useThreatDetection';
-export type {
-  UseThreatDetectionOptions,
-  UseThreatDetectionReturn,
-} from './useThreatDetection';
+export type { UseThreatDetectionOptions, UseThreatDetectionReturn } from './useThreatDetection';

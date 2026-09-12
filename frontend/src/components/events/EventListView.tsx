@@ -290,7 +290,9 @@ const EventListView = memo(function EventListView({
             </tr>
           </thead>
 
-          <tbody className={`divide-y divide-gray-800 ${isStale ? 'opacity-70 transition-opacity' : ''}`}>
+          <tbody
+            className={`divide-y divide-gray-800 ${isStale ? 'opacity-70 transition-opacity' : ''}`}
+          >
             {deferredEvents.map((event) => {
               const isSelected = selectedIds.has(event.id);
               const riskLevel = (event.risk_level || getRiskLevel(event.risk_score)) as RiskLevel;
@@ -392,7 +394,9 @@ const EventListView = memo(function EventListView({
                         <div className="relative">
                           <button
                             type="button"
-                            onClick={() => setOpenSnoozeMenuId(openSnoozeMenuId === event.id ? null : event.id)}
+                            onClick={() =>
+                              setOpenSnoozeMenuId(openSnoozeMenuId === event.id ? null : event.id)
+                            }
                             className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
                             aria-label={`Snooze event ${event.id}`}
                             aria-expanded={openSnoozeMenuId === event.id}

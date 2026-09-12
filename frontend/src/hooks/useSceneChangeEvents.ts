@@ -265,23 +265,20 @@ export function useSceneChangeEvents(
   }, []);
 
   // Handle scene change acknowledged events
-  const handleSceneChangeAcknowledged = useCallback(
-    (payload: SceneChangeAcknowledgedPayload) => {
-      // Update recent events to mark the scene change as acknowledged
-      setRecentEvents((prev) =>
-        prev.map((event) =>
-          event.id === payload.id
-            ? {
-                ...event,
-                acknowledged: payload.acknowledged,
-                acknowledgedAt: payload.acknowledged_at ?? undefined,
-              }
-            : event
-        )
-      );
-    },
-    []
-  );
+  const handleSceneChangeAcknowledged = useCallback((payload: SceneChangeAcknowledgedPayload) => {
+    // Update recent events to mark the scene change as acknowledged
+    setRecentEvents((prev) =>
+      prev.map((event) =>
+        event.id === payload.id
+          ? {
+              ...event,
+              acknowledged: payload.acknowledged,
+              acknowledgedAt: payload.acknowledged_at ?? undefined,
+            }
+          : event
+      )
+    );
+  }, []);
 
   // Handle incoming scene change messages
   const handleMessage = useCallback(

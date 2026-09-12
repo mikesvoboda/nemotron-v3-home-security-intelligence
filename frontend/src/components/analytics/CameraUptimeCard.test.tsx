@@ -269,39 +269,37 @@ describe('CameraUptimeCard', () => {
   describe('trend indicators', () => {
     beforeEach(() => {
       // Mock the hook to return different data based on the date range
-      vi.mocked(useCameraUptimeQueryModule.useCameraUptimeQuery).mockImplementation(
-        (dateRange) => {
-          // Check if this is the previous period query
-          const isPreviousPeriod =
-            dateRange.startDate === '2026-01-02' && dateRange.endDate === '2026-01-09';
+      vi.mocked(useCameraUptimeQueryModule.useCameraUptimeQuery).mockImplementation((dateRange) => {
+        // Check if this is the previous period query
+        const isPreviousPeriod =
+          dateRange.startDate === '2026-01-02' && dateRange.endDate === '2026-01-09';
 
-          if (isPreviousPeriod) {
-            return {
-              cameras: mockPreviousCameras,
-              data: {
-                cameras: mockPreviousCameras,
-                start_date: '2026-01-02',
-                end_date: '2026-01-09',
-              },
-              isLoading: false,
-              error: null,
-              refetch: vi.fn(),
-            };
-          }
-
+        if (isPreviousPeriod) {
           return {
-            cameras: mockCameras,
+            cameras: mockPreviousCameras,
             data: {
-              cameras: mockCameras,
-              start_date: '2026-01-10',
-              end_date: '2026-01-17',
+              cameras: mockPreviousCameras,
+              start_date: '2026-01-02',
+              end_date: '2026-01-09',
             },
             isLoading: false,
             error: null,
             refetch: vi.fn(),
           };
         }
-      );
+
+        return {
+          cameras: mockCameras,
+          data: {
+            cameras: mockCameras,
+            start_date: '2026-01-10',
+            end_date: '2026-01-17',
+          },
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        };
+      });
     });
 
     it('shows upward trend indicator when uptime improved', () => {

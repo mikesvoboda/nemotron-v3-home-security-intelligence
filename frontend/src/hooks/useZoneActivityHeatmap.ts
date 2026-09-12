@@ -150,7 +150,8 @@ async function fetchZoneActivityHeatmap(
 
 export const zoneActivityHeatmapQueryKeys = {
   all: ['zone-activity-heatmap'] as const,
-  byZone: (zoneId: string | number) => [...zoneActivityHeatmapQueryKeys.all, 'zone', zoneId] as const,
+  byZone: (zoneId: string | number) =>
+    [...zoneActivityHeatmapQueryKeys.all, 'zone', zoneId] as const,
   withRange: (zoneId: string | number, timeRange: HeatmapTimeRange) =>
     [...zoneActivityHeatmapQueryKeys.byZone(zoneId), 'range', timeRange] as const,
 };

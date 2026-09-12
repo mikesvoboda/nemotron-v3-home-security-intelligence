@@ -1,12 +1,6 @@
 import { Card, Text, Badge, Button } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  HelpCircle,
-} from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 import React from 'react';
 
 import { useMonitoringHealth } from '../../hooks/useMonitoringHealth';
@@ -75,9 +69,7 @@ function StatusIcon({ status }: { status: 'up' | 'down' | 'unknown' }) {
  */
 function TargetSummaryTable({ targets }: { targets: TargetSummary[] }) {
   if (targets.length === 0) {
-    return (
-      <Text className="text-sm italic text-gray-500">No targets configured</Text>
-    );
+    return <Text className="text-sm italic text-gray-500">No targets configured</Text>;
   }
 
   return (
@@ -109,9 +101,7 @@ function TargetSummaryTable({ targets }: { targets: TargetSummary[] }) {
  */
 function ExporterStatusList({ exporters }: { exporters: ExporterStatus[] }) {
   if (exporters.length === 0) {
-    return (
-      <Text className="text-sm italic text-gray-500">No exporters configured</Text>
-    );
+    return <Text className="text-sm italic text-gray-500">No exporters configured</Text>;
   }
 
   return (
@@ -131,9 +121,7 @@ function ExporterStatusList({ exporters }: { exporters: ExporterStatus[] }) {
             <div>
               <Text className="text-sm font-medium text-gray-200">{exporter.name}</Text>
               <Text className="text-xs text-gray-500">{exporter.endpoint}</Text>
-              {exporter.error && (
-                <Text className="text-xs text-red-400">{exporter.error}</Text>
-              )}
+              {exporter.error && <Text className="text-xs text-red-400">{exporter.error}</Text>}
             </div>
           </div>
           <Badge color={getStatusBadgeColor(exporter.status)} size="xs">
@@ -195,13 +183,7 @@ export function PrometheusMonitoringPanel({
             <Text className="text-xs text-gray-400">{error.message}</Text>
           </div>
         </div>
-        <Button
-          size="xs"
-          variant="secondary"
-          icon={RefreshCw}
-          onClick={refetch}
-          className="mt-4"
-        >
+        <Button size="xs" variant="secondary" icon={RefreshCw} onClick={refetch} className="mt-4">
           Retry
         </Button>
       </Card>
@@ -284,7 +266,9 @@ export function PrometheusMonitoringPanel({
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div>
             <Text className="text-gray-500">Status</Text>
-            <Text className={data.metrics_collection.collecting ? 'text-green-400' : 'text-red-400'}>
+            <Text
+              className={data.metrics_collection.collecting ? 'text-green-400' : 'text-red-400'}
+            >
               {data.metrics_collection.collecting ? 'Collecting' : 'Not Collecting'}
             </Text>
           </div>
@@ -294,7 +278,9 @@ export function PrometheusMonitoringPanel({
           </div>
           <div>
             <Text className="text-gray-500">Scrape Interval</Text>
-            <Text className="text-gray-200">{data.metrics_collection.scrape_interval_seconds}s</Text>
+            <Text className="text-gray-200">
+              {data.metrics_collection.scrape_interval_seconds}s
+            </Text>
           </div>
           {data.metrics_collection.last_successful_scrape && (
             <div>
@@ -325,9 +311,7 @@ export function PrometheusMonitoringPanel({
       )}
 
       {/* Last Updated */}
-      <Text className="text-xs text-gray-500">
-        Last updated: {formatTimestamp(data.timestamp)}
-      </Text>
+      <Text className="text-xs text-gray-500">Last updated: {formatTimestamp(data.timestamp)}</Text>
     </Card>
   );
 }

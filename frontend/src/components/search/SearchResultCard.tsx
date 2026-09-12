@@ -87,14 +87,17 @@ const SearchResultCard = memo(function SearchResultCard({
     }
   }, [onClick, result.id]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      if (onClick) {
-        onClick(result.id);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (onClick) {
+          onClick(result.id);
+        }
       }
-    }
-  }, [onClick, result.id]);
+    },
+    [onClick, result.id]
+  );
 
   // Parse object types
   const objectTypes =
@@ -132,7 +135,11 @@ const SearchResultCard = memo(function SearchResultCard({
           />
           {/* Risk badge overlay on thumbnail */}
           <div className="absolute right-2 top-2">
-            <RiskBadge level={(result.risk_level as RiskLevel) || 'low'} size="sm" animated={false} />
+            <RiskBadge
+              level={(result.risk_level as RiskLevel) || 'low'}
+              size="sm"
+              animated={false}
+            />
           </div>
         </div>
       )}
@@ -147,67 +154,71 @@ const SearchResultCard = memo(function SearchResultCard({
             </span>
           </div>
           {!thumbnailUrl && (
-            <RiskBadge level={(result.risk_level as RiskLevel) || 'low'} size="sm" animated={false} />
+            <RiskBadge
+              level={(result.risk_level as RiskLevel) || 'low'}
+              size="sm"
+              animated={false}
+            />
           )}
         </div>
 
-      {/* Summary */}
-      <h3 className="mb-2 line-clamp-2 text-base font-medium text-white">
-        {result.summary || 'No summary available'}
-      </h3>
+        {/* Summary */}
+        <h3 className="mb-2 line-clamp-2 text-base font-medium text-white">
+          {result.summary || 'No summary available'}
+        </h3>
 
-      {/* Reasoning (if available) */}
-      {result.reasoning && (
-        <p className="mb-3 line-clamp-2 text-sm text-gray-400">{result.reasoning}</p>
-      )}
+        {/* Reasoning (if available) */}
+        {result.reasoning && (
+          <p className="mb-3 line-clamp-2 text-sm text-gray-400">{result.reasoning}</p>
+        )}
 
-      {/* Meta Information */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
-        {/* Camera */}
-        <div className="flex items-center gap-1.5">
-          <Camera className="h-3.5 w-3.5" />
-          <span>{result.camera_name || result.camera_id}</span>
-        </div>
+        {/* Meta Information */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
+          {/* Camera */}
+          <div className="flex items-center gap-1.5">
+            <Camera className="h-3.5 w-3.5" />
+            <span>{result.camera_name || result.camera_id}</span>
+          </div>
 
-        {/* Date and Time */}
-        <div className="flex items-center gap-1.5">
-          <Clock className="h-3.5 w-3.5" />
-          <span>
-            {formatDate(result.started_at)} at {formatTime(result.started_at)}
-          </span>
-        </div>
-
-        {/* Detection Count */}
-        <div className="flex items-center gap-1.5">
-          <Eye className="h-3.5 w-3.5" />
-          <span>
-            {result.detection_count} detection{result.detection_count !== 1 ? 's' : ''}
-          </span>
-        </div>
-      </div>
-
-      {/* Object Types */}
-      {objectTypes.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Tag className="h-3.5 w-3.5 text-gray-500" />
-          {objectTypes.map((type, index) => (
-            <span
-              key={index}
-              className="rounded-full bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300"
-            >
-              {type}
+          {/* Date and Time */}
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              {formatDate(result.started_at)} at {formatTime(result.started_at)}
             </span>
-          ))}
-        </div>
-      )}
+          </div>
 
-      {/* Reviewed Status */}
-      {result.reviewed && (
-        <div className="mt-3 flex items-center gap-1.5 text-xs text-[#76B900]">
-          <div className="h-2 w-2 rounded-full bg-[#76B900]" />
-          <span>Reviewed</span>
+          {/* Detection Count */}
+          <div className="flex items-center gap-1.5">
+            <Eye className="h-3.5 w-3.5" />
+            <span>
+              {result.detection_count} detection{result.detection_count !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
-      )}
+
+        {/* Object Types */}
+        {objectTypes.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Tag className="h-3.5 w-3.5 text-gray-500" />
+            {objectTypes.map((type, index) => (
+              <span
+                key={index}
+                className="rounded-full bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300"
+              >
+                {type}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Reviewed Status */}
+        {result.reviewed && (
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#76B900]">
+            <div className="h-2 w-2 rounded-full bg-[#76B900]" />
+            <span>Reviewed</span>
+          </div>
+        )}
       </div>
     </div>
   );

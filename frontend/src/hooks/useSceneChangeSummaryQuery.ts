@@ -202,10 +202,7 @@ export function useSceneChangeSummaryQuery(
     return null;
   }, [query.data]);
 
-  const byType = useMemo<SceneChangeTypeBreakdown[]>(
-    () => query.data?.byType ?? [],
-    [query.data]
-  );
+  const byType = useMemo<SceneChangeTypeBreakdown[]>(() => query.data?.byType ?? [], [query.data]);
 
   const mostCommonType = useMemo<SceneChangeType | null>(
     () => query.data?.mostCommonType ?? null,

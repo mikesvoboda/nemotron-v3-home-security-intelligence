@@ -154,7 +154,7 @@ describe('LinkPersonModal', () => {
 
       await userEvent.click(dropdown);
 
-      const serviceWorker = mockMembers.find(m => m.role === 'service_worker');
+      const serviceWorker = mockMembers.find((m) => m.role === 'service_worker');
       expect(screen.queryByText(serviceWorker!.name)).not.toBeInTheDocument();
     });
 
@@ -164,7 +164,7 @@ describe('LinkPersonModal', () => {
 
       await userEvent.click(dropdown);
 
-      const visitor = mockMembers.find(m => m.role === 'frequent_visitor');
+      const visitor = mockMembers.find((m) => m.role === 'frequent_visitor');
       expect(screen.queryByText(visitor!.name)).not.toBeInTheDocument();
     });
 

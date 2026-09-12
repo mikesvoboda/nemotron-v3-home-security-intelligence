@@ -161,16 +161,10 @@ const ConflictResolutionModal = memo(function ConflictResolutionModal({
             <AlertTriangle className="h-6 w-6 text-amber-500" aria-hidden="true" />
           </div>
           <div className="flex-1">
-            <h2
-              id="conflict-modal-title"
-              className="text-lg font-semibold text-white"
-            >
+            <h2 id="conflict-modal-title" className="text-lg font-semibold text-white">
               Update Conflict
             </h2>
-            <p
-              id="conflict-modal-description"
-              className="mt-1 text-sm text-gray-400"
-            >
+            <p id="conflict-modal-description" className="mt-1 text-sm text-gray-400">
               The {resourceText} was modified while you were trying to {actionText} it.
             </p>
           </div>
@@ -178,9 +172,7 @@ const ConflictResolutionModal = memo(function ConflictResolutionModal({
 
         {/* Error message */}
         <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
-          <p className="text-sm text-amber-200">
-            {errorMessage}
-          </p>
+          <p className="text-sm text-amber-200">{errorMessage}</p>
         </div>
 
         {/* Retry count info */}

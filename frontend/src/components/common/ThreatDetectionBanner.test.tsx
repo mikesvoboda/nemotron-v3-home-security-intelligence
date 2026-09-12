@@ -7,9 +7,7 @@ import ThreatDetectionBanner from './ThreatDetectionBanner';
 import type { ThreatDetection, ThreatSummary } from '../../types/threat';
 
 // Helper to create a mock threat detection
-function createThreatDetection(
-  overrides: Partial<ThreatDetection> = {}
-): ThreatDetection {
+function createThreatDetection(overrides: Partial<ThreatDetection> = {}): ThreatDetection {
   return {
     id: 1,
     threat_type: 'gun',
@@ -28,12 +26,13 @@ function createThreatSummary(
   overrides: Partial<ThreatSummary> = {}
 ): ThreatSummary {
   const severities = threats.map((t) => t.severity);
-  const maxSeverity = severities.length > 0
-    ? severities.reduce((max, current) => {
-        const order = { critical: 0, high: 1, medium: 2, low: 3 };
-        return order[current] < order[max] ? current : max;
-      })
-    : null;
+  const maxSeverity =
+    severities.length > 0
+      ? severities.reduce((max, current) => {
+          const order = { critical: 0, high: 1, medium: 2, low: 3 };
+          return order[current] < order[max] ? current : max;
+        })
+      : null;
 
   return {
     hasActiveThreats: threats.length > 0,

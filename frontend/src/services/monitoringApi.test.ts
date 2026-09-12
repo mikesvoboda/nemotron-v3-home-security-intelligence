@@ -11,14 +11,19 @@ global.fetch = mockFetch as any;
 /**
  * Helper to create a mock Response object with all required methods
  */
-function createMockResponse<T>(data: T, options: { ok: boolean; status?: number; statusText?: string } = { ok: true }) {
+function createMockResponse<T>(
+  data: T,
+  options: { ok: boolean; status?: number; statusText?: string } = { ok: true }
+) {
   const response = {
     ok: options.ok,
     status: options.status ?? (options.ok ? 200 : 500),
     statusText: options.statusText ?? (options.ok ? 'OK' : 'Internal Server Error'),
     json: () => Promise.resolve(data),
     text: () => Promise.resolve(JSON.stringify(data)),
-    clone: function() { return { ...this }; },
+    clone: function () {
+      return { ...this };
+    },
     headers: new Headers(),
     body: null,
     bodyUsed: false,
@@ -138,15 +143,15 @@ describe('monitoringApi', () => {
     });
 
     it('should throw error on network failure', async () => {
-      mockFetch.mockRejectedValueOnce(
-        new Error('Network error')
-      );
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(fetchMonitoringHealth()).rejects.toThrow('Network error');
     });
 
     it('should throw error on non-ok response', async () => {
-      mockFetch.mockResolvedValueOnce(createMockResponse({}, { ok: false, status: 500, statusText: 'Internal Server Error' }));
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({}, { ok: false, status: 500, statusText: 'Internal Server Error' })
+      );
 
       await expect(fetchMonitoringHealth()).rejects.toThrow();
     });
@@ -288,7 +293,9 @@ describe('monitoringApi', () => {
     });
 
     it('should throw error when Prometheus unreachable (503)', async () => {
-      mockFetch.mockResolvedValueOnce(createMockResponse({}, { ok: false, status: 503, statusText: 'Service Unavailable' }));
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({}, { ok: false, status: 503, statusText: 'Service Unavailable' })
+      );
 
       await expect(fetchMonitoringTargets()).rejects.toThrow();
     });
@@ -326,9 +333,7 @@ describe('monitoringApi', () => {
     });
 
     it('should throw error on network failure', async () => {
-      mockFetch.mockRejectedValueOnce(
-        new Error('Network error')
-      );
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(fetchMonitoringTargets()).rejects.toThrow('Network error');
     });

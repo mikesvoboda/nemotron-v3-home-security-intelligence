@@ -178,12 +178,7 @@ function isPipelineThroughputMessage(
 export function useQueueMetricsWebSocket(
   options: UseQueueMetricsWebSocketOptions = {}
 ): UseQueueMetricsWebSocketReturn {
-  const {
-    enabled = true,
-    maxHistory = DEFAULT_MAX_HISTORY,
-    onQueueStatus,
-    onThroughput,
-  } = options;
+  const { enabled = true, maxHistory = DEFAULT_MAX_HISTORY, onQueueStatus, onThroughput } = options;
 
   // State
   const [queueStatus, setQueueStatus] = useState<QueueStatusPayload | null>(null);

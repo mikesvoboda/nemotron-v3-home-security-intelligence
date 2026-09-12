@@ -62,10 +62,7 @@ export default function CameraAnalyticsSelector({
   className = '',
 }: CameraAnalyticsSelectorProps) {
   return (
-    <div
-      className={`flex items-center gap-2 ${className}`}
-      data-testid="camera-analytics-selector"
-    >
+    <div className={`flex items-center gap-2 ${className}`} data-testid="camera-analytics-selector">
       <Camera className="h-4 w-4 text-gray-400" />
       <Text className="text-sm font-medium text-gray-300">Camera</Text>
 

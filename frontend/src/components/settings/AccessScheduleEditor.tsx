@@ -78,11 +78,7 @@ const QUICK_PRESETS = [
  *
  * Example: "0 9-17 * * 1-5" = 9am-5pm on weekdays
  */
-function generateCronExpression(
-  startTime: string,
-  endTime: string,
-  days: string[]
-): string {
+function generateCronExpression(startTime: string, endTime: string, days: string[]): string {
   const [startHour] = startTime.split(':').map(Number);
   const [endHour] = endTime.split(':').map(Number);
 
@@ -160,11 +156,7 @@ function scheduleToFormData(schedule: AccessSchedule): ScheduleFormData {
 function formDataToSchedule(formData: ScheduleFormData): AccessSchedule {
   return {
     member_ids: formData.memberIds,
-    cron_expression: generateCronExpression(
-      formData.startTime,
-      formData.endTime,
-      formData.days
-    ),
+    cron_expression: generateCronExpression(formData.startTime, formData.endTime, formData.days),
     description: formData.description || null,
   };
 }
@@ -181,13 +173,7 @@ interface ScheduleItemProps {
   disabled?: boolean;
 }
 
-function ScheduleItem({
-  schedule,
-  members,
-  onEdit,
-  onDelete,
-  disabled,
-}: ScheduleItemProps) {
+function ScheduleItem({ schedule, members, onEdit, onDelete, disabled }: ScheduleItemProps) {
   const memberNames = useMemo(() => {
     return schedule.member_ids
       .map((id) => members.find((m) => m.id === id)?.name ?? `Member #${id}`)
@@ -195,9 +181,7 @@ function ScheduleItem({
   }, [schedule.member_ids, members]);
 
   const parsed = parseCronExpression(schedule.cron_expression);
-  const timeDisplay = parsed
-    ? `${parsed.startTime} - ${parsed.endTime}`
-    : schedule.cron_expression;
+  const timeDisplay = parsed ? `${parsed.startTime} - ${parsed.endTime}` : schedule.cron_expression;
 
   const dayDisplay = useMemo(() => {
     if (!parsed) return '';
@@ -208,10 +192,7 @@ function ScheduleItem({
     ) {
       return 'Weekdays';
     }
-    if (
-      parsed.days.length === 2 &&
-      ['0', '6'].every((d) => parsed.days.includes(d))
-    ) {
+    if (parsed.days.length === 2 && ['0', '6'].every((d) => parsed.days.includes(d))) {
       return 'Weekends';
     }
     return parsed.days
@@ -227,9 +208,7 @@ function ScheduleItem({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 shrink-0 text-[#76B900]" />
-          <span className="truncate text-sm font-medium text-white">
-            {memberNames}
-          </span>
+          <span className="truncate text-sm font-medium text-white">{memberNames}</span>
         </div>
         <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
           <Clock className="h-3 w-3 shrink-0" />
@@ -238,9 +217,7 @@ function ScheduleItem({
           <span>{dayDisplay}</span>
         </div>
         {schedule.description && (
-          <p className="mt-1 truncate text-xs text-gray-500">
-            {schedule.description}
-          </p>
+          <p className="mt-1 truncate text-xs text-gray-500">{schedule.description}</p>
         )}
       </div>
       <div className="ml-4 flex shrink-0 items-center gap-2">
@@ -281,13 +258,7 @@ interface ScheduleFormProps {
   disabled?: boolean;
 }
 
-function ScheduleForm({
-  initialData,
-  members,
-  onSave,
-  onCancel,
-  disabled,
-}: ScheduleFormProps) {
+function ScheduleForm({ initialData, members, onSave, onCancel, disabled }: ScheduleFormProps) {
   const [formData, setFormData] = useState<ScheduleFormData>(
     initialData ?? {
       memberIds: [],
@@ -310,9 +281,7 @@ function ScheduleForm({
   const handleDayToggle = (day: string) => {
     setFormData((prev) => ({
       ...prev,
-      days: prev.days.includes(day)
-        ? prev.days.filter((d) => d !== day)
-        : [...prev.days, day],
+      days: prev.days.includes(day) ? prev.days.filter((d) => d !== day) : [...prev.days, day],
     }));
   };
 
@@ -330,15 +299,10 @@ function ScheduleForm({
   const isValid = formData.memberIds.length > 0 && formData.days.length > 0;
 
   return (
-    <div
-      className="rounded-lg border border-gray-700 bg-[#121212] p-4"
-      data-testid="schedule-form"
-    >
+    <div className="rounded-lg border border-gray-700 bg-[#121212] p-4" data-testid="schedule-form">
       {/* Member Selection */}
       <div className="mb-4">
-        <span className="mb-2 block text-sm font-medium text-gray-300">
-          Members
-        </span>
+        <span className="mb-2 block text-sm font-medium text-gray-300">Members</span>
         <div className="flex flex-wrap gap-2">
           {members.map((member) => (
             <button
@@ -358,16 +322,12 @@ function ScheduleForm({
             </button>
           ))}
         </div>
-        {members.length === 0 && (
-          <p className="text-sm text-gray-500">No members available</p>
-        )}
+        {members.length === 0 && <p className="text-sm text-gray-500">No members available</p>}
       </div>
 
       {/* Time Range */}
       <div className="mb-4">
-        <span className="mb-2 block text-sm font-medium text-gray-300">
-          Time Range
-        </span>
+        <span className="mb-2 block text-sm font-medium text-gray-300">Time Range</span>
         <div className="flex items-center gap-4">
           <div>
             <label htmlFor="start-time" className="sr-only">
@@ -377,9 +337,7 @@ function ScheduleForm({
               type="time"
               id="start-time"
               value={formData.startTime}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, startTime: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
               disabled={disabled}
               className={clsx(
                 'rounded-lg border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]',
@@ -396,9 +354,7 @@ function ScheduleForm({
               type="time"
               id="end-time"
               value={formData.endTime}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, endTime: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
               disabled={disabled}
               className={clsx(
                 'rounded-lg border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]',
@@ -422,8 +378,7 @@ function ScheduleForm({
                 disabled={disabled}
                 className={clsx(
                   'rounded px-2 py-0.5 text-xs transition-colors',
-                  JSON.stringify(formData.days.sort()) ===
-                    JSON.stringify(preset.days.sort())
+                  JSON.stringify(formData.days.sort()) === JSON.stringify(preset.days.sort())
                     ? 'bg-[#76B900] text-gray-900'
                     : 'bg-gray-700 text-gray-400 hover:bg-gray-600',
                   disabled && 'cursor-not-allowed opacity-50'
@@ -468,9 +423,7 @@ function ScheduleForm({
           type="text"
           id="schedule-description"
           value={formData.description}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, description: e.target.value }))
-          }
+          onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
           placeholder="e.g., Service workers during business hours"
           disabled={disabled}
           className={clsx(

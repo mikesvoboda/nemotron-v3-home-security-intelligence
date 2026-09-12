@@ -14,7 +14,15 @@
 
 import { Card, Text, Title, ProgressBar } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Loader2, RefreshCw, ChevronDown, ChevronRight, MemoryStick, Server, AlertCircle } from 'lucide-react';
+import {
+  Loader2,
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  MemoryStick,
+  Server,
+  AlertCircle,
+} from 'lucide-react';
 import { memo, useState, useCallback, useMemo } from 'react';
 
 import ModelCard from './ModelCard';
@@ -61,11 +69,7 @@ const VRAMBar = memo(function VRAMBar({ gpu }: VRAMBarProps) {
         <Text className="text-sm text-gray-400">{gpu.service}</Text>
       </div>
       <div className="mb-1">
-        <ProgressBar
-          value={gpu.utilization_percent}
-          color={color}
-          className="h-2"
-        />
+        <ProgressBar value={gpu.utilization_percent} color={color} className="h-2" />
         <div
           data-testid="vram-fill"
           className="hidden"
@@ -116,7 +120,10 @@ const GPUSection = memo(function GPUSection({
   }, []);
 
   return (
-    <div data-testid={`gpu-section-${gpuId}`} className="rounded-lg border border-gray-800 bg-gray-900/50">
+    <div
+      data-testid={`gpu-section-${gpuId}`}
+      className="rounded-lg border border-gray-800 bg-gray-900/50"
+    >
       {/* Section Header - Collapsible */}
       <button
         type="button"
@@ -140,7 +147,7 @@ const GPUSection = memo(function GPUSection({
             data-testid="service-health-indicator"
             className={clsx(
               'h-2 w-2 rounded-full',
-              isHealthy ? 'bg-emerald-500 healthy green' : 'bg-red-500 unhealthy red'
+              isHealthy ? 'healthy green bg-emerald-500' : 'unhealthy red bg-red-500'
             )}
           />
           <Text className="text-xs text-gray-400">{service}</Text>
@@ -158,7 +165,7 @@ const GPUSection = memo(function GPUSection({
               onLoad={onLoadModel}
               onUnload={onUnloadModel}
               isLoading={loadingModel === model.name}
-              loadingAction={loadingModel === model.name ? loadingAction ?? undefined : undefined}
+              loadingAction={loadingModel === model.name ? (loadingAction ?? undefined) : undefined}
             />
           ))}
         </div>
@@ -186,7 +193,10 @@ const DisabledModelsSection = memo(function DisabledModelsSection({
   if (models.length === 0) return null;
 
   return (
-    <div data-testid="disabled-models-section" className="rounded-lg border border-gray-800 bg-gray-900/50">
+    <div
+      data-testid="disabled-models-section"
+      className="rounded-lg border border-gray-800 bg-gray-900/50"
+    >
       <button
         type="button"
         onClick={handleToggle}

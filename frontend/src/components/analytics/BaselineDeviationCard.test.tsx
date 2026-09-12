@@ -63,11 +63,7 @@ describe('BaselineDeviationCard', () => {
   const mockDeviationFarAboveNormal: CurrentDeviation = {
     score: 4.2,
     interpretation: 'far_above_normal',
-    contributing_factors: [
-      'person_count_elevated',
-      'vehicle_count_elevated',
-      'unusual_time',
-    ],
+    contributing_factors: ['person_count_elevated', 'vehicle_count_elevated', 'unusual_time'],
   };
 
   describe('rendering with data', () => {
@@ -187,9 +183,7 @@ describe('BaselineDeviationCard', () => {
     it('displays human-readable interpretation for far_below_normal', () => {
       render(<BaselineDeviationCard deviation={mockDeviationFarBelowNormal} />);
 
-      expect(screen.getByTestId('deviation-interpretation')).toHaveTextContent(
-        'Far Below Normal'
-      );
+      expect(screen.getByTestId('deviation-interpretation')).toHaveTextContent('Far Below Normal');
     });
 
     it('displays human-readable interpretation for below_normal', () => {
@@ -221,9 +215,7 @@ describe('BaselineDeviationCard', () => {
     it('displays human-readable interpretation for far_above_normal', () => {
       render(<BaselineDeviationCard deviation={mockDeviationFarAboveNormal} />);
 
-      expect(screen.getByTestId('deviation-interpretation')).toHaveTextContent(
-        'Far Above Normal'
-      );
+      expect(screen.getByTestId('deviation-interpretation')).toHaveTextContent('Far Above Normal');
     });
   });
 
@@ -275,9 +267,7 @@ describe('BaselineDeviationCard', () => {
     it('shows helpful message in no data state', () => {
       render(<BaselineDeviationCard deviation={null} />);
 
-      expect(
-        screen.getByText(/Baseline data is still being collected/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Baseline data is still being collected/i)).toBeInTheDocument();
     });
 
     it('does not show score or interpretation in no data state', () => {
@@ -367,10 +357,7 @@ describe('BaselineDeviationCard', () => {
     it('uses semantic color for screen readers', () => {
       render(<BaselineDeviationCard deviation={mockDeviationFarAboveNormal} />);
 
-      expect(screen.getByTestId('deviation-interpretation')).toHaveAttribute(
-        'aria-live',
-        'polite'
-      );
+      expect(screen.getByTestId('deviation-interpretation')).toHaveAttribute('aria-live', 'polite');
     });
 
     it('factor badges are keyboard accessible', () => {
@@ -440,9 +427,7 @@ describe('BaselineDeviationCard', () => {
       const deviationWithLongFactors: CurrentDeviation = {
         score: 2.5,
         interpretation: 'above_normal',
-        contributing_factors: [
-          'very_long_contributing_factor_name_that_might_overflow',
-        ],
+        contributing_factors: ['very_long_contributing_factor_name_that_might_overflow'],
       };
 
       render(<BaselineDeviationCard deviation={deviationWithLongFactors} />);

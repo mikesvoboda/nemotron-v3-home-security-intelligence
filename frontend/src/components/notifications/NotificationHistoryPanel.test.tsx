@@ -294,7 +294,8 @@ describe('NotificationHistoryPanel', () => {
   });
 
   it('should truncate long recipient text', async () => {
-    const longRecipient = 'https://very-long-webhook-url.example.com/api/v1/webhooks/notifications/handler';
+    const longRecipient =
+      'https://very-long-webhook-url.example.com/api/v1/webhooks/notifications/handler';
     mockFetchNotificationHistory.mockResolvedValue({
       entries: [
         {

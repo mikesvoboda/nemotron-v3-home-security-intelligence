@@ -137,9 +137,10 @@ export default function SuggestionDiffView({
               const testIdType = line.type === 'unchanged' ? 'unchanged' : line.type;
               const testId = `diff-line-${testIdType}-${index}`;
               // Create stable key from line properties - lineNumber if available, otherwise content hash with index for uniqueness
-              const lineKey = line.lineNumber !== undefined
-                ? `${line.type}-${line.lineNumber}`
-                : `${line.type}-${index}-${line.content.slice(0, 20)}`;
+              const lineKey =
+                line.lineNumber !== undefined
+                  ? `${line.type}-${line.lineNumber}`
+                  : `${line.type}-${index}-${line.content.slice(0, 20)}`;
 
               return (
                 <div

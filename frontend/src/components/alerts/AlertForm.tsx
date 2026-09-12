@@ -665,11 +665,7 @@ export default function AlertForm({
       </div>
 
       {/* Schedule Section - Isolated component for optimized re-renders (NEM-3822, NEM-3823) */}
-      <ScheduleSection
-        control={control}
-        register={register}
-        isSubmitting={isSubmitting}
-      />
+      <ScheduleSection control={control} register={register} isSubmitting={isSubmitting} />
 
       {/* Notifications Section */}
       <div className="space-y-4 border-t border-gray-800 pt-6">

@@ -188,9 +188,7 @@ export async function fetchActionEvents(
   const response = await fetch(`/api/action-events${queryString}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch action events: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch action events: ${response.status} ${response.statusText}`);
   }
 
   return (await response.json()) as ActionEventListResponse;
@@ -248,9 +246,7 @@ export async function fetchActionEvent(eventId: number): Promise<ActionEvent> {
     if (response.status === 404) {
       throw new Error(`Action event ${eventId} not found`);
     }
-    throw new Error(
-      `Failed to fetch action event: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch action event: ${response.status} ${response.statusText}`);
   }
 
   return (await response.json()) as ActionEvent;

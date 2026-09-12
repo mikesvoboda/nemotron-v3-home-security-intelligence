@@ -13,7 +13,12 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { startExportJob, downloadExportFile, fetchCameras, fetchEventStats } from '../../services/api';
+import {
+  startExportJob,
+  downloadExportFile,
+  fetchCameras,
+  fetchEventStats,
+} from '../../services/api';
 
 import type { Camera, EventStatsResponse, ExportQueryParams } from '../../services/api';
 import type { ExportJobCreateParams, ExportFormat as ExportFormatType } from '../../types/export';
@@ -190,12 +195,16 @@ export default function ExportPanel({
 
       const pollJobStatus = async (): Promise<void> => {
         attempts++;
-        const status = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/exports/${response.job_id}`);
-        const jobData = await status.json() as { status: string; error_message?: string };
+        const status = await fetch(
+          `${import.meta.env.VITE_API_URL || ''}/api/exports/${response.job_id}`
+        );
+        const jobData = (await status.json()) as { status: string; error_message?: string };
 
         if (jobData.status === 'completed') {
           await downloadExportFile(response.job_id);
-          setExportSuccess(`${format.toUpperCase()} export completed successfully! Check your downloads folder.`);
+          setExportSuccess(
+            `${format.toUpperCase()} export completed successfully! Check your downloads folder.`
+          );
           onExportComplete?.(true, 'Export completed successfully');
           setExporting(false);
         } else if (jobData.status === 'failed') {

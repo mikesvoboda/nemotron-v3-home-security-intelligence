@@ -182,8 +182,7 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfigState = {
 export default function AdminSettings({ className }: AdminSettingsProps) {
   const { debugMode } = useDebugMode();
   const toast = useToast();
-  const { seedCameras, seedEvents, clearSeededData, clearCache, flushQueues } =
-    useAdminMutations();
+  const { seedCameras, seedEvents, clearSeededData, clearCache, flushQueues } = useAdminMutations();
 
   // Settings API integration
   const { settings, isLoading: isLoadingSettings, updateMutation } = useSettingsApi();

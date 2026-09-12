@@ -612,9 +612,7 @@ describe('EntityDetailModal', () => {
         ...mockEntity,
         entity_type: 'vehicle',
       };
-      renderWithQueryClient(
-        <EntityDetailModal {...defaultProps} entity={vehicleEntity} />
-      );
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={vehicleEntity} />);
 
       const viewEventsButton = screen.getByTestId('view-events-button');
       await user.click(viewEventsButton);
@@ -634,9 +632,7 @@ describe('EntityDetailModal', () => {
         ...mockEntity,
         cameras_seen: ['front_door'],
       };
-      renderWithQueryClient(
-        <EntityDetailModal {...defaultProps} entity={singleCameraEntity} />
-      );
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={singleCameraEntity} />);
 
       const viewEventsButton = screen.getByTestId('view-events-button');
       await user.click(viewEventsButton);

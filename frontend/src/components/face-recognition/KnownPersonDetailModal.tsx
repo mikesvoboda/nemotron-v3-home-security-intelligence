@@ -157,18 +157,18 @@ function DeleteEmbeddingConfirmDialog({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-sm transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
-                <Dialog.Title className="text-lg font-semibold text-white mb-4">
+              <Dialog.Panel className="w-full max-w-sm transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
+                <Dialog.Title className="mb-4 text-lg font-semibold text-white">
                   Confirm Delete
                 </Dialog.Title>
-                <p className="text-gray-300 mb-6">
+                <p className="mb-6 text-gray-300">
                   Are you sure you want to delete this face embedding? This action cannot be undone.
                 </p>
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white"
                     disabled={isDeleting}
                   >
                     Cancel
@@ -177,7 +177,7 @@ function DeleteEmbeddingConfirmDialog({
                     type="button"
                     onClick={onConfirm}
                     disabled={isDeleting}
-                    className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                   >
                     {isDeleting ? 'Deleting...' : 'Confirm'}
                   </button>
@@ -207,30 +207,30 @@ function EmbeddingCard({
   return (
     <div
       data-testid={`embedding-card-${embedding.id}`}
-      className={`relative rounded-lg border bg-[#252525] overflow-hidden ${qualityClass} ${qualityColorClasses.includes('green') ? 'border-green-500/30' : qualityColorClasses.includes('yellow') ? 'border-yellow-500/30' : 'border-red-500/30'}`}
+      className={`relative overflow-hidden rounded-lg border bg-[#252525] ${qualityClass} ${qualityColorClasses.includes('green') ? 'border-green-500/30' : qualityColorClasses.includes('yellow') ? 'border-yellow-500/30' : 'border-red-500/30'}`}
     >
-      <div className="aspect-square bg-gray-800 flex items-center justify-center">
+      <div className="flex aspect-square items-center justify-center bg-gray-800">
         {embedding.source_image_path ? (
           <img
             src={embedding.source_image_path}
             alt={`Face embedding ${embedding.id}`}
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
         ) : (
-          <User className="w-12 h-12 text-gray-600" />
+          <User className="h-12 w-12 text-gray-600" />
         )}
       </div>
       <div className="p-2 text-center">
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${qualityColorClasses}`}>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${qualityColorClasses}`}>
           {embedding.quality_score.toFixed(2)}
         </span>
       </div>
       <button
         onClick={onDelete}
-        className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-red-600 rounded transition-colors"
+        className="absolute right-1 top-1 rounded bg-black/50 p-1 transition-colors hover:bg-red-600"
         aria-label="Delete embedding"
       >
-        <X className="w-3 h-3 text-white" />
+        <X className="h-3 w-3 text-white" />
       </button>
     </div>
   );
@@ -285,7 +285,7 @@ function FaceEmbeddingsGallery({
   if (isLoading) {
     return (
       <div data-testid="embeddings-loading" className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-[#76B900]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#76B900]" />
       </div>
     );
   }
@@ -298,16 +298,16 @@ function FaceEmbeddingsGallery({
         </h3>
         <button
           onClick={onEnrollFace}
-          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#76B900] hover:text-[#8fd000] transition-colors"
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#76B900] transition-colors hover:text-[#8fd000]"
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="h-3 w-3" />
           Add from Event
         </button>
       </div>
 
       <div data-testid="face-embeddings-gallery">
         {!embeddings || embeddings.length === 0 ? (
-          <div className="text-center py-6 text-gray-500 text-sm">
+          <div className="py-6 text-center text-sm text-gray-500">
             No face embeddings yet. Add one from a detection event.
           </div>
         ) : (
@@ -352,16 +352,16 @@ function AppearanceItem({
   return (
     <div
       data-testid={`appearance-item-${index}`}
-      className="flex items-center gap-3 py-2 border-b border-gray-700/50 last:border-0"
+      className="flex items-center gap-3 border-b border-gray-700/50 py-2 last:border-0"
     >
-      <div className="flex-shrink-0 w-2 h-2 rounded-full bg-[#76B900]" />
-      <div className="flex-1 min-w-0">
+      <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#76B900]" />
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-sm">
-          <Clock className="w-3 h-3 text-gray-500" />
+          <Clock className="h-3 w-3 text-gray-500" />
           <span className="text-gray-300">{formatAppearanceTime(appearance.timestamp)}</span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-          <MapPin className="w-3 h-3" />
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+          <MapPin className="h-3 w-3" />
           <span>{appearance.camera_name}</span>
         </div>
       </div>
@@ -377,17 +377,19 @@ function AppearancesTimeline({
   appearances,
   isLoading,
 }: {
-  appearances: Array<{
-    timestamp: string;
-    camera_name: string;
-    confidence: number;
-  }> | undefined;
+  appearances:
+    | Array<{
+        timestamp: string;
+        camera_name: string;
+        confidence: number;
+      }>
+    | undefined;
   isLoading: boolean;
 }) {
   if (isLoading) {
     return (
       <div data-testid="appearances-loading" className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-[#76B900]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#76B900]" />
       </div>
     );
   }
@@ -398,7 +400,7 @@ function AppearancesTimeline({
 
       <div data-testid="appearances-timeline">
         {!appearances || appearances.length === 0 ? (
-          <div className="text-center py-6 text-gray-500 text-sm">
+          <div className="py-6 text-center text-sm text-gray-500">
             No recent appearances recorded.
           </div>
         ) : (
@@ -411,7 +413,7 @@ function AppearancesTimeline({
       </div>
 
       {appearances && appearances.length > 0 && (
-        <button className="w-full text-center text-xs text-[#76B900] hover:text-[#8fd000] py-2 transition-colors">
+        <button className="w-full py-2 text-center text-xs text-[#76B900] transition-colors hover:text-[#8fd000]">
           View Full Timeline
         </button>
       )}
@@ -458,7 +460,7 @@ function HouseholdMemberSelector({
             onLink(value ? Number(value) : null);
           }}
           disabled={membersLoading || isLinking}
-          className="flex-1 px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50"
+          className="flex-1 rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
         >
           <option value="">Not linked</option>
           {availableMembers?.map((member) => (
@@ -467,13 +469,12 @@ function HouseholdMemberSelector({
             </option>
           ))}
         </select>
-        {isLinking && (
-          <Loader2 className="w-4 h-4 animate-spin text-[#76B900]" />
-        )}
+        {isLinking && <Loader2 className="h-4 w-4 animate-spin text-[#76B900]" />}
       </div>
       {linkedMember && (
         <p className="text-xs text-gray-500">
-          Linked to: <span className="text-[#76B900]">{linkedMember.name}</span> ({linkedMember.role})
+          Linked to: <span className="text-[#76B900]">{linkedMember.name}</span> (
+          {linkedMember.role})
         </p>
       )}
     </div>
@@ -495,20 +496,20 @@ function PrimaryPhoto({ embeddings }: { embeddings: FaceEmbedding[] | undefined 
   return (
     <div
       data-testid="primary-photo"
-      className="w-24 h-24 rounded-lg bg-gray-800 border border-gray-700 overflow-hidden flex-shrink-0"
+      className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border border-gray-700 bg-gray-800"
     >
       {primaryEmbedding?.source_image_path ? (
         <img
           src={primaryEmbedding.source_image_path}
           alt="Person face"
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover"
         />
       ) : (
         <div
           data-testid="photo-placeholder"
-          className="w-full h-full flex items-center justify-center"
+          className="flex h-full w-full items-center justify-center"
         >
-          <User className="w-12 h-12 text-gray-600" />
+          <User className="h-12 w-12 text-gray-600" />
         </div>
       )}
     </div>
@@ -645,14 +646,14 @@ export default function KnownPersonDetailModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-lg transform rounded-lg bg-[#1A1A1A] border border-gray-700 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-lg transform rounded-lg border border-gray-700 bg-[#1A1A1A] shadow-xl transition-all">
                 {/* Loading State */}
                 {personLoading && (
                   <div
                     data-testid="person-detail-loading"
                     className="flex items-center justify-center py-16"
                   >
-                    <Loader2 className="w-8 h-8 animate-spin text-[#76B900]" />
+                    <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" />
                   </div>
                 )}
 
@@ -660,12 +661,12 @@ export default function KnownPersonDetailModal({
                 {personError && (
                   <div className="p-6">
                     <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-                      <p className="text-red-400 text-sm">{personError.message}</p>
+                      <p className="text-sm text-red-400">{personError.message}</p>
                     </div>
-                    <div className="flex justify-end mt-4">
+                    <div className="mt-4 flex justify-end">
                       <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white"
                       >
                         Close
                       </button>
@@ -677,37 +678,37 @@ export default function KnownPersonDetailModal({
                 {person && !personLoading && !personError && (
                   <>
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                    <div className="flex items-center justify-between border-b border-gray-700 p-4">
                       <Dialog.Title as="h2" className="text-lg font-semibold text-white">
                         {person.name}
                       </Dialog.Title>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleEdit}
-                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                          className="rounded p-2 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
                           aria-label="Edit"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={handleDelete}
-                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+                          className="rounded p-2 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
                           aria-label="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={onClose}
-                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                          className="rounded p-2 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
                           aria-label="Close"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
 
                     {/* Body */}
-                    <div className="p-4 space-y-6">
+                    <div className="space-y-6 p-4">
                       {/* Person Details */}
                       <div className="flex gap-4">
                         <PrimaryPhoto embeddings={embeddings} />
@@ -720,7 +721,8 @@ export default function KnownPersonDetailModal({
                             <span className="text-gray-500">Linked Household: </span>
                             <span className="text-white">
                               {person.is_household_member
-                                ? members?.find((m) => m.id === person.household_member_id)?.name ?? 'Yes'
+                                ? (members?.find((m) => m.id === person.household_member_id)
+                                    ?.name ?? 'Yes')
                                 : 'No'}
                             </span>
                           </div>
@@ -728,9 +730,11 @@ export default function KnownPersonDetailModal({
                             <div className="text-sm">
                               <span className="text-gray-500">Trust Level: </span>
                               <span className="text-white">
-                                {members?.find((m) => m.id === person.household_member_id)?.trusted_level === 'full'
+                                {members?.find((m) => m.id === person.household_member_id)
+                                  ?.trusted_level === 'full'
                                   ? 'Full'
-                                  : members?.find((m) => m.id === person.household_member_id)?.trusted_level === 'partial'
+                                  : members?.find((m) => m.id === person.household_member_id)
+                                        ?.trusted_level === 'partial'
                                     ? 'Partial'
                                     : 'Monitor'}
                               </span>

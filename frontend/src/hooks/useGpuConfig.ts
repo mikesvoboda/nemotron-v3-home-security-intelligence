@@ -1009,7 +1009,9 @@ export function useExportConfig(): UseExportConfigReturn {
  */
 export interface UseImportConfigReturn {
   /** Import configuration */
-  importConfig: (request: gpuConfigApi.GpuConfigImportRequest) => Promise<gpuConfigApi.GpuConfigImportResponse>;
+  importConfig: (
+    request: gpuConfigApi.GpuConfigImportRequest
+  ) => Promise<gpuConfigApi.GpuConfigImportResponse>;
   /** Whether import is in progress */
   isLoading: boolean;
   /** Error if import failed */
@@ -1050,7 +1052,9 @@ export function useImportConfig(): UseImportConfigReturn {
  */
 export interface UseRollbackConfigReturn {
   /** Rollback to a version */
-  rollback: (request: gpuConfigApi.GpuConfigRollbackRequest) => Promise<gpuConfigApi.GpuConfigRollbackResponse>;
+  rollback: (
+    request: gpuConfigApi.GpuConfigRollbackRequest
+  ) => Promise<gpuConfigApi.GpuConfigRollbackResponse>;
   /** Whether rollback is in progress */
   isLoading: boolean;
   /** Error if rollback failed */

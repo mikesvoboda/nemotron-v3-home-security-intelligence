@@ -14,10 +14,7 @@ import {
   DEFAULT_SEVERITY_CONTEXT,
 } from './SeverityContext';
 import { useSeverityConfig } from '../hooks/useSeverityConfig';
-import {
-  DEFAULT_SEVERITY_DEFINITIONS,
-  DEFAULT_SEVERITY_THRESHOLDS,
-} from '../types/severity';
+import { DEFAULT_SEVERITY_DEFINITIONS, DEFAULT_SEVERITY_THRESHOLDS } from '../types/severity';
 
 import type { SeverityMetadata } from '../types/severity';
 

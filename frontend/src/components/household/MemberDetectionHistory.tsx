@@ -14,20 +14,10 @@
  */
 
 import { Dialog, Transition } from '@headlessui/react';
-import {
-  AlertTriangle,
-  Camera,
-  Filter,
-  Loader2,
-  RefreshCw,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, Camera, Filter, Loader2, RefreshCw, X } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
-import {
-  useMemberDetectionsQuery,
-  useUnlinkDetection,
-} from '../../hooks/useHouseholdApi';
+import { useMemberDetectionsQuery, useUnlinkDetection } from '../../hooks/useHouseholdApi';
 
 import type { MemberDetection, MemberDetectionsParams } from '../../hooks/useHouseholdApi';
 
@@ -132,15 +122,15 @@ function UnlinkConfirmDialog({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
-                <div className="flex items-center gap-3 mb-4">
+              <Dialog.Panel className="w-full max-w-md transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
+                <div className="mb-4 flex items-center gap-3">
                   <AlertTriangle className="h-6 w-6 text-yellow-500" />
                   <Dialog.Title className="text-lg font-semibold text-white">
                     Unlink Detection
                   </Dialog.Title>
                 </div>
 
-                <p className="text-gray-300 mb-6">
+                <p className="mb-6 text-gray-300">
                   Are you sure you want to unlink this detection? This will remove the association
                   between this person detection and the household member.
                 </p>
@@ -150,7 +140,7 @@ function UnlinkConfirmDialog({
                     type="button"
                     onClick={onClose}
                     disabled={isUnlinking}
-                    className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -158,7 +148,7 @@ function UnlinkConfirmDialog({
                     type="button"
                     onClick={onConfirm}
                     disabled={isUnlinking}
-                    className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                   >
                     {isUnlinking && <Loader2 className="h-4 w-4 animate-spin" />}
                     Confirm
@@ -190,46 +180,46 @@ function DetectionRow({
   return (
     <div
       data-testid="detection-card"
-      className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 hover:border-gray-600 transition-colors"
+      className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 transition-colors hover:border-gray-600"
     >
       <div className="flex items-center gap-4">
         {/* Thumbnail */}
         <img
           src={thumbnailUrl}
           alt="Detection thumbnail"
-          className="w-16 h-16 object-cover rounded-lg border border-gray-700 flex-shrink-0"
+          className="h-16 w-16 flex-shrink-0 rounded-lg border border-gray-700 object-cover"
         />
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-medium truncate">{detection.event_summary}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-white">{detection.event_summary}</p>
           <div className="mt-1 text-sm text-gray-400">
             <span>{detection.camera_name}</span>
             <span className="mx-2">-</span>
-            <span>{formatDate(detection.detected_at)} at {formatTime(detection.detected_at)}</span>
+            <span>
+              {formatDate(detection.detected_at)} at {formatTime(detection.detected_at)}
+            </span>
           </div>
           <div className="mt-1 text-sm text-gray-400">
             <span>Confidence: {formatConfidence(detection.confidence)}</span>
             <span className="mx-2">-</span>
             <span>Risk: {detection.event_risk_score}</span>
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="mt-1 text-xs text-gray-500">
             <span>Linked at </span>
             <span>{formatTime(detection.linked_at)}</span>
           </div>
           {detection.notes && (
-            <div className="text-xs text-gray-500 mt-1">
-              Notes: {detection.notes}
-            </div>
+            <div className="mt-1 text-xs text-gray-500">Notes: {detection.notes}</div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onView}
-            className="px-3 py-1.5 text-xs font-medium text-[#76B900] hover:bg-[#76B900]/10 rounded transition-colors"
+            className="rounded px-3 py-1.5 text-xs font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/10"
             aria-label="View event"
           >
             View Event
@@ -237,7 +227,7 @@ function DetectionRow({
           <button
             type="button"
             onClick={onUnlink}
-            className="px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded transition-colors"
+            className="rounded px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
             aria-label="Unlink"
           >
             Unlink
@@ -257,7 +247,6 @@ export default function MemberDetectionHistory({
   memberName = 'Member',
   onNavigate,
 }: MemberDetectionHistoryProps) {
-
   // State
   const [localDetections, setLocalDetections] = useState<MemberDetection[]>([]);
   const [offset, setOffset] = useState(0);
@@ -319,7 +308,8 @@ export default function MemberDetectionHistory({
   const total = detectionsQuery.data?.total ?? 0;
   const hasMore = localDetections.length < total;
   const isLoadingMore = detectionsQuery.isLoading && offset > 0;
-  const isInitialLoading = detectionsQuery.isLoading && offset === 0 && localDetections.length === 0;
+  const isInitialLoading =
+    detectionsQuery.isLoading && offset === 0 && localDetections.length === 0;
 
   // Handlers
   const handleLoadMore = useCallback(() => {
@@ -345,14 +335,12 @@ export default function MemberDetectionHistory({
       { memberId, detectionId: unlinkTarget },
       {
         onSuccess: () => {
-          setLocalDetections((prev) =>
-            prev.filter((d) => d.detection_id !== unlinkTarget)
-          );
+          setLocalDetections((prev) => prev.filter((d) => d.detection_id !== unlinkTarget));
           setUnlinkTarget(null);
           setUnlinkError(null);
         },
         onError: (error) => {
-          setUnlinkError((error)?.message || 'Failed to unlink detection');
+          setUnlinkError(error?.message || 'Failed to unlink detection');
         },
       }
     );
@@ -385,18 +373,9 @@ export default function MemberDetectionHistory({
   if (isInitialLoading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-white">
-          Detection History for {memberName}
-        </h2>
-        <div
-          role="status"
-          aria-label="Loading"
-          className="flex items-center justify-center py-12"
-        >
-          <Loader2
-            className="h-8 w-8 animate-spin text-[#76B900]"
-            data-testid="loading-spinner"
-          />
+        <h2 className="text-lg font-semibold text-white">Detection History for {memberName}</h2>
+        <div role="status" aria-label="Loading" className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" data-testid="loading-spinner" />
           <span className="ml-2 text-gray-400">Loading detections...</span>
         </div>
       </div>
@@ -405,20 +384,17 @@ export default function MemberDetectionHistory({
 
   // Error state
   if (detectionsQuery.isError) {
-    const errorMessage =
-      (detectionsQuery.error)?.message || 'An error occurred';
+    const errorMessage = detectionsQuery.error?.message || 'An error occurred';
 
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-white">
-          Detection History for {memberName}
-        </h2>
+        <h2 className="text-lg font-semibold text-white">Detection History for {memberName}</h2>
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-center">
-          <p className="text-red-400 mb-4">{errorMessage}</p>
+          <p className="mb-4 text-red-400">{errorMessage}</p>
           <button
             type="button"
             onClick={handleRetry}
-            className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
             aria-label="Retry"
           >
             <RefreshCw className="h-4 w-4" />
@@ -433,12 +409,10 @@ export default function MemberDetectionHistory({
   if (localDetections.length === 0 && !detectionsQuery.isLoading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-white">
-          Detection History for {memberName}
-        </h2>
+        <h2 className="text-lg font-semibold text-white">Detection History for {memberName}</h2>
         <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center">
-          <Camera className="h-12 w-12 mx-auto text-gray-600 mb-4" />
-          <p className="text-gray-400 mb-2">No detections found</p>
+          <Camera className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+          <p className="mb-2 text-gray-400">No detections found</p>
           <p className="text-sm text-gray-500">
             {memberName} has not been linked to any detections yet.
           </p>
@@ -450,16 +424,14 @@ export default function MemberDetectionHistory({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <h2 className="text-lg font-semibold text-white">
-        Detection History for {memberName}
-      </h2>
+      <h2 className="text-lg font-semibold text-white">Detection History for {memberName}</h2>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 p-4 rounded-lg bg-[#1A1A1A] border border-gray-700">
+      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-gray-700 bg-[#1A1A1A] p-4">
         {/* Camera Filter */}
         <div className="flex items-center gap-2">
           <label htmlFor="camera-filter" className="text-sm text-gray-400">
-            <Filter className="h-4 w-4 inline mr-1" />
+            <Filter className="mr-1 inline h-4 w-4" />
             Filter by Camera
           </label>
           <select
@@ -467,7 +439,7 @@ export default function MemberDetectionHistory({
             aria-label="Filter by Camera"
             value={cameraFilter}
             onChange={(e) => setCameraFilter(e.target.value)}
-            className="px-3 py-1.5 bg-[#121212] border border-gray-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
+            className="rounded border border-gray-700 bg-[#121212] px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           >
             <option value="">All Cameras</option>
             {cameraOptions.map((camera) => (
@@ -489,7 +461,7 @@ export default function MemberDetectionHistory({
             aria-label="From Date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="px-3 py-1.5 bg-[#121212] border border-gray-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
+            className="rounded border border-gray-700 bg-[#121212] px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           />
         </div>
 
@@ -503,7 +475,7 @@ export default function MemberDetectionHistory({
             aria-label="To Date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="px-3 py-1.5 bg-[#121212] border border-gray-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
+            className="rounded border border-gray-700 bg-[#121212] px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           />
         </div>
 
@@ -517,7 +489,7 @@ export default function MemberDetectionHistory({
             aria-label="Sort by"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
-            className="px-3 py-1.5 bg-[#121212] border border-gray-700 rounded text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
+            className="rounded border border-gray-700 bg-[#121212] px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -531,17 +503,17 @@ export default function MemberDetectionHistory({
         <button
           type="button"
           onClick={handleClearFilters}
-          className="px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+          className="px-3 py-1.5 text-sm font-medium text-gray-400 transition-colors hover:text-white"
           aria-label="Clear filters"
         >
-          <X className="h-4 w-4 inline mr-1" />
+          <X className="mr-1 inline h-4 w-4" />
           Clear Filters
         </button>
       </div>
 
       {/* Unlink Error Display (global) */}
       {unlinkError && (
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
           <p className="text-sm text-red-400">{unlinkError}</p>
         </div>
       )}
@@ -570,7 +542,7 @@ export default function MemberDetectionHistory({
               type="button"
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
               aria-label={isLoadingMore ? 'Loading' : 'Load More'}
             >
               {isLoadingMore && (

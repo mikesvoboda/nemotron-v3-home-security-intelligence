@@ -6,7 +6,6 @@ import * as monitoringApi from '../services/monitoringApi';
 
 import type { MonitoringHealthResponse } from '../services/monitoringApi';
 
-
 // Mock the monitoring API
 vi.mock('../services/monitoringApi');
 
@@ -42,9 +41,7 @@ describe('useMonitoringHealth', () => {
     healthy: false,
     prometheus_reachable: true,
     prometheus_url: 'http://prometheus:9090',
-    targets_summary: [
-      { job: 'backend', total: 1, up: 0, down: 1, unknown: 0 },
-    ],
+    targets_summary: [{ job: 'backend', total: 1, up: 0, down: 1, unknown: 0 }],
     exporters: [
       {
         name: 'backend',
@@ -148,7 +145,9 @@ describe('useMonitoringHealth', () => {
 
     expect(result.current.data?.prometheus_reachable).toBe(false);
     expect(result.current.isHealthy).toBe(false);
-    expect(result.current.data?.issues).toContain('Prometheus is not reachable at http://prometheus:9090');
+    expect(result.current.data?.issues).toContain(
+      'Prometheus is not reachable at http://prometheus:9090'
+    );
   });
 
   it('should handle error states', async () => {
@@ -183,9 +182,14 @@ describe('useMonitoringHealth', () => {
     expect(initialCallCount).toBeGreaterThanOrEqual(1);
 
     // Wait for at least one polling cycle
-    await waitFor(() => {
-      expect(vi.mocked(monitoringApi.fetchMonitoringHealth).mock.calls.length).toBeGreaterThan(initialCallCount);
-    }, { timeout: 500 });
+    await waitFor(
+      () => {
+        expect(vi.mocked(monitoringApi.fetchMonitoringHealth).mock.calls.length).toBeGreaterThan(
+          initialCallCount
+        );
+      },
+      { timeout: 500 }
+    );
   });
 
   it('should support refetch function', async () => {
@@ -251,9 +255,12 @@ describe('useMonitoringHealth', () => {
     vi.mocked(monitoringApi.fetchMonitoringHealth).mockResolvedValue(mockUnhealthyResponse);
 
     // Wait for the poll to update data
-    await waitFor(() => {
-      expect(result.current.data).toEqual(mockUnhealthyResponse);
-    }, { timeout: 500 });
+    await waitFor(
+      () => {
+        expect(result.current.data).toEqual(mockUnhealthyResponse);
+      },
+      { timeout: 500 }
+    );
 
     expect(result.current.isHealthy).toBe(false);
   });

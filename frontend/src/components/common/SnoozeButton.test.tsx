@@ -32,11 +32,7 @@ describe('SnoozeButton', () => {
   it('shows "Snoozed" when event is currently snoozed', () => {
     const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString();
     render(
-      <SnoozeButton
-        snoozeUntil={futureTime}
-        onSnooze={mockOnSnooze}
-        onUnsnooze={mockOnUnsnooze}
-      />
+      <SnoozeButton snoozeUntil={futureTime} onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} />
     );
 
     expect(screen.getByText('Snoozed')).toBeInTheDocument();
@@ -73,11 +69,7 @@ describe('SnoozeButton', () => {
   it('shows unsnooze option when event is snoozed', () => {
     const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString();
     render(
-      <SnoozeButton
-        snoozeUntil={futureTime}
-        onSnooze={mockOnSnooze}
-        onUnsnooze={mockOnUnsnooze}
-      />
+      <SnoozeButton snoozeUntil={futureTime} onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} />
     );
 
     fireEvent.click(screen.getByTestId('snooze-button'));
@@ -89,11 +81,7 @@ describe('SnoozeButton', () => {
   it('calls onUnsnooze when unsnooze option clicked', () => {
     const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString();
     render(
-      <SnoozeButton
-        snoozeUntil={futureTime}
-        onSnooze={mockOnSnooze}
-        onUnsnooze={mockOnUnsnooze}
-      />
+      <SnoozeButton snoozeUntil={futureTime} onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} />
     );
 
     fireEvent.click(screen.getByTestId('snooze-button'));
@@ -139,17 +127,13 @@ describe('SnoozeButton', () => {
   });
 
   it('disables button when disabled prop is true', () => {
-    render(
-      <SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} disabled={true} />
-    );
+    render(<SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} disabled={true} />);
 
     expect(screen.getByTestId('snooze-button')).toBeDisabled();
   });
 
   it('disables button when isLoading is true', () => {
-    render(
-      <SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} isLoading={true} />
-    );
+    render(<SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} isLoading={true} />);
 
     expect(screen.getByTestId('snooze-button')).toBeDisabled();
   });
@@ -160,24 +144,16 @@ describe('SnoozeButton', () => {
     );
     expect(screen.getByTestId('snooze-button')).toHaveClass('text-xs');
 
-    rerender(
-      <SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} size="md" />
-    );
+    rerender(<SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} size="md" />);
     expect(screen.getByTestId('snooze-button')).toHaveClass('text-sm');
 
-    rerender(
-      <SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} size="lg" />
-    );
+    rerender(<SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} size="lg" />);
     expect(screen.getByTestId('snooze-button')).toHaveClass('text-base');
   });
 
   it('applies custom className', () => {
     render(
-      <SnoozeButton
-        onSnooze={mockOnSnooze}
-        onUnsnooze={mockOnUnsnooze}
-        className="custom-class"
-      />
+      <SnoozeButton onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} className="custom-class" />
     );
 
     expect(screen.getByTestId('snooze-button').parentElement).toHaveClass('custom-class');
@@ -186,11 +162,7 @@ describe('SnoozeButton', () => {
   it('shows snooze status in dropdown when snoozed', () => {
     const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString();
     render(
-      <SnoozeButton
-        snoozeUntil={futureTime}
-        onSnooze={mockOnSnooze}
-        onUnsnooze={mockOnUnsnooze}
-      />
+      <SnoozeButton snoozeUntil={futureTime} onSnooze={mockOnSnooze} onUnsnooze={mockOnUnsnooze} />
     );
 
     fireEvent.click(screen.getByTestId('snooze-button'));

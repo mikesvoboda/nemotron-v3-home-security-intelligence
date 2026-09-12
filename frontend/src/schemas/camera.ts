@@ -83,9 +83,11 @@ function containsControlChars(path: string): boolean {
  */
 function isUrl(path: string): boolean {
   const lowerPath = path.toLowerCase();
-  return lowerPath.startsWith('rtsp://') ||
-         lowerPath.startsWith('http://') ||
-         lowerPath.startsWith('https://');
+  return (
+    lowerPath.startsWith('rtsp://') ||
+    lowerPath.startsWith('http://') ||
+    lowerPath.startsWith('https://')
+  );
 }
 
 /**
@@ -188,9 +190,12 @@ export const ingestionModeSchema = z.enum(INGESTION_MODE_VALUES, {
  * - sub: Lower quality sub-stream (for bandwidth savings)
  * - both: Process both streams
  */
-export const streamProfileSchema = z.enum(STREAM_PROFILE_VALUES, {
-  error: 'Invalid stream profile. Must be: main, sub, or both',
-}).nullable().optional();
+export const streamProfileSchema = z
+  .enum(STREAM_PROFILE_VALUES, {
+    error: 'Invalid stream profile. Must be: main, sub, or both',
+  })
+  .nullable()
+  .optional();
 
 /**
  * Checks if an RTSP URL has a valid format with a host.

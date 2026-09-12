@@ -120,7 +120,7 @@ function ZoneEntityDistributionPanelComponent({
         className={clsx('rounded-lg border border-gray-700 bg-gray-800/50 p-6', className)}
         data-testid="entity-distribution-panel-loading"
       >
-        <div className="flex items-center justify-center min-h-[200px]">
+        <div className="flex min-h-[200px] items-center justify-center">
           <LoadingSpinner />
         </div>
       </div>
@@ -135,7 +135,7 @@ function ZoneEntityDistributionPanelComponent({
         data-testid="entity-distribution-panel-error"
       >
         <div className="text-center">
-          <p className="text-red-400 mb-4">Failed to load entity distribution: {error.message}</p>
+          <p className="mb-4 text-red-400">Failed to load entity distribution: {error.message}</p>
           <Button variant="outline-primary" size="sm" onClick={handleRefresh}>
             Try Again
           </Button>
@@ -192,9 +192,7 @@ function ZoneEntityDistributionPanelComponent({
       {/* No entities message if grand total is 0 */}
       {data.grand_total === 0 && (
         <div className="mt-4 rounded-lg bg-gray-700/50 p-4 text-center">
-          <p className="text-sm text-gray-400">
-            No entity activity detected in the last 24 hours.
-          </p>
+          <p className="text-sm text-gray-400">No entity activity detected in the last 24 hours.</p>
         </div>
       )}
     </div>

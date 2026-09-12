@@ -104,7 +104,7 @@ function ReasoningStepCard({ step, isExpanded }: ReasoningStepCardProps) {
                   <span
                     className={clsx(
                       'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
-                      confidenceColors[step.confidenceIndicator] ?? 'text-gray-400 bg-gray-400/10'
+                      confidenceColors[step.confidenceIndicator] ?? 'bg-gray-400/10 text-gray-400'
                     )}
                   >
                     {step.confidenceIndicator}
@@ -138,7 +138,12 @@ function EnrichmentSourceCard({ source }: EnrichmentSourceCardProps) {
           <Database
             className={clsx('h-4 w-4', source.populated ? 'text-[#76B900]' : 'text-gray-500')}
           />
-          <span className={clsx('text-sm font-medium', source.populated ? 'text-white' : 'text-gray-500')}>
+          <span
+            className={clsx(
+              'text-sm font-medium',
+              source.populated ? 'text-white' : 'text-gray-500'
+            )}
+          >
             {source.name}
           </span>
         </div>
@@ -259,7 +264,9 @@ function DebugInfoPanel({ rawResponse, debugInfo }: DebugInfoPanelProps) {
         {debugInfo.enrichmentSnapshotKeys && (
           <div>
             <p className="text-gray-500">Enrichment Keys</p>
-            <p className="font-mono text-white">{debugInfo.enrichmentSnapshotKeys.length} sources</p>
+            <p className="font-mono text-white">
+              {debugInfo.enrichmentSnapshotKeys.length} sources
+            </p>
           </div>
         )}
         {debugInfo.hasTruncationLog !== undefined && (
@@ -322,23 +329,26 @@ export default function LLMReasoningExplorer({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [debugMode, setDebugMode] = useState(false);
 
-  const loadData = useCallback(async (includeDebug: boolean) => {
-    setLoading(true);
-    setError(null);
+  const loadData = useCallback(
+    async (includeDebug: boolean) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const response = await fetchLLMReasoning(eventId, includeDebug);
-      setData(response);
-    } catch (err) {
-      if (err instanceof LLMReasoningApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to load LLM reasoning data');
+      try {
+        const response = await fetchLLMReasoning(eventId, includeDebug);
+        setData(response);
+      } catch (err) {
+        if (err instanceof LLMReasoningApiError) {
+          setError(err.message);
+        } else {
+          setError('Failed to load LLM reasoning data');
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [eventId]);
+    },
+    [eventId]
+  );
 
   // Initial load
   useEffect(() => {
@@ -391,7 +401,14 @@ export default function LLMReasoningExplorer({
     return null;
   }
 
-  const { thinkBlock, enrichmentSources, truncationInfo, householdMatches, debugInfo, rawResponse } = data;
+  const {
+    thinkBlock,
+    enrichmentSources,
+    truncationInfo,
+    householdMatches,
+    debugInfo,
+    rawResponse,
+  } = data;
 
   const populatedSources = enrichmentSources.filter((s) => s.populated);
   const unpopulatedSources = enrichmentSources.filter((s) => !s.populated);
@@ -402,17 +419,13 @@ export default function LLMReasoningExplorer({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain className="h-5 w-5 text-[#76B900]" />
-          <h3 className="text-lg font-semibold text-white">
-            LLM Reasoning Explorer
-          </h3>
+          <h3 className="text-lg font-semibold text-white">LLM Reasoning Explorer</h3>
         </div>
         <button
           onClick={handleDebugToggle}
           className={clsx(
             'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-            debugMode
-              ? 'bg-purple-600 text-white'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            debugMode ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
           )}
           aria-label={debugMode ? 'Disable debug mode' : 'Enable debug mode'}
         >
@@ -448,7 +461,11 @@ export default function LLMReasoningExplorer({
         </button>
 
         {isExpanded && thinkBlock.reasoningSteps.length > 0 && (
-          <div className="mt-4 space-y-3" id="reasoning-steps-content" data-testid="reasoning-steps-expanded">
+          <div
+            className="mt-4 space-y-3"
+            id="reasoning-steps-content"
+            data-testid="reasoning-steps-expanded"
+          >
             {thinkBlock.reasoningSteps.map((step) => (
               <ReasoningStepCard key={step.stepNumber} step={step} isExpanded={isExpanded} />
             ))}

@@ -178,12 +178,8 @@ describe('useHeatmapQuery hooks', () => {
       expect(apiModule.fetchApi).toHaveBeenCalledWith(
         expect.stringContaining('/api/heatmaps/camera/cam-1')
       );
-      expect(apiModule.fetchApi).toHaveBeenCalledWith(
-        expect.stringContaining('resolution=hourly')
-      );
-      expect(apiModule.fetchApi).toHaveBeenCalledWith(
-        expect.stringContaining('colormap=jet')
-      );
+      expect(apiModule.fetchApi).toHaveBeenCalledWith(expect.stringContaining('resolution=hourly'));
+      expect(apiModule.fetchApi).toHaveBeenCalledWith(expect.stringContaining('colormap=jet'));
       expect(result.current.data).toEqual(mockHeatmapResponse);
     });
 
@@ -201,12 +197,8 @@ describe('useHeatmapQuery hooks', () => {
       });
 
       // Defaults should be hourly resolution and jet colormap
-      expect(apiModule.fetchApi).toHaveBeenCalledWith(
-        expect.stringContaining('resolution=hourly')
-      );
-      expect(apiModule.fetchApi).toHaveBeenCalledWith(
-        expect.stringContaining('colormap=jet')
-      );
+      expect(apiModule.fetchApi).toHaveBeenCalledWith(expect.stringContaining('resolution=hourly'));
+      expect(apiModule.fetchApi).toHaveBeenCalledWith(expect.stringContaining('colormap=jet'));
     });
 
     it('handles API errors', async () => {
@@ -297,9 +289,7 @@ describe('useHeatmapQuery hooks', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(apiModule.fetchApi).toHaveBeenCalledWith(
-        expect.stringContaining('resolution=daily')
-      );
+      expect(apiModule.fetchApi).toHaveBeenCalledWith(expect.stringContaining('resolution=daily'));
     });
   });
 
@@ -361,9 +351,7 @@ describe('useHeatmapQuery hooks', () => {
       expect(apiModule.fetchApi).toHaveBeenCalledWith(
         expect.stringContaining('/api/heatmaps/camera/cam-1/merged')
       );
-      expect(apiModule.fetchApi).toHaveBeenCalledWith(
-        expect.stringContaining('resolution=daily')
-      );
+      expect(apiModule.fetchApi).toHaveBeenCalledWith(expect.stringContaining('resolution=daily'));
       expect(result.current.data).toEqual(mockHeatmapResponse);
     });
   });

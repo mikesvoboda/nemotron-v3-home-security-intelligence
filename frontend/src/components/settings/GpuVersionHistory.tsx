@@ -171,9 +171,7 @@ function VersionItem({
         <span>{version.assignment_count} assignments</span>
       </div>
 
-      {version.description && (
-        <p className="mt-2 text-xs text-gray-500">{version.description}</p>
-      )}
+      {version.description && <p className="mt-2 text-xs text-gray-500">{version.description}</p>}
     </div>
   );
 }
@@ -203,9 +201,7 @@ function DiffView({
         <div className="text-center text-sm text-gray-500">
           <GitCompare className="mx-auto mb-2 h-6 w-6" />
           <p>Select two versions to compare</p>
-          <p className="text-xs text-gray-600">
-            Use the arrows next to version numbers
-          </p>
+          <p className="text-xs text-gray-600">Use the arrows next to version numbers</p>
         </div>
       </div>
     );
@@ -260,9 +256,7 @@ function DiffView({
                   )}
                 >
                   <span className="font-medium">{change.service}:</span>{' '}
-                  {change.change_type === 'added' && (
-                    <>Added (GPU {change.new_gpu_index})</>
-                  )}
+                  {change.change_type === 'added' && <>Added (GPU {change.new_gpu_index})</>}
                   {change.change_type === 'removed' && (
                     <>Removed (was GPU {change.old_gpu_index})</>
                   )}
@@ -271,7 +265,8 @@ function DiffView({
                       GPU {change.old_gpu_index} → GPU {change.new_gpu_index}
                       {change.old_vram_override !== change.new_vram_override && (
                         <span className="ml-2 text-xs">
-                          VRAM: {change.old_vram_override ?? 'default'} → {change.new_vram_override ?? 'default'}
+                          VRAM: {change.old_vram_override ?? 'default'} →{' '}
+                          {change.new_vram_override ?? 'default'}
                         </span>
                       )}
                     </>
@@ -388,13 +383,21 @@ function ImportDialog({
             <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
               <h4 className="mb-2 text-sm font-medium text-white">Configuration Preview</h4>
               <div className="space-y-1 text-sm text-gray-400">
-                <p>Strategy: <span className="text-white">{importData.strategy}</span></p>
-                <p>Assignments: <span className="text-white">{importData.assignments.length}</span></p>
+                <p>
+                  Strategy: <span className="text-white">{importData.strategy}</span>
+                </p>
+                <p>
+                  Assignments: <span className="text-white">{importData.assignments.length}</span>
+                </p>
                 {importData.source_version && (
-                  <p>Source Version: <span className="text-white">v{importData.source_version}</span></p>
+                  <p>
+                    Source Version: <span className="text-white">v{importData.source_version}</span>
+                  </p>
                 )}
                 {importData.description && (
-                  <p>Description: <span className="text-white">{importData.description}</span></p>
+                  <p>
+                    Description: <span className="text-white">{importData.description}</span>
+                  </p>
                 )}
               </div>
             </div>
@@ -445,15 +448,16 @@ export default function GpuVersionHistory({
   const [compareTo, setCompareTo] = useState<number | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  const { versions, totalCount, isLoading: isLoadingVersions } = useConfigVersions({
+  const {
+    versions,
+    totalCount,
+    isLoading: isLoadingVersions,
+  } = useConfigVersions({
     enabled: isExpanded,
     limit: 10,
   });
 
-  const { data: diff, isLoading: isLoadingDiff } = useConfigVersionDiff(
-    compareFrom,
-    compareTo
-  );
+  const { data: diff, isLoading: isLoadingDiff } = useConfigVersionDiff(compareFrom, compareTo);
 
   const { downloadConfig, isLoading: isExporting } = useExportConfig();
   const { importConfig, isLoading: isImporting } = useImportConfig();
@@ -521,9 +525,7 @@ export default function GpuVersionHistory({
           </div>
           <div className="text-left">
             <Title className="text-white">Version History</Title>
-            <Text className="mt-1 text-sm text-gray-400">
-              {totalCount} versions saved
-            </Text>
+            <Text className="mt-1 text-sm text-gray-400">{totalCount} versions saved</Text>
           </div>
         </div>
         {isExpanded ? (

@@ -125,9 +125,7 @@ function createTestQueryClient(): QueryClient {
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 // ============================================================================
@@ -191,7 +189,7 @@ describe('KnownPersonsTab', () => {
       expect(screen.getByText('View All')).toBeInTheDocument();
     });
 
-    it('renders Today\'s Stats section', () => {
+    it("renders Today's Stats section", () => {
       renderWithProviders(<KnownPersonsTab {...defaultProps} />);
 
       expect(screen.getByText("Today's Stats")).toBeInTheDocument();
@@ -223,7 +221,7 @@ describe('KnownPersonsTab', () => {
           timestamp: '2025-01-31T08:00:00Z',
           bbox: [75, 125, 175, 275] as [number, number, number, number],
           is_unknown: true,
-          quality_score: 0.80,
+          quality_score: 0.8,
           thumbnail_url: null,
         },
         {
@@ -344,7 +342,9 @@ describe('KnownPersonsTab', () => {
     it('calls onPersonClick when a person card is clicked', () => {
       renderWithProviders(<KnownPersonsTab {...defaultProps} />);
 
-      const personCard = screen.getByText('John Smith').closest('[data-testid="known-person-card"]');
+      const personCard = screen
+        .getByText('John Smith')
+        .closest('[data-testid="known-person-card"]');
       expect(personCard).toBeInTheDocument();
 
       fireEvent.click(personCard!);

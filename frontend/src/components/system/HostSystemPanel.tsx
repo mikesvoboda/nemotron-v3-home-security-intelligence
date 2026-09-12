@@ -199,7 +199,11 @@ export default function HostSystemPanel({
           Host System
         </Title>
         <Badge color={statusColor} size="sm" data-testid="host-status-badge">
-          {statusColor === 'emerald' ? 'Healthy' : statusColor === 'yellow' ? 'Warning' : 'Critical'}
+          {statusColor === 'emerald'
+            ? 'Healthy'
+            : statusColor === 'yellow'
+              ? 'Warning'
+              : 'Critical'}
         </Badge>
       </div>
 

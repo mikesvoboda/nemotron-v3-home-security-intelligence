@@ -105,8 +105,7 @@ export function useDetectionEnrichment(
   options?: UseDetectionEnrichmentOptions
 ): UseDetectionEnrichmentReturn {
   // Determine if fetching is enabled
-  const enabled =
-    (options?.enabled ?? true) && detectionId !== null && detectionId !== undefined;
+  const enabled = (options?.enabled ?? true) && detectionId !== null && detectionId !== undefined;
 
   // Safe to cast since enabled guards against null/undefined
   const safeDetectionId = detectionId ?? 0;
@@ -135,7 +134,7 @@ export function useDetectionEnrichment(
     data: query.data ?? null,
     isLoading: query.isLoading,
     // Transform Error to string for backward compatibility
-    error: query.error ? (query.error.message || 'Failed to fetch enrichment data') : null,
+    error: query.error ? query.error.message || 'Failed to fetch enrichment data' : null,
     refetch,
   };
 }

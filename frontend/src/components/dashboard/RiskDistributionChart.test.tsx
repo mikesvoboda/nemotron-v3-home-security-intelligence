@@ -90,9 +90,7 @@ describe('RiskDistributionChart', () => {
     });
 
     it('applies custom className', () => {
-      render(
-        <RiskDistributionChart distribution={mockDistribution} className="custom-class" />
-      );
+      render(<RiskDistributionChart distribution={mockDistribution} className="custom-class" />);
 
       expect(screen.getByTestId('risk-distribution-chart')).toHaveClass('custom-class');
     });
@@ -171,12 +169,7 @@ describe('RiskDistributionChart', () => {
     });
 
     it('highlights selected segment', () => {
-      render(
-        <RiskDistributionChart
-          distribution={mockDistribution}
-          selectedRiskLevel="high"
-        />
-      );
+      render(<RiskDistributionChart distribution={mockDistribution} selectedRiskLevel="high" />);
 
       expect(screen.getByTestId('risk-distribution-chart')).toHaveAttribute(
         'data-selected',

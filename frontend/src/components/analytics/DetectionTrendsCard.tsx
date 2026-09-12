@@ -129,10 +129,7 @@ export default function DetectionTrendsCard({ dateRange }: DetectionTrendsCardPr
       {/* Summary stat */}
       <div className="mb-4">
         <Text className="text-gray-400">Total Detections</Text>
-        <p
-          className="text-2xl font-bold text-white"
-          data-testid="detection-trends-total"
-        >
+        <p className="text-2xl font-bold text-white" data-testid="detection-trends-total">
           {formatNumber(totalDetections)}
         </p>
       </div>

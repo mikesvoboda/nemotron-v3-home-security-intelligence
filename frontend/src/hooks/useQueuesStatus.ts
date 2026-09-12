@@ -15,11 +15,7 @@ import { useMemo } from 'react';
 import { fetchQueuesStatus } from '../services/api';
 import { computeDerivedQueueState } from '../types/queue';
 
-import type {
-  QueuesStatusResponse,
-  QueueStatus,
-  DerivedQueueState,
-} from '../types/queue';
+import type { QueuesStatusResponse, QueueStatus, DerivedQueueState } from '../types/queue';
 
 /**
  * Query key for queues status data.
@@ -108,9 +104,7 @@ export interface UseQueuesStatusReturn {
  * }
  * ```
  */
-export function useQueuesStatus(
-  options: UseQueuesStatusOptions = {}
-): UseQueuesStatusReturn {
+export function useQueuesStatus(options: UseQueuesStatusOptions = {}): UseQueuesStatusReturn {
   const { enabled = true, refetchInterval = DEFAULT_REFETCH_INTERVAL } = options;
 
   const query = useQuery({
@@ -125,10 +119,7 @@ export function useQueuesStatus(
   });
 
   // Compute derived state from the raw response
-  const derivedState = useMemo(
-    () => computeDerivedQueueState(query.data ?? null),
-    [query.data]
-  );
+  const derivedState = useMemo(() => computeDerivedQueueState(query.data ?? null), [query.data]);
 
   return {
     data: query.data ?? null,

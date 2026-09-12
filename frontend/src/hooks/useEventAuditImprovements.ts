@@ -202,10 +202,11 @@ export function useEventAuditImprovements(
 
   // Convenience method: get improvements for a specific category
   const getImprovementsByCategory = useMemo(
-    () => (category: ImprovementCategory): string[] => {
-      if (!audit?.improvements) return [];
-      return audit.improvements[category] ?? [];
-    },
+    () =>
+      (category: ImprovementCategory): string[] => {
+        if (!audit?.improvements) return [];
+        return audit.improvements[category] ?? [];
+      },
     [audit?.improvements]
   );
 
@@ -227,11 +228,12 @@ export function useEventAuditImprovements(
 
   // Convenience method: check if a category has improvements
   const hasCategoryImprovements = useMemo(
-    () => (category: ImprovementCategory): boolean => {
-      if (!audit?.improvements) return false;
-      const items = audit.improvements[category];
-      return items !== undefined && items.length > 0;
-    },
+    () =>
+      (category: ImprovementCategory): boolean => {
+        if (!audit?.improvements) return false;
+        const items = audit.improvements[category];
+        return items !== undefined && items.length > 0;
+      },
     [audit?.improvements]
   );
 

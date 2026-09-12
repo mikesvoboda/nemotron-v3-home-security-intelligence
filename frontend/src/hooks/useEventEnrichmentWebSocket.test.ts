@@ -77,9 +77,7 @@ describe('useEventEnrichmentWebSocket', () => {
   describe('enrichment.started events', () => {
     it('should handle enrichment started messages', () => {
       const onEnrichmentStarted = vi.fn();
-      const { result } = renderHook(() =>
-        useEventEnrichmentWebSocket({ onEnrichmentStarted })
-      );
+      const { result } = renderHook(() => useEventEnrichmentWebSocket({ onEnrichmentStarted }));
 
       const payload: EnrichmentStartedPayload = {
         batch_id: 'batch-123',
@@ -130,9 +128,7 @@ describe('useEventEnrichmentWebSocket', () => {
   describe('enrichment.progress events', () => {
     it('should update progress for active enrichment', () => {
       const onEnrichmentProgress = vi.fn();
-      const { result } = renderHook(() =>
-        useEventEnrichmentWebSocket({ onEnrichmentProgress })
-      );
+      const { result } = renderHook(() => useEventEnrichmentWebSocket({ onEnrichmentProgress }));
 
       // Start an enrichment
       simulateMessage({
@@ -182,9 +178,7 @@ describe('useEventEnrichmentWebSocket', () => {
   describe('enrichment.completed events', () => {
     it('should remove enrichment from active and increment completed count', () => {
       const onEnrichmentCompleted = vi.fn();
-      const { result } = renderHook(() =>
-        useEventEnrichmentWebSocket({ onEnrichmentCompleted })
-      );
+      const { result } = renderHook(() => useEventEnrichmentWebSocket({ onEnrichmentCompleted }));
 
       // Start an enrichment
       simulateMessage({
@@ -249,9 +243,7 @@ describe('useEventEnrichmentWebSocket', () => {
   describe('enrichment.failed events', () => {
     it('should remove enrichment from active and increment failed count', () => {
       const onEnrichmentFailed = vi.fn();
-      const { result } = renderHook(() =>
-        useEventEnrichmentWebSocket({ onEnrichmentFailed })
-      );
+      const { result } = renderHook(() => useEventEnrichmentWebSocket({ onEnrichmentFailed }));
 
       // Start an enrichment
       simulateMessage({

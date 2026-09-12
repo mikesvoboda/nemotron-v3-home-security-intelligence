@@ -206,7 +206,9 @@ export default function AIAuditPage() {
   return (
     <div
       className="min-h-screen bg-[#121212] p-8"
-      data-testid={isInitialLoading ? 'ai-audit-loading' : hasError ? 'ai-audit-error' : 'ai-audit-page'}
+      data-testid={
+        isInitialLoading ? 'ai-audit-loading' : hasError ? 'ai-audit-error' : 'ai-audit-page'
+      }
     >
       <div className="mx-auto max-w-[1920px]">
         {/* Header - Always visible */}

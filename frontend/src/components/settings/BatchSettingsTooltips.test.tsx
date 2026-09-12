@@ -24,41 +24,33 @@ describe('BatchSettingsTooltips', () => {
     });
 
     it('displays warning when idle_timeout >= window', () => {
-      render(
-        <BatchSettingsValidationDisplay windowSeconds={60} idleTimeoutSeconds={90} />
-      );
+      render(<BatchSettingsValidationDisplay windowSeconds={60} idleTimeoutSeconds={90} />);
 
-      expect(screen.getByText(/Idle timeout should be less than batch window/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Idle timeout should be less than batch window/i)
+      ).toBeInTheDocument();
     });
 
     it('displays warning when window < 30s', () => {
-      render(
-        <BatchSettingsValidationDisplay windowSeconds={20} idleTimeoutSeconds={10} />
-      );
+      render(<BatchSettingsValidationDisplay windowSeconds={20} idleTimeoutSeconds={10} />);
 
       expect(screen.getByText(/under 30 seconds/i)).toBeInTheDocument();
     });
 
     it('displays warning when window > 180s', () => {
-      render(
-        <BatchSettingsValidationDisplay windowSeconds={200} idleTimeoutSeconds={60} />
-      );
+      render(<BatchSettingsValidationDisplay windowSeconds={200} idleTimeoutSeconds={60} />);
 
       expect(screen.getByText(/over 180 seconds/i)).toBeInTheDocument();
     });
 
     it('displays error when window is 0', () => {
-      render(
-        <BatchSettingsValidationDisplay windowSeconds={0} idleTimeoutSeconds={30} />
-      );
+      render(<BatchSettingsValidationDisplay windowSeconds={0} idleTimeoutSeconds={30} />);
 
       expect(screen.getByTestId('batch-validation-errors')).toBeInTheDocument();
     });
 
     it('displays multiple warnings', () => {
-      render(
-        <BatchSettingsValidationDisplay windowSeconds={20} idleTimeoutSeconds={25} />
-      );
+      render(<BatchSettingsValidationDisplay windowSeconds={20} idleTimeoutSeconds={25} />);
 
       // Both window < 30 and idle >= window warnings
       const warnings = screen.getByTestId('batch-validation-warnings');

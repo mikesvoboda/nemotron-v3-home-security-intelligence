@@ -186,10 +186,7 @@ export function PlateExportButton({
 
           allReads.push(...response.plate_reads);
 
-          const progress = Math.min(
-            Math.round((allReads.length / totalCount) * 100),
-            99
-          );
+          const progress = Math.min(Math.round((allReads.length / totalCount) * 100), 99);
           setExportState({ status: 'exporting', progress });
 
           hasMore = allReads.length < response.total;
@@ -225,8 +222,7 @@ export function PlateExportButton({
           setExportState({ status: 'idle', progress: 0 });
         }, 3000);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Export failed';
+        const errorMessage = error instanceof Error ? error.message : 'Export failed';
         logger.error('Plate reads export failed', { error: errorMessage });
 
         setExportState({
@@ -253,9 +249,7 @@ export function PlateExportButton({
         <div className="min-w-[200px] flex-1">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-sm text-gray-400">Exporting...</span>
-            <span className="text-sm font-medium text-white">
-              {exportState.progress}%
-            </span>
+            <span className="text-sm font-medium text-white">{exportState.progress}%</span>
           </div>
           <div className="h-2.5 w-full rounded-full bg-gray-700">
             <div
@@ -294,28 +288,16 @@ export function PlateExportButton({
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <span className="text-sm">
             Export complete
             {exportState.recordCount !== undefined && (
-              <span className="ml-1 text-gray-400">
-                ({exportState.recordCount} records)
-              </span>
+              <span className="ml-1 text-gray-400">({exportState.recordCount} records)</span>
             )}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleReset}
-          data-testid="new-export-button"
-        >
+        <Button variant="ghost" size="sm" onClick={handleReset} data-testid="new-export-button">
           New Export
         </Button>
       </div>
@@ -343,9 +325,7 @@ export function PlateExportButton({
           </svg>
           <span className="text-sm">
             Export failed
-            {exportState.error && (
-              <span className="ml-1 text-gray-400">({exportState.error})</span>
-            )}
+            {exportState.error && <span className="ml-1 text-gray-400">({exportState.error})</span>}
           </span>
         </div>
         <Button
@@ -376,12 +356,7 @@ export function PlateExportButton({
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         }
         aria-expanded={isMenuOpen}
@@ -432,9 +407,7 @@ export function PlateExportButton({
                 </svg>
                 Export as CSV
                 {hasResults && (
-                  <span className="ml-auto text-xs text-gray-500">
-                    {totalCount} records
-                  </span>
+                  <span className="ml-auto text-xs text-gray-500">{totalCount} records</span>
                 )}
               </button>
             </div>

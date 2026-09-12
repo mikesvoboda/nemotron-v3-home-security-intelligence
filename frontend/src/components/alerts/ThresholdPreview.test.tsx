@@ -151,12 +151,7 @@ describe('ThresholdPreview', () => {
         matchRate: 20.0,
       });
 
-      render(
-        <ThresholdPreview
-          previewState={previewState}
-          label="Matching events:"
-        />
-      );
+      render(<ThresholdPreview previewState={previewState} label="Matching events:" />);
 
       expect(screen.getByText('Matching events:')).toBeInTheDocument();
     });

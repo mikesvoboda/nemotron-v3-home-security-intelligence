@@ -1,13 +1,6 @@
 import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  Radio,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  RefreshCw,
-  Loader2,
-} from 'lucide-react';
+import { Radio, CheckCircle, XCircle, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { useEffect, useState, useCallback, useRef } from 'react';
 
 import {
@@ -119,9 +112,7 @@ function BroadcasterCard({ name, displayName, description, status }: Broadcaster
                 {failureCount} consecutive failure{failureCount === 1 ? '' : 's'}
               </Text>
             )}
-            {message && (
-              <Text className="mt-1 text-xs text-gray-400">{message}</Text>
-            )}
+            {message && <Text className="mt-1 text-xs text-gray-400">{message}</Text>}
           </div>
         </div>
 
@@ -220,8 +211,10 @@ export default function WebSocketHealthPanel({
   };
 
   // Calculate overall health
-  const eventHealthy = data?.event_broadcaster?.state === 'closed' && !data.event_broadcaster.is_degraded;
-  const systemHealthy = data?.system_broadcaster?.state === 'closed' && !data.system_broadcaster.is_degraded;
+  const eventHealthy =
+    data?.event_broadcaster?.state === 'closed' && !data.event_broadcaster.is_degraded;
+  const systemHealthy =
+    data?.system_broadcaster?.state === 'closed' && !data.system_broadcaster.is_degraded;
   const allHealthy = eventHealthy && systemHealthy;
   const hasIssues = !allHealthy && data !== null;
 

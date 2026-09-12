@@ -25,17 +25,17 @@ export function TrackHistorySection({
 
   if (isLoading) {
     return (
-      <div className="p-4 border rounded-lg bg-gray-50">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Movement History</h3>
-        <div className="animate-pulse bg-gray-200 rounded" style={{ width, height }} />
+      <div className="rounded-lg border bg-gray-50 p-4">
+        <h3 className="mb-2 text-sm font-medium text-gray-700">Movement History</h3>
+        <div className="animate-pulse rounded bg-gray-200" style={{ width, height }} />
       </div>
     );
   }
 
   if (error || !history) {
     return (
-      <div className="p-4 border rounded-lg bg-gray-50">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Movement History</h3>
+      <div className="rounded-lg border bg-gray-50 p-4">
+        <h3 className="mb-2 text-sm font-medium text-gray-700">Movement History</h3>
         <p className="text-sm text-gray-500">Unable to load track history</p>
       </div>
     );
@@ -44,21 +44,14 @@ export function TrackHistorySection({
   const { trajectory, metrics } = history;
 
   return (
-    <div className="p-4 border rounded-lg bg-gray-50">
-      <h3 className="text-sm font-medium text-gray-700 mb-3">Movement History</h3>
+    <div className="rounded-lg border bg-gray-50 p-4">
+      <h3 className="mb-3 text-sm font-medium text-gray-700">Movement History</h3>
 
       {/* Trajectory Visualization */}
-      <div
-        className="relative bg-gray-900 rounded overflow-hidden mb-4"
-        style={{ width, height }}
-      >
-        <TrackPathVisualization
-          trajectory={trajectory}
-          width={width}
-          height={height}
-        />
+      <div className="relative mb-4 overflow-hidden rounded bg-gray-900" style={{ width, height }}>
+        <TrackPathVisualization trajectory={trajectory} width={width} height={height} />
         {trajectory.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
             No movement data
           </div>
         )}

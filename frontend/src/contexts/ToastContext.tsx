@@ -1,4 +1,3 @@
-
 /**
  * ToastContext - Centralized notification management for the React frontend.
  *
@@ -19,7 +18,16 @@
  * showToast('Something went wrong', 'error');
  * showToast('Processing...', 'info', 10000); // Custom 10s duration
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 /**
  * Toast notification types.

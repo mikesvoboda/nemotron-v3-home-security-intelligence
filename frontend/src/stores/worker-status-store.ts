@@ -16,7 +16,12 @@
 
 import { useShallow } from 'zustand/react/shallow';
 
-import { createComputedSelector, createImmerSelectorStore, type Draft, type ImmerSetState } from './middleware';
+import {
+  createComputedSelector,
+  createImmerSelectorStore,
+  type Draft,
+  type ImmerSetState,
+} from './middleware';
 
 import type {
   WorkerType,
@@ -390,10 +395,7 @@ export const selectWorkerByName = (
  * Factory for creating memoized workers-by-type selectors.
  * Each unique worker type gets its own memoized selector.
  */
-const workersByTypeSelectors = new Map<
-  WorkerType,
-  (state: WorkerStatusState) => WorkerStatus[]
->();
+const workersByTypeSelectors = new Map<WorkerType, (state: WorkerStatusState) => WorkerStatus[]>();
 
 /**
  * Memoized selector for workers by type.
@@ -402,9 +404,8 @@ const workersByTypeSelectors = new Map<
 export const selectWorkersByType = (state: WorkerStatusState, type: WorkerType): WorkerStatus[] => {
   let selector = workersByTypeSelectors.get(type);
   if (!selector) {
-    selector = createComputedSelector(
-      (s: WorkerStatusState): WorkerStatus[] =>
-        Object.values(s.workers).filter((w) => w.type === type)
+    selector = createComputedSelector((s: WorkerStatusState): WorkerStatus[] =>
+      Object.values(s.workers).filter((w) => w.type === type)
     );
     workersByTypeSelectors.set(type, selector);
   }

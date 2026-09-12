@@ -38,12 +38,7 @@ describe('RecommendedActionCard', () => {
 
   describe('styling', () => {
     it('applies custom className', () => {
-      render(
-        <RecommendedActionCard
-          recommendedAction="Test action"
-          className="custom-class"
-        />
-      );
+      render(<RecommendedActionCard recommendedAction="Test action" className="custom-class" />);
       expect(screen.getByTestId('recommended-action-card')).toHaveClass('custom-class');
     });
 
@@ -55,12 +50,7 @@ describe('RecommendedActionCard', () => {
     });
 
     it('uses gray styling when reviewed', () => {
-      render(
-        <RecommendedActionCard
-          recommendedAction="Test action"
-          isReviewed={true}
-        />
-      );
+      render(<RecommendedActionCard recommendedAction="Test action" isReviewed={true} />);
       const card = screen.getByTestId('recommended-action-card');
       expect(card).toHaveClass('border-gray-600');
       expect(card).toHaveClass('bg-gray-800/50');

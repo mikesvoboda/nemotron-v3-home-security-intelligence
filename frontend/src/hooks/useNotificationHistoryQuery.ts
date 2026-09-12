@@ -136,13 +136,7 @@ export interface UseNotificationHistoryQueryReturn {
 export function useNotificationHistoryQuery(
   options: UseNotificationHistoryQueryOptions = {}
 ): UseNotificationHistoryQueryReturn {
-  const {
-    filters,
-    limit = 50,
-    page = 0,
-    enabled = true,
-    staleTime = DEFAULT_STALE_TIME,
-  } = options;
+  const { filters, limit = 50, page = 0, enabled = true, staleTime = DEFAULT_STALE_TIME } = options;
 
   const queryClient = useQueryClient();
 

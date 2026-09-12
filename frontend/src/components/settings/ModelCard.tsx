@@ -109,8 +109,8 @@ const ModelCard = memo(function ModelCard({
   const statusClass = isDisabled
     ? 'bg-gray-500/20 text-gray-400 disabled'
     : isLoaded
-    ? 'bg-emerald-500/20 text-emerald-400 loaded green active'
-    : 'bg-gray-500/20 text-gray-400 unloaded gray inactive';
+      ? 'bg-emerald-500/20 text-emerald-400 loaded green active'
+      : 'bg-gray-500/20 text-gray-400 unloaded gray inactive';
 
   const handleLoadClick = useCallback(() => {
     onLoad(model.name);
@@ -142,7 +142,10 @@ const ModelCard = memo(function ModelCard({
         {/* Loading overlay */}
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-black/50">
-            <Loader2 data-testid="loading-spinner" className="h-6 w-6 animate-spin text-[#76B900]" />
+            <Loader2
+              data-testid="loading-spinner"
+              className="h-6 w-6 animate-spin text-[#76B900]"
+            />
           </div>
         )}
 
@@ -160,7 +163,10 @@ const ModelCard = memo(function ModelCard({
           </div>
           <div
             data-testid="model-status-indicator"
-            className={clsx('flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', statusClass)}
+            className={clsx(
+              'flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+              statusClass
+            )}
           >
             {statusText}
           </div>

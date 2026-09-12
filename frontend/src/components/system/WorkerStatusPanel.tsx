@@ -32,10 +32,7 @@ import { memo, useMemo } from 'react';
 
 import { useWorkerStatusWebSocket } from '../../hooks/useWorkerStatusWebSocket';
 
-import type {
-  WorkerStatusEntry,
-  PipelineHealthStatus,
-} from '../../hooks/useWorkerStatusWebSocket';
+import type { WorkerStatusEntry, PipelineHealthStatus } from '../../hooks/useWorkerStatusWebSocket';
 
 // ============================================================================
 // Types
@@ -205,9 +202,16 @@ function WorkerStateIcon({ state }: { state: WorkerStatusEntry['state'] }) {
       return <CheckCircle className="h-4 w-4 text-green-500" data-testid="worker-icon-running" />;
     case 'stopped':
     case 'stopping':
-      return <AlertTriangle className="h-4 w-4 text-yellow-500" data-testid="worker-icon-stopped" />;
+      return (
+        <AlertTriangle className="h-4 w-4 text-yellow-500" data-testid="worker-icon-stopped" />
+      );
     case 'starting':
-      return <RefreshCw className="h-4 w-4 animate-spin text-yellow-500" data-testid="worker-icon-restarting" />;
+      return (
+        <RefreshCw
+          className="h-4 w-4 animate-spin text-yellow-500"
+          data-testid="worker-icon-restarting"
+        />
+      );
     case 'error':
       return <XCircle className="h-4 w-4 text-red-500" data-testid="worker-icon-error" />;
     default:
@@ -241,11 +245,7 @@ const WorkerCard = memo(function WorkerCard({ worker }: WorkerCardProps) {
             <Text className="text-xs text-gray-500">{formatWorkerType(worker.type)}</Text>
           </div>
         </div>
-        <Badge
-          color={badgeColor}
-          size="xs"
-          data-testid={`worker-status-badge-${worker.name}`}
-        >
+        <Badge color={badgeColor} size="xs" data-testid={`worker-status-badge-${worker.name}`}>
           {stateText}
         </Badge>
       </div>
@@ -313,14 +313,8 @@ export const WorkerStatusPanel = memo(function WorkerStatusPanel({
   className,
   'data-testid': testId = 'worker-status-panel',
 }: WorkerStatusPanelProps) {
-  const {
-    workers,
-    isConnected,
-    pipelineHealth,
-    hasError,
-    runningCount,
-    totalCount,
-  } = useWorkerStatusWebSocket({ enabled: true });
+  const { workers, isConnected, pipelineHealth, hasError, runningCount, totalCount } =
+    useWorkerStatusWebSocket({ enabled: true });
 
   // Sort workers: errors first, then warnings, then running
   const sortedWorkers = useMemo(() => {

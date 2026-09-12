@@ -112,7 +112,7 @@ const mockAppearancesLast7Days = {
       camera_id: 1,
       camera_name: 'Driveway',
       detection_id: 'det-005',
-      confidence: 0.90,
+      confidence: 0.9,
       thumbnail_url: '/api/thumbnails/det-005',
       event_id: 104,
     },
@@ -253,10 +253,7 @@ describe('PersonTrackingTab', () => {
       await user.click(within(listbox).getByText('John Smith'));
 
       await waitFor(() => {
-        expect(mockUsePersonAppearancesQuery).toHaveBeenCalledWith(
-          1,
-          expect.any(Object)
-        );
+        expect(mockUsePersonAppearancesQuery).toHaveBeenCalledWith(1, expect.any(Object));
       });
     });
 
@@ -850,7 +847,11 @@ describe('PersonTrackingTab', () => {
 
       // Wait for listbox and check for the long name
       const listbox = await screen.findByRole('listbox');
-      expect(within(listbox).getByText('A Very Long Person Name That Should Be Truncated Properly In The UI')).toBeInTheDocument();
+      expect(
+        within(listbox).getByText(
+          'A Very Long Person Name That Should Be Truncated Properly In The UI'
+        )
+      ).toBeInTheDocument();
     });
 
     it('handles appearances with missing thumbnail URLs', () => {
@@ -904,10 +905,7 @@ describe('PersonTrackingTab', () => {
 
       // Should show Jane's data, not John's
       await waitFor(() => {
-        expect(mockUsePersonAppearancesQuery).toHaveBeenLastCalledWith(
-          2,
-          expect.any(Object)
-        );
+        expect(mockUsePersonAppearancesQuery).toHaveBeenLastCalledWith(2, expect.any(Object));
       });
     });
 

@@ -56,9 +56,7 @@ describe('EnrichmentProgressBadge', () => {
     });
 
     it('displays stage and progress together', () => {
-      render(
-        <EnrichmentProgressBadge status="in_progress" progress={65} stage="License Plate" />
-      );
+      render(<EnrichmentProgressBadge status="in_progress" progress={65} stage="License Plate" />);
       expect(screen.getByText('License Plate (65%)')).toBeInTheDocument();
     });
 
@@ -137,11 +135,7 @@ describe('EnrichmentProgressBadge', () => {
 
     it('allows custom tooltip override', () => {
       render(
-        <EnrichmentProgressBadge
-          status="in_progress"
-          stage="Processing"
-          tooltip="Custom tooltip"
-        />
+        <EnrichmentProgressBadge status="in_progress" stage="Processing" tooltip="Custom tooltip" />
       );
       const badge = screen.getByTestId('enrichment-progress-badge');
       expect(badge).toHaveAttribute('title', 'Custom tooltip');
@@ -223,9 +217,7 @@ describe('EnrichmentProgressBar', () => {
 
   describe('step information', () => {
     it('displays step count when provided', () => {
-      render(
-        <EnrichmentProgressBar progress={60} currentStep={3} totalSteps={5} />
-      );
+      render(<EnrichmentProgressBar progress={60} currentStep={3} totalSteps={5} />);
       expect(screen.getByText('Step 3 / 5')).toBeInTheDocument();
     });
 
@@ -298,7 +290,7 @@ describe('EnrichmentProgressBar', () => {
 
   describe('custom className', () => {
     it('applies custom className', () => {
-      render(<EnrichmentProgressBar progress={50} className="mt-4 mb-2" />);
+      render(<EnrichmentProgressBar progress={50} className="mb-2 mt-4" />);
       const bar = screen.getByTestId('enrichment-progress-bar');
       expect(bar).toHaveClass('mt-4', 'mb-2');
     });

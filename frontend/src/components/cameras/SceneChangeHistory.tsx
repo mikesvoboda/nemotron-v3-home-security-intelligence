@@ -140,18 +140,18 @@ const SceneChangeItem = memo(function SceneChangeItem({
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           {/* Camera name and timestamp */}
-          <div className="flex items-center gap-2 mb-1">
-            <Camera className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" aria-hidden="true" />
-            <span className="text-sm font-medium text-white truncate">{event.cameraName}</span>
-            <span className="text-xs text-gray-500 flex-shrink-0">
+          <div className="mb-1 flex items-center gap-2">
+            <Camera className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" aria-hidden="true" />
+            <span className="truncate text-sm font-medium text-white">{event.cameraName}</span>
+            <span className="flex-shrink-0 text-xs text-gray-500">
               {formatTimestamp(event.detectedAt)}
             </span>
           </div>
 
           {/* Change type badge and similarity */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={clsx(
                 'flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium',
@@ -163,7 +163,8 @@ const SceneChangeItem = memo(function SceneChangeItem({
               {typeInfo.label}
             </span>
             <span className="text-xs text-gray-500">
-              Similarity: <span className="text-gray-400">{formatSimilarity(event.similarityScore)}</span>
+              Similarity:{' '}
+              <span className="text-gray-400">{formatSimilarity(event.similarityScore)}</span>
             </span>
           </div>
         </div>
@@ -175,7 +176,7 @@ const SceneChangeItem = memo(function SceneChangeItem({
               e.stopPropagation();
               onDismiss();
             }}
-            className="flex-shrink-0 rounded-full p-1 text-gray-500 hover:bg-gray-800 hover:text-gray-300 transition-colors"
+            className="flex-shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300"
             title="Dismiss"
             aria-label="Dismiss scene change alert"
           >
@@ -242,13 +243,11 @@ function SceneChangeHistoryComponent({
         )}
         data-testid="scene-change-history-empty"
       >
-        <div className="rounded-full bg-green-500/10 p-3 mb-3">
+        <div className="mb-3 rounded-full bg-green-500/10 p-3">
           <CheckCircle className="h-6 w-6 text-green-400" aria-hidden="true" />
         </div>
         <p className="text-sm text-gray-400">{emptyMessage}</p>
-        <p className="text-xs text-gray-500 mt-1">
-          Scene changes will appear here when detected
-        </p>
+        <p className="mt-1 text-xs text-gray-500">Scene changes will appear here when detected</p>
       </div>
     );
   }
@@ -271,9 +270,9 @@ function SceneChangeHistoryComponent({
 
       {/* More events indicator */}
       {events.length > maxItems && (
-        <div className="text-center py-2">
+        <div className="py-2 text-center">
           <span className="text-xs text-gray-500">
-            <Clock className="inline-block h-3 w-3 mr-1" aria-hidden="true" />
+            <Clock className="mr-1 inline-block h-3 w-3" aria-hidden="true" />
             {events.length - maxItems} more scene changes
           </span>
         </div>

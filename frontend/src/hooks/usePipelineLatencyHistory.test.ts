@@ -340,10 +340,7 @@ describe('usePipelineLatencyHistory', () => {
 
       // Mock a slower response for refetch
       vi.mocked(pipelineLatencyApi.getPipelineLatencyHistory).mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve(mockLatencyHistoryResponse), 100)
-          )
+        () => new Promise((resolve) => setTimeout(() => resolve(mockLatencyHistoryResponse), 100))
       );
 
       result.current.refetch();
@@ -456,8 +453,7 @@ describe('usePipelineLatencyHistory', () => {
       );
 
       const { result, rerender } = renderHook(
-        ({ since, bucket_seconds }) =>
-          usePipelineLatencyHistory({ since, bucket_seconds }),
+        ({ since, bucket_seconds }) => usePipelineLatencyHistory({ since, bucket_seconds }),
         {
           initialProps: { since: 60, bucket_seconds: 60 },
         }
@@ -491,8 +487,7 @@ describe('usePipelineLatencyHistory', () => {
       );
 
       const { result, rerender } = renderHook(
-        ({ since, bucket_seconds }) =>
-          usePipelineLatencyHistory({ since, bucket_seconds }),
+        ({ since, bucket_seconds }) => usePipelineLatencyHistory({ since, bucket_seconds }),
         {
           initialProps: { since: 60, bucket_seconds: 60 },
         }

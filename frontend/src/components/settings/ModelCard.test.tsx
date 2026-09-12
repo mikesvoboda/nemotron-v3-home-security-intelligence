@@ -290,7 +290,12 @@ describe('ModelCard', () => {
   describe('loading state', () => {
     it('shows loading spinner during load operation', () => {
       renderWithProviders(
-        <ModelCard {...defaultProps} model={mockUnloadedModel} isLoading={true} loadingAction="load" />
+        <ModelCard
+          {...defaultProps}
+          model={mockUnloadedModel}
+          isLoading={true}
+          loadingAction="load"
+        />
       );
 
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
@@ -298,16 +303,19 @@ describe('ModelCard', () => {
 
     it('shows loading spinner during unload operation', () => {
       renderWithProviders(
-        <ModelCard {...defaultProps} model={mockLoadedModel} isLoading={true} loadingAction="unload" />
+        <ModelCard
+          {...defaultProps}
+          model={mockLoadedModel}
+          isLoading={true}
+          loadingAction="unload"
+        />
       );
 
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     });
 
     it('disables all buttons during loading', () => {
-      renderWithProviders(
-        <ModelCard {...defaultProps} model={mockLoadedModel} isLoading={true} />
-      );
+      renderWithProviders(<ModelCard {...defaultProps} model={mockLoadedModel} isLoading={true} />);
 
       const buttons = screen.getAllByRole('button');
       buttons.forEach((button) => {

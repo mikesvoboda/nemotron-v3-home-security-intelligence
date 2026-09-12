@@ -368,10 +368,7 @@ describe('ActionEventsPanel', () => {
       })
     );
 
-    render(
-      <ActionEventsPanel {...defaultProps} endTime={null} />,
-      { wrapper: createWrapper() }
-    );
+    render(<ActionEventsPanel {...defaultProps} endTime={null} />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.getByTestId('action-events-empty')).toBeInTheDocument();
@@ -423,10 +420,9 @@ describe('ActionEventsPanel', () => {
       })
     );
 
-    render(
-      <ActionEventsPanel {...defaultProps} className="custom-class" />,
-      { wrapper: createWrapper() }
-    );
+    render(<ActionEventsPanel {...defaultProps} className="custom-class" />, {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('action-events-empty')).toHaveClass('custom-class');

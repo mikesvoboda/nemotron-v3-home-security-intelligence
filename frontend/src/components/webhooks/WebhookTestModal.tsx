@@ -12,14 +12,7 @@
  */
 
 import { clsx } from 'clsx';
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  Play,
-  XCircle,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Loader2, Play, XCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { WEBHOOK_EVENT_TYPES, WEBHOOK_EVENT_LABELS } from '../../types/webhook';
@@ -57,9 +50,7 @@ function TestResult({ result }: { result: WebhookTestResponse }) {
     <div
       className={clsx(
         'rounded-lg border p-4',
-        isSuccess
-          ? 'border-green-500/30 bg-green-500/10'
-          : 'border-red-500/30 bg-red-500/10'
+        isSuccess ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10'
       )}
       data-testid="test-result"
     >
@@ -202,10 +193,7 @@ export default function WebhookTestModal({
 
         {/* Event Type Selector */}
         <div className="mb-6">
-          <label
-            htmlFor="test-event-type"
-            className="block text-sm font-medium text-gray-300"
-          >
+          <label htmlFor="test-event-type" className="block text-sm font-medium text-gray-300">
             Event Type
           </label>
           <p className="mb-2 text-xs text-gray-500">
@@ -231,7 +219,13 @@ export default function WebhookTestModal({
           <Button
             variant="primary"
             fullWidth
-            leftIcon={isTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            leftIcon={
+              isTesting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )
+            }
             onClick={() => void handleTest()}
             disabled={isTesting}
           >

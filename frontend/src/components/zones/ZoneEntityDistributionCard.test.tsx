@@ -147,9 +147,7 @@ describe('ZoneEntityDistributionCard', () => {
   });
 
   it('should apply custom className', () => {
-    render(
-      <ZoneEntityDistributionCard distribution={mockDistribution} className="custom-class" />
-    );
+    render(<ZoneEntityDistributionCard distribution={mockDistribution} className="custom-class" />);
 
     const card = screen.getByTestId('entity-distribution-card-1');
     expect(card).toHaveClass('custom-class');

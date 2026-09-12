@@ -75,9 +75,7 @@ export default function RateLimitingSettings({
               data-testid="input-requests-per-minute"
               aria-label="Requests per minute"
             />
-            <Text className="mt-1 text-xs text-gray-600">
-              Max requests per minute per client
-            </Text>
+            <Text className="mt-1 text-xs text-gray-600">Max requests per minute per client</Text>
           </div>
           {/* Burst size */}
           <div>
@@ -96,9 +94,7 @@ export default function RateLimitingSettings({
               data-testid="input-burst-size"
               aria-label="Burst size"
             />
-            <Text className="mt-1 text-xs text-gray-600">
-              Extra allowance for request spikes
-            </Text>
+            <Text className="mt-1 text-xs text-gray-600">Extra allowance for request spikes</Text>
           </div>
           {/* Enabled toggle */}
           <div>

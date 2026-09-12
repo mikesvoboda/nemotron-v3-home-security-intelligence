@@ -302,7 +302,8 @@ function QualityMetricsCards({ stats, isLoading }: QualityMetricsCardsProps) {
   const evaluationRate =
     stats && stats.total_events > 0 ? (stats.fully_evaluated_events / stats.total_events) * 100 : 0;
 
-  const hasQualityScore = stats?.avg_quality_score !== null && stats?.avg_quality_score !== undefined;
+  const hasQualityScore =
+    stats?.avg_quality_score !== null && stats?.avg_quality_score !== undefined;
   const hasEnrichmentData =
     stats?.avg_enrichment_utilization !== null && stats?.avg_enrichment_utilization !== undefined;
   const hasEvaluations = stats && stats.fully_evaluated_events > 0;

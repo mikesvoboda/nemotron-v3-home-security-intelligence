@@ -6,16 +6,7 @@
  */
 
 import { Card, Text } from '@tremor/react';
-import {
-  AlertCircle,
-  Car,
-  Fingerprint,
-  Gauge,
-  Clock,
-  Sun,
-  Focus,
-  Loader2,
-} from 'lucide-react';
+import { AlertCircle, Car, Fingerprint, Gauge, Clock, Sun, Focus, Loader2 } from 'lucide-react';
 
 import { usePlateStatisticsQuery } from '../../hooks/usePlateStatisticsQuery';
 

@@ -109,15 +109,9 @@ export default function BatchAggregatorCard({
         >
           <div className="flex flex-col">
             <Text className="text-sm font-medium text-gray-300">Active Batches</Text>
-            <Text className="text-xs text-gray-500">
-              Window: {batchWindowSeconds}s
-            </Text>
+            <Text className="text-xs text-gray-500">Window: {batchWindowSeconds}s</Text>
           </div>
-          <Badge
-            color={activeBadgeColor}
-            size="lg"
-            data-testid="active-batch-count-badge"
-          >
+          <Badge color={activeBadgeColor} size="lg" data-testid="active-batch-count-badge">
             {isLoading ? '...' : activeBatchCount}
           </Badge>
         </div>
@@ -125,9 +119,7 @@ export default function BatchAggregatorCard({
         {/* Individual Batches */}
         {batches.length > 0 && (
           <div className="space-y-2" data-testid="batch-list">
-            <Text className="text-xs font-medium uppercase text-gray-500">
-              Active Batches
-            </Text>
+            <Text className="text-xs font-medium uppercase text-gray-500">Active Batches</Text>
             {batches.map((batch) => (
               <BatchRow
                 key={batch.batch_id}
@@ -192,18 +184,14 @@ function BatchRow({ batch, windowSeconds, isApproachingTimeout }: BatchRowProps)
     <div
       className={clsx(
         'flex items-center justify-between rounded-lg p-3',
-        isApproachingTimeout
-          ? 'border border-yellow-500/30 bg-yellow-500/10'
-          : 'bg-gray-800/50'
+        isApproachingTimeout ? 'border border-yellow-500/30 bg-yellow-500/10' : 'bg-gray-800/50'
       )}
       data-testid={`batch-row-${batch.batch_id}`}
     >
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <Camera className="h-4 w-4 text-gray-400" />
-          <Text className="text-sm font-medium text-gray-300">
-            {batch.camera_id}
-          </Text>
+          <Text className="text-sm font-medium text-gray-300">{batch.camera_id}</Text>
         </div>
         <div className="flex items-center gap-3 text-xs text-gray-500">
           <span>{batch.detection_count} detections</span>
@@ -220,11 +208,7 @@ function BatchRow({ batch, windowSeconds, isApproachingTimeout }: BatchRowProps)
             data-testid={`batch-timeout-icon-${batch.batch_id}`}
           />
         )}
-        <Badge
-          color={ageBadgeColor}
-          size="sm"
-          data-testid={`batch-progress-${batch.batch_id}`}
-        >
+        <Badge color={ageBadgeColor} size="sm" data-testid={`batch-progress-${batch.batch_id}`}>
           {formatBatchProgress(batch.age_seconds, windowSeconds)}
         </Badge>
       </div>

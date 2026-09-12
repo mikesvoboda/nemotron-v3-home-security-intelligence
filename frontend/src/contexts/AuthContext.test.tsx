@@ -490,9 +490,7 @@ describe('AuthContext', () => {
       );
 
       expect(result.current).toBeInstanceOf(Error);
-      expect((result.current as Error).message).toBe(
-        'useAuth must be used within an AuthProvider'
-      );
+      expect((result.current as Error).message).toBe('useAuth must be used within an AuthProvider');
     });
   });
 });

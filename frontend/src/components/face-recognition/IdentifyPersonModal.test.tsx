@@ -191,7 +191,9 @@ describe('IdentifyPersonModal', () => {
 
     it('does not show enrollment checkbox when quality < 0.7', () => {
       renderModal({ qualityScore: 0.65 });
-      expect(screen.queryByRole('checkbox', { name: /also enroll this face/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('checkbox', { name: /also enroll this face/i })
+      ).not.toBeInTheDocument();
     });
 
     it('shows quality score in enrollment checkbox label', () => {
@@ -460,7 +462,7 @@ describe('IdentifyPersonModal', () => {
 
       // Custom radio buttons use tabindex=-1 and opacity class for disabled state
       const radios = screen.getAllByRole('radio');
-      radios.forEach(radio => {
+      radios.forEach((radio) => {
         expect(radio).toHaveAttribute('tabindex', '-1');
         expect(radio).toHaveClass('opacity-50');
       });
@@ -708,7 +710,7 @@ describe('IdentifyPersonModal', () => {
       // Form should be reset
       expect(screen.getByPlaceholderText(/search persons/i)).toHaveValue('');
       const radios = screen.getAllByRole('radio');
-      radios.forEach(radio => {
+      radios.forEach((radio) => {
         expect(radio).not.toBeChecked();
       });
     });
@@ -726,7 +728,9 @@ describe('IdentifyPersonModal', () => {
 
     it('has proper radio group labeling', () => {
       renderModal();
-      expect(screen.getByRole('radiogroup', { name: /select matching person/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('radiogroup', { name: /select matching person/i })
+      ).toBeInTheDocument();
     });
 
     it('each person has radio button with name as label', () => {

@@ -14,11 +14,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 
-import {
-  bulkCreateDetections,
-  bulkUpdateDetections,
-  bulkDeleteDetections,
-} from '../services/api';
+import { bulkCreateDetections, bulkUpdateDetections, bulkDeleteDetections } from '../services/api';
 import { queryKeys } from '../services/queryClient';
 
 import type {

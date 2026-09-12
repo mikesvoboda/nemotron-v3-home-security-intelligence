@@ -154,7 +154,12 @@ const EventClusterCard = memo(function EventClusterCard({
         const summaryLower = event.summary.toLowerCase();
         if (summaryLower.includes('person')) types.add('person');
         if (summaryLower.includes('vehicle') || summaryLower.includes('car')) types.add('vehicle');
-        if (summaryLower.includes('animal') || summaryLower.includes('dog') || summaryLower.includes('cat')) types.add('animal');
+        if (
+          summaryLower.includes('animal') ||
+          summaryLower.includes('dog') ||
+          summaryLower.includes('cat')
+        )
+          types.add('animal');
         if (summaryLower.includes('package')) types.add('package');
       }
     }
@@ -167,9 +172,8 @@ const EventClusterCard = memo(function EventClusterCard({
   }, [events]);
 
   // Calculate remaining thumbnails count
-  const remainingThumbnailCount = thumbnails.length > MAX_THUMBNAILS_DISPLAY
-    ? thumbnails.length - MAX_THUMBNAILS_DISPLAY
-    : 0;
+  const remainingThumbnailCount =
+    thumbnails.length > MAX_THUMBNAILS_DISPLAY ? thumbnails.length - MAX_THUMBNAILS_DISPLAY : 0;
 
   return (
     <div
@@ -192,7 +196,10 @@ const EventClusterCard = memo(function EventClusterCard({
 
         {/* Thumbnail Grid - Shows up to 6 thumbnails with "+N more" indicator */}
         {thumbnails.length > 0 && (
-          <div className="mb-3 grid grid-cols-3 gap-1 overflow-hidden rounded-md" data-testid="thumbnail-grid">
+          <div
+            className="mb-3 grid grid-cols-3 gap-1 overflow-hidden rounded-md"
+            data-testid="thumbnail-grid"
+          >
             {thumbnails.slice(0, MAX_THUMBNAILS_DISPLAY).map((url, index) => (
               <div key={index} className="relative aspect-square overflow-hidden rounded">
                 <img
@@ -242,10 +249,7 @@ const EventClusterCard = memo(function EventClusterCard({
         {objectTypes.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1" data-testid="object-types">
             {objectTypes.map((type) => (
-              <span
-                key={type}
-                className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300"
-              >
+              <span key={type} className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
                 {type}
               </span>
             ))}

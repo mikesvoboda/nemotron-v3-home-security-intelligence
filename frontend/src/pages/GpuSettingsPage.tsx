@@ -46,7 +46,13 @@ import type { GpuAssignment, GpuApplyResult, ServiceHealthStatus } from '../hook
  * Available GPU assignment strategies.
  * These are defined by the backend GpuAssignmentStrategy enum.
  */
-const AVAILABLE_STRATEGIES = ['manual', 'vram_based', 'latency_optimized', 'isolation_first', 'balanced'];
+const AVAILABLE_STRATEGIES = [
+  'manual',
+  'vram_based',
+  'latency_optimized',
+  'isolation_first',
+  'balanced',
+];
 
 /**
  * GpuSettingsPage component for managing GPU configuration
@@ -164,9 +170,7 @@ export default function GpuSettingsPage() {
 
   const handleVramOverrideChange = useCallback((service: string, vramOverride: number | null) => {
     setLocalAssignments((prev) =>
-      prev.map((a) =>
-        a.service === service ? { ...a, vram_budget_override: vramOverride } : a
-      )
+      prev.map((a) => (a.service === service ? { ...a, vram_budget_override: vramOverride } : a))
     );
     setHasChanges(true);
     setLastApplyResult(null);
@@ -181,9 +185,7 @@ export default function GpuSettingsPage() {
    */
   const handleExclusiveGpuChange = useCallback((service: string, exclusive: boolean) => {
     setLocalAssignments((prev) =>
-      prev.map((a) =>
-        a.service === service ? { ...a, exclusive_gpu: exclusive } : a
-      )
+      prev.map((a) => (a.service === service ? { ...a, exclusive_gpu: exclusive } : a))
     );
     setHasChanges(true);
     setLastApplyResult(null);
@@ -194,9 +196,7 @@ export default function GpuSettingsPage() {
    */
   const handlePriorityWeightChange = useCallback((service: string, priority: number) => {
     setLocalAssignments((prev) =>
-      prev.map((a) =>
-        a.service === service ? { ...a, priority_weight: priority } : a
-      )
+      prev.map((a) => (a.service === service ? { ...a, priority_weight: priority } : a))
     );
     setHasChanges(true);
     setLastApplyResult(null);
@@ -260,9 +260,7 @@ export default function GpuSettingsPage() {
    * Assign all services to a single GPU
    */
   const handleAssignAll = useCallback((gpuIndex: number) => {
-    setLocalAssignments((prev) =>
-      prev.map((a) => ({ ...a, gpu_index: gpuIndex }))
-    );
+    setLocalAssignments((prev) => prev.map((a) => ({ ...a, gpu_index: gpuIndex })));
     setHasChanges(true);
     setLastApplyResult(null);
   }, []);

@@ -102,15 +102,10 @@ function ViewModeToggle({
   testId: string;
 }) {
   return (
-    <div
-      className="flex rounded-md bg-gray-800 p-0.5"
-      data-testid={`${testId}-view-toggle`}
-    >
+    <div className="flex rounded-md bg-gray-800 p-0.5" data-testid={`${testId}-view-toggle`}>
       <button
-        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-          viewMode === 'stages'
-            ? 'bg-[#76B900] text-black'
-            : 'text-gray-400 hover:text-white'
+        className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+          viewMode === 'stages' ? 'bg-[#76B900] text-black' : 'text-gray-400 hover:text-white'
         }`}
         onClick={() => onViewModeChange('stages')}
         data-testid={`${testId}-view-stages`}
@@ -119,10 +114,8 @@ function ViewModeToggle({
         Stages
       </button>
       <button
-        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-          viewMode === 'percentiles'
-            ? 'bg-[#76B900] text-black'
-            : 'text-gray-400 hover:text-white'
+        className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+          viewMode === 'percentiles' ? 'bg-[#76B900] text-black' : 'text-gray-400 hover:text-white'
         }`}
         onClick={() => onViewModeChange('percentiles')}
         data-testid={`${testId}-view-percentiles`}
@@ -164,10 +157,11 @@ export default function PipelineLatencyHistoryPanel({
 }: PipelineLatencyHistoryPanelProps) {
   const [viewMode, setViewMode] = useState<LatencyViewMode>(initialViewMode);
 
-  const { chartData, percentileChartData, isLoading, error, refetch, data } = usePipelineLatencyHistory({
-    since,
-    bucket_seconds: bucketSeconds,
-  });
+  const { chartData, percentileChartData, isLoading, error, refetch, data } =
+    usePipelineLatencyHistory({
+      since,
+      bucket_seconds: bucketSeconds,
+    });
 
   // Transform data for stage chart
   const stageData: StageChartDataPoint[] = useMemo(
@@ -184,15 +178,9 @@ export default function PipelineLatencyHistoryPanel({
   // Loading state
   if (isLoading && !data) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
+      <Card className={className} data-testid={testId}>
         <Title className="mb-4 text-white">Pipeline Latency History</Title>
-        <div
-          className="flex h-48 items-center justify-center"
-          data-testid={`${testId}-loading`}
-        >
+        <div className="flex h-48 items-center justify-center" data-testid={`${testId}-loading`}>
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
       </Card>
@@ -202,10 +190,7 @@ export default function PipelineLatencyHistoryPanel({
   // Error state
   if (error) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
+      <Card className={className} data-testid={testId}>
         <Title className="mb-4 text-white">Pipeline Latency History</Title>
         <div
           className="flex h-48 flex-col items-center justify-center text-red-400"
@@ -215,7 +200,7 @@ export default function PipelineLatencyHistoryPanel({
           <Text className="mb-2">Failed to load pipeline latency history</Text>
           <button
             onClick={refetch}
-            className="flex items-center gap-2 rounded-md bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+            className="flex items-center gap-2 rounded-md bg-red-500/10 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/20"
             data-testid={`${testId}-retry`}
           >
             <RefreshCw className="h-4 w-4" />
@@ -229,10 +214,7 @@ export default function PipelineLatencyHistoryPanel({
   // Empty state
   if (stageData.length === 0) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
+      <Card className={className} data-testid={testId}>
         <Title className="mb-4 text-white">Pipeline Latency History</Title>
         <div
           className="flex h-48 flex-col items-center justify-center text-gray-400"
@@ -245,26 +227,18 @@ export default function PipelineLatencyHistoryPanel({
   }
 
   return (
-    <Card
-      className={className}
-      data-testid={testId}
-    >
-      <div className="flex items-center justify-between mb-4">
+    <Card className={className} data-testid={testId}>
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <Title className="text-white">Pipeline Latency History</Title>
-          <Text className="text-gray-400 text-xs">
-            Last {data?.window_minutes ?? since} minutes, {data?.bucket_seconds ?? bucketSeconds}s buckets
+          <Text className="text-xs text-gray-400">
+            Last {data?.window_minutes ?? since} minutes, {data?.bucket_seconds ?? bucketSeconds}s
+            buckets
           </Text>
         </div>
         <div className="flex items-center gap-3">
-          {isLoading && (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-          )}
-          <ViewModeToggle
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            testId={testId}
-          />
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} testId={testId} />
         </div>
       </div>
 

@@ -19,11 +19,7 @@ import {
 } from './useDwellTimeAnalytics';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
-import type {
-  DwellStatistics,
-  ActiveDwellersResponse,
-  PolygonZone,
-} from './useDwellTimeAnalytics';
+import type { DwellStatistics, ActiveDwellersResponse, PolygonZone } from './useDwellTimeAnalytics';
 
 // Save original fetch for restoration
 const originalFetch = globalThis.fetch;

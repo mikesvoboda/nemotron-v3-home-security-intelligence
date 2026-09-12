@@ -9,10 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { useQueueMetricsWebSocket } from './useQueueMetricsWebSocket';
 
-import type {
-  QueueStatusPayload,
-  PipelineThroughputPayload,
-} from '../types/websocket-events';
+import type { QueueStatusPayload, PipelineThroughputPayload } from '../types/websocket-events';
 
 const mockOnMessage = vi.fn<(data: unknown) => void>();
 const mockWsReturn = {
@@ -74,9 +71,7 @@ describe('useQueueMetricsWebSocket', () => {
   describe('queue.status events', () => {
     it('should handle queue status messages', () => {
       const onQueueStatus = vi.fn();
-      const { result } = renderHook(() =>
-        useQueueMetricsWebSocket({ onQueueStatus })
-      );
+      const { result } = renderHook(() => useQueueMetricsWebSocket({ onQueueStatus }));
 
       const payload: QueueStatusPayload = {
         queues: [
@@ -130,9 +125,7 @@ describe('useQueueMetricsWebSocket', () => {
   describe('pipeline.throughput events', () => {
     it('should handle throughput messages', () => {
       const onThroughput = vi.fn();
-      const { result } = renderHook(() =>
-        useQueueMetricsWebSocket({ onThroughput })
-      );
+      const { result } = renderHook(() => useQueueMetricsWebSocket({ onThroughput }));
 
       const payload: PipelineThroughputPayload = {
         detections_per_minute: 120.5,

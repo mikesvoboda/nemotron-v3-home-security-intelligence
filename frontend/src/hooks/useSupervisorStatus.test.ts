@@ -110,9 +110,7 @@ describe('useSupervisorStatus', () => {
 
   it('handles error states gracefully', async () => {
     const errorMessage = 'Failed to fetch supervisor status';
-    vi.mocked(supervisorApi.fetchSupervisorStatus).mockRejectedValue(
-      new Error(errorMessage)
-    );
+    vi.mocked(supervisorApi.fetchSupervisorStatus).mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useSupervisorStatus());
 

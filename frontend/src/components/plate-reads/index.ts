@@ -22,7 +22,11 @@ export { PlateReadTrendsCard } from './PlateReadTrendsCard';
 export { PlateDetailModal, type PlateDetailModalProps } from './PlateDetailModal';
 
 // Search Components
-export { default as PlateSearchBar, type PlateSearchFilters, type PlateSearchBarProps } from './PlateSearchBar';
+export {
+  default as PlateSearchBar,
+  type PlateSearchFilters,
+  type PlateSearchBarProps,
+} from './PlateSearchBar';
 
 // Table Components
 export { default as PlateReadTable, type PlateReadTableProps } from './PlateReadTable';

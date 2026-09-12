@@ -140,9 +140,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * @param includeHealth - Whether to include health status (slower)
  * @returns List of detectors with configuration
  */
-export async function listDetectors(
-  includeHealth: boolean = false
-): Promise<DetectorListResponse> {
+export async function listDetectors(includeHealth: boolean = false): Promise<DetectorListResponse> {
   const url = new URL(`${BASE_URL}/api/system/detectors`);
   if (includeHealth) {
     url.searchParams.set('include_health', 'true');
@@ -194,9 +192,7 @@ export async function switchDetector(
  * @param detectorType - Detector type identifier
  * @returns Detector configuration
  */
-export async function getDetectorConfig(
-  detectorType: string
-): Promise<DetectorInfo> {
+export async function getDetectorConfig(detectorType: string): Promise<DetectorInfo> {
   const response = await fetch(
     `${BASE_URL}/api/system/detectors/${encodeURIComponent(detectorType)}`,
     {
@@ -214,9 +210,7 @@ export async function getDetectorConfig(
  * @param detectorType - Detector type identifier
  * @returns Health status
  */
-export async function checkDetectorHealth(
-  detectorType: string
-): Promise<DetectorHealth> {
+export async function checkDetectorHealth(detectorType: string): Promise<DetectorHealth> {
   const response = await fetch(
     `${BASE_URL}/api/system/detectors/${encodeURIComponent(detectorType)}/health`,
     {

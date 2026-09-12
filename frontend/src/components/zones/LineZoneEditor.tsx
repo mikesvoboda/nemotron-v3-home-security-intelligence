@@ -315,7 +315,9 @@ export default function LineZoneEditor({
     <div
       ref={containerRef}
       role={isDrawing ? 'application' : 'img'}
-      aria-label={isDrawing ? 'Tripwire line drawing canvas - click to draw' : 'Camera tripwire lines view'}
+      aria-label={
+        isDrawing ? 'Tripwire line drawing canvas - click to draw' : 'Camera tripwire lines view'
+      }
       tabIndex={0}
       className={clsx(
         'relative overflow-hidden rounded-lg border border-gray-700 bg-gray-900',

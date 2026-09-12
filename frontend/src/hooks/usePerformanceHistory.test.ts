@@ -348,10 +348,7 @@ describe('usePerformanceHistory', () => {
 
       // Mock a slower response for refetch
       vi.mocked(performanceHistoryApi.getPerformanceHistory).mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve(mockApiResponse), 100)
-          )
+        () => new Promise((resolve) => setTimeout(() => resolve(mockApiResponse), 100))
       );
 
       result.current.refetch();

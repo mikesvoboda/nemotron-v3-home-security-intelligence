@@ -109,9 +109,12 @@ const DeletedEventCard = memo(function DeletedEventCard({
     setShowConfirmDialog(false);
   }, []);
 
-  const handleSelectionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onSelectionChange?.(event.id, e.target.checked);
-  }, [onSelectionChange, event.id]);
+  const handleSelectionChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onSelectionChange?.(event.id, e.target.checked);
+    },
+    [onSelectionChange, event.id]
+  );
 
   return (
     <div

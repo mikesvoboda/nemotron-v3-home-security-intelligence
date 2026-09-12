@@ -30,7 +30,11 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import AccessScheduleEditor from './AccessScheduleEditor';
-import { useHouseholdApi, type HouseholdMember, type RegisteredVehicle } from '../../hooks/useHouseholdApi';
+import {
+  useHouseholdApi,
+  type HouseholdMember,
+  type RegisteredVehicle,
+} from '../../hooks/useHouseholdApi';
 import { useToast } from '../../hooks/useToast';
 import {
   useZoneHouseholdConfig,
@@ -72,7 +76,7 @@ interface SelectedEntities {
  */
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4 animate-pulse">
+    <div className="animate-pulse space-y-4">
       <div className="h-10 w-full rounded-lg bg-gray-700" />
       <div className="h-24 w-full rounded-lg bg-gray-700" />
       <div className="h-24 w-full rounded-lg bg-gray-700" />
@@ -116,9 +120,7 @@ function SelectionChip({
       disabled={disabled}
       className={clsx(
         'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors',
-        selected
-          ? 'bg-[#76B900] text-gray-900'
-          : 'bg-gray-700 text-gray-300 hover:bg-gray-600',
+        selected ? 'bg-[#76B900] text-gray-900' : 'bg-gray-700 text-gray-300 hover:bg-gray-600',
         disabled && 'cursor-not-allowed opacity-50'
       )}
     >
@@ -241,7 +243,9 @@ export default function ZoneAccessSettings({
   }, []);
 
   const handleSchedulesChange = useCallback(
-    (schedules: { member_ids: number[]; cron_expression: string; description?: string | null }[]) => {
+    (
+      schedules: { member_ids: number[]; cron_expression: string; description?: string | null }[]
+    ) => {
       setLocalSchedules(schedules);
       setHasUnsavedChanges(true);
     },
@@ -357,9 +361,7 @@ export default function ZoneAccessSettings({
     <div className={clsx('space-y-6', className)} data-testid="zone-access-settings">
       {/* Zone Selector */}
       <div className="relative">
-        <span className="mb-2 block text-sm font-medium text-gray-300">
-          Select Zone
-        </span>
+        <span className="mb-2 block text-sm font-medium text-gray-300">Select Zone</span>
         <button
           type="button"
           onClick={() => setIsZoneDropdownOpen(!isZoneDropdownOpen)}
@@ -368,9 +370,7 @@ export default function ZoneAccessSettings({
         >
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-[#76B900]" />
-            <span className="text-white">
-              {selectedZone?.name ?? 'Select a zone...'}
-            </span>
+            <span className="text-white">{selectedZone?.name ?? 'Select a zone...'}</span>
           </div>
           <ChevronDown
             className={clsx(
@@ -395,9 +395,7 @@ export default function ZoneAccessSettings({
               >
                 <MapPin className="h-4 w-4 text-gray-400" />
                 <span className="text-white">{zone.name}</span>
-                {zone.id === selectedZoneId && (
-                  <Check className="ml-auto h-4 w-4 text-[#76B900]" />
-                )}
+                {zone.id === selectedZoneId && <Check className="ml-auto h-4 w-4 text-[#76B900]" />}
               </button>
             ))}
           </div>
@@ -580,11 +578,7 @@ export default function ZoneAccessSettings({
 
       {/* Delete Confirmation Modal */}
       <Transition appear show={showDeleteConfirm} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-50"
-          onClose={() => setShowDeleteConfirm(false)}
-        >
+        <Dialog as="div" className="relative z-50" onClose={() => setShowDeleteConfirm(false)}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-200"
@@ -618,10 +612,8 @@ export default function ZoneAccessSettings({
                   </Dialog.Title>
                   <p className="mb-6 text-gray-400">
                     Are you sure you want to clear all access settings for{' '}
-                    <span className="font-medium text-white">
-                      {selectedZone?.name}
-                    </span>
-                    ? This action cannot be undone.
+                    <span className="font-medium text-white">{selectedZone?.name}</span>? This
+                    action cannot be undone.
                   </p>
                   <div className="flex justify-end gap-3">
                     <button

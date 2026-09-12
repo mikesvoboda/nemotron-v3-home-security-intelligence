@@ -421,14 +421,8 @@ describe('ThreatIndicator', () => {
       ];
       render(<ThreatIndicator threats={threats} />);
       const badge = screen.getByTestId('threat-badge-0');
-      expect(badge).toHaveAttribute(
-        'aria-label',
-        expect.stringContaining('gun')
-      );
-      expect(badge).toHaveAttribute(
-        'aria-label',
-        expect.stringContaining('87%')
-      );
+      expect(badge).toHaveAttribute('aria-label', expect.stringContaining('gun'));
+      expect(badge).toHaveAttribute('aria-label', expect.stringContaining('87%'));
     });
 
     it('high-priority badges indicate critical status in aria-label', () => {
@@ -437,10 +431,7 @@ describe('ThreatIndicator', () => {
       ];
       render(<ThreatIndicator threats={threats} />);
       const badge = screen.getByTestId('threat-badge-0');
-      expect(badge).toHaveAttribute(
-        'aria-label',
-        expect.stringContaining('high priority')
-      );
+      expect(badge).toHaveAttribute('aria-label', expect.stringContaining('high priority'));
     });
 
     it('has role="alert" for high-priority threats', () => {
@@ -515,9 +506,7 @@ describe('ThreatIndicator', () => {
 
   describe('edge cases', () => {
     it('handles zero confidence gracefully', () => {
-      const threats: ThreatData[] = [
-        { class_name: 'gun', confidence: 0, is_high_priority: true },
-      ];
+      const threats: ThreatData[] = [{ class_name: 'gun', confidence: 0, is_high_priority: true }];
       render(<ThreatIndicator threats={threats} />);
       expect(screen.getByText('0%')).toBeInTheDocument();
     });
@@ -531,9 +520,7 @@ describe('ThreatIndicator', () => {
     });
 
     it('handles empty class name', () => {
-      const threats: ThreatData[] = [
-        { class_name: '', confidence: 0.5, is_high_priority: false },
-      ];
+      const threats: ThreatData[] = [{ class_name: '', confidence: 0.5, is_high_priority: false }];
       render(<ThreatIndicator threats={threats} />);
       const badge = screen.getByTestId('threat-badge-0');
       expect(badge).toBeInTheDocument();

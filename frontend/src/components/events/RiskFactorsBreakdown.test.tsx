@@ -24,7 +24,8 @@ describe('RiskFactorsBreakdown', () => {
     enrichment_coverage: 'full',
   };
 
-  const mockReasoning = 'Person detected near front entrance during evening hours with unidentified vehicle.';
+  const mockReasoning =
+    'Person detected near front entrance during evening hours with unidentified vehicle.';
   const mockRecommendedAction = 'Review camera footage and verify identity';
 
   describe('rendering', () => {
@@ -193,9 +194,7 @@ describe('RiskFactorsBreakdown', () => {
 
     it('renders recommended action card when expanded', async () => {
       const user = userEvent.setup();
-      render(
-        <RiskFactorsBreakdown riskScore={50} recommendedAction={mockRecommendedAction} />
-      );
+      render(<RiskFactorsBreakdown riskScore={50} recommendedAction={mockRecommendedAction} />);
 
       await user.click(screen.getByTestId('risk-factors-toggle'));
       expect(screen.getByTestId('recommended-action-card')).toBeInTheDocument();
@@ -326,11 +325,7 @@ describe('RiskFactorsBreakdown', () => {
   describe('custom className', () => {
     it('applies custom className', () => {
       render(
-        <RiskFactorsBreakdown
-          riskScore={50}
-          entities={mockEntities}
-          className="custom-class"
-        />
+        <RiskFactorsBreakdown riskScore={50} entities={mockEntities} className="custom-class" />
       );
       expect(screen.getByTestId('risk-factors-breakdown')).toHaveClass('custom-class');
     });

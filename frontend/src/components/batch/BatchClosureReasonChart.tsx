@@ -109,30 +109,20 @@ export default function BatchClosureReasonChart({
         {/* Legend with percentages */}
         <div className="flex-1 space-y-2">
           {chartData.map((item) => {
-            const reason = Object.entries(CLOSURE_REASON_LABELS).find(
-              ([, label]) => label === item.name
-            )?.[0] ?? 'unknown';
+            const reason =
+              Object.entries(CLOSURE_REASON_LABELS).find(([, label]) => label === item.name)?.[0] ??
+              'unknown';
             const color = CLOSURE_REASON_HEX[reason] || CLOSURE_REASON_HEX.unknown;
 
             return (
-              <div
-                key={item.name}
-                className="flex items-center justify-between"
-              >
+              <div key={item.name} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
+                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
                   <Text className="text-sm text-gray-300">{item.name}</Text>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Text className="text-sm font-medium text-white">
-                    {item.count}
-                  </Text>
-                  <Text className="text-xs text-gray-500">
-                    ({item.percentage.toFixed(1)}%)
-                  </Text>
+                  <Text className="text-sm font-medium text-white">{item.count}</Text>
+                  <Text className="text-xs text-gray-500">({item.percentage.toFixed(1)}%)</Text>
                 </div>
               </div>
             );

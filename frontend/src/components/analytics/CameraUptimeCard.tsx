@@ -273,15 +273,17 @@ export default function CameraUptimeCard({ dateRange, showTrend = true }: Camera
                       <span>{item.trend.change.toFixed(1)}%</span>
                     </span>
                   )}
-                  {showTrend && item.trend.direction === 'stable' && item.previousUptime !== undefined && (
-                    <span
-                      className="flex items-center gap-0.5 text-xs text-gray-500"
-                      data-testid={`trend-indicator-${item.cameraId}`}
-                      title="No change vs previous period"
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </span>
-                  )}
+                  {showTrend &&
+                    item.trend.direction === 'stable' &&
+                    item.previousUptime !== undefined && (
+                      <span
+                        className="flex items-center gap-0.5 text-xs text-gray-500"
+                        data-testid={`trend-indicator-${item.cameraId}`}
+                        title="No change vs previous period"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </span>
+                    )}
                   <span className="font-medium text-white">{percentage.toFixed(1)}%</span>
                 </div>
               </div>

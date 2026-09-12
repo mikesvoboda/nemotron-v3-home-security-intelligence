@@ -16,12 +16,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import {
-  fetchDeletedCameras,
-  deleteCamera,
-  restoreCamera,
-  type Camera,
-} from '../services/api';
+import { fetchDeletedCameras, deleteCamera, restoreCamera, type Camera } from '../services/api';
 import { queryKeys, DEFAULT_STALE_TIME } from '../services/queryClient';
 
 // ============================================================================

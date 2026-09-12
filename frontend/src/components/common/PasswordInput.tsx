@@ -5,8 +5,10 @@ import { useId, useState, type ChangeEvent, type InputHTMLAttributes } from 'rea
 /**
  * Props for the PasswordInput component
  */
-export interface PasswordInputProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
+export interface PasswordInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'onChange'
+> {
   /**
    * Label text for the input field
    */

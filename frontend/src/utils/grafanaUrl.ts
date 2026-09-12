@@ -94,9 +94,7 @@ export function resolveGrafanaUrl(configUrl: string): string {
     // Security: Validate the hostname is allowed (SSRF protection)
     if (!isAllowedHost(url.hostname)) {
       // Log security event for monitoring
-      console.warn(
-        `[Security] Blocked potentially unsafe Grafana URL: hostname not in allowlist`
-      );
+      console.warn(`[Security] Blocked potentially unsafe Grafana URL: hostname not in allowlist`);
       // Return relative path as safe fallback
       return '/grafana';
     }

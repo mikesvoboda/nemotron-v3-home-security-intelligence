@@ -661,11 +661,23 @@ describe('Batch message handling (NEM-3738)', () => {
       messages: [
         {
           type: 'event',
-          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Test 1' },
+          data: {
+            id: '1',
+            camera_id: 'cam1',
+            risk_score: 50,
+            risk_level: 'medium',
+            summary: 'Test 1',
+          },
         },
         {
           type: 'event',
-          data: { id: '2', camera_id: 'cam2', risk_score: 75, risk_level: 'high', summary: 'Test 2' },
+          data: {
+            id: '2',
+            camera_id: 'cam2',
+            risk_score: 75,
+            risk_level: 'high',
+            summary: 'Test 2',
+          },
         },
       ],
       batched_at: 1234567890,
@@ -688,11 +700,23 @@ describe('Batch message handling (NEM-3738)', () => {
       messages: [
         {
           type: 'event',
-          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Test 1' },
+          data: {
+            id: '1',
+            camera_id: 'cam1',
+            risk_score: 50,
+            risk_level: 'medium',
+            summary: 'Test 1',
+          },
         },
         {
           type: 'event',
-          data: { id: '2', camera_id: 'cam2', risk_score: 75, risk_level: 'high', summary: 'Test 2' },
+          data: {
+            id: '2',
+            camera_id: 'cam2',
+            risk_score: 75,
+            risk_level: 'high',
+            summary: 'Test 2',
+          },
         },
       ],
       batched_at: 1234567890,
@@ -728,7 +752,13 @@ describe('Batch message handling (NEM-3738)', () => {
       messages: [
         {
           type: 'event',
-          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Event 1' },
+          data: {
+            id: '1',
+            camera_id: 'cam1',
+            risk_score: 50,
+            risk_level: 'medium',
+            summary: 'Event 1',
+          },
         },
         {
           type: 'alert.created',
@@ -742,7 +772,13 @@ describe('Batch message handling (NEM-3738)', () => {
         },
         {
           type: 'event',
-          data: { id: '2', camera_id: 'cam2', risk_score: 75, risk_level: 'high', summary: 'Event 2' },
+          data: {
+            id: '2',
+            camera_id: 'cam2',
+            risk_score: 75,
+            risk_level: 'high',
+            summary: 'Event 2',
+          },
         },
       ],
       batched_at: 1234567890,
@@ -785,7 +821,13 @@ describe('Batch message handling (NEM-3738)', () => {
       messages: [
         {
           type: 'event',
-          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Test 1' },
+          data: {
+            id: '1',
+            camera_id: 'cam1',
+            risk_score: 50,
+            risk_level: 'medium',
+            summary: 'Test 1',
+          },
         },
         { type: 'unknown_type', data: { foo: 'bar' } },
       ],

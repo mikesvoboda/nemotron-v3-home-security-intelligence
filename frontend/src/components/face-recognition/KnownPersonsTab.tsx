@@ -59,7 +59,7 @@ function KnownPersonCard({ person, onClick }: KnownPersonCardProps) {
   return (
     <div
       data-testid="known-person-card"
-      className="flex flex-col items-center rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 transition-colors hover:border-gray-600 hover:bg-[#252525] cursor-pointer"
+      className="flex cursor-pointer flex-col items-center rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 transition-colors hover:border-gray-600 hover:bg-[#252525]"
       onClick={onClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -72,7 +72,7 @@ function KnownPersonCard({ person, onClick }: KnownPersonCardProps) {
       </div>
 
       {/* Name */}
-      <span className="mb-1 text-center text-sm font-medium text-white truncate w-full">
+      <span className="mb-1 w-full truncate text-center text-sm font-medium text-white">
         {person.name}
       </span>
 
@@ -134,8 +134,8 @@ function UnknownStrangerCard({ cameraName, timestamp }: UnknownStrangerCardProps
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10">
         <AlertTriangle className="h-5 w-5 text-yellow-500" aria-hidden="true" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-white truncate">{cameraName}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm text-white">{cameraName}</p>
         <p className="text-xs text-gray-400">{formattedTime}</p>
       </div>
     </div>
@@ -170,11 +170,7 @@ export default function KnownPersonsTab({ onPersonClick, onAddPerson }: KnownPer
     error: strangersError,
   } = useUnknownStrangersQuery(); // We'll take only 3 items in the UI
 
-  const {
-    data: faceStats,
-    isLoading: isLoadingStats,
-    error: statsError,
-  } = useFaceStatsQuery();
+  const { data: faceStats, isLoading: isLoadingStats, error: statsError } = useFaceStatsQuery();
 
   // Derived values
   const personCount = knownPersons?.length ?? 0;
@@ -238,7 +234,7 @@ export default function KnownPersonsTab({ onPersonClick, onAddPerson }: KnownPer
       ) : (
         <div
           data-testid="known-persons-grid"
-          className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
+          className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
         >
           {knownPersons?.map((person) => (
             <KnownPersonCard
@@ -306,7 +302,7 @@ export default function KnownPersonsTab({ onPersonClick, onAddPerson }: KnownPer
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard
               testId="stat-card-total"
               label="Total"

@@ -179,9 +179,7 @@ export default function DateRangePickerModal({
 
         {/* Preset Buttons */}
         <div className="mb-6">
-          <span className="mb-2 block text-sm font-medium text-gray-300">
-            Quick Select
-          </span>
+          <span className="mb-2 block text-sm font-medium text-gray-300">Quick Select</span>
           <div className="flex flex-wrap gap-2">
             {DEFAULT_PRESETS.map((preset) => (
               <button

@@ -19,10 +19,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import HouseholdPage from './HouseholdPage';
 import { renderWithProviders } from '../test/utils';
 
-import type {
-  HouseholdMember,
-  RegisteredVehicle,
-} from '../hooks/useHouseholdApi';
+import type { HouseholdMember, RegisteredVehicle } from '../hooks/useHouseholdApi';
 
 // ============================================================================
 // Mock Data

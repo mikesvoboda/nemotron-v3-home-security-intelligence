@@ -54,11 +54,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
   const [anomalyConfigError, setAnomalyConfigError] = useState<string | null>(null);
 
   // Settings API for rate limiting and queue configuration (NEM-3670)
-  const {
-    settings,
-    isLoading: settingsLoading,
-    error: settingsError,
-  } = useSettingsQuery();
+  const { settings, isLoading: settingsLoading, error: settingsError } = useSettingsQuery();
   const updateSettingsMutation = useUpdateSettings();
 
   useEffect(() => {
@@ -597,10 +593,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
           </div>
         )}
         {!anomalyConfigLoading && !anomalyConfigError && anomalyConfig && (
-          <AnomalyConfigPanel
-            config={anomalyConfig}
-            onConfigUpdated={handleAnomalyConfigUpdated}
-          />
+          <AnomalyConfigPanel config={anomalyConfig} onConfigUpdated={handleAnomalyConfigUpdated} />
         )}
       </Card>
 

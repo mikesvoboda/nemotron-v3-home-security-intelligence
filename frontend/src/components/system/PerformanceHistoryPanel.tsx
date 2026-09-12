@@ -85,11 +85,8 @@ export default function PerformanceHistoryPanel({
   // Loading state
   if (isLoading && snapshots.length === 0) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
-        <div className="flex items-center justify-between mb-4">
+      <Card className={className} data-testid={testId}>
+        <div className="mb-4 flex items-center justify-between">
           <Title className="text-white">Performance History</Title>
           <TimeRangeSelector
             selectedRange={timeRange}
@@ -97,10 +94,7 @@ export default function PerformanceHistoryPanel({
             data-testid={`${testId}-time-selector`}
           />
         </div>
-        <div
-          className="flex h-48 items-center justify-center"
-          data-testid={`${testId}-loading`}
-        >
+        <div className="flex h-48 items-center justify-center" data-testid={`${testId}-loading`}>
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
       </Card>
@@ -110,11 +104,8 @@ export default function PerformanceHistoryPanel({
   // Error state
   if (error) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
-        <div className="flex items-center justify-between mb-4">
+      <Card className={className} data-testid={testId}>
+        <div className="mb-4 flex items-center justify-between">
           <Title className="text-white">Performance History</Title>
           <TimeRangeSelector
             selectedRange={timeRange}
@@ -130,7 +121,7 @@ export default function PerformanceHistoryPanel({
           <Text className="mb-2">Failed to load performance history</Text>
           <button
             onClick={refetch}
-            className="flex items-center gap-2 rounded-md bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+            className="flex items-center gap-2 rounded-md bg-red-500/10 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/20"
             data-testid={`${testId}-retry`}
           >
             <RefreshCw className="h-4 w-4" />
@@ -144,11 +135,8 @@ export default function PerformanceHistoryPanel({
   // Empty state
   if (snapshots.length === 0) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
-        <div className="flex items-center justify-between mb-4">
+      <Card className={className} data-testid={testId}>
+        <div className="mb-4 flex items-center justify-between">
           <Title className="text-white">Performance History</Title>
           <TimeRangeSelector
             selectedRange={timeRange}
@@ -167,16 +155,11 @@ export default function PerformanceHistoryPanel({
   }
 
   return (
-    <Card
-      className={className}
-      data-testid={testId}
-    >
-      <div className="flex items-center justify-between mb-4">
+    <Card className={className} data-testid={testId}>
+      <div className="mb-4 flex items-center justify-between">
         <Title className="text-white">Performance History</Title>
         <div className="flex items-center gap-2">
-          {isLoading && (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-          )}
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
           <TimeRangeSelector
             selectedRange={timeRange}
             onRangeChange={setTimeRange}

@@ -24,10 +24,7 @@ describe('AccessViolationBadge', () => {
       // Saturday 10am - outside business hours schedule
       const saturdayMorning = new Date('2025-01-25T10:00:00');
       render(
-        <AccessViolationBadge
-          detectedAt={saturdayMorning}
-          schedule={businessHoursSchedule}
-        />
+        <AccessViolationBadge detectedAt={saturdayMorning} schedule={businessHoursSchedule} />
       );
 
       expect(screen.getByText('Outside Schedule')).toBeInTheDocument();
@@ -36,40 +33,28 @@ describe('AccessViolationBadge', () => {
     it('does not render when detection is within schedule', () => {
       // Monday 10am - within business hours
       const mondayMorning = new Date('2025-01-27T10:00:00');
-      render(
-        <AccessViolationBadge
-          detectedAt={mondayMorning}
-          schedule={businessHoursSchedule}
-        />
-      );
+      render(<AccessViolationBadge detectedAt={mondayMorning} schedule={businessHoursSchedule} />);
 
       expect(screen.queryByText('Outside Schedule')).not.toBeInTheDocument();
     });
 
     it('does not render when schedule is null', () => {
       const anyTime = new Date('2025-01-25T03:00:00');
-      render(
-        <AccessViolationBadge detectedAt={anyTime} schedule={null} />
-      );
+      render(<AccessViolationBadge detectedAt={anyTime} schedule={null} />);
 
       expect(screen.queryByText('Outside Schedule')).not.toBeInTheDocument();
     });
 
     it('does not render when schedule is undefined', () => {
       const anyTime = new Date('2025-01-25T03:00:00');
-      render(
-        <AccessViolationBadge detectedAt={anyTime} schedule={undefined} />
-      );
+      render(<AccessViolationBadge detectedAt={anyTime} schedule={undefined} />);
 
       expect(screen.queryByText('Outside Schedule')).not.toBeInTheDocument();
     });
 
     it('accepts string timestamp', () => {
       render(
-        <AccessViolationBadge
-          detectedAt="2025-01-25T03:00:00Z"
-          schedule={businessHoursSchedule}
-        />
+        <AccessViolationBadge detectedAt="2025-01-25T03:00:00Z" schedule={businessHoursSchedule} />
       );
 
       expect(screen.getByText('Outside Schedule')).toBeInTheDocument();
@@ -79,12 +64,7 @@ describe('AccessViolationBadge', () => {
   describe('Size variants', () => {
     it('renders small size by default', () => {
       const saturday = new Date('2025-01-25T10:00:00');
-      render(
-        <AccessViolationBadge
-          detectedAt={saturday}
-          schedule={businessHoursSchedule}
-        />
-      );
+      render(<AccessViolationBadge detectedAt={saturday} schedule={businessHoursSchedule} />);
 
       const badge = screen.getByText('Outside Schedule').parentElement;
       expect(badge).toHaveClass('text-xs');
@@ -93,11 +73,7 @@ describe('AccessViolationBadge', () => {
     it('renders medium size', () => {
       const saturday = new Date('2025-01-25T10:00:00');
       render(
-        <AccessViolationBadge
-          detectedAt={saturday}
-          schedule={businessHoursSchedule}
-          size="md"
-        />
+        <AccessViolationBadge detectedAt={saturday} schedule={businessHoursSchedule} size="md" />
       );
 
       const badge = screen.getByText('Outside Schedule').parentElement;
@@ -107,11 +83,7 @@ describe('AccessViolationBadge', () => {
     it('renders large size', () => {
       const saturday = new Date('2025-01-25T10:00:00');
       render(
-        <AccessViolationBadge
-          detectedAt={saturday}
-          schedule={businessHoursSchedule}
-          size="lg"
-        />
+        <AccessViolationBadge detectedAt={saturday} schedule={businessHoursSchedule} size="lg" />
       );
 
       const badge = screen.getByText('Outside Schedule').parentElement;
@@ -122,39 +94,21 @@ describe('AccessViolationBadge', () => {
   describe('Accessibility', () => {
     it('has role="status"', () => {
       const saturday = new Date('2025-01-25T10:00:00');
-      render(
-        <AccessViolationBadge
-          detectedAt={saturday}
-          schedule={businessHoursSchedule}
-        />
-      );
+      render(<AccessViolationBadge detectedAt={saturday} schedule={businessHoursSchedule} />);
 
       expect(screen.getByRole('status')).toBeInTheDocument();
     });
 
     it('has descriptive aria-label', () => {
       const saturday = new Date('2025-01-25T10:00:00');
-      render(
-        <AccessViolationBadge
-          detectedAt={saturday}
-          schedule={businessHoursSchedule}
-        />
-      );
+      render(<AccessViolationBadge detectedAt={saturday} schedule={businessHoursSchedule} />);
 
-      expect(screen.getByRole('status')).toHaveAttribute(
-        'aria-label',
-        'Schedule violation'
-      );
+      expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'Schedule violation');
     });
 
     it('has tooltip with violation details', () => {
       const saturday = new Date('2025-01-25T10:00:00');
-      render(
-        <AccessViolationBadge
-          detectedAt={saturday}
-          schedule={businessHoursSchedule}
-        />
-      );
+      render(<AccessViolationBadge detectedAt={saturday} schedule={businessHoursSchedule} />);
 
       const badge = screen.getByRole('status');
       expect(badge).toHaveAttribute('title');
@@ -176,24 +130,14 @@ describe('AccessViolationIcon', () => {
 
   it('renders icon when detection is outside schedule', () => {
     const saturday = new Date('2025-01-25T10:00:00');
-    render(
-      <AccessViolationIcon
-        detectedAt={saturday}
-        schedule={businessHoursSchedule}
-      />
-    );
+    render(<AccessViolationIcon detectedAt={saturday} schedule={businessHoursSchedule} />);
 
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('does not render when detection is within schedule', () => {
     const monday = new Date('2025-01-27T10:00:00');
-    render(
-      <AccessViolationIcon
-        detectedAt={monday}
-        schedule={businessHoursSchedule}
-      />
-    );
+    render(<AccessViolationIcon detectedAt={monday} schedule={businessHoursSchedule} />);
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });

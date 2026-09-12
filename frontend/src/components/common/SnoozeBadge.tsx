@@ -128,7 +128,7 @@ const SnoozeBadge = memo(function SnoozeBadge({
       <Moon className={clsx(sizeClasses.icon, 'flex-shrink-0')} aria-hidden="true" />
       <span className="truncate">{displayText}</span>
       {showRemaining && remainingText && (
-        <span className="text-indigo-400/70 hidden sm:inline">({remainingText})</span>
+        <span className="hidden text-indigo-400/70 sm:inline">({remainingText})</span>
       )}
     </span>
   );

@@ -137,10 +137,7 @@ async function fetchWebhookApi<T>(endpoint: string, options?: RequestInit): Prom
     if (error instanceof WebhookApiError) {
       throw error;
     }
-    throw new WebhookApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new WebhookApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 

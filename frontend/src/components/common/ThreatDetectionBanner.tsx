@@ -142,9 +142,7 @@ const ThreatDetectionBanner = forwardRef<HTMLDivElement, ThreatDetectionBannerPr
 
     // Confidence display for single threat
     const confidenceText =
-      showConfidence && latestThreat
-        ? `${Math.round(latestThreat.confidence * 100)}%`
-        : null;
+      showConfidence && latestThreat ? `${Math.round(latestThreat.confidence * 100)}%` : null;
 
     // Handle banner click
     const handleBannerClick = () => {
@@ -221,7 +219,7 @@ const ThreatDetectionBanner = forwardRef<HTMLDivElement, ThreatDetectionBannerPr
           {/* Message content */}
           <div className="flex flex-col gap-0.5">
             {/* Header line */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <span className={clsx('font-bold uppercase tracking-wide', config.textColor)}>
                 THREAT DETECTED
               </span>
@@ -233,7 +231,7 @@ const ThreatDetectionBanner = forwardRef<HTMLDivElement, ThreatDetectionBannerPr
             </div>
 
             {/* Details line */}
-            <div className="flex items-center gap-2 text-sm text-gray-300 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-300">
               {/* Threat type */}
               <span className="font-medium">{threatTypesText}</span>
 
@@ -260,7 +258,7 @@ const ThreatDetectionBanner = forwardRef<HTMLDivElement, ThreatDetectionBannerPr
         </div>
 
         {/* Right side: Action buttons */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {/* View Event button */}
           {onViewEvent && latestThreat?.event_id && (
             <button

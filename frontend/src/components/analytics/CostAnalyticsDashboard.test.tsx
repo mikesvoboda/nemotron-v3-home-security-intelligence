@@ -153,10 +153,10 @@ describe('CostAnalyticsDashboard', () => {
       expect(screen.getByText('Cost Analytics')).toBeInTheDocument();
     });
 
-    it('renders today\'s total cost metric', () => {
+    it("renders today's total cost metric", () => {
       render(<CostAnalyticsDashboard />);
       expect(screen.getByTestId('metric-today-total')).toBeInTheDocument();
-      expect(screen.getByText('Today\'s Total')).toBeInTheDocument();
+      expect(screen.getByText("Today's Total")).toBeInTheDocument();
     });
 
     it('renders token costs metric', () => {

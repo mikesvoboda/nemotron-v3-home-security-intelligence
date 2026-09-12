@@ -93,7 +93,9 @@ async function fetchAnomalyContext(anomalyId: string): Promise<AnomalyContext> {
 /**
  * Acknowledge an anomaly.
  */
-async function acknowledgeAnomaly(anomalyId: string): Promise<{ acknowledged: boolean; acknowledged_at: string }> {
+async function acknowledgeAnomaly(
+  anomalyId: string
+): Promise<{ acknowledged: boolean; acknowledged_at: string }> {
   const response = await fetch(`${API_BASE}/anomalies/${anomalyId}/acknowledge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -88,7 +88,11 @@ export default function SystemMonitoringPage() {
   const [debugMode] = useLocalStorage('system-debug-mode', false);
 
   // Performance metrics from WebSocket (includes database metrics)
-  const { current: performanceData, history: performanceHistory, timeRange } = usePerformanceMetrics();
+  const {
+    current: performanceData,
+    history: performanceHistory,
+    timeRange,
+  } = usePerformanceMetrics();
 
   // Redis debug info query (only enabled when debugMode is active)
   const {
@@ -431,339 +435,337 @@ export default function SystemMonitoringPage() {
         {!loading && !error && (
           <>
             {/* Grafana Monitoring Banner */}
-        <Callout
-          title="Detailed Metrics in Grafana"
-          icon={BarChart2}
-          color="blue"
-          className="mb-6"
-          data-testid="grafana-monitoring-banner"
-        >
-          <span className="inline-flex flex-wrap items-center gap-2">
-            <span>
-              View detailed metrics, historical data, and system monitoring dashboards in Grafana.
-            </span>
-            <a
-              href={grafanaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-blue-400 hover:text-blue-300"
-              data-testid="grafana-link"
+            <Callout
+              title="Detailed Metrics in Grafana"
+              icon={BarChart2}
+              color="blue"
+              className="mb-6"
+              data-testid="grafana-monitoring-banner"
             >
-              Open Grafana
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          </span>
-        </Callout>
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span>
+                  View detailed metrics, historical data, and system monitoring dashboards in
+                  Grafana.
+                </span>
+                <a
+                  href={grafanaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-medium text-blue-400 hover:text-blue-300"
+                  data-testid="grafana-link"
+                >
+                  Open Grafana
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </span>
+            </Callout>
 
-        {/* Pipeline Flow Visualization - Full width */}
-        <PipelineFlowVisualization
-          stages={pipelineStages}
-          workers={backgroundWorkers}
-          totalLatency={totalPipelineLatency}
-          isLoading={loading}
-          error={error}
-          className="mb-6"
-          data-testid="pipeline-flow-visualization"
-        />
+            {/* Pipeline Flow Visualization - Full width */}
+            <PipelineFlowVisualization
+              stages={pipelineStages}
+              workers={backgroundWorkers}
+              totalLatency={totalPipelineLatency}
+              isLoading={loading}
+              error={error}
+              className="mb-6"
+              data-testid="pipeline-flow-visualization"
+            />
 
-        {/* Batch Processing Statistics - Full width (NEM-3653) */}
-        <div id="section-batch-statistics" className="mb-6">
-          <CollapsibleSection
-            title="Batch Processing Statistics"
-            icon={<BarChart2 className="h-5 w-5 text-[#76B900]" />}
-            isOpen={sectionStates['batch-statistics']}
-            onToggle={() => toggleSection('batch-statistics')}
-            data-testid="batch-statistics-section"
-          >
-            <BatchStatisticsDashboard data-testid="batch-statistics-dashboard" />
-          </CollapsibleSection>
-        </div>
-
-        {/* Queue Metrics - Full width (NEM-3637) */}
-        <div id="section-queue-metrics" className="mb-6">
-          <CollapsibleSection
-            title="Queue Metrics"
-            icon={<Layers className="h-5 w-5 text-[#76B900]" />}
-            isOpen={sectionStates['queue-metrics']}
-            onToggle={() => toggleSection('queue-metrics')}
-            data-testid="queue-metrics-section"
-          >
-            <QueueMetricsPanel data-testid="queue-metrics-panel-section" />
-          </CollapsibleSection>
-        </div>
-
-        {/* Two-column grid for actionable panels */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Circuit Breakers Panel */}
-          <div id="section-circuit-breakers">
-            <CollapsibleSection
-              title="Circuit Breakers"
-              icon={<AlertTriangle className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['circuit-breakers']}
-              onToggle={() => toggleSection('circuit-breakers')}
-              data-testid="circuit-breakers-section"
-            >
-              <CircuitBreakerPanel
-                data={circuitBreakers}
-                loading={circuitBreakersLoading}
-                error={circuitBreakersError}
-                onReset={handleResetCircuitBreaker}
-                data-testid="circuit-breaker-panel-section"
-              />
-            </CollapsibleSection>
-          </div>
-
-          {/* File Operations Panel */}
-          <div id="section-file-operations">
-            <CollapsibleSection
-              title="File Operations"
-              icon={<HardDrive className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['file-operations']}
-              onToggle={() => toggleSection('file-operations')}
-              data-testid="file-operations-section"
-            >
-              <FileOperationsPanel
-                pollingInterval={30000}
-                data-testid="file-operations-panel-section"
-              />
-            </CollapsibleSection>
-          </div>
-
-          {/* Services Panel */}
-          <div id="section-services">
-            <CollapsibleSection
-              title="Services"
-              icon={<Server className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['services']}
-              onToggle={() => toggleSection('services')}
-              data-testid="services-section"
-            >
-              <ServicesPanel
-                pollingInterval={30000}
-                data-testid="services-panel-section"
-              />
-            </CollapsibleSection>
-          </div>
-
-          {/* Prometheus Monitoring Panel */}
-          <div id="section-prometheus-monitoring">
-            <CollapsibleSection
-              title="Prometheus Monitoring"
-              icon={<Radio className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['prometheus-monitoring']}
-              onToggle={() => toggleSection('prometheus-monitoring')}
-              data-testid="prometheus-monitoring-section"
-            >
-              <PrometheusMonitoringPanel data-testid="prometheus-monitoring-panel" />
-            </CollapsibleSection>
-          </div>
-
-          {/* Worker Management Panel */}
-          <div id="section-worker-management">
-            <CollapsibleSection
-              title="Worker Management"
-              icon={<Activity className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['worker-management']}
-              onToggle={() => toggleSection('worker-management')}
-              data-testid="worker-management-section"
-            >
-              <WorkerManagementPanel data-testid="worker-management-panel" />
-            </CollapsibleSection>
-          </div>
-
-          {/* Worker Status Panel (WebSocket-based real-time status) */}
-          <div id="section-worker-status">
-            <CollapsibleSection
-              title="Pipeline Workers (Live)"
-              icon={<Activity className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['worker-status']}
-              onToggle={() => toggleSection('worker-status')}
-              data-testid="worker-status-section"
-            >
-              <WorkerStatusPanel data-testid="worker-status-panel" />
-            </CollapsibleSection>
-          </div>
-
-          {/* Databases Panel */}
-          <div id="section-databases">
-            <CollapsibleSection
-              title="Databases"
-              icon={<Database className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['databases']}
-              onToggle={() => toggleSection('databases')}
-              data-testid="databases-section"
-            >
-              <DatabasesPanel
-                postgresql={postgresqlMetrics}
-                redis={redisMetrics}
-                timeRange={timeRange}
-                history={databaseHistory}
-                debugMode={debugMode}
-                redisDebugInfo={redisDebugInfo}
-                pubsubInfo={pubsubInfo}
-                redisDebugLoading={redisDebugLoading}
-                redisDebugError={redisDebugError?.message ?? null}
-                data-testid="databases-panel-section"
-              />
-            </CollapsibleSection>
-          </div>
-
-          {/* WebSocket Health Panel (NEM-4949) */}
-          <div id="section-websocket-health">
-            <CollapsibleSection
-              title="WebSocket Health"
-              icon={<Wifi className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['websocket-health']}
-              onToggle={() => toggleSection('websocket-health')}
-              data-testid="websocket-health-section"
-            >
-              <WebSocketHealthPanel
-                pollingInterval={30000}
-                data-testid="websocket-health-panel"
-              />
-            </CollapsibleSection>
-          </div>
-
-          {/* Kubernetes Probes Panel (NEM-4950) */}
-          <div id="section-kubernetes-probes">
-            <CollapsibleSection
-              title="Kubernetes Probes"
-              icon={<HeartPulse className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['kubernetes-probes']}
-              onToggle={() => toggleSection('kubernetes-probes')}
-              data-testid="kubernetes-probes-section"
-            >
-              <KubernetesProbesPanel
-                pollingInterval={15000}
-                data-testid="kubernetes-probes-panel"
-              />
-            </CollapsibleSection>
-          </div>
-        </div>
-
-        {/* Historical Metrics Section */}
-        <div className="mt-6" data-testid="historical-performance-section">
-          <div className="mb-4 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-[#76B900]" />
-            <h2 className="text-xl font-semibold text-white">Historical Metrics</h2>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Performance History */}
-            <div id="section-performance-history">
+            {/* Batch Processing Statistics - Full width (NEM-3653) */}
+            <div id="section-batch-statistics" className="mb-6">
               <CollapsibleSection
-                title="Performance History"
-                icon={<Activity className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['performance-history']}
-                onToggle={() => toggleSection('performance-history')}
-                data-testid="performance-history-section"
+                title="Batch Processing Statistics"
+                icon={<BarChart2 className="h-5 w-5 text-[#76B900]" />}
+                isOpen={sectionStates['batch-statistics']}
+                onToggle={() => toggleSection('batch-statistics')}
+                data-testid="batch-statistics-section"
               >
-                <PerformanceHistoryPanel data-testid="performance-history" />
+                <BatchStatisticsDashboard data-testid="batch-statistics-dashboard" />
               </CollapsibleSection>
             </div>
 
-            {/* GPU History */}
-            <div id="section-gpu-history">
+            {/* Queue Metrics - Full width (NEM-3637) */}
+            <div id="section-queue-metrics" className="mb-6">
               <CollapsibleSection
-                title="GPU History"
-                icon={<Cpu className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['gpu-history']}
-                onToggle={() => toggleSection('gpu-history')}
-                data-testid="gpu-history-section"
+                title="Queue Metrics"
+                icon={<Layers className="h-5 w-5 text-[#76B900]" />}
+                isOpen={sectionStates['queue-metrics']}
+                onToggle={() => toggleSection('queue-metrics')}
+                data-testid="queue-metrics-section"
               >
-                <GPUHistoryPanel data-testid="gpu-history" />
-              </CollapsibleSection>
-            </div>
-          </div>
-
-          {/* Pipeline Latency History - Full width */}
-          <div className="mt-6" id="section-latency-history">
-            <CollapsibleSection
-              title="Pipeline Latency History"
-              icon={<Clock className="h-5 w-5 text-[#76B900]" />}
-              isOpen={sectionStates['latency-history']}
-              onToggle={() => toggleSection('latency-history')}
-              data-testid="latency-history-section"
-            >
-              <PipelineLatencyHistoryPanel data-testid="pipeline-latency" />
-            </CollapsibleSection>
-          </div>
-        </div>
-
-        {/* Developer Tools Section */}
-        <div className="mt-8">
-          <div className="mb-4 flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-[#76B900]" />
-            <h2 className="text-xl font-semibold text-white">Developer Tools</h2>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Profiling Panel */}
-            <div id="section-profiling">
-              <CollapsibleSection
-                title="Performance Profiling"
-                icon={<Activity className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['profiling']}
-                onToggle={() => toggleSection('profiling')}
-                data-testid="profiling-section"
-              >
-                <ProfilingPanel data-testid="profiling-panel-section" />
+                <QueueMetricsPanel data-testid="queue-metrics-panel-section" />
               </CollapsibleSection>
             </div>
 
-            {/* Recording & Replay Panel */}
-            <div id="section-recording-replay">
-              <CollapsibleSection
-                title="Recording & Replay"
-                icon={<Video className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['recording-replay']}
-                onToggle={() => toggleSection('recording-replay')}
-                data-testid="recording-replay-section"
-              >
-                <RecordingReplayPanel data-testid="recording-replay-panel-section" />
-              </CollapsibleSection>
+            {/* Two-column grid for actionable panels */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Circuit Breakers Panel */}
+              <div id="section-circuit-breakers">
+                <CollapsibleSection
+                  title="Circuit Breakers"
+                  icon={<AlertTriangle className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['circuit-breakers']}
+                  onToggle={() => toggleSection('circuit-breakers')}
+                  data-testid="circuit-breakers-section"
+                >
+                  <CircuitBreakerPanel
+                    data={circuitBreakers}
+                    loading={circuitBreakersLoading}
+                    error={circuitBreakersError}
+                    onReset={handleResetCircuitBreaker}
+                    data-testid="circuit-breaker-panel-section"
+                  />
+                </CollapsibleSection>
+              </div>
+
+              {/* File Operations Panel */}
+              <div id="section-file-operations">
+                <CollapsibleSection
+                  title="File Operations"
+                  icon={<HardDrive className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['file-operations']}
+                  onToggle={() => toggleSection('file-operations')}
+                  data-testid="file-operations-section"
+                >
+                  <FileOperationsPanel
+                    pollingInterval={30000}
+                    data-testid="file-operations-panel-section"
+                  />
+                </CollapsibleSection>
+              </div>
+
+              {/* Services Panel */}
+              <div id="section-services">
+                <CollapsibleSection
+                  title="Services"
+                  icon={<Server className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['services']}
+                  onToggle={() => toggleSection('services')}
+                  data-testid="services-section"
+                >
+                  <ServicesPanel pollingInterval={30000} data-testid="services-panel-section" />
+                </CollapsibleSection>
+              </div>
+
+              {/* Prometheus Monitoring Panel */}
+              <div id="section-prometheus-monitoring">
+                <CollapsibleSection
+                  title="Prometheus Monitoring"
+                  icon={<Radio className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['prometheus-monitoring']}
+                  onToggle={() => toggleSection('prometheus-monitoring')}
+                  data-testid="prometheus-monitoring-section"
+                >
+                  <PrometheusMonitoringPanel data-testid="prometheus-monitoring-panel" />
+                </CollapsibleSection>
+              </div>
+
+              {/* Worker Management Panel */}
+              <div id="section-worker-management">
+                <CollapsibleSection
+                  title="Worker Management"
+                  icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['worker-management']}
+                  onToggle={() => toggleSection('worker-management')}
+                  data-testid="worker-management-section"
+                >
+                  <WorkerManagementPanel data-testid="worker-management-panel" />
+                </CollapsibleSection>
+              </div>
+
+              {/* Worker Status Panel (WebSocket-based real-time status) */}
+              <div id="section-worker-status">
+                <CollapsibleSection
+                  title="Pipeline Workers (Live)"
+                  icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['worker-status']}
+                  onToggle={() => toggleSection('worker-status')}
+                  data-testid="worker-status-section"
+                >
+                  <WorkerStatusPanel data-testid="worker-status-panel" />
+                </CollapsibleSection>
+              </div>
+
+              {/* Databases Panel */}
+              <div id="section-databases">
+                <CollapsibleSection
+                  title="Databases"
+                  icon={<Database className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['databases']}
+                  onToggle={() => toggleSection('databases')}
+                  data-testid="databases-section"
+                >
+                  <DatabasesPanel
+                    postgresql={postgresqlMetrics}
+                    redis={redisMetrics}
+                    timeRange={timeRange}
+                    history={databaseHistory}
+                    debugMode={debugMode}
+                    redisDebugInfo={redisDebugInfo}
+                    pubsubInfo={pubsubInfo}
+                    redisDebugLoading={redisDebugLoading}
+                    redisDebugError={redisDebugError?.message ?? null}
+                    data-testid="databases-panel-section"
+                  />
+                </CollapsibleSection>
+              </div>
+
+              {/* WebSocket Health Panel (NEM-4949) */}
+              <div id="section-websocket-health">
+                <CollapsibleSection
+                  title="WebSocket Health"
+                  icon={<Wifi className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['websocket-health']}
+                  onToggle={() => toggleSection('websocket-health')}
+                  data-testid="websocket-health-section"
+                >
+                  <WebSocketHealthPanel
+                    pollingInterval={30000}
+                    data-testid="websocket-health-panel"
+                  />
+                </CollapsibleSection>
+              </div>
+
+              {/* Kubernetes Probes Panel (NEM-4950) */}
+              <div id="section-kubernetes-probes">
+                <CollapsibleSection
+                  title="Kubernetes Probes"
+                  icon={<HeartPulse className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['kubernetes-probes']}
+                  onToggle={() => toggleSection('kubernetes-probes')}
+                  data-testid="kubernetes-probes-section"
+                >
+                  <KubernetesProbesPanel
+                    pollingInterval={15000}
+                    data-testid="kubernetes-probes-panel"
+                  />
+                </CollapsibleSection>
+              </div>
             </div>
 
-            {/* Config Inspector Panel */}
-            <div id="section-config-inspector">
-              <CollapsibleSection
-                title="Configuration Inspector"
-                icon={<FileText className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['config-inspector']}
-                onToggle={() => toggleSection('config-inspector')}
-                data-testid="config-inspector-section"
-              >
-                <ConfigInspectorPanel data-testid="config-inspector-panel-section" />
-              </CollapsibleSection>
+            {/* Historical Metrics Section */}
+            <div className="mt-6" data-testid="historical-performance-section">
+              <div className="mb-4 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-[#76B900]" />
+                <h2 className="text-xl font-semibold text-white">Historical Metrics</h2>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Performance History */}
+                <div id="section-performance-history">
+                  <CollapsibleSection
+                    title="Performance History"
+                    icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['performance-history']}
+                    onToggle={() => toggleSection('performance-history')}
+                    data-testid="performance-history-section"
+                  >
+                    <PerformanceHistoryPanel data-testid="performance-history" />
+                  </CollapsibleSection>
+                </div>
+
+                {/* GPU History */}
+                <div id="section-gpu-history">
+                  <CollapsibleSection
+                    title="GPU History"
+                    icon={<Cpu className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['gpu-history']}
+                    onToggle={() => toggleSection('gpu-history')}
+                    data-testid="gpu-history-section"
+                  >
+                    <GPUHistoryPanel data-testid="gpu-history" />
+                  </CollapsibleSection>
+                </div>
+              </div>
+
+              {/* Pipeline Latency History - Full width */}
+              <div className="mt-6" id="section-latency-history">
+                <CollapsibleSection
+                  title="Pipeline Latency History"
+                  icon={<Clock className="h-5 w-5 text-[#76B900]" />}
+                  isOpen={sectionStates['latency-history']}
+                  onToggle={() => toggleSection('latency-history')}
+                  data-testid="latency-history-section"
+                >
+                  <PipelineLatencyHistoryPanel data-testid="pipeline-latency" />
+                </CollapsibleSection>
+              </div>
             </div>
 
-            {/* Log Level Panel */}
-            <div id="section-log-level">
-              <CollapsibleSection
-                title="Log Level Control"
-                icon={<Terminal className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['log-level']}
-                onToggle={() => toggleSection('log-level')}
-                data-testid="log-level-section"
-              >
-                <LogLevelPanel data-testid="log-level-panel-section" />
-              </CollapsibleSection>
-            </div>
+            {/* Developer Tools Section */}
+            <div className="mt-8">
+              <div className="mb-4 flex items-center gap-2">
+                <Wrench className="h-5 w-5 text-[#76B900]" />
+                <h2 className="text-xl font-semibold text-white">Developer Tools</h2>
+              </div>
 
-            {/* Test Data Panel */}
-            <div id="section-test-data">
-              <CollapsibleSection
-                title="Test Data Management"
-                icon={<Database className="h-5 w-5 text-[#76B900]" />}
-                isOpen={sectionStates['test-data']}
-                onToggle={() => toggleSection('test-data')}
-                data-testid="test-data-section"
-              >
-                <TestDataPanel data-testid="test-data-panel-section" />
-              </CollapsibleSection>
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Profiling Panel */}
+                <div id="section-profiling">
+                  <CollapsibleSection
+                    title="Performance Profiling"
+                    icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['profiling']}
+                    onToggle={() => toggleSection('profiling')}
+                    data-testid="profiling-section"
+                  >
+                    <ProfilingPanel data-testid="profiling-panel-section" />
+                  </CollapsibleSection>
+                </div>
+
+                {/* Recording & Replay Panel */}
+                <div id="section-recording-replay">
+                  <CollapsibleSection
+                    title="Recording & Replay"
+                    icon={<Video className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['recording-replay']}
+                    onToggle={() => toggleSection('recording-replay')}
+                    data-testid="recording-replay-section"
+                  >
+                    <RecordingReplayPanel data-testid="recording-replay-panel-section" />
+                  </CollapsibleSection>
+                </div>
+
+                {/* Config Inspector Panel */}
+                <div id="section-config-inspector">
+                  <CollapsibleSection
+                    title="Configuration Inspector"
+                    icon={<FileText className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['config-inspector']}
+                    onToggle={() => toggleSection('config-inspector')}
+                    data-testid="config-inspector-section"
+                  >
+                    <ConfigInspectorPanel data-testid="config-inspector-panel-section" />
+                  </CollapsibleSection>
+                </div>
+
+                {/* Log Level Panel */}
+                <div id="section-log-level">
+                  <CollapsibleSection
+                    title="Log Level Control"
+                    icon={<Terminal className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['log-level']}
+                    onToggle={() => toggleSection('log-level')}
+                    data-testid="log-level-section"
+                  >
+                    <LogLevelPanel data-testid="log-level-panel-section" />
+                  </CollapsibleSection>
+                </div>
+
+                {/* Test Data Panel */}
+                <div id="section-test-data">
+                  <CollapsibleSection
+                    title="Test Data Management"
+                    icon={<Database className="h-5 w-5 text-[#76B900]" />}
+                    isOpen={sectionStates['test-data']}
+                    onToggle={() => toggleSection('test-data')}
+                    data-testid="test-data-section"
+                  >
+                    <TestDataPanel data-testid="test-data-panel-section" />
+                  </CollapsibleSection>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
           </>
         )}
       </div>

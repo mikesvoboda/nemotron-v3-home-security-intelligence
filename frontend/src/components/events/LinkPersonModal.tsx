@@ -146,7 +146,16 @@ export default function LinkPersonModal({
         onClose();
       },
     });
-  }, [detection, selectedMemberId, notes, confidence, linkMutation, onSuccess, onClose, selectedMember]);
+  }, [
+    detection,
+    selectedMemberId,
+    notes,
+    confidence,
+    linkMutation,
+    onSuccess,
+    onClose,
+    selectedMember,
+  ]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {
@@ -181,7 +190,7 @@ export default function LinkPersonModal({
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-md transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
+                <Dialog.Panel className="w-full max-w-md transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
                   <div className="text-red-400">Invalid detection</div>
                 </Dialog.Panel>
               </Transition.Child>
@@ -220,9 +229,9 @@ export default function LinkPersonModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-md transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title className="text-lg font-semibold text-white">
                     Link Person to Household Member
                   </Dialog.Title>
@@ -230,7 +239,7 @@ export default function LinkPersonModal({
                     type="button"
                     onClick={handleCancel}
                     disabled={linkMutation.isPending}
-                    className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                    className="p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -241,17 +250,19 @@ export default function LinkPersonModal({
                   <img
                     src={thumbnailUrl}
                     alt="Detection thumbnail"
-                    className="w-24 h-24 object-cover rounded-lg border border-gray-700"
+                    className="h-24 w-24 rounded-lg border border-gray-700 object-cover"
                   />
-                  <div className="text-sm text-gray-300 space-y-1">
+                  <div className="space-y-1 text-sm text-gray-300">
                     {detection.confidence !== undefined && (
                       <div>
-                        Confidence: <span className="text-white">{formatConfidence(detection.confidence)}</span>
+                        Confidence:{' '}
+                        <span className="text-white">{formatConfidence(detection.confidence)}</span>
                       </div>
                     )}
                     {detection.detected_at && (
                       <div>
-                        Detected at: <span className="text-white">{formatDate(detection.detected_at)}</span>
+                        Detected at:{' '}
+                        <span className="text-white">{formatDate(detection.detected_at)}</span>
                       </div>
                     )}
                   </div>
@@ -259,22 +270,24 @@ export default function LinkPersonModal({
 
                 {/* Loading state for members */}
                 {membersQuery.isLoading && (
-                  <div className="text-gray-400 text-sm">Loading members...</div>
+                  <div className="text-sm text-gray-400">Loading members...</div>
                 )}
 
                 {/* Error state for members */}
                 {membersQuery.isError && (
-                  <div className="text-red-400 text-sm mb-4">
-                    {(membersQuery.error)?.message || 'Failed to load members'}
+                  <div className="mb-4 text-sm text-red-400">
+                    {membersQuery.error?.message || 'Failed to load members'}
                   </div>
                 )}
 
                 {/* No eligible members */}
-                {!membersQuery.isLoading && !membersQuery.isError && eligibleMembers.length === 0 && (
-                  <div className="text-gray-400 text-sm mb-4">
-                    No eligible household members available to link.
-                  </div>
-                )}
+                {!membersQuery.isLoading &&
+                  !membersQuery.isError &&
+                  eligibleMembers.length === 0 && (
+                    <div className="mb-4 text-sm text-gray-400">
+                      No eligible household members available to link.
+                    </div>
+                  )}
 
                 {/* Member Selection */}
                 {!membersQuery.isLoading && eligibleMembers.length > 0 && (
@@ -286,36 +299,32 @@ export default function LinkPersonModal({
                       }}
                       disabled={linkMutation.isPending}
                     >
-                      <Listbox.Label className="block text-sm font-medium text-gray-300 mb-1">
+                      <Listbox.Label className="mb-1 block text-sm font-medium text-gray-300">
                         Select Household Member
                       </Listbox.Label>
                       <div className="relative">
                         <Listbox.Button
                           aria-label="Select Household Member"
-                          className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50 text-left flex items-center justify-between"
+                          className="flex w-full items-center justify-between rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-left text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                         >
                           <span>{selectedMember?.name ?? '-- Select Member --'}</span>
                           <ChevronDown className="h-4 w-4 text-gray-400" />
                         </Listbox.Button>
                         {/* Hidden input for displayValue tests */}
-                        <input
-                          type="hidden"
-                          value={selectedMember?.name ?? ''}
-                          readOnly
-                        />
+                        <input type="hidden" value={selectedMember?.name ?? ''} readOnly />
                         <Transition
                           as={Fragment}
                           leave="transition ease-in duration-100"
                           leaveFrom="opacity-100"
                           leaveTo="opacity-0"
                         >
-                          <Listbox.Options className="absolute z-10 mt-1 w-full bg-[#1A1A1A] border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                          <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-700 bg-[#1A1A1A] shadow-lg focus:outline-none">
                             {eligibleMembers.map((member) => (
                               <Listbox.Option
                                 key={member.id}
                                 value={member}
                                 className={({ active }) =>
-                                  `cursor-pointer select-none relative py-2 pl-10 pr-4 ${
+                                  `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
                                     active ? 'bg-[#76B900]/20 text-white' : 'text-gray-300'
                                   }`
                                 }
@@ -345,10 +354,7 @@ export default function LinkPersonModal({
                     {/* Show roles for integration tests */}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {eligibleMembers.map((member) => (
-                        <span
-                          key={member.id}
-                          className="text-xs text-gray-500"
-                        >
+                        <span key={member.id} className="text-xs text-gray-500">
                           {member.name}: <span className="capitalize">{member.role}</span>
                         </span>
                       ))}
@@ -360,7 +366,7 @@ export default function LinkPersonModal({
                 <div className="mb-4">
                   <label
                     htmlFor="confidence-slider"
-                    className="block text-sm font-medium text-gray-300 mb-1"
+                    className="mb-1 block text-sm font-medium text-gray-300"
                   >
                     Confidence
                   </label>
@@ -376,17 +382,12 @@ export default function LinkPersonModal({
                     disabled={linkMutation.isPending}
                     className="w-full disabled:opacity-50"
                   />
-                  <div className="text-xs text-gray-400 mt-1">
-                    {formatConfidence(confidence)}
-                  </div>
+                  <div className="mt-1 text-xs text-gray-400">{formatConfidence(confidence)}</div>
                 </div>
 
                 {/* Notes */}
                 <div className="mb-4">
-                  <label
-                    htmlFor="notes"
-                    className="block text-sm font-medium text-gray-300 mb-1"
-                  >
+                  <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-300">
                     Notes
                   </label>
                   <textarea
@@ -397,25 +398,21 @@ export default function LinkPersonModal({
                     disabled={linkMutation.isPending}
                     rows={3}
                     placeholder="Optional notes about this link..."
-                    className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent resize-none disabled:opacity-50"
+                    className="w-full resize-none rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                   />
-                  <div className="flex justify-between items-center mt-1">
+                  <div className="mt-1 flex items-center justify-between">
                     {notesTooLong && (
-                      <p className="text-xs text-red-400">
-                        Notes must be 500 characters or less
-                      </p>
+                      <p className="text-xs text-red-400">Notes must be 500 characters or less</p>
                     )}
-                    <p className="text-xs text-gray-500 ml-auto">
-                      {notes.length} / 500
-                    </p>
+                    <p className="ml-auto text-xs text-gray-500">{notes.length} / 500</p>
                   </div>
                 </div>
 
                 {/* API Error */}
                 {linkMutation.isError && (
-                  <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                  <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
                     <p className="text-sm text-red-400">
-                      {(linkMutation.error)?.message || 'Failed to link person'}
+                      {linkMutation.error?.message || 'Failed to link person'}
                     </p>
                   </div>
                 )}
@@ -426,7 +423,7 @@ export default function LinkPersonModal({
                     type="button"
                     onClick={handleCancel}
                     disabled={linkMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -434,7 +431,7 @@ export default function LinkPersonModal({
                     type="button"
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
                   >
                     {linkMutation.isPending && (
                       <Loader2 className="h-4 w-4 animate-spin" data-testid="loading-spinner" />

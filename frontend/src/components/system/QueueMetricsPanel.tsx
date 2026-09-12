@@ -21,10 +21,7 @@ import { useMemo } from 'react';
 import { useQueueMetricsWebSocket } from '../../hooks/useQueueMetricsWebSocket';
 import { getQueueStatusColor } from '../../theme/colors';
 
-import type {
-  QueueStatusEntry,
-  ThroughputEntry,
-} from '../../hooks/useQueueMetricsWebSocket';
+import type { QueueStatusEntry, ThroughputEntry } from '../../hooks/useQueueMetricsWebSocket';
 import type { QueueInfo } from '../../types/websocket-events';
 
 // ============================================================================
@@ -162,10 +159,7 @@ function QueueDepthIndicator({
   const percentage = Math.min((queue.depth / criticalThreshold) * 100, 100);
 
   return (
-    <div
-      className="rounded-lg bg-gray-800/50 p-3"
-      data-testid={testId}
-    >
+    <div className="rounded-lg bg-gray-800/50 p-3" data-testid={testId}>
       <div className="mb-2 flex items-center justify-between">
         <Text className="text-sm font-medium capitalize text-gray-300">
           {queue.name.replace(/_/g, ' ')}
@@ -181,7 +175,9 @@ function QueueDepthIndicator({
         data-testid={`${testId}-progress`}
       />
       <div className="mt-1 flex justify-between text-xs text-gray-500">
-        <span>{queue.workers} worker{queue.workers !== 1 ? 's' : ''}</span>
+        <span>
+          {queue.workers} worker{queue.workers !== 1 ? 's' : ''}
+        </span>
         {queue.status && <span>{queue.status}</span>}
       </div>
     </div>
@@ -327,7 +323,9 @@ export default function QueueMetricsPanel({
                 <div className="h-10 w-px bg-gray-700" />
                 <div data-testid="processing-count">
                   <Text className="text-xs text-gray-500">Processing</Text>
-                  <span className="text-2xl font-bold text-white">{queueStatus.total_processing}</span>
+                  <span className="text-2xl font-bold text-white">
+                    {queueStatus.total_processing}
+                  </span>
                 </div>
               </>
             )}

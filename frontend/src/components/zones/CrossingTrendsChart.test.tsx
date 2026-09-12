@@ -16,7 +16,6 @@ import { CHART_ANIMATION_THRESHOLD } from '../../utils/chartAnimation';
 
 import type { CrossingTrendsResponse } from '../../types/zoneAnalytics';
 
-
 // Mock Tremor components to avoid rendering issues in tests
 vi.mock('@tremor/react', () => ({
   Card: ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -234,9 +233,7 @@ describe('CrossingTrendsChart', () => {
       const data = createMockTrendsResponse({
         total_in: 0,
         total_out: 0,
-        trends: [
-          { timestamp: '2024-01-01T10:00:00Z', in_count: 0, out_count: 0, net_flow: 0 },
-        ],
+        trends: [{ timestamp: '2024-01-01T10:00:00Z', in_count: 0, out_count: 0, net_flow: 0 }],
       });
       render(<CrossingTrendsChart data={data} />);
 
@@ -257,9 +254,7 @@ describe('CrossingTrendsChart', () => {
 
     it('should handle single data point', () => {
       const data = createMockTrendsResponse({
-        trends: [
-          { timestamp: '2024-01-01T10:00:00Z', in_count: 5, out_count: 3, net_flow: 2 },
-        ],
+        trends: [{ timestamp: '2024-01-01T10:00:00Z', in_count: 5, out_count: 3, net_flow: 2 }],
       });
       render(<CrossingTrendsChart data={data} />);
 

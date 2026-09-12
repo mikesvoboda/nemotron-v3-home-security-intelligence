@@ -193,9 +193,9 @@ export default function EnrollFaceModal({
         detectionId,
       });
 
-      const personName = mode === 'new' ? newPersonName.trim() : selectedPerson?.name ?? 'person';
+      const personName = mode === 'new' ? newPersonName.trim() : (selectedPerson?.name ?? 'person');
       toast.success(`Face enrolled for ${personName}`, {
-        description: 'The face has been added to the person\'s recognition profile.',
+        description: "The face has been added to the person's recognition profile.",
       });
 
       onClose();
@@ -253,9 +253,9 @@ export default function EnrollFaceModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-lg transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-lg transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6 flex items-center justify-between">
                   <Dialog.Title className="text-lg font-semibold text-white">
                     Enroll Face
                   </Dialog.Title>
@@ -263,7 +263,7 @@ export default function EnrollFaceModal({
                     type="button"
                     onClick={onClose}
                     disabled={isPending}
-                    className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                    className="p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
                     aria-label="Close modal"
                   >
                     <X className="h-5 w-5" />
@@ -271,22 +271,24 @@ export default function EnrollFaceModal({
                 </div>
 
                 {/* Face Preview and Detection Info */}
-                <div className="flex gap-6 mb-6">
+                <div className="mb-6 flex gap-6">
                   {/* Face Preview */}
                   <div className="flex-shrink-0">
                     <img
                       src={imageUrl}
                       alt="Face preview"
-                      className="w-24 h-24 object-cover rounded-lg border border-gray-700"
+                      className="h-24 w-24 rounded-lg border border-gray-700 object-cover"
                     />
                     {/* Detection Info under image */}
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center text-xs">
-                        <span className="text-gray-500 w-14">Camera:</span>
-                        <span className="text-gray-300 truncate" title={cameraName}>{cameraName}</span>
+                        <span className="w-14 text-gray-500">Camera:</span>
+                        <span className="truncate text-gray-300" title={cameraName}>
+                          {cameraName}
+                        </span>
                       </div>
                       <div className="flex items-center text-xs">
-                        <span className="text-gray-500 w-14">Time:</span>
+                        <span className="w-14 text-gray-500">Time:</span>
                         <span className="text-gray-300">{formatTimestamp(timestamp)}</span>
                       </div>
                     </div>
@@ -309,7 +311,7 @@ export default function EnrollFaceModal({
                   <legend className="sr-only">Enrollment mode</legend>
                   <div className="space-y-3">
                     {/* Existing Person */}
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex cursor-pointer items-center gap-3">
                       <input
                         type="radio"
                         name="enroll-mode"
@@ -317,14 +319,14 @@ export default function EnrollFaceModal({
                         checked={mode === 'existing'}
                         onChange={() => setMode('existing')}
                         disabled={isPending}
-                        className="w-4 h-4 text-[#76B900] bg-[#121212] border-gray-600 focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+                        className="h-4 w-4 border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
                         aria-label="Add to existing person"
                       />
                       <span className="text-white">Add to existing person</span>
                     </label>
 
                     {/* Create New Person */}
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex cursor-pointer items-center gap-3">
                       <input
                         type="radio"
                         name="enroll-mode"
@@ -332,7 +334,7 @@ export default function EnrollFaceModal({
                         checked={mode === 'new'}
                         onChange={() => setMode('new')}
                         disabled={isPending}
-                        className="w-4 h-4 text-[#76B900] bg-[#121212] border-gray-600 focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+                        className="h-4 w-4 border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
                         aria-label="Create new person"
                       />
                       <span className="text-white">Create new person</span>
@@ -344,11 +346,11 @@ export default function EnrollFaceModal({
                 {mode === 'existing' && (
                   <div className="mb-6">
                     {personsQuery.isLoading && (
-                      <div className="text-gray-400 text-sm">Loading persons...</div>
+                      <div className="text-sm text-gray-400">Loading persons...</div>
                     )}
 
                     {personsQuery.isError && (
-                      <div className="text-red-400 text-sm">
+                      <div className="text-sm text-red-400">
                         {personsQuery.error instanceof Error
                           ? personsQuery.error.message
                           : 'Failed to load persons'}
@@ -358,7 +360,7 @@ export default function EnrollFaceModal({
                     {!personsQuery.isLoading && !personsQuery.isError && (
                       <>
                         {(personsQuery.data?.length ?? 0) === 0 ? (
-                          <div className="text-gray-400 text-sm">
+                          <div className="text-sm text-gray-400">
                             No known persons available. Create a new person instead.
                           </div>
                         ) : (
@@ -367,13 +369,13 @@ export default function EnrollFaceModal({
                             onChange={handlePersonSelect}
                             disabled={isPending}
                           >
-                            <Listbox.Label className="block text-sm font-medium text-gray-300 mb-1">
+                            <Listbox.Label className="mb-1 block text-sm font-medium text-gray-300">
                               Select Person
                             </Listbox.Label>
                             <div className="relative">
                               <Listbox.Button
                                 aria-label="Select Person"
-                                className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50 text-left flex items-center justify-between"
+                                className="flex w-full items-center justify-between rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-left text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                               >
                                 <span className={selectedPerson ? 'text-white' : 'text-gray-500'}>
                                   {selectedPerson?.name ?? '-- Select a person --'}
@@ -387,21 +389,21 @@ export default function EnrollFaceModal({
                                 leaveFrom="opacity-100"
                                 leaveTo="opacity-0"
                               >
-                                <Listbox.Options className="absolute z-10 mt-1 w-full bg-[#1A1A1A] border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-700 bg-[#1A1A1A] shadow-lg focus:outline-none">
                                   {/* Search Input */}
-                                  <div className="p-2 border-b border-gray-700">
+                                  <div className="border-b border-gray-700 p-2">
                                     <input
                                       type="text"
                                       value={searchQuery}
                                       onChange={(e) => setSearchQuery(e.target.value)}
                                       placeholder="Search persons..."
-                                      className="w-full px-2 py-1 text-sm bg-[#121212] border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+                                      className="w-full rounded border border-gray-600 bg-[#121212] px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </div>
 
                                   {filteredPersons.length === 0 ? (
-                                    <div className="py-2 px-3 text-sm text-gray-500">
+                                    <div className="px-3 py-2 text-sm text-gray-500">
                                       No matching persons found
                                     </div>
                                   ) : (
@@ -413,9 +415,9 @@ export default function EnrollFaceModal({
                                           value={person}
                                           disabled={atMax}
                                           className={({ active, disabled }) =>
-                                            `cursor-pointer select-none relative py-2 pl-10 pr-4 truncate ${
+                                            `relative cursor-pointer select-none truncate py-2 pl-10 pr-4 ${
                                               disabled
-                                                ? 'opacity-50 cursor-not-allowed text-gray-500'
+                                                ? 'cursor-not-allowed text-gray-500 opacity-50'
                                                 : active
                                                   ? 'bg-[#76B900]/20 text-white'
                                                   : 'text-gray-300'
@@ -432,15 +434,19 @@ export default function EnrollFaceModal({
                                                 >
                                                   {person.name}
                                                 </span>
-                                                <div className="flex items-center gap-2 ml-2">
+                                                <div className="ml-2 flex items-center gap-2">
                                                   {person.is_household_member && (
-                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[#76B900]/20 text-[#76B900]">
+                                                    <span className="inline-flex items-center gap-1 rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs text-[#76B900]">
                                                       <Home className="h-3 w-3" />
                                                       Household
                                                     </span>
                                                   )}
-                                                  <span className={`text-xs ${atMax ? 'text-red-400' : 'text-gray-500'}`}>
-                                                    {atMax ? 'Max reached' : `${person.embedding_count} ${person.embedding_count === 1 ? 'face' : 'faces'}`}
+                                                  <span
+                                                    className={`text-xs ${atMax ? 'text-red-400' : 'text-gray-500'}`}
+                                                  >
+                                                    {atMax
+                                                      ? 'Max reached'
+                                                      : `${person.embedding_count} ${person.embedding_count === 1 ? 'face' : 'faces'}`}
                                                   </span>
                                                 </div>
                                               </div>
@@ -478,7 +484,7 @@ export default function EnrollFaceModal({
                     <div>
                       <label
                         htmlFor="person-name"
-                        className="block text-sm font-medium text-gray-300 mb-1"
+                        className="mb-1 block text-sm font-medium text-gray-300"
                       >
                         Name
                       </label>
@@ -489,21 +495,21 @@ export default function EnrollFaceModal({
                         onChange={(e) => setNewPersonName(e.target.value)}
                         disabled={isPending}
                         placeholder="Enter person's name"
-                        className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50"
+                        className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                       />
                     </div>
 
                     {/* Household Checkbox */}
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex cursor-pointer items-center gap-3">
                       <input
                         type="checkbox"
                         checked={isHouseholdMember}
                         onChange={(e) => setIsHouseholdMember(e.target.checked)}
                         disabled={isPending}
-                        className="w-4 h-4 text-[#76B900] bg-[#121212] border-gray-600 rounded focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+                        className="h-4 w-4 rounded border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
                         aria-label="Is household member"
                       />
-                      <span className="text-white text-sm">Is household member</span>
+                      <span className="text-sm text-white">Is household member</span>
                     </label>
                   </div>
                 )}
@@ -514,7 +520,7 @@ export default function EnrollFaceModal({
                     type="button"
                     onClick={onClose}
                     disabled={isPending}
-                    className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -522,7 +528,7 @@ export default function EnrollFaceModal({
                     type="button"
                     onClick={() => void handleEnroll()}
                     disabled={!canEnroll}
-                    className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
                   >
                     {isPending && (
                       <Loader2 className="h-4 w-4 animate-spin" data-testid="loading-spinner" />
