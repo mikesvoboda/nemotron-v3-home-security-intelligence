@@ -202,6 +202,18 @@ def test_allowlist_file_entry_without_tracking_ref_still_honored(git_tree):
     assert r.returncode == 0, r.stderr
 
 
+def test_allowlist_file_lines_with_trailing_comments(git_tree):
+    # the repo's real format: <path>  # <tracking-ref> on one line; '#' starts
+    # the comment and the prefix is the id
+    stage_and_note(git_tree, "backend/tests/unit/test_empty.py", b"")
+    allowlist = git_tree / "tmp-allowlist.txt"
+    allowlist.write_text(
+        "backend/tests/unit/test_empty.py  # R-TRACKING-REF (M1 ledger) — zero-byte; write-or-delete queued\n"
+    )
+    r = run_script(git_tree, "backend/tests", "--allowlist", str(allowlist))
+    assert r.returncode == 0, r.stderr
+
+
 def test_allowlist_typo_entry_does_not_suppress(git_tree):
     # malformed id = no match = finding surfaces (never silently swallowed)
     stage_and_note(git_tree, "backend/tests/unit/test_empty.py", b"")
