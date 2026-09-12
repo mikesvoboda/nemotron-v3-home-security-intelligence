@@ -120,7 +120,10 @@ discover_containers() {
     fi
 
     # Find PostgreSQL container (may be from any worktree)
-    POSTGRES_CONTAINER=$($CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -E '_postgres_' | head -1)
+    # Matches legacy underscore naming (..._postgres_ / ..._postgres_1) and
+    # compose-v2 provider naming (<project>-postgres-1). The end anchor keeps
+    # sibling services such as redis-exporter from matching.
+    POSTGRES_CONTAINER=$($CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -E '[_-]postgres[-_]?[0-9]?$' | head -1)
 
     if [ -z "$POSTGRES_CONTAINER" ]; then
         print_warning "No PostgreSQL container found running"
@@ -153,8 +156,9 @@ discover_containers() {
         export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-$POSTGRES_USER}"
     fi
 
-    # Find Redis container
-    REDIS_CONTAINER=$($CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -E '_redis_' | head -1)
+    # Find Redis container (same legacy + compose-v2 provider naming, end-anchored
+    # so redis-exporter does not match)
+    REDIS_CONTAINER=$($CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -E '[_-]redis[-_]?[0-9]?$' | head -1)
 
     if [ -n "$REDIS_CONTAINER" ]; then
         if [ -z "$REDIS_URL" ]; then
@@ -270,8 +274,13 @@ run_backend_validation() {
     # Run tests
     # Local validation uses 80% combined coverage (unit + integration)
     # CI enforces per-test-type thresholds: unit=85%, integration=50%
+    # backend/tests/load and backend/tests/benchmarks are out of the PR-gate contract:
+    # CI runs them only from their own path-scoped workflows (benchmarks.yml,
+    # load-tests.yml), never from the unit+integration gate. No CLI '-m' is passed here
+    # because it would replace pyproject.toml's addopts expression (which carries
+    # "-m 'not gpu'").
     print_step "Running pytest (Tests & Coverage)..."
-    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80; then
+    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80 --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks"; then
         print_error "Backend tests failed or coverage below 80%"
         echo ""
         echo "Fix failing tests, then re-run validation."
