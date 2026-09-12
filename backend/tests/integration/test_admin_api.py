@@ -9,13 +9,15 @@ for local deployment - this is a single-user local deployment).
 """
 
 import os
+import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.user import User
 from backend.tests.integration.test_helpers import get_error_message
 
 # Mark all tests in this module for serial execution to avoid parallel conflicts
@@ -51,7 +53,28 @@ async def debug_client(integration_db, mock_redis):
     )
 
     # Import the app only after env is set up
+    # SetupGuardMiddleware returns 503 for every non-whitelisted route until a
+    # user exists (setup complete). Admin tests target the post-setup contract
+    # (debug + admin enabled), so seed the first admin directly to reach it.
+    from sqlalchemy import select
+
+    from backend.core.database import get_engine
     from backend.main import app
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        count = (await conn.execute(select(func.count(User.id)))).scalar() or 0
+        if count == 0:
+            await conn.execute(
+                User.__table__.insert().values(
+                    id=f"admin_seed_user_{uuid.uuid4().hex[:12]}",
+                    username=f"admin_{uuid.uuid4().hex[:8]}",
+                    email=f"admin_{uuid.uuid4().hex[:8]}@example.com",
+                    password_hash="test-hash-not-a-real-password",
+                    is_active=True,
+                    is_admin=True,
+                )
+            )
 
     with (
         patch("backend.main.init_db", return_value=None),
@@ -500,11 +523,13 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
 @pytest.mark.requires_debug_mode
 @pytest.mark.unit  # Override integration mark - this test doesn't need database
 async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
-    """Test that admin endpoints return 403 when DEBUG=false or ADMIN_ENABLED=false.
+    """Test admin endpoint access control for ADMIN_ENABLED=false.
 
-    SECURITY: This test verifies defense-in-depth access control.
-    Admin endpoints must have BOTH debug=True AND admin_enabled=True.
-    This prevents accidental exposure in production environments.
+    SECURITY: This test verifies the access-control contract that shipped in
+    8ea70057 ("enable Redis Streams and admin endpoints by default", Feb 2026):
+    admin endpoints are gated ONLY by ADMIN_ENABLED — DEBUG mode is decoupled
+    (registration on first login is the access control; binding to 127.0.0.1 is
+    the security boundary). ADMIN_ENABLED=false must still return 403.
 
     NOTE: This test doesn't need a real database because it patches init_db
     and overrides the database dependency with a mock session.
@@ -518,7 +543,7 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
     from backend.core.database import get_db
     from backend.core.dependencies import get_redis_dependency
 
-    # Test 1: DEBUG=false, ADMIN_ENABLED=true (should fail)
+    # Test 1: DEBUG=false, ADMIN_ENABLED=true (allowed since 8ea70057)
     production_settings = Settings(
         debug=False,
         admin_enabled=True,
@@ -565,17 +590,18 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
                     ("POST", "/api/admin/maintenance/flush-queues", None),
                 ]
 
+                # DEBUG=false no longer blocks admin endpoints (8ea70057):
+                # each seeded endpoint performs its operation successfully.
                 for method, endpoint, body in endpoints:
                     if body:
                         response = await client.request(method, endpoint, json=body)
                     else:
                         response = await client.request(method, endpoint)
 
-                    assert response.status_code == 403, (
-                        f"{method} {endpoint} should return 403 when DEBUG=false, "
-                        f"but returned {response.status_code}"
+                    assert response.status_code != 403, (
+                        f"{method} {endpoint} must not be gated by DEBUG mode "
+                        f"(8ea70057); returned {response.status_code}"
                     )
-                    assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
             get_settings.cache_clear()
 
         # Test 2: DEBUG=true, ADMIN_ENABLED=false (should fail)
@@ -603,7 +629,7 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
                 # Test one endpoint to verify admin_enabled=false also blocks
                 response = await client.post("/api/admin/seed/cameras", json={"count": 1})
                 assert response.status_code == 403
-                assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
+                assert "Admin endpoints require ADMIN_ENABLED=true" in response.json()["detail"]
             get_settings.cache_clear()
     finally:
         # Clean up dependency overrides
