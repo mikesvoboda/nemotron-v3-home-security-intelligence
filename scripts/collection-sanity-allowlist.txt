@@ -1,0 +1,14 @@
+# Collection-sanity allowlist (R-FCL-T1-ALLOWLIST, M1 ledger).
+# Format: <path>  # <tracking-ref> — one id per line; '#' starts the tracking-ref
+# comment. Entries are REAL findings exempted at first registration with a
+# tracking ref; remediation (write / rename / revive / delete) is queued, not
+# waived. All 7 registered against: R-M2-COLLECTION-FINDINGS (FCL ledger,
+# .superpowers/sdd/2026-09-12-fast-confidence-loop/progress.md).
+
+backend/tests/integration/test_zone_baselines.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — zero-byte backend test file; write-or-delete queued
+backend/tests/unit/api/routes/test_cameras_heatmap.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — zero-byte backend test file; write-or-delete queued
+backend/tests/unit/core/test_result.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — zero-byte backend test file; write-or-delete queued
+backend/tests/unit/test_matchers.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — zero-byte backend test file; write-or-delete queued
+backend/tests/integration/test_helpers.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — misnamed test-infra module (no test functions); rename breaking (imported by siblings), rename queued M2
+backend/tests/test_utils.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — misnamed test-infra module (no test functions); rename breaking (imported by siblings), rename queued M2
+backend/tests/contracts/test_schemathesis_contracts.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — genuinely disabled (Schemathesis 4.x API break, documented in its docstring); revive-or-delete queued M2

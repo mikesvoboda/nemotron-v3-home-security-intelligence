@@ -80,6 +80,16 @@ jobs:
             echo "**Skipping tests** (docs-only changes)" >> $GITHUB_STEP_SUMMARY
           fi
 
+  collection-sanity:
+    name: Collection Sanity (zero-byte / zero-test tracked files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Check tracked test files collect real tests
+        run: uv run --no-project python scripts/check-test-collection.py backend frontend
+
   # Backend Jobs
 
   # Shared backend dependencies - built once, used by all backend jobs
@@ -346,7 +356,7 @@ jobs:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [detect-changes, unit-tests]
+    needs: [detect-changes, unit-tests, collection-sanity]
     if: always()
     steps:
       - name: Check unit test shard results
@@ -868,6 +878,7 @@ jobs:
       [
         detect-changes,
         lint,
+        collection-sanity,
         integration-tests-api,
         integration-tests-websocket,
         integration-tests-services,
@@ -1364,7 +1375,7 @@ jobs:
     name: Frontend Tests (Vitest)
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [detect-changes, frontend-tests]
+    needs: [detect-changes, frontend-tests, collection-sanity]
     if: always()
     steps:
       - name: Check shard results
