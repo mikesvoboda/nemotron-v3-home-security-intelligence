@@ -12,6 +12,7 @@ when api_key_enabled is True in settings.
 """
 
 import os
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -173,7 +174,29 @@ async def dlq_client(
 
     This fixture creates an HTTP client with api_key_enabled=False.
     """
+    # SetupGuardMiddleware returns 503 for every non-whitelisted route until a
+    # user exists (setup complete). These tests target the post-setup API
+    # contract, so seed the first admin directly to reach it.
+    from sqlalchemy import func, select
+
+    from backend.core.database import get_engine
     from backend.main import app
+    from backend.models.user import User
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        count = (await conn.execute(select(func.count(User.id)))).scalar() or 0
+        if count == 0:
+            await conn.execute(
+                User.__table__.insert().values(
+                    id=f"setup_seed_user_{uuid.uuid4().hex[:12]}",
+                    username=f"setup_seed_{uuid.uuid4().hex[:8]}",
+                    email=f"setup_seed_{uuid.uuid4().hex[:8]}@example.com",
+                    password_hash="test-hash-not-a-real-password",
+                    is_active=True,
+                    is_admin=True,
+                )
+            )
 
     # Create settings with API key disabled
     test_settings = Settings(
