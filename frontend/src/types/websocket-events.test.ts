@@ -43,7 +43,10 @@ describe('WebSocket Event Types', () => {
       // 9 legacy + 1 batch + 3 legacy job + 3 batch analysis + 3 event lifecycle
       // + 6 alert + 7 camera + 4 job + 2 system + 6 worker + 1 prometheus
       // + 4 enrichment + 2 queue metrics + 2 dwell = 52 total
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(52);
+      // NEM-4808 (5b9d75b8) added scene_change.detected/acknowledged -> 55 total.
+      // The length assert was never bumped when the source array grew (52->53->55);
+      // verified against the array literal on main, drift is pre-existing.
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(55);
     });
 
     it('should include new hierarchical event keys', () => {

@@ -299,6 +299,9 @@ describe('useDateRangeState', () => {
         '1h': 'Last hour',
         '24h': 'Last 24 hours',
         today: 'Today',
+        // NEM-3646 (ef0c06e1, 2026-01-25) added the 'yesterday' preset to the
+        // source map; this expectation predates it and was never updated.
+        yesterday: 'Yesterday',
         '7d': 'Last 7 days',
         '30d': 'Last 30 days',
         '90d': 'Last 90 days',
