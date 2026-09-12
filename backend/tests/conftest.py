@@ -115,6 +115,13 @@ import os as _os
 
 _os.environ.setdefault("ENVIRONMENT", "test")
 
+# R-T7-CRASH: pyroscope-io's native sampling profiler (oncpu + gil_only=False)
+# crashes pytest-xdist workers on aarch64/64k-page kernels whenever a test
+# boots the FastAPI lifespan (main.py calls init_profiling()). Disabling it for
+# the test session only — prod/compose keep the PYROSCOPE_ENABLED=true default
+# (docker-compose.prod.yml), and an explicit env value still wins (setdefault).
+_os.environ.setdefault("PYROSCOPE_ENABLED", "false")
+
 import logging
 import os
 import socket

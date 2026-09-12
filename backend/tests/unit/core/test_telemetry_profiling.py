@@ -260,3 +260,59 @@ class TestProfileWithTraceContextIntegration:
                 executed = True
 
         assert executed is True
+
+
+class TestInitProfilingPytestGuard:
+    """R-T7-CRASH: pyroscope's native sampler crashes pytest-xdist workers on
+    aarch64/64k-page hosts when the FastAPI lifespan boots. The test session
+    must run with profiling disabled while prod keeps the 'true' default."""
+
+    def test_test_session_env_disables_profiling(self) -> None:
+        """Under pytest, PYROSCOPE_ENABLED must already be set to 'false'
+        (conftest setdefault guard) and init_profiling must not touch the
+        pyroscope SDK."""
+        import os
+        from unittest.mock import patch
+
+        import pytest
+
+        if os.environ.get("PYROSCOPE_ENABLED") is None:
+            pytest.fail(
+                "PYROSCOPE_ENABLED guard missing: conftest must setdefault it "
+                "to 'false' before app import (R-T7-CRASH)"
+            )
+        assert os.environ["PYROSCOPE_ENABLED"].lower() == "false"
+
+        from backend.core.telemetry import init_profiling
+
+        with patch("pyroscope.configure") as mock_configure:
+            init_profiling()
+        mock_configure.assert_not_called()
+
+    def test_env_gate_honors_explicit_false(self, monkeypatch) -> None:
+        """Explicit PYROSCOPE_ENABLED=false must skip configure()."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        monkeypatch.setenv("PYROSCOPE_ENABLED", "false")
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"pyroscope": fake}):
+            from backend.core.telemetry import init_profiling
+
+            init_profiling()
+        fake.configure.assert_not_called()
+
+    def test_env_gate_honors_explicit_true(self, monkeypatch) -> None:
+        """Explicit PYROSCOPE_ENABLED=true must still call configure()
+        (prod behavior; SDK faked so no native library loads in-test)."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        monkeypatch.setenv("PYROSCOPE_ENABLED", "true")
+        monkeypatch.setenv("PYROSCOPE_URL", "http://pyroscope.invalid:4040")
+        fake = MagicMock()
+        with patch.dict(sys.modules, {"pyroscope": fake}):
+            from backend.core.telemetry import init_profiling
+
+            init_profiling()
+        fake.configure.assert_called_once()
