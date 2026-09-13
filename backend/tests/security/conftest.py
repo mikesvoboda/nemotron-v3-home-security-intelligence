@@ -201,9 +201,23 @@ def security_client() -> Generator[AuthenticatedTestClient]:
     async def mock_setup_complete(self):
         return True
 
+    # Media routes' rate limiter declares Depends(get_redis); with no
+    # ambient Redis on localhost:6379 the slow path retries 3x then raises
+    # ConnectionError -> 503 CACHE_UNAVAILABLE before the route body (which
+    # would 403/404) runs. Stub the module singleton so the fast path wins.
+    mock_redis_singleton = AsyncMock()
+    mock_redis_singleton._ensure_connected = MagicMock(return_value=mock_redis_singleton)
+    # _execute_rate_limit_script expects evalsha -> [is_allowed(0/1), count];
+    # plain AsyncMock return values make result[0] != 1 -> every request 429s.
+    mock_redis_singleton.evalsha = AsyncMock(return_value=[1, 0])
+    mock_redis_singleton.script_load = AsyncMock(return_value="fake-sha")
+
     from backend.main import app
 
     with (
+        patch("backend.core.redis._redis_client", mock_redis_singleton),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_singleton),
+        patch("backend.core.redis.close_redis", return_value=None),
         patch("backend.main.init_db", mock_init_db),
         patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
         patch(
