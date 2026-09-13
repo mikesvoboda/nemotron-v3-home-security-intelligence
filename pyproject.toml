@@ -86,6 +86,11 @@ dependencies = [
     # ONVIF camera discovery and control (NEM-4207)
     "wsdiscovery>=2.1.2",
     "onvif-zeep>=0.2.12",
+    # Timezone data (zoneinfo): schedule code accepts legacy US/* IANA keys
+    # (alert_engine ZoneInfo lookups) which modern distros no longer symlink
+    # (Ubuntu 24.04 ships no /usr/share/zoneinfo/US); the tzdata wheel
+    # guarantees them on every platform. M1 Task 7.
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]
