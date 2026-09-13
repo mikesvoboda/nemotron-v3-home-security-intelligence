@@ -269,3 +269,22 @@ reaches the route. Use `app.dependency_overrides[<exact function>]`.
 
 M2 candidates recorded: full stream-config GREEN implementation (schema+service+routes, owner
 design decisions needed); alert_engine tz siblings (above); websocket/db-pool metrics (hsi_*).
+
+### Run-1 red triage — batch 3 (2026-09-13, misc-small lanes; all class (c) unless noted)
+
+| file | was | root cause | commit | now |
+|---|---|---|---|---|
+| api/routes/test_model_management_integration.py | 8F | DI trap (same as R-T7-SERVICES): patch() on routes-local get_http_client no-op → override_http_client helper | 2143a424 | 15/15 |
+| test_florence_validation.py | 8F | NEM-5570 cascade gate shipped after tests (conf 0.75-0.92 never reach Florence); conflict-YOLO-wins branch unreachable through pipeline (only <0.7 forwarded) — 5 conf fixes + 4 extractor-level reshapes | eb557bbf | 9/9 |
+| api/test_feedback_routes.py | 8F | TDD RED artifact: list/get-by-id/delete feedback endpoints never implemented (1d0ee935 shipped 3 paths; git -S zero). no_crud conditional guard | 9110f4b6 | 18P+7 skip |
+| test_search_api.py | 5F | SearchResponse contract (total_count, no query echo, relevance_score not rank, no highlights) + since-param '+' URL encoding | 9fe387a4 | 12/12 |
+| test_preview_api.py | 17F+12E | Camera() folder_path required + status ck constraint + get_go2rtc_client never existed (seam = cameras._get_go2rtc_client, request-time call) + static stream_id vs token_hex suffix | c98b94cf | 16P+1 preskip |
+| test_prompt_management_api.py | 7F+1E | PROD: PromptVersion never imported in models/__init__ → create_all never built prompt_versions (order-dependent ERROR). Tests: RFC7807 problem-detail detail-string; GET default-config 200 contract; counting-limiter override; import-preview diff shape | e32074fa | 41/41 |
+| test_orchestrator_integration.py | 6F | file-local clients lacked SetupGuard bypass (middleware postdates tests) | ccf3ddd6 | 13/13 |
+| test_gpu_config_workflow.py | 3F | service_name-sort inverted by ai-detector→ai-yolo26 rename; [0] assertion never green at 6d7ae425; AsyncMock redis → truthy child mock in 409 pre-check | fc4041e4 | 18/18 |
+| test_alpr_service.py | 0F | mis-paired in run-1 tally (7F belonged to prompt file); 14/14 verified standalone | — | 14/14 |
+
+Remaining from run-1's 315 FAILED: 48 files × 1-5 failures, most of which are downstream of the
+run-1 systemic ERROR cascade (container port-forward churn — my own concurrent probes). Decision:
+re-run the full gate cleanly (nothing else running) and triage only what survives; chasing
+cascade-artifact failures individually wastes cycles on non-defects.
