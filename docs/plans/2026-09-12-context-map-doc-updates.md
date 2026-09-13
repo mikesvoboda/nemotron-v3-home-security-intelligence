@@ -305,3 +305,19 @@ cascade-artifact failures individually wastes cycles on non-defects.
   test_events_cache_invalidation (12), test_alert_engine (10), test_tracks (9), test_jobs_api (9),
   test_idempotency (8), polygon/line_zone (14), partition_manager (7), inbound_webhooks (7),
   feedback_snapshots (6), pipeline_e2e (5)... — triaged in run-3's aftermath.
+
+### Run-3 (2026-09-13, with TEST_DATABASE_URL + gate services): 352F/355E in 1147s
+
+- **Root cause of the 355 ERRORs: OOM-kill cascade.** dmesg: `Out of memory: Killed process
+  [pytest-xdist r] anon-rss:51844004kB` (52 GB per worker!) — 11 `node down: Not properly
+  terminated` events; xdist relaunched as gw8-gw15, restarted workers lose the session-scoped
+  testcontainer handles → connection storms → setup ERRORs (face_recognition 20, cache_service 47,
+  zone_anomaly 32, notification_delivery 27, file_watcher 24, redis_pubsub 20).
+- **The leak: OpenTelemetry BatchSpanProcessor.** otel_enabled defaults True; every TestClient with
+  a live lifespan arms an OTLP exporter at http://alloy:4317 (unreachable; proxy 502s visible as
+  grpc handshaker spam). Failed exports retry while holding spans; span-generating tests
+  (websocket auth flows ×9 crashes, llm_analysis_pipeline ×2) accumulated tens of GB per worker.
+  Fixed by pytest_configure setdefault OTEL_ENABLED=false (0978d11f, class b; production default
+  unchanged). Also made test_telemetry.py's settings-default test hermetic.
+- 352 FAILED = next surface: dlq_api (48), repositories/test_base (38), data_corruption (24),
+  event_search (22), backup_api (19), auth_flow (17)... triage continues in run-4's aftermath.
