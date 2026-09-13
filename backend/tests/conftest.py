@@ -296,6 +296,21 @@ def pytest_configure(config: pytest.Config) -> None:
         "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",  # pragma: allowlist secret
     )
 
+    # Disable OpenTelemetry tracing in the test process (R-T7-OTEL-OOM):
+    # otel_enabled defaults True (config.py:1815), so every TestClient(app)
+    # with a live lifespan runs setup_telemetry and arms an OTLP
+    # BatchSpanProcessor pointed at the shipped default endpoint
+    # (http://alloy:4317) — unreachable outside the compose network, and
+    # every export 502s through the sandbox proxy. Failed exports retry
+    # with the span held in memory; xdist workers running thousands of
+    # span-generating tests (websocket auth flows, LLM analysis pipeline)
+    # accumulated ~52GB anon RSS per worker until the host OOM-killed the
+    # process (11 'node down' cascades in validate run 3; dmesg:
+    # 'Out of memory: Killed process ... [pytest-xdist r] anon-rss:
+    # 51844004kB'). Production keeps the default True; this only opts the
+    # test process out, matching how the D21 memray marker is scoped.
+    os.environ.setdefault("OTEL_ENABLED", "false")
+
     # Register custom markers to prevent warnings
     config.addinivalue_line(
         "markers",
