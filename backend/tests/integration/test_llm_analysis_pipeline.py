@@ -603,9 +603,14 @@ class TestPromptFormattingWithEnrichment:
 
         def capture_prompt(*args, **kwargs):
             nonlocal actual_prompt
-            # Extract prompt from payload
-            if len(args) > 1 and isinstance(args[1], dict):
-                actual_prompt = args[1].get("messages", [{}])[0].get("content", "")
+            # NemotronAnalyzer posts positional (self, url) with json=payload
+            # in kwargs (post(f"{url}/completion", json=payload, headers=...));
+            # payload carries "prompt" (ChatML string), not "messages".
+            payload = kwargs.get("json")
+            if isinstance(payload, dict):
+                actual_prompt = payload.get("prompt") or payload.get(
+                    "messages", [{}]
+                )[0].get("content", "")
             return mock_response
 
         with (
