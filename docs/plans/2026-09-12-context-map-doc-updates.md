@@ -219,3 +219,32 @@ not the test DB) — do not probe it further.
 Testcontainers can exercise the DB-backed suites in this sandbox; the full no-flag
 `validate.sh` gate requires the Phase A container topology for container discovery
 (D16) — see close-out rows below for how the gate is run here.
+
+## M1 Task 7 — full-gate run 1 (2026-09-13, this sandbox)
+
+`./scripts/validate.sh` full no-flag run against testcontainers (no podman/no .env here; the
+pytest stage ran the whole backend tree incl. integration). Result: **315 failed / 29954 passed /
+242 skipped / 1550 errors / coverage 27.31% < 80** in 799s. Classification:
+
+- **1550 ERRORs = sandbox-induced, not test defects.** Setup-phase "OSError: Multiple exceptions:
+  [Errno 111] Connect call failed (mapped port)" on testcontainers' postgres/redis port-forwards,
+  starting ~71% through the run — concurrent standalone pytest runs I issued beside the gate caused
+  docker container/port churn (one produced a transient `no space left on device` on the co-resident
+  dockerd's snapshot dir). Lesson: the gate must run ALONE; do not run probes concurrently.
+- **Coverage 27.31% is an artifact of the same systemic ERRORs** (integration code paths never
+  imported/executed because their fixtures failed at setup).
+- **315 FAILED breakdown triaged so far (each fixed in its own commit):**
+  - test_notification_api.py (22) — file-local client fixtures lacked the shared fixture's
+    SetupGuard bypass → real guard 503'd empty-users requests in 0.5ms. Fixed (9900831e, helper
+    `_bypass_setup_guard`).
+  - test_file_watcher_filesystem.py (14) — NEM-3469 streams-path mock drift. Fixed (3899a63c,
+    `queue_contract` fixture).
+  - test_face_recognition_service.py (10) — 24 setup ERRORs were `timestamp` naive-column vs aware
+    arg (fixed: DateTime(timezone=True), 2cd22aa4); 3 deterministic math failures in
+    generate_similar_embedding noise levels (fixed in same commit; E[sim]=1/sqrt(1+512·noise²)).
+  - test_cameras_api.py::rtsp_requires_url (1) — validator contract drift, never passed since
+    2e184ed4 (fixed a2af694d).
+- Pre-authorized fixes not fired: D14 (integration ran fine at 5s func timeout — symptom absent),
+  D15 (RuntimeError unreachable — pytest_configure setdefaults DATABASE_URL), D16 (already landed
+  in e53899e6), D17 fired → load marker added (f6c12d87).
+- Remaining reds being diagnosed in parallel lanes; fixes follow the same triage rules.
