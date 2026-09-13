@@ -321,3 +321,17 @@ cascade-artifact failures individually wastes cycles on non-defects.
   unchanged). Also made test_telemetry.py's settings-default test hermetic.
 - 352 FAILED = next surface: dlq_api (48), repositories/test_base (38), data_corruption (24),
   event_search (22), backup_api (19), auth_flow (17)... triage continues in run-4's aftermath.
+
+### Run-4 (2026-09-13, OTEL fix in): 226F/1398E in 466s — coverage 85.17% (above the 80 gate!)
+
+- **Coverage milestone**: combined unit+integration coverage 85.17% (was 27.31% under run-1's error
+  cascade) — the --cov-fail-under=80 gate now passes on coverage.
+- 1398 ERRORs again from 2 worker OOM crashes — but the victims differ: dmesg shows the killed
+  PIDs are the CONTROLLER ('pytest', 63GB anon RSS), and the two 'crashed while running' tests
+  are both test_llm_analysis_pipeline.py::TestErrorHandlingWithEnrichment (fallback paths).
+  Bounded reproductions (-n0: 74 tests/176s peak <1GB; 4-file -n8: 270 tests/133s peak 755MB)
+  do NOT reproduce → scale-dependent. Full-suite rerun (run 5) with per-process RSS sampling
+  launched to catch the culprit. Hypothesis candidates: controller-side accumulation over 30k
+  verbose reports, coverage combine, or a single memory-heavy integration test.
+- 226 FAILED under diagnosis in parallel read-only lanes (log/code analysis only — no pytest
+  while the gate runs).
