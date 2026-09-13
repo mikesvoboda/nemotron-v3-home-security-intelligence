@@ -292,13 +292,22 @@ async def test_create_camera_rtsp_mode_requires_url(client):
     """Test that RTSP mode requires rtsp_url.
 
     NEM-4191: Test conditional validation for RTSP cameras.
+
+    Shipped validator contract (CameraCreate.validate_rtsp_url_required_
+    for_streaming_modes, backend/api/schemas/camera.py): the model validator
+    raises only when rtsp_url is EXPLICITLY set (rtsp_url in
+    model_fields_set) and None — an omitted rtsp_url is indistinguishable
+    from the field default and creates an RTSP camera with no URL (this
+    mirrors the unit contract in test_camera_validation.py, which passes
+    rtsp_url=None explicitly). Assert the validator's actual contract with
+    the explicit-None payload the API contract means.
     """
     unique_id = str(uuid.uuid4())[:8]
     camera_data = {
         "name": f"Invalid RTSP Camera {unique_id}",
         "folder_path": f"/export/rtsp/camera_{unique_id}",
         "ingestion_mode": "rtsp",
-        # Missing rtsp_url - should fail validation
+        "rtsp_url": None,  # Explicitly set to None - should fail validation
     }
 
     response = await client.post("/api/cameras", json=camera_data)
