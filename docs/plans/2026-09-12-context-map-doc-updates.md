@@ -248,3 +248,24 @@ pytest stage ran the whole backend tree incl. integration). Result: **315 failed
   D15 (RuntimeError unreachable — pytest_configure setdefaults DATABASE_URL), D16 (already landed
   in e53899e6), D17 fired → load marker added (f6c12d87).
 - Remaining reds being diagnosed in parallel lanes; fixes follow the same triage rules.
+
+### Run-1 red triage — batch 2 (2026-09-13, all class (c) unless noted)
+
+| file | was | root cause | commit | now |
+|---|---|---|---|---|
+| integration/services/test_model_loaders.py | 19F | fixture cuda=False vs prod fail-fast CUDA guards; AutoModel alias; SigLIP 2 regex/vram 800→200; models.yml +preprocessing +alpr | f0d8ca5e | 38/38 |
+| integration/test_alert_rules.py | 21F | metric renames (probe_success blackbox, hsi_system_healthy/hsi_database_healthy/hsi_redis_healthy, *_queue_depth) + 3 stale-rule classes (deleted) | 71e27668 | 39/39 |
+| integration/test_file_watcher_integration.py | 10F | sibling of R-T7-WATCHER — legacy add_to_queue_safe observation point; queue_contract ported w/ camera_id | 9540d694 | 26/26 |
+| integration/test_services_api.py | 17F | DI trap: patch() on routes.services.get_orchestrator is a no-op (FastAPI captured original fn at route decl). Fix: dependency_overrides + zero-arg override fns + MagicMock get_service | 9ab1b75b | 20/20 |
+| security/test_api_security.py | 8F | (iv) media rate limiter Depends(get_redis) → no ambient Redis → 503 CACHE_UNAVAILABLE before route body. Fix: stub backend.core.redis._redis_client (+evalsha [1,0]) | 157bcc5b | 52/52 |
+| integration/test_job_history_api.py | 12F | PROD BUG: _get_transitions bound UUID object vs JobTransition.job_id String(36) VARCHAR → 'varchar = uuid' on every read (fixed in service); tests seed jobs rows (dual tracking is shipped design); since param '+' URL-encode | e3f9e27e | 19/19 |
+| integration/test_onvif_discovery_api.py | 10F | patch target TYPE_CHECKING-only; 422 envelope is error.code; Phase-2 design fields (ip/port/rtsp_urls/requires_auth/timeout_count) never shipped | 5f53c88c | 11/11 |
+| integration/test_cameras_rtsp.py | 9F | TDD red-phase artifact: CameraResponse SHIPS rtsp_password echo (schema/routes/frontend/canonical-suite all agree); omitted-vs-explicit-None validator; no auto-clear-on-mode-change | d4c6c1ff | 18/18 |
+| integration/test_stream_config_api.py | 17F | (ii) never implemented: NEM-4394/4395 Phase 3 GREEN never shipped. Mirror companion unit files' skipif-import guard (auto-greens when feature ships) | ae429127 | 19 skipped |
+
+DI-trap documented twice now (R-T7-SERVICES, R-T7-APISEC): `Depends()` captures the original
+function object at route-declaration time; `unittest.mock.patch` on the module attribute never
+reaches the route. Use `app.dependency_overrides[<exact function>]`.
+
+M2 candidates recorded: full stream-config GREEN implementation (schema+service+routes, owner
+design decisions needed); alert_engine tz siblings (above); websocket/db-pool metrics (hsi_*).
