@@ -29,6 +29,12 @@ import numpy as np
 import pytest
 from PIL import Image
 
+# Load/performance tests verify latency, memory, and throughput budgets that
+# are tuned for scheduled jobs, not PR gates: the marker excludes this module
+# from default -m expressions while keeping it runnable via dedicated
+# path-scoped workflows (load-tests.yml) and explicit invocations.
+pytestmark = pytest.mark.load
+
 # =============================================================================
 # Test Data Generators
 # =============================================================================
