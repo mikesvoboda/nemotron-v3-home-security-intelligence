@@ -361,3 +361,42 @@ cascade-artifact failures individually wastes cycles on non-defects.
   under set -e) — see commit message for the full evidence trail.
 - FAILED inventory largely carried over from run-4 (DiskFull cascade inflated ERROR count;
   239 FAILED ≈ run-4's 226 + DiskFull-era flakes). Triage resumes from the run-4 lanes.
+
+### Run-6 (2026-09-13, D14 split + gate-local services): integration tier KILLED AT 99% — 317F/3680P live tally, no summary (gate aborted by controller decision)
+
+- **Unit tier green standalone**: 27524 passed / 168 skipped / 8 xfailed in 84s (first time the
+  unit tier ran alone under the D14 split — it has never failed when separated).
+- **Integration tier reached 99%+ (vs run-5's collapse mid-run)** with TEST_DATABASE_URL/
+  TEST_REDIS_URL exported to gate-postgres/gate-redis (no testcontainer spawn — disk stayed 19-21%,
+  DiskFull class dead as designed). Live failure tally at kill: **317 FAILED / 3680 PASSED**, no
+  DiskFull errors anywhere.
+- **The controller-vs-worker OOM question from run-4 is ANSWERED**: controller RSS stayed FLAT
+  (~148→434 MB over the run, sampled every 20s). The balloons are the XDIST WORKERS: 6 kills,
+  anon-rss 19.9/23.3/24.2/26.9/28.7/33.8 GB each, and the surviving tail (gw-live ps) showed
+  workers at 27.7 GB and a replacement at 12 GB. 8 workers × multi-GB on a 62 GB box = aggregate
+  pressure; kills scattered across unrelated tests (llm_analysis_pipeline, test_events,
+  test_analytics_api) => accumulation is CROSS-FILE within the worker process, not one culprit
+  module. run-4's bounded repros (<1 GB at -n0, 755 MB at 4-file -n8) missed it because the leak
+  needs the long mixed stream. NOT the OTEL class (0978d11f fix in place; no exporter spam).
+  Killed at 0 GB free because the tail was thrashing; summary/coverage would have been
+  worker-death artifacts (run-5 lesson) — aborted intentionally, evidence preserved (/tmp/run6-prekill.txt).
+- **Real-red clusters (deterministic, clean-run survivors)**: test_base 38, backup_api 29,
+  event_search 25, auth_flow 16, tracks/idempotency/entity_persistence_pipeline/alpr_service/
+  jobs_api 9 each, cameras_api 8, polygon_zone_service 7. Class (c/c-iv) triage per rules below.
+- **test_base.py 38F root-caused**: file PASSES 38/38 alone and 201/201 with its repositories/
+  dir; ALL 38 gate failures were on gw7 in runs 2/4/6 (deterministic per-worker). Replay of gw7's
+  6 preceding files in one process reproduces 16F (test_base only). Shared-DB contention ALSO
+  independently reproduced: the 15 integration files that use the root conftest `test_db` fixture
+  (which points ALL workers at the shared `security` DB via exported TEST_DATABASE_URL —
+  get_test_db_url returns it VERBATIM) fail 3+ under -n4, while integration's own worker_db
+  fixtures correctly use per-worker security_test_gwN DBs. Same class as the unit-run
+  `Key (name)=(Video Test Camera) already exists` residue collisions. FIX = the planned FCL Task 6
+  cutover (get_test_db_url -> per-worker <base>_gwN, plan
+  docs/superpowers/plans/2026-09-12-fast-confidence-loop.md:1064) — M1's last substrate blocker;
+  helpers (_create_worker_database) already exist at integration/conftest.py:455 to lift up.
+- **jobs_api 9F root-caused (class ii)**: routes serve JobTracker (Redis/in-memory,
+  job_tracker.py:188-268 get_all_jobs/cancel_job) while the test seeds the Postgres `jobs` table
+  via db_session — every test in the file is red by construction regardless of state. TDD-RED
+  artifact pending owner ruling (seed-through-tracker vs skipif guard vs implement DB-backed
+  tracker read path). NOT the setup-guard class (shared client fixture already bypasses it,
+  integration/conftest.py:1423-1447).
