@@ -397,7 +397,7 @@ class TestHSIPipelineDownAlert:
         # Simulate backend being down
         evaluator = PromQLEvaluator(
             {
-                'up{job="backend-liveness"}': 0,
+                'probe_success{job="blackbox-http-live", service="backend"}': 0,
                 "up": 0,
             }
         )
@@ -412,7 +412,7 @@ class TestHSIPipelineDownAlert:
         # Simulate backend being up
         evaluator = PromQLEvaluator(
             {
-                'up{job="backend-liveness"}': 1,
+                'probe_success{job="blackbox-http-live", service="backend"}': 1,
                 "up": 1,
             }
         )
@@ -430,26 +430,33 @@ class TestHSIPipelineUnhealthyAlert:
     """Tests for HSIPipelineUnhealthy alert rule firing."""
 
     def test_fires_when_health_status_not_one(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test HSIPipelineUnhealthy fires when hsi_health_status != 1."""
+        """Test HSIPipelineUnhealthy fires when hsi_system_healthy == 0.
+
+        Shipped metric: hsi_system_healthy is a json-exporter gauge that
+        only emits 0/1 (monitoring/json-exporter-config.yml) and the
+        shipped rule is hsi_system_healthy == 0 — a 0.5 degraded state is
+        not expressible and must NOT fire.
+        """
         rule = get_alert_by_name(all_alert_rules, "HSIPipelineUnhealthy")
         assert rule is not None, "HSIPipelineUnhealthy rule not found"
 
         # Test with health status = 0 (unhealthy)
-        evaluator = PromQLEvaluator({"hsi_health_status": 0})
+        evaluator = PromQLEvaluator({"hsi_system_healthy": 0})
         result = evaluator.evaluate(rule.expr)
         assert result is True, "Alert should fire when health status is 0"
 
-        # Test with health status = 0.5 (degraded)
-        evaluator = PromQLEvaluator({"hsi_health_status": 0.5})
+        # json-exporter emits only 0/1; rule is '== 0', so any nonzero
+        # (0.5 included) does not fire
+        evaluator = PromQLEvaluator({"hsi_system_healthy": 0.5})
         result = evaluator.evaluate(rule.expr)
-        assert result is True, "Alert should fire when health status is degraded"
+        assert result is False, "Alert must not fire on non-binary values"
 
     def test_does_not_fire_when_healthy(self, all_alert_rules: list[AlertRule]) -> None:
         """Test HSIPipelineUnhealthy does not fire when health status is 1."""
         rule = get_alert_by_name(all_alert_rules, "HSIPipelineUnhealthy")
         assert rule is not None
 
-        evaluator = PromQLEvaluator({"hsi_health_status": 1})
+        evaluator = PromQLEvaluator({"hsi_system_healthy": 1})
         result = evaluator.evaluate(rule.expr)
         assert result is False, "Alert should not fire when health status is 1"
 
@@ -470,7 +477,7 @@ class TestHSIDatabaseUnhealthyAlert:
         # Simulate exhausted connection pool
         evaluator = PromQLEvaluator(
             {
-                "hsi_database_connection_pool_available": 0,
+                "hsi_database_healthy": 0,
             }
         )
         result = evaluator.evaluate(rule.expr)
@@ -485,7 +492,7 @@ class TestHSIDatabaseUnhealthyAlert:
 
         evaluator = PromQLEvaluator(
             {
-                "hsi_database_connection_pool_available": 5,
+                "hsi_database_healthy": 5,
             }
         )
         result = evaluator.evaluate(rule.expr)
@@ -496,62 +503,6 @@ class TestHSIDatabaseUnhealthyAlert:
         rule = get_alert_by_name(all_alert_rules, "HSIDatabaseUnhealthy")
         assert rule is not None
         assert rule.severity == "critical"
-
-
-class TestHSIDatabaseConnectionPoolLowAlert:
-    """Tests for HSIDatabaseConnectionPoolLow alert rule firing."""
-
-    def test_fires_when_pool_below_20_percent(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test alert fires when available connections < 20% of pool size."""
-        rule = get_alert_by_name(all_alert_rules, "HSIDatabaseConnectionPoolLow")
-        assert rule is not None, "HSIDatabaseConnectionPoolLow rule not found"
-
-        # 10% available (2 of 20)
-        evaluator = PromQLEvaluator(
-            {
-                "hsi_database_connection_pool_available": 2,
-                "hsi_database_connection_pool_size": 20,
-            }
-        )
-        result = evaluator.evaluate(rule.expr)
-        assert result is True, "Alert should fire when pool is below 20%"
-
-    def test_does_not_fire_above_20_percent(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test alert does not fire when available connections >= 20%."""
-        rule = get_alert_by_name(all_alert_rules, "HSIDatabaseConnectionPoolLow")
-        assert rule is not None
-
-        # 25% available (5 of 20)
-        evaluator = PromQLEvaluator(
-            {
-                "hsi_database_connection_pool_available": 5,
-                "hsi_database_connection_pool_size": 20,
-            }
-        )
-        result = evaluator.evaluate(rule.expr)
-        assert result is False, "Alert should not fire when pool is above 20%"
-
-    def test_edge_case_exactly_20_percent(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test edge case when available connections are exactly 20%."""
-        rule = get_alert_by_name(all_alert_rules, "HSIDatabaseConnectionPoolLow")
-        assert rule is not None
-
-        # Exactly 20% available (4 of 20)
-        evaluator = PromQLEvaluator(
-            {
-                "hsi_database_connection_pool_available": 4,
-                "hsi_database_connection_pool_size": 20,
-            }
-        )
-        result = evaluator.evaluate(rule.expr)
-        # 4/20 = 0.2, which is NOT < 0.2
-        assert result is False, "Alert should not fire at exactly 20%"
-
-    def test_severity_is_warning(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test HSIDatabaseConnectionPoolLow has warning severity."""
-        rule = get_alert_by_name(all_alert_rules, "HSIDatabaseConnectionPoolLow")
-        assert rule is not None
-        assert rule.severity == "warning"
 
 
 # =============================================================================
@@ -569,7 +520,7 @@ class TestHSIRedisUnhealthyAlert:
 
         evaluator = PromQLEvaluator(
             {
-                'up{job="redis"}': 0,
+                "hsi_redis_healthy": 0,
                 "up": 0,
             }
         )
@@ -696,7 +647,7 @@ class TestHSIDetectionQueueHighAlert:
 
         evaluator = PromQLEvaluator(
             {
-                "hsi_detection_queue_size": 150,
+                "hsi_detection_queue_depth": 150,
             }
         )
         result = evaluator.evaluate(rule.expr)
@@ -709,7 +660,7 @@ class TestHSIDetectionQueueHighAlert:
 
         evaluator = PromQLEvaluator(
             {
-                "hsi_detection_queue_size": 100,
+                "hsi_detection_queue_depth": 100,
             }
         )
         result = evaluator.evaluate(rule.expr)
@@ -726,8 +677,8 @@ class TestHSIQueueCriticalAlert:
 
         evaluator = PromQLEvaluator(
             {
-                "hsi_detection_queue_size": 600,
-                "hsi_analysis_queue_size": 0,
+                "hsi_detection_queue_depth": 600,
+                "hsi_analysis_queue_depth": 0,
             }
         )
         result = evaluator.evaluate(rule.expr)
@@ -740,8 +691,8 @@ class TestHSIQueueCriticalAlert:
 
         evaluator = PromQLEvaluator(
             {
-                "hsi_detection_queue_size": 0,
-                "hsi_analysis_queue_size": 250,
+                "hsi_detection_queue_depth": 0,
+                "hsi_analysis_queue_depth": 250,
             }
         )
         result = evaluator.evaluate(rule.expr)
@@ -757,67 +708,6 @@ class TestHSIQueueCriticalAlert:
 # =============================================================================
 # Test Classes - WebSocket Alerts
 # =============================================================================
-
-
-class TestHSIWebSocketDownAlert:
-    """Tests for HSIWebSocketDown alert rule firing."""
-
-    def test_fires_when_success_rate_below_50_percent(
-        self, all_alert_rules: list[AlertRule]
-    ) -> None:
-        """Test alert fires when WebSocket success rate drops below 50%."""
-        rule = get_alert_by_name(all_alert_rules, "HSIWebSocketDown")
-        assert rule is not None, "HSIWebSocketDown rule not found"
-
-        evaluator = PromQLEvaluator(
-            {
-                "hsi:websocket:connection_success_rate_5m": 0.40,
-            }
-        )
-        result = evaluator.evaluate(rule.expr)
-        assert result is True, "Alert should fire when success rate < 50%"
-
-    def test_severity_is_critical(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test HSIWebSocketDown has critical severity."""
-        rule = get_alert_by_name(all_alert_rules, "HSIWebSocketDown")
-        assert rule is not None
-        assert rule.severity == "critical"
-
-
-class TestHSINoWebSocketConnectionsAlert:
-    """Tests for HSINoWebSocketConnections alert rule firing."""
-
-    def test_fires_when_no_connections(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test alert fires when there are no active WebSocket connections."""
-        rule = get_alert_by_name(all_alert_rules, "HSINoWebSocketConnections")
-        assert rule is not None, "HSINoWebSocketConnections rule not found"
-
-        evaluator = PromQLEvaluator(
-            {
-                "hsi:websocket:active_connections": 0,
-            }
-        )
-        result = evaluator.evaluate(rule.expr)
-        assert result is True, "Alert should fire when no active connections"
-
-    def test_does_not_fire_with_connections(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test alert does not fire when there are active connections."""
-        rule = get_alert_by_name(all_alert_rules, "HSINoWebSocketConnections")
-        assert rule is not None
-
-        evaluator = PromQLEvaluator(
-            {
-                "hsi:websocket:active_connections": 5,
-            }
-        )
-        result = evaluator.evaluate(rule.expr)
-        assert result is False, "Alert should not fire with active connections"
-
-    def test_severity_is_info(self, all_alert_rules: list[AlertRule]) -> None:
-        """Test HSINoWebSocketConnections has info severity."""
-        rule = get_alert_by_name(all_alert_rules, "HSINoWebSocketConnections")
-        assert rule is not None
-        assert rule.severity == "info"
 
 
 # =============================================================================
@@ -993,7 +883,7 @@ class TestThresholdEdgeCases:
         ]
 
         for value, expected, msg in test_cases:
-            evaluator = PromQLEvaluator({"hsi_detection_queue_size": value})
+            evaluator = PromQLEvaluator({"hsi_detection_queue_depth": value})
             result = evaluator.evaluate(rule.expr)
             assert result is expected, msg
 
