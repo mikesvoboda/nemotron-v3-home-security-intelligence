@@ -681,6 +681,8 @@ class TestPromptFormattingWithEnrichment:
 # =============================================================================
 
 
+@pytest.mark.slow  # LLM error path: guided_json precheck retries (3) + post retries (3) => 7-9s wall, over the 5s integration cap
+
 class TestErrorHandlingWithEnrichment:
     """Test error handling when LLM fails with enriched data."""
 
