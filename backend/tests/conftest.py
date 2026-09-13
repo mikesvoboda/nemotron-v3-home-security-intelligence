@@ -124,6 +124,7 @@ _os.environ.setdefault("PYROSCOPE_ENABLED", "false")
 
 import logging
 import os
+import re
 import socket
 import sys
 from collections.abc import AsyncGenerator, Generator
@@ -602,6 +603,130 @@ def get_test_db_url() -> str:
         "1. Start PostgreSQL via 'podman-compose up -d postgres' (development)\n"
         "2. Set TEST_DATABASE_URL environment variable\n"
         "Note: Integration tests use module-scoped testcontainers."
+    )
+
+
+# ── Per-worker test database isolation (fast-confidence-loop spec SS3.1) ─────
+# Root-tier tests must not share one database across xdist workers: every
+# test_db/isolated_db invocation would queue on _reset_db_schema's advisory
+# lock (M1 R-T7-DBRACE-FINAL: load 8.1 on 72 cores, all of it queue). Pattern
+# mirrors backend/tests/integration/conftest.py's proven worker machinery;
+# duplication across conftests is deliberate (conftest-to-conftest imports are
+# brittle under pytest's importer) and matches the existing _get_advisory_lock_key
+# duplication. get_test_db_url behavior is unchanged until the cutover task.
+
+
+def worker_id() -> str:
+    """Current xdist worker id ('gw0'…) or 'master' when running serially.
+
+    Reads the env var xdist sets in each worker at startup
+    (xdist/remote.py: os.environ['PYTEST_XDIST_WORKER'] = workerinput['workerid'])
+    so it works inside plain functions without a fixture request.
+    """
+    return os.environ.get("PYTEST_XDIST_WORKER", "master")
+
+
+def worker_db_name(base_url: str) -> str:
+    """Per-worker database name derived from the base DB name.
+
+    master -> '<base>_main', gwN -> '<base>_gwN'. Base name is sanitized to
+    [a-z0-9_] and the total is capped at 63 chars (Postgres NAMEDATALEN).
+    """
+    base = urlparse(base_url.replace("+asyncpg", "")).path.lstrip("/") or "test"
+    prefix = re.sub(r"[^a-z0-9_]", "_", base.lower()).strip("_") or "test"
+    suffix = "main" if worker_id() == "master" else worker_id()
+    name = f"{prefix}_{suffix}"
+    return name[:63]
+
+
+def _create_worker_database(base_url: str, db_name: str) -> str:
+    """CREATE DATABASE (IF-MISSING) via psycopg2 autocommit; return worker URL.
+
+    Idempotent: two workers (or a rerun after a crash) racing on the same name
+    is safe — the pg_database existence check plus catching duplicate_database
+    covers the race window.
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        user=parsed.username or "postgres",
+        password=parsed.password or "postgres",
+        dbname=parsed.path.lstrip("/") or "postgres",
+    )
+    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+            if not cur.fetchone():
+                try:
+                    cur.execute(
+                        sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name))
+                    )
+                except psycopg2.errors.DuplicateDatabase:
+                    pass  # lost the race to a sibling worker: the DB exists, that is all we wanted
+    finally:
+        conn.close()
+    worker_url = urlunparse(parsed._replace(path=f"/{db_name}"))
+    if "postgresql://" in worker_url and "asyncpg" not in worker_url:
+        worker_url = worker_url.replace("postgresql://", "postgresql+asyncpg://")
+    return worker_url
+
+
+_PROTECTED_DB_NAMES = frozenset(
+    {"security", "security_test", "postgres", "template1", "template0"}
+)
+
+
+def _drop_worker_database(base_url: str, db_name: str, max_retries: int = 3) -> None:
+    """Terminate connections then DROP DATABASE, advisory-locked, retrying.
+
+    Refuses protected names (raises ValueError — these helpers run against the
+    developer's live Postgres; a bug here must not be able to eat the dev DB).
+    Final failure after retries logs a warning only: leaked fcl/test worker DBs
+    are cleaned by the next session's pre-clean sweep, never by failing tests.
+    """
+    import time
+
+    if db_name in _PROTECTED_DB_NAMES:
+        raise ValueError(f"refusing to drop protected database: {db_name}")
+
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    lock_key = _get_advisory_lock_key(f"fcl_drop:{db_name}")
+
+    for attempt in range(max_retries):
+        conn = None
+        try:
+            conn = psycopg2.connect(
+                host=parsed.hostname or "localhost",
+                port=parsed.port or 5432,
+                user=parsed.username or "postgres",
+                password=parsed.password or "postgres",
+                dbname="postgres",  # must connect elsewhere to DROP
+            )
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            with conn.cursor() as cur:
+                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+                cur.execute(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = %s AND pid <> pg_backend_pid()",
+                    (db_name,),
+                )
+                cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name)))
+                cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+            return
+        except psycopg2.Error as exc:
+            logger.warning(f"drop {db_name} attempt {attempt + 1} failed: {exc}")
+            if attempt + 1 < max_retries:
+                time.sleep(0.1 * (2**attempt))
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except psycopg2.Error:
+                    pass
+    logger.warning(
+        f"could not drop worker database {db_name}; stale copy will be swept next session"
     )
 
 
