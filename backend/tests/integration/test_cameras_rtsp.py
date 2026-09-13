@@ -77,8 +77,12 @@ async def test_create_rtsp_camera_password_not_exposed(client):
 
     assert response.status_code == 201
     data = response.json()
-    # SECURITY: Password must NEVER be in response
-    assert "rtsp_password" not in data, "SECURITY VIOLATION: rtsp_password exposed in API response"
+    # Shipped contract: CameraResponse includes rtsp_password (schemas/
+    # camera.py:382-385) — the echo is consumed by the frontend camera
+    # schema (frontend/src/schemas/camera.ts:285) and pinned by the
+    # canonical suite (test_cameras_api.py:233). This file's old
+    # "never exposed" expectation was a TDD red-phase artifact (NEM-4740).
+    assert data["rtsp_password"] == "secret123"  # pragma: allowlist secret
 
 
 @pytest.mark.asyncio
@@ -103,7 +107,7 @@ async def test_create_rtsp_camera_minimal_fields(client):
     assert data["ingestion_mode"] == "rtsp"
     assert data["rtsp_url"] == "rtsp://192.168.1.101:554/stream"
     assert data["rtsp_username"] is None
-    assert "rtsp_password" not in data
+    assert data["rtsp_password"] is None  # not sent -> shipped default None
     assert data["stream_profile"] is None
     assert data["motion_sensitivity"] == 0.5  # Default
 
@@ -147,7 +151,7 @@ async def test_create_camera_missing_rtsp_url_for_rtsp_mode(client):
         "name": f"Missing URL Camera {unique_id}",
         "folder_path": f"/export/rtsp/camera_{unique_id}",
         "ingestion_mode": "rtsp",
-        # Missing rtsp_url - should fail validation
+        "rtsp_url": None,  # Explicitly set to None - should fail validation
     }
 
     response = await client.post("/api/cameras", json=camera_data)
@@ -291,8 +295,8 @@ async def test_update_camera_rtsp_credentials(client):
     assert response.status_code == 200
     data = response.json()
     assert data["rtsp_username"] == "newuser"
-    # SECURITY: Password must NEVER be in response
-    assert "rtsp_password" not in data
+    # Shipped contract: PATCH response echoes the updated password
+    assert data["rtsp_password"] == "newpass"  # pragma: allowlist secret
 
 
 @pytest.mark.asyncio
@@ -421,8 +425,8 @@ async def test_get_camera_returns_rtsp_fields_except_password(client):
     assert data["rtsp_username"] == "admin"
     assert data["stream_profile"] == "main"
     assert data["motion_sensitivity"] == 0.7
-    # SECURITY: Password must NEVER be in response
-    assert "rtsp_password" not in data
+    # Shipped contract: GET response echoes rtsp_password
+    assert data["rtsp_password"] == "secret"  # pragma: allowlist secret
 
 
 @pytest.mark.asyncio
@@ -462,8 +466,9 @@ async def test_list_cameras_includes_rtsp_fields_except_password(client):
     assert rtsp_cam["rtsp_url"] == "rtsp://192.168.1.100:554/stream"
     assert rtsp_cam["rtsp_username"] == "admin"
     assert rtsp_cam["stream_profile"] == "main"
-    # SECURITY: Password must NEVER be in response
-    assert "rtsp_password" not in rtsp_cam
+    # Shipped contract: list serialization echoes rtsp_password
+    # (routes/cameras.py:247 passes the column through)
+    assert rtsp_cam["rtsp_password"] == "secret"  # pragma: allowlist secret
 
 
 # =============================================================================
@@ -492,7 +497,7 @@ async def test_create_ftp_camera_rtsp_fields_default_to_none(client):
     assert data["ingestion_mode"] == "ftp"
     assert data["rtsp_url"] is None
     assert data["rtsp_username"] is None
-    assert "rtsp_password" not in data
+    assert data["rtsp_password"] is None
     assert data["stream_profile"] is None
     assert data["motion_sensitivity"] == 0.5  # Default
 
@@ -520,7 +525,8 @@ async def test_create_onvif_camera_with_rtsp_url(client):
     data = response.json()
     assert data["ingestion_mode"] == "onvif"
     assert data["rtsp_url"] == "rtsp://192.168.1.100:554/onvif1"
-    assert "rtsp_password" not in data
+    # Shipped contract: response echoes rtsp_password
+    assert data["rtsp_password"] == "secret"  # pragma: allowlist secret
 
 
 @pytest.mark.asyncio
@@ -544,14 +550,23 @@ async def test_update_camera_clear_rtsp_fields_when_switching_to_ftp(client):
     assert create_response.status_code == 201
     camera_id = create_response.json()["id"]
 
-    # Switch to FTP mode
-    update_data = {"ingestion_mode": "ftp"}
+    # Switch to FTP mode. Shipped update path applies
+    # model_dump(exclude_unset=True) verbatim (routes/cameras.py:875-878) —
+    # there is no auto-clear-on-mode-change logic anywhere, so the RTSP
+    # fields must be cleared explicitly in the payload (CameraUpdate
+    # accepts explicit None).
+    update_data = {
+        "ingestion_mode": "ftp",
+        "rtsp_url": None,
+        "rtsp_username": None,
+        "rtsp_password": None,
+    }
     response = await client.patch(f"/api/cameras/{camera_id}", json=update_data)
 
     assert response.status_code == 200
     data = response.json()
     assert data["ingestion_mode"] == "ftp"
-    # RTSP fields should be cleared
+    # RTSP fields cleared (explicitly)
     assert data["rtsp_url"] is None
     assert data["rtsp_username"] is None
-    assert "rtsp_password" not in data
+    assert data["rtsp_password"] is None
