@@ -400,3 +400,30 @@ cascade-artifact failures individually wastes cycles on non-defects.
   artifact pending owner ruling (seed-through-tracker vs skipif guard vs implement DB-backed
   tracker read path). NOT the setup-guard class (shared client fixture already bypasses it,
   integration/conftest.py:1423-1447).
+
+### R-T7-DBRACE-CUTOVER (2026-09-13): root-tier get_test_db_url -> per-worker DBs (substrate fix landed inside Task 7)
+
+- **Mechanism confirmed before fixing**: the gw7 7-file replay in ONE process passed 137/137
+  (seed-dependent under pytest-randomly — the earlier 16F was one order, the clean run another),
+  so the contamination is NOT an in-process state leak; it is cross-WORKER concurrency on the one
+  shared `security` DB. The independent 14-file -n4 contention repro (3F+1E) is the stable signal.
+- **Latent-dead-code finding**: root conftest's NEM-4491 per-worker machinery
+  (`template_database`/`worker_database`/`cleanup_stale_databases`, conftest.py:953/:1116/:1215)
+  was never wired to any test — only the module docstring references it. The isolation the repo
+  intended existed but nobody requested it; get_test_db_url kept handing every worker the exported
+  URL verbatim. Also `cleanup_stale_databases` only sweeps `test_db_gw%`/`template_test`, which the
+  never-used fixtures would have created.
+- **Fix (FCL plan Tasks 5+6, run here as M1's last substrate blocker)**: e85c2cf3 adds
+  worker_id/worker_db_name/_create_worker_database/_drop_worker_database to root conftest (helpers
+  mirrored from integration/conftest.py:455; conftest-to-conftest import deliberately avoided);
+  e8619d80 cuts get_test_db_url over to `<base>_gwN`/`<base>_main` copies created idempotently,
+  with TEST_DB_NO_WORKER_SUFFIX=1 as the documented rollback lever. Contract tests:
+  backend/tests/test_db_isolation.py (13, run live against gate-postgres).
+- **Proofs**: 13/13 isolation tests green, twice under -n4 (idempotent create against leftover DBs);
+  the 14-file contention set under -n4 = 262 passed / 22 skipped (was 3F+1E); unit/core/test_database
+  + unit/repositories -n8 = 181P/8.1s. New worker DBs visible in pg_database (security_gw0..3,
+  security_main) — cutover verifiably live.
+- **Cost swap accepted per plan**: first fixture call per worker pays full DDL in its fresh DB
+  (8 parallel DDL runs replace the serialized advisory-lock queue). Session-scoped create-once +
+  drop-at-end + stale-sweep of the new `<base>_gwN` names is FCL Task 7's job; leak is bounded
+  (≤ nworkers names per base, idempotently reused).
