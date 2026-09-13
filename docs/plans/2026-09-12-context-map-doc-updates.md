@@ -288,3 +288,20 @@ Remaining from run-1's 315 FAILED: 48 files × 1-5 failures, most of which are d
 run-1 systemic ERROR cascade (container port-forward churn — my own concurrent probes). Decision:
 re-run the full gate cleanly (nothing else running) and triage only what survives; chasing
 cascade-artifact failures individually wastes cycles on non-defects.
+
+### Run-2 (2026-09-13, clean, no concurrent probes): 238F/766E in 722s
+
+- 766 ERRORs: asyncpg 'Connect call failed (127.0.0.1, 5432)' throughout the run — root cause
+  identified: `backend/tests/conftest.py:294` `setdefault`s DATABASE_URL to localhost:5432, and
+  `get_test_db_url()` (conftest.py:576) takes `TEST_DATABASE_URL or DATABASE_URL` BEFORE checking
+  local postgres, so the unit DB fixtures (`isolated_db`, `test_db`) connect to localhost:5432
+  forever. On the GB300 host Phase A postgres listens on 5432 (works); this sandbox has none
+  (class b environment gap). Integration fixtures use their own worker_db_url path and were fine.
+- Fix for THIS sandbox: run gate-local postgres+redis on standard ports and export
+  TEST_DATABASE_URL/TEST_REDIS_URL for the validate invocation (the same env the GB300 bootstrap
+  sets). gate-postgres (security/security_dev_password, db security) + gate-redis started;
+  unit DB tests + integration spot-checks green against them.
+- 238 FAILED = new surface now reachable: test_backup_api (29), test_auth_flow (14),
+  test_events_cache_invalidation (12), test_alert_engine (10), test_tracks (9), test_jobs_api (9),
+  test_idempotency (8), polygon/line_zone (14), partition_manager (7), inbound_webhooks (7),
+  feedback_snapshots (6), pipeline_e2e (5)... — triaged in run-3's aftermath.
