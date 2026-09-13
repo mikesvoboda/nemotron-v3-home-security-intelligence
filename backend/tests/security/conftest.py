@@ -214,6 +214,27 @@ def security_client() -> Generator[AuthenticatedTestClient]:
 
     from backend.main import app
 
+    # backend.main locks its CORS config to module-level constants captured at
+    # import time. When another test file imported backend.main earlier in this
+    # xdist worker (before this fixture set CORS_ORIGINS), the middleware is
+    # holding the default origins — which lack localhost:3000 — and every
+    # preflight in TestCORSHeaders gets 400 'Disallowed CORS origin' from
+    # Starlette. This is order-dependent (passes with a different random seed),
+    # so patch the middleware instance in place after any stack rebuild: the
+    # existing CORSMiddleware entry's kwargs carry the stale origins, and
+    # add_middleware is blocked once the app has started (any prior request in
+    # this worker), so mutate the stored Middleware entry directly and set
+    # middleware_stack=None so the rebuilt stack picks up the fresh value.
+    fresh_cors_origins = get_settings().cors_origins
+    cors_entry = next(
+        (m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware"),
+        None,
+    )
+    if cors_entry is not None and cors_entry.kwargs.get("allow_origins") != fresh_cors_origins:
+        cors_entry.kwargs["allow_origins"] = fresh_cors_origins
+        cors_entry.kwargs["allow_credentials"] = "*" not in fresh_cors_origins
+        app.middleware_stack = None
+
     with (
         patch("backend.core.redis._redis_client", mock_redis_singleton),
         patch("backend.core.redis.init_redis", return_value=mock_redis_singleton),
