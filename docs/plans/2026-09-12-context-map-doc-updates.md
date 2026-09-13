@@ -510,3 +510,57 @@ cascade-artifact failures individually wastes cycles on non-defects.
 - **Next instrument (queued)**: deterministic 8-bucket file bisection, sequential, -n0, per-bucket
   max-RSS sampler; recurse the runaway bucket to file level. Plugin fix: pid in TSV names
   (replacement workers currently clobber their predecessor's trace).
+
+### R-T7-ENOSPC-ROOTCAUSE (2026-09-13, second pass): the "external inode burst" was SELF-INFLICTED — TRUNCATE relfilenode churn (commit 5bbd6939)
+
+Correction to R-T7-ENOSPC-RECUR: there is no co-resident rootful dockerd writing to
+/dev/vdd — it is this sandbox's private virtio disk, and `/var/lib/docker` is readable
+via the docker group + sudo we already have (the "invisible to du" premise was a
+permissions blind spot, not an external actor). The instrument that closed the case:
+`df -i` showed /dev/vdd at **100% of its 655,360 inodes** while still holding 7G FREE
+BLOCKS — every ENOSPC (48,266 of them; 96% TRUNCATE, 827 INSERT, 256 CREATE) was an
+INODE failure, which the block-only disk-guard was blind to (guard now v2: kills at
+inodes_used>=95% or <2G blocks).
+
+Mechanism (proved by direct measurement, second agent, re-verified here):
+backend/tests/integration/conftest.py clean_tables ran `TRUNCATE TABLE … CASCADE` over
+~815 tables between EVERY test. TRUNCATE allocates a NEW relfilenode (new inode) and
+defers unlinking the old one to the next checkpoint (checkpoint_timeout=300s). 18
+per-worker DBs × 815 tables inside one checkpoint window exhausts 634K free inodes in
+~778 truncate cycles — an ordinary integration pace. The cluster's relfilenode
+high-water was 6,139,772: six million relation files created. The "periodic burst to
+zero then 4% again" is the checkpoint retiring dead files by the time anyone looks.
+
+Fix (commit 5bbd6939, test-only): `DELETE FROM {table}` — reuses the relfilenode, zero
+inode allocation; FK ordering was already handled by the surrounding
+session_replication_role=replica, making CASCADE redundant; near-empty test tables make
+DELETE's scan free (the TRUNCATE-faster comment was written for the wrong regime).
+Operational relief: gate-postgres ALTER SYSTEM checkpoint_timeout='30s' (live,
+reversible) — cuts the dead-file high-water ~10×.
+Proof: relfilenode max delta = **0** across a 105-test run (was +815/test-worker/cycle).
+
+Consequences: (1) the three VOIDED runs' root cause is this, not contamination from
+outside — results are recoverable by rerun, and reruns are now safe; (2) the earlier
+"provision a dense-inode volume" ask is WITHDRAWN — the churn outgrows any fixed
+ceiling and the fix removes the churn; (3) validate.sh's integration tier no longer
+PANICs gate-postgres mid-run.
+
+### R-T7-WORKERDOWN (2026-09-13): gw3/gw6 "crashes" were pytest-timeout os._exit(1), not the leak (commits e466db3c, e9f9e1ac)
+
+Both capped-run worker deaths ended on a test in
+integration/test_llm_analysis_pipeline.py::TestErrorHandlingWithEnrichment. Root cause:
+conftest _apply_timeout_marker stamps integration tests timeout=5; this class's
+LLM-error path legitimately takes 7–9s (guided_json precheck burns 3 retries with
+1+2+4s sleeps BEFORE the post-call retries' 1+2s sleeps; measured 8.8s alone with
+--timeout=0 → PASSES). pytest-timeout's thread method dumps stacks and os._exit(1)s —
+killing the whole xdist worker, which xdist reports as "node down: Not properly
+terminated". The RSS traces at death (82/830MB) were the REPLACEMENT worker's — the
+clobbering v2 plugin fixes the attribution.
+
+Fix: @pytest.mark.slow on the class (→30s tier). Separate drift bug in the same file,
+commit e466db3c: capture_prompt read args[1]["messages"] but _call_llm posts the
+payload in the json= KWARG under key "prompt" — the assert could never pass.
+File now 11/11 green (-n4, gate-postgres). Implication for the leak hunt: real leak
+evidence is ONLY the pre-fix kernel kills (22–58GB RSS); post-cutover unit drift is
+~1GB/700 tests. Run-8 (full tier, uncapped-RSS/20GB-VmSize cap, gate-matched
+--timeout=30) is the first run whose summary can be trusted end to end.
