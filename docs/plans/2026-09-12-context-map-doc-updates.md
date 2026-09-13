@@ -335,3 +335,29 @@ cascade-artifact failures individually wastes cycles on non-defects.
   verbose reports, coverage combine, or a single memory-heavy integration test.
 - 226 FAILED under diagnosis in parallel read-only lanes (log/code analysis only — no pytest
   while the gate runs).
+
+### Run-5 (2026-09-13, full-suite rerun with RSS sampling): 239F/31165P/269S/377E in 1122.84s — coverage 25.26% (gate FAIL)
+
+- **Environment was broken, not the tests**: run-5 launched without TEST_DATABASE_URL/TEST_REDIS_URL
+  exported (podman-preferred container discovery in validate.sh found no gate containers — the gate
+  services live in docker). Integration conftest fell through to testcontainers and spawned its own
+  postgres; the sandbox's 9.8GB /dev/vdd filled (~800MB WAL + per-worker `security_test_gwN` DBs at
+  integration/conftest.py:509 `_create_worker_database`) → `psycopg2.errors.DiskFull` → 16,510-line
+  `InFailedSQLTransactionError` cascade → 377 ERRORs across 43 files.
+- 10 xdist workers crashed ("node down: Not properly terminated": gw1–gw3, gw8–gw12) and returned no
+  coverage ("coverage: failed workers" names exactly those 10) → TOTAL coverage collapsed to 25.26%
+  vs run-4's 85.17%. Coverage collapse is a symptom of crashed workers, not a code-coverage change.
+- **RSS samples survived the sandbox restart but are uninterpretable**: controller PID 6312 sampled
+  monotonic 119280→267640 over 14 samples (units ambiguous, container reset wiped cgroup peak);
+  rss8.txt sampler wrote empty lines (wrong pgrep). Decision: instrument run-6 live rather than
+  trust run-5 samples for the OOM verdict.
+- Sandbox restarted 13:17 EDT mid-investigation (dockerd start time = gate containers' exit-255);
+  pre-restart OOM evidence (dmesg, cgroup memory.peak) is gone. Gate containers recreated + verified
+  (psql as security, Redis PONG, DBs 0–15 flushed, stale `security_test` dropped); 5 orphaned docker
+  volumes removed (1.7GB reclaimed → 8.8GB free); TEST_DATABASE_URL/TEST_REDIS_URL now persisted in
+  /etc/sandbox-persistent.sh so run-6 uses gate-local services.
+- **D14 split landed as 9655ec6b** after three mechanical corrections to the draft (unrecognized
+  `--cov-data-file`; missing combine leaving integration-only gating; `| tee` masking pytest exit
+  under set -e) — see commit message for the full evidence trail.
+- FAILED inventory largely carried over from run-4 (DiskFull cascade inflated ERROR count;
+  239 FAILED ≈ run-4's 226 + DiskFull-era flakes). Triage resumes from the run-4 lanes.
