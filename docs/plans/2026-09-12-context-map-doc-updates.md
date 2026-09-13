@@ -427,3 +427,36 @@ cascade-artifact failures individually wastes cycles on non-defects.
   (8 parallel DDL runs replace the serialized advisory-lock queue). Session-scoped create-once +
   drop-at-end + stale-sweep of the new `<base>_gwN` names is FCL Task 7's job; leak is bounded
   (≤ nworkers names per base, idempotently reused).
+
+### R-T7-ENOSPC-RECUR (2026-09-13 20:21 UTC): run-5 disk class strikes the GATE-LOCAL path — postmaster PANIC mid-rehearsal
+
+- **Event**: first post-cutover integration rehearsal was invalid — a pytest worker's write
+  tripped `PANIC: could not create file "pg_wal/xlogtemp.NNNN": No space left on device` on
+  gate-postgres (json-file logs, volume on /dev/vdd). Postmaster auto-recovered (redo 88s,
+  ready 20:22:48); all runs straddling 20:21 (four-cluster classification 52F/20E, auth_flow
+  26E "not yet accepting connections") are CONTAMINATED and were re-run clean.
+- **Why it's a new shape**: run-5's DiskFull was testcontainer-per-worker filling /dev/vdd; here
+  TEST_DATABASE_URL was exported (no testcontainers), df showed /var/lib/docker at 19-24% before
+  and 7.1G free 40s AFTER the panic — a fast burst, not accumulation. `du` into /var/lib/docker
+  returns 4.0K from this namespace (co-resident rootful dockerd owns it; dgx-inference-* live
+  there — untouchable). Unattributable from inside the sandbox; prime suspect is neighbor
+  pressure on /dev/vdd. NOT fixed by us; MITIGATED by /tmp/disk-guard.sh (kills the rehearsal at
+  <1.5G free so results die before the postmaster PANICs and the 90s recovery window poisons
+  them). Ledger protocol addition: every long integration run gets the disk guard.
+- **OOM status after cutover**: dmesg shows NO new worker kills during the cutover-era runs
+  (the 12 recorded kills all predate the cutover; run-6's). Unit tier post-cutover: 27334P/1F
+  (gpu_config flake — green standalone and at the original seed 1989078092).
+
+### NEW FINDING (2026-09-13): /api/backup is fully implemented but never mounted — production 404s (F-candidate, owner ruling required)
+
+- backend/api/routes/backup.py: router with 7 endpoints, prefix /api/backup, implemented since
+  f79f066e ("implement backup/webhook systems", NEM-3566/3624/3667); exported via
+  routes/__init__.py `backup_router`. **Never appears in backend/main.py** — not in the
+  `from backend.api.routes import (...)` block (audit→auth→cost_analytics, alphabetical skip),
+  never include_router'd, in ANY revision (git log -S across --all: zero hits). Frontend
+  frontend/src/services/backupApi.ts calls /api/backup in production => the backup UI 404s live.
+- **Consequence for the gate**: test_backup_api.py 29F is class (ii)-inverse — tests are RIGHT,
+  production wiring is missing. One-line fix (import + include_router, ~1457). STOP-AND-ASK per
+  goal clause: new production-behavior change needs owner ruling (proposed F1-class, same shape
+  as the NEM-5377 router-order ruling). Companion sweep: zone_baselines.py is the only other
+  never-referenced routes module (no APIRouter — inert helper, no action).
