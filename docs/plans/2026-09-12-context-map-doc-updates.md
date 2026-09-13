@@ -183,3 +183,39 @@ Findings:
 - C2: .env.example four vars (Task 2) — already prod-file-neutral; stays
 - C3: node-exporter `/:/host:ro` (drop rslave; rootless-podman compose-API EINVAL, see Phase A
   findings) → prod file only if amd64 rootless users hit it; rootful keeps working either way
+
+## M1 Task 7 close-out — owner-ruling fixes (2026-09-13)
+
+Three uncommitted owner-ruling fixes verified + committed separately (each with repro/verification):
+
+| # | Fix | Commit | Verification |
+|---|---|---|---|
+| F1 | `backend/main.py` — `zones_redirect_router` registered AFTER `zone_anomalies`/`zone_household`; the /api/zones→/api/analytics-zones 308 (NEM-5377, 89b2001b) shadowed `/api/zones/{zone_id}/household*` (Zone Trust Matrix broken) | dfa8bc0c | Repro: with fix stashed, `test_zone_household_api.py::test_get_config_returns_config_when_exists` fails `assert 308 == 200`; with fix, all 32 tests in `test_zone_household_api.py` pass (count of 32 confirmed). Redirect itself still pinned by `test_zones_redirect.py` (11 unit tests, router mounted alone — no full-app ordering test exists; see F2-adjacent gap below) |
+| F2 | `backend/services/threat_monitor_service.py` `_check_cooldown` — cutoff kept tz-aware; naive datetimes bind as server-LOCAL vs timestamptz, shifting the cooldown boundary by the local-UTC offset (4h on EDT) so cooldown never matched | 5ccb3645 | Numeric demo: naive-as-EDT cutoff 09:40Z vs aware 05:40Z (4h error). 148 unit tests pass under UTC and `TZ=America/New_York`; existing unit tests mock the session so they don't discriminate (gap recorded) |
+| F3 | `backend/tests/integration/test_api_protection.py` — session-cookie/setup_required/409/503-body contract repair + `unmocked_setup_client` fixture; two tests asserted unobservable contracts (503 through guard-mocked client; `/api/auth/me` + X-API-Key → 200, unachievable: `get_current_user` is cookie-only, no path validates DB-created keys, AuthMiddleware disabled NEM-5527) | 294d1a7f | File 15/15 pass (was 13P+2F). API-key test now asserts shipped contract: creation 201 + `nemo_k1_` format + settings-listed key authenticating `POST /api/system/cleanup?dry_run=true` (side-effect-free `verify_api_key` route) |
+
+Environment deltas (this sandbox, not GB300): `libgl1` + `libglib2.0-0t64` required for backend
+imports (cv2 import chain from auth_service module graph); integration tests run via
+**testcontainers** here (no podman/no .env — postgres+redis containers start fine); sandbox
+postgres at host.docker.internal:5432 is the co-resident dgx stack (credentials unavailable,
+not the test DB) — do not probe it further.
+
+### Sibling bugs of the F2 class (recorded, NOT fixed — M2 candidates)
+- `backend/services/alert_engine.py:994` — `utc_now_naive()`-derived cutoff (naive) compared
+  to timestamptz `Alert.created_at`: same asyncpg local-time encoding; on non-UTC host engine
+  cooldown never matches → duplicate alerts. Unit tests pass aware datetimes (:788,:801,:819)
+  into the same signature — contract inconsistent, masked by mocks.
+- `backend/services/alert_engine.py:600,626` + `backend/models/dwell_time.py:124` —
+  `utc_now_naive()` passed as `current_time` into `calculate_dwell_time` for active records
+  (exit_time IS NULL → aware from timestamptz): naive − aware → TypeError at runtime. No test
+  pins the mixed-arithmetic path.
+- `backend/tests/integration/test_alert_engine.py:1082,1116` — fixtures write naive
+  `created_at` into timestamptz; cooldown tests mis-evaluate on non-UTC hosts.
+- Gap: no test pins the tz-aware cutoff contract for `_check_cooldown` (unit tests mock the
+  session; integration tests exercise real comparison but pass either way on UTC hosts).
+  `backend/tests/integration/test_alert_engine.py` fixture naive timestamps are the same class.
+
+### Verification-scope note
+Testcontainers can exercise the DB-backed suites in this sandbox; the full no-flag
+`validate.sh` gate requires the Phase A container topology for container discovery
+(D16) — see close-out rows below for how the gate is run here.
