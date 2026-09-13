@@ -332,7 +332,9 @@ async def test_config_update_requires_authentication(client, integration_db):
 
     from backend.main import app
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as no_auth_client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as no_auth_client:
         response = await no_auth_client.patch(
             "/api/system/anomaly-config",
             json={"threshold_stdev": 2.5},

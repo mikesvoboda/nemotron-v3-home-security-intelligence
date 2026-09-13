@@ -89,9 +89,7 @@ async def unmocked_setup_client(integration_db: str):
             break
         node = getattr(node, "app", None)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
@@ -409,9 +407,7 @@ class TestPostSetupAuthentication:
             },
         )
 
-        with patch.object(
-            auth_routes, "get_redis_optional", _real_redis_optional
-        ):
+        with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
             login_response = await client.post(
                 "/api/auth/login",
                 json={
@@ -459,6 +455,7 @@ class TestPostSetupAuthentication:
 
         async def _real_redis_optional():
             return real_redis
+
         # Complete setup
         await client.post(
             "/api/auth/register",
@@ -507,10 +504,8 @@ class TestApiKeyAuthentication:
 
         async def _real_redis_optional():
             return real_redis
-        with patch.object(
-            auth_routes, "get_redis_optional", _real_redis_optional
-        ):
 
+        with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
             # Complete setup and login (AsyncClient stores the session cookie)
             await client.post(
                 "/api/auth/register",
@@ -534,7 +529,9 @@ class TestApiKeyAuthentication:
 
             # SESSION_COOKIE_SECURE=True: httpx (http base_url) does not auto-store
             # the login cookie; a real browser over HTTPS would. Send it explicitly.
-            explicit_cookie = {SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")}
+            explicit_cookie = {
+                SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")
+            }
 
             # Create API key (session cookie authenticates). Shipped: the
             # minted key is write-only — it is stored hashed (prefix exposed)
@@ -651,10 +648,8 @@ class TestSessionCookieAuthentication:
 
         async def _real_redis_optional():
             return real_redis
-        with patch.object(
-            auth_routes, "get_redis_optional", _real_redis_optional
-        ):
 
+        with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
             # Setup and login
             await client.post(
                 "/api/auth/register",
@@ -678,7 +673,9 @@ class TestSessionCookieAuthentication:
 
             # SESSION_COOKIE_SECURE=True: httpx (http base_url) does not auto-store
             # the login cookie; send it explicitly (owner ruling F3)
-            explicit_cookie = {SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")}
+            explicit_cookie = {
+                SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")
+            }
 
             # Logout (session cookie authenticates; no bearer token in the shipped
             # contract — auth redesign NEM-5312/5322, owner ruling F3)
@@ -713,10 +710,8 @@ class TestMultiUserFlow:
 
         async def _real_redis_optional():
             return real_redis
-        with patch.object(
-            auth_routes, "get_redis_optional", _real_redis_optional
-        ):
 
+        with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
             # Setup first admin user
             await client.post(
                 "/api/auth/register",
@@ -741,7 +736,9 @@ class TestMultiUserFlow:
             await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
             # SESSION_COOKIE_SECURE=True: send the login cookie explicitly
-            admin_cookie = {SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")}
+            admin_cookie = {
+                SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")
+            }
 
             # Create second user as admin (session cookie authenticates)
             create_user_response = await client.post(
@@ -773,10 +770,8 @@ class TestMultiUserFlow:
 
         async def _real_redis_optional():
             return real_redis
-        with patch.object(
-            auth_routes, "get_redis_optional", _real_redis_optional
-        ):
 
+        with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
             # Setup first admin
             await client.post(
                 "/api/auth/register",
@@ -800,7 +795,9 @@ class TestMultiUserFlow:
             await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
             # SESSION_COOKIE_SECURE=True: send the login cookie explicitly
-            admin_cookie = {SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")}
+            admin_cookie = {
+                SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")
+            }
 
             await client.post(
                 "/api/admin/users",
