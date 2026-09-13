@@ -487,3 +487,26 @@ cascade-artifact failures individually wastes cycles on non-defects.
   cross-file, scattered victims). Must be fixed at the leak source; xdist 3.8.0 has no periodic
   worker restart. Leads queued: test_memory_stability.py + test_data_corruption.py (alloc-heavy
   names, both red), bisect via pytest-split slices with per-worker RSS sampler.
+
+### R-T7-OOM-DIAG (2026-09-13, capped-address-space run in flight): leak is VmSize-dominated, not uniform RSS
+
+- Experiment: integration tier -n6 under `ulimit -v 8388608` (8GB address-space cap/worker,
+  inherited by xdist replacements) + per-test RSS recorder (/tmp/rss-trace). 62GB box, 6 caps —
+  aggregate safe.
+- **Finding 1 — VmSize outgrows RSS ~1.6×**: the first capped worker died at VmSize exactly
+  8.39GB with VmRSS only 5.3GB (smaps_rollup: 5.18GB Pss_Dirty ANON, incl. ONE contiguous 1.35GB
+  rw-anon mapping — a single huge object/arena, not uniform drift). ulimit -v therefore caps the
+  wrong counter: workers segfault-equivalent die ("node down: Not properly terminated") WITHOUT
+  a MemoryError traceback — C-level alloc failure. Traceback-on-leak plan is dead; RSS-keyed
+  bucket bisection replaces it.
+- **Finding 2 — healthy workers drift ~1GB/700tests** (decile profile: 631->1320MB on gw4);
+  baseline first-test import cost ~600MB. So run-6/rehearsal's 20-58GB workers are NOT generic
+  drift — they must visit a specific runaway test/file repeatedly (worksteal distributes it).
+- **Operational note**: two concurrent heavy integration runs against gate-postgres (my -n0
+  backup recheck + this diagnostic) coincided with a THIRD DiskFull error burst
+  (InFailedSQLTransaction cascade, 11F/5E on a file that was 4F/29P one run earlier — the
+  4F/29P is the valid measurement). Protocol: exactly ONE heavy integration job at a time;
+  disk-guard stays armed for all of them.
+- **Next instrument (queued)**: deterministic 8-bucket file bisection, sequential, -n0, per-bucket
+  max-RSS sampler; recurse the runaway bucket to file level. Plugin fix: pid in TSV names
+  (replacement workers currently clobber their predecessor's trace).
