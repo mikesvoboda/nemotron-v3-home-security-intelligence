@@ -45,7 +45,6 @@ def _bypass_setup_guard():
     NEM-5312's convention: guard bypassed in integration tests (owner
     ruling F3).
     """
-    from backend.api.middleware.setup_guard import SetupGuardMiddleware
 
     return patch(
         "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
