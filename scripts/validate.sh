@@ -293,12 +293,78 @@ run_backend_validation() {
     # passed here because it would replace pyproject.toml's addopts expression
     # (which carries "-m 'not gpu'").
     print_step "Running pytest (Tests & Coverage)..."
-    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80 --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks" --ignore="$PROJECT_ROOT/backend/tests/e2e" --ignore="$PROJECT_ROOT/backend/tests/chaos"; then
-        print_error "Backend tests failed or coverage below 80%"
+    # D14 split (M1 Task 7 pre-authorized fix, applied 2026-09-13): mirror
+    # CI's shape — unit suite in one pytest process, integration suites in
+    # another. The single combined process OOM-killed xdist workers at
+    # 30-50GB RSS (R-T7-OTEL-OOM class; workers running TestClient
+    # lifespans accumulate ML-stack Rust state — tokenizers
+    # pretty_env_logger init aborts on the second SetLoggerError) and the
+    # controller died with them, cascading 377-1398 setup ERRORs. The split
+    # is what CI already does (ci.yml unit job 85% gate; integration jobs
+    # separate with --cov-fail-under=0).
+    #
+    # Coverage semantics PRESERVED — the 80% gate stays COMBINED
+    # (unit+integration, as the pre-split single run measured it; run-4's
+    # 85.17% and run-5's crash-collapsed 25.26% were both that number).
+    # Mechanics: each pytest-cov invocation writes its own data file via the
+    # COVERAGE_FILE env var (pytest-cov has no --cov-data-file flag — the
+    # first draft of this split used one and died on "unrecognized
+    # arguments"), then `coverage combine` merges them and the report is
+    # gated at 80 against the merged file. Both runs pass --cov-fail-under=0
+    # so pyproject's [tool.coverage.report] fail_under=85 cannot fire early.
+    # Suite scope unchanged: the four --ignore exclusions in both runs, and
+    # the split collects the identical 32000 items as the whole-tree path
+    # did (verified by --co -q diff, zero delta). No `| tee`: this is /bin/sh
+    # with `set -e` but no pipefail, so a pipe would test tee's status and
+    # mask pytest failures — output goes to a log file that is cat'd on
+    # failure instead. Environment note (run-5, 2026-09-13): when no
+    # postgres container is discoverable the integration tier silently falls
+    # back to spawning a testcontainer per worker DB — that run filled its
+    # 9.8GB docker disk with ~800MB WAL and DiskFull-cascaded 377 setup
+    # ERRORs. Pre-export TEST_DATABASE_URL/TEST_REDIS_URL to point at a
+    # real server before running this gate.
+    _VALIDATE_COV_DATA_DIR=$(mktemp -d)
+    print_step "Running backend unit tests (coverage)..."
+    if ! COVERAGE_FILE="$_VALIDATE_COV_DATA_DIR/.coverage.unit" \
+        uv run pytest "$PROJECT_ROOT/backend/tests/unit" "$PROJECT_ROOT/backend/tests/contracts" "$PROJECT_ROOT/backend/tests/security" \
+        --cov="$PROJECT_ROOT/backend" --cov-report= --cov-fail-under=0 \
+        --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks" --ignore="$PROJECT_ROOT/backend/tests/e2e" --ignore="$PROJECT_ROOT/backend/tests/chaos" \
+        > /tmp/validate-backend-unit.log 2>&1; then
+        print_error "Backend unit tests failed (full log: /tmp/validate-backend-unit.log)"
+        tail -60 /tmp/validate-backend-unit.log
+        rm -rf "$_VALIDATE_COV_DATA_DIR"
         echo ""
         echo "Fix failing tests, then re-run validation."
         exit 1
     fi
+    print_success "Backend unit tests passed"
+    print_step "Running backend integration tests (coverage)..."
+    if ! COVERAGE_FILE="$_VALIDATE_COV_DATA_DIR/.coverage.integration" \
+        uv run pytest "$PROJECT_ROOT/backend/tests/integration" \
+        --cov="$PROJECT_ROOT/backend" --cov-report= --cov-fail-under=0 \
+        --ignore="$PROJECT_ROOT/backend/tests/load" --ignore="$PROJECT_ROOT/backend/tests/benchmarks" --ignore="$PROJECT_ROOT/backend/tests/e2e" --ignore="$PROJECT_ROOT/backend/tests/chaos" \
+        --timeout=30 > /tmp/validate-backend-integration.log 2>&1; then
+        print_error "Backend integration tests failed (full log: /tmp/validate-backend-integration.log)"
+        tail -60 /tmp/validate-backend-integration.log
+        rm -rf "$_VALIDATE_COV_DATA_DIR"
+        echo ""
+        echo "Fix failing tests, then re-run validation."
+        exit 1
+    fi
+    print_success "Backend integration tests passed"
+    print_step "Combining coverage (unit + integration) and checking the 80% gate..."
+    uv run python -m coverage combine --data-file="$_VALIDATE_COV_DATA_DIR/.coverage" \
+        "$_VALIDATE_COV_DATA_DIR/.coverage.unit" "$_VALIDATE_COV_DATA_DIR/.coverage.integration" >/dev/null
+    if ! uv run python -m coverage report --data-file="$_VALIDATE_COV_DATA_DIR/.coverage" --fail-under=80 --show-missing > /tmp/validate-coverage-report.log 2>&1; then
+        print_error "Combined unit+integration coverage below 80% (report: /tmp/validate-coverage-report.log)"
+        tail -20 /tmp/validate-coverage-report.log
+        rm -rf "$_VALIDATE_COV_DATA_DIR"
+        echo ""
+        echo "Fix failing tests, then re-run validation."
+        exit 1
+    fi
+    tail -2 /tmp/validate-coverage-report.log
+    rm -rf "$_VALIDATE_COV_DATA_DIR"
     print_success "Backend tests passed with sufficient coverage"
 
     # Optional: Run prompt evaluation (commented out by default)
