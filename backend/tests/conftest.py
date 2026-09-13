@@ -574,6 +574,8 @@ def get_test_db_url() -> str:
     """Get the PostgreSQL test database URL for unit tests.
 
     Priority order:
+    0. TEST_DB_NO_WORKER_SUFFIX set -> verbatim env URL (documented emergency
+       opt-out; the pre-spec-3.1 behavior, kept as the rollback lever)
     1. TEST_DATABASE_URL environment variable (explicit override)
     2. Local PostgreSQL on port 5432 (development with Podman/Docker)
 
@@ -581,22 +583,39 @@ def get_test_db_url() -> str:
     backend/tests/integration/conftest.py instead.
 
     Returns:
-        str: PostgreSQL connection URL with asyncpg driver
+        str: PostgreSQL connection URL with asyncpg driver, pointed at a
+        PER-WORKER database ('<base>_gwN' under xdist, '<base>_main' when
+        serial), created idempotently on first call (spec 3.1; M1
+        R-T7-DBRACE-FINAL proved the verbatim return serializes every worker
+        on one schema-reset advisory lock).
 
     Raises:
         RuntimeError: If no PostgreSQL instance is available
     """
-    # 1. Check for explicit environment variable override (CI sets both)
+    # 0. Emergency opt-out (rollback lever named in spec 3.1's risk framing).
+    if os.environ.get("TEST_DB_NO_WORKER_SUFFIX"):
+        env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        if env_url:
+            if "postgresql://" in env_url and "asyncpg" not in env_url:
+                env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
+            return env_url
+
+    # 1. Check for explicit environment variable override (CI sets both).
+    #    The returned URL is PER-WORKER: the base DB name gets the xdist worker
+    #    id suffixed and the database is ensured to exist. Connection params
+    #    (host/port/credentials) still come from the env.
     env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if env_url:
         # Ensure asyncpg driver
         if "postgresql://" in env_url and "asyncpg" not in env_url:
             env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
-        return env_url
+        name = worker_db_name(env_url)
+        return _create_worker_database(env_url, name)
 
     # 2. Check for local PostgreSQL (development environment with Podman/Docker)
     if _check_postgres_connection():
-        return DEFAULT_DEV_POSTGRES_URL
+        name = worker_db_name(DEFAULT_DEV_POSTGRES_URL)
+        return _create_worker_database(DEFAULT_DEV_POSTGRES_URL, name)
 
     raise RuntimeError(
         "PostgreSQL not available for unit testing. Options:\n"

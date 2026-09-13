@@ -100,3 +100,39 @@ class TestCreateDrop:
             assert exists is None, "worker DB writes leaked into the base database"
         finally:
             _drop_worker_database(base_url, name)
+
+
+class TestGetTestDbUrlCutover:
+    def test_returns_worker_scoped_url(self, base_url, monkeypatch):
+        from backend.tests.conftest import get_test_db_url
+
+        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw9")
+        monkeypatch.setenv("TEST_DATABASE_URL", base_url)
+        url = get_test_db_url()
+        name = url.rsplit("/", 1)[-1]
+        assert name.endswith("_gw9")
+        assert name != base_url.rsplit("/", 1)[-1]
+
+    def test_repeat_call_is_stable(self, base_url, monkeypatch):
+        from backend.tests.conftest import get_test_db_url
+
+        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw8")
+        monkeypatch.setenv("TEST_DATABASE_URL", base_url)
+        assert get_test_db_url() == get_test_db_url()
+
+    def test_master_suffix(self, base_url, monkeypatch):
+        from backend.tests.conftest import get_test_db_url
+
+        monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+        monkeypatch.setenv("TEST_DATABASE_URL", base_url)
+        url = get_test_db_url()
+        assert url.rsplit("/", 1)[-1].endswith("_main")
+
+    def test_opt_out_env_restores_verbatim(self, base_url, monkeypatch):
+        from backend.tests.conftest import get_test_db_url
+
+        monkeypatch.setenv("TEST_DATABASE_URL", base_url)
+        monkeypatch.setenv("TEST_DB_NO_WORKER_SUFFIX", "1")
+        assert get_test_db_url() == base_url.replace(
+            "postgresql://", "postgresql+asyncpg://"
+        ).replace("postgresql+asyncpg://", "postgresql+asyncpg://")
