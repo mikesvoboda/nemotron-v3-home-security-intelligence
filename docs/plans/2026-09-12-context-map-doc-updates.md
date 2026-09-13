@@ -460,3 +460,30 @@ cascade-artifact failures individually wastes cycles on non-defects.
   goal clause: new production-behavior change needs owner ruling (proposed F1-class, same shape
   as the NEM-5377 router-order ruling). Companion sweep: zone_baselines.py is the only other
   never-referenced routes module (no APIRouter — inert helper, no action).
+
+### R-T7-BACKUP-MOUNT (ruling F4, 2026-09-13): /api/backup mounted — 29F -> 7F standalone
+
+- Owner ruling F4 via goal stop-and-ask: mount the router. main.py: import `backup` +
+  include_router(backup.router) after auth (alphabetical + ordered-safe: /api/backup collides
+  with nothing). Standalone test_backup_api.py: 29F/4P -> 7F/26P. Remaining 7 are NEW findings,
+  all class (c/c-iv) test-vs-route drift now that the endpoints are reachable:
+  (1) 4x "not_found" tests send job_id='nonexistent-job-id' -> asyncpg uuid_encode rejects a
+  non-UUID bind => 503 (route 500-handled as db error) where tests expect 404 — route should
+  404 malformed ids before touching the DB (arguable production-hardening, small);
+  (2) 2x status-race tests assert PENDING but background job already COMPLETED/FAILED by assert
+  time (test drift: need to observe via API or freeze the runner);
+  (3) 1x test bug: `await db_session.expire_all()` where db_session is None (fixture misuse).
+
+### R-T7-OOM-2 (2026-09-13 ~20:29-20:38 UTC): post-cutover rehearsal — worker leak WORSE, not fixed; rehearsal tally VOID
+
+- Second full integration rehearsal under the cutover: 6 NEW OOM kills (dmesg: anon-rss
+  58.0/57.4/50.8/37.5/30.1/22.3 GB — a single worker reached 58 GB, up from run-6's 33.8 GB peak).
+  8 workers replaced mid-run (gw1/3/6/8/9/10/11/12 — ids beyond -n8 prove xdist replacement).
+  Reached 99% again; killed by owner decision at 0 GB free before summary. 439 FAILED lines are
+  NOT a triage surface: crash-replaced workers inherit their predecessor's DB residue
+  (test_base 38F all landed on post-crash gw9 at 87%; the 14-file -n4 contention set is green
+  WITH the cutover) — every post-kill result is untrustworthy, same artifact rule as run-5/6.
+- Verdict: per-worker DBs fixed CONTENTION; the leak is in-process accumulation (run-6 evidence:
+  cross-file, scattered victims). Must be fixed at the leak source; xdist 3.8.0 has no periodic
+  worker restart. Leads queued: test_memory_stability.py + test_data_corruption.py (alloc-heavy
+  names, both red), bisect via pytest-split slices with per-worker RSS sampler.

@@ -49,6 +49,7 @@ from backend.api.routes import (
     analytics_zones,
     audit,
     auth,
+    backup,
     calibration,
     cameras,
     cost_analytics,
@@ -1455,6 +1456,10 @@ app.include_router(analytics.router)
 app.include_router(analytics_zones.router)
 app.include_router(audit.router)
 app.include_router(auth.router)
+# Ruling F4 (2026-09-13): backup.router was implemented in f79f066e and called by the frontend
+# (backupApi.ts) but never mounted in any revision — /api/backup 404'd in production. Owner
+# ruling: mount it. See docs/plans/2026-09-12-context-map-doc-updates.md (R-T7-BACKUP-MOUNT).
+app.include_router(backup.router)
 app.include_router(cost_analytics.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
