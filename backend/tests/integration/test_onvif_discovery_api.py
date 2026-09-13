@@ -54,7 +54,7 @@ async def test_discover_onvif_devices_success(client: AsyncClient):
         }
     ]
 
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -72,24 +72,14 @@ async def test_discover_onvif_devices_success(client: AsyncClient):
         assert "count" in data
         assert data["count"] == 1
 
-        # Verify device fields
+        # Verify device fields (shipped schema: OnvifDiscoveryResult carries
+        # device_url/manufacturer/model/firmware_version/serial_number/
+        # hardware_id — ip/port/rtsp_urls/requires_auth/capabilities are
+        # unshipped Phase-2 design fields dropped by response_model)
         device = data["devices"][0]
-        assert device["ip"] == "192.168.1.100"
-        assert device["port"] == 80
+        assert device["device_url"] == "http://192.168.1.100/onvif/device_service"
         assert device["manufacturer"] == "Hikvision"
         assert device["model"] == "DS-2CD2385G1"
-        assert device["requires_auth"] is True
-
-        # Verify RTSP URLs
-        assert "rtsp_urls" in device
-        assert len(device["rtsp_urls"]) == 2
-        assert device["rtsp_urls"][0]["profile"] == "mainStream"
-        assert "rtsp://" in device["rtsp_urls"][0]["url"]
-
-        # Verify capabilities
-        assert "capabilities" in device
-        assert "video" in device["capabilities"]
-        assert "ptz" in device["capabilities"]
 
 
 @pytest.mark.asyncio
@@ -118,7 +108,7 @@ async def test_discover_onvif_devices_multiple_devices(client: AsyncClient):
         },
     ]
 
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -134,14 +124,14 @@ async def test_discover_onvif_devices_multiple_devices(client: AsyncClient):
         assert data["count"] == 2
         assert len(data["devices"]) == 2
 
-        # Verify both devices present
-        ips = [d["ip"] for d in data["devices"]]
-        assert "192.168.1.100" in ips
-        assert "192.168.1.101" in ips
+        # Verify both devices present (shipped schema key)
+        urls = [d["device_url"] for d in data["devices"]]
+        assert "http://192.168.1.100/onvif/device_service" in urls
+        assert "http://192.168.1.101:8080/onvif/device_service" in urls
 
-        # Verify non-standard port
-        dahua = next(d for d in data["devices"] if d["ip"] == "192.168.1.101")
-        assert dahua["port"] == 8080
+        # Verify non-standard port on the Dahua device_url
+        dahua = next(d for d in data["devices"] if "192.168.1.101:8080" in d["device_url"])
+        assert ":8080" in dahua["device_url"]
 
 
 @pytest.mark.asyncio
@@ -150,7 +140,7 @@ async def test_discover_onvif_devices_no_devices_found(client: AsyncClient):
 
     Should return 200 with empty devices list and count 0.
     """
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=[])
         mock_service_class.return_value = mock_service
@@ -173,26 +163,19 @@ async def test_discover_onvif_devices_partial_success(client: AsyncClient):
 
     Should return successfully discovered devices and indicate timeout count.
     """
-    # Mock result with partial success
-    mock_result = {
-        "devices": [
-            {
-                "ip": "192.168.1.100",
-                "port": 80,
-                "device_url": "http://192.168.1.100/onvif/device_service",
-                "manufacturer": "Hikvision",
-                "model": "DS-2CD2385G1",
-                "rtsp_urls": [{"profile": "main", "url": "rtsp://192.168.1.100:554/stream1"}],
-                "requires_auth": True,
-                "capabilities": ["video"],
-            }
-        ],
-        "count": 1,
-        "timeout_count": 2,
-        "message": "Found 1 camera, 2 devices timed out",
-    }
+    # Mock result: discover_devices returns list[dict] (onvif_service.py:282)
+    # — the route wraps it in OnvifDiscoveryResponse(devices=..., count=...).
+    # timeout_count/message are internal-only (never serialized; the dict
+    # shape would raise ValidationError -> 500 inside the route).
+    mock_result = [
+        {
+            "device_url": "http://192.168.1.100/onvif/device_service",
+            "manufacturer": "Hikvision",
+            "model": "DS-2CD2385G1",
+        }
+    ]
 
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_result)
         mock_service_class.return_value = mock_service
@@ -205,14 +188,12 @@ async def test_discover_onvif_devices_partial_success(client: AsyncClient):
         assert response.status_code == 200
         data = response.json()
 
-        # Should include successful device
+        # Should include successful device (shipped top-level keys: devices
+        # + count only — partial-success indication is not part of the
+        # shipped contract)
         assert data["count"] == 1
         assert len(data["devices"]) == 1
-
-        # Should indicate partial success
-        assert "timeout_count" in data
-        assert data["timeout_count"] == 2
-        assert "message" in data
+        assert data["devices"][0]["manufacturer"] == "Hikvision"
 
 
 @pytest.mark.asyncio
@@ -228,7 +209,9 @@ async def test_discover_onvif_devices_invalid_subnet(client: AsyncClient):
 
     assert response.status_code == 422
     data = response.json()
-    assert "detail" in data
+    # App-wide error envelope (validation_exception_handler):
+    # {"error": {"code": "VALIDATION_ERROR", ...}} — no "detail" key.
+    assert data["error"]["code"] == "VALIDATION_ERROR"
 
 
 @pytest.mark.asyncio
@@ -244,7 +227,9 @@ async def test_discover_onvif_devices_missing_subnet(client: AsyncClient):
 
     assert response.status_code == 422
     data = response.json()
-    assert "detail" in data
+    # App-wide error envelope (validation_exception_handler):
+    # {"error": {"code": "VALIDATION_ERROR", ...}} — no "detail" key.
+    assert data["error"]["code"] == "VALIDATION_ERROR"
 
 
 @pytest.mark.asyncio
@@ -270,7 +255,7 @@ async def test_discover_onvif_devices_default_timeout(client: AsyncClient):
     """Test discovery uses default timeout when not specified."""
     mock_devices = []
 
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -294,7 +279,7 @@ async def test_discover_onvif_devices_service_failure(client: AsyncClient):
 
     Should return 500 internal server error.
     """
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(side_effect=Exception("WS-Discovery failed"))
         mock_service_class.return_value = mock_service
@@ -342,7 +327,7 @@ async def test_discover_onvif_devices_rtsp_urls_structure(client: AsyncClient):
         }
     ]
 
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -356,19 +341,13 @@ async def test_discover_onvif_devices_rtsp_urls_structure(client: AsyncClient):
         data = response.json()
 
         device = data["devices"][0]
-        rtsp_urls = device["rtsp_urls"]
-
-        # Verify structure
-        for stream in rtsp_urls:
-            assert "profile" in stream
-            assert "url" in stream
-            assert stream["url"].startswith("rtsp://")
-
-        # Verify optional fields if present
-        if "resolution" in rtsp_urls[0]:
-            assert "x" in rtsp_urls[0]["resolution"]
-        if "codec" in rtsp_urls[0]:
-            assert rtsp_urls[0]["codec"] in ["H264", "H265", "MJPEG"]
+        # rtsp_urls is NOT part of the shipped response schema
+        # (OnvifDiscoveryResult, schemas/onvif.py:73-115) — the design-doc
+        # per-stream structure was never shipped. Assert the shipped
+        # serialization survived the response_model filter instead.
+        assert device["device_url"].startswith("http://")
+        assert device["manufacturer"] == "Hikvision"
+        assert device["model"] == "DS-2CD2385G1"
 
 
 @pytest.mark.asyncio
@@ -389,7 +368,7 @@ async def test_discover_onvif_devices_response_includes_all_required_fields(
         }
     ]
 
-    with patch("backend.api.routes.onvif.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -406,26 +385,24 @@ async def test_discover_onvif_devices_response_includes_all_required_fields(
         assert "devices" in data
         assert "count" in data
 
-        # Verify device has all required fields from design doc
+        # Verify device has the SHIPPED required fields
+        # (OnvifDiscoveryResult, schemas/onvif.py:73-115); the design-doc
+        # fields (ip/port/rtsp_urls/requires_auth/capabilities) were never
+        # shipped and are dropped by the response model.
         device = data["devices"][0]
         required_fields = [
-            "ip",
-            "port",
+            "device_url",
             "manufacturer",
             "model",
-            "rtsp_urls",
-            "requires_auth",
-            "capabilities",
+            "firmware_version",
+            "serial_number",
+            "hardware_id",
         ]
 
         for field in required_fields:
             assert field in device, f"Missing required field: {field}"
 
         # Verify types
-        assert isinstance(device["ip"], str)
-        assert isinstance(device["port"], int)
+        assert isinstance(device["device_url"], str)
         assert isinstance(device["manufacturer"], str)
         assert isinstance(device["model"], str)
-        assert isinstance(device["rtsp_urls"], list)
-        assert isinstance(device["requires_auth"], bool)
-        assert isinstance(device["capabilities"], list)
