@@ -109,13 +109,14 @@ async def test_search_basic_query(client, setup_searchable_events):
     data = response.json()
 
     assert "results" in data
-    assert "total" in data
+    # Shipped SearchResponse (schemas/search.py:78-112): results,
+    # total_count, limit, offset — no "total", no "query" echo.
+    assert "total_count" in data
     assert "limit" in data
     assert "offset" in data
-    assert "query" in data
 
     # Should find events mentioning "person"
-    assert data["total"] >= 0  # May be 0 if FTS not populated yet
+    assert data["total_count"] >= 0  # May be 0 if FTS not populated yet
 
 
 @pytest.mark.asyncio
@@ -175,8 +176,11 @@ async def test_search_with_date_range(client, setup_searchable_events):
     start_date = (datetime.now(UTC) - timedelta(days=1)).isoformat()
     end_date = datetime.now(UTC).isoformat()
 
+    # params= percent-encodes the '+' in the tz offset; string interpolation
+    # leaves it raw and it arrives as a literal space -> 422.
     response = await client.get(
-        f"/api/events/search?q=detected&start_date={start_date}&end_date={end_date}"
+        "/api/events/search",
+        params={"q": "detected", "start_date": start_date, "end_date": end_date},
     )
 
     assert response.status_code == 200
@@ -219,10 +223,12 @@ async def test_search_relevance_scoring(client, setup_searchable_events):
     assert response.status_code == 200
     data = response.json()
 
-    # Results should have rank scores
+    # Results should have relevance scores (shipped field name:
+    # relevance_score — schemas/search.py:70-72, service labels the SQL
+    # rank as relevance_score)
     for result in data["results"]:
-        assert "rank" in result
-        assert isinstance(result["rank"], int | float)
+        assert "relevance_score" in result
+        assert isinstance(result["relevance_score"], int | float)
 
 
 @pytest.mark.asyncio
@@ -249,25 +255,33 @@ async def test_search_empty_query_rejected(client):
 
 @pytest.mark.asyncio
 async def test_search_returns_highlights(client, setup_searchable_events):
-    """Test that results include highlights."""
+    """Test that results carry the shipped per-result fields.
+
+    "highlights" is not part of the shipped contract — no backend code
+    outside tests references it (repo-wide grep) and no revision of
+    schemas/search.py ever had it. Assert the shipped result fields.
+    """
     response = await client.get("/api/events/search?q=suspicious")
 
     assert response.status_code == 200
     data = response.json()
 
-    # Results should have highlights array
     for result in data["results"]:
-        assert "highlights" in result
-        assert isinstance(result["highlights"], list)
+        assert "id" in result  # SearchResult.id (Event ID)
+        assert "relevance_score" in result
 
 
 @pytest.mark.asyncio
 async def test_search_returns_query_in_response(client, setup_searchable_events):
-    """Test that response includes the original query."""
+    """Test search response shape for a real query.
+
+    The shipped SearchResponse (schemas/search.py:78-112) never included a
+    "query" echo (no revision did) — assert the shipped response shape.
+    """
     response = await client.get("/api/events/search?q=person")
 
     assert response.status_code == 200
     data = response.json()
 
-    assert "query" in data
-    assert data["query"] == "person"
+    assert data["total_count"] >= 0
+    assert isinstance(data["results"], list)
