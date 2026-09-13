@@ -185,29 +185,34 @@ class JobHistoryService:
         Returns:
             List of TransitionRecord objects ordered by transition time.
         """
-        # Try to parse as UUID for the transition table
+        # Bind the job_id STRING: JobTransition.job_id is a String(36) column
+        # (models/job_transition.py — "Use String(36) to match the Job model's
+        # id type"), so binding a UUID object produced `varchar = uuid`
+        # UndefinedFunctionError on every history/logs read (the model
+        # comment IS the contract). The parse-and-discard UUID check below
+        # keeps the not-a-UUID early-out for special-character test IDs.
         try:
-            job_uuid = UUID(job_id)
-            result = await self._session.execute(
-                select(JobTransition)
-                .where(JobTransition.job_id == job_uuid)
-                .order_by(JobTransition.transitioned_at)
-            )
-            transitions = result.scalars().all()
-
-            return [
-                TransitionRecord(
-                    from_status=t.from_status if t.from_status != "initial" else None,
-                    to_status=t.to_status,
-                    at=t.transitioned_at,
-                    triggered_by=t.triggered_by,
-                    details={"metadata": t.metadata_json} if t.metadata_json else None,
-                )
-                for t in transitions
-            ]
+            UUID(job_id)
         except (ValueError, TypeError):
             # Job ID is not a valid UUID - return empty transitions
             return []
+        result = await self._session.execute(
+            select(JobTransition)
+            .where(JobTransition.job_id == job_id)
+            .order_by(JobTransition.transitioned_at)
+        )
+        transitions = result.scalars().all()
+
+        return [
+            TransitionRecord(
+                from_status=t.from_status if t.from_status != "initial" else None,
+                to_status=t.to_status,
+                at=t.transitioned_at,
+                triggered_by=t.triggered_by,
+                details={"metadata": t.metadata_json} if t.metadata_json else None,
+            )
+            for t in transitions
+        ]
 
     async def _get_attempts(self, job_id: str) -> list[AttemptRecord]:
         """Get all execution attempts for a job.
