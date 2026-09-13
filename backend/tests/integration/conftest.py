@@ -1041,14 +1041,19 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
                 # Disable FK checks temporarily for faster truncation
                 await session.execute(text("SET session_replication_role = replica"))
 
-                # Truncate tables in order (CASCADE handles any remaining FK issues)
+                # Delete in FK-safe order (deletion_order + replica role above)
                 for table_name in deletion_order:
                     try:
                         # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
-                        # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                        await session.execute(
-                            text(f"TRUNCATE TABLE {table_name} CASCADE")
-                        )  # nosemgrep
+                        # DELETE, not TRUNCATE: TRUNCATE allocates a NEW relfilenode
+                        # (new inode) per call and defers unlinking the old one to the
+                        # next checkpoint — ~815 tables x every test x 18 worker DBs
+                        # exhausted the 655K-inode /dev/vdd between checkpoints
+                        # (ledger R-T7-ENOSPC-RECUR). These are near-empty test
+                        # tables, so DELETE's row scan is free while TRUNCATE's inode
+                        # churn is not. FK checks are already off via
+                        # session_replication_role=replica, so CASCADE is unneeded.
+                        await session.execute(text(f"DELETE FROM {table_name}"))  # nosemgrep
                     except Exception as e:
                         # Skip tables that don't exist - they may not be migrated yet
                         logger.debug(f"Skipping table {table_name}: {e}")
