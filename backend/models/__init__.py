@@ -84,6 +84,7 @@ from .package_event import PackageEvent, PackageEventType
 from .plate_read import PlateRead
 from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
+from .prompt_version import PromptVersion
 from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .scheduled_report import ReportFormat, ReportFrequency, ScheduledReport
@@ -176,6 +177,7 @@ __all__ = [
     "PrometheusAlert",
     "PrometheusAlertStatus",
     "PromptConfig",
+    "PromptVersion",
     "Property",
     "QuietHoursPeriod",
     "ReIDEmbedding",
