@@ -989,3 +989,9 @@ RedisClient.zrangebyscore(key, min_score=…, max_score=…)
 (core/redis.py:1360) calls the inner client with keywords; the
 test's mock signature (key, min, max) positional-only → TypeError.
 Mock now declares (key, min_score, max_score).
+
+## R-T9-HEATAPI — heatmaps history validates inverted date range with 400 BEFORE camera-existence 404 (2026-09-14, batch G green for this file)
+
+test asserted 404 for valid-camera-invalid… ordering wrong: shipped
+route returns 400 when start_time > end_time regardless of camera
+existence. Aligned to 400.
