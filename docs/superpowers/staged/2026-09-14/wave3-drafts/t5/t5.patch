@@ -1,0 +1,75 @@
+diff --git a/backend/tests/conftest.py b/backend/tests/conftest.py
+index 272b90b1..ae595ae3 100644
+--- a/backend/tests/conftest.py
++++ b/backend/tests/conftest.py
+@@ -632,7 +632,9 @@ def get_test_db_url() -> str:
+ # mirrors backend/tests/integration/conftest.py's proven worker machinery;
+ # duplication across conftests is deliberate (conftest-to-conftest imports are
+ # brittle under pytest's importer) and matches the existing _get_advisory_lock_key
+-# duplication. get_test_db_url behavior is unchanged until the cutover task.
++# duplication. get_test_db_url now routes through these helpers (the spec 3.1
++# cutover landed in e8619d80); session lifecycle (create-once memo, stale
++# sweep, collision-safe reclamation) lives below get_test_redis_url.
+ 
+ 
+ def worker_id() -> str:
+diff --git a/backend/tests/test_db_isolation.py b/backend/tests/test_db_isolation.py
+index 960d264f..6cb0f8f0 100644
+--- a/backend/tests/test_db_isolation.py
++++ b/backend/tests/test_db_isolation.py
+@@ -137,3 +137,55 @@ class TestGetTestDbUrlCutover:
+         assert get_test_db_url() == base_url.replace(
+             "postgresql://", "postgresql+asyncpg://"
+         ).replace("postgresql+asyncpg://", "postgresql+asyncpg://")
++
++
++class TestNameSafetyInvariants:
++    """Collision-safety contracts for the naming scheme (spec 3.1, run-9 lesson).
++
++    Gate run 9 died because the integration tier's serial DB is the *bare*
++    suffixed-less name ('security_test') while root-tier names are
++    '<base>_main'/'<base>_gw<N>' — both tiers keyed their worker names off the
++    same server. These tests pin the invariants that keep the two tiers and
++    the protected set disjoint; they are pure string logic, no DB needed.
++    """
++
++    BASES = (
++        "postgresql+asyncpg://u:p@localhost:5432/security",       # box/gate base
++        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",  # CI base
++        "postgresql+asyncpg://u:p@h:5432/postgres",
++    )
++    WORKERS = ("master", "gw0", "gw7")
++    INTEGRATION_NAMES = ("security_test", "security_test_gw0", "security_test_gw7")
++
++    def test_worker_db_name_never_yields_protected_or_base(self, monkeypatch):
++        for base in self.BASES:
++            base_name = base.rsplit("/", 1)[-1]
++            for wid in self.WORKERS:
++                monkeypatch.setenv("PYTEST_XDIST_WORKER", wid)
++                name = worker_db_name(base)
++                assert name not in PROTECTED, f"{base} @ {wid} -> {name}"
++                assert name != base_name, f"cutover must never return the base DB: {name}"
++
++    def test_root_names_disjoint_from_integration_tier(self, monkeypatch):
++        import re
++
++        for wid in self.WORKERS:
++            monkeypatch.setenv("PYTEST_XDIST_WORKER", wid)
++            name = worker_db_name(self.BASES[0])  # base = 'security'
++            assert name not in self.INTEGRATION_NAMES
++            # integration sweep patterns (root cleanup_stale_databases keeps
++            # exactly these) must not match root-tier names:
++            assert not re.fullmatch(r"test_db_gw[0-9]+", name)
++            assert name != "template_test"
++            # ...and the root lifecycle sweep pattern (Task 7) must not match
++            # integration names or the bare base DB:
++            assert not re.fullmatch(r"security_(gw[0-9]+|main)", "security_test")
++            assert not re.fullmatch(r"security_(gw[0-9]+|main)", "security")
++            assert not re.fullmatch(r"security_(gw[0-9]+|main)", "security_test_gw0")
++
++    def test_serial_names_differ_across_tiers(self, monkeypatch):
++        # master (root tier) = 'security_main'; serial integration = 'security_test'
++        monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
++        assert worker_db_name(self.BASES[0]) == "security_main"
++        monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
++        assert worker_db_name(self.BASES[1]) == "security_test_main"

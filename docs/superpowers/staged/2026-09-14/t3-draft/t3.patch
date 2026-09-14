@@ -1,0 +1,60 @@
+--- a/frontend/vite.config.ts
++++ b/frontend/vite.config.ts
+@@ -378,9 +378,17 @@
+       // Fork-based parallelization for better memory isolation (each fork is separate process)
+       // Threads share memory which can cause accumulation issues during cleanup
+       pool: 'forks',
+-      // Run test files sequentially within each shard to prevent memory accumulation
+-      // This is slower but prevents OOM by allowing cleanup between files
+-      fileParallelism: false,
++      // Machine-aware parallelism (fast-confidence-loop spec SS3.3).
++      // Default is the inherited CI-safe setting: files run sequentially in
++      // each fork worker (vitest overrides maxWorkers to 1 when
++      // fileParallelism is false), so CI is byte-identical without the envs
++      // below. VITEST_PARALLEL=1 (set by validate.sh on >=64 GB boxes, and by
++      // CI only around a measured runner OOM workaround) turns on
++      // file-parallelism with a bounded worker count.
++      fileParallelism: process.env.VITEST_PARALLEL === '1',
++      // `|| 4` not `?? 4`: Number('') is 0 and 0 means UNBOUNDED in vitest, so
++      // an exported-but-empty VITEST_MAX_WORKERS must not fork-bomb a runner.
++      maxWorkers: Number(process.env.VITEST_MAX_WORKERS || 4),
+       // Restart worker after each test file to prevent memory accumulation
+       // This is critical for preventing OOM during long test runs
+       isolate: true,
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -16,9 +16,9 @@
+     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+     "typecheck": "tsc --noEmit",
+     "preview": "vite preview",
+-    "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest",
++    "test": "NODE_OPTIONS=\"--max-old-space-size=${VITEST_HEAP_MB:-8192}\" vitest",
+     "test:ui": "NODE_OPTIONS='--max-old-space-size=8192' vitest --ui",
+-    "test:coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest --coverage",
++    "test:coverage": "NODE_OPTIONS=\"--max-old-space-size=${VITEST_HEAP_MB:-8192}\" vitest --coverage",
+     "test:e2e": "playwright test",
+     "test:e2e:headed": "playwright test --headed",
+     "test:e2e:debug": "playwright test --debug",
+--- a/scripts/validate.sh
++++ b/scripts/validate.sh
+@@ -477,7 +477,19 @@
+ 
+     # Run tests
+     print_step "Running Vitest (Tests)..."
+-    if ! npm run test --prefix "$FRONTEND_DIR" -- --run; then
++    # Machine-aware test execution (fast-confidence-loop spec SS3.3): boxes with
++    # >=64 GB RAM run files in parallel with a bigger heap; small boxes and CI
++    # runners keep the inherited sequential + 8 GB settings byte-identically.
++    # /proc/meminfo is Linux-only: its absence (macOS) falls to 0 -> sequential.
++    MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
++    MEM_KB="${MEM_KB:-0}"
++    if [ "${VITEST_PARALLEL:-}" != "0" ] && [ "$MEM_KB" -ge 67108864 ]; then
++        export VITEST_PARALLEL=1
++        export VITEST_MAX_WORKERS="${VITEST_MAX_WORKERS:-8}"
++        export VITEST_HEAP_MB="${VITEST_HEAP_MB:-16384}"
++        print_step "Parallel vitest: ${VITEST_MAX_WORKERS} workers, ${VITEST_HEAP_MB} MB heap (RAM $((MEM_KB / 1048576)) GB)"
++    fi
++    if ! VITEST_HEAP_MB="${VITEST_HEAP_MB:-8192}" npm run test --prefix "$FRONTEND_DIR" -- --run; then
+         print_error "Frontend tests failed"
+         echo ""
+         echo "Fix failing tests, then re-run validation."

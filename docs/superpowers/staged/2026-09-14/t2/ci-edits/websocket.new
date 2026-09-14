@@ -1,0 +1,25 @@
+      - name: Run WebSocket integration tests
+        # WebSocket tests: test_websocket*.py, test_broadcast*.py, test_pubsub*.py
+        # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
+        run: |
+          set -euo pipefail
+          RERUNS=""
+          if [ -f .github/workflows/flake-allowlist.yml ]; then
+            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+          fi
+          if [ -n "$RERUNS" ]; then
+            echo "Rerunning registered flakes: $RERUNS"
+            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+              --reruns 2 --reruns-delay 5 || true
+          fi
+          uv run pytest backend/tests/integration/ \
+            -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
+            -n0 \
+            --timeout=30 \
+            --cov=backend \
+            --cov-fail-under=0 \
+            --cov-report=xml:coverage-integration-websocket.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-websocket.xml \
+            --durations=20 \
+            -v

@@ -1,0 +1,7 @@
+flakes:
+  - id: test_alpha
+    tracking: NEM-1
+    expires: 2026-12-31
+  - id: test_beta
+    tracking: NEM-2
+    expires: 2026-01-01
