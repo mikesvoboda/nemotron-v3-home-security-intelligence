@@ -1565,3 +1565,27 @@ EXISTS; integration/test_ab_rollout_production.py — FILE NO LONGER
 EXISTS (only unit/core/test_ab_rollout_metrics.py, 138 lines, no
 assert_called). So 5 real sites remain (pipeline_worker:485 + 4 confirmed)
 + 3 audit-stale paths to close as vanished. T7 exec list updated.
+
+## Wave N close-out — run-9 red files re-scored (2026-09-14)
+
+**[VERIFIED, /tmp/verify-waveN.log + /tmp/verify-waveNr.log]** 27 files =
+23 run-9 reds never re-verified after post-run-9 fixes + test_audit.py
+(CIAUDIT re-gate) + test_detections_api.py (ghost-kill requeue) +
+test_export_api.py / test_mqtt_integration.py (K-cluster rescore with
+timeout markers). Scoreboard: 26/27 rc=0 first pass; N-1
+(test_cameras_baseline_config_integration.py) rc=1 — the wave-M entry's
+red-1 note above records the FIRST fix revision (score 0.5) which was
+flawed: an earlier test in-file PATCHes the process-wide baseline
+singleton min_samples to 15, so 20 samples < 15 returns the (False,0.5)
+neutral and the threshold flip was unreachable. Final committed fix
+(d3d923f2): ClassBaseline person=3.0/vehicle=5.0 -> score 0.625 inside
+the flip window (0.60–0.667), explicit min_samples=10 reset + restore.
+Rerun NR-1 rc=0, "9 passed in 24.46s". Wave totals (rc=0 files, from
+per-file logs): 420 passed / 13 skipped (2 EXPORTDEFER downloads,
+6 MQTTPUMP delivery, 2 risk_score_validation environment, 3 pre-existing).
+Zero unaccounted skips. Corrections to the red-1 note above: seed is
+3.0/5.0 -> 0.625 (not 0.5); cutoffs 0.667 -> 0.60 (not 0.4; 0.4 was
+this note pre-dating the min_samples-leak math).
+Commits: 20c0dcc2 (CIAUDIT), 221cd280 + 3cf5b4a5 (TIMEOUT-STAMP
+markers), d3d923f2 (anomaly-contract rewrite). Gate posture: every file
+that failed in run-9 has now been scored green on this branch.
