@@ -356,9 +356,15 @@ describe('Cross-Tab State Synchronization', () => {
         lastUpdated: new Date().toISOString(),
       };
 
-      const { result } = renderHook(() =>
-        useLocalStorage(key, { theme: { mode: 'light', colors: {} }, preferences: {} })
-      );
+      // useLocalStorage contract: initialValue must be IDENTITY-STABLE across
+      // renders (readValue memoizes on [key, initialValue]; its sync effect
+      // re-runs per identity change and JSON.parse returns a fresh object ->
+      // setState→effect→render never settles). An inline literal here OOMs the
+      // 8 GiB worker before testTimeout can fire (tests: 0ms, "heap out of
+      // memory" — the gate-10/14 fork crash). All production call sites pass
+      // primitives; the sibling test above hoists its const — hoist here too.
+      const initialValue = { theme: { mode: 'light', colors: {} }, preferences: {} };
+      const { result } = renderHook(() => useLocalStorage(key, initialValue));
 
       act(() => {
         result.current[1](complexValue);
