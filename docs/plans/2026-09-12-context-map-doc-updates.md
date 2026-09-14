@@ -871,3 +871,18 @@ timeout_method=signal the budget interrupts the await IN the worker — growth
 caps at budget×leak-rate, matching the 5s≈1.5GiB figure; thread method remains
 UNSAFE with func_only=false (os._exit = node respawn, no clean failure).
 Synthetic three-hang harness (setup/body/teardown) still owed in the packet.
+
+## R-T9-HEATMAP — test_heatmap_service.py chased a ghost HeatmapService API (2026-09-14, run-9 dig)
+
+run-9: 4 FAILED, every one AttributeError. The test module constructed
+HeatmapService(db_session) and called get_current_heatmap / get_heatmap_history /
+get_heatmap_statistics / delete_old_heatmaps. Shipped contract
+(services/heatmap_service.py): HeatmapService(grid_width, grid_height) —
+NO session in the constructor; AsyncSession is a per-call first argument;
+the DB-query surface is get_heatmap_data(session, camera_id, start, end) →
+(records, total) and get_merged_heatmap(...) → dict|None. There is NO
+delete-old-records API at all (accumulators are in-memory; reset_accumulator
+is the shipped no-op-on-unknown contract, returns False; get_accumulator_stats
+→ None). Tests rewritten to those five shipped behaviors. Verified
+serially, 4 passed (single-file run, plugin-armed). None of this is
+production change — pure test-alignment.
