@@ -721,3 +721,25 @@ Task 8's env phase runs only AFTER the final green gate recording, never
 during — and long-running gate jobs must be launched before any repo-adjacent
 file generation. bootstrap-gb300.sh itself is fine (idempotent; env phase
 verified no-op-on-existing) — the error was MY sequencing, not the script.
+
+### M3 added (2026-09-14): test-suite audit committed + Milestone 3 plan authored
+
+`docs/development/test-suite-audit-2026-09-13.md` (previously scratch-only) is now
+tracked — it is the authority for WHAT to fix, with provenance tags that bind:
+[VERIFIED] act, [REPORTED] re-verify before bulk action, [ESTIMATE] payoff numbers
+are hypotheses to MEASURE. Milestone 3 plan lands at
+`docs/superpowers/plans/2026-09-14-test-suite-hygiene-milestone3.md`: 11 tasks,
+execution begins after M2 records green. Key sequencing rulings baked in:
+Task 4 (integration_db (a)/(b) split — the audit's highest-value change) GATES
+Task 5 (timeout modernization), because func_only=false shares one budget across
+setup+call+teardown and today's per-test schema rebuild can't fit any sane budget;
+Task 5 additionally STOPs for an owner ruling (P2 pyproject config) — the run-9
+per-phase durations feed its ruling packet. Task 10 (taxonomy/layout moves, the
+~102 domain-judgment files) runs after M2's --fast selectors exist, owner map
+required for the remainder. Audit Part 7 Do-NOT list transplanted verbatim into
+Global Constraints (incl. the 1702s-sleep mirage → real 164s, never
+thread+func_only=false, never hoist `client`). The audit corroborates two
+findings we'd already paid for: the setup-hang hole (gw6 hang, R-T7-TIMEOUT-GATE)
+and .env/timeout-gate protocol items; run-9's 0-AUTH-at-67% continues to confirm
+R-T8-ENVLEAK. M3 is in-scope for the branch but NOT for the current /goal Stop
+condition (M1+M2 only) — it does not gate this session's completion.
