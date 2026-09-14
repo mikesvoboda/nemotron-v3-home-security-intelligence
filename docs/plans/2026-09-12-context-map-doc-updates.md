@@ -1089,3 +1089,16 @@ via get_buffer_status().
 
 Test imported public build_coco_adjacency; shipped name has the underscore
 (stgcn_loader.py:166). Import aligned (white-box check of the matrix).
+
+## R-T9-DWELL — retention helper is cleanup_stale_records(zone_id, max_age_seconds); no delete_old_records (2026-09-14, H6 clean run — dwell green)
+
+dwell_time_service.py:440. Test renamed + re-targeted.
+
+
+## R-T9-ZONEANOM — no camera_id kwarg; zone_id is VARCHAR (uuid.UUID comparison has no operator) (2026-09-14, fixes pending re-run)
+
+(1) get_anomaly_counts_by_zone(since, unacknowledged_only, session) — no
+camera filter exists (zone_anomaly_service.py:465-470); test retargeted to
+the shipped `since` boundary. (2) ZoneAnomaly.zone_id is String; the cascade
+test compared it to uuid.UUID(zone_id) → asyncpg
+"operator does not exist: character varying = uuid". Pass the string.
