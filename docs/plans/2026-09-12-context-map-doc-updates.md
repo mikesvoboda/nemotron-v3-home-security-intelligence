@@ -1221,3 +1221,32 @@ str directly. Test-only change.
 behavior (never 401/403). /api/system/health legitimately answers 503 when
 dependency checks are not green in the test env (R-T9-CORR family) — a 200
 assert conflated service health with auth. Asserts now exclude 401/403 only.
+
+### R-T9-ENRICHCASCADE — identity map returned stale child rows after DB-level cascade (2026-09-14, wave I8)
+
+**[VERIFIED against shipped model + SQLAlchemy semantics]**
+`test_enrichment_models.py::TestEnrichmentCascadeDelete` deleted a Detection
+and asserted `session.get(PoseResult, ...)` is None. The FK ships
+`ondelete="CASCADE"` so Postgres deletes the children, but the ORM never saw
+those DELETEs — `session.get()` answers from the identity map and returned the
+stale in-memory instances. Added `session.expire_all()` after the flush so the
+gets re-SELECT. Test-only change; cascade behavior itself is shipped and
+correct.
+
+
+## R-T9-VIDSTREAM — GZipMiddleware removes content-length from compressible video responses (2026-09-14, standalone 2 passed)
+
+main.py:1429 adds GZipMiddleware; the synthetic video body compresses, so
+the 200 and 206 answers stream chunked gzip with NO content-length header.
+The two content-length tests now send Accept-Encoding: identity; siblings
+never asserted the header and were unaffected. Production middleware
+untouched (perf feature, NEM-3741).
+
+### R-T9-ACTIONEVENTS404 — camera action-events route is a pure filter: unknown camera → 200 empty page (2026-09-14, wave I4)
+
+**[VERIFIED against shipped route]** `action_events.py:225`
+`GET /api/action-events/camera/{camera_id}` never validates camera existence
+(declared error responses are 422/500 only). The test expected 404; shipped
+behavior is 200 with `items == []` and `pagination.total == 0`. Test aligned
+to the shipped filter semantics. If a 404 contract is wanted, that is a
+production decision — not silently bent here.
