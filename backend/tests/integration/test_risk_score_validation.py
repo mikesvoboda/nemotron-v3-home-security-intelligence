@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.event_detection import EventDetection
 
 
 @pytest.fixture
@@ -188,6 +189,14 @@ class TestRiskScoreValidation:
         - Reports per-category gap rates for debugging
         """
         results = await self._validate_all_scenarios(session, synthetic_scenarios)
+
+        # _validate_all_scenarios skips scenarios whose events were never
+        # processed into the DB — in the gate environment none are, so
+        # results can be empty. Indexing largest_gaps[0] then raised
+        # IndexError (ledger R-T9-RISKVAL); asserting gap_rate < 20 on zero
+        # scenarios would be vacuously green. Skip loudly instead.
+        if not results:
+            pytest.skip("No synthetic scenario events present in the test database")
 
         total_scenarios = len(results)
         gaps = sum(1 for r in results if r["gap"] > 0)
@@ -465,8 +474,18 @@ class TestRiskScoreValidation:
         scenario_name: str,
     ) -> Event | None:
         """Find the event corresponding to a scenario by matching file paths."""
-        # Query events that have detections matching the scenario name pattern
-        stmt = select(Event).join(Detection).where(Detection.file_path.like(f"%{scenario_name}%"))
+        # Query events that have detections matching the scenario name pattern.
+        # Event→Detection is many-to-many via the event_detections junction
+        # (models/event.py `detections` relationship, secondary=) — there is
+        # no direct FK, so a bare .join(Detection) cannot resolve an ON
+        # clause ("Don't know how to join to Detection"). Join the junction
+        # explicitly. (ledger R-T7-RISKVAL)
+        stmt = (
+            select(Event)
+            .join(EventDetection, EventDetection.event_id == Event.id)
+            .join(Detection, Detection.id == EventDetection.detection_id)
+            .where(Detection.file_path.like(f"%{scenario_name}%"))
+        )
 
         result = await session.execute(stmt)
         events = result.scalars().all()
