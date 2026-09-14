@@ -2240,3 +2240,41 @@ Audit 1.1/1.2 executed from wave-3 draft (m3-t1-t3/t1.patch). Measurement rows:
 - 4 zero-byte files deleted (test_zone_baselines / test_cameras_heatmap / test_result / test_matchers); collection-sanity allowlist tightened by its 4 waivers (never widened — §rule held); CI invocation of check-test-collection: **3659 files, all collect >= 1**
 - unit tier after deletions: **27335 passed, 165 skipped, 8 xfailed in 76.87s** exit 0 (seed 42, /tmp/t1-unit-verify.log)
 - grep proof: no import references to the 4 deleted module names anywhere in backend/ or scripts/
+
+### R-T1-OUTOFTURN (2026-09-14): T1 applied then reverted same session
+70c9c47d applied T1 ahead of plan rule 1 (M3 repo changes wait for M2-green;
+T5 was covered by the owner ruling, T1 is not). Reverted 21a710dc; census rows
+above stay as measured inputs (legitimate exception class). Re-apply staged
+m3-t1-t3/t1.patch at critic order [10]. Side benefit: gate 16 backend shape is
+again gate-14-equivalent (only owner-ruled T5 timeout config differs —
+ruling's own step 4 requires exercising it).
+
+## M3 T2 census (2026-09-14) — dead-fixture purge candidate table [VERIFIED-inline]
+
+Audit 5.3 re-verified against CURRENT tree (audit line numbers stale ~300+).
+Grep census method: fixture-arg in def signatures, usefixtures strings,
+getfixturevalue (zero hits repo-wide), alias-import disambiguation.
+
+| fixture | def (pre-T2) | consumers | verdict |
+|---|---|---|---|
+| template_database | root 1123-1219 | only worker_database (also dead) | DEAD (pair) |
+| worker_database | root 1222-1347 | 0 (header docstring only) | DEAD |
+| root mock_redis | root 1874-1900 | 0 in unit/contracts/security (e2e conftest :4 "inherited" comment STALE; integration tier resolves integration/conftest.py:1253) | DEAD |
+| mock_threat_detector | root 2566-2588 | 0 | DEAD |
+| mock_model_zoo | root 2591-2637 | 0 (docstring example + local var in test_model_downloader) | DEAD |
+| enrichment_scenarios | root 2640-2674 | 0 (the other hits are a tools MODULE import) | DEAD |
+| authenticated_client (fixture) | unit/api/routes/conftest 87-106 | 0 as fixture; test_debug_api uses alias-import of unit/conftest FUNCTION authenticated_async_client (stays) | DEAD |
+| patch_database_dependency | contracts/conftest 96-110 | 0 requesters | DEAD |
+| patch_redis_dependency | contracts/conftest 113-127 | 0 requesters | DEAD |
+| root session | root 1718-1751 | ALIVE unit/models/test_soft_delete.py (17+ sites) | KEEP NOW — deleted by m3-t3 t3.patch hunk @@1703 (file relocates to integration/) |
+| cleanup_stale_databases | root 960 | autouse + template_database | KEEP (autouse live) |
+| _ensure_clean_db/_reset_db_schema/_cleanup_test_cameras/_get_table_deletion_order | root 1354-1655 | _reset_db_schema+_cleanup_test_cameras called by test_db (ALIVE integration uses local twins); _ensure_clean_db only by isolated_db (ALIVE) | KEEP (helpers of live fixtures) |
+| chaos fault_injector | chaos/conftest, 18 fixtures | 0 test consumers CONFIRMED | OWNER-GATED — memo item, do not touch |
+
+Audit [REPORTED] claims: 6 of the 8 named fixtures DEAD-confirmed (all six
+named root ones dead); authenticated_client + patch_* dead TOO (audit missed
+they were consumers-free at their tiers). [ESTIMATE] root :626-1187 "worker-DB
+block" over-scoped — live autouse cleanup_stale_databases + helpers of live
+fixtures sit inside that range; actual deletable = 409 root + 32 contracts +
+20 routes lines. Patch built + syntax-verified at /tmp/t2build (pre-T1 base),
+staged as t2-dead-fixtures.patch.

@@ -1,0 +1,546 @@
+diff --git a/backend/tests/conftest.py b/backend/tests/conftest.py
+index 936a6edd..2098c164 100644
+--- a/backend/tests/conftest.py
++++ b/backend/tests/conftest.py
+@@ -8,8 +8,6 @@ FIXTURE HIERARCHY AND ORGANIZATION:
+ Root Fixtures (backend/tests/conftest.py - THIS FILE):
+     Database-per-Worker Isolation (pytest-xdist):
+         - cleanup_stale_databases: Session-scoped autouse, removes leftover test databases
+-        - template_database: Session-scoped, creates template database with full schema
+-        - worker_database: Session-scoped, creates per-worker database copy from template
+ 
+     Database Fixtures:
+         - isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
+@@ -20,7 +18,6 @@ Root Fixtures (backend/tests/conftest.py - THIS FILE):
+         - mock_db_session: Comprehensive database session mock
+         - mock_db_session_context: Async context manager wrapper for mock_db_session
+         - mock_redis_client: Full-featured Redis client mock
+-        - mock_redis: Simplified Redis mock for basic operations
+         - mock_http_client: HTTP client mock with all methods
+         - mock_http_response: HTTP response mock
+         - mock_detector_client: YOLO26 detector service mock
+@@ -56,7 +53,6 @@ Domain-Specific Fixtures (in subdirectories):
+     Contract Tests (backend/tests/contracts/conftest.py):
+         - test_app: FastAPI app with mocked dependencies
+         - async_client: HTTP client for contract testing
+-        - patch_database_dependency, patch_redis_dependency: Dependency injection patches
+         NOTE: Uses mock_db_session and mock_redis_client from root conftest.py
+ 
+     Security Tests (backend/tests/security/conftest.py):
+@@ -1120,232 +1116,6 @@ def _apply_schema_to_database(db_url: str) -> None:
+         engine.dispose()
+ 
+ 
+-@pytest.fixture(scope="session")
+-def template_database(
+-    request: pytest.FixtureRequest, cleanup_stale_databases: None
+-) -> Generator[str]:
+-    """Create template database with full schema for worker copies.
+-
+-    This session-scoped fixture creates a template database once with the full
+-    schema applied. Worker databases are then created as instant copies of this
+-    template using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
+-
+-    NEM-4491: Uses advisory locks to prevent race conditions when multiple
+-    test sessions try to create the template database concurrently.
+-
+-    Args:
+-        request: pytest fixture request (for worker_id detection)
+-        cleanup_stale_databases: Ensures stale databases are cleaned first
+-
+-    Yields:
+-        Name of the template database ("template_test")
+-    """
+-    template_name = "template_test"
+-
+-    # Only master process creates the template database
+-    try:
+-        import xdist
+-
+-        worker_id = xdist.get_xdist_worker_id(request)
+-    except (ImportError, AttributeError):
+-        worker_id = "master"
+-
+-    if worker_id != "master":
+-        # Workers just yield the template name - master already created it
+-        yield template_name
+-        return
+-
+-    # Check if PostgreSQL is available
+-    if not _check_postgres_connection():
+-        logger.warning("PostgreSQL not available, skipping template database creation")
+-        yield template_name
+-        return
+-
+-    try:
+-        base_url = _get_base_database_url()
+-        params = _parse_database_url(base_url)
+-
+-        conn = psycopg2.connect(
+-            host=params["host"],
+-            port=params["port"],
+-            user=params["user"],
+-            password=params["password"],
+-            dbname="postgres",
+-        )
+-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+-
+-        try:
+-            with conn.cursor() as cur:
+-                # NEM-4491: Acquire advisory lock to prevent race conditions
+-                lock_key = _get_advisory_lock_key(template_name)
+-                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+-
+-                try:
+-                    # Drop existing template database if it exists
+-                    # First terminate any connections
+-                    cur.execute(
+-                        """
+-                        SELECT pg_terminate_backend(pid)
+-                        FROM pg_stat_activity
+-                        WHERE datname = %s AND pid <> pg_backend_pid()
+-                        """,
+-                        (template_name,),
+-                    )
+-                    # Use sql.Identifier for safe escaping (NEM-4452)
+-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+-                    cur.execute(
+-                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(template_name))
+-                    )
+-
+-                    # Create fresh template database
+-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+-                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(template_name)))
+-                    logger.info(f"Created template database: {template_name}")
+-                finally:
+-                    # Release advisory lock
+-                    cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+-        finally:
+-            conn.close()
+-
+-        # Apply schema to template database
+-        template_url = _build_database_url(base_url, template_name)
+-        _apply_schema_to_database(template_url)
+-        logger.info(f"Applied schema to template database: {template_name}")
+-
+-        yield template_name
+-
+-    except Exception as e:
+-        logger.error(f"Failed to create template database: {e}")
+-        raise
+-
+-
+-@pytest.fixture(scope="session")
+-def worker_database(request: pytest.FixtureRequest, template_database: str) -> Generator[str]:
+-    """Create isolated database for this xdist worker from template.
+-
+-    This session-scoped fixture creates a per-worker database by copying the
+-    template database using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
+-    This is nearly instant (filesystem copy) and provides complete isolation
+-    between workers.
+-
+-    Database naming:
+-    - gw0 -> test_db_gw0
+-    - gw1 -> test_db_gw1
+-    - master (non-xdist) -> test_db_main
+-
+-    NEM-4491: Uses advisory locks to prevent race conditions when multiple
+-    test sessions try to create/drop worker databases concurrently.
+-
+-    Args:
+-        request: pytest fixture request (for worker_id detection)
+-        template_database: Name of the template database to copy from
+-
+-    Yields:
+-        Full database URL for the worker's isolated database
+-    """
+-    # Get worker ID
+-    try:
+-        import xdist
+-
+-        worker_id = xdist.get_xdist_worker_id(request)
+-    except (ImportError, AttributeError):
+-        worker_id = "master"
+-
+-    # Use "main" for non-xdist runs for clarity
+-    if worker_id == "master":
+-        db_name = "test_db_main"
+-    else:
+-        db_name = f"test_db_{worker_id}"
+-
+-    # Check if PostgreSQL is available
+-    if not _check_postgres_connection():
+-        logger.warning("PostgreSQL not available, returning default URL")
+-        yield DEFAULT_DEV_POSTGRES_URL
+-        return
+-
+-    try:
+-        base_url = _get_base_database_url()
+-        params = _parse_database_url(base_url)
+-
+-        conn = psycopg2.connect(
+-            host=params["host"],
+-            port=params["port"],
+-            user=params["user"],
+-            password=params["password"],
+-            dbname="postgres",
+-        )
+-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+-
+-        try:
+-            with conn.cursor() as cur:
+-                # NEM-4491: Acquire advisory lock to prevent race conditions
+-                lock_key = _get_advisory_lock_key(db_name)
+-                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+-
+-                try:
+-                    # Terminate any existing connections to the worker database
+-                    cur.execute(
+-                        """
+-                        SELECT pg_terminate_backend(pid)
+-                        FROM pg_stat_activity
+-                        WHERE datname = %s AND pid <> pg_backend_pid()
+-                        """,
+-                        (db_name,),
+-                    )
+-
+-                    # Drop existing worker database if it exists
+-                    # Use sql.Identifier for safe escaping (NEM-4452)
+-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+-                    cur.execute(
+-                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name))
+-                    )
+-
+-                    # Create worker database from template (instant copy)
+-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+-                    cur.execute(
+-                        sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(
+-                            sql.Identifier(db_name),
+-                            sql.Identifier(template_database),
+-                        )
+-                    )
+-                    logger.info(
+-                        f"Created worker database: {db_name} from template {template_database}"
+-                    )
+-                finally:
+-                    # Release advisory lock
+-                    cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+-        finally:
+-            conn.close()
+-
+-        # Build and yield the worker database URL
+-        worker_url = _build_database_url(base_url, db_name)
+-        yield worker_url
+-
+-    except Exception as e:
+-        logger.error(f"Failed to create worker database: {e}")
+-        raise
+-
+-    finally:
+-        # Cleanup: drop worker database at session end
+-        # NEM-4491: Use advisory lock protected drop with retries
+-        try:
+-            conn = psycopg2.connect(
+-                host=params["host"],
+-                port=params["port"],
+-                user=params["user"],
+-                password=params["password"],
+-                dbname="postgres",
+-            )
+-            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+-
+-            try:
+-                with conn.cursor() as cur:
+-                    _drop_database_with_lock(cur, db_name)
+-            finally:
+-                conn.close()
+-        except Exception as e:
+-            logger.warning(f"Failed to drop worker database {db_name}: {e}")
+-
+ 
+ # Track if schema has been reset this worker process to avoid redundant operations
+ _schema_reset_done: bool = False
+@@ -1715,41 +1485,6 @@ async def isolated_db() -> AsyncGenerator[None]:
+     get_settings.cache_clear()
+ 
+ 
+-@pytest.fixture
+-async def session(isolated_db: None) -> AsyncGenerator[None]:
+-    """Create an isolated database session with transaction rollback for each test.
+-
+-    This fixture provides true isolation in parallel test execution by:
+-    1. Starting a savepoint before each test
+-    2. Rolling back to the savepoint after each test
+-
+-    All data created during the test is automatically rolled back, ensuring
+-    parallel tests don't see each other's data.
+-
+-    Usage:
+-        @pytest.mark.asyncio
+-        async def test_something(session):
+-            camera = Camera(id="test", name="Test")
+-            session.add(camera)
+-            await session.flush()
+-            # Test assertions...
+-            # Data is automatically rolled back after test
+-    """
+-    from sqlalchemy import text
+-
+-    from backend.core.database import get_session
+-
+-    async with get_session() as sess:
+-        # Start a savepoint that we'll roll back to after the test
+-        # This ensures test isolation without needing TRUNCATE
+-        await sess.execute(text("SAVEPOINT test_savepoint"))
+-
+-        try:
+-            yield sess
+-        finally:
+-            # Roll back to savepoint to undo all changes from this test
+-            await sess.execute(text("ROLLBACK TO SAVEPOINT test_savepoint"))
+-
+ 
+ @pytest.fixture(autouse=True)
+ def reset_settings_cache() -> Generator[None]:
+@@ -1871,34 +1606,6 @@ async def test_db() -> AsyncGenerator[None]:
+ # Integration tests use module-scoped fixtures from backend/tests/integration/conftest.py
+ 
+ 
+-@pytest.fixture
+-async def mock_redis() -> AsyncGenerator[AsyncMock]:
+-    """Mock Redis operations for tests that don't need real Redis.
+-
+-    This fixture provides a mock Redis client with common operations pre-configured:
+-    - health_check: Returns healthy status
+-
+-    The mock is patched into backend.core.redis module.
+-
+-    Use this for unit tests that need to mock Redis behavior.
+-    Integration tests should use the mock_redis or real_redis fixtures
+-    from backend/tests/integration/conftest.py instead.
+-    """
+-    mock_redis_client = AsyncMock()
+-    mock_redis_client.health_check.return_value = {
+-        "status": "healthy",
+-        "connected": True,
+-        "redis_version": "7.0.0",
+-    }
+-
+-    # Patch the shared singleton, initializer, and closer.
+-    with (
+-        patch("backend.core.redis._redis_client", mock_redis_client),
+-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
+-        patch("backend.core.redis.close_redis", return_value=None),
+-    ):
+-        yield mock_redis_client
+-
+ 
+ def unique_id(prefix: str = "test") -> str:
+     """Generate a unique ID for test objects to prevent conflicts in parallel execution.
+@@ -2556,119 +2263,3 @@ def scenario_by_type(synthetic_scenarios):
+         "threat": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "threat"],
+         "edge_case": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "edge_case"],
+     }
+-
+-
+-# =============================================================================
+-# Enrichment Edge Case Fixtures (NEM-3232)
+-# =============================================================================
+-
+-
+-@pytest.fixture
+-def mock_threat_detector():
+-    """Mock threat detector with controlled outputs.
+-
+-    Provides a mock threat detection model that returns predictable results
+-    for testing enrichment pipeline threat detection logic.
+-
+-    Returns:
+-        MagicMock configured for threat detection
+-    """
+-    from unittest.mock import AsyncMock, MagicMock
+-
+-    mock = MagicMock()
+-    mock.detect = AsyncMock(
+-        return_value=[
+-            {
+-                "threat_type": "weapon",
+-                "confidence": 0.92,
+-                "bbox": [100, 150, 80, 120],
+-            }
+-        ]
+-    )
+-    return mock
+-
+-
+-@pytest.fixture
+-def mock_model_zoo(request):
+-    """Configurable mock for entire model zoo.
+-
+-    Provides a flexible mock ModelManager that can be configured per-test
+-    to simulate different model availability and behavior scenarios.
+-
+-    Usage:
+-        @pytest.mark.parametrize("mock_model_zoo", [
+-            {"available_models": ["florence_2", "pose_estimation"]},
+-        ], indirect=True)
+-        def test_with_limited_models(mock_model_zoo):
+-            # mock_model_zoo will only allow specified models
+-            pass
+-
+-    Args:
+-        request: pytest request fixture for parameterization
+-
+-    Returns:
+-        MagicMock configured as ModelManager
+-    """
+-    from unittest.mock import AsyncMock, MagicMock
+-
+-    # Get configuration from parametrize (if provided)
+-    config = getattr(request, "param", {})
+-    available_models = config.get("available_models", None)
+-
+-    mock_manager = MagicMock()
+-
+-    async def mock_get_model(model_name: str):
+-        """Mock get_model that respects available_models constraint."""
+-        if available_models is not None and model_name not in available_models:
+-            raise RuntimeError(f"Model {model_name} not available")
+-        mock_model = MagicMock()
+-        mock_model.predict = AsyncMock(return_value=[])
+-        return mock_model
+-
+-    mock_manager.get_model = AsyncMock(side_effect=mock_get_model)
+-    mock_manager.status = MagicMock(
+-        return_value={
+-            "loaded_models": available_models or [],
+-            "total_loaded_vram_mb": 0,
+-            "load_counts": {},
+-        }
+-    )
+-
+-    return mock_manager
+-
+-
+-@pytest.fixture
+-def enrichment_scenarios():
+-    """Load enrichment edge case scenarios for testing.
+-
+-    Provides access to pre-generated enrichment edge case scenarios including:
+-    - Multi-threat scenarios
+-    - Rare pose scenarios
+-    - Boundary confidence scenarios
+-    - OCR failure scenarios
+-    - VRAM stress scenarios
+-
+-    Returns:
+-        Dict mapping scenario type to list of ScenarioBundle instances
+-
+-    Raises:
+-        pytest.skip: If scenario generation tools are not available
+-    """
+-    try:
+-        from tools.nemo_data_designer.enrichment_scenarios import (
+-            generate_boundary_confidence_scenarios,
+-            generate_multi_threat_scenarios,
+-            generate_ocr_failure_scenarios,
+-            generate_rare_pose_scenarios,
+-            generate_vram_stress_scenarios,
+-        )
+-    except ImportError:
+-        pytest.skip("Enrichment scenario generators not available")
+-
+-    return {
+-        "multi_threat": generate_multi_threat_scenarios(count=5),
+-        "rare_pose": generate_rare_pose_scenarios(count=5),
+-        "boundary_confidence": generate_boundary_confidence_scenarios(count=5),
+-        "ocr_failure": generate_ocr_failure_scenarios(count=5),
+-        "vram_stress": generate_vram_stress_scenarios(count=3),
+-    }
+diff --git a/backend/tests/contracts/conftest.py b/backend/tests/contracts/conftest.py
+index 6c5b8cff..d400ba99 100644
+--- a/backend/tests/contracts/conftest.py
++++ b/backend/tests/contracts/conftest.py
+@@ -93,35 +93,3 @@ async def async_client(test_app) -> AsyncGenerator[AsyncClient]:
+ # See backend/tests/conftest.py for their implementations.
+ 
+ 
+-@pytest.fixture
+-def patch_database_dependency(mock_db_session):
+-    """Patch the database dependency injection.
+-
+-    This fixture patches the get_db dependency to return a mock session,
+-    allowing contract tests to run without a real database.
+-
+-    Uses the mock_db_session fixture from root conftest.py.
+-    """
+-
+-    async def mock_get_db():
+-        yield mock_db_session
+-
+-    with patch("backend.core.database.get_db", mock_get_db):
+-        yield mock_db_session
+-
+-
+-@pytest.fixture
+-def patch_redis_dependency(mock_redis_client):
+-    """Patch the Redis dependency injection.
+-
+-    This fixture patches Redis-related dependencies to return mocks,
+-    allowing contract tests to run without a real Redis connection.
+-
+-    Uses the mock_redis_client fixture from root conftest.py.
+-    """
+-    with (
+-        patch("backend.core.redis.get_redis", return_value=mock_redis_client),
+-        patch("backend.core.redis.get_redis_optional", return_value=mock_redis_client),
+-        patch("backend.core.redis._redis_client", mock_redis_client),
+-    ):
+-        yield mock_redis_client
+diff --git a/backend/tests/e2e/conftest.py b/backend/tests/e2e/conftest.py
+index ea31d29c..900595b5 100644
+--- a/backend/tests/e2e/conftest.py
++++ b/backend/tests/e2e/conftest.py
+@@ -1,7 +1,7 @@
+ """E2E test fixtures.
+ 
+ This module provides E2E-specific fixtures. The shared fixtures (isolated_db,
+-mock_redis, client, etc.) are inherited from backend/tests/conftest.py.
++client, etc.) are inherited from backend/tests/conftest.py.
+ 
+ No duplicate fixture definitions - all common fixtures are centralized in the
+ root conftest.py file.
+@@ -9,5 +9,4 @@ root conftest.py file.
+ 
+ # E2E tests use the shared fixtures from backend/tests/conftest.py:
+ # - isolated_db: PostgreSQL test database with isolation
+-# - mock_redis: Mock Redis client
+ # - client: httpx AsyncClient for API testing
+diff --git a/backend/tests/unit/api/routes/conftest.py b/backend/tests/unit/api/routes/conftest.py
+index 5105ba4d..6c8f263a 100644
+--- a/backend/tests/unit/api/routes/conftest.py
++++ b/backend/tests/unit/api/routes/conftest.py
+@@ -84,23 +84,3 @@ async def create_authenticated_client() -> AsyncGenerator[AsyncClient]:
+         yield client
+ 
+ 
+-@pytest.fixture
+-async def authenticated_client() -> AsyncGenerator[AsyncClient]:
+-    """Provide an authenticated AsyncClient as a pytest fixture.
+-
+-    This is a convenience fixture for tests that prefer fixture injection
+-    over context managers.
+-
+-    Usage:
+-        async def test_something(authenticated_client):
+-            response = await authenticated_client.get("/api/endpoint")
+-    """
+-    # Import app lazily to avoid loading it during collection
+-    from backend.main import app
+-
+-    async with AsyncClient(
+-        transport=ASGITransport(app=app),
+-        base_url="http://test",
+-        headers=get_auth_headers(),
+-    ) as client:
+-        yield client
