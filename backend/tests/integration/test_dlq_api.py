@@ -135,6 +135,17 @@ def get_patches(
             "backend.api.routes.system._file_watcher",
             mock_services["file_watcher_for_routes"],
         ),
+        # SetupGuard bypass — the shared integration conftest client patches
+        # this (conftest.py:1452, NEM-5312); this file builds its OWN client
+        # with its own patch list and had silently diverged, so every
+        # non-whitelisted DLQ route answered 503 (no users exist in the
+        # worker DB → setup never complete). That was the 36-failure cluster:
+        # 401/422-leg tests passed because SetupGuard answers BEFORE auth.
+        # (ledger R-T9-DLQGUARD)
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
         patch("backend.core.config.get_settings", return_value=test_settings),
         patch("backend.api.routes.dlq.get_settings", return_value=test_settings),
         patch("backend.core.redis._redis_client", mock_redis),

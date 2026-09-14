@@ -974,3 +974,11 @@ GET /api/tracks/{track_id}/history (NO limit param),
 GET /api/cameras/{camera_id}/tracks. Ghost expectations fixed:
 page_size=2000→422, unknown time params silently ignored→200,
 history?limit ignored→404 for unknown id, async_client alias over client.
+
+## R-T9-DLQGUARD — dlq suite's own client patch-list diverged → 36 run-9 failures were 503 (2026-09-14, batch D green)
+
+File builds its own app client; missing SetupGuard bypass meant 503 on
+every non-whitelisted DLQ route (401/422-leg tests survived because the
+guard answers BEFORE auth dep — that's why only half the file failed).
+Shipped DLQ auth messages asserted as-is ("API key required…" /
+"Invalid API key", routes/dlq.py:72-88).
