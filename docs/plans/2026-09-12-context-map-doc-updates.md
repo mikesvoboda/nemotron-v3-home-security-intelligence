@@ -965,3 +965,12 @@ Ghost names (get_polygon_zone/list_zones/toggle_zone…) → shipped
 get_zone/get_zones_by_camera(active_only=True)/update_zone(PolygonZoneUpdate)/
 delete_zone/set_active/get_all_zones; Sequence returns read via list();
 grid-less service (R-T9-HEATMAP's gridless lesson applies here too).
+
+## R-T9-TRACKS — tracks suite rewritten to shipped route surface (2026-09-14, batch D: tracks+dwlq all pass)
+
+Shipped: GET /api/tracks (camera_id/object_class/page≥1/page_size 1..1000),
+GET /api/tracks/{track_id:int} (404 "Track with id {id} not found"),
+GET /api/tracks/{track_id}/history (NO limit param),
+GET /api/cameras/{camera_id}/tracks. Ghost expectations fixed:
+page_size=2000→422, unknown time params silently ignored→200,
+history?limit ignored→404 for unknown id, async_client alias over client.
