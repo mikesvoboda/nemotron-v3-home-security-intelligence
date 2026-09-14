@@ -37,6 +37,13 @@ def _get_common_lifespan_mocks():
 
     Returns a dict with all mock objects needed for fast test startup.
     These mocks prevent real services from initializing during TestClient creation.
+
+    Ported from the test_websocket_auth.py suite (R-T7-WS-OOM): the abbreviated
+    version left get_pipeline_manager / FileWatcher / worker_supervisor REAL, so
+    TestClient(app) started the production pipeline worker loops against
+    AsyncMock stream consumers — the `if not messages: continue` spin then
+    recorded a _Call per iteration forever and OOM-killed xdist workers at
+    ~300 MB/s (docs/discoveries/pytest-oom-asyncmock-worker-loop.md).
     """
     # Mock Redis client
     mock_redis_client = AsyncMock()
@@ -46,7 +53,7 @@ def _get_common_lifespan_mocks():
         "redis_version": "7.0.0",
     }
 
-    # Mock background services (abbreviated for test performance)
+    # Mock background services
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
     mock_system_broadcaster.stop_broadcasting = AsyncMock()
@@ -59,23 +66,113 @@ def _get_common_lifespan_mocks():
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
 
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
+
     mock_event_broadcaster = MagicMock()
     mock_event_broadcaster.start = AsyncMock()
     mock_event_broadcaster.stop = AsyncMock()
     mock_event_broadcaster.connect = AsyncMock()
     mock_event_broadcaster.disconnect = AsyncMock()
+    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
+    mock_event_broadcaster.broadcast_service_status = AsyncMock(return_value=1)
+    mock_event_broadcaster.CHANNEL_NAME = "security_events"
+    mock_event_broadcaster.channel_name = "security_events"
+
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
+    mock_ai_health = AsyncMock(
+        return_value={
+            "yolo26": False,
+            "nemotron": False,
+            "any_healthy": False,
+            "all_healthy": False,
+        }
+    )
+
+    # Mock WorkerSupervisor (NEM-2460)
+    mock_worker_supervisor = MagicMock()
+    mock_worker_supervisor.start = AsyncMock()
+    mock_worker_supervisor.stop = AsyncMock()
+    mock_worker_supervisor.register_worker = AsyncMock()
+    mock_worker_supervisor.worker_count = 4
+
+    # Mock DI container (NEM-2003)
+    mock_container = MagicMock()
+    mock_health_registry = MagicMock()
+    mock_health_registry.register_gpu_monitor = MagicMock()
+    mock_health_registry.register_cleanup_service = MagicMock()
+    mock_health_registry.register_system_broadcaster = MagicMock()
+    mock_health_registry.register_file_watcher = MagicMock()
+    mock_health_registry.register_pipeline_manager = MagicMock()
+    mock_health_registry.register_service_health_monitor = MagicMock()
+    mock_health_registry.register_performance_collector = MagicMock()
+    mock_container.get = MagicMock(return_value=mock_health_registry)
+
+    # Mock BackgroundEvaluator (NEM-2467)
+    mock_background_evaluator = MagicMock()
+    mock_background_evaluator.start = AsyncMock()
+    mock_background_evaluator.stop = AsyncMock()
+
+    # Mock ContainerOrchestrator
+    mock_container_orchestrator = MagicMock()
+    mock_container_orchestrator.start = AsyncMock()
+    mock_container_orchestrator.stop = AsyncMock()
+
+    # Mock DockerClient
+    mock_docker_client = MagicMock()
+    mock_docker_client.close = AsyncMock()
+
+    # Mock PerformanceCollector
+    mock_performance_collector = MagicMock()
+    mock_performance_collector.close = AsyncMock()
+
+    # Mock worker factories
+    mock_detection_worker = AsyncMock()
+    mock_analysis_worker = AsyncMock()
+    mock_timeout_worker = AsyncMock()
+    mock_metrics_worker = AsyncMock()
 
     return {
         "redis_client": mock_redis_client,
         "system_broadcaster": mock_system_broadcaster,
         "gpu_monitor": mock_gpu_monitor,
         "cleanup_service": mock_cleanup_service,
+        "file_watcher": mock_file_watcher,
+        "pipeline_manager": mock_pipeline_manager,
         "event_broadcaster": mock_event_broadcaster,
+        "service_health_monitor": mock_service_health_monitor,
+        "ai_health": mock_ai_health,
+        "worker_supervisor": mock_worker_supervisor,
+        "container": mock_container,
+        "background_evaluator": mock_background_evaluator,
+        "container_orchestrator": mock_container_orchestrator,
+        "docker_client": mock_docker_client,
+        "performance_collector": mock_performance_collector,
+        "detection_worker": mock_detection_worker,
+        "analysis_worker": mock_analysis_worker,
+        "timeout_worker": mock_timeout_worker,
+        "metrics_worker": mock_metrics_worker,
     }
 
 
 def _apply_common_lifespan_patches(stack, mocks):
-    """Apply all common lifespan service patches to an ExitStack."""
+    """Apply all common lifespan service patches to an ExitStack.
+
+    Full suite ported from test_websocket_auth.py::_apply_common_lifespan_patches.
+    get_pipeline_manager / FileWatcher / get_worker_supervisor MUST be patched:
+    unpatched, the lifespan starts the production pipeline worker loops against
+    AsyncMock stream consumers and spins recording one _Call per iteration
+    (~300 MB/s, worker OOM — R-T7-WS-OOM /
+    docs/discoveries/pytest-oom-asyncmock-worker-loop.md).
+    """
 
     async def mock_init_db():
         pass
@@ -89,21 +186,86 @@ def _apply_common_lifespan_patches(stack, mocks):
     async def mock_validate_cameras():
         return (0, 0)
 
-    # Core patches
+    # Core Redis and database patches
     stack.enter_context(patch("backend.core.redis._redis_client", mocks["redis_client"]))
+    stack.enter_context(patch("backend.core.redis.init_redis", return_value=mocks["redis_client"]))
+    stack.enter_context(patch("backend.core.redis.close_redis", return_value=None))
     stack.enter_context(patch("backend.main.init_db", mock_init_db))
+    stack.enter_context(patch("backend.core.database.init_db", mock_init_db))
     stack.enter_context(patch("backend.core.database.close_db", mock_close_db))
     stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras))
     stack.enter_context(
         patch("backend.main.validate_camera_paths_on_startup", mock_validate_cameras)
     )
+    stack.enter_context(patch("backend.main.init_redis", return_value=mocks["redis_client"]))
+    stack.enter_context(patch("backend.main.close_redis", return_value=None))
+
+    # Background service patches
     stack.enter_context(
         patch("backend.main.get_system_broadcaster", return_value=mocks["system_broadcaster"])
     )
     stack.enter_context(patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"]))
     stack.enter_context(patch("backend.main.CleanupService", return_value=mocks["cleanup_service"]))
+    stack.enter_context(patch("backend.main.FileWatcher", return_value=mocks["file_watcher"]))
     stack.enter_context(
-        patch("backend.main.get_broadcaster", AsyncMock(return_value=mocks["event_broadcaster"]))
+        patch(
+            "backend.main.get_pipeline_manager",
+            AsyncMock(return_value=mocks["pipeline_manager"]),
+        )
+    )
+    stack.enter_context(patch("backend.main.stop_pipeline_manager", AsyncMock()))
+    stack.enter_context(
+        patch(
+            "backend.main.get_broadcaster",
+            AsyncMock(return_value=mocks["event_broadcaster"]),
+        )
+    )
+    stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
+    stack.enter_context(
+        patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"])
+    )
+    stack.enter_context(
+        patch(
+            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health",
+            mocks["ai_health"],
+        )
+    )
+
+    # Services added after the initial fixtures
+    stack.enter_context(
+        patch("backend.main.get_worker_supervisor", return_value=mocks["worker_supervisor"])
+    )
+    stack.enter_context(patch("backend.main.get_container", return_value=mocks["container"]))
+    stack.enter_context(patch("backend.main.wire_services", AsyncMock()))
+    stack.enter_context(patch("backend.main.init_job_tracker_websocket", AsyncMock()))
+    stack.enter_context(
+        patch("backend.main.PerformanceCollector", return_value=mocks["performance_collector"])
+    )
+    stack.enter_context(
+        patch("backend.main.BackgroundEvaluator", return_value=mocks["background_evaluator"])
+    )
+    stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
+    stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
+    stack.enter_context(
+        patch(
+            "backend.main.ContainerOrchestrator",
+            return_value=mocks["container_orchestrator"],
+        )
+    )
+    stack.enter_context(patch("backend.main.DockerClient", return_value=mocks["docker_client"]))
+    stack.enter_context(patch("backend.main.register_workers", MagicMock()))
+    stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
+    stack.enter_context(
+        patch("backend.main.create_detection_worker", return_value=mocks["detection_worker"])
+    )
+    stack.enter_context(
+        patch("backend.main.create_analysis_worker", return_value=mocks["analysis_worker"])
+    )
+    stack.enter_context(
+        patch("backend.main.create_timeout_worker", return_value=mocks["timeout_worker"])
+    )
+    stack.enter_context(
+        patch("backend.main.create_metrics_worker", return_value=mocks["metrics_worker"])
     )
 
 
