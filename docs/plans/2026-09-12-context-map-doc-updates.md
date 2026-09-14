@@ -1589,3 +1589,117 @@ this note pre-dating the min_samples-leak math).
 Commits: 20c0dcc2 (CIAUDIT), 221cd280 + 3cf5b4a5 (TIMEOUT-STAMP
 markers), d3d923f2 (anomaly-contract rewrite). Gate posture: every file
 that failed in run-9 has now been scored green on this branch.
+
+## Full-gate runs 2-4 — M1-exit convergence (2026-09-14)
+
+**[VERIFIED, logs cited per item]**
+- Run 1 (/tmp/validate-full-1.log): died at Ruff format precheck, zero
+  tests run. "Would reformat: test_ai_pipeline_smoke.py /
+  test_multimodal_pipeline.py" — line-wrap only; commit f8243b31.
+- Run 2 (/tmp/validate-full-2.log + /tmp/validate-backend-integration.log):
+  unit green; integration "1 failed, 4164 passed, 131 skipped, 2 xfailed
+  in 936.68s" — gw6 "node down: Not properly terminated" (log :1494) on
+  test_export_api.py::test_cancel_completed_export_fails. Root cause:
+  EXPORTDEFER means the 30x0.2s poll for "completed" always burns >6s;
+  real gate runs WITHOUT the stamp plugin so conftest's 5s stamp +
+  thread method kills the worker (wave N had the 30s cap -> passed).
+  AST sweep: exactly 6 integration tests with unmarked >=5s sleep-budget
+  loops, all in this file (2 already skip-classed). Fix e71ed91d adds
+  explicit timeout(30) x4; rescore "19 passed, 2 skipped in 55.22s".
+- Run 3 (/tmp/validate-full-3.log): same totals shape "1 failed, 4164
+  passed, 131 skipped, 2 xfailed in 938.25s" — export fix HELD, zero
+  node-downs. New red: test_pipeline_e2e.py::
+  test_full_pipeline_multiple_images_same_camera on gw5, "TypeError:
+  'MagicMock' object can't be awaited" at redis_streams.py:976.
+  Root cause: get_analysis_stream_service (redis_streams.py:1192) is a
+  process-wide first-client-wins singleton; any earlier streams-path
+  close_batch in the worker caches ITS client, and this file reset the
+  singleton inline at only 2 of its 4 enqueue sites — victim scheduled
+  before those resets inherits the dead client. Pure ordering roulette
+  (same test passed run 2 on a different worker).
+  [VERIFIED deterministic repro]: poison plugin caching a bare-MagicMock
+  client -> HEAD copy fails with the byte-identical gate line
+  (/tmp/poison-headcopy-fail.log), fixture-fixed file passes the same
+  scenario; clean full-file "16 passed in 27.18s". Fix 78794601 moves
+  the reset into the mock_redis fixture (test-only; shipped singleton
+  untouched).
+- Cosmetics confirmed: "No PostgreSQL container found" WARN is
+  expected — validate.sh prefers podman (empty here) over docker
+  (gate-postgres/gate-redis live there); integration still connects via
+  persistent TEST_DATABASE_URL, NOT scoped out of the gate.
+- Run 4 in flight (/tmp/validate-full-4.log) carrying both fixes.
+  Unproven sections so far: coverage-combine 80% bar and frontend tiers
+  (never reached — runs die at integration).
+- Run 4 (/tmp/validate-full-4.log): unit tier died
+  "1 failed, 27523 passed, 168 skipped, 8 xfailed in 82.65s" — NEW class,
+  runs 2/3 unit tier green. Victim
+  unit/routes/test_restore_endpoints.py::TestRestoreEvent::test_restore_
+  deleted_event_success on gw2: "got Future attached to a different
+  loop" reading real redis. Path: restore route -> event_service.py:238
+  NEM-1988 cancel-file-deletion leg -> FileService._get_redis ->
+  get_redis_client_sync (core/redis.py:2776) — reads the MODULE GLOBAL
+  _redis_client at call time; a prior lifespan-ish test on the same
+  worker can leave a client whose futures sit on its closed loop.
+  close_redis() (2794-2801) nulls the global, so full-lifespan runners
+  are not the leaker; unit/conftest.py:107 ASGITransport clients do NOT
+  run lifespan. 70+ unit files assign "_redis_client" attributes — the
+  exact leaker is unproven (not sentinel: file doesn't touch the global).
+  [VERIFIED deterministic repro]: leak-sim plugin binding a real
+  RedisClient on a loop that then dies -> HEAD victim fails
+  ("Event loop is closed" at redis zrange via file_service.py:197);
+  autouse fixture forcing the global None passes 12/12 both ways.
+  Fix 8dae3239 (victim-scoped). RESIDUAL RISK logged honestly: any OTHER
+  call-time consumer of get_redis_client_sync can be re-victimised when
+  random scheduling lands it after the same unknown leaker — candidate
+  for M3 T9 (hot mock files) or an owner ruling on a session-scoped
+  autouse guard in unit/conftest. NOT speculating the leaker without a
+  trace.
+- Run 5 in flight carrying export+singleton+leak-guard fixes.
+- Run 5 (/tmp/validate-full-5.log): FIRST run to clear ruff→mypy→unit→
+  integration→coverage-combine(80%)→eslint→tsc→prettier, i.e. the whole
+  backend gate + frontend lint chain all GREEN. Died at "Running Vitest"
+  with "RangeError: WebAssembly.instantiate(): Out of memory". ROOT CAUSE
+  of that OOM is MY launcher, not the repo: I wrapped validate.sh in
+  `ulimit -v 20971520` (M1 integration-tier protocol), and V8 reserves a
+  ~1TB virtual range for its heap/Wasm cage — a 20GiB VA cap kills Wasm
+  instantiation regardless of the 62GB physical free. validate.sh sets NO
+  ulimit (grep clean); §6's "validate.sh exit 0" must launch it BARE. The
+  VA cap is run-9-driver-only, never a validate.sh wrapper.
+- Frontend tier uncapped probe (direct `vitest --run`, /tmp/frontend-
+  vitest-direct.log): 4 DETERMINISTIC failures (fail alone too):
+  ThreatDetectionBanner "does not propagate click" (getByRole(/view/i)
+  matches 2 nodes once onClick promotes the wrapper to role=button —
+  shipped stopPropagation IS correct, banner.tsx:164; selector drift);
+  AuthContext "clears user after logout" (stale currentUser after
+  invalidate+401 — react-query keepPreviousData semantics; judgment);
+  DataManagementPage x2 (expects full id 'pending-job-123', shipped row
+  renders job.id.slice(0,8)+'...', page.tsx:301 — text drift). None are
+  production bugs; tests are stale. NOT in the vitest quarantine list.
+  Direct run ALSO showed a fork heap OOM (Ineffective mark-compacts)
+  before my `timeout 1800` killed it (rc=124) — a separate frontend-suite
+  memory-reliability issue in-sandbox, independent of the ulimit.
+
+### Frontend-drift close-out (2026-09-14)
+
+All 4 failures fixed test-side only (shipped code untouched), each
+verified isolated and jointly ("Test Files 3 passed / Tests 68 passed"):
+- 7fc6bef8 banner: getByRole('button', {name: 'View threat event'})
+  replaces ambiguous /view/i.
+- 39cc79dc DataManagementPage: getByTestId('export-job-<full-id>')
+  replaces getByText(full id) — shipped card shows truncated id.
+- 6c09a8b4 AuthContext logout: shipped logout CANNOT null the session
+  (v5 keeps data through a rejecting refetch; in-hook-trace proven).
+  Test now asserts shipped guarantees (logout POST + error surfaces via
+  AuthContext.tsx:158) then simulates the app-shell cache drop with
+  setQueryData(key, null). Two sharp edges documented in-test:
+  removeQueries() does NOT re-render an errored mounted observer (trace:
+  cache undefined, hook stayed mockUser); the setQueryData notify lands
+  one tick late, so the null assert must be a waitFor.
+  SHIPPED-GAP (recorded, unfixed by choice — M3 scope law = tests
+  only): logout() leaves isAuthenticated true until some consumer
+  clears/updates the cache; no frontend caller wires logout() at all.
+  Candidate for an owner ruling (fold into the M3 ruling-packet queue).
+- Uncapped full-suite probe: still running at +10 min at commit time
+  (no OOM yet); if it completes, the ONLY remaining expected reds are
+  zero. The authoritative frontend evidence for M1 §6 is gate run 6's
+  own Vitest section, not this probe.
