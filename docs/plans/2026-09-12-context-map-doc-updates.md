@@ -829,3 +829,45 @@ constructions = ONLY the 3 export_api Event(detection_ids=json.dumps(...))
 sites already fixed. Zero `Event(detection_ids=…)` constructors remain
 anywhere (verified: grep "detection_ids=json" = 0 hits). The
 detection_ids-removal cleanup is COMPLETE.
+
+### R-T9-DURATIONS (2026-09-14): run-9 per-phase timing data — M3 Task 5 input; decision: keep timeout=5, do NOT raise, sequence unchanged
+
+Run-9 finished 934s, ZERO node-downs, ZERO AUTH errors (ENVLEAK protocol
+confirmed), 4,303 tests with full phase data (/tmp/test_durations.csv).
+
+Totals (setup+call+teardown): p50 1.26s / p90 3.36 / p99 4.16 / max 17.51.
+>3s: 1,738 (40%) · >4s: 45 (1.0%) · >5s: 17 (0.4%) · >10s: 7.
+SETUP alone: p50 0.10 / p90 1.17 / p99 1.33 / max 2.48; only 4 tests >2s;
+ZERO tests with setup >5s. TEARDOWN dominates: 2,679/4,303 (62%) spend >50%
+of total time in teardown — the per-test integration_db cost the audit names.
+
+CAVEAT the ruling must state: run-9 ran under /tmp/timeout_stamp_plugin.py
+(30s on unmarked integration items), so these are UNTRIMMED durations — the
+repo's actual 5s stamp would have thread-killed the >5s tail as node-downs
+under -n8 contention (R-T7-WORKERDOWN class). Marker census from the same
+CSV: only 81 tests carry @slow genuinely; timeout_marker=30 on 3,715 rows is
+MY protocol stamp; 21 rows carry explicit @timeout(60) in-source; 4 rows
+10/15s. The '588 unmarked' split is therefore the no-stamp-if-repo-default
+population — of 4,222 non-@slow tests, 14 total >5s, 42 >4s.
+
+DECISION per the owner's stated rule (small tail >5s → keep 5 shared + @slow
+offenders): tail = 14/4,303 = 0.3% → KEEP timeout=5. Do NOT raise to 10s:
+raising reopens the blast radius (300 MB/s × 10s × 8 workers ≈ 24 GiB) for a
+tail that is mostly FIXTURE cost, not test bodies — top-30 shows the killers
+are teardown-bound (api_protection 14.7s teardown on a 1.67s body;
+test_cameras 13.8s teardown on 0.03s calls; auth_flow/api_protection family
+teardown ~2.1s floor = cleanup-path tax on EVERY test). M3 Task 4's teardown
+collapse + TTL-sleep conversion removes most of the 14 for free; the
+remainder are @slow candidates. Premise-corrections for the packet:
+(1) func_only=false TODAY would not strangle normal tests (setup p99 1.33s ≪
+5s) — the audit's "setup can't fit any budget" overstates: today's setup is
+engine-WIRING only (schema build is cached); it's TEARDOWN that's fat, and
+func_only=false also times teardown (func_only=true leaves hung teardowns
+untimed too — gw6-class hole is wider than setup-only). (2) The T4-gates-T5
+ordering still stands, but for tail-cleanliness not feasibility: with today's
+fixtures, a shared 5s budget kills ~14 tests on day 1; post-T4 it should be
+≈0. (3) Blast-radius math assumed thread-method worker survival; with
+timeout_method=signal the budget interrupts the await IN the worker — growth
+caps at budget×leak-rate, matching the 5s≈1.5GiB figure; thread method remains
+UNSAFE with func_only=false (os._exit = node respawn, no clean failure).
+Synthetic three-hang harness (setup/body/teardown) still owed in the packet.
