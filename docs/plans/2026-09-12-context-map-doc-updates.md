@@ -1907,3 +1907,33 @@ coincidence is disclosed rather than smoothed over. Clean rerun (run 10)
 runs with ZERO concurrent pytest/tree activity; if gw5's death recurs
 untouched, it is its own bug to root-cause (websocket-rate-limit file is
 the suspect neighborhood — same file family as the run-6 spin class).
+
+### CORRECTION (same day): run 9's killer is MY concurrent -n auto run — DB-name collision
+
+The section above said "no mechanism exists for an on-disk edit / no
+concurrent pytest caused it" — WRONG on the second half. Mechanism, now
+proven by name-mapping: get_worker_db_name() maps xdist ids to
+security_test_gwN. My verification run `pytest test_database_isolation.py
+-n auto` (launched ~07:50 local, INSIDE the gate tier window, same
+gate-postgres server) spawned gw0-gw7 WORKERS THAT REUSED THE GATE'S OWN
+DATABASES (_create_worker_database = CREATE IF NOT EXISTS — no-op on
+existing names), TRUNCATEd their tables via clean_tables, and at session
+teardown RAN _drop_worker_database on all eight. Postgres evidence: mass
+FATAL 'terminating connection due to administrator command' 11:50:14-17
+UTC = pg_terminate_backend from the drop helper; every gate test after the
+~70% mark then errors InvalidCatalogNameError 'security_test_gwN does not
+exist' (995 of them); gw5 died uncleanly in the same window. My -n0 rerun
+(19/19) was harmless only because master maps to 'security_test', which
+the gate never uses.
+
+STANDING RULE (self-imposed, M3-adjacent): NEVER run integration-tier
+pytest on the shared postgres while a gate/integration tier is live —
+worker-DB NAMES COLLIDE BY CONSTRUCTION. Light verification during a live
+gate = -n0 only (master DB), or better: none until the tier ends. The
+teardown-under-crash hazard noted above is REAL and worth its own M3
+task-row (crash-replaced worker vs session teardown ordering), but run 9
+specifically was friendly fire, not that hazard.
+
+Post-correction state: Task 4 commit 9d7aba25 stands (fixture correctness
+proven by -n0 runs); run 9 voided by collision, not by code. Run 10
+launches with zero concurrent activity.
