@@ -1863,3 +1863,47 @@ Task 4 change as landed (single commit):
   stash if a clean A/B is demanded. AFTER = full tier x2 with
   /tmp/durations_plugin.py. Numbers land in the ledger before the commit
   claim is stated.
+
+## Gate run 9 (2026-09-14 ~07:29-07:52 local) — DEAD: gw5 crash → worker-DB teardown hazard cascade
+
+Verdict: integration tier FAILED (4 failed / 3166 passed / 995 errors,
+63 reruns, 637s). Not valid for M1.
+
+Cascade (evidence line refs = /tmp/validate-backend-integration.log):
+1. gw5 `node down: Not properly terminated` at line 6552 (~75%). Not the
+   OOM class (dmesg OOM = 10:22 UTC, an hour prior; none in-window). Cause
+   of gw5's own death UNRESOLVED — last activity websocket rate-limit
+   tests (line 6076).
+2. ALL 995 errors = asyncpg InvalidCatalogNameError: database
+   "security_test_gwN" does not exist (all 8 workers; e.g. line 8868), at
+   init_db fixture setup. Old-code tracebacks confirm the run used the
+   pre-Task-4 conftest. Mechanism: worker-database DROP +
+   pg_terminate_backend teardown (_drop_worker_database at
+   integration/conftest.py:612-621, plus the same-shape blocks in the ROOT
+   conftest :697-1288 — the family M3 Task 3 targets) fired while
+   surviving workers still needed their DBs. postgres-side: mass
+   'terminating connection due to administrator command' FATALs 11:50:14+
+   and 11:48:35 role FATALs; no DROP DATABASE visible in log_statement
+   (log_statement=none — statement logging off, hence absence is not
+   absence-of-action).
+   => NEW STANDING HAZARD [R-TEARDOWN-DROP-UNDER-CRASH]: session-scoped
+   worker DB teardown is not crash-safe; a replaced/late worker (or the
+   master/pytest-writer process coordinating session end) can drop DBs
+   other workers are mid-flight on. Under work-steal, a node-down can also
+   reschedule its tests onto other sessions' tails. This is M3 disease
+   (shared-state + teardown ordering), not a Task 4 regression.
+3. The 4 FAILED tests pass 4/4 serially in 8.08s on the NEW (Task 4)
+   conftest — cascade artifacts, no individual fix needed.
+
+Attribution discipline (owner-directed concurrent edit window):
+conftest edits landed 11:47:20-11:50:2x UTC; gw5 died ~11:49:2x UTC
+(637s run from 11:41 launch? NO — gate started 11:29:xx UTC per
+validate-full-9.log ordering; gw5 last PASSED line 6076, node-down line
+6552; exact crash timestamp bracketed by postgres FATAL storm 11:50:14).
+No mechanism exists for an on-disk source edit to kill an imported worker
+(no .pyc reload in-flight, xdist imports at spawn), and my verification
+pytest runs launched AFTER the first crash signs — but the temporal
+coincidence is disclosed rather than smoothed over. Clean rerun (run 10)
+runs with ZERO concurrent pytest/tree activity; if gw5's death recurs
+untouched, it is its own bug to root-cause (websocket-rate-limit file is
+the suspect neighborhood — same file family as the run-6 spin class).
