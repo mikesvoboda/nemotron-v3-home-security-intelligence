@@ -2163,3 +2163,15 @@ Key facts the wave-2 plan rests on, each with evidence:
 **Knowledge: anything dropped in .github/workflows/ is asserted to BE a workflow by test_github_workflows.py. Data files belong elsewhere (e.g. .github/).**
 
 **Frontend run-12/13 chain closed:** TS2322 (drainRetryBackoff catcher union) → first fix attempt traded it for eslint no-redundant-type-constituents (`Promise<T | unknown>` collapses) → final form: unannotated ternary + `return (await tracked) as T`. Verified: tsc exit 0, eslint clean, vitest 17/17 zero unhandled.
+
+## Wave-2 corrections (critic pass) + current chain state (2026-09-14)
+
+Supersedes three facts in today's WAVE-2 dependency-map section, which were true pre-T2-landing:
+1. **T2 IS on disk** (44b1d925 + b10e0b42; relocated 17b62e1c): allowlist now at `.github/flake-allowlist.yml`, checker + k-filter + 5-test self-suite in scripts/, ci.yml masks torn down. T4 anchors cited there use pre-T2 ci.yml line numbers — re-anchor at T4 time.
+2. **/tmp/t3-draft EXISTS and is the correct M2-T3 artifact**: t3.patch `git apply --check`-clean against 6c0329b7 (verified 2026-09-14), 3 files +26/−6; apply-notes.md documents deliberate deviations (minWorkers dropped — vitest 4.0.18 has no such key; `|| 4` gotcha form; print_info→print_step; MEM_KB empty-guard; package.json NODE_OPTIONS now interpolates ${VITEST_HEAP_MB:-8192}).
+3. **W1 acceptance arm corrected (DANGER caught):** NEVER 16 workers × 32768 MB (512 GiB ceiling on a 62.69 GiB box — MemTotal 65,744,332 kB; this box also trips validate.sh's 64 GiB auto-parallel gate in the OFF direction, so T3 acceptance here is by manual override). Arm 1: VITEST_PARALLEL=1 VITEST_MAX_WORKERS=8 VITEST_HEAP_MB=8192 + RSS sampling; arm 2 (only if RSS data supports): 16×4096. Forecast straddles §6.2's 10-min bar (7–12.5 min) — if both arms land >600s, record measured numbers + flag the bar to owner; do NOT invent a fallback config.
+
+**T2 self-suite RAN (box slot, post-gate-13-death, census-clear): 5 passed in 0.36s** incl. test_repo_allowlist_is_valid_today (plan's "6 tests" is a miscount of its own code block).
+
+**Chain state right now:** gate 14 LIVE (pid 941436, /tmp/validate-full-14.log) = bare full gate on tip 6c0329b7 [typefix + T2 relocation; integration 11-failures class retired]. Frontend's six gate-10 classes get their first full-gate re-test here (~45-min serial vitest stage). GREEN → W0 M1 §6 close-out (env restore from /tmp/env-backup-gb300.env → compose up → §6 rows → healthcheck AFTER gate; reconcile compose's published 5432/6379 with the single-tenant gate DB first) → push → W1 = T3 apply + control + parallel arms. Branch pushed to origin @ 6c0329b7 (clone-mode safety + T4/T14 acceptance need GitHub).
+**Deferred to post-gate-14 micro-slots:** T5 smoke (/tmp/t5: --rerun=1 and plain arms, expect clean failure no node-down) then owner ruling; T4 ci.yml honesty draft.
