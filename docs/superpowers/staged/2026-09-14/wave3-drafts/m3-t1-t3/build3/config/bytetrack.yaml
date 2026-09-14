@@ -1,0 +1,95 @@
+# ByteTrack Configuration for Security Monitoring
+# ByteTrack is a fast, motion-based tracker that uses BYTE association
+# (matching every detection box including low-confidence ones).
+#
+# Use ByteTrack when:
+# - ReID is not needed (single camera, simple scenes)
+# - Maximum speed is required
+# - GPU memory is constrained
+#
+# Reference: https://github.com/ifzhang/ByteTrack
+# Paper: "ByteTrack: Multi-Object Tracking by Associating Every Detection Box"
+
+tracker_type: bytetrack
+
+# =============================================================================
+# Re-Identification (ReID) Settings
+# =============================================================================
+# ByteTrack can optionally use ReID, but typically runs without it
+# for maximum speed. Set to false for pure motion-based tracking.
+
+with_reid: false
+
+# =============================================================================
+# Detection Thresholds
+# =============================================================================
+# ByteTrack's key innovation: using ALL detection boxes through
+# a two-stage association process
+
+# Minimum confidence for high-quality detections (first association)
+# Range: 0.3 - 0.7, recommended: 0.5
+track_high_thresh: 0.5
+
+# Minimum confidence for low-quality detections (second association)
+# ByteTrack's BYTE method uses these low-confidence detections to
+# recover tracks that might be occluded or partially visible
+# Range: 0.05 - 0.2, recommended: 0.1
+track_low_thresh: 0.1
+
+# Threshold for initializing new tracks
+# Only detections above this confidence start new tracks
+# Range: 0.5 - 0.7, recommended: 0.6
+new_track_thresh: 0.6
+
+# =============================================================================
+# Track Management
+# =============================================================================
+# Track buffer: frames to keep lost tracks before deletion
+# ByteTrack uses motion prediction to maintain tracks during brief occlusions
+# Range: 15 - 45 frames, recommended: 30 for 30fps footage
+track_buffer: 30
+
+# =============================================================================
+# Association Thresholds
+# =============================================================================
+# Matching threshold for IoU-based association
+# ByteTrack relies heavily on IoU, so this is critical
+# Range: 0.7 - 0.9, recommended: 0.8
+match_thresh: 0.8
+# =============================================================================
+# Performance Comparison: ByteTrack vs BoT-SORT
+# =============================================================================
+#
+# | Metric              | ByteTrack | BoT-SORT |
+# |---------------------|-----------|----------|
+# | Speed               | Fast      | Moderate |
+# | GPU Memory          | Low       | Higher   |
+# | Occlusion Handling  | Good      | Better   |
+# | Cross-camera ReID   | No        | Yes      |
+# | ID Switches         | More      | Fewer    |
+# | Implementation      | Simple    | Complex  |
+#
+# Recommendation:
+# - Use ByteTrack for single-camera deployments with good visibility
+# - Use BoT-SORT for multi-camera systems or scenes with heavy occlusion
+
+# =============================================================================
+# Performance Tuning for Security Applications
+# =============================================================================
+# Notes for production deployment:
+#
+# 1. For high-frame-rate cameras (60+ fps):
+#    - Decrease track_buffer to 15-20
+#    - Can increase match_thresh to 0.85 (predictions more accurate)
+#
+# 2. For low-frame-rate cameras (10-15 fps):
+#    - Increase track_buffer to 45-60
+#    - Decrease match_thresh to 0.7 (larger motion between frames)
+#
+# 3. For scenes with frequent occlusions:
+#    - Decrease track_low_thresh to 0.05
+#    - Increase track_buffer to 45
+#
+# 4. For clean scenes with well-separated objects:
+#    - Increase track_high_thresh to 0.6
+#    - Decrease track_buffer to 20

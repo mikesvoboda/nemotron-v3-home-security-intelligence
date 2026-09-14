@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000343561",
+  "category": "normal",
+  "name": "COCO Scene 343561",
+  "description": "Scene containing 3 handbag, 13 bicycle, 14 person. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}

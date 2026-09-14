@@ -1,0 +1,21 @@
+============================================================
+Pipeline Comparison Summary
+============================================================
+Total Images Compared: 0
+
+Detection Metrics:
+  Average IoU: 0.00%
+  Precision: 0.00%
+  Recall: 0.00%
+  F1 Score: 0.00%
+  IoU Threshold Met: 0.00%
+
+Risk Score Metrics:
+  Average Deviation: 0.0 points
+  Alignment Rate (within 15 points): 0.00%
+  Level Agreement Rate: 0.00%
+
+Per-Category Metrics:
+
+Failure Cases: 0
+============================================================

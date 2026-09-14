@@ -1,0 +1,46 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000329219",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "dog",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "knife",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 25,
+    "max_score": 45,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 1 knife, 1 dog, 1 person. From COCO object detection dataset."
+  }
+}

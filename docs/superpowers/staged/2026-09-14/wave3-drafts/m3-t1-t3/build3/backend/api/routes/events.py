@@ -1,0 +1,2762 @@
+"""API routes for events management."""
+
+import json
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
+from fastapi.responses import ORJSONResponse, StreamingResponse
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, undefer
+from sqlalchemy.orm.exc import StaleDataError
+
+from backend.api.dependencies import (
+    get_cache_service_dep,
+    get_clip_generator_dep,
+    get_event_or_404,
+    get_nemotron_analyzer_dep,
+)
+from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
+from backend.api.pagination import (
+    CursorData,
+    decode_cursor,
+    encode_cursor,
+    get_deprecation_warning,
+    set_deprecation_headers,
+    validate_cursor_format,
+)
+from backend.api.schemas.bulk import (
+    BulkOperationResponse,
+    BulkOperationStatus,
+    EventBulkCreateRequest,
+    EventBulkCreateResponse,
+    EventBulkDeleteRequest,
+    EventBulkUpdateRequest,
+)
+from backend.api.schemas.clips import (
+    ClipGenerateRequest,
+    ClipGenerateResponse,
+    ClipInfoResponse,
+)
+from backend.api.schemas.detections import DetectionListResponse
+from backend.api.schemas.enrichment import EventEnrichmentsResponse
+from backend.api.schemas.event_cluster import (
+    ClusterEventSummary,
+    ClusterRiskLevels,
+    EventCluster,
+    EventClustersResponse,
+)
+from backend.api.schemas.events import (
+    DeletedEventsListResponse,
+    EventListResponse,
+    EventResponse,
+    EventStatsResponse,
+    EventUpdate,
+    TimelineBucketResponse,
+    TimelineSummaryResponse,
+)
+from backend.api.schemas.hateoas import build_event_links
+from backend.api.schemas.pagination import PaginationMeta
+from backend.api.schemas.search import SearchResponse as SearchResponseSchema
+from backend.api.utils.field_filter import (
+    FieldFilterError,
+    filter_fields,
+    parse_fields_param,
+    validate_fields,
+)
+from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
+from backend.core.database import escape_ilike_pattern, get_db, get_read_db
+from backend.core.logging import get_logger, sanitize_log_value
+from backend.core.metrics import record_event_acknowledged, record_event_reviewed
+from backend.core.sanitization import sanitize_error_for_response
+from backend.core.telemetry import get_trace_id
+from backend.models.audit import AuditAction
+from backend.models.camera import Camera
+from backend.models.detection import Detection
+from backend.models.event import Event
+from backend.models.event_detection import EventDetection
+from backend.services.audit import AuditService
+from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
+from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
+from backend.services.clip_generator import ClipGenerator
+from backend.services.event_service import get_event_service
+from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.search import SearchFilters, search_events
+
+# Type aliases for dependency injection
+ClipGeneratorDep = ClipGenerator
+NemotronAnalyzerDep = NemotronAnalyzer
+
+logger = get_logger(__name__)
+router = APIRouter(
+    prefix="/api/events",
+    tags=["events"],
+    default_response_class=ORJSONResponse,
+)
+
+# Valid severity values for search filter
+VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
+
+
+async def _invalidate_events_cache_background(
+    cache: CacheService,
+    reason: str,
+) -> None:
+    """Invalidate event-related caches in background task (NEM-3744).
+
+    This function is designed to be run as a BackgroundTask to reduce
+    response latency by deferring non-critical cache invalidation.
+
+    Args:
+        cache: Cache service instance
+        reason: Reason for cache invalidation (for logging/metrics)
+    """
+    try:
+        await cache.invalidate_events(reason=reason)
+        await cache.invalidate_event_stats(reason=reason)
+    except Exception as e:
+        logger.warning(f"Background cache invalidation failed: {e}")
+
+
+# Valid fields for sparse fieldsets on list_events endpoint (NEM-1434)
+# NOTE: detection_ids was removed from events table (NEM-1592)
+# Use Event.detections relationship instead
+VALID_EVENT_LIST_FIELDS = frozenset(
+    {
+        "id",
+        "camera_id",
+        "started_at",
+        "ended_at",
+        "risk_score",
+        "risk_level",
+        "summary",
+        "reasoning",
+        "reviewed",
+        "detection_count",
+        "thumbnail_url",
+    }
+)
+
+
+def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
+    """Parse detection IDs stored as JSON array to list of integers.
+
+    Args:
+        detection_ids_str: JSON array string of detection IDs (e.g., "[1, 2, 3]")
+                          or None/empty string
+
+    Returns:
+        List of integer detection IDs. Empty list if input is None or empty.
+    """
+    if not detection_ids_str:
+        return []
+    try:
+        ids = json.loads(detection_ids_str)
+        if isinstance(ids, list):
+            return [int(d) for d in ids]
+        return []
+    except (json.JSONDecodeError, ValueError):
+        # Fallback for legacy comma-separated format
+        return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
+
+
+def get_detection_ids_from_event(event: Event) -> list[int]:
+    """Get detection IDs using the Event.detections relationship.
+
+    This function uses the normalized event_detections junction table to retrieve
+    detection IDs. The legacy detection_ids column has been removed from the schema.
+
+    Args:
+        event: Event model instance
+
+    Returns:
+        List of detection IDs associated with the event
+    """
+    # Use the normalized event_detections junction table
+    return event.detection_id_list
+
+
+def parse_severity_filter(severity_str: str | None) -> list[str]:
+    """Parse and validate severity filter parameter.
+
+    Args:
+        severity_str: Comma-separated severity values (e.g., "high,critical")
+                      or None for no filter
+
+    Returns:
+        List of validated severity values
+
+    Raises:
+        HTTPException: 400 if any severity value is invalid
+    """
+    if not severity_str:
+        return []
+
+    severity_levels = [s.strip().lower() for s in severity_str.split(",") if s.strip()]
+
+    # Validate all severity values
+    invalid_values = [s for s in severity_levels if s not in VALID_SEVERITY_VALUES]
+    if invalid_values:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid severity value(s): {', '.join(invalid_values)}. "
+            f"Valid values are: {', '.join(sorted(VALID_SEVERITY_VALUES))}",
+        )
+
+    return severity_levels
+
+
+# Characters that can trigger formula injection in spreadsheet applications
+# These characters at the start of a cell can execute formulas when opened in
+# Excel, LibreOffice Calc, Google Sheets, or other spreadsheet applications.
+CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def sanitize_csv_value(value: str | None) -> str:
+    """Sanitize a value for safe CSV export to prevent formula injection.
+
+    CSV injection (also known as formula injection) occurs when data
+    exported to CSV is opened in spreadsheet applications. Cells starting
+    with certain characters (=, +, -, @, tab, carriage return) can be
+    interpreted as formulas, potentially executing malicious code.
+
+    This function prefixes dangerous values with a single quote (')
+    which tells spreadsheet applications to treat the cell as text.
+
+    Reference:
+    - OWASP CSV Injection: https://owasp.org/www-community/attacks/CSV_Injection
+
+    Args:
+        value: The string value to sanitize, or None
+
+    Returns:
+        The sanitized string value. Returns empty string if value is None.
+
+    Examples:
+        >>> sanitize_csv_value("=HYPERLINK(...)")
+        "'=HYPERLINK(...)"
+        >>> sanitize_csv_value("Normal text")
+        "Normal text"
+        >>> sanitize_csv_value(None)
+        ""
+    """
+    if value is None:
+        return ""
+
+    if not value:
+        return value
+
+    # Check if the first character is a dangerous injection prefix
+    if value[0] in CSV_INJECTION_PREFIXES:
+        return f"'{value}"
+
+    return value
+
+
+@router.get("", response_model=EventListResponse)
+async def list_events(
+    response: Response,
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    risk_level: str | None = Query(
+        None, description="Filter by risk level (low, medium, high, critical)"
+    ),
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    reviewed: bool | None = Query(None, description="Filter by reviewed status"),
+    object_type: str | None = Query(None, description="Filter by detected object type"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
+    cursor: str | None = Query(None, description="Pagination cursor from previous response"),
+    fields: str | None = Query(
+        None,
+        description="Comma-separated list of fields to include in response (sparse fieldsets). "
+        "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
+        "reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
+    ),
+    include_deleted: bool = Query(
+        False,
+        description="Include soft-deleted events in results. Default is False to hide deleted events.",
+    ),
+    db: AsyncSession = Depends(get_read_db),
+) -> EventListResponse:
+    """List events with optional filtering and cursor-based pagination.
+
+    Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    Cursor-based pagination offers better performance for large datasets.
+
+    By default, soft-deleted events (events with deleted_at set) are excluded from results.
+    Use include_deleted=true to include them.
+
+    Sparse Fieldsets (NEM-1434):
+    Use the `fields` parameter to request only specific fields in the response,
+    reducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed
+
+    Args:
+        camera_id: Optional camera ID to filter by
+        risk_level: Optional risk level to filter by (low, medium, high, critical)
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        reviewed: Optional filter by reviewed status
+        object_type: Optional object type to filter by (person, vehicle, animal, etc.)
+        limit: Maximum number of results to return (1-100, default 50)
+        offset: Number of results to skip (deprecated, use cursor instead)
+        cursor: Pagination cursor from previous response's next_cursor field
+        fields: Comma-separated list of fields to include (sparse fieldsets)
+        include_deleted: Include soft-deleted events in results (default False)
+        db: Database session
+
+    Returns:
+        EventListResponse containing filtered events and pagination info
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if cursor is invalid
+        HTTPException: 400 if invalid fields are requested
+    """
+    # NEM-1503: Include trace_id in logs for distributed tracing correlation
+    trace_id = get_trace_id()
+    if trace_id:
+        logger.debug(
+            "Listing events",
+            extra={
+                "trace_id": trace_id,
+                "camera_id": camera_id,
+                "risk_level": risk_level,
+                "limit": limit,
+            },
+        )
+
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Parse and validate fields parameter for sparse fieldsets (NEM-1434)
+    requested_fields = parse_fields_param(fields)
+    try:
+        validated_fields = validate_fields(requested_fields, set(VALID_EVENT_LIST_FIELDS))
+    except FieldFilterError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    # Validate and decode cursor if provided (NEM-2585)
+    cursor_data: CursorData | None = None
+    if cursor:
+        # First validate cursor format (security check)
+        try:
+            validate_cursor_format(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor format: {e}",
+            ) from e
+
+        # Then decode cursor to extract pagination data
+        try:
+            cursor_data = decode_cursor(cursor)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid cursor: {e}",
+            ) from e
+
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all events from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
+    # Build base query with eager loading for camera relationship (NEM-1619)
+    # Also eagerly load deferred columns (reasoning) to prevent lazy loading errors
+    query = select(Event).options(joinedload(Event.camera), undefer(Event.reasoning))
+
+    # Filter out soft-deleted events by default (consistent with get_event_or_404)
+    # Use include_deleted=true to include soft-deleted events in results
+    if not include_deleted:
+        query = query.where(Event.deleted_at.is_(None))
+
+    # Apply filters
+    if camera_id:
+        query = query.where(Event.camera_id == camera_id)
+    if risk_level:
+        query = query.where(Event.risk_level == risk_level)
+    if start_date:
+        query = query.where(Event.started_at >= start_date)
+    if normalized_end_date:
+        query = query.where(Event.started_at <= normalized_end_date)
+    if reviewed is not None:
+        query = query.where(Event.reviewed == reviewed)
+
+    # Filter by object type - use the cached object_types column on Event
+    # This column stores comma-separated object types from related detections
+    # We use SQL LIKE for efficient database-side filtering
+    if object_type:
+        # Escape LIKE wildcard characters to prevent pattern injection
+        safe_object_type = escape_ilike_pattern(object_type)
+        # Use SQL LIKE to find events with matching object types
+        # The object_types column is comma-separated, so we check for:
+        # - Exact match at start: "person,..."
+        # - Match in middle: "...,person,..."
+        # - Exact match at end: "...,person"
+        # - Exact single value: "person"
+        query = query.where(
+            (Event.object_types == object_type)
+            | (Event.object_types.like(f"{safe_object_type},%"))
+            | (Event.object_types.like(f"%,{safe_object_type},%"))
+            | (Event.object_types.like(f"%,{safe_object_type}"))
+        )
+
+    # Apply cursor-based pagination filter (takes precedence over offset)
+    if cursor_data:
+        # For descending order by started_at, we want records where:
+        # - started_at < cursor's started_at, OR
+        # - started_at == cursor's started_at AND id < cursor's id (tie-breaker)
+        query = query.where(
+            (Event.started_at < cursor_data.created_at)
+            | ((Event.started_at == cursor_data.created_at) & (Event.id < cursor_data.id))
+        )
+
+    # Get total count (before pagination) - only when not using cursor
+    # With cursor pagination, total count becomes expensive and less meaningful
+    total_count: int = 0
+    if not cursor_data:
+        count_query = select(func.count()).select_from(query.subquery())
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
+
+    # Sort by started_at descending (newest first), then by id descending for consistency
+    query = query.order_by(Event.started_at.desc(), Event.id.desc())
+
+    # Apply pagination - fetch one extra to determine if there are more results
+    # Use explicit if/else for readability (clearer than ternary with complex expressions)
+    if cursor_data:
+        # Cursor-based: fetch limit + 1 to check for more
+        query = query.limit(limit + 1)
+    else:
+        # Offset-based (deprecated): apply offset
+        query = query.limit(limit + 1).offset(offset)
+
+    # Execute query
+    result = await db.execute(query)
+    events = list(result.scalars().all())
+
+    # Determine if there are more results
+    has_more = len(events) > limit
+    if has_more:
+        events = events[:limit]  # Trim to requested limit
+
+    # Calculate detection count and parse detection_ids for each event
+    events_with_counts = []
+    for event in events:
+        # Parse detection_ids (JSON array string) to list of integers
+        parsed_detection_ids = get_detection_ids_from_event(event)
+        detection_count = len(parsed_detection_ids)
+
+        # Compute thumbnail_url from first detection ID
+        thumbnail_url = (
+            f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
+        )
+
+        # Create response with detection count and detection_ids
+        event_dict = {
+            "id": event.id,
+            "camera_id": event.camera_id,
+            "started_at": event.started_at,
+            "ended_at": event.ended_at,
+            "risk_score": event.risk_score,
+            "risk_level": event.risk_level,
+            "summary": event.summary,
+            "reasoning": event.reasoning,
+            "reviewed": event.reviewed,
+            "detection_count": detection_count,
+            "detection_ids": parsed_detection_ids,
+            "thumbnail_url": thumbnail_url,
+        }
+        # Apply sparse fieldsets filter if fields parameter was provided (NEM-1434)
+        filtered_event = filter_fields(event_dict, validated_fields)
+        events_with_counts.append(filtered_event)
+
+    # Generate next cursor from the last event
+    next_cursor: str | None = None
+    if has_more and events:
+        last_event = events[-1]
+        cursor_data_next = CursorData(id=last_event.id, created_at=last_event.started_at)
+        next_cursor = encode_cursor(cursor_data_next)
+
+    # Get deprecation warning if using offset without cursor
+    deprecation_warning = get_deprecation_warning(cursor, offset)
+
+    # Set HTTP Deprecation headers per IETF standard (NEM-2603)
+    set_deprecation_headers(response, cursor, offset)
+
+    return EventListResponse(
+        items=events_with_counts,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset if offset else None,
+            cursor=cursor,
+            next_cursor=next_cursor,
+            has_more=has_more,
+        ),
+        deprecation_warning=deprecation_warning,
+    )
+
+
+@router.get("/stats", response_model=EventStatsResponse)
+async def get_event_stats(
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> EventStatsResponse:
+    """Get aggregated event statistics.
+
+    Returns statistics about events including:
+    - Total event count
+    - Events grouped by risk level (critical, high, medium, low)
+    - Events grouped by camera with camera names
+
+    Uses Redis cache with cache-aside pattern to improve performance
+    and generate cache hit metrics.
+
+    Args:
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        camera_id: Optional camera ID filter (for camera-specific stats)
+        db: Database session
+        cache: Cache service injected via FastAPI DI
+
+    Returns:
+        EventStatsResponse with aggregated statistics
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+    """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Generate cache key based on date and camera filters
+    # Check isinstance() to handle case when tests pass Query objects directly
+    start_str = start_date.isoformat() if isinstance(start_date, datetime) else None
+    end_str = end_date.isoformat() if isinstance(end_date, datetime) else None
+    cache_key = CacheKeys.event_stats(start_str, end_str, camera_id)
+
+    # Try cache first
+    try:
+        cached_data = await cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Returning cached event stats for dates={start_str}:{end_str}")
+            # Cast to expected type - cache stores dict[str, Any]
+            return EventStatsResponse(**dict(cached_data))
+    except Exception as e:
+        logger.warning(f"Cache read failed, falling back to database: {e}")
+
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all events from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
+    # Build filter conditions (reused across queries)
+    filters = []
+    if start_date:
+        filters.append(Event.started_at >= start_date)
+    if normalized_end_date:
+        filters.append(Event.started_at <= normalized_end_date)
+    if camera_id:
+        filters.append(Event.camera_id == camera_id)
+
+    # Get total count using database aggregation
+    total_count_query = select(func.count()).select_from(Event)
+    for condition in filters:
+        total_count_query = total_count_query.where(condition)
+    total_count_result = await db.execute(total_count_query)
+    total_events = total_count_result.scalar() or 0
+
+    # Get events by risk level using SQL GROUP BY
+    risk_level_query = select(Event.risk_level, func.count().label("count")).group_by(
+        Event.risk_level
+    )
+    for condition in filters:
+        risk_level_query = risk_level_query.where(condition)
+    risk_level_result = await db.execute(risk_level_query)
+    risk_level_rows = risk_level_result.all()
+
+    # Initialize with zeros and populate from query results
+    risk_level_counts = {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+    }
+    for risk_level, count in risk_level_rows:
+        if risk_level and risk_level in risk_level_counts:
+            risk_level_counts[risk_level] = count
+
+    # Get events by camera using SQL GROUP BY with JOIN to get camera names
+    camera_stats_query = (
+        select(Event.camera_id, Camera.name.label("camera_name"), func.count().label("event_count"))
+        .join(Camera, Event.camera_id == Camera.id, isouter=True)
+        .group_by(Event.camera_id, Camera.name)
+        .order_by(func.count().desc())
+    )
+    for condition in filters:
+        camera_stats_query = camera_stats_query.where(condition)
+    camera_stats_result = await db.execute(camera_stats_query)
+    camera_stats_rows = camera_stats_result.all()
+
+    # Build events_by_camera list from query results
+    events_by_camera = [
+        {
+            "camera_id": camera_id,
+            "camera_name": camera_name or "Unknown",
+            "event_count": event_count,
+        }
+        for camera_id, camera_name, event_count in camera_stats_rows
+    ]
+
+    # Build risk_distribution array for Grafana compatibility
+    risk_distribution = [
+        {"risk_level": level, "count": count}
+        for level, count in risk_level_counts.items()
+        if count > 0
+    ]
+
+    response = {
+        "total_events": total_events,
+        "events_by_risk_level": risk_level_counts,
+        "risk_distribution": risk_distribution,
+        "events_by_camera": events_by_camera,
+    }
+
+    # Cache the result
+    try:
+        await cache.set(cache_key, response, ttl=SHORT_TTL)
+    except Exception as e:
+        logger.warning(f"Cache write failed: {e}")
+
+    return EventStatsResponse(**response)
+
+
+# Bucket sizes in seconds for each zoom level (NEM-2932)
+BUCKET_SIZES = {
+    "hour": 5 * 60,  # 5 minutes for hour view
+    "day": 60 * 60,  # 1 hour for day view
+    "week": 24 * 60 * 60,  # 1 day for week view
+}
+
+# Default time ranges in seconds for each zoom level (NEM-2932)
+DEFAULT_RANGES = {
+    "hour": 60 * 60,  # 1 hour
+    "day": 24 * 60 * 60,  # 24 hours
+    "week": 7 * 24 * 60 * 60,  # 7 days
+}
+
+
+@router.get("/timeline-summary", response_model=TimelineSummaryResponse)
+async def get_timeline_summary(
+    start_date: datetime | None = Query(None, description="Start of timeline range (ISO format)"),
+    end_date: datetime | None = Query(None, description="End of timeline range (ISO format)"),
+    bucket_size: str = Query(
+        "day",
+        description="Zoom level determining bucket size (hour, day, week)",
+        pattern="^(hour|day|week)$",
+    ),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> TimelineSummaryResponse:
+    """Get timeline summary data for the timeline scrubber visualization (NEM-2932).
+
+    Returns event data bucketed by time periods for visualization.
+    Each bucket includes:
+    - Timestamp (start of the bucket)
+    - Event count
+    - Maximum risk score in that bucket
+
+    Bucket sizes based on zoom level:
+    - hour: 5-minute buckets (12 buckets per hour)
+    - day: 1-hour buckets (24 buckets per day)
+    - week: 1-day buckets (7 buckets per week)
+
+    Args:
+        start_date: Start of timeline range (defaults based on bucket_size)
+        end_date: End of timeline range (defaults to now)
+        bucket_size: Zoom level - "hour", "day", or "week"
+        camera_id: Optional camera filter
+        db: Database session
+        cache: Cache service
+
+    Returns:
+        TimelineSummaryResponse with bucketed event data
+    """
+    # Calculate effective date range
+    now = datetime.now(UTC)
+    effective_end_date = end_date if end_date else now
+    default_range_seconds = DEFAULT_RANGES.get(bucket_size, DEFAULT_RANGES["day"])
+    effective_start_date = (
+        start_date if start_date else effective_end_date - timedelta(seconds=default_range_seconds)
+    )
+
+    # Validate date range
+    validate_date_range(effective_start_date, effective_end_date)
+
+    # Check cache first
+    start_str = effective_start_date.isoformat() if effective_start_date else None
+    end_str = effective_end_date.isoformat() if effective_end_date else None
+    cache_key = f"timeline_summary:{bucket_size}:{start_str}:{end_str}:{camera_id or 'all'}"
+
+    try:
+        cached_data = await cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Returning cached timeline summary for {cache_key}")
+            return TimelineSummaryResponse(**dict(cached_data))
+    except Exception as e:
+        logger.warning(f"Cache read failed, falling back to database: {e}")
+
+    # Get bucket size in seconds
+    bucket_seconds = BUCKET_SIZES.get(bucket_size, BUCKET_SIZES["day"])
+
+    # Build base query for events in the time range
+    base_filters = [
+        Event.started_at >= effective_start_date,
+        Event.started_at <= effective_end_date,
+        Event.deleted_at.is_(None),  # Exclude soft-deleted events
+    ]
+    if camera_id:
+        base_filters.append(Event.camera_id == camera_id)
+
+    # Query events with their timestamps and risk scores
+    query = select(
+        Event.started_at,
+        Event.risk_score,
+    ).where(*base_filters)
+
+    result = await db.execute(query)
+    events = result.all()
+
+    # Initialize buckets
+    buckets: dict[datetime, dict] = {}
+    bucket_start = effective_start_date
+
+    # Ensure bucket_start is timezone-aware
+    if bucket_start.tzinfo is None:
+        bucket_start = bucket_start.replace(tzinfo=UTC)
+
+    # Ensure effective_end_date is timezone-aware
+    end_with_tz = effective_end_date
+    if end_with_tz.tzinfo is None:
+        end_with_tz = end_with_tz.replace(tzinfo=UTC)
+
+    # Create empty buckets for the entire range
+    while bucket_start <= end_with_tz:
+        buckets[bucket_start] = {
+            "timestamp": bucket_start,
+            "event_count": 0,
+            "max_risk_score": 0,
+        }
+        bucket_start = bucket_start + timedelta(seconds=bucket_seconds)
+
+    # Aggregate events into buckets
+    total_events = 0
+    # Ensure effective_start_date is timezone-aware for calculations
+    start_date_tz = (
+        effective_start_date
+        if effective_start_date.tzinfo is not None
+        else effective_start_date.replace(tzinfo=UTC)
+    )
+
+    for event_started_at, risk_score in events:
+        total_events += 1
+
+        # Ensure event timestamp is timezone-aware
+        event_ts = (
+            event_started_at
+            if event_started_at.tzinfo is not None
+            else event_started_at.replace(tzinfo=UTC)
+        )
+
+        # Calculate which bucket this event belongs to
+        # Find the bucket start time by truncating to bucket boundaries
+        time_since_start = (event_ts - start_date_tz).total_seconds()
+        bucket_index = int(time_since_start // bucket_seconds)
+        bucket_time = start_date_tz + timedelta(seconds=bucket_index * bucket_seconds)
+
+        if bucket_time in buckets:
+            buckets[bucket_time]["event_count"] += 1
+            if risk_score and risk_score > buckets[bucket_time]["max_risk_score"]:
+                buckets[bucket_time]["max_risk_score"] = risk_score
+
+    # Convert buckets dict to sorted list
+    sorted_buckets = sorted(buckets.values(), key=lambda b: b["timestamp"])
+    bucket_responses = [
+        TimelineBucketResponse(
+            timestamp=b["timestamp"],
+            event_count=b["event_count"],
+            max_risk_score=b["max_risk_score"],
+        )
+        for b in sorted_buckets
+    ]
+
+    response = TimelineSummaryResponse(
+        buckets=bucket_responses,
+        total_events=total_events,
+        start_date=effective_start_date,
+        end_date=effective_end_date,
+    )
+
+    # Cache the result (use mode='json' to serialize datetime objects)
+    try:
+        await cache.set(cache_key, response.model_dump(mode="json"), ttl=SHORT_TTL)
+    except Exception as e:
+        logger.warning(f"Cache write failed: {e}")
+
+    return response
+
+
+@router.get("/clusters", response_model=EventClustersResponse)
+async def get_event_clusters(
+    start_date: datetime = Query(..., description="Start date for clustering (ISO format)"),
+    end_date: datetime = Query(..., description="End date for clustering (ISO format)"),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    time_window_minutes: int = Query(
+        5, ge=1, le=60, description="Time window in minutes for clustering events (default: 5)"
+    ),
+    min_cluster_size: int = Query(
+        2, ge=2, le=100, description="Minimum events required to form a cluster (default: 2)"
+    ),
+    db: AsyncSession = Depends(get_read_db),
+) -> EventClustersResponse:
+    """Cluster events by temporal proximity (NEM-3620).
+
+    Groups events that occur within a specified time window into clusters.
+    Events from the same camera within `time_window_minutes` are grouped together.
+    Events from different cameras within 2 minutes are also grouped (cross-camera clusters).
+
+    Clustering algorithm:
+    1. Sort all events by timestamp
+    2. For each event, check if it fits in an existing cluster:
+       - Same camera: within time_window_minutes of cluster end
+       - Different camera: within 2 minutes of cluster end (correlating activity)
+    3. If no matching cluster, start a new potential cluster
+    4. Only return clusters with >= min_cluster_size events
+
+    Uses read replica for linear scalability (NEM-3392).
+
+    Args:
+        start_date: Start of time range to analyze (required)
+        end_date: End of time range to analyze (required)
+        camera_id: Optional filter to only cluster events from specific camera
+        time_window_minutes: Time window for same-camera clustering (1-60, default 5)
+        min_cluster_size: Minimum events to form a cluster (2-100, default 2)
+        db: Database session (read replica)
+
+    Returns:
+        EventClustersResponse with clusters and unclustered event count
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+    """
+    from uuid import uuid4
+
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
+    # Build query for events in the time range
+    query = (
+        select(Event)
+        .options(joinedload(Event.camera))
+        .where(
+            Event.started_at >= start_date,
+            Event.started_at <= normalized_end_date,
+            Event.deleted_at.is_(None),  # Exclude soft-deleted events
+        )
+        .order_by(Event.started_at.asc())
+    )
+
+    if camera_id:
+        query = query.where(Event.camera_id == camera_id)
+
+    result = await db.execute(query)
+    events = list(result.scalars().unique().all())
+
+    if not events:
+        return EventClustersResponse(
+            clusters=[],
+            total_clusters=0,
+            unclustered_events=0,
+        )
+
+    # Clustering algorithm - O(n) sliding window approach (NEM-4469)
+    # Since events are sorted by timestamp, we only need to check recent clusters
+    # within the time window. Old clusters that are outside the window can be
+    # skipped, making this O(n) instead of O(n^2).
+    time_window = timedelta(minutes=time_window_minutes)
+    cross_camera_window = timedelta(minutes=2)  # Shorter window for cross-camera correlation
+
+    # Each cluster is represented as a dict with events list and metadata
+    clusters: list[dict] = []
+
+    # Track the index of the first cluster that could still accept new events
+    # Clusters before this index are too old (their end_time + time_window < current event)
+    active_cluster_start_idx = 0
+
+    for event in events:
+        # Ensure event timestamp is timezone-aware
+        event_ts = event.started_at
+        if event_ts.tzinfo is None:
+            event_ts = event_ts.replace(tzinfo=UTC)
+
+        # Advance the active window: skip clusters that are too old
+        # A cluster is too old if even the longest window (same camera) wouldn't match
+        while active_cluster_start_idx < len(clusters):
+            cluster = clusters[active_cluster_start_idx]
+            cluster_end = cluster["end_time"]
+            if cluster_end.tzinfo is None:
+                cluster_end = cluster_end.replace(tzinfo=UTC)
+
+            # If this cluster is still within reach, stop advancing
+            if event_ts <= cluster_end + time_window:
+                break
+            active_cluster_start_idx += 1
+
+        # Try to find a matching cluster (only search from active window)
+        matched_cluster = None
+        for i in range(active_cluster_start_idx, len(clusters)):
+            cluster = clusters[i]
+            cluster_end = cluster["end_time"]
+            if cluster_end.tzinfo is None:
+                cluster_end = cluster_end.replace(tzinfo=UTC)
+
+            # Check if event belongs to this cluster
+            # Same camera: use full time window
+            # Different camera: use cross-camera window (for correlated activity detection)
+            if event.camera_id in cluster["cameras"]:
+                # Same camera - use full window
+                if event_ts <= cluster_end + time_window:
+                    matched_cluster = cluster
+                    break
+            # Different camera - use shorter window for correlation
+            elif event_ts <= cluster_end + cross_camera_window:
+                matched_cluster = cluster
+                break
+
+        if matched_cluster:
+            # Add event to existing cluster
+            matched_cluster["events"].append(event)
+            matched_cluster["cameras"].add(event.camera_id)
+            # Update end time if this event is later
+            matched_cluster["end_time"] = max(matched_cluster["end_time"], event_ts)
+        else:
+            # Start a new cluster
+            clusters.append(
+                {
+                    "start_time": event_ts,
+                    "end_time": event_ts,
+                    "cameras": {event.camera_id},
+                    "events": [event],
+                }
+            )
+
+    # Filter clusters by minimum size and build response
+    valid_clusters: list[EventCluster] = []
+    unclustered_count = 0
+
+    for cluster in clusters:
+        if len(cluster["events"]) >= min_cluster_size:
+            # Build aggregated stats
+            risk_levels = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+            object_types: dict[str, int] = {}
+
+            event_summaries: list[ClusterEventSummary] = []
+            for event in cluster["events"]:
+                # Count risk levels
+                if event.risk_level and event.risk_level in risk_levels:
+                    risk_levels[event.risk_level] += 1
+
+                # Count object types
+                if event.object_types:
+                    for raw_obj_type in event.object_types.split(","):
+                        obj_type = raw_obj_type.strip()
+                        if obj_type:
+                            object_types[obj_type] = object_types.get(obj_type, 0) + 1
+
+                # Build event summary
+                event_summaries.append(
+                    ClusterEventSummary(
+                        id=event.id,
+                        camera_id=event.camera_id,
+                        started_at=event.started_at,
+                        risk_score=event.risk_score,
+                        risk_level=event.risk_level,
+                        summary=event.summary,
+                    )
+                )
+
+            valid_clusters.append(
+                EventCluster(
+                    cluster_id=str(uuid4()),
+                    start_time=cluster["start_time"],
+                    end_time=cluster["end_time"],
+                    event_count=len(cluster["events"]),
+                    cameras=sorted(cluster["cameras"]),
+                    risk_levels=ClusterRiskLevels(**risk_levels),
+                    object_types=object_types,
+                    events=event_summaries,
+                )
+            )
+        else:
+            # Events that don't meet cluster threshold
+            unclustered_count += len(cluster["events"])
+
+    return EventClustersResponse(
+        clusters=valid_clusters,
+        total_clusters=len(valid_clusters),
+        unclustered_events=unclustered_count,
+    )
+
+
+@router.get("/search", response_model=SearchResponseSchema)
+async def search_events_endpoint(
+    q: str = Query(..., min_length=1, description="Search query string"),
+    camera_id: str | None = Query(
+        None, description="Filter by camera ID (comma-separated for multiple)"
+    ),
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    severity: str | None = Query(
+        None, description="Filter by risk levels (comma-separated: low,medium,high,critical)"
+    ),
+    risk_level: str | None = Query(
+        None,
+        description="Alias for severity - filter by risk levels "
+        "(comma-separated: low,medium,high,critical)",
+    ),
+    object_type: str | None = Query(
+        None, description="Filter by object types (comma-separated: person,vehicle,animal)"
+    ),
+    reviewed: bool | None = Query(None, description="Filter by reviewed status"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    db: AsyncSession = Depends(get_read_db),
+) -> SearchResponseSchema:
+    """Search events using full-text search.
+
+    Uses read replica for linear scalability (NEM-3392).
+
+    This endpoint provides PostgreSQL full-text search across event summaries,
+    reasoning, object types, and camera names.
+
+    Search Query Syntax:
+    - Basic words: "person vehicle" (implicit AND)
+    - Phrase search: '"suspicious person"' (exact phrase)
+    - Boolean OR: "person OR animal"
+    - Boolean NOT: "person NOT cat"
+    - Boolean AND: "person AND vehicle" (explicit)
+
+    Args:
+        q: Search query string (required)
+        camera_id: Optional comma-separated camera IDs to filter by
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        severity: Optional comma-separated risk levels (low, medium, high, critical)
+        risk_level: Alias for severity - accepts same format
+        object_type: Optional comma-separated object types (person, vehicle, animal)
+        reviewed: Optional filter by reviewed status
+        limit: Maximum number of results to return (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        db: Database session
+
+    Returns:
+        SearchResponse with ranked results and pagination info
+
+    Raises:
+        HTTPException: 400 if any severity value is invalid
+        HTTPException: 400 if start_date is after end_date
+    """
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Parse comma-separated filter values with validation
+    camera_ids = [c.strip() for c in camera_id.split(",")] if camera_id else []
+    # Support both 'severity' and 'risk_level' parameters for consistency with list_events
+    # If both are provided, 'severity' takes precedence (maintains backward compatibility)
+    severity_param = severity or risk_level
+    severity_levels = parse_severity_filter(severity_param)  # Validates severity values
+    object_types = [o.strip() for o in object_type.split(",")] if object_type else []
+
+    # Build filters
+    filters = SearchFilters(
+        start_date=start_date,
+        end_date=end_date,
+        camera_ids=camera_ids,
+        severity=severity_levels,
+        object_types=object_types,
+        reviewed=reviewed,
+    )
+
+    # Execute search
+    search_response = await search_events(
+        db=db,
+        query=q,
+        filters=filters,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Convert to dict for response
+    return SearchResponseSchema(
+        results=[
+            {
+                "id": r.id,
+                "camera_id": r.camera_id,
+                "camera_name": r.camera_name,
+                "started_at": r.started_at,
+                "ended_at": r.ended_at,
+                "risk_score": r.risk_score,
+                "risk_level": r.risk_level,
+                "summary": r.summary,
+                "reasoning": r.reasoning,
+                "reviewed": r.reviewed,
+                "detection_count": r.detection_count,
+                "detection_ids": r.detection_ids,
+                "object_types": r.object_types,
+                "relevance_score": r.relevance_score,
+                "thumbnail_url": r.thumbnail_url,
+            }
+            for r in search_response.results
+        ],
+        total_count=search_response.total_count,
+        limit=search_response.limit,
+        offset=search_response.offset,
+    )
+
+
+@router.get(
+    "/export",
+    response_model=None,  # Required when returning StreamingResponse | Response union
+    responses={
+        200: {
+            "description": "Exported events file",
+            "content": {
+                "text/csv": {
+                    "schema": {"type": "string", "format": "binary"},
+                    "example": "event_id,camera_name,started_at,...",
+                },
+                "application/json": {
+                    "schema": {"type": "array", "items": {"type": "object"}},
+                    "example": [{"event_id": 1, "camera_name": "Front Door"}],
+                },
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                    "schema": {"type": "string", "format": "binary"},
+                },
+            },
+        },
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def export_events(
+    request: Request,
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    risk_level: str | None = Query(
+        None, description="Filter by risk level (low, medium, high, critical)"
+    ),
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    reviewed: bool | None = Query(None, description="Filter by reviewed status"),
+    db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.EXPORT)),
+) -> StreamingResponse | Response:
+    """Export events as CSV, JSON, or Excel file for external analysis or record-keeping.
+
+    Supports content negotiation via HTTP Accept header:
+    - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+    - `Accept: application/json` - JSON format
+    - `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)
+    - `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)
+
+    This endpoint is rate-limited to 10 requests per minute per client IP
+    to prevent abuse and protect against data exfiltration attacks.
+
+    Exports events with the following fields:
+    - Event ID, camera name, timestamps
+    - Risk score, risk level, summary
+    - Detection count, reviewed status
+
+    Args:
+        request: FastAPI request object (includes Accept header for format selection)
+        camera_id: Optional camera ID to filter by
+        risk_level: Optional risk level to filter by (low, medium, high, critical)
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        reviewed: Optional filter by reviewed status
+        db: Database session
+        _rate_limit: Rate limiter dependency (10 req/min, no burst)
+
+    Returns:
+        StreamingResponse with CSV, JSON Response, or Excel Response
+
+    Raises:
+        HTTPException: 429 if rate limit exceeded
+        HTTPException: 400 if start_date is after end_date
+    """
+    from backend.services.export_service import (
+        EXPORT_MIME_TYPES,
+        EventExportRow,
+        ExportFormat,
+        events_to_csv,
+        events_to_excel,
+        generate_export_filename,
+        parse_accept_header,
+    )
+
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Determine export format from Accept header
+    accept_header = request.headers.get("Accept")
+    export_format = parse_accept_header(accept_header)
+
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    # This ensures date-only filters like "2026-01-15" include all events from that day
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
+    # Build base query with undefer to load reasoning column
+    query = select(Event).options(undefer(Event.reasoning))
+
+    # Apply filters
+    if camera_id:
+        query = query.where(Event.camera_id == camera_id)
+    if risk_level:
+        query = query.where(Event.risk_level == risk_level)
+    if start_date:
+        query = query.where(Event.started_at >= start_date)
+    if normalized_end_date:
+        query = query.where(Event.started_at <= normalized_end_date)
+    if reviewed is not None:
+        query = query.where(Event.reviewed == reviewed)
+
+    # Sort by started_at descending (newest first)
+    query = query.order_by(Event.started_at.desc())
+
+    # Execute query
+    result = await db.execute(query)
+    events = result.scalars().all()
+
+    # Get all camera IDs to fetch camera names
+    camera_ids = {event.camera_id for event in events}
+    camera_query = select(Camera).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
+
+    # Convert events to export rows
+    export_rows: list[EventExportRow] = []
+    for event in events:
+        camera_name = cameras.get(event.camera_id, "Unknown")
+        detection_count = len(get_detection_ids_from_event(event))
+
+        export_rows.append(
+            EventExportRow(
+                event_id=event.id,
+                camera_name=camera_name,
+                started_at=event.started_at,
+                ended_at=event.ended_at,
+                risk_score=event.risk_score,
+                risk_level=event.risk_level,
+                summary=event.summary,
+                detection_count=detection_count,
+                reviewed=event.reviewed,
+                object_types=event.object_types,
+                reasoning=event.reasoning,
+            )
+        )
+
+    # Generate filename with timestamp
+    filename = generate_export_filename("events_export", export_format)
+    content_type = EXPORT_MIME_TYPES[export_format]
+
+    # Log the export action
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.MEDIA_EXPORTED,
+            resource_type="event",
+            actor="anonymous",
+            details={
+                "export_type": export_format.value,
+                "filters": {
+                    "camera_id": camera_id,
+                    "risk_level": risk_level,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None,
+                    "reviewed": reviewed,
+                },
+                "event_count": len(events),
+                "filename": filename,
+            },
+            request=request,
+        )
+        await db.commit()
+    except Exception:
+        logger.error(
+            "Failed to commit audit log", exc_info=True, extra={"action": "events_exported"}
+        )
+        await db.rollback()
+        # Don't fail the main operation - audit is non-critical
+
+    # Generate export content based on format
+    if export_format == ExportFormat.EXCEL:
+        # Excel format - return as bytes in Response
+        content = events_to_excel(export_rows)
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    elif export_format == ExportFormat.JSON:
+        # JSON format - return as Response
+        from backend.services.export_service import events_to_json
+
+        json_content = events_to_json(export_rows)
+        return Response(
+            content=json_content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    else:
+        # CSV format - return as streaming response
+        csv_content = events_to_csv(export_rows)
+        return StreamingResponse(
+            iter([csv_content]),
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+
+# =============================================================================
+# Soft Delete Trash View Endpoint (NEM-1955)
+# NOTE: This endpoint MUST be defined before /{event_id} to avoid
+# validation errors when "deleted" is parsed as event_id
+# =============================================================================
+
+
+@router.get(
+    "/deleted",
+    response_model=DeletedEventsListResponse,
+    summary="List all soft-deleted events",
+    responses={
+        200: {"description": "List of soft-deleted events"},
+    },
+)
+async def list_deleted_events(
+    db: AsyncSession = Depends(get_db),
+) -> DeletedEventsListResponse:
+    """List all soft-deleted events for trash view.
+
+    Returns events that have been soft-deleted (deleted_at is not null),
+    ordered by deleted_at descending (most recently deleted first).
+
+    This endpoint enables a "trash" view where users can see deleted events
+    and optionally restore them.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DeletedEventsListResponse containing list of deleted events and count
+    """
+    # Query for events where deleted_at is not null
+    # Eagerly load deferred columns to prevent lazy loading errors
+    query = (
+        select(Event)
+        .options(undefer(Event.reasoning), undefer(Event.llm_prompt))
+        .where(Event.deleted_at.isnot(None))
+        .order_by(Event.deleted_at.desc())
+    )
+
+    result = await db.execute(query)
+    deleted_events = result.scalars().all()
+
+    # Build response with detection info using Pydantic models
+    events_data = []
+    for event in deleted_events:
+        detection_ids = get_detection_ids_from_event(event)
+        thumbnail_url = f"/api/detections/{detection_ids[0]}/image" if detection_ids else None
+
+        events_data.append(
+            EventResponse(
+                id=event.id,
+                camera_id=event.camera_id,
+                started_at=event.started_at,
+                ended_at=event.ended_at,
+                risk_score=event.risk_score,
+                risk_level=event.risk_level,
+                summary=event.summary,
+                reasoning=event.reasoning,
+                llm_prompt=event.llm_prompt,
+                reviewed=event.reviewed,
+                notes=event.notes,
+                detection_count=len(detection_ids),
+                detection_ids=detection_ids,
+                thumbnail_url=thumbnail_url,
+                enrichment_status=None,
+                deleted_at=event.deleted_at,
+            )
+        )
+
+    return DeletedEventsListResponse(
+        items=events_data,
+        pagination=PaginationMeta(
+            total=len(events_data),
+            limit=1000,  # No pagination limit for deleted events list
+            offset=None,
+            cursor=None,
+            next_cursor=None,
+            has_more=False,
+        ),
+    )
+
+
+# =============================================================================
+# Bulk Operations (NEM-1433, NEM-2600)
+# =============================================================================
+# Rate limiting: Bulk operations are rate-limited to prevent DoS attacks.
+# Uses RateLimitTier.BULK with 10 requests/minute and burst of 2.
+# Request size limits enforced at the schema level (max 100 items).
+
+# Instantiate bulk rate limiter for dependency injection (NEM-2600)
+_bulk_rate_limiter = RateLimiter(tier=RateLimitTier.BULK)
+
+
+@router.post(
+    "/bulk",
+    response_model=EventBulkCreateResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk create events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def bulk_create_events(
+    request: EventBulkCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+    _rate_limit: None = Depends(_bulk_rate_limiter),
+) -> EventBulkCreateResponse:
+    """Create multiple events in a single request.
+
+    Supports partial success - some events may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
+
+    Args:
+        request: Bulk create request with up to 100 events
+        db: Database session
+
+    Returns:
+        EventBulkCreateResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Validate all camera_ids exist before processing
+    camera_ids = {item.camera_id for item in request.events}
+    camera_query = select(Camera.id).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    valid_camera_ids = {row[0] for row in camera_result.all()}
+
+    for idx, item in enumerate(request.events):
+        try:
+            # Validate camera exists
+            if item.camera_id not in valid_camera_ids:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": None,
+                        "error": f"Camera not found: {item.camera_id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Create event
+            event = Event(
+                batch_id=item.batch_id,
+                camera_id=item.camera_id,
+                started_at=item.started_at,
+                ended_at=item.ended_at,
+                risk_score=item.risk_score,
+                risk_level=item.risk_level,
+                summary=item.summary,
+                reasoning=item.reasoning,
+            )
+            db.add(event)
+            await db.flush()  # Get the ID without committing
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk create event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": None,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+            # Invalidate event-related caches after successful bulk create (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_created")
+                await cache.invalidate_event_stats(reason="event_created")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk create: {e}")
+        except Exception as e:
+            logger.error(f"Bulk create commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return EventBulkCreateResponse(
+        total=len(request.events),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
+
+
+@router.patch(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk update events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def bulk_update_events(
+    request: EventBulkUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+    _rate_limit: None = Depends(_bulk_rate_limiter),
+) -> BulkOperationResponse:
+    """Update multiple events in a single request.
+
+    Supports partial success - some updates may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
+
+    Args:
+        request: Bulk update request with up to 100 event updates
+        db: Database session
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    # Fetch all events in one query
+    event_ids = [item.id for item in request.events]
+    query = select(Event).where(Event.id.in_(event_ids))
+    result = await db.execute(query)
+    events_map = {event.id: event for event in result.scalars().all()}
+
+    for idx, item in enumerate(request.events):
+        try:
+            event = events_map.get(item.id)
+            if not event:
+                results.append(
+                    {
+                        "index": idx,
+                        "status": BulkOperationStatus.FAILED,
+                        "id": item.id,
+                        "error": f"Event not found: {item.id}",
+                    }
+                )
+                failed += 1
+                continue
+
+            # Update fields if provided
+            if item.reviewed is not None:
+                event.reviewed = item.reviewed
+            if item.notes is not None:
+                event.notes = item.notes
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event.id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except Exception as e:
+            logger.error(f"Bulk update event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": item.id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+            # Invalidate event-related caches after successful bulk update (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_updated")
+                await cache.invalidate_event_stats(reason="event_updated")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk update: {e}")
+        except Exception as e:
+            logger.error(f"Bulk update commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return BulkOperationResponse(
+        total=len(request.events),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
+
+
+@router.delete(
+    "/bulk",
+    response_model=BulkOperationResponse,
+    status_code=status.HTTP_207_MULTI_STATUS,
+    summary="Bulk delete events",
+    responses={
+        207: {"description": "Multi-status response with per-item results"},
+        400: {"description": "Invalid request format"},
+        422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def bulk_delete_events(
+    request: EventBulkDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+    _rate_limit: None = Depends(_bulk_rate_limiter),
+) -> BulkOperationResponse:
+    """Delete multiple events in a single request.
+
+    Supports partial success - some deletions may succeed while others fail.
+    Returns HTTP 207 Multi-Status with per-item results.
+
+    By default uses soft delete (sets deleted_at timestamp) with cascade to
+    related detections. Use soft_delete=false for permanent deletion.
+    Use cascade=false to only delete the event without affecting detections.
+
+    Rate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).
+
+    Args:
+        request: Bulk delete request with up to 100 event IDs
+        db: Database session
+        cache: Cache service for invalidation
+
+    Returns:
+        BulkOperationResponse with per-item results
+    """
+    results: list[dict[str, Any]] = []
+    succeeded = 0
+    failed = 0
+
+    event_service = get_event_service()
+
+    for idx, event_id in enumerate(request.event_ids):
+        try:
+            if request.soft_delete:
+                # Soft delete the event (cascade param preserved for future use)
+                await event_service.soft_delete_event(
+                    event_id=event_id,
+                    db=db,
+                    cascade=True,
+                )
+            else:
+                # Hard delete - delete files first, then delete from database
+                # The hard_delete_event method handles file cleanup
+                _files_deleted, files_failed = await event_service.hard_delete_event(
+                    event_id=event_id,
+                    db=db,
+                )
+                if files_failed > 0:
+                    logger.warning(
+                        f"Hard delete event {event_id}: {files_failed} files failed to delete"
+                    )
+
+                # Now fetch and delete the event from the database
+                query = select(Event).where(Event.id == event_id)
+                result = await db.execute(query)
+                event = result.scalar_one_or_none()
+                if event is None:
+                    raise ValueError(f"Event not found: {event_id}")
+                await db.delete(event)
+
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.SUCCESS,
+                    "id": event_id,
+                    "error": None,
+                }
+            )
+            succeeded += 1
+
+        except ValueError as e:
+            # Event not found or already deleted
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": event_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+        except Exception as e:
+            logger.error(f"Bulk delete event failed at index {idx}: {e}")
+            results.append(
+                {
+                    "index": idx,
+                    "status": BulkOperationStatus.FAILED,
+                    "id": event_id,
+                    "error": str(e),
+                }
+            )
+            failed += 1
+
+    # Commit all successful operations
+    if succeeded > 0:
+        try:
+            await db.commit()
+            # Invalidate event-related caches after successful bulk delete (NEM-1950)
+            try:
+                await cache.invalidate_events(reason="event_deleted")
+                await cache.invalidate_event_stats(reason="event_deleted")
+            except Exception as e:
+                # Cache invalidation is non-critical - log but don't fail the request
+                logger.warning(f"Cache invalidation failed after bulk delete: {e}")
+        except Exception as e:
+            logger.error(f"Bulk delete commit failed: {e}")
+            await db.rollback()
+            # Mark all as failed on commit error
+            for item_result in results:
+                if item_result["status"] == BulkOperationStatus.SUCCESS:
+                    item_result["status"] = BulkOperationStatus.FAILED
+                    item_result["error"] = "Transaction commit failed"
+                    succeeded -= 1
+                    failed += 1
+
+    return BulkOperationResponse(
+        total=len(request.event_ids),
+        succeeded=succeeded,
+        failed=failed,
+        skipped=0,
+        results=results,
+    )
+
+
+@router.get("/{event_id}", response_model=EventResponse, response_model_exclude_unset=True)
+async def get_event(
+    event_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> EventResponse:
+    """Get a specific event by ID with HATEOAS links.
+
+    Args:
+        event_id: Event ID
+        request: FastAPI request object for building HATEOAS links
+        db: Database session
+
+    Returns:
+        Event object with detection count and HATEOAS links
+
+    Raises:
+        HTTPException: 404 if event not found
+    """
+    event = await get_event_or_404(event_id, db)
+
+    # Parse detection_ids and calculate count
+    parsed_detection_ids = get_detection_ids_from_event(event)
+    detection_count = len(parsed_detection_ids)
+
+    # Compute thumbnail_url from first detection ID
+    thumbnail_url = (
+        f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
+    )
+
+    return EventResponse(
+        id=event.id,
+        camera_id=event.camera_id,
+        started_at=event.started_at,
+        ended_at=event.ended_at,
+        risk_score=event.risk_score,
+        risk_level=event.risk_level,
+        summary=event.summary,
+        reasoning=event.reasoning,
+        reviewed=event.reviewed,
+        notes=event.notes,
+        snooze_until=event.snooze_until,
+        detection_count=detection_count,
+        detection_ids=parsed_detection_ids,
+        thumbnail_url=thumbnail_url,
+        links=build_event_links(request, event.id, event.camera_id),
+        version=event.version,  # Include version for optimistic locking (NEM-3625)
+    )
+
+
+@router.patch(
+    "/{event_id}",
+    response_model=EventResponse,
+    responses={
+        409: {
+            "description": "Conflict - event was modified by another request (optimistic locking)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Event was modified by another request. Please refresh and retry.",
+                        "current_version": 3,
+                    }
+                }
+            },
+        },
+    },
+)
+async def update_event(  # Allow branches for audit logging logic
+    event_id: int,
+    update_data: EventUpdate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> EventResponse:
+    """Update an event (mark as reviewed).
+
+    Supports optimistic locking (NEM-3625): Include the `version` field from the
+    event response to prevent concurrent modification conflicts. If the version
+    doesn't match, returns HTTP 409 Conflict with the current version.
+
+    Args:
+        event_id: Event ID
+        update_data: Update data (reviewed, notes, snooze_until, version)
+        request: FastAPI request for audit logging
+        db: Database session
+        cache: Cache service for cache invalidation (NEM-1938)
+
+    Returns:
+        Updated event object with new version
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 409 if version mismatch (concurrent modification)
+    """
+    event = await get_event_or_404(event_id, db)
+
+    # Optimistic locking check (NEM-3625)
+    # If client provides a version, verify it matches the current version
+    update_dict = update_data.model_dump(exclude_unset=True)
+    if "version" in update_dict and update_data.version is not None:
+        if event.version != update_data.version:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Event was modified by another request. Please refresh and retry.",
+                    "current_version": event.version,
+                },
+            )
+
+    # Track changes for audit log
+    changes: dict[str, Any] = {}
+    old_reviewed = event.reviewed
+    old_notes = event.notes
+    old_snooze_until = event.snooze_until
+    if "reviewed" in update_dict and update_data.reviewed is not None:
+        event.reviewed = update_data.reviewed
+        if old_reviewed != event.reviewed:
+            changes["reviewed"] = {"old": old_reviewed, "new": event.reviewed}
+    if "notes" in update_dict:
+        event.notes = update_data.notes
+        if old_notes != event.notes:
+            changes["notes"] = {"old": old_notes, "new": event.notes}
+    # Handle snooze_until field (NEM-2359)
+    if "snooze_until" in update_dict:
+        event.snooze_until = update_data.snooze_until
+        if old_snooze_until != event.snooze_until:
+            changes["snooze_until"] = {
+                "old": old_snooze_until.isoformat() if old_snooze_until else None,
+                "new": event.snooze_until.isoformat() if event.snooze_until else None,
+            }
+
+    # Determine audit action based on changes
+    if changes.get("reviewed", {}).get("new") is True:
+        action = AuditAction.EVENT_REVIEWED
+        # Record events reviewed metric for Prometheus (NEM-770)
+        try:
+            record_event_reviewed()
+        except Exception as e:
+            # Log but don't fail the request - metrics are non-critical
+            logger.warning(f"Failed to record event_reviewed metric: {e}")
+        # Record event acknowledged metric with labels (NEM-3288)
+        # Fetch camera name for the acknowledged event metric
+        try:
+            camera_result = await db.execute(
+                select(Camera.name).where(Camera.id == event.camera_id)
+            )
+            camera_name = camera_result.scalar_one_or_none() or "unknown"
+            risk_level = event.risk_level or "unknown"
+            record_event_acknowledged(camera_name=camera_name, risk_level=risk_level)
+        except Exception as e:
+            # Log but don't fail the request - metrics are non-critical
+            logger.warning(f"Failed to record event_acknowledged metric: {e}")
+    elif changes.get("reviewed", {}).get("new") is False:
+        action = AuditAction.EVENT_DISMISSED
+    else:
+        action = AuditAction.EVENT_REVIEWED  # Default for notes-only updates
+
+    # Log the audit entry and commit with optimistic locking (NEM-3625)
+    try:
+        await AuditService.log_action(
+            db=db,
+            action=action,
+            resource_type="event",
+            resource_id=str(event_id),
+            actor="anonymous",  # No auth in this system
+            details={
+                "changes": changes,
+                "risk_level": event.risk_level,
+                "camera_id": event.camera_id,
+            },
+            request=request,
+        )
+        await db.commit()
+    except StaleDataError:
+        # Optimistic locking conflict - another request modified the event (NEM-3625)
+        await db.rollback()
+        # Re-fetch to get current version
+        refreshed_event = await get_event_or_404(event_id, db)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Event was modified by another request. Please refresh and retry.",
+                "current_version": refreshed_event.version,
+            },
+        ) from None
+    except Exception:
+        logger.error(
+            "Failed to commit audit log",
+            exc_info=True,
+            extra={"action": "event_updated", "event_id": event_id},
+        )
+        await db.rollback()
+        # Re-apply the event changes since we rolled back
+        update_data_dict = update_data.model_dump(exclude_unset=True)
+        for key, value in update_data_dict.items():
+            if key != "version":  # Don't set version, it's auto-managed
+                setattr(event, key, value)
+        try:
+            await db.commit()
+        except StaleDataError:
+            await db.rollback()
+            refreshed_event = await get_event_or_404(event_id, db)
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Event was modified by another request. Please refresh and retry.",
+                    "current_version": refreshed_event.version,
+                },
+            ) from None
+    await db.refresh(event)
+
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_events_cache_background,
+        cache,
+        "event_updated",
+    )
+
+    # Parse detection_ids and calculate count
+    parsed_detection_ids = get_detection_ids_from_event(event)
+    detection_count = len(parsed_detection_ids)
+
+    # Compute thumbnail_url from first detection ID
+    thumbnail_url = (
+        f"/api/detections/{parsed_detection_ids[0]}/image" if parsed_detection_ids else None
+    )
+
+    return EventResponse(
+        id=event.id,
+        camera_id=event.camera_id,
+        started_at=event.started_at,
+        ended_at=event.ended_at,
+        risk_score=event.risk_score,
+        risk_level=event.risk_level,
+        summary=event.summary,
+        reasoning=event.reasoning,
+        reviewed=event.reviewed,
+        notes=event.notes,
+        snooze_until=event.snooze_until,
+        detection_count=detection_count,
+        detection_ids=parsed_detection_ids,
+        thumbnail_url=thumbnail_url,
+        version=event.version,  # Include version for optimistic locking (NEM-3625)
+    )
+
+
+# Valid values for order_detections_by parameter (NEM-3629)
+VALID_DETECTION_ORDER_BY = frozenset({"detected_at", "created_at"})
+
+
+@router.get("/{event_id}/detections", response_model=DetectionListResponse)
+async def get_event_detections(
+    event_id: int,
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    order_detections_by: str = Query(
+        "detected_at",
+        description="Order detections by: 'detected_at' (detection timestamp, default) "
+        "or 'created_at' (when associated with event - shows detection sequence in event)",
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> DetectionListResponse:
+    """Get detections for a specific event.
+
+    NEM-3629: Supports ordering by EventDetection.created_at to show detection
+    order within the event (first, second, etc.). When using order_detections_by=created_at,
+    the association_created_at field will be populated in each detection response.
+
+    Args:
+        event_id: Event ID
+        limit: Maximum number of results to return (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        order_detections_by: Order by 'detected_at' (default) or 'created_at'
+        db: Database session
+
+    Returns:
+        DetectionListResponse containing detections for the event
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 400 if invalid order_detections_by value
+    """
+    # NEM-3664: Handle Query object in Python 3.14+ (for direct function calls in tests)
+    # When called directly (not via FastAPI), Query objects may not be resolved
+    from fastapi.params import Query as QueryParam
+
+    resolved_order_by = order_detections_by
+    if isinstance(order_detections_by, QueryParam):
+        resolved_order_by = order_detections_by.default
+
+    # Validate order_detections_by parameter
+    if resolved_order_by not in VALID_DETECTION_ORDER_BY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid order_detections_by value: {resolved_order_by}. "
+            f"Valid values are: {', '.join(sorted(VALID_DETECTION_ORDER_BY))}",
+        )
+
+    event = await get_event_or_404(event_id, db)
+
+    # Parse detection_ids using helper function
+    detection_ids = get_detection_ids_from_event(event)
+
+    # If no detections, return empty list
+    if not detection_ids:
+        return DetectionListResponse(
+            items=[],
+            pagination=PaginationMeta(
+                total=0,
+                limit=limit,
+                offset=offset,
+                has_more=False,
+            ),
+        )
+
+    # NEM-3629: Use different query strategies based on ordering
+    # Build response items based on query type
+    items: list[Detection | dict[str, Any]]
+    if resolved_order_by == "created_at":
+        # Join with EventDetection to get association timestamp and order by it
+        junction_query = (
+            select(Detection, EventDetection.created_at.label("association_created_at"))
+            .join(EventDetection, EventDetection.detection_id == Detection.id)
+            .options(undefer(Detection.enrichment_data))
+            .where(EventDetection.event_id == event_id)
+            .order_by(EventDetection.created_at.asc())
+        )
+
+        # Get total count
+        count_query = (
+            select(func.count())
+            .select_from(EventDetection)
+            .where(EventDetection.event_id == event_id)
+        )
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
+
+        # Apply pagination and execute
+        junction_query = junction_query.limit(limit).offset(offset)
+        result = await db.execute(junction_query)
+
+        # Result contains tuples of (Detection, association_created_at)
+        items = []
+        for row in result.all():
+            detection = row[0]
+            association_created_at = row[1]
+            # Build detection dict with association timestamp
+            detection_dict: dict[str, Any] = {
+                "id": detection.id,
+                "camera_id": detection.camera_id,
+                "file_path": detection.file_path,
+                "file_type": detection.file_type,
+                "detected_at": detection.detected_at,
+                "object_type": detection.object_type,
+                "confidence": detection.confidence,
+                "bbox_x": detection.bbox_x,
+                "bbox_y": detection.bbox_y,
+                "bbox_width": detection.bbox_width,
+                "bbox_height": detection.bbox_height,
+                "thumbnail_path": detection.thumbnail_path,
+                "media_type": detection.media_type,
+                "duration": detection.duration,
+                "video_codec": detection.video_codec,
+                "video_width": detection.video_width,
+                "video_height": detection.video_height,
+                "enrichment_data": detection.enrichment_data,
+                "association_created_at": association_created_at,
+            }
+            items.append(detection_dict)
+    else:
+        # Default: order by Detection.detected_at
+        simple_query = (
+            select(Detection)
+            .options(undefer(Detection.enrichment_data))
+            .where(Detection.id.in_(detection_ids))
+            .order_by(Detection.detected_at.asc())
+        )
+
+        # Get total count
+        count_query = select(func.count()).select_from(
+            select(Detection.id).where(Detection.id.in_(detection_ids)).subquery()
+        )
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
+
+        # Apply pagination and execute
+        simple_query = simple_query.limit(limit).offset(offset)
+        result = await db.execute(simple_query)
+
+        # Standard detection response (no association timestamp)
+        items = list(result.scalars().all())
+
+    # Calculate has_more for pagination
+    has_more = (offset + len(items)) < total_count
+
+    return DetectionListResponse(
+        items=items,
+        pagination=PaginationMeta(
+            total=total_count,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+        ),
+    )
+
+
+@router.get(
+    "/{event_id}/enrichments",
+    response_model=EventEnrichmentsResponse,
+    response_model_exclude_unset=True,
+)
+async def get_event_enrichments(
+    event_id: int,
+    limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),
+    offset: int = Query(0, ge=0, description="Number of enrichments to skip"),
+    db: AsyncSession = Depends(get_db),
+) -> EventEnrichmentsResponse:
+    """Get enrichment data for detections in an event with pagination.
+
+    Returns structured vision model results from the enrichment pipeline for
+    each detection in the event. Results include:
+    - License plate detection and OCR
+    - Face detection
+    - Vehicle classification and damage detection
+    - Clothing analysis (FashionCLIP and SegFormer)
+    - Violence detection
+    - Image quality assessment
+    - Pet classification
+
+    Args:
+        event_id: Event ID
+        limit: Maximum number of enrichments to return (1-200, default 50)
+        offset: Number of enrichments to skip (default 0)
+        db: Database session
+
+    Returns:
+        EventEnrichmentsResponse with enrichment data for each detection and pagination metadata
+
+    Raises:
+        HTTPException: 404 if event not found
+    """
+    # Import transform function from detections route
+    from backend.api.routes.detections import _transform_enrichment_data
+
+    event = await get_event_or_404(event_id, db)
+
+    # Parse detection_ids using helper function
+    detection_ids = get_detection_ids_from_event(event)
+    total = len(detection_ids)
+
+    # If no detections, return empty response with pagination metadata
+    if not detection_ids:
+        return EventEnrichmentsResponse(
+            event_id=event.id,
+            enrichments=[],
+            count=0,
+            total=0,
+            limit=limit,
+            offset=offset,
+            has_more=False,
+        )
+
+    # Apply pagination to detection_ids before querying
+    # This ensures we only fetch the detections we need
+    paginated_detection_ids = detection_ids[offset : offset + limit]
+
+    # If offset is beyond available detections, return empty with metadata
+    if not paginated_detection_ids:
+        return EventEnrichmentsResponse(
+            event_id=event.id,
+            enrichments=[],
+            count=0,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_more=False,
+        )
+
+    # Get detections for this page using batch fetching
+    # This handles potential PostgreSQL IN clause limits for large detection lists
+    detections = await batch_fetch_detections(db, paginated_detection_ids)
+
+    # Transform each detection's enrichment data
+    enrichments = [
+        _transform_enrichment_data(
+            detection_id=det.id,
+            enrichment_data=det.enrichment_data,
+            detected_at=det.detected_at,
+        )
+        for det in detections
+    ]
+
+    # Calculate has_more based on total and current position
+    has_more = offset + len(enrichments) < total
+
+    return EventEnrichmentsResponse(
+        event_id=event.id,
+        enrichments=enrichments,
+        count=len(enrichments),
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=has_more,
+    )
+
+
+@router.get("/{event_id}/clip", response_model=ClipInfoResponse)
+async def get_event_clip(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> ClipInfoResponse:
+    """Get clip information for a specific event.
+
+    Returns information about whether a video clip is available for the event,
+    and if so, provides the URL to access it along with metadata.
+
+    Args:
+        event_id: Event ID
+        db: Database session
+
+    Returns:
+        ClipInfoResponse with clip availability and metadata
+
+    Raises:
+        HTTPException: 404 if event not found
+    """
+    from pathlib import Path
+
+    event = await get_event_or_404(event_id, db)
+
+    # Check if clip exists
+    if not event.clip_path:
+        return ClipInfoResponse(
+            event_id=event.id,
+            clip_available=False,
+            clip_url=None,
+            duration_seconds=None,
+            generated_at=None,
+            file_size_bytes=None,
+        )
+
+    # Check if clip file actually exists on disk
+    clip_path = Path(event.clip_path)
+    if not clip_path.exists():
+        logger.warning(f"Clip path in DB but file missing: {event.clip_path}")
+        return ClipInfoResponse(
+            event_id=event.id,
+            clip_available=False,
+            clip_url=None,
+            duration_seconds=None,
+            generated_at=None,
+            file_size_bytes=None,
+        )
+
+    # Get file stats
+    file_stat = clip_path.stat()
+    file_size = file_stat.st_size
+    generated_at = datetime.fromtimestamp(file_stat.st_mtime, tz=UTC)
+
+    # Calculate duration from event timestamps
+    duration_seconds = None
+    if event.started_at and event.ended_at:
+        duration_seconds = int((event.ended_at - event.started_at).total_seconds())
+
+    # Build clip URL using the clip filename
+    clip_filename = clip_path.name
+    clip_url = f"/api/media/clips/{clip_filename}"
+
+    return ClipInfoResponse(
+        event_id=event.id,
+        clip_available=True,
+        clip_url=clip_url,
+        duration_seconds=duration_seconds,
+        generated_at=generated_at,
+        file_size_bytes=file_size,
+    )
+
+
+@router.post(
+    "/{event_id}/clip/generate",
+    response_model=ClipGenerateResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        200: {"description": "Clip already exists", "model": ClipGenerateResponse},
+        201: {"description": "Clip created successfully", "model": ClipGenerateResponse},
+        400: {"description": "Cannot generate clip - event has no detections"},
+        404: {"description": "Event not found"},
+    },
+)
+async def generate_event_clip(
+    event_id: int,
+    request: ClipGenerateRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    clip_generator: ClipGeneratorDep = Depends(get_clip_generator_dep),
+) -> ClipGenerateResponse:
+    """Trigger video clip generation for an event.
+
+    If a clip already exists and force=False, returns the existing clip info.
+    If force=True, regenerates the clip even if one exists.
+
+    Clip generation uses detection images to create a video sequence, or
+    extracts from existing video if available.
+
+    Args:
+        event_id: Event ID
+        request: Clip generation parameters
+        db: Database session
+        clip_generator: ClipGenerator injected via Depends()
+
+    Returns:
+        ClipGenerateResponse with generation status and clip info
+
+    Raises:
+        HTTPException: 404 if event not found
+        HTTPException: 400 if event has no detections to generate clip from
+    """
+    from pathlib import Path
+
+    from backend.api.schemas.clips import ClipGenerateResponse, ClipStatus
+
+    event = await get_event_or_404(event_id, db)
+
+    # Check if clip already exists and force is False
+    if event.clip_path and not request.force:
+        clip_path = Path(event.clip_path)
+        if clip_path.exists():
+            file_stat = clip_path.stat()
+            generated_at = datetime.fromtimestamp(file_stat.st_mtime, tz=UTC)
+            clip_filename = clip_path.name
+            clip_url = f"/api/media/clips/{clip_filename}"
+
+            # Return 200 OK for existing clip (not creating a new resource)
+            response.status_code = status.HTTP_200_OK
+            return ClipGenerateResponse(
+                event_id=event.id,
+                status=ClipStatus.COMPLETED,
+                clip_url=clip_url,
+                generated_at=generated_at,
+                message="Clip already exists",
+            )
+
+    # Check if event has detections
+    detection_ids = get_detection_ids_from_event(event)
+    if not detection_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate clip: event has no detections",
+        )
+
+    # Get detection file paths using batch fetching to handle large detection lists
+    # This avoids N+1 queries and handles potential PostgreSQL IN clause limits
+    file_paths = await batch_fetch_file_paths(db, detection_ids)
+
+    if not file_paths:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate clip: no detection images available",
+        )
+
+    # Delete existing clip if force regeneration (clip_generator injected via DI)
+    if request.force and event.clip_path:
+        clip_generator.delete_clip(event.id)
+
+    # Generate clip from detection images
+    try:
+        generated_clip_path = await clip_generator.generate_clip_from_images(
+            event=event,
+            image_paths=list(file_paths),  # type: ignore[arg-type]
+            fps=2,  # Default 2 FPS for image sequence
+            output_format="mp4",
+        )
+
+        if generated_clip_path:
+            # Update event with clip path
+            event.clip_path = str(generated_clip_path)
+            await db.commit()
+            await db.refresh(event)
+
+            file_stat = generated_clip_path.stat()
+            generated_at = datetime.fromtimestamp(file_stat.st_mtime, tz=UTC)
+            clip_filename = generated_clip_path.name
+            clip_url = f"/api/media/clips/{clip_filename}"
+
+            # Add Location header for the newly created resource (201 Created)
+            response.headers["Location"] = clip_url
+            return ClipGenerateResponse(
+                event_id=event.id,
+                status=ClipStatus.COMPLETED,
+                clip_url=clip_url,
+                generated_at=generated_at,
+                message="Clip generated successfully",
+            )
+        else:
+            return ClipGenerateResponse(
+                event_id=event.id,
+                status=ClipStatus.FAILED,
+                clip_url=None,
+                generated_at=None,
+                message="Clip generation failed - check server logs",
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Clip generation failed for event {sanitize_log_value(event_id)}: {e}", exc_info=True
+        )
+        # Sanitize exception message to prevent information leakage (NEM-1059)
+        # Full error details are logged server-side above
+        safe_message = sanitize_error_for_response(e, context="generating clip")
+        return ClipGenerateResponse(
+            event_id=event.id,
+            status=ClipStatus.FAILED,
+            clip_url=None,
+            generated_at=None,
+            message=safe_message,
+        )
+
+
+@router.get("/analyze/{batch_id}/stream")
+async def analyze_batch_streaming(
+    batch_id: str,
+    camera_id: str | None = Query(None, description="Camera ID for the batch"),
+    detection_ids: str | None = Query(None, description="Comma-separated detection IDs (optional)"),
+    analyzer: NemotronAnalyzerDep = Depends(get_nemotron_analyzer_dep),
+) -> StreamingResponse:
+    """Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).
+
+    This endpoint provides progressive LLM response updates during long inference
+    times, allowing the frontend to display partial results and show typing
+    indicators while the analysis is in progress.
+
+    Event Types:
+    - progress: Partial LLM response chunk with accumulated_text
+    - complete: Final event with risk assessment and event_id
+    - error: Error information with error_code and recoverable flag
+
+    Args:
+        batch_id: Batch identifier to analyze
+        camera_id: Optional camera ID (uses Redis lookup if not provided)
+        detection_ids: Optional comma-separated detection IDs
+        analyzer: NemotronAnalyzer injected via Depends()
+
+    Returns:
+        StreamingResponse with SSE event stream (text/event-stream)
+
+    Example SSE output:
+        data: {"event_type": "progress", "content": "Based on", "accumulated_text": "Based on"}
+
+        data: {"event_type": "progress", "content": " the", "accumulated_text": "Based on the"}
+
+        data: {"event_type": "complete", "event_id": 123, "risk_score": 75, ...}
+    """
+    # Capture the analyzer from the DI scope for use in the inner generator
+    injected_analyzer = analyzer
+
+    async def event_generator() -> Any:
+        """Generate SSE events from streaming analysis."""
+        try:
+            # Parse detection_ids if provided
+            parsed_detection_ids: list[int | str] | None = None
+            if detection_ids:
+                try:
+                    parsed_detection_ids = [
+                        int(d.strip()) for d in detection_ids.split(",") if d.strip()
+                    ]
+                except ValueError:
+                    # Return error event for invalid detection_ids
+                    error_event = {
+                        "event_type": "error",
+                        "error_code": "INVALID_DETECTION_IDS",
+                        "error_message": "Detection IDs must be numeric",
+                        "recoverable": False,
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+                    return
+
+            # Stream analysis updates (using injected analyzer)
+            async for update in injected_analyzer.analyze_batch_streaming(
+                batch_id=batch_id,
+                camera_id=camera_id,
+                detection_ids=parsed_detection_ids,
+            ):
+                yield f"data: {json.dumps(update)}\n\n"
+
+        except Exception as e:
+            logger.error(f"Streaming analysis error for batch {batch_id}: {e}", exc_info=True)
+            error_event = {
+                "event_type": "error",
+                "error_code": "INTERNAL_ERROR",
+                "error_message": "An internal error occurred during analysis",
+                "recoverable": False,
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering for SSE
+        },
+    )
+
+
+@router.delete(
+    "/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft delete a single event",
+    responses={
+        204: {"description": "Event deleted successfully"},
+        404: {"description": "Event not found"},
+        409: {"description": "Event already deleted"},
+    },
+)
+async def delete_event(
+    event_id: int,
+    cascade: bool = Query(True, description="Cascade soft delete to related detections"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> None:
+    """Soft delete a single event with optional cascade to related detections.
+
+    By default, cascade=True soft deletes all related detections using the same
+    timestamp as the event. This enables cascade restore by matching timestamps.
+
+    Args:
+        event_id: ID of the event to delete
+        cascade: If True, cascade soft delete to related detections
+        db: Database session
+        cache: Cache service for invalidation
+
+    Raises:
+        HTTPException: 404 if event not found, 409 if already deleted
+    """
+    event_service = get_event_service()
+
+    try:
+        await event_service.soft_delete_event(
+            event_id=event_id,
+            db=db,
+            cascade=cascade,
+        )
+        await db.commit()
+
+        # Invalidate event-related caches
+        try:
+            await cache.invalidate_events(reason="event_deleted")
+            await cache.invalidate_event_stats(reason="event_deleted")
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed after delete: {e}")
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from e
+        if "already deleted" in error_msg.lower():
+            raise HTTPException(status_code=409, detail=error_msg) from e
+        raise HTTPException(status_code=400, detail=error_msg) from e
+
+
+@router.post(
+    "/{event_id}/restore",
+    response_model=EventResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Restore a soft-deleted event",
+    responses={
+        200: {"description": "Event restored successfully"},
+        404: {"description": "Event not found"},
+        409: {"description": "Event is not deleted"},
+    },
+)
+async def restore_event(
+    event_id: int,
+    background_tasks: BackgroundTasks,
+    cascade: bool = Query(True, description="Cascade restore to related detections"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> EventResponse:
+    """Restore a soft-deleted event with optional cascade to related detections.
+
+    When cascade=True, this restores detections that were deleted at the same
+    timestamp as the event, indicating they were cascade-deleted together.
+
+    Args:
+        event_id: ID of the event to restore
+        cascade: If True, cascade restore to related detections
+        db: Database session
+        cache: Cache service for invalidation
+
+    Returns:
+        The restored event as EventResponse
+
+    Raises:
+        HTTPException: 404 if event not found, 409 if not deleted
+    """
+    event_service = get_event_service()
+
+    try:
+        event = await event_service.restore_event(
+            event_id=event_id,
+            db=db,
+            cascade=cascade,
+        )
+        await db.commit()
+
+        # NEM-3744: Defer cache invalidation to background task to reduce response latency
+        background_tasks.add_task(
+            _invalidate_events_cache_background,
+            cache,
+            "event_restored",
+        )
+
+        # Get detection IDs for the response
+        detection_ids = get_detection_ids_from_event(event)
+        thumbnail_url = f"/api/detections/{detection_ids[0]}/image" if detection_ids else None
+
+        return EventResponse(
+            id=event.id,
+            camera_id=event.camera_id,
+            started_at=event.started_at,
+            ended_at=event.ended_at,
+            risk_score=event.risk_score,
+            risk_level=event.risk_level,
+            summary=event.summary,
+            reasoning=event.reasoning,
+            llm_prompt=event.llm_prompt,
+            reviewed=event.reviewed,
+            notes=event.notes,
+            detection_count=len(detection_ids),
+            detection_ids=detection_ids,
+            thumbnail_url=thumbnail_url,
+            enrichment_status=None,
+            version=event.version,  # Include version for optimistic locking (NEM-3625)
+        )
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg) from e
+        if "not deleted" in error_msg.lower():
+            raise HTTPException(status_code=409, detail=error_msg) from e
+        raise HTTPException(status_code=400, detail=error_msg) from e

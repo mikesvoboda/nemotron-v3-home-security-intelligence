@@ -1,0 +1,2581 @@
+diff --git a/backend/tests/conftest.py b/backend/tests/conftest.py
+index 272b90b1..733f191d 100644
+--- a/backend/tests/conftest.py
++++ b/backend/tests/conftest.py
+@@ -65,8 +65,6 @@ Domain-Specific Fixtures (in subdirectories):
+     Unit Tests (backend/tests/unit/conftest.py):
+         - mock_transformers_for_speed: Speed optimization for transformers import
+ 
+-    Unit Model Tests (backend/tests/unit/models/conftest.py):
+-        - _soft_delete_serial_lock: Cross-process lock for soft delete tests
+ 
+ CONSOLIDATION (NEM-3152):
+ ==========================
+@@ -400,8 +398,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
+     2. Integration tests (/integration/ directory):
+        - Applies 'integration' marker
+        - Repository tests (/integration/repositories/) get xdist_group + serial markers
+-    3. Soft delete tests (test_soft_delete.py in /unit/models/):
+-       - Gets xdist_group marker to force serial execution (prevents DB deadlocks)
+ 
+     Timeout hierarchy (highest priority first):
+     1. CLI --timeout=0 disables all timeouts (for CI)
+@@ -419,13 +415,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
+     skip_integration = pytest.mark.skip(
+         reason="Integration test requires database - skipped in unit test run"
+     )
+-    xdist_soft_delete = pytest.mark.xdist_group(name="soft_delete_serial")
+     xdist_repository = pytest.mark.xdist_group(name="repository_tests_serial")
+     serial_marker = pytest.mark.serial
+ 
+     for item in items:
+         fspath_str = str(item.fspath)
+-        nodeid = item.nodeid
+         is_unit = "/unit/" in fspath_str
+         is_integration = "/integration/" in fspath_str
+ 
+@@ -440,11 +434,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
+             if "integration" in item.keywords:
+                 item.add_marker(skip_integration)
+ 
+-            # Soft delete tests need xdist_group for serial execution
+-            # to avoid database deadlocks when modifying schema
+-            if "test_soft_delete.py" in nodeid and not item.get_closest_marker("xdist_group"):
+-                item.add_marker(xdist_soft_delete)
+-
+         # === INTEGRATION TEST HANDLING ===
+         elif is_integration:
+             # Apply integration marker
+@@ -1703,42 +1692,6 @@ async def isolated_db() -> AsyncGenerator[None]:
+     get_settings.cache_clear()
+ 
+ 
+-@pytest.fixture
+-async def session(isolated_db: None) -> AsyncGenerator[None]:
+-    """Create an isolated database session with transaction rollback for each test.
+-
+-    This fixture provides true isolation in parallel test execution by:
+-    1. Starting a savepoint before each test
+-    2. Rolling back to the savepoint after each test
+-
+-    All data created during the test is automatically rolled back, ensuring
+-    parallel tests don't see each other's data.
+-
+-    Usage:
+-        @pytest.mark.asyncio
+-        async def test_something(session):
+-            camera = Camera(id="test", name="Test")
+-            session.add(camera)
+-            await session.flush()
+-            # Test assertions...
+-            # Data is automatically rolled back after test
+-    """
+-    from sqlalchemy import text
+-
+-    from backend.core.database import get_session
+-
+-    async with get_session() as sess:
+-        # Start a savepoint that we'll roll back to after the test
+-        # This ensures test isolation without needing TRUNCATE
+-        await sess.execute(text("SAVEPOINT test_savepoint"))
+-
+-        try:
+-            yield sess
+-        finally:
+-            # Roll back to savepoint to undo all changes from this test
+-            await sess.execute(text("ROLLBACK TO SAVEPOINT test_savepoint"))
+-
+-
+ @pytest.fixture(autouse=True)
+ def reset_settings_cache() -> Generator[None]:
+     """Automatically reset settings cache and ensure required env vars before each test.
+diff --git a/backend/tests/integration/models/test_soft_delete.py b/backend/tests/integration/models/test_soft_delete.py
+new file mode 100644
+index 00000000..2d6930ee
+--- /dev/null
++++ b/backend/tests/integration/models/test_soft_delete.py
+@@ -0,0 +1,530 @@
++"""Integration tests for soft-delete model behavior (Camera, Event).
++
++M3 Task 3 (audit 1.3): these 15 tests lived under unit/models/ behind
++class-level @pytest.mark.integration decorators. The root-conftest
++pytest_collection_modifyitems hook skips every /unit/ item carrying the
++integration marker unconditionally (conftest.py:438-441), so none of them had
++ever executed. Moved to the tier that runs them: `session` now resolves to
++integration/conftest.py:1238 (worker-isolated isolated_db_session).
++
++Tests cover:
++- Soft delete sets deleted_at timestamp / restore clears it
++- Hard delete actually removes record
++- Queries exclude soft-deleted records by default
++- Direct access to soft-deleted records when explicitly queried
++"""
++
++from datetime import UTC, datetime
++
++import pytest
++from sqlalchemy import select
++
++from backend.models.camera import Camera
++from backend.models.event import Event
++from backend.tests.conftest import unique_id
++
++
++@pytest.mark.integration  # Requires database session
++class TestCameraSoftDeleteMethods:
++    """Tests for Camera soft delete, restore, and hard delete methods."""
++
++    @pytest.mark.asyncio
++    async def test_camera_soft_delete_sets_deleted_at(self, session):
++        """Test that soft_delete() sets deleted_at timestamp."""
++        camera_id = unique_id("cam")
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Verify initial state
++        assert camera.deleted_at is None
++        assert camera.is_deleted is False
++
++        # Perform soft delete
++        camera.soft_delete()
++        await session.flush()
++
++        # Verify soft delete
++        await session.refresh(camera)
++        assert camera.deleted_at is not None
++        assert camera.is_deleted is True
++        assert isinstance(camera.deleted_at, datetime)
++
++    @pytest.mark.asyncio
++    async def test_camera_restore_clears_deleted_at(self, session):
++        """Test that restore() clears deleted_at timestamp."""
++        camera_id = unique_id("cam")
++        # Create soft-deleted camera
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Verify initial soft-deleted state
++        assert camera.is_deleted is True
++
++        # Restore camera
++        camera.restore()
++        await session.flush()
++
++        # Verify restored state
++        await session.refresh(camera)
++        assert camera.deleted_at is None
++        assert camera.is_deleted is False
++
++    @pytest.mark.asyncio
++    async def test_camera_hard_delete_removes_record(self, session):
++        """Test that hard_delete() actually removes the record from database."""
++        camera_id = unique_id("cam")
++        # Create camera
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Refresh to ensure we have the latest state
++        await session.refresh(camera)
++
++        # Perform hard delete
++        await camera.hard_delete(session)
++        await session.flush()
++
++        # Verify camera is completely removed
++        result = await session.execute(select(Camera).where(Camera.id == camera_id))
++        deleted_camera = result.scalar_one_or_none()
++        assert deleted_camera is None
++
++    @pytest.mark.asyncio
++    async def test_camera_soft_delete_preserves_relationships(self, session):
++        """Test that soft delete preserves relationships and doesn't cascade delete."""
++        from backend.models.detection import Detection
++
++        camera_id = unique_id("cam")
++        # Create camera with detection
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        detection = Detection(
++            camera_id=camera_id,
++            file_path="/test/image.jpg",
++            file_type="image/jpeg",
++            detected_at=datetime.now(UTC),
++            object_type="person",
++            confidence=0.95,
++            bbox_x=100,
++            bbox_y=100,
++            bbox_width=100,
++            bbox_height=100,
++        )
++        session.add(camera)
++        session.add(detection)
++        await session.flush()
++
++        # Soft delete camera
++        camera.soft_delete()
++        await session.flush()
++
++        # Verify detection still exists (relationships preserved)
++        from backend.models.detection import Detection as DetectionModel
++
++        det_result = await session.execute(
++            select(DetectionModel).where(DetectionModel.camera_id == camera_id)
++        )
++        assert det_result.scalar_one_or_none() is not None
++
++
++@pytest.mark.integration  # Requires database session
++class TestCameraQueryFiltering:
++    """Tests for automatic filtering of soft-deleted cameras in queries."""
++
++    @pytest.mark.asyncio
++    async def test_query_excludes_soft_deleted_cameras_by_default(self, session):
++        """Test that queries exclude soft-deleted cameras by default."""
++        active_id = unique_id("cam_active")
++        deleted_id = unique_id("cam_deleted")
++
++        # Create active and soft-deleted cameras
++        active_camera = Camera(
++            id=active_id,
++            name=unique_id("active"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        deleted_camera = Camera(
++            id=deleted_id,
++            name=unique_id("deleted"),
++            folder_path=f"/path/{unique_id('folder2')}",
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(active_camera)
++        session.add(deleted_camera)
++        await session.flush()
++
++        # Query without explicit filter should exclude soft-deleted
++        query = select(Camera).where(Camera.deleted_at.is_(None))
++        result = await session.execute(query)
++        cameras = result.scalars().all()
++
++        # Only active camera should be returned
++        camera_ids = [c.id for c in cameras]
++        assert active_id in camera_ids
++        assert deleted_id not in camera_ids
++
++    @pytest.mark.asyncio
++    async def test_query_can_explicitly_include_soft_deleted(self, session):
++        """Test that soft-deleted cameras can be explicitly queried."""
++        deleted_id = unique_id("cam_deleted")
++
++        # Create soft-deleted camera
++        deleted_camera = Camera(
++            id=deleted_id,
++            name=unique_id("deleted"),
++            folder_path=f"/path/{unique_id('folder')}",
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(deleted_camera)
++        await session.flush()
++
++        # Explicitly query for soft-deleted cameras
++        query = select(Camera).where(Camera.id == deleted_id)
++        result = await session.execute(query)
++        camera = result.scalar_one_or_none()
++
++        assert camera is not None
++        assert camera.is_deleted is True
++
++    @pytest.mark.asyncio
++    async def test_query_all_including_deleted(self, session):
++        """Test querying all cameras including soft-deleted ones."""
++        active_id = unique_id("cam_active")
++        deleted_id = unique_id("cam_deleted")
++
++        # Create both types
++        active_camera = Camera(
++            id=active_id,
++            name=unique_id("active"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        deleted_camera = Camera(
++            id=deleted_id,
++            name=unique_id("deleted"),
++            folder_path=f"/path/{unique_id('folder2')}",
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(active_camera)
++        session.add(deleted_camera)
++        await session.flush()
++
++        # Query all (without deleted_at filter)
++        query = select(Camera)
++        result = await session.execute(query)
++        cameras = result.scalars().all()
++
++        # Both should be returned
++        camera_ids = [c.id for c in cameras]
++        assert active_id in camera_ids
++        assert deleted_id in camera_ids
++
++
++@pytest.mark.integration  # Requires database session
++class TestEventSoftDeleteMethods:
++    """Tests for Event soft delete, restore, and hard delete methods."""
++
++    @pytest.mark.asyncio
++    async def test_event_soft_delete_sets_deleted_at(self, session):
++        """Test that soft_delete() sets deleted_at timestamp."""
++        camera_id = unique_id("cam")
++        batch_id = unique_id("batch")
++
++        # Create camera first
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Create event
++        event = Event(
++            camera_id=camera_id,
++            batch_id=batch_id,
++            started_at=datetime.now(UTC),
++        )
++        session.add(event)
++        await session.flush()
++
++        # Verify initial state
++        assert event.deleted_at is None
++        assert event.is_deleted is False
++
++        # Perform soft delete
++        event.soft_delete()
++        await session.flush()
++
++        # Verify soft delete
++        await session.refresh(event)
++        assert event.deleted_at is not None
++        assert event.is_deleted is True
++
++    @pytest.mark.asyncio
++    async def test_event_restore_clears_deleted_at(self, session):
++        """Test that restore() clears deleted_at timestamp."""
++        camera_id = unique_id("cam")
++        batch_id = unique_id("batch")
++
++        # Create camera
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Create soft-deleted event
++        event = Event(
++            camera_id=camera_id,
++            batch_id=batch_id,
++            started_at=datetime.now(UTC),
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(event)
++        await session.flush()
++
++        # Verify initial soft-deleted state
++        assert event.is_deleted is True
++
++        # Restore event
++        event.restore()
++        await session.flush()
++
++        # Verify restored state
++        await session.refresh(event)
++        assert event.deleted_at is None
++        assert event.is_deleted is False
++
++    @pytest.mark.asyncio
++    async def test_event_hard_delete_removes_record(self, session):
++        """Test that hard_delete() actually removes the record from database."""
++        camera_id = unique_id("cam")
++        batch_id = unique_id("batch")
++
++        # Create camera
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Create event
++        event = Event(
++            camera_id=camera_id,
++            batch_id=batch_id,
++            started_at=datetime.now(UTC),
++        )
++        session.add(event)
++        await session.flush()
++
++        event_id = event.id
++
++        # Refresh to ensure we have the latest state
++        await session.refresh(event)
++
++        # Perform hard delete
++        await event.hard_delete(session)
++        await session.flush()
++
++        # Verify event is completely removed
++        result = await session.execute(select(Event).where(Event.id == event_id))
++        deleted_event = result.scalar_one_or_none()
++        assert deleted_event is None
++
++
++@pytest.mark.integration  # Requires database session
++class TestEventQueryFiltering:
++    """Tests for automatic filtering of soft-deleted events in queries."""
++
++    @pytest.mark.asyncio
++    async def test_query_excludes_soft_deleted_events_by_default(self, session):
++        """Test that queries exclude soft-deleted events by default."""
++        camera_id = unique_id("cam")
++        active_batch = unique_id("batch_active")
++        deleted_batch = unique_id("batch_deleted")
++
++        # Create camera
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Create active and soft-deleted events
++        active_event = Event(
++            camera_id=camera_id,
++            batch_id=active_batch,
++            started_at=datetime.now(UTC),
++        )
++        deleted_event = Event(
++            camera_id=camera_id,
++            batch_id=deleted_batch,
++            started_at=datetime.now(UTC),
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(active_event)
++        session.add(deleted_event)
++        await session.flush()
++
++        # Query without explicit filter should exclude soft-deleted
++        query = select(Event).where(Event.deleted_at.is_(None))
++        result = await session.execute(query)
++        events = result.scalars().all()
++
++        # Only active event should be returned
++        batch_ids = [e.batch_id for e in events]
++        assert active_batch in batch_ids
++        assert deleted_batch not in batch_ids
++
++    @pytest.mark.asyncio
++    async def test_query_can_explicitly_include_soft_deleted_events(self, session):
++        """Test that soft-deleted events can be explicitly queried."""
++        camera_id = unique_id("cam")
++        deleted_batch = unique_id("batch_deleted")
++
++        # Create camera
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Create soft-deleted event
++        deleted_event = Event(
++            camera_id=camera_id,
++            batch_id=deleted_batch,
++            started_at=datetime.now(UTC),
++            deleted_at=datetime.now(UTC),
++        )
++        session.add(deleted_event)
++        await session.flush()
++
++        # Explicitly query for soft-deleted event
++        query = select(Event).where(Event.batch_id == deleted_batch)
++        result = await session.execute(query)
++        event = result.scalar_one_or_none()
++
++        assert event is not None
++        assert event.is_deleted is True
++
++
++# =============================================================================
++# Edge Cases and Integration Tests
++# =============================================================================
++
++
++@pytest.mark.integration  # Requires database session
++class TestSoftDeleteEdgeCases:
++    """Tests for edge cases and complex scenarios."""
++
++    @pytest.mark.asyncio
++    async def test_soft_delete_idempotent(self, session):
++        """Test that calling soft_delete() multiple times is safe."""
++        camera_id = unique_id("cam")
++
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # First soft delete
++        camera.soft_delete()
++        await session.flush()
++        await session.refresh(camera)
++
++        first_deleted_at = camera.deleted_at
++
++        # Second soft delete (should be idempotent)
++        camera.soft_delete()
++        await session.flush()
++        await session.refresh(camera)
++
++        # deleted_at should be updated to new timestamp
++        assert camera.deleted_at is not None
++        assert camera.deleted_at >= first_deleted_at
++
++    @pytest.mark.asyncio
++    async def test_restore_idempotent(self, session):
++        """Test that calling restore() on non-deleted record is safe."""
++        camera_id = unique_id("cam")
++
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Restore a non-deleted camera (should be no-op)
++        camera.restore()
++        await session.flush()
++        await session.refresh(camera)
++
++        assert camera.deleted_at is None
++        assert camera.is_deleted is False
++
++    @pytest.mark.asyncio
++    async def test_soft_delete_and_restore_cycle(self, session):
++        """Test multiple soft delete and restore cycles."""
++        camera_id = unique_id("cam")
++
++        camera = Camera(
++            id=camera_id,
++            name=unique_id("name"),
++            folder_path=f"/path/{unique_id('folder')}",
++        )
++        session.add(camera)
++        await session.flush()
++
++        # Cycle 1: Delete and restore
++        camera.soft_delete()
++        await session.flush()
++        await session.refresh(camera)
++        assert camera.is_deleted is True
++
++        camera.restore()
++        await session.flush()
++        await session.refresh(camera)
++        assert camera.is_deleted is False
++
++        # Cycle 2: Delete and restore again
++        camera.soft_delete()
++        await session.flush()
++        await session.refresh(camera)
++        assert camera.is_deleted is True
++
++        camera.restore()
++        await session.flush()
++        await session.refresh(camera)
++        assert camera.is_deleted is False
+diff --git a/backend/tests/integration/test_redis_prefix_isolation.py b/backend/tests/integration/test_redis_prefix_isolation.py
+new file mode 100644
+index 00000000..d2f8eae4
+--- /dev/null
++++ b/backend/tests/integration/test_redis_prefix_isolation.py
+@@ -0,0 +1,209 @@
++"""Integration tests for Redis key prefix isolation in pytest-xdist.
++
++M3 Task 3 (audit 1.3): moved from backend/tests/unit/ — every test here
++carried @pytest.mark.integration and was therefore permanently skipped under
++/unit/ by the root-conftest skip rule (conftest.py:438-441). In the
++integration tier redis_prefix / real_redis / prefixed_redis resolve from
++integration/conftest.py.
++
++The mock-only PrefixedRedis tests stay in
++`backend/tests/unit/test_redis_prefix_isolation.py`.
++"""
++
++import pytest
++
++from backend.tests.integration.conftest import PrefixedRedis
++
++
++class TestRedisPrefixFixture:
++    """Tests for the redis_prefix session fixture.
++
++    These tests require the redis_prefix fixture which depends on integration
++    test infrastructure (PostgreSQL). Skip in environments without services.
++    """
++
++    @pytest.mark.integration
++    def test_redis_prefix_format(self, redis_prefix: str) -> None:
++        """Verify redis_prefix follows expected format."""
++        assert redis_prefix.startswith("test:")
++        assert redis_prefix.endswith(":")
++        # Should be "test:gw0:", "test:gw1:", or "test:main:"
++        parts = redis_prefix.split(":")
++        assert len(parts) == 3
++        assert parts[0] == "test"
++        assert parts[2] == ""  # Trailing colon
++
++    @pytest.mark.integration
++    def test_redis_prefix_is_session_scoped(
++        self, redis_prefix: str, request: pytest.FixtureRequest
++    ) -> None:
++        """Verify redis_prefix is consistent within a session (stored for later check)."""
++        # Store the prefix in the session-level cache for consistency verification
++        # This can be checked by running multiple tests with the same prefix
++        if hasattr(request.session, "_test_redis_prefix"):
++            assert request.session._test_redis_prefix == redis_prefix
++        else:
++            request.session._test_redis_prefix = redis_prefix
++
++
++class TestPrefixedRedisIntegration:
++    """Integration tests for PrefixedRedis that require real Redis.
++
++    These tests verify the full behavior with a real Redis instance.
++    Skip in environments without services by using the @pytest.mark.integration marker.
++    """
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_prefixed_key_generation(self, real_redis, redis_prefix: str) -> None:
++        """Verify keys are correctly prefixed."""
++        prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
++
++        assert prefixed._prefixed_key("foo") == f"{redis_prefix}foo"
++        assert prefixed._prefixed_key("bar:baz") == f"{redis_prefix}bar:baz"
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_prefixed_keys_generation(self, real_redis, redis_prefix: str) -> None:
++        """Verify multiple keys are correctly prefixed."""
++        prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
++
++        keys = prefixed._prefixed_keys("a", "b", "c")
++        assert keys == [f"{redis_prefix}a", f"{redis_prefix}b", f"{redis_prefix}c"]
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_set_and_get(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify set and get operations with prefix."""
++        await prefixed_redis.set("test_key", {"value": 42})
++        result = await prefixed_redis.get("test_key")
++        assert result == {"value": 42}
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_set_with_expire(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify set with expiration works."""
++        await prefixed_redis.set("expiring_key", "test_value", expire=300)
++        result = await prefixed_redis.get("expiring_key")
++        assert result == "test_value"
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_delete(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify delete operation with prefix."""
++        await prefixed_redis.set("delete_me", "value")
++        assert await prefixed_redis.get("delete_me") == "value"
++
++        deleted = await prefixed_redis.delete("delete_me")
++        assert deleted == 1
++        assert await prefixed_redis.get("delete_me") is None
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_exists(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify exists operation with prefix."""
++        assert await prefixed_redis.exists("nonexistent") == 0
++
++        await prefixed_redis.set("exists_key", "value")
++        assert await prefixed_redis.exists("exists_key") == 1
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_list_operations(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify list operations with prefix."""
++        # lpush
++        await prefixed_redis.lpush("my_list", "a", "b")
++        assert await prefixed_redis.llen("my_list") == 2
++
++        # rpush
++        await prefixed_redis.rpush("my_list", "c")
++        assert await prefixed_redis.llen("my_list") == 3
++
++        # lrange
++        values = await prefixed_redis.lrange("my_list", 0, -1)
++        assert len(values) == 3
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_sorted_set_operations(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify sorted set operations with prefix."""
++        # zadd
++        await prefixed_redis.zadd("my_zset", {"member1": 1.0, "member2": 2.0})
++        assert await prefixed_redis.zcard("my_zset") == 2
++
++        # zscore
++        score = await prefixed_redis.zscore("my_zset", "member1")
++        assert score == 1.0
++
++        # zrange
++        members = await prefixed_redis.zrange("my_zset", 0, -1)
++        assert len(members) == 2
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_hyperloglog_operations(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify HyperLogLog operations with prefix."""
++        await prefixed_redis.pfadd("my_hll", "a", "b", "c", "a")  # 'a' counted once
++        count = await prefixed_redis.pfcount("my_hll")
++        assert count == 3
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_cleanup(self, real_redis, redis_prefix: str) -> None:
++        """Verify cleanup removes all prefixed keys."""
++        prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
++
++        # Create multiple keys
++        await prefixed.set("key1", "value1")
++        await prefixed.set("key2", "value2")
++        await prefixed.lpush("list1", "item")
++        await prefixed.zadd("zset1", {"member": 1.0})
++
++        # Verify keys exist
++        assert await prefixed.exists("key1", "key2") == 2
++
++        # Cleanup
++        deleted = await prefixed.cleanup()
++        assert deleted >= 4  # At least our 4 keys
++
++        # Verify keys are gone
++        assert await prefixed.exists("key1", "key2") == 0
++
++
++class TestKeyIsolation:
++    """Tests verifying key isolation between different prefixes."""
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_different_prefixes_are_isolated(self, real_redis) -> None:
++        """Verify that different prefixes don't see each other's keys."""
++        prefix1 = "test:worker1:"
++        prefix2 = "test:worker2:"
++
++        client1 = PrefixedRedis(real_redis, prefix=prefix1)
++        client2 = PrefixedRedis(real_redis, prefix=prefix2)
++
++        try:
++            # Set keys with different prefixes
++            await client1.set("shared_key", "value_from_worker1")
++            await client2.set("shared_key", "value_from_worker2")
++
++            # Each should see their own value
++            assert await client1.get("shared_key") == "value_from_worker1"
++            assert await client2.get("shared_key") == "value_from_worker2"
++
++            # Cleanup one shouldn't affect the other
++            await client1.cleanup()
++            assert await client1.get("shared_key") is None
++            assert await client2.get("shared_key") == "value_from_worker2"
++        finally:
++            # Cleanup both
++            await client1.cleanup()
++            await client2.cleanup()
++
++    @pytest.mark.integration
++    @pytest.mark.asyncio
++    async def test_prefix_property(self, prefixed_redis: PrefixedRedis) -> None:
++        """Verify the prefix property is accessible."""
++        assert prefixed_redis.prefix.startswith("test:")
++        assert prefixed_redis.prefix.endswith(":")
+\ No newline at end of file
+diff --git a/backend/tests/integration/test_system_db_endpoints.py b/backend/tests/integration/test_system_db_endpoints.py
+new file mode 100644
+index 00000000..82d5263f
+--- /dev/null
++++ b/backend/tests/integration/test_system_db_endpoints.py
+@@ -0,0 +1,437 @@
++"""Integration tests for the DB-backed /api/system endpoints.
++
++M3 Task 3 (audit 1.3): these classes lived in
++`backend/tests/unit/api/routes/test_system.py` behind class-level
++`@pytest.mark.integration` decorators. The root-conftest
++`pytest_collection_modifyitems` hook skips ANY /unit/ item carrying the
++integration marker unconditionally (conftest.py:438-441), so all 10 tests here
++had never executed. Moved to the tier that actually runs them.
++
++Fixture notes:
++- `isolated_db` is re-aliased to integration/conftest.py's `session` below
++  (without the alias it would still resolve to the ROOT fixture, which yields
++  None and would fight the integration client's engine for DATABASE_URL).
++- `async_client` is rebuilt here on top of the integration `client` fixture
++  (integration/conftest.py:1438: full app + integration_db + mock_redis +
++  X-API-Key), replacing the source file's app-with-router mock client — the
++  endpoints below reach full-app dependency paths (get_redis in the
++  rate-limiter/readiness chain) the mock router never wired.
++- `mock_settings` is copied verbatim from the source file.
++- TestSeverityThresholds carries here ONLY its DB-backed sibling; the
++  pure-logic sibling stayed in the unit file.
++"""
++
++from __future__ import annotations
++
++from unittest.mock import AsyncMock, MagicMock, patch
++
++import pytest
++from httpx import AsyncClient
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from backend.api.routes.system import register_workers
++from backend.api.schemas.system import HealthCheckServiceStatus
++from backend.core.config import Settings
++
++
++@pytest.fixture
++def async_client(client: AsyncClient) -> AsyncClient:
++    """Expose the integration `client` under the name the moved tests use."""
++    return client
++
++
++@pytest.fixture
++async def isolated_db(session: AsyncSession) -> AsyncSession:
++    """Alias the unit tier's `isolated_db` name onto the integration `session`.
++
++    The moved tests request `isolated_db` (the root fixture they were written
++    against). Reusing integration/conftest.py's worker-isolated session keeps
++    endpoint and test on ONE engine against the worker DB — the root fixture's
++    close_db()/init_db() churn would fight the integration client's engine.
++    """
++    yield session
++
++
++@pytest.fixture
++def mock_settings() -> Settings:
++    """Patch system-route settings reads (copied from the source unit file)."""
++    with patch("backend.api.routes.system.get_settings") as mock:
++        settings = Settings(
++            database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
++            api_key_enabled=False,
++            api_keys=[],  # pragma: allowlist secret
++            foscam_base_path="/test/foscam",
++            video_thumbnails_dir="/test/thumbnails",
++            clips_directory="/test/clips",
++            batch_window_seconds=90,
++            batch_idle_timeout_seconds=30,
++            severity_low_max=30,
++            severity_medium_max=60,
++            severity_high_max=90,
++        )
++        mock.return_value = settings
++        yield settings
++
++
++@pytest.mark.integration  # M3 Task 3: full app stack via the integration `client`
++class TestSeverityThresholds:
++    """DB-backed tests for severity threshold configuration.
++
++    M3 Task 3: split out from backend/tests/unit/api/routes/test_system.py
++    (the pure-logic sibling stayed in the unit file).
++    """
++
++    @pytest.mark.asyncio
++    async def test_update_severity_thresholds_success(
++        self,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test successful threshold update."""
++        from backend.api.routes.system import update_severity_thresholds
++        from backend.api.schemas.system import SeverityThresholdsUpdateRequest
++
++        request_obj = MagicMock()
++        update_request = SeverityThresholdsUpdateRequest(
++            low_max=35,
++            medium_max=65,
++            high_max=85,
++        )
++
++        with (
++            patch("backend.api.routes.system._write_runtime_env") as mock_write,
++            patch("backend.api.routes.system.get_settings") as mock_get_settings,
++        ):
++            # Mock the settings return
++            mock_get_settings.return_value = mock_settings
++            mock_get_settings.cache_clear = MagicMock()
++
++            # Mock severity service within the function's import context
++            mock_service = MagicMock()
++            mock_service.get_thresholds.return_value = {
++                "low_max": 35,
++                "medium_max": 65,
++                "high_max": 85,
++            }
++            mock_service.get_severity_definitions.return_value = []
++
++            with (
++                patch(
++                    "backend.services.severity.get_severity_service",
++                    return_value=mock_service,
++                ),
++                patch("backend.services.severity.reset_severity_service"),
++                patch("backend.api.routes.system.AuditService.log_action", new=AsyncMock()),
++            ):
++                result = await update_severity_thresholds(
++                    update=update_request,
++                    db=isolated_db,
++                    request=request_obj,
++                )
++
++                # Verify thresholds in response
++                assert result.thresholds.low_max == 35
++                assert result.thresholds.medium_max == 65
++                assert result.thresholds.high_max == 85
++
++                # Verify runtime env was written
++                mock_write.assert_called_once()
++
++@pytest.mark.integration  # M3 Task 3: full app stack via the integration `client`
++class TestGetStorageStats:
++    """Tests for GET /api/system/storage endpoint."""
++
++    @pytest.mark.asyncio
++    async def test_get_storage_stats_success(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test successful storage stats retrieval."""
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch("backend.api.routes.system.shutil.disk_usage") as mock_disk_usage,
++            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
++        ):
++            # Mock disk usage
++            mock_disk_usage.return_value = MagicMock(
++                total=1000000000,  # 1GB
++                used=400000000,  # 400MB
++                free=600000000,  # 600MB
++            )
++
++            # Mock directory stats
++            mock_dir_stats.return_value = (1024, 5)  # 1KB, 5 files
++
++            response = await async_client.get("/api/system/storage")
++
++            assert response.status_code == 200
++            data = response.json()
++
++            assert data["disk_total_bytes"] == 1000000000
++            assert data["disk_used_bytes"] == 400000000
++            assert data["disk_free_bytes"] == 600000000
++            assert data["disk_usage_percent"] == 40.0
++            assert data["thumbnails"]["file_count"] == 5
++            assert data["thumbnails"]["size_bytes"] == 1024
++
++    @pytest.mark.asyncio
++    async def test_get_storage_stats_handles_disk_error(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test that disk errors return zeros instead of failing."""
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch(
++                "backend.api.routes.system.shutil.disk_usage",
++                side_effect=OSError("Permission denied"),
++            ),
++            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
++        ):
++            mock_dir_stats.return_value = (0, 0)
++
++            response = await async_client.get("/api/system/storage")
++
++            assert response.status_code == 200
++            data = response.json()
++
++            # Should return zeros when disk access fails
++            assert data["disk_total_bytes"] == 0
++            assert data["disk_used_bytes"] == 0
++            assert data["disk_free_bytes"] == 0
++            assert data["disk_usage_percent"] == 0.0
++
++@pytest.mark.integration  # M3 Task 3: full app stack via the integration `client`
++class TestGetHealthEndpoint:
++    """Tests for GET /api/system/health endpoint."""
++
++    @pytest.mark.asyncio
++    async def test_health_endpoint_all_healthy(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test health endpoint returns 200 when all services healthy."""
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch("backend.api.routes.system.check_database_health") as mock_db,
++            patch("backend.api.routes.system.check_redis_health") as mock_redis,
++            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
++            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
++        ):
++            # Mock all services as healthy
++            mock_db.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_redis.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_ai.return_value = HealthCheckServiceStatus(
++                status="healthy", message="All services operational", details=None
++            )
++
++            response = await async_client.get("/api/system/health")
++
++            assert response.status_code == 200
++            data = response.json()
++            assert data["status"] == "healthy"
++            assert data["services"]["database"]["status"] == "healthy"
++            assert data["services"]["redis"]["status"] == "healthy"
++            assert data["services"]["ai"]["status"] == "healthy"
++
++    @pytest.mark.asyncio
++    async def test_health_endpoint_database_unhealthy(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test health endpoint returns 503 when database is unhealthy."""
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch("backend.api.routes.system.check_database_health") as mock_db,
++            patch("backend.api.routes.system.check_redis_health") as mock_redis,
++            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
++            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
++        ):
++            # Database unhealthy
++            mock_db.return_value = HealthCheckServiceStatus(
++                status="unhealthy", message="Connection failed", details=None
++            )
++            mock_redis.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_ai.return_value = HealthCheckServiceStatus(
++                status="healthy", message="All services operational", details=None
++            )
++
++            response = await async_client.get("/api/system/health")
++
++            assert response.status_code == 503
++            data = response.json()
++            assert data["status"] == "unhealthy"
++
++    @pytest.mark.asyncio
++    async def test_health_endpoint_degraded(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test health endpoint returns 503 degraded when AI services down."""
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch("backend.api.routes.system.check_database_health") as mock_db,
++            patch("backend.api.routes.system.check_redis_health") as mock_redis,
++            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
++            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
++        ):
++            # AI services unhealthy
++            mock_db.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_redis.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_ai.return_value = HealthCheckServiceStatus(
++                status="unhealthy", message="Services not responding", details=None
++            )
++
++            response = await async_client.get("/api/system/health")
++
++            assert response.status_code == 503
++            data = response.json()
++            assert data["status"] == "degraded"
++
++@pytest.mark.integration  # M3 Task 3: full app stack via the integration `client`
++class TestGetReadinessEndpoint:
++    """Tests for GET /api/system/health/ready endpoint."""
++
++    @pytest.mark.asyncio
++    async def test_readiness_endpoint_ready(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test readiness endpoint returns 200 when ready."""
++        mock_manager = MagicMock()
++        mock_manager.get_status.return_value = {
++            "running": True,
++            "workers": {
++                "detection": {"state": "running"},
++                "analysis": {"state": "running"},
++            },
++        }
++
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch("backend.api.routes.system.check_database_health") as mock_db,
++            patch("backend.api.routes.system.check_redis_health") as mock_redis,
++            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
++        ):
++            mock_db.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_redis.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_ai.return_value = HealthCheckServiceStatus(
++                status="healthy", message="All services operational", details=None
++            )
++
++            register_workers(pipeline_manager=mock_manager)
++
++            response = await async_client.get("/api/system/health/ready")
++
++            assert response.status_code == 200
++            data = response.json()
++            assert data["ready"] is True
++            assert data["status"] == "ready"
++
++    @pytest.mark.asyncio
++    async def test_readiness_endpoint_not_ready_pipeline_down(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test readiness endpoint returns 503 when pipeline workers down."""
++        mock_manager = MagicMock()
++        mock_manager.get_status.return_value = {
++            "running": False,
++            "workers": {},
++        }
++
++        with (
++            patch("backend.api.routes.system.get_db", return_value=isolated_db),
++            patch("backend.api.routes.system.check_database_health") as mock_db,
++            patch("backend.api.routes.system.check_redis_health") as mock_redis,
++            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
++        ):
++            mock_db.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_redis.return_value = HealthCheckServiceStatus(
++                status="healthy", message="Connected", details=None
++            )
++            mock_ai.return_value = HealthCheckServiceStatus(
++                status="healthy", message="All services operational", details=None
++            )
++
++            register_workers(pipeline_manager=mock_manager)
++
++            response = await async_client.get("/api/system/health/ready")
++
++            assert response.status_code == 503
++            data = response.json()
++            assert data["ready"] is False
++            assert data["status"] == "not_ready"
++
++@pytest.mark.integration  # M3 Task 3: full app stack via the integration `client`
++class TestGetStatsEndpoint:
++    """Tests for GET /api/system/stats endpoint."""
++
++    @pytest.mark.asyncio
++    async def test_get_stats_success(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test successful stats retrieval."""
++        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
++            response = await async_client.get("/api/system/stats")
++
++            assert response.status_code == 200
++            data = response.json()
++            assert "total_cameras" in data
++            assert "total_events" in data
++            assert "total_detections" in data
++            assert "uptime_seconds" in data
++            assert isinstance(data["uptime_seconds"], int | float)
++
++@pytest.mark.integration  # M3 Task 3: full app stack via the integration `client`
++class TestGetGPUStatsEndpoint:
++    """Tests for GET /api/system/gpu endpoint."""
++
++    @pytest.mark.asyncio
++    async def test_get_gpu_stats_no_data(
++        self,
++        async_client: AsyncClient,
++        isolated_db: AsyncSession,
++        mock_settings: Settings,
++    ) -> None:
++        """Test GPU stats endpoint when no data available."""
++        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
++            response = await async_client.get("/api/system/gpu")
++
++            assert response.status_code == 200
++            data = response.json()
++            # Should have null values when no stats available
++            assert data["gpu_name"] is None or isinstance(data["gpu_name"], str)
+diff --git a/backend/tests/unit/api/routes/test_events_coverage.py b/backend/tests/unit/api/routes/test_events_coverage.py
+index 33f9715c..287ca746 100644
+--- a/backend/tests/unit/api/routes/test_events_coverage.py
++++ b/backend/tests/unit/api/routes/test_events_coverage.py
+@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
+ 
+ from backend.api.routes.events import _bulk_rate_limiter, router
+ from backend.core.database import get_db, get_read_db
++from backend.core.redis import get_redis
+ from backend.models.detection import Detection
+ from backend.models.event import Event
+ 
+@@ -88,6 +89,20 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
+     async def override_rate_limiter() -> None:
+         yield None
+ 
++    # M3 Task 3: export_events builds a NEW RateLimiter(EXPORT) inline
++    # (backend/api/routes/events.py:1179), which no _bulk_rate_limiter override
++    # catches — it resolves get_redis. Mock it (allow-all), mirroring the shape
++    # integration/conftest.py's mock_redis uses for the limiter scripts.
++    mock_redis_client = AsyncMock()
++    mock_redis_internal = MagicMock()
++    mock_redis_internal.script_load = AsyncMock(return_value="mock-sha")
++    mock_redis_internal.evalsha = AsyncMock(return_value=[1, 1])
++    mock_redis_client._ensure_connected = MagicMock(return_value=mock_redis_internal)
++
++    async def override_get_redis():
++        yield mock_redis_client
++
++    app.dependency_overrides[get_redis] = override_get_redis
+     app.dependency_overrides[get_db] = override_get_db
+     app.dependency_overrides[get_read_db] = override_get_read_db
+     app.dependency_overrides[get_cache_service_dep] = override_get_cache_service
+@@ -1051,8 +1066,13 @@ class TestListEventsFieldValidation:
+         assert "invalid" in response.json()["detail"].lower()
+ 
+ 
+-@pytest.mark.integration  # Requires Redis connection
+ class TestExportEventsFilters:
++    # M3 Task 3 (audit 1.3): dropped the stray class-level @pytest.mark.integration.
++    # Every dependency of these three tests is file-local mocks (local TestClient
++    # with overridden get_db/get_read_db/cache/`_bulk_rate_limiter`); the only real
++    # service the route touches is the inline RateLimiter(tier=EXPORT) (events.py:1179)
++    # via the get_redis dependency — overridden with a mock below (shape mirrors
++    # integration/conftest.py mock_redis: evalsha -> [1, 1] = allowed).
+     """Tests for export_events with various filters."""
+ 
+     def test_export_events_with_all_filters(self, client: TestClient, mock_db_session: AsyncMock):
+diff --git a/backend/tests/unit/api/routes/test_system.py b/backend/tests/unit/api/routes/test_system.py
+index c2e8c2b2..b8b82f9f 100644
+--- a/backend/tests/unit/api/routes/test_system.py
++++ b/backend/tests/unit/api/routes/test_system.py
+@@ -532,88 +532,6 @@ class TestGetDirectoryStats:
+             total_size, file_count = _get_directory_stats(path)
+             assert file_count == 1
+             assert total_size == 6
+-
+-
+-# =============================================================================
+-# Storage Stats Endpoint Tests
+-# =============================================================================
+-
+-
+-@pytest.mark.integration  # Requires isolated_db fixture (real database)
+-class TestGetStorageStats:
+-    """Tests for GET /api/system/storage endpoint."""
+-
+-    @pytest.mark.asyncio
+-    async def test_get_storage_stats_success(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test successful storage stats retrieval."""
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch("backend.api.routes.system.shutil.disk_usage") as mock_disk_usage,
+-            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
+-        ):
+-            # Mock disk usage
+-            mock_disk_usage.return_value = MagicMock(
+-                total=1000000000,  # 1GB
+-                used=400000000,  # 400MB
+-                free=600000000,  # 600MB
+-            )
+-
+-            # Mock directory stats
+-            mock_dir_stats.return_value = (1024, 5)  # 1KB, 5 files
+-
+-            response = await async_client.get("/api/system/storage")
+-
+-            assert response.status_code == 200
+-            data = response.json()
+-
+-            assert data["disk_total_bytes"] == 1000000000
+-            assert data["disk_used_bytes"] == 400000000
+-            assert data["disk_free_bytes"] == 600000000
+-            assert data["disk_usage_percent"] == 40.0
+-            assert data["thumbnails"]["file_count"] == 5
+-            assert data["thumbnails"]["size_bytes"] == 1024
+-
+-    @pytest.mark.asyncio
+-    async def test_get_storage_stats_handles_disk_error(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test that disk errors return zeros instead of failing."""
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch(
+-                "backend.api.routes.system.shutil.disk_usage",
+-                side_effect=OSError("Permission denied"),
+-            ),
+-            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
+-        ):
+-            mock_dir_stats.return_value = (0, 0)
+-
+-            response = await async_client.get("/api/system/storage")
+-
+-            assert response.status_code == 200
+-            data = response.json()
+-
+-            # Should return zeros when disk access fails
+-            assert data["disk_total_bytes"] == 0
+-            assert data["disk_used_bytes"] == 0
+-            assert data["disk_free_bytes"] == 0
+-            assert data["disk_usage_percent"] == 0.0
+-
+-
+-# =============================================================================
+-# Severity Thresholds Tests
+-# =============================================================================
+-
+-
+-@pytest.mark.integration  # Requires isolated_db fixture (real database)
+ class TestSeverityThresholds:
+     """Tests for severity threshold configuration."""
+ 
+@@ -629,61 +547,15 @@ class TestSeverityThresholds:
+ 
+         assert not is_valid, "Invalid threshold ordering should be detected"
+ 
+-    @pytest.mark.asyncio
+-    async def test_update_severity_thresholds_success(
+-        self,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test successful threshold update."""
+-        from backend.api.routes.system import update_severity_thresholds
+-        from backend.api.schemas.system import SeverityThresholdsUpdateRequest
+-
+-        request_obj = MagicMock()
+-        update_request = SeverityThresholdsUpdateRequest(
+-            low_max=35,
+-            medium_max=65,
+-            high_max=85,
+-        )
+ 
+-        with (
+-            patch("backend.api.routes.system._write_runtime_env") as mock_write,
+-            patch("backend.api.routes.system.get_settings") as mock_get_settings,
+-        ):
+-            # Mock the settings return
+-            mock_get_settings.return_value = mock_settings
+-            mock_get_settings.cache_clear = MagicMock()
+-
+-            # Mock severity service within the function's import context
+-            mock_service = MagicMock()
+-            mock_service.get_thresholds.return_value = {
+-                "low_max": 35,
+-                "medium_max": 65,
+-                "high_max": 85,
+-            }
+-            mock_service.get_severity_definitions.return_value = []
+-
+-            with (
+-                patch(
+-                    "backend.services.severity.get_severity_service",
+-                    return_value=mock_service,
+-                ),
+-                patch("backend.services.severity.reset_severity_service"),
+-                patch("backend.api.routes.system.AuditService.log_action", new=AsyncMock()),
+-            ):
+-                result = await update_severity_thresholds(
+-                    update=update_request,
+-                    db=isolated_db,
+-                    request=request_obj,
+-                )
++# =============================================================================
++# Storage Stats Endpoint Tests
++# =============================================================================
+ 
+-                # Verify thresholds in response
+-                assert result.thresholds.low_max == 35
+-                assert result.thresholds.medium_max == 65
+-                assert result.thresholds.high_max == 85
+ 
+-                # Verify runtime env was written
+-                mock_write.assert_called_once()
++# =============================================================================
++# Severity Thresholds Tests
++# =============================================================================
+ 
+ 
+ # =============================================================================
+@@ -923,196 +795,6 @@ class TestHelperFunctions:
+ # =============================================================================
+ 
+ 
+-@pytest.mark.integration  # Requires isolated_db fixture (real database)
+-class TestGetHealthEndpoint:
+-    """Tests for GET /api/system/health endpoint."""
+-
+-    @pytest.mark.asyncio
+-    async def test_health_endpoint_all_healthy(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test health endpoint returns 200 when all services healthy."""
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch("backend.api.routes.system.check_database_health") as mock_db,
+-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+-            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
+-        ):
+-            # Mock all services as healthy
+-            mock_db.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_redis.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_ai.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="All services operational", details=None
+-            )
+-
+-            response = await async_client.get("/api/system/health")
+-
+-            assert response.status_code == 200
+-            data = response.json()
+-            assert data["status"] == "healthy"
+-            assert data["services"]["database"]["status"] == "healthy"
+-            assert data["services"]["redis"]["status"] == "healthy"
+-            assert data["services"]["ai"]["status"] == "healthy"
+-
+-    @pytest.mark.asyncio
+-    async def test_health_endpoint_database_unhealthy(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test health endpoint returns 503 when database is unhealthy."""
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch("backend.api.routes.system.check_database_health") as mock_db,
+-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+-            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
+-        ):
+-            # Database unhealthy
+-            mock_db.return_value = HealthCheckServiceStatus(
+-                status="unhealthy", message="Connection failed", details=None
+-            )
+-            mock_redis.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_ai.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="All services operational", details=None
+-            )
+-
+-            response = await async_client.get("/api/system/health")
+-
+-            assert response.status_code == 503
+-            data = response.json()
+-            assert data["status"] == "unhealthy"
+-
+-    @pytest.mark.asyncio
+-    async def test_health_endpoint_degraded(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test health endpoint returns 503 degraded when AI services down."""
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch("backend.api.routes.system.check_database_health") as mock_db,
+-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+-            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
+-        ):
+-            # AI services unhealthy
+-            mock_db.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_redis.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_ai.return_value = HealthCheckServiceStatus(
+-                status="unhealthy", message="Services not responding", details=None
+-            )
+-
+-            response = await async_client.get("/api/system/health")
+-
+-            assert response.status_code == 503
+-            data = response.json()
+-            assert data["status"] == "degraded"
+-
+-
+-@pytest.mark.integration  # Requires isolated_db fixture (real database)
+-class TestGetReadinessEndpoint:
+-    """Tests for GET /api/system/health/ready endpoint."""
+-
+-    @pytest.mark.asyncio
+-    async def test_readiness_endpoint_ready(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test readiness endpoint returns 200 when ready."""
+-        mock_manager = MagicMock()
+-        mock_manager.get_status.return_value = {
+-            "running": True,
+-            "workers": {
+-                "detection": {"state": "running"},
+-                "analysis": {"state": "running"},
+-            },
+-        }
+-
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch("backend.api.routes.system.check_database_health") as mock_db,
+-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+-        ):
+-            mock_db.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_redis.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_ai.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="All services operational", details=None
+-            )
+-
+-            register_workers(pipeline_manager=mock_manager)
+-
+-            response = await async_client.get("/api/system/health/ready")
+-
+-            assert response.status_code == 200
+-            data = response.json()
+-            assert data["ready"] is True
+-            assert data["status"] == "ready"
+-
+-    @pytest.mark.asyncio
+-    async def test_readiness_endpoint_not_ready_pipeline_down(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test readiness endpoint returns 503 when pipeline workers down."""
+-        mock_manager = MagicMock()
+-        mock_manager.get_status.return_value = {
+-            "running": False,
+-            "workers": {},
+-        }
+-
+-        with (
+-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+-            patch("backend.api.routes.system.check_database_health") as mock_db,
+-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
+-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+-        ):
+-            mock_db.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_redis.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="Connected", details=None
+-            )
+-            mock_ai.return_value = HealthCheckServiceStatus(
+-                status="healthy", message="All services operational", details=None
+-            )
+-
+-            register_workers(pipeline_manager=mock_manager)
+-
+-            response = await async_client.get("/api/system/health/ready")
+-
+-            assert response.status_code == 503
+-            data = response.json()
+-            assert data["ready"] is False
+-            assert data["status"] == "not_ready"
+-
+-
+ class TestWebSocketHealthEndpoint:
+     """Tests for GET /api/system/health/websocket endpoint."""
+ 
+@@ -1203,51 +885,6 @@ class TestListWebSocketEventTypesEndpoint:
+         assert isinstance(data["event_types"], list)
+ 
+ 
+-@pytest.mark.integration  # Requires isolated_db fixture (real database)
+-class TestGetStatsEndpoint:
+-    """Tests for GET /api/system/stats endpoint."""
+-
+-    @pytest.mark.asyncio
+-    async def test_get_stats_success(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test successful stats retrieval."""
+-        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
+-            response = await async_client.get("/api/system/stats")
+-
+-            assert response.status_code == 200
+-            data = response.json()
+-            assert "total_cameras" in data
+-            assert "total_events" in data
+-            assert "total_detections" in data
+-            assert "uptime_seconds" in data
+-            assert isinstance(data["uptime_seconds"], int | float)
+-
+-
+-@pytest.mark.integration  # Requires isolated_db fixture (real database)
+-class TestGetGPUStatsEndpoint:
+-    """Tests for GET /api/system/gpu endpoint."""
+-
+-    @pytest.mark.asyncio
+-    async def test_get_gpu_stats_no_data(
+-        self,
+-        async_client: AsyncClient,
+-        isolated_db: AsyncSession,
+-        mock_settings: Settings,
+-    ) -> None:
+-        """Test GPU stats endpoint when no data available."""
+-        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
+-            response = await async_client.get("/api/system/gpu")
+-
+-            assert response.status_code == 200
+-            data = response.json()
+-            # Should have null values when no stats available
+-            assert data["gpu_name"] is None or isinstance(data["gpu_name"], str)
+-
+-
+ class TestGetGPUStatsEndpointUnit:
+     """Unit tests for GET /api/system/gpu endpoint (with mocked database)."""
+ 
+diff --git a/backend/tests/unit/models/conftest.py b/backend/tests/unit/models/conftest.py
+deleted file mode 100644
+index 3a4e1834..00000000
+--- a/backend/tests/unit/models/conftest.py
++++ /dev/null
+@@ -1,48 +0,0 @@
+-"""Pytest configuration for unit model tests.
+-
+-This conftest forces soft delete tests to run serially to avoid database deadlocks.
+-
+-The soft delete tests create database schema modifications (adding/removing rows)
+-that cause deadlocks when run in parallel via pytest-xdist. The xdist_group marker
+-should ideally prevent this, but in practice deadlocks still occur intermittently.
+-
+-This conftest uses filelock to create a cross-process lock that ensures only one
+-soft delete test runs at a time across all pytest-xdist workers.
+-
+-NOTE: The pytest_collection_modifyitems hook has been consolidated into the main
+-backend/tests/conftest.py to avoid multiple iterations over test items.
+-The xdist_group marker for soft_delete_serial is now applied there.
+-"""
+-
+-import tempfile
+-from pathlib import Path
+-
+-import pytest
+-from filelock import FileLock
+-
+-# Path to the lock file (shared across all workers)
+-_LOCK_FILE = Path(tempfile.gettempdir()) / "pytest_soft_delete.lock"
+-
+-
+-# NOTE: pytest_collection_modifyitems has been removed from this file.
+-# All marker logic is now consolidated in backend/tests/conftest.py
+-# for O(n) instead of O(4n) complexity when processing test items.
+-
+-
+-@pytest.fixture(autouse=True, scope="function")
+-def _soft_delete_serial_lock(request: pytest.FixtureRequest):
+-    """Automatically acquire cross-process lock for soft delete tests.
+-
+-    This fixture is automatically used by all tests in this directory.
+-    It acquires a filelock before running soft delete tests to prevent deadlocks
+-    across all pytest-xdist workers (which run in separate processes).
+-    """
+-    # Only lock for test_soft_delete.py tests
+-    if "test_soft_delete.py" not in request.node.nodeid:
+-        yield
+-        return
+-
+-    # For soft delete tests, acquire the cross-process file lock
+-    lock = FileLock(_LOCK_FILE, timeout=60)
+-    with lock:
+-        yield
+diff --git a/backend/tests/unit/models/test_soft_delete.py b/backend/tests/unit/models/test_soft_delete.py
+index 631b4b3e..b6d7e0c1 100644
+--- a/backend/tests/unit/models/test_soft_delete.py
++++ b/backend/tests/unit/models/test_soft_delete.py
+@@ -1,28 +1,18 @@
+-"""Unit tests for soft delete functionality on Camera and Event models.
++"""Unit tests for soft-delete model fields/properties (Camera, Event).
+ 
+-Tests cover:
+-- Adding deleted_at column to models
+-- is_deleted property
+-- Soft delete sets deleted_at timestamp
+-- Restore clears deleted_at
+-- Hard delete actually removes record
+-- Queries exclude soft-deleted records by default
+-- Direct access to soft-deleted records when explicitly queried
++M3 Task 3 split: the DB-backed classes (query filtering, delete/restore
++behavior, edge cases — 15 tests that were permanently skipped here behind
++integration markers) moved to
++`backend/tests/integration/models/test_soft_delete.py`.
+ """
+ 
+ from datetime import UTC, datetime
+ 
+ import pytest
+-from sqlalchemy import select
+ 
+-from backend.models.camera import Camera
+-from backend.models.event import Event
+ from backend.tests.conftest import unique_id
+ from backend.tests.factories import CameraFactory, EventFactory
+ 
+-# Mark as unit tests
+-# Note: These tests are automatically configured to run serially via conftest.py
+-# to avoid database deadlocks during parallel execution (see conftest.py for details)
+ pytestmark = pytest.mark.unit
+ 
+ 
+@@ -68,220 +58,6 @@ class TestCameraSoftDeleteModel:
+         assert camera.deleted_at == now
+ 
+ 
+-@pytest.mark.integration  # Requires database session
+-class TestCameraSoftDeleteMethods:
+-    """Tests for Camera soft delete, restore, and hard delete methods."""
+-
+-    @pytest.mark.asyncio
+-    async def test_camera_soft_delete_sets_deleted_at(self, session):
+-        """Test that soft_delete() sets deleted_at timestamp."""
+-        camera_id = unique_id("cam")
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Verify initial state
+-        assert camera.deleted_at is None
+-        assert camera.is_deleted is False
+-
+-        # Perform soft delete
+-        camera.soft_delete()
+-        await session.flush()
+-
+-        # Verify soft delete
+-        await session.refresh(camera)
+-        assert camera.deleted_at is not None
+-        assert camera.is_deleted is True
+-        assert isinstance(camera.deleted_at, datetime)
+-
+-    @pytest.mark.asyncio
+-    async def test_camera_restore_clears_deleted_at(self, session):
+-        """Test that restore() clears deleted_at timestamp."""
+-        camera_id = unique_id("cam")
+-        # Create soft-deleted camera
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Verify initial soft-deleted state
+-        assert camera.is_deleted is True
+-
+-        # Restore camera
+-        camera.restore()
+-        await session.flush()
+-
+-        # Verify restored state
+-        await session.refresh(camera)
+-        assert camera.deleted_at is None
+-        assert camera.is_deleted is False
+-
+-    @pytest.mark.asyncio
+-    async def test_camera_hard_delete_removes_record(self, session):
+-        """Test that hard_delete() actually removes the record from database."""
+-        camera_id = unique_id("cam")
+-        # Create camera
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Refresh to ensure we have the latest state
+-        await session.refresh(camera)
+-
+-        # Perform hard delete
+-        await camera.hard_delete(session)
+-        await session.flush()
+-
+-        # Verify camera is completely removed
+-        result = await session.execute(select(Camera).where(Camera.id == camera_id))
+-        deleted_camera = result.scalar_one_or_none()
+-        assert deleted_camera is None
+-
+-    @pytest.mark.asyncio
+-    async def test_camera_soft_delete_preserves_relationships(self, session):
+-        """Test that soft delete preserves relationships and doesn't cascade delete."""
+-        from backend.models.detection import Detection
+-
+-        camera_id = unique_id("cam")
+-        # Create camera with detection
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        detection = Detection(
+-            camera_id=camera_id,
+-            file_path="/test/image.jpg",
+-            file_type="image/jpeg",
+-            detected_at=datetime.now(UTC),
+-            object_type="person",
+-            confidence=0.95,
+-            bbox_x=100,
+-            bbox_y=100,
+-            bbox_width=100,
+-            bbox_height=100,
+-        )
+-        session.add(camera)
+-        session.add(detection)
+-        await session.flush()
+-
+-        # Soft delete camera
+-        camera.soft_delete()
+-        await session.flush()
+-
+-        # Verify detection still exists (relationships preserved)
+-        from backend.models.detection import Detection as DetectionModel
+-
+-        det_result = await session.execute(
+-            select(DetectionModel).where(DetectionModel.camera_id == camera_id)
+-        )
+-        assert det_result.scalar_one_or_none() is not None
+-
+-
+-@pytest.mark.integration  # Requires database session
+-class TestCameraQueryFiltering:
+-    """Tests for automatic filtering of soft-deleted cameras in queries."""
+-
+-    @pytest.mark.asyncio
+-    async def test_query_excludes_soft_deleted_cameras_by_default(self, session):
+-        """Test that queries exclude soft-deleted cameras by default."""
+-        active_id = unique_id("cam_active")
+-        deleted_id = unique_id("cam_deleted")
+-
+-        # Create active and soft-deleted cameras
+-        active_camera = Camera(
+-            id=active_id,
+-            name=unique_id("active"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        deleted_camera = Camera(
+-            id=deleted_id,
+-            name=unique_id("deleted"),
+-            folder_path=f"/path/{unique_id('folder2')}",
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(active_camera)
+-        session.add(deleted_camera)
+-        await session.flush()
+-
+-        # Query without explicit filter should exclude soft-deleted
+-        query = select(Camera).where(Camera.deleted_at.is_(None))
+-        result = await session.execute(query)
+-        cameras = result.scalars().all()
+-
+-        # Only active camera should be returned
+-        camera_ids = [c.id for c in cameras]
+-        assert active_id in camera_ids
+-        assert deleted_id not in camera_ids
+-
+-    @pytest.mark.asyncio
+-    async def test_query_can_explicitly_include_soft_deleted(self, session):
+-        """Test that soft-deleted cameras can be explicitly queried."""
+-        deleted_id = unique_id("cam_deleted")
+-
+-        # Create soft-deleted camera
+-        deleted_camera = Camera(
+-            id=deleted_id,
+-            name=unique_id("deleted"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(deleted_camera)
+-        await session.flush()
+-
+-        # Explicitly query for soft-deleted cameras
+-        query = select(Camera).where(Camera.id == deleted_id)
+-        result = await session.execute(query)
+-        camera = result.scalar_one_or_none()
+-
+-        assert camera is not None
+-        assert camera.is_deleted is True
+-
+-    @pytest.mark.asyncio
+-    async def test_query_all_including_deleted(self, session):
+-        """Test querying all cameras including soft-deleted ones."""
+-        active_id = unique_id("cam_active")
+-        deleted_id = unique_id("cam_deleted")
+-
+-        # Create both types
+-        active_camera = Camera(
+-            id=active_id,
+-            name=unique_id("active"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        deleted_camera = Camera(
+-            id=deleted_id,
+-            name=unique_id("deleted"),
+-            folder_path=f"/path/{unique_id('folder2')}",
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(active_camera)
+-        session.add(deleted_camera)
+-        await session.flush()
+-
+-        # Query all (without deleted_at filter)
+-        query = select(Camera)
+-        result = await session.execute(query)
+-        cameras = result.scalars().all()
+-
+-        # Both should be returned
+-        camera_ids = [c.id for c in cameras]
+-        assert active_id in camera_ids
+-        assert deleted_id in camera_ids
+-
+-
+ # =============================================================================
+ # Event Model Soft Delete Tests
+ # =============================================================================
+@@ -313,296 +89,4 @@ class TestEventSoftDeleteModel:
+     def test_event_is_deleted_true_when_deleted_at_set(self):
+         """Test is_deleted returns True when deleted_at is set."""
+         event = EventFactory(deleted_at=datetime.now(UTC))
+-        assert event.is_deleted is True
+-
+-
+-@pytest.mark.integration  # Requires database session
+-class TestEventSoftDeleteMethods:
+-    """Tests for Event soft delete, restore, and hard delete methods."""
+-
+-    @pytest.mark.asyncio
+-    async def test_event_soft_delete_sets_deleted_at(self, session):
+-        """Test that soft_delete() sets deleted_at timestamp."""
+-        camera_id = unique_id("cam")
+-        batch_id = unique_id("batch")
+-
+-        # Create camera first
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Create event
+-        event = Event(
+-            camera_id=camera_id,
+-            batch_id=batch_id,
+-            started_at=datetime.now(UTC),
+-        )
+-        session.add(event)
+-        await session.flush()
+-
+-        # Verify initial state
+-        assert event.deleted_at is None
+-        assert event.is_deleted is False
+-
+-        # Perform soft delete
+-        event.soft_delete()
+-        await session.flush()
+-
+-        # Verify soft delete
+-        await session.refresh(event)
+-        assert event.deleted_at is not None
+-        assert event.is_deleted is True
+-
+-    @pytest.mark.asyncio
+-    async def test_event_restore_clears_deleted_at(self, session):
+-        """Test that restore() clears deleted_at timestamp."""
+-        camera_id = unique_id("cam")
+-        batch_id = unique_id("batch")
+-
+-        # Create camera
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Create soft-deleted event
+-        event = Event(
+-            camera_id=camera_id,
+-            batch_id=batch_id,
+-            started_at=datetime.now(UTC),
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(event)
+-        await session.flush()
+-
+-        # Verify initial soft-deleted state
+-        assert event.is_deleted is True
+-
+-        # Restore event
+-        event.restore()
+-        await session.flush()
+-
+-        # Verify restored state
+-        await session.refresh(event)
+-        assert event.deleted_at is None
+-        assert event.is_deleted is False
+-
+-    @pytest.mark.asyncio
+-    async def test_event_hard_delete_removes_record(self, session):
+-        """Test that hard_delete() actually removes the record from database."""
+-        camera_id = unique_id("cam")
+-        batch_id = unique_id("batch")
+-
+-        # Create camera
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Create event
+-        event = Event(
+-            camera_id=camera_id,
+-            batch_id=batch_id,
+-            started_at=datetime.now(UTC),
+-        )
+-        session.add(event)
+-        await session.flush()
+-
+-        event_id = event.id
+-
+-        # Refresh to ensure we have the latest state
+-        await session.refresh(event)
+-
+-        # Perform hard delete
+-        await event.hard_delete(session)
+-        await session.flush()
+-
+-        # Verify event is completely removed
+-        result = await session.execute(select(Event).where(Event.id == event_id))
+-        deleted_event = result.scalar_one_or_none()
+-        assert deleted_event is None
+-
+-
+-@pytest.mark.integration  # Requires database session
+-class TestEventQueryFiltering:
+-    """Tests for automatic filtering of soft-deleted events in queries."""
+-
+-    @pytest.mark.asyncio
+-    async def test_query_excludes_soft_deleted_events_by_default(self, session):
+-        """Test that queries exclude soft-deleted events by default."""
+-        camera_id = unique_id("cam")
+-        active_batch = unique_id("batch_active")
+-        deleted_batch = unique_id("batch_deleted")
+-
+-        # Create camera
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Create active and soft-deleted events
+-        active_event = Event(
+-            camera_id=camera_id,
+-            batch_id=active_batch,
+-            started_at=datetime.now(UTC),
+-        )
+-        deleted_event = Event(
+-            camera_id=camera_id,
+-            batch_id=deleted_batch,
+-            started_at=datetime.now(UTC),
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(active_event)
+-        session.add(deleted_event)
+-        await session.flush()
+-
+-        # Query without explicit filter should exclude soft-deleted
+-        query = select(Event).where(Event.deleted_at.is_(None))
+-        result = await session.execute(query)
+-        events = result.scalars().all()
+-
+-        # Only active event should be returned
+-        batch_ids = [e.batch_id for e in events]
+-        assert active_batch in batch_ids
+-        assert deleted_batch not in batch_ids
+-
+-    @pytest.mark.asyncio
+-    async def test_query_can_explicitly_include_soft_deleted_events(self, session):
+-        """Test that soft-deleted events can be explicitly queried."""
+-        camera_id = unique_id("cam")
+-        deleted_batch = unique_id("batch_deleted")
+-
+-        # Create camera
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Create soft-deleted event
+-        deleted_event = Event(
+-            camera_id=camera_id,
+-            batch_id=deleted_batch,
+-            started_at=datetime.now(UTC),
+-            deleted_at=datetime.now(UTC),
+-        )
+-        session.add(deleted_event)
+-        await session.flush()
+-
+-        # Explicitly query for soft-deleted event
+-        query = select(Event).where(Event.batch_id == deleted_batch)
+-        result = await session.execute(query)
+-        event = result.scalar_one_or_none()
+-
+-        assert event is not None
+-        assert event.is_deleted is True
+-
+-
+-# =============================================================================
+-# Edge Cases and Integration Tests
+-# =============================================================================
+-
+-
+-@pytest.mark.integration  # Requires database session
+-class TestSoftDeleteEdgeCases:
+-    """Tests for edge cases and complex scenarios."""
+-
+-    @pytest.mark.asyncio
+-    async def test_soft_delete_idempotent(self, session):
+-        """Test that calling soft_delete() multiple times is safe."""
+-        camera_id = unique_id("cam")
+-
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # First soft delete
+-        camera.soft_delete()
+-        await session.flush()
+-        await session.refresh(camera)
+-
+-        first_deleted_at = camera.deleted_at
+-
+-        # Second soft delete (should be idempotent)
+-        camera.soft_delete()
+-        await session.flush()
+-        await session.refresh(camera)
+-
+-        # deleted_at should be updated to new timestamp
+-        assert camera.deleted_at is not None
+-        assert camera.deleted_at >= first_deleted_at
+-
+-    @pytest.mark.asyncio
+-    async def test_restore_idempotent(self, session):
+-        """Test that calling restore() on non-deleted record is safe."""
+-        camera_id = unique_id("cam")
+-
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Restore a non-deleted camera (should be no-op)
+-        camera.restore()
+-        await session.flush()
+-        await session.refresh(camera)
+-
+-        assert camera.deleted_at is None
+-        assert camera.is_deleted is False
+-
+-    @pytest.mark.asyncio
+-    async def test_soft_delete_and_restore_cycle(self, session):
+-        """Test multiple soft delete and restore cycles."""
+-        camera_id = unique_id("cam")
+-
+-        camera = Camera(
+-            id=camera_id,
+-            name=unique_id("name"),
+-            folder_path=f"/path/{unique_id('folder')}",
+-        )
+-        session.add(camera)
+-        await session.flush()
+-
+-        # Cycle 1: Delete and restore
+-        camera.soft_delete()
+-        await session.flush()
+-        await session.refresh(camera)
+-        assert camera.is_deleted is True
+-
+-        camera.restore()
+-        await session.flush()
+-        await session.refresh(camera)
+-        assert camera.is_deleted is False
+-
+-        # Cycle 2: Delete and restore again
+-        camera.soft_delete()
+-        await session.flush()
+-        await session.refresh(camera)
+-        assert camera.is_deleted is True
+-
+-        camera.restore()
+-        await session.flush()
+-        await session.refresh(camera)
+-        assert camera.is_deleted is False
++        assert event.is_deleted is True
+\ No newline at end of file
+diff --git a/backend/tests/unit/test_redis_prefix_isolation.py b/backend/tests/unit/test_redis_prefix_isolation.py
+index 1de37051..a4ed39cb 100644
+--- a/backend/tests/unit/test_redis_prefix_isolation.py
++++ b/backend/tests/unit/test_redis_prefix_isolation.py
+@@ -1,14 +1,11 @@
+-"""Tests for Redis key prefix isolation in pytest-xdist parallel execution.
++"""Unit tests for the PrefixedRedis wrapper (mock-only, no services).
+ 
+-This module tests the PrefixedRedis wrapper and redis_prefix fixture to ensure
+-proper key isolation when running integration tests in parallel.
+-
+-Note: The tests in TestPrefixedRedisUnit use mocks and can run without services.
+-The tests in TestPrefixedRedisIntegration require real Redis and PostgreSQL.
++M3 Task 3 (audit 1.3): the real-Redis half of this module carried
++@pytest.mark.integration (permanently skipped under /unit/ by the
++root-conftest skip rule) and moved to
++`backend/tests/integration/test_redis_prefix_isolation.py`.
+ """
+ 
+-from __future__ import annotations
+-
+ from unittest.mock import AsyncMock, MagicMock
+ 
+ import pytest
+@@ -203,198 +200,4 @@ class TestPrefixedRedisUnit:
+         mock_internal_client.delete.assert_called_once_with(
+             "test:gw0:key1", "test:gw0:key2", "test:gw0:list1"
+         )
+-        assert deleted == 3
+-
+-
+-class TestRedisPrefixFixture:
+-    """Tests for the redis_prefix session fixture.
+-
+-    These tests require the redis_prefix fixture which depends on integration
+-    test infrastructure (PostgreSQL). Skip in environments without services.
+-    """
+-
+-    @pytest.mark.integration
+-    def test_redis_prefix_format(self, redis_prefix: str) -> None:
+-        """Verify redis_prefix follows expected format."""
+-        assert redis_prefix.startswith("test:")
+-        assert redis_prefix.endswith(":")
+-        # Should be "test:gw0:", "test:gw1:", or "test:main:"
+-        parts = redis_prefix.split(":")
+-        assert len(parts) == 3
+-        assert parts[0] == "test"
+-        assert parts[2] == ""  # Trailing colon
+-
+-    @pytest.mark.integration
+-    def test_redis_prefix_is_session_scoped(
+-        self, redis_prefix: str, request: pytest.FixtureRequest
+-    ) -> None:
+-        """Verify redis_prefix is consistent within a session (stored for later check)."""
+-        # Store the prefix in the session-level cache for consistency verification
+-        # This can be checked by running multiple tests with the same prefix
+-        if hasattr(request.session, "_test_redis_prefix"):
+-            assert request.session._test_redis_prefix == redis_prefix
+-        else:
+-            request.session._test_redis_prefix = redis_prefix
+-
+-
+-class TestPrefixedRedisIntegration:
+-    """Integration tests for PrefixedRedis that require real Redis.
+-
+-    These tests verify the full behavior with a real Redis instance.
+-    Skip in environments without services by using the @pytest.mark.integration marker.
+-    """
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_prefixed_key_generation(self, real_redis, redis_prefix: str) -> None:
+-        """Verify keys are correctly prefixed."""
+-        prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
+-
+-        assert prefixed._prefixed_key("foo") == f"{redis_prefix}foo"
+-        assert prefixed._prefixed_key("bar:baz") == f"{redis_prefix}bar:baz"
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_prefixed_keys_generation(self, real_redis, redis_prefix: str) -> None:
+-        """Verify multiple keys are correctly prefixed."""
+-        prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
+-
+-        keys = prefixed._prefixed_keys("a", "b", "c")
+-        assert keys == [f"{redis_prefix}a", f"{redis_prefix}b", f"{redis_prefix}c"]
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_set_and_get(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify set and get operations with prefix."""
+-        await prefixed_redis.set("test_key", {"value": 42})
+-        result = await prefixed_redis.get("test_key")
+-        assert result == {"value": 42}
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_set_with_expire(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify set with expiration works."""
+-        await prefixed_redis.set("expiring_key", "test_value", expire=300)
+-        result = await prefixed_redis.get("expiring_key")
+-        assert result == "test_value"
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_delete(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify delete operation with prefix."""
+-        await prefixed_redis.set("delete_me", "value")
+-        assert await prefixed_redis.get("delete_me") == "value"
+-
+-        deleted = await prefixed_redis.delete("delete_me")
+-        assert deleted == 1
+-        assert await prefixed_redis.get("delete_me") is None
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_exists(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify exists operation with prefix."""
+-        assert await prefixed_redis.exists("nonexistent") == 0
+-
+-        await prefixed_redis.set("exists_key", "value")
+-        assert await prefixed_redis.exists("exists_key") == 1
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_list_operations(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify list operations with prefix."""
+-        # lpush
+-        await prefixed_redis.lpush("my_list", "a", "b")
+-        assert await prefixed_redis.llen("my_list") == 2
+-
+-        # rpush
+-        await prefixed_redis.rpush("my_list", "c")
+-        assert await prefixed_redis.llen("my_list") == 3
+-
+-        # lrange
+-        values = await prefixed_redis.lrange("my_list", 0, -1)
+-        assert len(values) == 3
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_sorted_set_operations(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify sorted set operations with prefix."""
+-        # zadd
+-        await prefixed_redis.zadd("my_zset", {"member1": 1.0, "member2": 2.0})
+-        assert await prefixed_redis.zcard("my_zset") == 2
+-
+-        # zscore
+-        score = await prefixed_redis.zscore("my_zset", "member1")
+-        assert score == 1.0
+-
+-        # zrange
+-        members = await prefixed_redis.zrange("my_zset", 0, -1)
+-        assert len(members) == 2
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_hyperloglog_operations(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify HyperLogLog operations with prefix."""
+-        await prefixed_redis.pfadd("my_hll", "a", "b", "c", "a")  # 'a' counted once
+-        count = await prefixed_redis.pfcount("my_hll")
+-        assert count == 3
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_cleanup(self, real_redis, redis_prefix: str) -> None:
+-        """Verify cleanup removes all prefixed keys."""
+-        prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
+-
+-        # Create multiple keys
+-        await prefixed.set("key1", "value1")
+-        await prefixed.set("key2", "value2")
+-        await prefixed.lpush("list1", "item")
+-        await prefixed.zadd("zset1", {"member": 1.0})
+-
+-        # Verify keys exist
+-        assert await prefixed.exists("key1", "key2") == 2
+-
+-        # Cleanup
+-        deleted = await prefixed.cleanup()
+-        assert deleted >= 4  # At least our 4 keys
+-
+-        # Verify keys are gone
+-        assert await prefixed.exists("key1", "key2") == 0
+-
+-
+-class TestKeyIsolation:
+-    """Tests verifying key isolation between different prefixes."""
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_different_prefixes_are_isolated(self, real_redis) -> None:
+-        """Verify that different prefixes don't see each other's keys."""
+-        prefix1 = "test:worker1:"
+-        prefix2 = "test:worker2:"
+-
+-        client1 = PrefixedRedis(real_redis, prefix=prefix1)
+-        client2 = PrefixedRedis(real_redis, prefix=prefix2)
+-
+-        try:
+-            # Set keys with different prefixes
+-            await client1.set("shared_key", "value_from_worker1")
+-            await client2.set("shared_key", "value_from_worker2")
+-
+-            # Each should see their own value
+-            assert await client1.get("shared_key") == "value_from_worker1"
+-            assert await client2.get("shared_key") == "value_from_worker2"
+-
+-            # Cleanup one shouldn't affect the other
+-            await client1.cleanup()
+-            assert await client1.get("shared_key") is None
+-            assert await client2.get("shared_key") == "value_from_worker2"
+-        finally:
+-            # Cleanup both
+-            await client1.cleanup()
+-            await client2.cleanup()
+-
+-    @pytest.mark.integration
+-    @pytest.mark.asyncio
+-    async def test_prefix_property(self, prefixed_redis: PrefixedRedis) -> None:
+-        """Verify the prefix property is accessible."""
+-        assert prefixed_redis.prefix.startswith("test:")
+-        assert prefixed_redis.prefix.endswith(":")
++        assert deleted == 3
+\ No newline at end of file

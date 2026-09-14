@@ -1,0 +1,279 @@
+// ============================================
+// GRAFANA ALLOY CONFIGURATION
+// ============================================
+// Log collection, eBPF profiling, and OTLP trace forwarding
+//
+// PORT CONFIGURATION NOTE:
+// All endpoint URLs use Docker service names (e.g., loki:3100, pyroscope:4040,
+// tempo:4317) which use internal container ports that are FIXED and independent
+// of .env port variables. No envsubst templating is needed for this file.
+// See docs/development/PORT_STANDARDIZATION.md for details.
+
+// ============================================
+// LOG COLLECTION PIPELINE (Podman)
+// ============================================
+
+// Discover containers via Podman socket
+// PODMAN_SOCKET is set dynamically from the host UID (e.g. /run/user/1002/podman/podman.sock)
+discovery.docker "containers" {
+  host = "unix:///" + env("PODMAN_SOCKET")
+}
+
+// Relabel targets to add container metadata as labels
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // Keep container name as label
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  // Normalize container names to short form
+  // Compose-created containers use the pattern: <project>-<service>-<replica>
+  // e.g. "nemotron-v3-home-security-intelligence-ai-clip-1" -> "ai-clip"
+  // Standalone containers already use short names (e.g. "ai-clip") and pass through unchanged
+  rule {
+    source_labels = ["container"]
+    regex         = "nemotron-v3-home-security-intelligence-(.+)-\\d+$"
+    replacement   = "${1}"
+    target_label  = "container"
+  }
+
+  // Keep image name
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+}
+
+// Scrape container logs from Podman
+loki.source.docker "default" {
+  host       = "unix:///" + env("PODMAN_SOCKET")
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.parse.receiver]
+}
+
+// Parse and enrich logs
+loki.process "parse" {
+  // Add static job label (required by Loki)
+  stage.static_labels {
+    values = {
+      job = "podman-containers",
+    }
+  }
+
+  stage.docker {}
+
+  // Extract log level
+  stage.regex {
+    expression = "(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)"
+  }
+
+  // Extract camera name from AI pipeline logs
+  stage.regex {
+    expression = "camera[=: ]+(?P<camera>[a-z_]+)"
+  }
+
+  // Extract trace_id for log-to-trace correlation
+  stage.regex {
+    expression = "trace_id[=:]\\s*(?P<trace_id>[a-f0-9]{32})"
+  }
+
+  // Extract span_id for log-to-trace correlation
+  stage.regex {
+    expression = "span_id[=:]\\s*(?P<span_id>[a-f0-9]{16})"
+  }
+
+  // Extract batch_id for batch processing correlation
+  stage.regex {
+    expression = "batch_id[=:]\\s*(?P<batch_id>[a-f0-9-]+)"
+  }
+
+  // Extract duration in milliseconds for performance analysis
+  stage.regex {
+    expression = "duration[=:]\\s*(?P<duration_ms>\\d+)\\s*ms"
+  }
+
+  // PostgreSQL slow query logging (NEM-3054)
+  // Extract query duration from PostgreSQL log_min_duration_statement output
+  // Format: "2024-01-21 12:34:56.789 UTC [123] user@db LOG:  duration: 1234.567 ms  statement: SELECT..."
+  stage.regex {
+    expression = "duration:\\s*(?P<pg_duration_ms>[\\d.]+)\\s*ms"
+  }
+
+  // Extract PostgreSQL connection info from log_line_prefix: %t [%p] %u@%d
+  // Format: "2024-01-21 12:34:56.789 UTC [123] security@security"
+  stage.regex {
+    expression = "\\[(?P<pg_pid>\\d+)\\]\\s*(?P<pg_user>[^@]+)@(?P<pg_database>\\S+)"
+  }
+
+  // Mark PostgreSQL slow queries for easy filtering
+  stage.regex {
+    expression = "(?P<pg_slow_query>duration:\\s*[\\d.]+\\s*ms\\s+statement:)"
+  }
+
+  // Extract PostgreSQL event types (connection, checkpoint, lock_wait, deadlock)
+  stage.regex {
+    expression = "LOG:\\s*(?P<pg_event>connection\\s+\\w+|checkpoint\\s+\\w+|process\\s+\\d+.*deadlock|still\\s+waiting\\s+for)"
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+      pg_database = "",
+      pg_user = "",
+      pg_event = "",
+      // High-cardinality values removed from labels - they remain in log content
+      // and can be queried with | json or | logfmt parsers:
+      // trace_id, span_id, batch_id, duration_ms, pg_duration_ms, pg_pid, pg_slow_query, camera
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+// Send to Loki
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ============================================
+// EBPF PROFILING PIPELINE (Native AI Services)
+// ============================================
+// Profiles native (C/C++) applications like llama.cpp (ai-llm) using eBPF.
+// Python services use SDK-based profiling via init_profiling() instead.
+//
+// Requirements (configured in docker-compose.prod.yml):
+// - Alloy runs privileged with CAP_SYS_ADMIN, CAP_BPF, CAP_PERFMON
+// - pid: host for process namespace access
+// - /sys/kernel/debug, /sys/fs/cgroup, /proc mounted
+//
+// Target Selection:
+// - Containers with label pyroscope.profile=true are profiled
+// - service_name derived from pyroscope.service label
+
+// Discover containers for eBPF profiling
+// Uses Podman socket (same as log collection)
+discovery.docker "profiling_targets" {
+  host = "unix:///" + env("PODMAN_SOCKET")
+}
+
+// Relabel to filter and configure profiling targets
+discovery.relabel "ebpf_targets" {
+  targets = discovery.docker.profiling_targets.targets
+
+  // Only profile containers with pyroscope.profile=true label
+  rule {
+    source_labels = ["__meta_docker_container_label_pyroscope_profile"]
+    regex         = "true"
+    action        = "keep"
+  }
+
+  // Extract service name from pyroscope.service label
+  rule {
+    source_labels = ["__meta_docker_container_label_pyroscope_service"]
+    target_label  = "service_name"
+  }
+
+  // Fallback: use container name if no service label
+  rule {
+    source_labels = ["service_name", "__meta_docker_container_name"]
+    regex         = "^;(.+)$"
+    replacement   = "${1}"
+    target_label  = "service_name"
+  }
+
+  // Add container name as additional label
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  // Add image name for context
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+}
+
+// eBPF profiler for native applications (C/C++, Rust, Go)
+// Profiles ai-llm (llama.cpp), ai-yolo26 (TensorRT), and other native services
+pyroscope.ebpf "native_profiling" {
+  forward_to = [pyroscope.write.default.receiver]
+  targets    = discovery.relabel.ebpf_targets.output
+
+  // Sampling configuration
+  // 97 samples/sec is prime to avoid aliasing with periodic processes
+  sample_rate      = 97
+  collect_interval = "15s"
+
+  // C++ symbol demangling for llama.cpp stack traces
+  demangle = "simplified"
+
+  // Note: Interpreter-specific flags (hotspot_enabled, ruby_enabled, etc.)
+  // were removed as they are not supported in Alloy v1.0.0's pyroscope.ebpf component.
+  // The eBPF profiler profiles native code; Python profiling is handled by pyroscope-io SDK.
+}
+
+// Write profiles to Pyroscope server
+pyroscope.write "default" {
+  endpoint {
+    url = "http://pyroscope:4040"
+  }
+
+  // Add environment labels for filtering in Pyroscope UI
+  external_labels = {
+    "env"      = "production",
+    "platform" = "nemotron-security",
+  }
+}
+
+// ============================================
+// OTLP TELEMETRY PIPELINE (Backend Services)
+// ============================================
+// Receives OTLP traces and metrics from the backend via gRPC/HTTP.
+//
+// - Traces  -> Tempo (distributed tracing, Grafana Explore)
+// - Metrics -> Prometheus (via remote write for OTEL-exported metrics)
+//
+// NOTE: Binding to 0.0.0.0 is intentional for Docker network access.
+// Other containers (backend, AI services) connect via service name "alloy"
+// which requires the receiver to listen on all interfaces within the container.
+// Security context: OTLP ports are NOT exposed to the host (internal Docker network only),
+// so the 0.0.0.0 binding is safe. See docker-compose.prod.yml ports section.
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.default.input]
+  }
+}
+
+// Export traces to Tempo
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// Export OTEL metrics to Prometheus via remote write
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}

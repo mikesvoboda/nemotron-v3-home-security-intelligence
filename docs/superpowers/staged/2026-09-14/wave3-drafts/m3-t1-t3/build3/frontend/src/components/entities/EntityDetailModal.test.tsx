@@ -1,0 +1,682 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+
+import EntityDetailModal, { type EntityDetailModalProps } from './EntityDetailModal';
+
+import type { EntityDetail, EntityAppearance, EntityDetectionsResponse } from '../../services/api';
+
+// Mock the useEntityHistory hook
+const mockUseEntityHistory = vi.fn();
+vi.mock('../../hooks/useEntityHistory', () => ({
+  useEntityHistory: (...args: unknown[]) => mockUseEntityHistory(...args),
+}));
+
+// Mock react-router-dom's useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+// Mock the API functions
+vi.mock('../../services/api', async () => {
+  const actual = await vi.importActual<typeof import('../../services/api')>('../../services/api');
+  return {
+    ...actual,
+    getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
+    getDetectionFullImageUrl: vi.fn((id: number) => `/api/detections/${id}/full`),
+  };
+});
+
+// Helper to create a test query client
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+}
+
+// Helper to wrap component with query provider and router
+function renderWithQueryClient(ui: React.ReactElement) {
+  const queryClient = createTestQueryClient();
+  return {
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>{ui}</BrowserRouter>
+      </QueryClientProvider>
+    ),
+    queryClient,
+  };
+}
+
+describe('EntityDetailModal', () => {
+  // Base time for consistent testing
+  const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
+
+  // Mock appearances
+  const mockAppearances: EntityAppearance[] = [
+    {
+      detection_id: 'det-001',
+      camera_id: 'front_door',
+      camera_name: 'Front Door',
+      timestamp: new Date(BASE_TIME - 5 * 60 * 1000).toISOString(),
+      thumbnail_url: 'https://example.com/thumb1.jpg',
+      similarity_score: 0.95,
+      attributes: {},
+    },
+    {
+      detection_id: 'det-002',
+      camera_id: 'back_yard',
+      camera_name: 'Back Yard',
+      timestamp: new Date(BASE_TIME - 30 * 60 * 1000).toISOString(),
+      thumbnail_url: 'https://example.com/thumb2.jpg',
+      similarity_score: 0.88,
+      attributes: {},
+    },
+  ];
+
+  // Mock detections for visualization
+  const mockDetections: EntityDetectionsResponse = {
+    entity_id: 'entity-abc123',
+    entity_type: 'person',
+    detections: [
+      {
+        detection_id: 1,
+        camera_id: 'front_door',
+        camera_name: 'Front Door',
+        timestamp: new Date(BASE_TIME - 5 * 60 * 1000).toISOString(),
+        thumbnail_url: '/api/detections/1/image',
+        confidence: 0.95,
+        object_type: 'person',
+      },
+      {
+        detection_id: 2,
+        camera_id: 'back_yard',
+        camera_name: 'Back Yard',
+        timestamp: new Date(BASE_TIME - 30 * 60 * 1000).toISOString(),
+        thumbnail_url: '/api/detections/2/image',
+        confidence: 0.88,
+        object_type: 'person',
+      },
+    ],
+    pagination: {
+      total: 2,
+      limit: 50,
+      offset: 0,
+      has_more: false,
+    },
+  };
+
+  // Mock entity detail
+  const mockEntity: EntityDetail = {
+    id: 'entity-abc123',
+    entity_type: 'person',
+    first_seen: new Date(BASE_TIME - 3 * 60 * 60 * 1000).toISOString(),
+    last_seen: new Date(BASE_TIME - 5 * 60 * 1000).toISOString(),
+    appearance_count: 2,
+    cameras_seen: ['front_door', 'back_yard'],
+    thumbnail_url: 'https://example.com/thumbnail.jpg',
+    appearances: mockAppearances,
+  };
+
+  const defaultProps: EntityDetailModalProps = {
+    entity: mockEntity,
+    isOpen: true,
+    onClose: vi.fn(),
+  };
+
+  // Default mock implementation
+  const defaultHookReturn = {
+    detections: mockDetections,
+    isLoadingDetections: false,
+    fetchMoreDetections: vi.fn(),
+    hasMoreDetections: false,
+    isFetchingMoreDetections: false,
+    entity: mockEntity,
+    isLoadingEntity: false,
+    isLoading: false,
+    entityError: null,
+    detectionsError: null,
+    refetchEntity: vi.fn(),
+    refetchDetections: vi.fn(),
+  };
+
+  // Mock system time for consistent testing
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(BASE_TIME);
+    mockUseEntityHistory.mockReturnValue(defaultHookReturn);
+    mockNavigate.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  describe('rendering', () => {
+    it('renders modal when isOpen is true', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('does not render modal when isOpen is false', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} isOpen={false} />);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('renders entity type in title', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByRole('heading', { name: /Person/i })).toBeInTheDocument();
+    });
+
+    it('renders entity ID', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByText(/entity-abc123/)).toBeInTheDocument();
+    });
+
+    it('renders thumbnail when available', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      const images = screen.getAllByRole('img');
+      expect(images.length).toBeGreaterThan(0);
+    });
+
+    it('renders appearance timeline', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByText('Appearance Timeline')).toBeInTheDocument();
+    });
+
+    it('renders all appearances', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Multiple elements may have "Front Door" text (detection history + timeline)
+      // Just check that we have content
+      expect(screen.getAllByText('Front Door').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Back Yard').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('entity info', () => {
+    it('displays first seen timestamp', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByText(/First seen/i)).toBeInTheDocument();
+    });
+
+    it('displays last seen timestamp', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByText(/Last seen/i)).toBeInTheDocument();
+    });
+
+    it('displays appearance count', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Appearance count is shown as "2" with "appearances" label below
+      const countElement = screen.getAllByText('2')[0]; // First "2" is appearance count
+      expect(countElement).toBeInTheDocument();
+      expect(screen.getByText('appearances')).toBeInTheDocument();
+    });
+
+    it('displays cameras seen count', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Camera count is also "2" with "cameras" label below
+      expect(screen.getByText('cameras')).toBeInTheDocument();
+    });
+  });
+
+  describe('vehicle entity', () => {
+    it('renders vehicle type correctly', () => {
+      const vehicleEntity: EntityDetail = {
+        ...mockEntity,
+        entity_type: 'vehicle',
+      };
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={vehicleEntity} />);
+      expect(screen.getByRole('heading', { name: /Vehicle/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('close behavior', () => {
+    it('calls onClose when close button is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} onClose={onClose} />);
+
+      // Get the X close button in the header (aria-label="Close modal")
+      const closeButton = screen.getByLabelText(/close modal/i);
+      await user.click(closeButton);
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('calls onClose when clicking footer close button', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} onClose={onClose} />);
+
+      // Get the footer Close button
+      const closeButtons = screen.getAllByRole('button', { name: /close/i });
+      const footerButton = closeButtons[closeButtons.length - 1]; // Last one is footer button
+      await user.click(footerButton);
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+  });
+
+  describe('null entity', () => {
+    it('returns null when entity is null', () => {
+      const { container } = renderWithQueryClient(
+        <EntityDetailModal {...defaultProps} entity={null} />
+      );
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
+  describe('styling', () => {
+    it('renders styled content', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Modal renders with content that has styling applied
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+    });
+
+    it('applies border styling', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Modal renders
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
+  describe('accessibility', () => {
+    it('has accessible dialog role', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('has accessible dialog title', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      const headings = screen.getAllByRole('heading');
+      expect(headings.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('close button has accessible label', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Multiple close buttons exist (header X and footer button)
+      const closeButtons = screen.getAllByRole('button', { name: /close/i });
+      expect(closeButtons.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('empty appearances', () => {
+    it('handles entity with no appearances', () => {
+      const entityNoAppearances: EntityDetail = {
+        ...mockEntity,
+        appearances: [],
+        appearance_count: 0,
+      };
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={entityNoAppearances} />);
+      expect(screen.getByText(/No appearances recorded/i)).toBeInTheDocument();
+    });
+  });
+
+  // New tests for detection visualization
+  describe('trust status', () => {
+    it('displays default unknown trust status', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Using TrustClassificationControls component which uses trust-status-badge
+      expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Unknown');
+    });
+
+    it('displays trusted status when provided', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} trustStatus="trusted" />);
+      expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Trusted');
+    });
+
+    it('displays suspicious status when flagged is provided (backward compat)', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} trustStatus="flagged" />);
+      // 'flagged' is now normalized to 'untrusted' which displays as 'Untrusted'
+      expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Untrusted');
+    });
+
+    it('calls onTrustStatusChange when Mark as Trusted button is clicked and confirmed', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onTrustStatusChange = vi.fn();
+      renderWithQueryClient(
+        <EntityDetailModal
+          {...defaultProps}
+          trustStatus="unknown"
+          onTrustStatusChange={onTrustStatusChange}
+        />
+      );
+
+      // TrustClassificationControls uses trust-button-trusted and requires confirmation
+      const trustedButton = screen.getByTestId('trust-button-trusted');
+      await user.click(trustedButton);
+
+      // Click the confirm button in the confirmation dialog
+      const confirmButton = screen.getByTestId('trust-confirm-button');
+      await user.click(confirmButton);
+
+      expect(onTrustStatusChange).toHaveBeenCalledWith(mockEntity.id, 'trusted');
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('shows trust controls in readOnly mode when onTrustStatusChange is not provided', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // TrustClassificationControls is in readOnly mode when no callback is provided
+      // The badge should still be visible
+      expect(screen.getByTestId('trust-status-badge')).toBeInTheDocument();
+      // But action buttons should not be visible in readOnly mode
+      expect(screen.queryByTestId('trust-action-buttons')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('detection visualization', () => {
+    it('renders detection history section', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('detection-visualization-section')).toBeInTheDocument();
+      expect(screen.getByText('Detection History')).toBeInTheDocument();
+    });
+
+    it('shows loading state when detections are loading', () => {
+      mockUseEntityHistory.mockReturnValue({
+        ...defaultHookReturn,
+        isLoadingDetections: true,
+        detections: { ...mockDetections, detections: [] },
+      });
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('detection-loading')).toBeInTheDocument();
+      expect(screen.getByText('Loading detections...')).toBeInTheDocument();
+    });
+
+    it('shows empty state when no detections available', () => {
+      mockUseEntityHistory.mockReturnValue({
+        ...defaultHookReturn,
+        detections: { ...mockDetections, detections: [] },
+      });
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('detection-empty')).toBeInTheDocument();
+      expect(screen.getByText('No detection images available')).toBeInTheDocument();
+    });
+
+    it('renders detection image container when detections available', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // May have multiple containers, check at least one exists
+      expect(screen.getAllByTestId('detection-image-container').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('displays detection count indicator', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      // Should show "1 of 2" since we have 2 detections and start at index 0
+      expect(screen.getByText(/1 of 2/)).toBeInTheDocument();
+    });
+
+    it('renders detection metadata', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('detection-metadata')).toBeInTheDocument();
+    });
+
+    it('shows object type badge in detection metadata', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      const metadata = screen.getByTestId('detection-metadata');
+      expect(metadata).toHaveTextContent('person');
+    });
+
+    it('shows confidence in detection metadata', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      const metadata = screen.getByTestId('detection-metadata');
+      expect(metadata).toHaveTextContent('Confidence: 95%');
+    });
+
+    it('renders thumbnail strip with multiple detections', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('detection-thumbnail-strip')).toBeInTheDocument();
+      expect(screen.getByTestId('detection-thumbnail-1')).toBeInTheDocument();
+      expect(screen.getByTestId('detection-thumbnail-2')).toBeInTheDocument();
+    });
+
+    it('renders navigation buttons when multiple detections', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('prev-detection-button')).toBeInTheDocument();
+      expect(screen.getByTestId('next-detection-button')).toBeInTheDocument();
+    });
+
+    it('disables prev button on first detection', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      const prevButton = screen.getByTestId('prev-detection-button');
+      expect(prevButton).toBeDisabled();
+    });
+
+    it('renders view full size button', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('expand-detection-button')).toBeInTheDocument();
+      expect(screen.getByText('View Full Size')).toBeInTheDocument();
+    });
+
+    it('navigates to next detection when next button clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const nextButton = screen.getByTestId('next-detection-button');
+      await user.click(nextButton);
+
+      // Should now show "2 of 2"
+      await waitFor(() => {
+        expect(screen.getByText(/2 of 2/)).toBeInTheDocument();
+      });
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('selects detection when thumbnail is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const secondThumbnail = screen.getByTestId('detection-thumbnail-2');
+      await user.click(secondThumbnail);
+
+      // Should now show "2 of 2"
+      await waitFor(() => {
+        expect(screen.getByText(/2 of 2/)).toBeInTheDocument();
+      });
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('shows load more button when hasMoreDetections is true', () => {
+      mockUseEntityHistory.mockReturnValue({
+        ...defaultHookReturn,
+        hasMoreDetections: true,
+      });
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('load-more-detections')).toBeInTheDocument();
+    });
+
+    it('calls fetchMoreDetections when load more is clicked', async () => {
+      vi.useRealTimers();
+      const fetchMoreDetections = vi.fn();
+      mockUseEntityHistory.mockReturnValue({
+        ...defaultHookReturn,
+        hasMoreDetections: true,
+        fetchMoreDetections,
+      });
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const loadMoreButton = screen.getByTestId('load-more-detections');
+      await user.click(loadMoreButton);
+
+      expect(fetchMoreDetections).toHaveBeenCalled();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('hides navigation arrows for single detection', () => {
+      mockUseEntityHistory.mockReturnValue({
+        ...defaultHookReturn,
+        detections: {
+          ...mockDetections,
+          detections: [mockDetections.detections[0]],
+        },
+      });
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.queryByTestId('prev-detection-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('next-detection-button')).not.toBeInTheDocument();
+    });
+
+    it('hides thumbnail strip for single detection', () => {
+      mockUseEntityHistory.mockReturnValue({
+        ...defaultHookReturn,
+        detections: {
+          ...mockDetections,
+          detections: [mockDetections.detections[0]],
+        },
+      });
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.queryByTestId('detection-thumbnail-strip')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('lightbox integration', () => {
+    it('renders expand button that can be clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const expandButton = screen.getByTestId('expand-detection-button');
+      expect(expandButton).toBeInTheDocument();
+
+      // Click should work without throwing
+      await user.click(expandButton);
+
+      // The lightbox integration works - the Lightbox component has its own tests
+      // Here we just verify the button exists and is clickable
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+  });
+
+  describe('view events action', () => {
+    it('renders View Events button in footer', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('view-events-button')).toBeInTheDocument();
+      expect(screen.getByText('View Events')).toBeInTheDocument();
+    });
+
+    it('navigates to timeline with correct parameters when View Events is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} onClose={onClose} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      // Should close modal
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      // Should navigate to timeline with filters
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).toContain('/timeline');
+      expect(navigateCall).toContain('object_type=person');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('sets object_type to vehicle for vehicle entities', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const vehicleEntity: EntityDetail = {
+        ...mockEntity,
+        entity_type: 'vehicle',
+      };
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={vehicleEntity} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).toContain('object_type=vehicle');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('sets camera_id filter when entity was seen on only one camera', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const singleCameraEntity: EntityDetail = {
+        ...mockEntity,
+        cameras_seen: ['front_door'],
+      };
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={singleCameraEntity} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).toContain('camera_id=front_door');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('does not set camera_id when entity was seen on multiple cameras', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).not.toContain('camera_id=');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('includes date range based on first_seen and last_seen', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      // Should include start_date and end_date parameters
+      expect(navigateCall).toContain('start_date=');
+      expect(navigateCall).toContain('end_date=');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+  });
+});

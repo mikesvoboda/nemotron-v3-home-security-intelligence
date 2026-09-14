@@ -1,0 +1,150 @@
+# serializer version: 1
+# name: test_calibration_create_vs_update_schema_consistency
+  dict({
+    'created_at': 'str',
+    'decay_factor': 'float',
+    'false_positive_count': 'int',
+    'high_threshold': 'int',
+    'id': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+    'missed_threat_count': 'int',
+    'updated_at': 'str',
+    'user_id': 'str',
+  })
+# ---
+# name: test_calibration_out_of_range_error_schema_snapshot
+  dict({
+    'error': dict({
+      'code': 'str',
+      'errors': list([
+        dict({
+          'field': 'str',
+          'message': 'str',
+          'value': 'str',
+        }),
+      ]),
+      'message': 'str',
+      'timestamp': 'str',
+    }),
+  })
+# ---
+# name: test_calibration_validation_error_schema_snapshot
+  dict({
+    'error': dict({
+      'code': 'str',
+      'errors': list([
+        dict({
+          'field': 'str',
+          'message': 'str',
+          'value': 'str',
+        }),
+      ]),
+      'message': 'str',
+      'timestamp': 'str',
+    }),
+  })
+# ---
+# name: test_get_calibration_field_types_snapshot
+  dict({
+    'created_at': 'str',
+    'decay_factor': 'float',
+    'false_positive_count': 'int',
+    'high_threshold': 'int',
+    'id': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+    'missed_threat_count': 'int',
+    'updated_at': 'str',
+    'user_id': 'str',
+  })
+# ---
+# name: test_get_calibration_response_schema_snapshot
+  dict({
+    'created_at': 'str',
+    'decay_factor': 'float',
+    'false_positive_count': 'int',
+    'high_threshold': 'int',
+    'id': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+    'missed_threat_count': 'int',
+    'updated_at': 'str',
+    'user_id': 'str',
+  })
+# ---
+# name: test_get_defaults_field_count_snapshot
+  list([
+    'decay_factor',
+    'high_threshold',
+    'low_threshold',
+    'medium_threshold',
+  ])
+# ---
+# name: test_get_defaults_response_schema_snapshot
+  dict({
+    'decay_factor': 'float',
+    'high_threshold': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+  })
+# ---
+# name: test_patch_calibration_response_schema_snapshot
+  dict({
+    'created_at': 'str',
+    'decay_factor': 'float',
+    'false_positive_count': 'int',
+    'high_threshold': 'int',
+    'id': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+    'missed_threat_count': 'int',
+    'updated_at': 'str',
+    'user_id': 'str',
+  })
+# ---
+# name: test_reset_calibration_response_schema_snapshot
+  dict({
+    'calibration': dict({
+      'created_at': 'str',
+      'decay_factor': 'float',
+      'false_positive_count': 'int',
+      'high_threshold': 'int',
+      'id': 'int',
+      'low_threshold': 'int',
+      'medium_threshold': 'int',
+      'missed_threat_count': 'int',
+      'updated_at': 'str',
+      'user_id': 'str',
+    }),
+    'message': 'str',
+  })
+# ---
+# name: test_update_calibration_partial_schema_snapshot
+  dict({
+    'created_at': 'str',
+    'decay_factor': 'float',
+    'false_positive_count': 'int',
+    'high_threshold': 'int',
+    'id': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+    'missed_threat_count': 'int',
+    'updated_at': 'str',
+    'user_id': 'str',
+  })
+# ---
+# name: test_update_calibration_response_schema_snapshot
+  dict({
+    'created_at': 'str',
+    'decay_factor': 'float',
+    'false_positive_count': 'int',
+    'high_threshold': 'int',
+    'id': 'int',
+    'low_threshold': 'int',
+    'medium_threshold': 'int',
+    'missed_threat_count': 'int',
+    'updated_at': 'str',
+    'user_id': 'str',
+  })
+# ---

@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_093",
+  "prompt": "Analyze security event: Person in hoodie circling property. Camera: side_gate. Time: 21:58. Detected: casing.",
+  "expected_response": {
+    "risk_score": 66,
+    "risk_level": "high",
+    "summary": "Person in hoodie circling property",
+    "reasoning": "Detection at nighttime hours raises concern. Suspicious behavior observed at perimeter. Multiple concerning indicators present. Immediate attention recommended."
+  },
+  "context": {
+    "camera": "side_gate",
+    "timestamp": "2026-02-03T21:58:00",
+    "detection_type": "casing",
+    "location": "perimeter"
+  }
+}

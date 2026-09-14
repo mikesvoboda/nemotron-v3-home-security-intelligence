@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_091",
+  "prompt": "Analyze security event: Person climbing over fence. Camera: backyard. Time: 01:45. Detected: trespassing.",
+  "expected_response": {
+    "risk_score": 73,
+    "risk_level": "high",
+    "summary": "Person climbing over fence",
+    "reasoning": "Detection at nighttime hours raises concern. Suspicious behavior observed at fence. Multiple concerning indicators present. Immediate attention recommended."
+  },
+  "context": {
+    "camera": "backyard",
+    "timestamp": "2026-01-28T01:45:00",
+    "detection_type": "trespassing",
+    "location": "fence"
+  }
+}

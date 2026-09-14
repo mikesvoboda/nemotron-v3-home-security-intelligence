@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_012",
+  "prompt": "Analyze security event: Regular gardener working in yard. Camera: patio. Time: 11:10. Detected: maintenance.",
+  "expected_response": {
+    "risk_score": 19,
+    "risk_level": "low",
+    "summary": "Regular gardener working in yard",
+    "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "patio",
+    "timestamp": "2026-01-10T11:10:00",
+    "detection_type": "maintenance",
+    "location": "backyard"
+  }
+}

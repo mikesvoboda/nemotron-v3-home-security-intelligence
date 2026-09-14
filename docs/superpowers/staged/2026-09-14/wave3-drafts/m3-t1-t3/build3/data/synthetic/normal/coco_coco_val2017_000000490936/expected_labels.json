@@ -1,0 +1,56 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000490936",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "car",
+      "min_confidence": 0.5,
+      "count": 2
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 14
+    },
+    {
+      "class": "bicycle",
+      "min_confidence": 0.5,
+      "count": 2
+    },
+    {
+      "class": "motorcycle",
+      "min_confidence": 0.5,
+      "count": 13
+    },
+    {
+      "class": "truck",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 2 bicycle, 14 person, 13 motorcycle, 2 car, 1 truck. From COCO object detection dataset."
+  }
+}

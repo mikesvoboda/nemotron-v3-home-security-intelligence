@@ -1,0 +1,46 @@
+# FashionSigLIP Clothing Classification - ONNX Runtime on GPU (vision encoder)
+# Input: preprocessed image (B, 3, 224, 224) FP32
+# Output: image embedding (B, 768) FP32
+# Source: ai/enrichment/model.py ClothingClassifier (open_clip)
+#
+# FP32 ONNX — no quantized ops, fully compatible with ONNX Runtime CUDA EP.
+# Promoted from CPU (legacy RTX A400 4 GB constraint) to GPU on A100 80 GB.
+
+name: "fashion_clip"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "pixel_values"
+    data_type: TYPE_FP32
+    dims: [ 3, 224, 224 ]
+  }
+]
+
+output [
+  {
+    name: "embedding"
+    data_type: TYPE_FP32
+    dims: [ 768 ]
+  }
+]
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]
+    rate_limiter {
+      resources [
+        { name: "global" count: 1 }
+      ]
+      priority: 3
+    }
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 100000
+}

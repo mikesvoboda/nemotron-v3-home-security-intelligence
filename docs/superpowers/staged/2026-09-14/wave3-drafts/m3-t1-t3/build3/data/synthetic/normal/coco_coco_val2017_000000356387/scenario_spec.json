@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000356387",
+  "category": "normal",
+  "name": "COCO Scene 356387",
+  "description": "Scene containing 1 backpack, 14 person, 2 bicycle, 4 motorcycle. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}

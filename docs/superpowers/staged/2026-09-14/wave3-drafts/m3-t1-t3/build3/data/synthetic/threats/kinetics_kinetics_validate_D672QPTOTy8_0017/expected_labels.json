@@ -1,0 +1,36 @@
+{
+  "source": "kinetics",
+  "video_id": "kinetics_validate_D672QPTOTy8_0017",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "weapon_use",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 80,
+    "max_score": 95,
+    "level": "critical"
+  },
+  "validation": {
+    "prompt_excerpt": "Person performing action: sword fighting. Video clip from YouTube (D672QPTOTy8), seconds 17-27."
+  }
+}

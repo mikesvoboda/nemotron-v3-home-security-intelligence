@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="#76B900">
+  <!-- NVIDIA Eye Icon - stylized eye representing AI/vision -->
+  <!-- Outer eye shape -->
+  <path d="M32 8C16 8 4 24 4 32s12 24 28 24 28-16 28-24S48 8 32 8z" fill="none" stroke="#76B900" stroke-width="4"/>
+  <!-- Inner eye/pupil -->
+  <circle cx="32" cy="32" r="12" fill="#76B900"/>
+  <!-- Eye highlight/reflection -->
+  <circle cx="28" cy="28" r="3" fill="#1A1A1A"/>
+  <!-- AI circuit lines emanating from eye -->
+  <path d="M4 32H0M64 32h-4M32 4V0M32 64v-4" stroke="#76B900" stroke-width="2" stroke-linecap="round"/>
+  <!-- Corner accent lines -->
+  <path d="M10 10l4 4M54 10l-4 4M10 54l4-4M54 54l-4-4" stroke="#76B900" stroke-width="2" stroke-linecap="round"/>
+</svg>

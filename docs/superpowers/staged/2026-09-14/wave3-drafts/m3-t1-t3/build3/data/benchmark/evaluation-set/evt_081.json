@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_081",
+  "prompt": "Analyze security event: Unfamiliar vehicle parked on street. Camera: backyard. Time: 05:56. Detected: unknown_vehicle.",
+  "expected_response": {
+    "risk_score": 37,
+    "risk_level": "medium",
+    "summary": "Unfamiliar vehicle parked on street",
+    "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at street. Some behavioral indicators suggest monitoring. Recommend continued observation."
+  },
+  "context": {
+    "camera": "backyard",
+    "timestamp": "2026-01-11T05:56:00",
+    "detection_type": "unknown_vehicle",
+    "location": "street"
+  }
+}

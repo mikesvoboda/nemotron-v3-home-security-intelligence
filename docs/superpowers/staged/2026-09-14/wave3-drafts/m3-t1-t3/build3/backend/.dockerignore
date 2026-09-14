@@ -1,0 +1,93 @@
+# Build context optimization for backend Docker builds
+# This file reduces build context size by excluding unnecessary files
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+*.wheel
+
+# Python development tools cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+*.cover
+
+# Testing and coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+.hypothesis/
+mutants/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Database files (keep data volume)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.gitea/
+
+# CI/CD
+.github/
+.circleci/
+.gitlab-ci.yml
+
+# Documentation and README
+docs/
+*.md
+!README.md
+
+# Environment and sensitive files
+.env
+.env.*
+.secrets.baseline
+.gitleaks.toml
+
+# Tests (excluded from container)
+tests/
+test_*.py
+*_test.py
+*.test.py
+
+# Examples and examples
+examples/
+custom/
+.beads/
+
+# Security scanning
+.trivyignore
+.bandit.yml
+.bandit.baseline
+
+# Logging and runtime
+logs/
+data/logs/
+*.log

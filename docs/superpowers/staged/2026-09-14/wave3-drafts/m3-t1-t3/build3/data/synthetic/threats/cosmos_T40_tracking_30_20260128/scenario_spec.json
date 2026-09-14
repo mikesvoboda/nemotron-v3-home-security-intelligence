@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T40_tracking_30",
+  "category": "threats",
+  "name": "Tracking 30",
+  "description": "Suburban home driveway at dusk, viewed from an elevated position on the garage. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting transition. Static elevated viewpoint, warm transitional lighting with exposure adjusting. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "dusk",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at dusk, viewed from an elevated position on the garage. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting transition. Static elevated viewpoint, warm transitional lighting with exposure adjusting. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

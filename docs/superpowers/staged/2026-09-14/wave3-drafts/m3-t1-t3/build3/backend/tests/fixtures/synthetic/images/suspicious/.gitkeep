@@ -1,0 +1,8 @@
+# Suspicious activity test images
+# Expected risk score range: 30-55
+
+# Examples to add:
+# - unknown_person_lingering.jpg
+# - vehicle_idling_driveway.jpg
+# - person_looking_windows.jpg
+# - late_night_visitor.jpg

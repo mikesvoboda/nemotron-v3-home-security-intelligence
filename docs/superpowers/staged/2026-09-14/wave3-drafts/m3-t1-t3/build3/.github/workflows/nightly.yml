@@ -1,0 +1,125 @@
+name: Nightly Analysis
+
+on:
+  schedule:
+    - cron: '0 7 * * *' # 2am EST / 7am UTC
+  workflow_dispatch:
+
+env:
+  UV_VERSION: '0.9.18'
+
+jobs:
+  extended-benchmarks:
+    name: Extended Benchmarks
+    runs-on: [self-hosted, gpu, rtx-a5500]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Big-O benchmarks
+        run: |
+          uv run pytest backend/tests/benchmarks/test_bigo.py \
+            -v \
+            --tb=short
+
+      - name: Run memory profiling
+        run: |
+          uv run pytest backend/tests/benchmarks/test_memory.py \
+            --memray \
+            --memray-bin-path=memray-report.bin \
+            -v
+
+      - name: Upload memory report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: memory-profile
+          path: memray-report.bin
+
+  complexity-trends:
+    name: Complexity Trends
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0 # Full history for wily
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Build wily cache
+        run: uv tool run wily build backend/
+
+      - name: Generate complexity report
+        run: |
+          uv tool run wily report backend/ --format html -o wily-report.html
+          uv tool run wily diff backend/ -r HEAD~10..HEAD
+
+      - name: Upload wily report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: wily-report
+          path: wily-report.html
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Audit Python dependencies
+        run: uv tool run pip-audit || true
+
+      - name: Audit Node dependencies
+        run: |
+          cd frontend
+          npm audit || true
+
+      - name: Full Bandit scan
+        run: uv tool run bandit -r backend/ -f json -o bandit-full.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: security-audit
+          path: |
+            bandit-full.json

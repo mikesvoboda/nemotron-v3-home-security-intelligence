@@ -1,0 +1,1268 @@
+"""WebSocket routes for real-time event streaming.
+
+This module provides WebSocket endpoints for clients to receive real-time
+security event notifications as they occur.
+
+WebSocket Authentication:
+    When API key authentication is enabled (api_key_enabled=true in settings),
+    WebSocket connections must provide a valid API key via one of:
+    1. Query parameter: ws://host/ws/events?api_key=YOUR_KEY
+    2. Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+    Connections without a valid API key will be rejected with code 1008
+    (Policy Violation).
+
+WebSocket Message Validation:
+    All incoming messages are validated for proper JSON structure and schema.
+    Invalid messages receive an error response with details about the issue.
+    Supported message types: ping, pong, subscribe, unsubscribe, resync.
+
+WebSocket Event Filtering (NEM-2383):
+    Clients can subscribe to specific event patterns to reduce bandwidth:
+    - Send: {"action": "subscribe", "events": ["alert.*", "camera.status_changed"]}
+    - Receive: {"action": "subscribed", "events": ["alert.*", "camera.status_changed"]}
+
+    Pattern syntax:
+    - "*" - All events (default if no subscription sent)
+    - "alert.*" - All alert events
+    - "camera.status_changed" - Exact match
+
+WebSocket Idle Timeout:
+    Connections that do not send any messages within the configured idle
+    timeout (default: 300 seconds) will be automatically closed. Clients
+    should send periodic ping messages to keep the connection alive.
+
+Server-Initiated Heartbeat:
+    The server sends periodic ping messages to clients at a configurable
+    interval (default: 30 seconds) to keep connections alive and detect
+    disconnected clients. This is controlled by websocket_ping_interval_seconds.
+"""
+
+import asyncio
+import json
+import uuid
+from typing import Any
+
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi.websockets import WebSocketState
+from pydantic import ValidationError
+
+from backend.api.middleware import (
+    authenticate_websocket,
+    check_websocket_rate_limit,
+    validate_websocket_token,
+)
+from backend.api.schemas.websocket import (
+    WebSocketErrorCode,
+    WebSocketErrorResponse,
+    WebSocketMessage,
+    WebSocketMessageType,
+    WebSocketPongResponse,
+)
+from backend.core.async_context import set_connection_id
+from backend.core.config import get_settings
+from backend.core.logging import get_logger
+from backend.core.redis import RedisClient, get_redis
+from backend.core.websocket.message_buffer import get_message_buffer
+from backend.core.websocket.sequence_tracker import get_sequence_tracker
+from backend.core.websocket.subscription_manager import (
+    SubscriptionResponse,
+    get_subscription_manager,
+)
+from backend.services.event_broadcaster import get_broadcaster
+from backend.services.system_broadcaster import get_system_broadcaster
+
+logger = get_logger(__name__)
+
+router = APIRouter(tags=["websocket"])
+
+
+def _check_message_size(data: str) -> str | None:
+    """Check WebSocket message size against configured limit (NEM-4986).
+
+    Returns:
+        Error message string if oversized, None if within limits.
+    """
+    max_size = get_settings().websocket_max_message_size
+    if len(data) > max_size:
+        return f"Message too large ({len(data)} bytes, max {max_size})"
+    return None
+
+
+async def validate_websocket_message(
+    websocket: WebSocket, raw_data: str
+) -> WebSocketMessage | None:
+    """Validate an incoming WebSocket message.
+
+    Uses Pydantic's model_validate_json() for single-pass JSON parsing and
+    validation, powered by jiter for 10-30% better performance compared to
+    the two-step json.loads() + model_validate() approach.
+
+    Args:
+        websocket: The WebSocket connection to send error responses to.
+        raw_data: The raw string data received from the client.
+
+    Returns:
+        A validated WebSocketMessage if successful, None if validation failed.
+
+    Note:
+        Optimization (NEM-3396): Uses model_validate_json() instead of
+        json.loads() followed by model_validate() for single-pass parsing
+        with jiter, providing better performance for WebSocket message handling.
+    """
+    # Use single-pass JSON parsing + validation with jiter (NEM-3396)
+    # This is more efficient than json.loads() + model_validate()
+    try:
+        message = WebSocketMessage.model_validate_json(raw_data)
+        return message
+    except ValidationError as e:
+        # Pydantic's ValidationError can be raised for both JSON parse errors
+        # and schema validation errors when using model_validate_json().
+        # We need to distinguish between the two for proper error responses.
+
+        # Check if any error is a JSON parsing error
+        # Pydantic 2.x reports JSON errors as 'json_invalid' type
+        errors = e.errors()
+        is_json_error = any(
+            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
+        )
+
+        if is_json_error:
+            logger.warning(f"WebSocket received invalid JSON: {e}")
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.INVALID_JSON,
+                message="Message must be valid JSON",
+                details={"raw_data_preview": raw_data[:100] if raw_data else None},
+            )
+        else:
+            logger.warning(f"WebSocket received invalid message format: {e}")
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+                message="Message does not match expected schema",
+                details={"validation_errors": errors},
+            )
+
+        await websocket.send_text(error_response.model_dump_json())
+        return None
+
+
+async def handle_validated_message(
+    websocket: WebSocket, message: WebSocketMessage, connection_id: str
+) -> None:
+    """Handle a validated WebSocket message.
+
+    Dispatches the message to the appropriate handler based on its type.
+    Uses Python 3.10+ structural pattern matching for clear message routing.
+    Unknown message types receive an error response.
+
+    Args:
+        websocket: The WebSocket connection.
+        message: The validated WebSocket message.
+        connection_id: Unique identifier for this connection (for subscription management).
+    """
+    message_type = message.type.lower()
+    subscription_manager = get_subscription_manager()
+
+    match message_type:
+        case WebSocketMessageType.PING.value:
+            # Respond with pong
+            pong_response = WebSocketPongResponse()
+            await websocket.send_text(pong_response.model_dump_json())
+            logger.debug("Sent pong response to WebSocket client")
+
+        case WebSocketMessageType.SUBSCRIBE.value:
+            # Handle subscription (NEM-2383)
+            events = message.data.get("events", []) if message.data else []
+            # Also support "channels" for backwards compatibility with existing schema
+            if not events and message.data:
+                events = message.data.get("channels", [])
+
+            if not events:
+                error_response = WebSocketErrorResponse(
+                    error=WebSocketErrorCode.VALIDATION_ERROR,
+                    message="Subscribe message must include 'events' array",
+                    details={"example": {"type": "subscribe", "data": {"events": ["alert.*"]}}},
+                )
+                await websocket.send_text(error_response.model_dump_json())
+                return
+
+            # Subscribe to the patterns
+            subscribed_patterns = subscription_manager.subscribe(connection_id, events)
+            logger.info(
+                f"Connection {connection_id} subscribed to {len(subscribed_patterns)} patterns",
+                extra={"connection_id": connection_id, "patterns": subscribed_patterns},
+            )
+
+            # Send acknowledgment
+            response = SubscriptionResponse(action="subscribed", events=subscribed_patterns)
+            await websocket.send_text(response.model_dump_json())
+
+        case WebSocketMessageType.UNSUBSCRIBE.value:
+            # Handle unsubscription (NEM-2383)
+            events = message.data.get("events", []) if message.data else []
+            # Also support "channels" for backwards compatibility with existing schema
+            if not events and message.data:
+                events = message.data.get("channels", [])
+
+            if events:
+                # Unsubscribe from specific patterns
+                removed_patterns = subscription_manager.unsubscribe(connection_id, events)
+            else:
+                # No patterns specified - unsubscribe from all
+                removed_patterns = subscription_manager.unsubscribe(connection_id)
+
+            logger.info(
+                f"Connection {connection_id} unsubscribed from {len(removed_patterns)} patterns",
+                extra={"connection_id": connection_id, "patterns": removed_patterns},
+            )
+
+            # Send acknowledgment
+            response = SubscriptionResponse(action="unsubscribed", events=removed_patterns)
+            await websocket.send_text(response.model_dump_json())
+
+        case WebSocketMessageType.PONG.value:
+            # Pong is a standard keepalive response from client to server-initiated ping
+            # Just acknowledge silently - no response needed
+            logger.debug("Received pong response from WebSocket client")
+
+        case WebSocketMessageType.RESYNC.value:
+            # Resync is sent by the frontend when it detects a gap in sequence numbers.
+            # NEM-4983: Replay buffered messages since the last received sequence.
+            await handle_resync_with_replay(websocket, message, connection_id)
+
+        case _:
+            # Unknown message type
+            logger.warning(f"WebSocket received unknown message type: {message_type}")
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.UNKNOWN_MESSAGE_TYPE,
+                message=f"Unknown message type: {message_type}",
+                details={"supported_types": [t.value for t in WebSocketMessageType]},
+            )
+            await websocket.send_text(error_response.model_dump_json())
+
+
+async def handle_resync_with_replay(
+    websocket: WebSocket,
+    message: WebSocketMessage,
+    connection_id: str,
+) -> None:
+    """Handle a resync request by replaying buffered messages.
+
+    NEM-4983: Implements message replay for gap recovery.
+
+    When a client detects a gap in sequence numbers (e.g., received seq 5
+    after seq 2, missing 3 and 4), it sends a resync request with the last
+    successfully received sequence. The server then replays any buffered
+    messages since that sequence.
+
+    Args:
+        websocket: The WebSocket connection to send messages to.
+        message: The resync message containing channel and last_sequence.
+        connection_id: Unique identifier for this connection.
+
+    Response format:
+        After replaying messages (if any), sends a resync_ack:
+        {
+            "type": "resync_ack",
+            "channel": "events",
+            "last_sequence": 5,
+            "replayed_count": 3,
+            "gap_too_old": false,  // true if requested seq is older than buffer
+            "oldest_available": 50  // only present if gap_too_old is true
+        }
+    """
+    # Extract channel and last_sequence from the message
+    channel = message.data.get("channel", "unknown") if message.data else "unknown"
+    last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+
+    logger.info(
+        f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+        extra={
+            "connection_id": connection_id,
+            "channel": channel,
+            "last_sequence": last_sequence,
+        },
+    )
+
+    # Get the message buffer
+    buffer = get_message_buffer()
+
+    # Check if the requested sequence is too old (older than buffer start)
+    oldest_seq = buffer.get_oldest_sequence()
+    gap_too_old = oldest_seq is not None and last_sequence < oldest_seq
+
+    # Get messages to replay
+    messages_to_replay = buffer.get_since(last_sequence, mark_as_replay=True)
+    replayed_count = len(messages_to_replay)
+
+    # Send replayed messages
+    for seq, msg in messages_to_replay:
+        try:
+            await websocket.send_text(json.dumps(msg))
+        except Exception as e:
+            logger.warning(
+                f"Failed to send replay message seq={seq}: {e}",
+                extra={"connection_id": connection_id, "seq": seq},
+            )
+            break
+
+    # Build acknowledgment
+    resync_ack: dict[str, Any] = {
+        "type": "resync_ack",
+        "channel": channel,
+        "last_sequence": last_sequence,
+        "replayed_count": replayed_count,
+    }
+
+    if gap_too_old:
+        resync_ack["gap_too_old"] = True
+        resync_ack["oldest_available"] = oldest_seq
+
+    # Send acknowledgment
+    await websocket.send_text(json.dumps(resync_ack))
+
+    logger.info(
+        f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+        extra={
+            "connection_id": connection_id,
+            "channel": channel,
+            "last_sequence": last_sequence,
+            "replayed_count": replayed_count,
+            "gap_too_old": gap_too_old,
+        },
+    )
+
+
+async def send_sequenced_message(
+    websocket: WebSocket,
+    connection_id: str,
+    message: dict[str, Any],
+) -> bool:
+    """Send a message with a sequence number to a WebSocket client.
+
+    Adds a 'seq' field to the message with the next sequence number for this
+    connection. This enables clients to detect missed messages.
+
+    Args:
+        websocket: The WebSocket connection to send to.
+        connection_id: Unique identifier for this connection (for sequence tracking).
+        message: The message dictionary to send.
+
+    Returns:
+        True if the message was sent successfully, False otherwise.
+
+    Note:
+        The sequence number is added to the message in-place before serialization.
+        Messages are sent as JSON strings.
+    """
+    sequence_tracker = get_sequence_tracker()
+    seq = sequence_tracker.next_sequence(connection_id)
+    message["seq"] = seq
+
+    try:
+        await websocket.send_text(json.dumps(message))
+        return True
+    except Exception as e:
+        logger.debug(f"Failed to send sequenced message (connection likely closed): {e}")
+        return False
+
+
+async def send_heartbeat(
+    websocket: WebSocket,
+    interval: int,
+    stop_event: asyncio.Event,
+    connection_id: str = "",
+) -> None:
+    """Send periodic heartbeat pings to keep the WebSocket connection alive.
+
+    This server-initiated heartbeat helps detect disconnected clients and
+    keeps connections alive through proxies/load balancers that may have
+    idle timeouts.
+
+    Heartbeat messages include the current sequence number (lastSeq) to allow
+    clients to detect message gaps even during idle periods.
+
+    Args:
+        websocket: The WebSocket connection to send heartbeats on.
+        interval: Time in seconds between heartbeat messages.
+        stop_event: Event to signal when to stop sending heartbeats.
+        connection_id: Unique identifier for this connection (for sequence tracking).
+    """
+    sequence_tracker = get_sequence_tracker()
+
+    while not stop_event.is_set():
+        try:
+            await asyncio.sleep(interval)
+            if stop_event.is_set():
+                break
+            # Check if connection is still open before sending
+            if websocket.client_state == WebSocketState.CONNECTED:
+                # Include lastSeq in heartbeat for gap detection (NEM-3142)
+                last_seq = sequence_tracker.get_current_sequence(connection_id)
+                heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                await websocket.send_text(json.dumps(heartbeat_msg))
+                logger.debug(
+                    "Sent server heartbeat ping to WebSocket client",
+                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+                )
+            else:
+                logger.debug("WebSocket no longer connected, stopping heartbeat")
+                break
+        except Exception as e:
+            logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+            break
+
+
+@router.websocket("/ws/events")
+async def websocket_events_endpoint(
+    websocket: WebSocket,
+    redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
+) -> None:
+    """WebSocket endpoint for streaming security events in real-time.
+
+    Clients connect to this endpoint to receive real-time notifications
+    about security events as they are detected and analyzed.
+
+    Authentication:
+        Two authentication methods are available (both optional, can be used together):
+
+        1. API Key Authentication (when api_key_enabled=true):
+           - Query parameter: ws://host/ws/events?api_key=YOUR_KEY
+           - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+        2. Token Authentication (when WEBSOCKET_TOKEN is configured):
+           - Query parameter: ws://host/ws/events?token=YOUR_TOKEN
+
+    The connection lifecycle:
+    1. Client connects and is authenticated (if auth enabled)
+    2. Client is registered with the broadcaster
+    3. Client receives events as JSON messages in the format:
+       {
+           "type": "event",
+           "data": {
+               "id": 1,
+               "event_id": 1,
+               "batch_id": "batch_abc123",
+               "camera_id": "cam-uuid",
+               "risk_score": 75,
+               "risk_level": "high",
+               "summary": "Person detected at front door",
+               "reasoning": "Unknown individual approaching entrance during nighttime hours",
+               "started_at": "2025-12-23T12:00:00"
+           }
+       }
+
+       Field descriptions:
+       - id: Unique event identifier
+       - event_id: Legacy alias for id (for backward compatibility)
+       - batch_id: Detection batch identifier
+       - camera_id: Normalized camera ID (e.g., "front_door")
+       - risk_score: Risk assessment score (0-100)
+       - risk_level: Risk classification ("low", "medium", "high", "critical")
+       - summary: Human-readable description of the event
+       - reasoning: LLM reasoning for the risk assessment
+       - started_at: ISO 8601 timestamp when the event started
+
+    4. Connection is maintained until client disconnects
+
+    Args:
+        websocket: WebSocket connection instance
+        redis: Redis client for pub/sub communication
+
+    Example JavaScript client:
+        ```javascript
+        // With token authentication:
+        const ws = new WebSocket('ws://localhost:8000/ws/events?token=YOUR_TOKEN');
+        // Or with API key authentication:
+        // const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('New event:', data);
+        };
+        ```
+    """
+    # Check rate limit before accepting connection
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning("WebSocket connection rejected: rate limit exceeded for /ws/events")
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
+    # Authenticate WebSocket connection before accepting
+    if not await authenticate_websocket(websocket):
+        logger.warning("WebSocket connection rejected: authentication failed for /ws/events")
+        return
+
+    broadcaster = await get_broadcaster(redis)
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    # Generate a unique connection ID for tracking this WebSocket session (NEM-1640)
+    connection_id = f"ws-events-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    # Event to signal heartbeat task to stop
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
+
+    # Get subscription manager for event filtering (NEM-2383)
+    subscription_manager = get_subscription_manager()
+
+    # Get sequence tracker for message ordering (NEM-3142)
+    sequence_tracker = get_sequence_tracker()
+
+    try:
+        # Register the WebSocket connection
+        await broadcaster.connect(websocket)
+        # Register connection with subscription manager (default: receive all events)
+        subscription_manager.register_connection(connection_id)
+        # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
+        sequence_tracker.register_connection(connection_id, websocket)
+        logger.info(
+            "WebSocket client connected to /ws/events", extra={"connection_id": connection_id}
+        )
+
+        # Start server-initiated heartbeat task
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
+        )
+
+        # Keep the connection alive by waiting for messages
+        # Clients can send ping messages for keep-alive and other commands
+        while True:
+            try:
+                # Wait for any message from the client with idle timeout
+                # Connections that don't send messages within the timeout are closed
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=idle_timeout,
+                )
+                logger.debug(f"Received message from WebSocket client: {data}")
+
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
+
+                # Support legacy plain "ping" string for backward compatibility
+                if data == "ping":
+                    await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                # Validate and handle JSON messages
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message, connection_id)
+
+            except TimeoutError:
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
+                break
+            except Exception:
+                # Check if the connection is still open
+                if websocket.client_state == WebSocketState.DISCONNECTED:
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id},
+                    )
+                    break
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id},
+                )
+                # Attempt graceful close before breaking
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    # Close may fail if connection is already broken, log at debug
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id},
+                    )
+                break
+
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
+    except Exception:
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id},
+        )
+    finally:
+        # Stop heartbeat task
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                # Task was intentionally cancelled via heartbeat_task.cancel().
+                # This is normal cleanup behavior, not an error condition.
+                # See: NEM-2540 for rationale
+                pass
+        # Ensure the connection is properly cleaned up
+        await broadcaster.disconnect(websocket)
+        # Clean up subscriptions (NEM-2383)
+        subscription_manager.remove_connection(connection_id)
+        # Clean up sequence tracker (NEM-3142)
+        sequence_tracker.remove_connection(connection_id, websocket)
+        # Clear connection_id context (NEM-1640)
+        set_connection_id(None)
+        logger.info(
+            "WebSocket connection cleaned up for /ws/events",
+            extra={"connection_id": connection_id},
+        )
+
+
+@router.websocket("/ws/system")
+async def websocket_system_status(
+    websocket: WebSocket,
+    redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
+) -> None:
+    """WebSocket endpoint for real-time system status updates.
+
+    Authentication:
+        Two authentication methods are available (both optional, can be used together):
+
+        1. API Key Authentication (when api_key_enabled=true):
+           - Query parameter: ws://host/ws/system?api_key=YOUR_KEY
+           - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+        2. Token Authentication (when WEBSOCKET_TOKEN is configured):
+           - Query parameter: ws://host/ws/system?token=YOUR_TOKEN
+
+    Sends periodic system status updates including:
+    - GPU utilization and memory stats
+    - Active camera counts
+    - Processing queue status
+    - Overall system health
+
+    Message format:
+    ```json
+    {
+        "type": "system_status",
+        "data": {
+            "gpu": {
+                "utilization": 45.5,
+                "memory_used": 8192,
+                "memory_total": 24576,
+                "temperature": 65.0,
+                "inference_fps": 30.5
+            },
+            "cameras": {
+                "active": 4,
+                "total": 6
+            },
+            "queue": {
+                "pending": 2,
+                "processing": 1
+            },
+            "health": "healthy"
+        },
+        "timestamp": "2025-12-23T10:30:00.000Z"
+    }
+    ```
+
+    Args:
+        websocket: WebSocket connection
+        redis: Redis client for rate limiting
+
+    Notes:
+        - Status updates are sent every 5 seconds
+        - Connection will remain open until client disconnects
+        - Failed sends will automatically disconnect the client
+
+    Example JavaScript client:
+        ```javascript
+        // With token authentication:
+        const ws = new WebSocket('ws://localhost:8000/ws/system?token=YOUR_TOKEN');
+        // Or with API key authentication:
+        // const ws = new WebSocket('ws://localhost:8000/ws/system?api_key=YOUR_KEY');
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('System status:', data);
+        };
+        ```
+    """
+    # Check rate limit before accepting connection
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning("WebSocket connection rejected: rate limit exceeded for /ws/system")
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
+    # Authenticate WebSocket connection before accepting
+    if not await authenticate_websocket(websocket):
+        logger.warning("WebSocket connection rejected: authentication failed for /ws/system")
+        return
+
+    broadcaster = get_system_broadcaster()
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    # Generate a unique connection ID for tracking this WebSocket session (NEM-1640)
+    connection_id = f"ws-system-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    # Event to signal heartbeat task to stop
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
+
+    # Get subscription manager for event filtering (NEM-2383)
+    subscription_manager = get_subscription_manager()
+
+    # Get sequence tracker for message ordering (NEM-3142)
+    sequence_tracker = get_sequence_tracker()
+
+    try:
+        # Add connection to broadcaster
+        await broadcaster.connect(websocket)
+        # Register connection with subscription manager (default: receive all events)
+        subscription_manager.register_connection(connection_id)
+        # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
+        sequence_tracker.register_connection(connection_id, websocket)
+        logger.info(
+            "WebSocket client connected to /ws/system", extra={"connection_id": connection_id}
+        )
+
+        # Start server-initiated heartbeat task
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
+        )
+
+        # Keep connection alive and handle messages
+        # Clients can send ping messages for keep-alive and other commands
+        while True:
+            try:
+                # Wait for any message from the client with idle timeout
+                # Connections that don't send messages within the timeout are closed
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=idle_timeout,
+                )
+                logger.debug(f"Received message from WebSocket client: {data}")
+
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
+
+                # Support legacy plain "ping" string for backward compatibility
+                if data == "ping":
+                    await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                # Validate and handle JSON messages
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message, connection_id)
+
+            except TimeoutError:
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
+                break
+            except Exception:
+                # Check if the connection is still open
+                if websocket.client_state == WebSocketState.DISCONNECTED:
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id},
+                    )
+                    break
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id},
+                )
+                # Attempt graceful close before breaking
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    # Close may fail if connection is already broken, log at debug
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id},
+                    )
+                break
+
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
+    except Exception:
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id},
+        )
+    finally:
+        # Stop heartbeat task
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                # Task was intentionally cancelled via heartbeat_task.cancel().
+                # This is normal cleanup behavior, not an error condition.
+                # See: NEM-2540 for rationale
+                pass
+        # Ensure the connection is properly cleaned up
+        await broadcaster.disconnect(websocket)
+        # Clean up subscriptions (NEM-2383)
+        subscription_manager.remove_connection(connection_id)
+        # Clean up sequence tracker (NEM-3142)
+        sequence_tracker.remove_connection(connection_id, websocket)
+        # Clear connection_id context (NEM-1640)
+        set_connection_id(None)
+        logger.info(
+            "WebSocket connection cleaned up for /ws/system",
+            extra={"connection_id": connection_id},
+        )
+
+
+@router.websocket("/ws/jobs/{job_id}/logs")
+async def websocket_job_logs(
+    websocket: WebSocket,
+    job_id: str,
+    redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
+) -> None:
+    """WebSocket endpoint for real-time job log streaming.
+
+    Streams log entries for an active job (processing/pending) in real-time.
+    Implements NEM-2711 requirements.
+
+    Authentication:
+        Two authentication methods are available (both optional, can be used together):
+
+        1. API Key Authentication (when api_key_enabled=true):
+           - Query parameter: ws://host/ws/jobs/{job_id}/logs?api_key=YOUR_KEY
+           - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+        2. Token Authentication (when WEBSOCKET_TOKEN is configured):
+           - Query parameter: ws://host/ws/jobs/{job_id}/logs?token=YOUR_TOKEN
+
+    Message format:
+    ```json
+    {
+        "type": "log",
+        "data": {
+            "timestamp": "2026-01-17T10:32:05Z",
+            "level": "INFO",
+            "message": "Processing batch 2/3",
+            "context": {"batch_id": "abc123"}
+        }
+    }
+    ```
+
+    Args:
+        websocket: WebSocket connection
+        job_id: The job ID to stream logs for
+        redis: Redis client for rate limiting and pub/sub
+
+    Notes:
+        - Logs are streamed as they are generated
+        - Connection closes when job completes or fails
+        - Server sends periodic ping messages (heartbeat)
+        - Client should respond with pong to keep connection alive
+
+    Example JavaScript client:
+        ```javascript
+        const ws = new WebSocket(`ws://localhost:8000/ws/jobs/${jobId}/logs`);
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'log') {
+                console.log(`[${data.data.level}] ${data.data.message}`);
+            }
+        };
+        ```
+    """
+    # Check rate limit before accepting connection
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning(
+            "WebSocket connection rejected: rate limit exceeded for /ws/jobs/logs",
+            extra={"job_id": job_id},
+        )
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
+    # Authenticate WebSocket connection before accepting
+    if not await authenticate_websocket(websocket):
+        logger.warning(
+            "WebSocket connection rejected: authentication failed for /ws/jobs/logs",
+            extra={"job_id": job_id},
+        )
+        return
+
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    # Generate a unique connection ID for tracking this WebSocket session
+    connection_id = f"ws-job-logs-{job_id[:8]}-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    # Event to signal heartbeat task to stop
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
+
+    # Redis pub/sub for job logs channel
+    log_channel = f"job:{job_id}:logs"
+    pubsub = None
+    log_listener_task: asyncio.Task[None] | None = None
+
+    # Get sequence tracker for message ordering (NEM-3142)
+    sequence_tracker = get_sequence_tracker()
+
+    try:
+        # Accept the WebSocket connection
+        await websocket.accept()
+        # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
+        sequence_tracker.register_connection(connection_id, websocket)
+        logger.info(
+            "WebSocket client connected to /ws/jobs/{job_id}/logs",
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+
+        # Start server-initiated heartbeat task
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
+        )
+
+        # Subscribe to job logs channel via Redis pub/sub
+        # Use create_pubsub() to get a dedicated connection for this WebSocket
+        pubsub = redis.create_pubsub()
+        await pubsub.subscribe(log_channel)
+        logger.debug(
+            f"Subscribed to job logs channel: {log_channel}",
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+
+        async def listen_for_logs() -> None:
+            """Listen for log messages from Redis pub/sub and forward to WebSocket."""
+            try:
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        # Forward log message to WebSocket
+                        log_data = message["data"]
+                        if isinstance(log_data, bytes):
+                            log_data = log_data.decode("utf-8")
+
+                        # Send as a log message
+                        if websocket.client_state == WebSocketState.CONNECTED:
+                            await websocket.send_text(log_data)
+                        else:
+                            break
+            except asyncio.CancelledError:
+                # Task was cancelled, normal cleanup
+                pass
+            except Exception as e:
+                logger.debug(
+                    f"Log listener stopped: {e}",
+                    extra={"connection_id": connection_id, "job_id": job_id},
+                )
+
+        # Start listening for logs in background
+        log_listener_task = asyncio.create_task(listen_for_logs())
+
+        # Keep connection alive and handle messages
+        while True:
+            try:
+                # Wait for any message from the client with idle timeout
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=idle_timeout,
+                )
+                logger.debug(f"Received message from WebSocket client: {data}")
+
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
+
+                # Support legacy plain "ping" string for backward compatibility
+                if data == "ping":
+                    await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                # Validate and handle JSON messages
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message, connection_id)
+
+            except TimeoutError:
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "job_id": job_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
+                break
+            except Exception:
+                # Check if the connection is still open
+                if websocket.client_state == WebSocketState.DISCONNECTED:
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id, "job_id": job_id},
+                    )
+                    break
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id, "job_id": job_id},
+                )
+                # Attempt graceful close before breaking
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id, "job_id": job_id},
+                    )
+                break
+
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "job_id": job_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
+    except Exception:
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+    finally:
+        # Stop heartbeat task
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop log listener task
+        if log_listener_task is not None:
+            log_listener_task.cancel()
+            try:
+                await log_listener_task
+            except asyncio.CancelledError:
+                pass
+
+        # Unsubscribe from Redis pub/sub
+        if pubsub is not None:
+            try:
+                await pubsub.unsubscribe(log_channel)
+                await pubsub.close()
+            except Exception:
+                logger.debug(
+                    "Error closing Redis pub/sub",
+                    extra={"connection_id": connection_id, "job_id": job_id},
+                )
+
+        # Clean up sequence tracker (NEM-3142)
+        sequence_tracker.remove_connection(connection_id, websocket)
+        # Clear connection_id context
+        set_connection_id(None)
+        logger.info(
+            "WebSocket job logs connection cleaned up",
+            extra={"connection_id": connection_id, "job_id": job_id},
+        )
+
+
+@router.websocket("/ws/detections")
+async def websocket_detections_endpoint(
+    websocket: WebSocket,
+    redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
+) -> None:
+    """WebSocket endpoint for real-time AI detection events (NEM-3554)."""
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning("WebSocket connection rejected: rate limit exceeded for /ws/detections")
+        await websocket.close(code=1008)
+        return
+
+    if not await authenticate_websocket(websocket):
+        logger.warning("WebSocket connection rejected: authentication failed for /ws/detections")
+        return
+
+    broadcaster = await get_broadcaster(redis)
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    connection_id = f"ws-detections-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
+    subscription_manager = get_subscription_manager()
+    sequence_tracker = get_sequence_tracker()
+
+    try:
+        await broadcaster.connect(websocket)
+        subscription_manager.register_connection(connection_id)
+        subscription_manager.subscribe(connection_id, ["detection.*"])
+        sequence_tracker.register_connection(connection_id, websocket)
+        logger.info(
+            "WebSocket client connected to /ws/detections", extra={"connection_id": connection_id}
+        )
+
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
+        )
+
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=idle_timeout)
+                logger.debug(f"Received message from WebSocket client: {data}")
+
+                # NEM-4986: Enforce max message size
+                size_error = _check_message_size(data)
+                if size_error:
+                    await websocket.send_text(json.dumps({"type": "error", "error": size_error}))
+                    continue
+
+                if data == "ping":
+                    await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message, connection_id)
+
+            except TimeoutError:
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
+                break
+            except Exception:
+                if websocket.client_state == WebSocketState.DISCONNECTED:
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id},
+                    )
+                    break
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id},
+                )
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id},
+                    )
+                break
+
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
+    except Exception:
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id},
+        )
+    finally:
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+        await broadcaster.disconnect(websocket)
+        subscription_manager.remove_connection(connection_id)
+        sequence_tracker.remove_connection(connection_id, websocket)
+        set_connection_id(None)
+        logger.info(
+            "WebSocket connection cleaned up for /ws/detections",
+            extra={"connection_id": connection_id},
+        )

@@ -1,0 +1,117 @@
+# Bandit Configuration
+# Python Security Analysis configuration for the home security project
+#
+# Documentation: https://bandit.readthedocs.io/en/latest/config.html
+#
+# Usage:
+#   bandit -c .bandit.yml -r backend/
+#   bandit -c .bandit.yml -b .bandit.baseline -r backend/  # With baseline
+
+# Test skipping configuration
+skips:
+  # B101: assert_used - We use asserts in tests appropriately
+  # B104: hardcoded_bind_all_interfaces - Required for container networking
+  # B311: random - Used for non-cryptographic purposes (batch IDs, etc.)
+
+# Test inclusion - explicitly enable important checks
+tests:
+  # Injection attacks (critical)
+  - B102 # exec_used
+  - B103 # set_bad_file_permissions
+  - B105 # hardcoded_password_string
+  - B106 # hardcoded_password_funcarg
+  - B107 # hardcoded_password_default
+  - B108 # hardcoded_tmp_directory
+  - B110 # try_except_pass
+
+  # Cryptography issues
+  - B303 # md5 usage
+  - B304 # ciphers with weak mode
+  - B305 # cipher with no authentication
+  - B306 # mktemp_q
+  - B307 # eval usage
+  - B308 # mark_safe usage
+  - B310 # urllib_urlopen
+  - B311 # random - will flag but we track in baseline
+  - B312 # telnetlib
+  - B313 # xml_bad_cElementTree
+  - B314 # xml_bad_ElementTree
+  - B315 # xml_bad_expatreader
+  - B316 # xml_bad_expatbuilder
+  - B317 # xml_bad_sax
+  - B318 # xml_bad_minidom
+  - B319 # xml_bad_pulldom
+  - B320 # xml_bad_etree
+  - B321 # ftplib
+  - B323 # unverified_context
+  - B324 # hashlib_insecure_functions
+
+  # SQL injection (critical for FastAPI)
+  - B608 # hardcoded_sql_expressions
+  - B609 # linux_commands_wildcard_injection
+  - B610 # django_extra_used
+  - B611 # django_rawsql_used
+
+  # Network security
+  - B501 # request_with_no_cert_validation
+  - B502 # ssl_with_bad_version
+  - B503 # ssl_with_bad_defaults
+  - B504 # ssl_with_no_version
+  - B505 # weak_cryptographic_key
+  - B506 # yaml_load
+  - B507 # ssh_no_host_key_verification
+
+  # Subprocess and shell injection
+  - B601 # paramiko_calls
+  - B602 # subprocess_popen_with_shell_equals_true
+  - B603 # subprocess_without_shell_equals_true
+  - B604 # any_other_function_with_shell_equals_true
+  - B605 # start_process_with_a_shell
+  - B606 # start_process_with_no_shell
+  - B607 # start_process_with_partial_path
+
+# Plugin configuration
+any_other_function_with_shell_equals_true:
+  no_shell:
+    - os.execl
+    - os.execle
+    - os.execlp
+    - os.execlpe
+    - os.execv
+    - os.execve
+    - os.execvp
+    - os.execvpe
+    - os.spawnl
+    - os.spawnle
+    - os.spawnlp
+    - os.spawnlpe
+    - os.spawnv
+    - os.spawnve
+    - os.spawnvp
+    - os.spawnvpe
+
+hardcoded_password_string:
+  word_list:
+    - password
+    - passwd
+    - secret
+    - api_key
+    - apikey
+    - token
+    - auth_token
+    - bearer
+    - credential
+    - private_key
+
+# Exclude patterns
+exclude_dirs:
+  - backend/tests
+  - .venv
+  - __pycache__
+  - .git
+  - node_modules
+  - frontend
+
+# Severity settings
+# Report issues at medium severity and above
+assert_filename: .bandit.baseline

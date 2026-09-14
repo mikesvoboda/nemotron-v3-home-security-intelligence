@@ -1,0 +1,485 @@
+{
+  "providers": [
+    {
+      "name": "FedEx",
+      "aliases": ["FEDEX", "FedEx Ground", "FedEx Express", "FedEx Home Delivery", "FedEx Freight"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "UPS",
+      "aliases": ["UPS", "United Parcel Service", "UPS Ground", "UPS Express", "UPS Freight"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "Amazon",
+      "aliases": [
+        "AMAZON",
+        "Amazon Prime",
+        "Amazon Logistics",
+        "AMZ",
+        "Amazon Fresh",
+        "Amazon Flex"
+      ],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "USPS",
+      "aliases": [
+        "USPS",
+        "US Postal Service",
+        "United States Postal",
+        "US Mail",
+        "United States Postal Service",
+        "Postal Service"
+      ],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "DHL",
+      "aliases": ["DHL", "DHL Express", "DHL Global", "DHL eCommerce"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "OnTrac",
+      "aliases": ["ONTRAC", "OnTrac", "On Trac"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "LaserShip",
+      "aliases": ["LASERSHIP", "LaserShip", "Laser Ship"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "Purolator",
+      "aliases": ["PUROLATOR", "Purolator Express", "Purolator Courier"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "Canada Post",
+      "aliases": ["CANADA POST", "CanadaPost", "Postes Canada"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "PG&E",
+      "aliases": [
+        "PG&E",
+        "Pacific Gas",
+        "Pacific Gas and Electric",
+        "Pacific Gas & Electric",
+        "PGE"
+      ],
+      "category": "UTILITY"
+    },
+    {
+      "name": "ComEd",
+      "aliases": ["COMED", "Commonwealth Edison", "ComEd", "Com Ed"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Duke Energy",
+      "aliases": ["DUKE ENERGY", "Duke", "Duke Power"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Southern California Edison",
+      "aliases": ["SCE", "SoCal Edison", "Southern California Edison", "Edison"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Con Edison",
+      "aliases": ["CON EDISON", "ConEd", "Con Ed", "Consolidated Edison"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "National Grid",
+      "aliases": ["NATIONAL GRID", "NationalGrid"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Dominion Energy",
+      "aliases": ["DOMINION ENERGY", "Dominion", "Dominion Power"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "PSE&G",
+      "aliases": ["PSEG", "PSE&G", "Public Service Electric", "Public Service Electric & Gas"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Xcel Energy",
+      "aliases": ["XCEL ENERGY", "Xcel"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "American Water",
+      "aliases": ["AMERICAN WATER", "AmWater", "American Water Works"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "AT&T",
+      "aliases": ["AT&T", "ATT", "AT and T", "AT T"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Comcast",
+      "aliases": ["COMCAST", "Xfinity", "Comcast Xfinity", "Comcast Business"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Verizon",
+      "aliases": ["VERIZON", "Verizon Fios", "Verizon Wireless", "Fios", "VZW"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Spectrum",
+      "aliases": ["SPECTRUM", "Charter Spectrum", "Charter Communications", "Time Warner Cable"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "T-Mobile",
+      "aliases": ["T-MOBILE", "TMobile", "T Mobile", "T-Mobile Home Internet"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "CenturyLink",
+      "aliases": ["CENTURYLINK", "Century Link", "Lumen", "Lumen Technologies"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Cox Communications",
+      "aliases": ["COX", "Cox Communications", "Cox Cable", "Cox Internet"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Frontier",
+      "aliases": ["FRONTIER", "Frontier Communications", "Frontier Internet"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Google Fiber",
+      "aliases": ["GOOGLE FIBER", "GoogleFiber"],
+      "category": "TELECOM"
+    },
+    {
+      "name": "Roto-Rooter",
+      "aliases": ["ROTO-ROOTER", "Roto Rooter", "RotoRooter"],
+      "category": "PLUMBING"
+    },
+    {
+      "name": "Mr. Rooter",
+      "aliases": ["MR ROOTER", "Mr Rooter", "Mister Rooter", "Mr. Rooter Plumbing"],
+      "category": "PLUMBING"
+    },
+    {
+      "name": "Benjamin Franklin Plumbing",
+      "aliases": ["BENJAMIN FRANKLIN", "Ben Franklin Plumbing", "Benjamin Franklin"],
+      "category": "PLUMBING"
+    },
+    {
+      "name": "Rescue Rooter",
+      "aliases": ["RESCUE ROOTER", "RescueRooter"],
+      "category": "PLUMBING"
+    },
+    {
+      "name": "ARS Rescue Rooter",
+      "aliases": ["ARS", "ARS Rescue Rooter", "ARS/Rescue Rooter"],
+      "category": "PLUMBING"
+    },
+    {
+      "name": "Trane",
+      "aliases": ["TRANE", "Trane HVAC", "Trane Technologies"],
+      "category": "HVAC"
+    },
+    {
+      "name": "Carrier",
+      "aliases": ["CARRIER", "Carrier HVAC", "Carrier Global"],
+      "category": "HVAC"
+    },
+    {
+      "name": "Lennox",
+      "aliases": ["LENNOX", "Lennox HVAC", "Lennox International"],
+      "category": "HVAC"
+    },
+    {
+      "name": "Rheem",
+      "aliases": ["RHEEM", "Rheem HVAC", "Rheem Manufacturing"],
+      "category": "HVAC"
+    },
+    {
+      "name": "One Hour Heating & Air",
+      "aliases": ["ONE HOUR", "One Hour Heating", "One Hour Air", "One Hour Heating and Air"],
+      "category": "HVAC"
+    },
+    {
+      "name": "ServiceMaster",
+      "aliases": ["SERVICEMASTER", "Service Master", "ServiceMaster Restore"],
+      "category": "HVAC"
+    },
+    {
+      "name": "Mr. Electric",
+      "aliases": ["MR ELECTRIC", "Mr Electric", "Mister Electric", "Mr. Electric"],
+      "category": "ELECTRICAL"
+    },
+    {
+      "name": "Mister Sparky",
+      "aliases": ["MISTER SPARKY", "Mr Sparky", "Mr. Sparky", "Mister Sparky Electric"],
+      "category": "ELECTRICAL"
+    },
+    {
+      "name": "TruGreen",
+      "aliases": ["TRUGREEN", "Tru Green", "TruGreen Lawn Care"],
+      "category": "LANDSCAPING"
+    },
+    {
+      "name": "Lawn Doctor",
+      "aliases": ["LAWN DOCTOR", "LawnDoctor"],
+      "category": "LANDSCAPING"
+    },
+    {
+      "name": "Scotts Lawn Care",
+      "aliases": ["SCOTTS", "Scotts Lawn Service", "Scotts LawnService", "Scotts Lawn Care"],
+      "category": "LANDSCAPING"
+    },
+    {
+      "name": "BrightView",
+      "aliases": ["BRIGHTVIEW", "Bright View", "BrightView Landscaping"],
+      "category": "LANDSCAPING"
+    },
+    {
+      "name": "Davey Tree",
+      "aliases": ["DAVEY", "Davey Tree Expert", "Davey Tree Service"],
+      "category": "LANDSCAPING"
+    },
+    {
+      "name": "Orkin",
+      "aliases": ["ORKIN", "Orkin Pest Control"],
+      "category": "PEST_CONTROL"
+    },
+    {
+      "name": "Terminix",
+      "aliases": ["TERMINIX", "Terminex", "Terminix Pest Control"],
+      "category": "PEST_CONTROL"
+    },
+    {
+      "name": "Rentokil",
+      "aliases": ["RENTOKIL", "Rentokil Pest Control", "Rentokil Initial"],
+      "category": "PEST_CONTROL"
+    },
+    {
+      "name": "Massey Services",
+      "aliases": ["MASSEY", "Massey Services", "Massey Pest Control"],
+      "category": "PEST_CONTROL"
+    },
+    {
+      "name": "Truly Nolen",
+      "aliases": ["TRULY NOLEN", "TrulyNolen", "Truly Nolen Pest Control"],
+      "category": "PEST_CONTROL"
+    },
+    {
+      "name": "Aptive Environmental",
+      "aliases": ["APTIVE", "Aptive Environmental", "Aptive Pest"],
+      "category": "PEST_CONTROL"
+    },
+    {
+      "name": "Ambulance",
+      "aliases": ["AMBULANCE", "EMT", "EMS", "Emergency Medical Services", "Paramedic"],
+      "category": "MEDICAL"
+    },
+    {
+      "name": "American Medical Response",
+      "aliases": ["AMR", "American Medical Response", "AMR Ambulance"],
+      "category": "MEDICAL"
+    },
+    {
+      "name": "Apria Healthcare",
+      "aliases": ["APRIA", "Apria Healthcare", "Apria Medical"],
+      "category": "MEDICAL"
+    },
+    {
+      "name": "Visiting Angels",
+      "aliases": ["VISITING ANGELS", "VisitingAngels", "Visiting Angels Home Care"],
+      "category": "MEDICAL"
+    },
+    {
+      "name": "Home Instead",
+      "aliases": ["HOME INSTEAD", "HomeInstead", "Home Instead Senior Care"],
+      "category": "MEDICAL"
+    },
+    {
+      "name": "Comfort Keepers",
+      "aliases": ["COMFORT KEEPERS", "ComfortKeepers"],
+      "category": "MEDICAL"
+    },
+    {
+      "name": "ADT",
+      "aliases": ["ADT", "ADT Security", "ADT Home Security"],
+      "category": "SECURITY"
+    },
+    {
+      "name": "Brinks",
+      "aliases": ["BRINKS", "Brinks Home Security", "Brink's", "Brinks Security"],
+      "category": "SECURITY"
+    },
+    {
+      "name": "Vivint",
+      "aliases": ["VIVINT", "Vivint Smart Home", "Vivint Security"],
+      "category": "SECURITY"
+    },
+    {
+      "name": "SimpliSafe",
+      "aliases": ["SIMPLISAFE", "Simpli Safe", "SimpliSafe Home Security"],
+      "category": "SECURITY"
+    },
+    {
+      "name": "Ring",
+      "aliases": ["RING", "Ring Security", "Ring Doorbell", "Ring Alarm"],
+      "category": "SECURITY"
+    },
+    {
+      "name": "Frontpoint",
+      "aliases": ["FRONTPOINT", "Front Point", "Frontpoint Security"],
+      "category": "SECURITY"
+    },
+    {
+      "name": "DoorDash",
+      "aliases": ["DOORDASH", "Door Dash", "DoorDash Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Uber Eats",
+      "aliases": ["UBER EATS", "UberEats", "Uber Eats Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Grubhub",
+      "aliases": ["GRUBHUB", "Grub Hub", "GrubHub Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Instacart",
+      "aliases": ["INSTACART", "Insta Cart", "Instacart Delivery", "Instacart Shopper"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Postmates",
+      "aliases": ["POSTMATES", "Post Mates"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Gopuff",
+      "aliases": ["GOPUFF", "Go Puff", "GoPuff Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Shipt",
+      "aliases": ["SHIPT", "Shipt Shopper", "Shipt Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Pizza Hut",
+      "aliases": ["PIZZA HUT", "PizzaHut", "Pizza Hut Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Domino's",
+      "aliases": ["DOMINOS", "Domino's Pizza", "Dominos Pizza", "Domino's Delivery"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Papa John's",
+      "aliases": ["PAPA JOHNS", "Papa John's Pizza", "PapaJohns"],
+      "category": "FOOD_DELIVERY"
+    },
+    {
+      "name": "Sysco",
+      "aliases": ["SYSCO", "Sysco Foods", "Sysco Delivery"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "US Foods",
+      "aliases": ["US FOODS", "USFoods", "US Foods Delivery"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "Aramark",
+      "aliases": ["ARAMARK", "Aramark Services"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "Cintas",
+      "aliases": ["CINTAS", "Cintas Corporation", "Cintas Uniform"],
+      "category": "DELIVERY"
+    },
+    {
+      "name": "Waste Management",
+      "aliases": ["WASTE MANAGEMENT", "WM", "Waste Management Inc"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Republic Services",
+      "aliases": ["REPUBLIC SERVICES", "Republic", "Republic Waste"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Culligan",
+      "aliases": ["CULLIGAN", "Culligan Water", "Culligan Man"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "Veolia",
+      "aliases": ["VEOLIA", "Veolia Water", "Veolia Environment"],
+      "category": "UTILITY"
+    },
+    {
+      "name": "ServiceTitan",
+      "aliases": ["SERVICETITAN", "Service Titan"],
+      "category": "HVAC"
+    }
+  ],
+  "categories": {
+    "DELIVERY": {
+      "risk_modifier": "low_risk_service",
+      "description": "Package and mail delivery services"
+    },
+    "UTILITY": {
+      "risk_modifier": "low_risk_service",
+      "description": "Gas, electric, water, and waste services"
+    },
+    "TELECOM": {
+      "risk_modifier": "low_risk_service",
+      "description": "Internet, phone, and cable services"
+    },
+    "PLUMBING": {
+      "risk_modifier": "low_risk_service",
+      "description": "Plumbing services"
+    },
+    "HVAC": {
+      "risk_modifier": "low_risk_service",
+      "description": "Heating, ventilation, and air conditioning services"
+    },
+    "ELECTRICAL": {
+      "risk_modifier": "low_risk_service",
+      "description": "Electrical services"
+    },
+    "LANDSCAPING": {
+      "risk_modifier": "low_risk_service",
+      "description": "Lawn and garden services"
+    },
+    "PEST_CONTROL": {
+      "risk_modifier": "low_risk_service",
+      "description": "Pest management services"
+    },
+    "MEDICAL": {
+      "risk_modifier": "low_risk_service",
+      "description": "Medical and healthcare services"
+    },
+    "SECURITY": {
+      "risk_modifier": "low_risk_service",
+      "description": "Security services"
+    },
+    "FOOD_DELIVERY": {
+      "risk_modifier": "low_risk_service",
+      "description": "Food delivery apps and services"
+    }
+  }
+}

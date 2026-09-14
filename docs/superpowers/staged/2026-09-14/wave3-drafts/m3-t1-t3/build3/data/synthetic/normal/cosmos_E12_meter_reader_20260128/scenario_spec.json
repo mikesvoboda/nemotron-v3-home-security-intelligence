@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_E12_meter_reader",
+  "category": "normal",
+  "name": "Meter Reader",
+  "description": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A utility worker in safety vest approaches the electric meter on the side of the house, takes a reading with a handheld device, and walks to the next property. Monthly meter reading. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "side_yard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A utility worker in safety vest approaches the electric meter on the side of the house, takes a reading with a handheld device, and walks to the next property. Monthly meter reading. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

@@ -1,0 +1,581 @@
+# models.yml — Single source of truth for all AI model configuration.
+#
+# Consumed by:
+#   setup_lib/model_downloader.py       — download orchestration (setup.py deploy)
+#   backend/services/model_zoo.py       — runtime model loading (backend container)
+#   ai/gateway/entrypoint.sh            — device env var export + config.pbtxt patching
+#   ai/gateway/patch_triton_configs.py  — rewrites Triton instance_group at startup
+#
+# Field reference:
+#   name            Canonical identifier. Matches model_zoo dict key for backend models.
+#   description     Human-readable summary.
+#   service         Which service(s) load this model: backend | ai-gateway | ai-llm | both
+#   hf_repo         HuggingFace repo ID. Empty string or null if using custom download.
+#   local_path      Path relative to AI_MODELS_PATH. null for library/HF-cache models.
+#   size_mb         Estimated download size in MB.
+#   download_phase  Download priority ordering: 0=required 1=core 2=extended 3=optional
+#   required        True if the system cannot function without this model.
+#   download_method Optional. Overrides the default snapshot_download logic:
+#                     nemotron_gguf  — download Nemotron GGUF file
+#                     yolo26         — download via ultralytics GitHub releases
+#                     osnet          — download OSNet weights via torchreid
+#                     stgcn          — download ST-GCN++ via OpenMMLab
+#                     yolo_world     — download YOLO-World via ultralytics
+#                     hf_cache       — download into ~/.cache/huggingface/hub/ (open_clip format)
+#                     skip           — no download needed (library auto-downloads or disabled)
+#
+#   Backend runtime fields (only used when service is "backend" or "both"):
+#   category        Model category: detection | classification | embedding | pose |
+#                   segmentation | depth-estimation | action-recognition | ocr |
+#                   alpr | quality-assessment | preprocessing | vision-language
+#   vram_mb         Estimated GPU VRAM usage in MB (0 = CPU-only).
+#   enabled         Whether model_zoo enables this model for backend use.
+#   priority        VRAM eviction priority: critical | high | medium | low
+#   preload         Eagerly load at startup when BACKEND_MODEL_PRELOAD=true.
+#   never_evict     Never evict from VRAM once loaded.
+#   runtime_file    Optional filename within local_path (e.g. "model.pt").
+#                   When set: runtime path = AI_MODELS_PATH/local_path/runtime_file
+#   runtime_path    Optional full runtime path override (for library sentinels like "piq").
+#
+#   AI-Gateway Triton Python backend fields (service: ai-gateway or both, Python backend only):
+#   device          Target inference device: "cuda:0" | "cpu". Exported as an env var by
+#                   entrypoint.sh before Triton starts so model.py workers can read it.
+#                   Falls back to cpu automatically if cuda is requested but unavailable.
+#   device_env_var  Name of the environment variable the model.py reads for its device.
+#                   docker-compose values take precedence over models.yml defaults.
+#
+#   AI-Gateway Triton instance_group fields (consumed by patch_triton_configs.py):
+#   triton_name     Triton model repository directory name (may differ from models.yml name).
+#                   patch_triton_configs.py patches the matching config.pbtxt at startup.
+#   triton_kind     Triton execution device: KIND_GPU | KIND_CPU.
+#                   KIND_CPU is required for quantized models with MatMulInteger ops
+#                   (e.g. clip_text) or intentionally-CPU skeleton models (stgcn_action).
+#                   To change a model from CPU→GPU (or back), edit only this field.
+#   triton_models   List of {triton_name, triton_kind} for models that map to multiple
+#                   Triton models (e.g. siglip2 exports both clip and clip_text).
+#                   Use instead of top-level triton_name/triton_kind for 1:many mappings.
+
+models:
+
+  # ===========================================================
+  # PHASE 0 — REQUIRED (system cannot function without these)
+  # ===========================================================
+
+  - name: nemotron-3-nano-30b-a3b-q4km
+    description: "Nemotron-3-Nano-30B LLM for risk reasoning (Q4_K_M quantization, ~14.7 GB)"
+    service: ai-llm
+    hf_repo: unsloth/Nemotron-3-Nano-30B-A3B-GGUF
+    local_path: nemotron/nemotron-3-nano-30b-a3b-q4km
+    size_mb: 15073
+    download_phase: 0
+    required: true
+    download_method: nemotron_gguf
+
+  - name: yolo26
+    description: "YOLO26 primary object detection (n/s/m variants) — backend calls via HTTP"
+    service: backend
+    hf_repo: ""
+    local_path: model-zoo/yolo26
+    size_mb: 67
+    download_phase: 0
+    required: true
+    download_method: yolo26
+    category: detection
+    vram_mb: 0
+    enabled: false
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: yolo26
+    triton_kind: KIND_GPU
+
+  - name: florence-2-base
+    description: "Florence-2-base vision-language model for ai-gateway Triton"
+    service: ai-gateway
+    hf_repo: microsoft/Florence-2-base
+    local_path: model-zoo/florence-2-base
+    size_mb: 1024
+    download_phase: 0
+    required: true
+    device: cuda:0
+    device_env_var: FLORENCE_DEVICE
+    triton_name: florence2
+    triton_kind: KIND_GPU
+
+  - name: siglip2-base-patch16-224
+    description: "SigLIP 2 Base ONNX for entity re-identification embeddings (ai-gateway + backend)"
+    service: both
+    hf_repo: onnx-community/siglip2-base-patch16-224-ONNX
+    local_path: model-zoo/siglip2-base-patch16-224
+    size_mb: 400
+    download_phase: 0
+    required: true
+    category: embedding
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_models:
+      - triton_name: clip
+        triton_kind: KIND_GPU
+      - triton_name: clip_text
+        triton_kind: KIND_CPU  # quantized INT8 text model — MatMulInteger ops block CUDA EP
+
+  # ===========================================================
+  # PHASE 1 — CORE ENRICHMENT (ai-gateway primary models)
+  # ===========================================================
+
+  - name: vehicle-segment-classification
+    description: "ResNet-50 vehicle type classification, 11 classes (MIO-TCD)"
+    service: both
+    hf_repo: AventIQ-AI/ResNet-50-Vehicle-Segment-classification
+    local_path: model-zoo/vehicle-segment-classification
+    size_mb: 358
+    download_phase: 1
+    required: false
+    category: classification
+    vram_mb: 1500
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: vehicle
+    triton_kind: KIND_GPU
+
+  - name: pet-classifier
+    description: "ResNet-18 dog/cat classifier for false positive reduction"
+    service: both
+    hf_repo: microsoft/resnet-18
+    local_path: model-zoo/pet-classifier
+    size_mb: 46
+    download_phase: 1
+    required: false
+    category: classification
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: pet
+    triton_kind: KIND_GPU
+
+  - name: depth-anything-v2-tiny
+    description: "Depth Anything V2 Tiny monocular depth estimation (5.8 M params, 518×518)"
+    service: both
+    hf_repo: depth-anything/Depth-Anything-V2-Small-hf
+    local_path: model-zoo/depth-anything-v2-tiny
+    size_mb: 98
+    download_phase: 1
+    required: false
+    category: depth-estimation
+    vram_mb: 100
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: depth
+    triton_kind: KIND_GPU
+
+  - name: osnet-ain-x1-0
+    description: "OSNet-AIN x1.0 person re-identification embeddings (MSMT17 Rank-1 73.3%)"
+    service: both
+    hf_repo: ""
+    local_path: model-zoo/osnet-ain-x1-0
+    size_mb: 10
+    download_phase: 1
+    required: false
+    download_method: osnet
+    category: embedding
+    vram_mb: 100
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: reid
+    triton_kind: KIND_GPU
+
+  - name: yolov8n-pose
+    description: "YOLOv8n-pose human pose estimation, 17 COCO keypoints"
+    service: both
+    hf_repo: ultralytics/yolov8n-pose
+    local_path: model-zoo/yolov8n-pose
+    size_mb: 6
+    download_phase: 1
+    required: false
+    category: pose
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_file: yolov8n-pose.pt
+    triton_name: pose
+    triton_kind: KIND_GPU
+
+  - name: threat-detection-yolov8n
+    description: "YOLOv8n threat/weapon detection (knives, guns, bats)"
+    service: both
+    hf_repo: Subh775/Threat-Detection-YOLOv8n
+    local_path: model-zoo/threat-detection-yolov8n
+    size_mb: 25
+    download_phase: 1
+    required: false
+    category: detection
+    vram_mb: 300
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: threat
+    triton_kind: KIND_GPU
+
+  # ===========================================================
+  # PHASE 2 — DEMOGRAPHICS AND ACTION RECOGNITION
+  # ===========================================================
+
+  - name: vit-age-classifier
+    description: "ViT age estimation from face crops (child/teen/adult/senior age groups)"
+    service: both
+    hf_repo: nateraw/vit-age-classifier
+    local_path: model-zoo/vit-age-classifier
+    size_mb: 358
+    download_phase: 2
+    required: false
+    category: classification
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: demographics_age
+    triton_kind: KIND_GPU
+
+  - name: vit-gender-classifier
+    description: "ViT binary gender classification from face crops"
+    service: both
+    hf_repo: rizvandwiki/gender-classification
+    local_path: model-zoo/vit-gender-classifier
+    size_mb: 358
+    download_phase: 2
+    required: false
+    category: classification
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: demographics_gender
+    triton_kind: KIND_GPU
+
+  - name: stgcn-plus-plus
+    description: "ST-GCN++ skeleton-based action recognition, 60 classes (NTU RGB+D 60)"
+    service: both
+    hf_repo: ""
+    local_path: model-zoo/stgcn-plus-plus
+    size_mb: 20
+    download_phase: 2
+    required: false
+    download_method: stgcn
+    category: action-recognition
+    vram_mb: 20
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    triton_name: stgcn_action
+    triton_kind: KIND_CPU  # 14 MB skeleton model — efficient on CPU, no GPU benefit
+
+  - name: xclip-base
+    description: "X-CLIP zero-shot video action recognition (DEPRECATED: replaced by stgcn-plus-plus)"
+    service: both
+    hf_repo: microsoft/xclip-base-patch32
+    local_path: model-zoo/xclip-base
+    size_mb: 600
+    download_phase: 2
+    required: false
+    category: action-recognition
+    vram_mb: 0
+    enabled: false
+    priority: medium
+    preload: false
+    never_evict: false
+    device: cpu
+    device_env_var: XCLIP_DEVICE
+    triton_name: xclip_action
+    triton_kind: KIND_CPU  # Python backend — device controlled by XCLIP_DEVICE env var
+
+  # ===========================================================
+  # PHASE 3 — SPECIALIZED BACKEND + ADDITIONAL MODELS
+  # ===========================================================
+
+  - name: weather-classification
+    description: "SigLIP-based weather condition classification (cloudy/fog/rain/snow/sun)"
+    service: backend
+    hf_repo: prithivMLmods/Weather-Image-Classification
+    local_path: model-zoo/weather-classification
+    size_mb: 200
+    download_phase: 3
+    required: false
+    category: classification
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+
+  - name: violence-detection
+    description: "ViT-base binary violence/non-violence classifier (98.8% reported accuracy)"
+    service: backend
+    hf_repo: jaranohaal/vit-base-violence-detection
+    local_path: model-zoo/violence-detection
+    size_mb: 350
+    download_phase: 3
+    required: false
+    category: classification
+    vram_mb: 500
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+
+  # fashion-clip: backend loads via open_clip hf-hub format from ~/.cache/huggingface/hub/
+  # download_method: hf_cache — model_downloader calls download_marqo_fashionsiglip()
+  # Replaces legacy patrickjohncyh/fashion-clip (FashionCLIP v2, ~3.5 GB) with
+  # Marqo/marqo-fashionSigLIP (+57% accuracy, open_clip hf-hub format).
+  - name: fashion-clip
+    description: "Marqo FashionSigLIP clothing zero-shot classifier (+57% vs FashionCLIP)"
+    service: both
+    hf_repo: Marqo/marqo-fashionSigLIP
+    local_path: null
+    size_mb: 4400
+    download_phase: 3
+    required: false
+    download_method: hf_cache
+    category: classification
+    vram_mb: 500
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_path: model-zoo/fashion-siglip
+    triton_name: fashion_clip
+    triton_kind: KIND_GPU
+
+  - name: yolo11-face
+    description: "YOLO11n face detection on person crops"
+    service: both
+    hf_repo: AdamCodd/YOLOv11n-face-detection
+    local_path: model-zoo/yolo11-face-detection
+    size_mb: 11
+    download_phase: 3
+    required: false
+    category: detection
+    vram_mb: 200
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_file: model.pt
+
+  - name: yolo11-license-plate
+    description: "YOLO11n license plate detection (multiple model variants)"
+    service: both
+    hf_repo: morsetechlab/yolov11-license-plate-detection
+    local_path: model-zoo/yolo11-license-plate
+    size_mb: 650
+    download_phase: 3
+    required: false
+    category: detection
+    vram_mb: 300
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_file: license-plate-finetune-v1n.pt
+
+  - name: smoke-fire-yolov8n
+    description: "YOLOv8n smoke/fire detection — CRITICAL: never evict, preload at startup"
+    service: both
+    hf_repo: SHOU-ISD/fire-and-smoke
+    local_path: model-zoo/smoke-fire-yolov8n
+    size_mb: 25
+    download_phase: 3
+    required: false
+    category: detection
+    vram_mb: 350
+    enabled: true
+    priority: critical
+    preload: true
+    never_evict: true
+
+  - name: yolo-world-s
+    description: "YOLO-World-S open-vocabulary detection via text prompts (packages, weapons, tools)"
+    service: backend
+    hf_repo: ""
+    local_path: model-zoo/yolo-world-s
+    size_mb: 1500
+    download_phase: 3
+    required: false
+    download_method: yolo_world
+    category: detection
+    vram_mb: 1500
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_file: yolov8s-worldv2.pt
+
+  # zero-dce-plus-plus: loader expects Epoch99.pth (PyTorch) but
+  # keras-io/low-light-image-enhancement is a TensorFlow SavedModel.
+  # Disabled until a compatible PyTorch checkpoint source is identified.
+  - name: zero-dce-plus-plus
+    description: "Zero-DCE++ low-light enhancement preprocessing (~10 K params, ~1000 FPS on GPU)"
+    service: backend
+    hf_repo: keras-io/low-light-image-enhancement
+    local_path: model-zoo/zero-dce-plus-plus
+    size_mb: 5
+    download_phase: 3
+    required: false
+    download_method: skip
+    category: preprocessing
+    vram_mb: 5
+    enabled: false
+    priority: medium
+    preload: false
+    never_evict: false
+
+  - name: vitpose-small
+    description: "ViTPose+ Small human pose estimation, 17 COCO keypoints (~1.5 GB)"
+    service: backend
+    hf_repo: usyd-community/vitpose-plus-small
+    local_path: model-zoo/vitpose-small
+    size_mb: 1500
+    download_phase: 3
+    required: false
+    category: pose
+    vram_mb: 1500
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+
+  - name: segformer-b2-clothes
+    description: "SegFormer-B2 clothing segmentation, 18 categories for re-identification"
+    service: backend
+    hf_repo: mattmdjaga/segformer_b2_clothes
+    local_path: model-zoo/segformer-b2-clothes
+    size_mb: 1500
+    download_phase: 3
+    required: false
+    category: segmentation
+    vram_mb: 1500
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+
+  - name: vehicle-damage-detection
+    description: "YOLOv11 vehicle damage segmentation (cracks, dents, glass_shatter, scratches)"
+    service: backend
+    hf_repo: harpreetsahota/car-dd-segmentation-yolov11
+    local_path: model-zoo/vehicle-damage-detection
+    size_mb: 2000
+    download_phase: 3
+    required: false
+    category: detection
+    vram_mb: 2000
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+
+  # ===========================================================
+  # LIBRARY / SPECIAL — no HF download, auto-managed by library
+  # ===========================================================
+
+  - name: brisque-quality
+    description: "BRISQUE no-reference image quality assessment via piq library (CPU-only)"
+    service: backend
+    hf_repo: null
+    local_path: null
+    size_mb: 0
+    download_phase: 3
+    required: false
+    download_method: skip
+    category: quality-assessment
+    vram_mb: 0
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_path: piq
+
+  - name: fast-alpr
+    description: "FastALPR end-to-end license plate detection+OCR, ONNX auto-download (~28 MB)"
+    service: backend
+    hf_repo: null
+    local_path: null
+    size_mb: 28
+    download_phase: 3
+    required: false
+    download_method: skip
+    category: alpr
+    vram_mb: 28
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_path: fast-alpr
+
+  - name: paddleocr
+    description: "PaddleOCR text recognition (superseded by fast-alpr for license plates)"
+    service: backend
+    hf_repo: null
+    local_path: model-zoo/paddleocr
+    size_mb: 100
+    download_phase: 3
+    required: false
+    download_method: skip
+    category: ocr
+    vram_mb: 100
+    enabled: true
+    priority: medium
+    preload: false
+    never_evict: false
+
+  # ===========================================================
+  # DISABLED / FUTURE
+  # ===========================================================
+
+  - name: yolo26-general
+    description: "YOLO26 general detection via ultralytics (future release, TBD)"
+    service: backend
+    hf_repo: null
+    local_path: null
+    size_mb: 400
+    download_phase: 3
+    required: false
+    download_method: skip
+    category: detection
+    vram_mb: 400
+    enabled: false
+    priority: medium
+    preload: false
+    never_evict: false
+    runtime_path: "ultralytics/yolo26"
+
+  - name: florence-2-large
+    description: "Florence-2-large VLM (disabled: runs as dedicated ai-gateway service)"
+    service: backend
+    hf_repo: microsoft/Florence-2-large
+    local_path: model-zoo/florence-2-large
+    size_mb: 3000
+    download_phase: 3
+    required: false
+    category: vision-language
+    vram_mb: 1200
+    enabled: false
+    priority: medium
+    preload: false
+    never_evict: false

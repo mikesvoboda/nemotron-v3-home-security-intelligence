@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" fill="none">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="publisherGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="redisGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <linearGradient id="subscriberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+    <!-- Glow filter for Redis -->
+    <filter id="redisGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Arrow markers -->
+    <marker id="arrowAmber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#EF4444"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3B82F6"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="650" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="450" y="35" fill="#E5E7EB" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="600" text-anchor="middle">Redis Pub/Sub Flow</text>
+
+  <!-- Publishers Section -->
+  <g transform="translate(0, 55)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="200" height="180" rx="8" fill="#F59E0B" fill-opacity="0.1" stroke="#F59E0B" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="150" y="25" fill="#F59E0B" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">EVENT PUBLISHERS</text>
+
+    <!-- NemotronAnalyzer -->
+    <g transform="translate(70, 45)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="50" rx="6" fill="url(#publisherGrad)"/>
+      <text x="80" y="22" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">NemotronAnalyzer</text>
+      <text x="80" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Security Events</text>
+    </g>
+
+    <!-- HealthMonitor -->
+    <g transform="translate(70, 115)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="50" rx="6" fill="url(#publisherGrad)"/>
+      <text x="80" y="22" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">HealthMonitor</text>
+      <text x="80" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Service Status</text>
+    </g>
+  </g>
+
+  <!-- Redis Server Section -->
+  <g transform="translate(300, 55)">
+    <!-- Section background with glow -->
+    <rect x="0" y="0" width="300" height="180" rx="8" fill="#EF4444" fill-opacity="0.1" stroke="#EF4444" stroke-opacity="0.4" stroke-width="2" filter="url(#redisGlow)"/>
+    <text x="150" y="25" fill="#EF4444" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">REDIS SERVER</text>
+
+    <!-- PUBLISH Command -->
+    <g transform="translate(30, 45)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="40" rx="6" fill="url(#redisGrad)"/>
+      <text x="50" y="17" fill="white" font-family="system-ui, sans-serif" font-size="11" font-weight="500" text-anchor="middle">PUBLISH</text>
+      <text x="50" y="32" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle">Command</text>
+    </g>
+
+    <!-- security_events Channel -->
+    <g transform="translate(170, 45)" filter="url(#shadow)">
+      <rect x="0" y="0" width="110" height="40" rx="6" fill="url(#redisGrad)"/>
+      <text x="55" y="17" fill="white" font-family="monospace" font-size="9" font-weight="500" text-anchor="middle">security_events</text>
+      <text x="55" y="32" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle">Channel</text>
+    </g>
+
+    <!-- Subscriber List -->
+    <g transform="translate(100, 115)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="40" rx="6" fill="url(#redisGrad)"/>
+      <text x="50" y="17" fill="white" font-family="system-ui, sans-serif" font-size="11" font-weight="500" text-anchor="middle">Subscriber</text>
+      <text x="50" y="32" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle">List</text>
+    </g>
+  </g>
+
+  <!-- Subscribers Section -->
+  <g transform="translate(650, 55)">
+    <!-- Section background -->
+    <rect x="0" y="0" width="200" height="180" rx="8" fill="#10B981" fill-opacity="0.1" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="100" y="25" fill="#10B981" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">BACKEND INSTANCES</text>
+
+    <!-- EventBroadcaster 1 -->
+    <g transform="translate(20, 40)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="35" rx="5" fill="url(#subscriberGrad)"/>
+      <text x="80" y="15" fill="white" font-family="system-ui, sans-serif" font-size="10" font-weight="500" text-anchor="middle">EventBroadcaster 1</text>
+      <text x="80" y="28" fill="rgba(255,255,255,0.8)" font-family="monospace" font-size="8" text-anchor="middle">SUBSCRIBE</text>
+    </g>
+
+    <!-- EventBroadcaster 2 -->
+    <g transform="translate(20, 85)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="35" rx="5" fill="url(#subscriberGrad)"/>
+      <text x="80" y="15" fill="white" font-family="system-ui, sans-serif" font-size="10" font-weight="500" text-anchor="middle">EventBroadcaster 2</text>
+      <text x="80" y="28" fill="rgba(255,255,255,0.8)" font-family="monospace" font-size="8" text-anchor="middle">SUBSCRIBE</text>
+    </g>
+
+    <!-- EventBroadcaster N -->
+    <g transform="translate(20, 130)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="35" rx="5" fill="url(#subscriberGrad)"/>
+      <text x="80" y="15" fill="white" font-family="system-ui, sans-serif" font-size="10" font-weight="500" text-anchor="middle">EventBroadcaster N</text>
+      <text x="80" y="28" fill="rgba(255,255,255,0.8)" font-family="monospace" font-size="8" text-anchor="middle">SUBSCRIBE</text>
+    </g>
+  </g>
+
+  <!-- Arrows from Publishers to Redis -->
+  <g stroke="#F59E0B" stroke-width="2" fill="none">
+    <path d="M250 130 L300 130 Q310 130 310 120 L310 100 L330 100" marker-end="url(#arrowAmber)"/>
+    <path d="M250 190 L280 190 Q290 190 290 180 L290 110 L330 110" marker-end="url(#arrowAmber)"/>
+  </g>
+
+  <!-- Arrows inside Redis (PUBLISH to Channel to Subscriber List) -->
+  <g stroke="#EF4444" stroke-width="2" fill="none">
+    <path d="M430 120 L470 120" marker-end="url(#arrowRed)"/>
+    <path d="M525 135 L525 155 Q525 165 515 165 L425 165 Q415 165 415 155 L415 155 L400 155" marker-end="url(#arrowRed)"/>
+  </g>
+
+  <!-- Arrows from Redis to Subscribers -->
+  <g stroke="#EF4444" stroke-width="2" fill="none">
+    <path d="M500 175 L600 175 Q610 175 610 165 L610 120 L650 120" marker-end="url(#arrowRed)"/>
+    <path d="M500 180 L620 180 Q630 180 630 170 L630 157 L650 157" marker-end="url(#arrowRed)"/>
+    <path d="M500 185 L640 185 Q650 185 650 195 L650 202 L650 202" marker-end="url(#arrowRed)"/>
+  </g>
+
+  <!-- WebSocket Clients Section -->
+  <g transform="translate(0, 280)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="800" height="320" rx="8" fill="#3B82F6" fill-opacity="0.05" stroke="#3B82F6" stroke-opacity="0.2" stroke-width="1"/>
+    <text x="450" y="25" fill="#3B82F6" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">CONNECTED WEBSOCKET CLIENTS</text>
+
+    <!-- Client Group 1 -->
+    <g transform="translate(80, 50)">
+      <text x="80" y="15" fill="#60A5FA" font-family="system-ui, sans-serif" font-size="11" font-weight="500" text-anchor="middle">Clients on Instance 1</text>
+      <g transform="translate(0, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client 1</text>
+      </g>
+      <g transform="translate(85, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client 2</text>
+      </g>
+    </g>
+
+    <!-- Client Group 2 -->
+    <g transform="translate(320, 50)">
+      <text x="80" y="15" fill="#60A5FA" font-family="system-ui, sans-serif" font-size="11" font-weight="500" text-anchor="middle">Clients on Instance 2</text>
+      <g transform="translate(0, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client 3</text>
+      </g>
+      <g transform="translate(85, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client 4</text>
+      </g>
+    </g>
+
+    <!-- Client Group N -->
+    <g transform="translate(560, 50)">
+      <text x="100" y="15" fill="#60A5FA" font-family="system-ui, sans-serif" font-size="11" font-weight="500" text-anchor="middle">Clients on Instance N</text>
+      <g transform="translate(0, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client 5</text>
+      </g>
+      <g transform="translate(85, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client 6</text>
+      </g>
+      <g transform="translate(170, 25)" filter="url(#shadow)">
+        <rect x="0" y="0" width="70" height="35" rx="5" fill="url(#clientGrad)"/>
+        <text x="35" y="22" fill="white" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Client N</text>
+      </g>
+    </g>
+
+    <!-- Flow explanation box -->
+    <g transform="translate(100, 160)">
+      <rect x="0" y="0" width="650" height="130" rx="6" fill="rgba(59, 130, 246, 0.1)" stroke="#3B82F6" stroke-opacity="0.3"/>
+      <text x="325" y="25" fill="#93C5FD" font-family="system-ui, sans-serif" font-size="13" font-weight="600" text-anchor="middle">Message Fan-Out Pattern</text>
+
+      <text x="20" y="55" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="11">1. Publishers send events to Redis PUBLISH command</text>
+      <text x="20" y="75" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="11">2. Redis routes messages through the security_events channel</text>
+      <text x="20" y="95" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="11">3. All subscribed EventBroadcaster instances receive the message simultaneously</text>
+      <text x="20" y="115" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="11">4. Each instance forwards the event to its locally connected WebSocket clients</text>
+    </g>
+  </g>
+
+  <!-- Arrows from Subscribers to Clients -->
+  <g stroke="#10B981" stroke-width="2" fill="none">
+    <path d="M750 135 L750 270 Q750 280 740 280 L200 280 Q190 280 190 290 L190 330" marker-end="url(#arrowGreen)"/>
+    <path d="M750 158 L750 260 Q750 270 740 270 L440 270 Q430 270 430 280 L430 330" marker-end="url(#arrowGreen)"/>
+    <path d="M750 195 L750 250 Q750 260 740 260 L700 260 Q690 260 690 270 L690 330" marker-end="url(#arrowGreen)"/>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(50, 615)">
+    <rect x="0" y="-12" width="800" height="30" rx="4" fill="rgba(255,255,255,0.05)"/>
+    <circle cx="20" cy="3" r="6" fill="#F59E0B"/>
+    <text x="35" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">Publishers</text>
+    <circle cx="130" cy="3" r="6" fill="#EF4444"/>
+    <text x="145" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">Redis</text>
+    <circle cx="210" cy="3" r="6" fill="#10B981"/>
+    <text x="225" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">Subscribers</text>
+    <circle cx="330" cy="3" r="6" fill="#3B82F6"/>
+    <text x="345" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">WebSocket Clients</text>
+  </g>
+</svg>

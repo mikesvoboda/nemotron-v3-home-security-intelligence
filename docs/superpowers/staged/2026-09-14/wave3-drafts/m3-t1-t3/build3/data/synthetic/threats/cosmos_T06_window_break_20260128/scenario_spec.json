@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T06_window_break",
+  "category": "threats",
+  "name": "Window Break",
+  "description": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. Person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "side_yard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. Person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

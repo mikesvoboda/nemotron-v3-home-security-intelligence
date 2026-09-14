@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" fill="none">
+  <!-- Monochrome notification badge - 72x72 -->
+  <!-- Simple shield silhouette for notification badges -->
+  <path d="M36 8L12 18v16c0 12.8 9.6 24.8 24 28 14.4-3.2 24-15.2 24-28V18L36 8z" fill="white"/>
+  <!-- Eye silhouette -->
+  <ellipse cx="36" cy="36" rx="12" ry="8" fill="#1a1a2e"/>
+  <circle cx="36" cy="36" r="4" fill="white"/>
+</svg>

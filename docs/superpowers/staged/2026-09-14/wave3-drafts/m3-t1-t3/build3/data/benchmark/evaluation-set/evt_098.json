@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_098",
+  "prompt": "Analyze security event: Person with weapon visible approaching. Camera: driveway. Time: 06:27. Detected: armed_threat.",
+  "expected_response": {
+    "risk_score": 80,
+    "risk_level": "critical",
+    "summary": "Person with weapon visible approaching",
+    "reasoning": "Critical threat detected at front_yard. Immediate security concern identified. Multiple severe risk indicators present. Emergency response may be required."
+  },
+  "context": {
+    "camera": "driveway",
+    "timestamp": "2026-01-27T06:27:00",
+    "detection_type": "armed_threat",
+    "location": "front_yard"
+  }
+}

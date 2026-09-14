@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000492077",
+  "category": "normal",
+  "name": "COCO Scene 492077",
+  "description": "Scene containing 1 bus, 11 person, 4 bicycle, 4 car. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}

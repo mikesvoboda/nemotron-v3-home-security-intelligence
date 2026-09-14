@@ -1,0 +1,36 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000002592",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "knife",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 25,
+    "max_score": 45,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 1 knife. From COCO object detection dataset."
+  }
+}

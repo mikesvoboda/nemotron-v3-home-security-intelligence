@@ -1,0 +1,295 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class',
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@tremor/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      // Minimum height utilities for touch targets (WCAG 2.5.5 AAA compliance)
+      minHeight: {
+        11: '2.75rem', // 44px - WCAG 2.5.5 AAA minimum touch target
+        12: '3rem', // 48px - larger touch target
+        touch: '2.75rem', // alias for 44px minimum
+      },
+
+      // Minimum width utilities for touch targets (WCAG 2.5.5 AAA compliance)
+      minWidth: {
+        11: '2.75rem', // 44px - WCAG 2.5.5 AAA minimum touch target
+        12: '3rem', // 48px - larger touch target
+        touch: '2.75rem', // alias for 44px minimum
+      },
+
+      colors: {
+        // NVIDIA Theme - Dark Backgrounds
+        background: '#0E0E0E',
+        panel: '#1A1A1A',
+        card: '#1E1E1E',
+
+        // NVIDIA Green - Primary Brand Color
+        primary: {
+          DEFAULT: '#76B900',
+          50: '#E8F5D9',
+          100: '#D4EBB3',
+          200: '#B8DD80',
+          300: '#9CCF4D',
+          400: '#89C226',
+          500: '#76B900',
+          600: '#619900',
+          700: '#4C7900',
+          800: '#375900',
+          900: '#223A00',
+        },
+
+        // Risk Level Colors (WCAG 2.1 AA compliant - 4.5:1 contrast on 10% opacity backgrounds)
+        // Text colors are significantly brightened to meet contrast requirements when used on bg-{color}/10
+        // The browser blends the text color with the semi-transparent background, reducing effective contrast
+        risk: {
+          low: '#76B900', // Green - good contrast on dark backgrounds
+          medium: '#FFB800', // Amber - good contrast on dark backgrounds
+          high: '#FFCDD2', // Light coral for 4.5:1 contrast on bg-risk-high/10
+          critical: '#FFE0E0', // Very light pink for critical badges - 4.5:1 on blended dark bg
+        },
+
+        // Error/Danger Color (WCAG 2.1 AA compliant - 4.5:1 contrast on dark backgrounds)
+        error: {
+          DEFAULT: '#FF6B6B', // Brightened from #ef4444 for proper contrast on dark bg
+          light: '#FF8585', // For 10% opacity backgrounds
+        },
+
+        // Danger Button Color (WCAG 2.1 AA compliant - 4.5:1 contrast with white text)
+        danger: {
+          DEFAULT: '#DC2626', // Darker red (red-600) for 4.5:1 contrast with white
+          hover: '#B91C1C', // red-700 for hover state
+        },
+
+        // Link Colors (WCAG 2.1 AA compliant for dark theme)
+        link: {
+          DEFAULT: '#60A5FA', // blue-400 equivalent - good contrast on dark
+          hover: '#93C5FD', // blue-300 equivalent
+        },
+
+        // Text Colors (WCAG 2 AA compliant - 4.5:1 minimum contrast on gray-700)
+        text: {
+          primary: '#FFFFFF',
+          secondary: '#B0B0B0', // Changed from #A0A0A0 for 5.17:1 contrast on gray-700
+          muted: '#919191', // Changed from #8A8A8A for 4.81:1 contrast on #222222
+        },
+
+        // Additional Grays for UI Elements (WCAG 2 AA compliant)
+        // Lighter grays (500 and below) adjusted for 4.5:1 contrast on gray-700 (#3A3A3A)
+        gray: {
+          950: '#0E0E0E',
+          900: '#1A1A1A',
+          850: '#1E1E1E',
+          800: '#2A2A2A',
+          700: '#3A3A3A',
+          600: '#4A4A4A',
+          500: '#9A9A9A', // Changed from #707070 for 4.7:1 contrast on gray-700
+          400: '#B0B0B0', // Changed from #A0A0A0 for 5.17:1 contrast on gray-700
+          300: '#C0C0C0',
+          200: '#D0D0D0',
+          100: '#E0E0E0',
+          50: '#F0F0F0',
+        },
+
+        // Semantic Status Colors (WCAG 2.1 AA compliant - 4.5:1 contrast on dark backgrounds)
+        // Use these for consistent status indicators across the application
+        // Import from theme/colors.ts for programmatic usage
+        status: {
+          // Healthy/Online states - emerald for better contrast than green
+          healthy: {
+            DEFAULT: '#10B981', // emerald-500
+            light: 'rgba(16, 185, 129, 0.1)', // 10% opacity for backgrounds
+            text: '#34D399', // emerald-400 for text on dark bg
+            border: 'rgba(16, 185, 129, 0.3)', // 30% opacity for borders
+          },
+          // Warning/Degraded states
+          warning: {
+            DEFAULT: '#F59E0B', // amber-500
+            light: 'rgba(245, 158, 11, 0.1)',
+            text: '#FBBF24', // amber-400
+            border: 'rgba(245, 158, 11, 0.3)',
+          },
+          // Error/Offline states
+          error: {
+            DEFAULT: '#EF4444', // red-500
+            light: 'rgba(239, 68, 68, 0.1)',
+            text: '#F87171', // red-400
+            border: 'rgba(239, 68, 68, 0.3)',
+          },
+          // Inactive/Unknown states
+          inactive: {
+            DEFAULT: '#6B7280', // gray-500
+            light: 'rgba(107, 114, 128, 0.1)',
+            text: '#9CA3AF', // gray-400
+            border: 'rgba(107, 114, 128, 0.3)',
+          },
+        },
+      },
+
+      // Custom Spacing for Dashboard Layout
+      spacing: {
+        18: '4.5rem',
+        88: '22rem',
+        128: '32rem',
+        safe: 'env(safe-area-inset-bottom)',
+      },
+
+      // Font Families
+      fontFamily: {
+        sans: [
+          'Inter',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'sans-serif',
+        ],
+        mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', 'monospace'],
+      },
+
+      // Typography Scale - Comprehensive font sizes with optimal line heights
+      fontSize: {
+        xs: ['0.75rem', { lineHeight: '1rem' }], // 12px / 16px
+        sm: ['0.875rem', { lineHeight: '1.25rem' }], // 14px / 20px
+        base: ['1rem', { lineHeight: '1.5rem' }], // 16px / 24px
+        lg: ['1.125rem', { lineHeight: '1.75rem' }], // 18px / 28px
+        xl: ['1.25rem', { lineHeight: '1.75rem' }], // 20px / 28px
+        '2xl': ['1.5rem', { lineHeight: '2rem' }], // 24px / 32px
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }], // 30px / 36px
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }], // 36px / 40px
+        '5xl': ['3rem', { lineHeight: '1' }], // 48px
+        '6xl': ['3.75rem', { lineHeight: '1' }], // 60px
+      },
+
+      // Font Weights
+      fontWeight: {
+        normal: '400',
+        medium: '500',
+        semibold: '600',
+        bold: '700',
+      },
+
+      // Letter Spacing for headings
+      letterSpacing: {
+        tighter: '-0.05em',
+        tight: '-0.025em',
+        normal: '0',
+        wide: '0.025em',
+        wider: '0.05em',
+        widest: '0.1em',
+      },
+
+      // Custom Border Radius
+      borderRadius: {
+        xl: '1rem',
+        '2xl': '1.5rem',
+      },
+
+      // Box Shadows for Dark Theme
+      boxShadow: {
+        'dark-sm': '0 1px 2px 0 rgba(0, 0, 0, 0.5)',
+        dark: '0 1px 3px 0 rgba(0, 0, 0, 0.6), 0 1px 2px -1px rgba(0, 0, 0, 0.5)',
+        'dark-md': '0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.5)',
+        'dark-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5)',
+        'dark-xl': '0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+        'nvidia-glow': '0 0 20px rgba(118, 185, 0, 0.3)',
+      },
+
+      // Animation Durations
+      transitionDuration: {
+        150: '150ms',
+        200: '200ms',
+        250: '250ms',
+        300: '300ms',
+        400: '400ms',
+      },
+
+      // Transition timing functions
+      transitionTimingFunction: {
+        'ease-in-out': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'ease-out': 'cubic-bezier(0, 0, 0.2, 1)',
+        'ease-in': 'cubic-bezier(0.4, 0, 1, 1)',
+        'bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      },
+
+      // Scale for hover/active states
+      scale: {
+        98: '.98',
+        102: '1.02',
+        103: '1.03',
+        105: '1.05',
+      },
+
+      // Grid Template Columns for Dashboard
+      gridTemplateColumns: {
+        dashboard: 'repeat(auto-fit, minmax(300px, 1fr))',
+        'camera-grid': 'repeat(auto-fit, minmax(280px, 1fr))',
+      },
+
+      // Custom Animation Keyframes
+      keyframes: {
+        'pulse-glow': {
+          '0%, 100%': { boxShadow: '0 0 10px rgba(118, 185, 0, 0.2)' },
+          '50%': { boxShadow: '0 0 20px rgba(118, 185, 0, 0.4)' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        // Critical risk pulse - uses box-shadow instead of opacity to maintain WCAG 2.1 AA contrast
+        'pulse-critical': {
+          '0%, 100%': { boxShadow: '0 0 8px rgba(255, 107, 107, 0.3)' },
+          '50%': { boxShadow: '0 0 16px rgba(255, 107, 107, 0.6)' },
+        },
+        'slide-in': {
+          '0%': { transform: 'translateX(100%)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        // Ambient background pulse for critical threat level
+        'ambient-pulse': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.6' },
+        },
+        // Subtle pulse animation for critical event cards
+        // Uses box-shadow opacity change for WCAG AA compliance (no text contrast changes)
+        'pulse-subtle': {
+          '0%, 100%': { boxShadow: '0 0 8px rgba(239, 68, 68, 0.3)' },
+          '50%': { boxShadow: '0 0 16px rgba(239, 68, 68, 0.5)' },
+        },
+      },
+
+      animation: {
+        'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+        'pulse-critical': 'pulse-critical 2s ease-in-out infinite',
+        'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
+        'slide-in': 'slide-in 0.3s ease-out',
+        'fade-in': 'fade-in 0.2s ease-in',
+        float: 'float 3s ease-in-out infinite',
+        'ambient-pulse': 'ambient-pulse 2s ease-in-out infinite',
+        shimmer: 'shimmer 1.5s ease-in-out infinite',
+      },
+    },
+  },
+  plugins: [
+    // Touch device variants for responsive touch target sizing
+    // Usage: touch:h-12 (applies h-12 on touch devices with coarse pointer)
+    // Usage: mouse:h-10 (applies h-10 on devices with fine pointer/mouse)
+    function ({ addVariant }) {
+      addVariant('touch', '@media (pointer: coarse)');
+      addVariant('mouse', '@media (pointer: fine)');
+    },
+  ],
+};

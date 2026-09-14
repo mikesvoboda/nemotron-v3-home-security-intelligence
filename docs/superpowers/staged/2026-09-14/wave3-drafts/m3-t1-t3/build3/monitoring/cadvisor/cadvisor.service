@@ -1,0 +1,36 @@
+[Unit]
+Description=cAdvisor Container Metrics Exporter (Home Security Intelligence)
+Documentation=https://github.com/google/cadvisor
+After=network.target
+
+[Service]
+Type=simple
+# Remove any leftover container before starting
+ExecStartPre=-/usr/bin/podman rm -f cadvisor
+# Run cAdvisor via rootful podman.
+# cAdvisor requires privileged access to /sys/fs/cgroup, /proc, and /dev/kmsg
+# for container metrics on cgroups v2. Rootless Podman cannot provide this —
+# the overlay .containerenv error is a known limitation.
+# This service MUST run under rootful podman (same pattern as dcgm-exporter).
+#
+# Listens on localhost:8088, scraped by Prometheus via host network.
+ExecStart=/usr/bin/podman run --rm \
+    --name cadvisor \
+    --privileged \
+    --net=host \
+    --device /dev/kmsg \
+    -v /:/rootfs:ro \
+    -v /var/run:/var/run:ro \
+    -v /sys:/sys:ro \
+    -v /var/lib/containers/:/var/lib/containers:ro \
+    -e CADVISOR_HEALTHCHECK_URL=http://localhost:8088/healthz \
+    gcr.io/cadvisor/cadvisor:v0.49.1 \
+    -port 8088
+ExecStop=/usr/bin/podman stop -t 10 cadvisor
+Restart=on-failure
+RestartSec=10s
+TimeoutStartSec=60
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+{
+  "id": "kinetics_validate_Dkex0Uc4jlQ_0066",
+  "category": "threats",
+  "name": "Headbutting",
+  "description": "Person performing action: headbutting. Video clip from YouTube (Dkex0Uc4jlQ), seconds 66-76.",
+  "source": "kinetics",
+  "scene": {
+    "location": "varies",
+    "camera_type": "varies",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 10.0
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000345027",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "motorcycle",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 14
+    },
+    {
+      "class": "truck",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "umbrella",
+      "min_confidence": 0.5,
+      "count": 2
+    },
+    {
+      "class": "kite",
+      "min_confidence": 0.5,
+      "count": 7
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 14 person, 1 motorcycle, 7 kite, 1 truck, 2 umbrella. From COCO object detection dataset."
+  }
+}

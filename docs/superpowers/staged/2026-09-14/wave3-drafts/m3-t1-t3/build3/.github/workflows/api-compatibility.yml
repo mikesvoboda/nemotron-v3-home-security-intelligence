@@ -1,0 +1,408 @@
+name: API Compatibility
+
+# Main only: Detects breaking API changes post-merge.
+# Removed from PRs to reduce CI time - breaking changes are rare and caught in review.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/api/**'
+      - 'backend/models/**'
+      - 'backend/main.py'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  UV_VERSION: '0.9.18'
+
+jobs:
+  # ============================================================================
+  # API Compatibility Check
+  # Detects breaking API changes between current branch and main
+  # ============================================================================
+
+  api-compatibility:
+    name: API Breaking Change Detection
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    # Blocking for PRs unless 'breaking-change-approved' label is present
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Install oasdiff
+        run: |
+          # Install oasdiff for OpenAPI schema comparison
+          # Using direct binary download with proper error handling
+          OASDIFF_VERSION="1.10.25"
+          DOWNLOAD_URL="https://github.com/Tufin/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+
+          # Download with retry and error checking
+          for i in 1 2 3; do
+            echo "Attempt $i: Downloading oasdiff v${OASDIFF_VERSION}..."
+            if curl -fsSL --retry 3 "$DOWNLOAD_URL" -o /tmp/oasdiff.tar.gz; then
+              # Verify it's actually a gzip file
+              if file /tmp/oasdiff.tar.gz | grep -q gzip; then
+                tar xzf /tmp/oasdiff.tar.gz -C /tmp
+                sudo mv /tmp/oasdiff /usr/local/bin/
+                oasdiff --version
+                exit 0
+              else
+                echo "Downloaded file is not a valid gzip archive"
+                cat /tmp/oasdiff.tar.gz | head -20
+              fi
+            fi
+            echo "Download failed, retrying in 5 seconds..."
+            sleep 5
+          done
+
+          echo "::warning::Failed to download oasdiff. Skipping API compatibility check."
+          exit 0
+
+      - name: Generate current branch OpenAPI spec
+        id: current-spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: test # Avoid production password validation in CI
+        run: |
+          echo "Generating OpenAPI spec from current branch..."
+          uv run python -c "
+          from backend.main import app
+          import json
+          spec = app.openapi()
+          with open('openapi-current.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print(f'Generated OpenAPI spec with {len(spec.get(\"paths\", {}))} endpoints')
+          "
+
+      - name: Generate main branch OpenAPI spec
+        id: main-spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: test # Avoid production password validation in CI
+        run: |
+          echo "Fetching OpenAPI spec from main branch..."
+          # Stash any uncommitted changes
+          git stash --include-untracked || true
+
+          # Checkout main branch
+          git checkout origin/main
+
+          # Generate spec from main
+          uv run python -c "
+          from backend.main import app
+          import json
+          spec = app.openapi()
+          with open('openapi-main.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print(f'Generated OpenAPI spec with {len(spec.get(\"paths\", {}))} endpoints')
+          " || echo '{}' > openapi-main.json
+
+          # Return to original branch
+          git checkout -
+
+          # Restore stashed changes
+          git stash pop || true
+
+      - name: Run oasdiff breaking change detection
+        id: oasdiff
+        run: |
+          echo "## API Compatibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check for breaking changes
+          echo "### Breaking Changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run oasdiff breaking check
+          if oasdiff breaking openapi-main.json openapi-current.json --format text > breaking-changes.txt 2>&1; then
+            if [ -s breaking-changes.txt ]; then
+              echo "Breaking changes detected:"
+              cat breaking-changes.txt
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              cat breaking-changes.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=true" >> $GITHUB_OUTPUT
+            else
+              echo "No breaking changes detected"
+              echo "No breaking changes detected." >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Check if this is an OpenAPI 3.1 compatibility error (oasdiff doesn't support 3.1)
+            if grep -q "cannot unmarshal number into.*exclusiveMinimum\|exclusiveMaximum.*type bool" breaking-changes.txt; then
+              echo "::warning::oasdiff does not support OpenAPI 3.1 (exclusiveMinimum/exclusiveMaximum as numbers). Skipping breaking change detection."
+              echo "⚠️ **Skipped**: oasdiff does not support OpenAPI 3.1 (exclusiveMinimum/exclusiveMaximum as numbers)." >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
+            elif grep -q "failed to load\|failed to unmarshal" breaking-changes.txt; then
+              echo "::warning::Failed to parse OpenAPI specs. This may be due to OpenAPI 3.1 incompatibility."
+              echo "⚠️ **Skipped**: Failed to parse OpenAPI specs (possible OpenAPI 3.1 incompatibility)." >> $GITHUB_STEP_SUMMARY
+              cat breaking-changes.txt
+              echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
+            else
+              # oasdiff returns non-zero when breaking changes found
+              echo "Breaking changes detected:"
+              cat breaking-changes.txt
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              cat breaking-changes.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+          # Generate full diff report
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Full API Diff" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run oasdiff diff for complete changelog
+          oasdiff diff openapi-main.json openapi-current.json --format text > full-diff.txt 2>&1 || true
+
+          if [ -s full-diff.txt ]; then
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>Click to expand full diff</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -500 full-diff.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No API changes detected." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Summary statistics
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          MAIN_ENDPOINTS=$(jq '.paths | keys | length' openapi-main.json 2>/dev/null || echo "0")
+          CURRENT_ENDPOINTS=$(jq '.paths | keys | length' openapi-current.json 2>/dev/null || echo "0")
+          echo "| Metric | Main | Current |" >> $GITHUB_STEP_SUMMARY
+          echo "| ------ | ---- | ------- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoints | $MAIN_ENDPOINTS | $CURRENT_ENDPOINTS |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload OpenAPI specs as artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: openapi-specs
+          path: |
+            openapi-main.json
+            openapi-current.json
+            breaking-changes.txt
+            full-diff.txt
+          retention-days: 30
+
+      - name: Check for breaking-change-approved label
+        id: check-label
+        if: github.event_name == 'pull_request' && steps.oasdiff.outputs.HAS_BREAKING == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const hasApprovalLabel = labels.includes('breaking-change-approved');
+            core.setOutput('has_approval', hasApprovalLabel);
+            if (hasApprovalLabel) {
+              core.info('✅ Breaking changes approved via label');
+            } else {
+              core.info('❌ No breaking-change-approved label found');
+            }
+            return hasApprovalLabel;
+
+      - name: Comment on PR with breaking changes
+        if: github.event_name == 'pull_request' && steps.oasdiff.outputs.HAS_BREAKING == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
+        with:
+          script: |
+            const fs = require('fs');
+            const breakingChanges = fs.readFileSync('breaking-changes.txt', 'utf8');
+            const fullDiff = fs.readFileSync('full-diff.txt', 'utf8').substring(0, 5000);
+            const hasApproval = '${{ steps.check-label.outputs.has_approval }}' === 'true';
+
+            const body = `## 🚨 Breaking API Changes Detected
+
+            ${hasApproval ? '✅ **Approved**: This PR has the \`breaking-change-approved\` label.' : '❌ **Not Approved**: Add the \`breaking-change-approved\` label to merge despite breaking changes.'}
+
+            ### Breaking Changes
+
+            \`\`\`
+            ${breakingChanges}
+            \`\`\`
+
+            <details>
+            <summary>Full API Diff</summary>
+
+            \`\`\`
+            ${fullDiff}
+            ${fullDiff.length >= 5000 ? '\n... (truncated, see workflow artifacts for full diff)' : ''}
+            \`\`\`
+            </details>
+
+            ### Required Actions
+
+            1. **Review** all breaking changes above
+            2. **Update** frontend API clients if needed
+            3. **Update** API documentation
+            4. **Consider** API versioning for major changes
+            5. **Add label** \`breaking-change-approved\` to proceed with merge
+
+            ### Run Locally
+
+            \`\`\`bash
+            ./scripts/check-api-compatibility.sh
+            # Or use Python script:
+            uv run python scripts/check-api-breaking-changes.py --base docs/openapi.json --current openapi-current.json
+            \`\`\`
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' &&
+              c.body.includes('Breaking API Changes Detected')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: body,
+              });
+            }
+
+      - name: Fail if breaking changes detected and not approved
+        if: |
+          github.event_name == 'pull_request' &&
+          steps.oasdiff.outputs.HAS_BREAKING == 'true' &&
+          steps.check-label.outputs.has_approval != 'true'
+        run: |
+          echo "::error::Breaking API changes detected without approval."
+          echo "::error::Add the 'breaking-change-approved' label to this PR to proceed."
+          echo ""
+          echo "Breaking changes detected:"
+          cat breaking-changes.txt
+          exit 1
+
+      - name: Success message for approved breaking changes
+        if: |
+          github.event_name == 'pull_request' &&
+          steps.oasdiff.outputs.HAS_BREAKING == 'true' &&
+          steps.check-label.outputs.has_approval == 'true'
+        run: |
+          echo "::notice::Breaking changes approved via 'breaking-change-approved' label."
+          echo "Proceeding with merge."
+
+  # ============================================================================
+  # Issue Creation Job (only on main branch failures)
+  # ============================================================================
+
+  create-issue-on-failure:
+    name: Create Linear Issue
+    runs-on: ubuntu-latest
+    needs: [api-compatibility]
+    if: needs.api-compatibility.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Create Linear issue on failure
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          TITLE="Breaking API change detected"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
+              "variables": {
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
+                }
+              }
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue instead of creating duplicate
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "## Breaking API Change Detected\n\nA breaking API change was detected after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Breaking Changes Detected\n\nPossible issues include:\n- Removed endpoints\n- Removed required parameters\n- Changed response schemas\n- Type changes in request/response bodies\n\n### Action Required\n\n1. Review the API compatibility report in the workflow run\n2. If the breaking change is intentional:\n   - Update frontend API clients\n   - Update API documentation\n   - Consider API versioning for major changes\n3. If unintentional, revert or fix the change\n4. Run locally to investigate:\n   ```bash\n   ./scripts/check-api-compatibility.sh\n   ```",
+                    "priority": 2,
+                    "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                  }
+                }
+              }')
+
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" != "200" ]; then
+              echo "::warning::Failed to create Linear issue (HTTP $http_code)"
+              echo "Response: $body"
+            else
+              echo "Linear issue created successfully"
+              echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+            fi
+          fi

@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_054",
+  "prompt": "Analyze security event: Bird at bird feeder. Camera: side_gate. Time: 23:50. Detected: animal.",
+  "expected_response": {
+    "risk_score": 14,
+    "risk_level": "low",
+    "summary": "Bird at bird feeder",
+    "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "side_gate",
+    "timestamp": "2026-01-14T23:50:00",
+    "detection_type": "animal",
+    "location": "backyard"
+  }
+}

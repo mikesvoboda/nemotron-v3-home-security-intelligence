@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" fill="none">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="pipelineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="redisGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <linearGradient id="backendGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="wsGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+    <!-- Glow filter -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="700" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="450" y="35" fill="#E5E7EB" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="600" text-anchor="middle">WebSocket Real-Time Architecture</text>
+
+  <!-- AI Pipeline Section -->
+  <g transform="translate(0, 60)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="800" height="100" rx="8" fill="#F59E0B" fill-opacity="0.1" stroke="#F59E0B" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="70" y="25" fill="#F59E0B" font-family="system-ui, sans-serif" font-size="12" font-weight="600">AI PIPELINE</text>
+
+    <!-- NemotronAnalyzer -->
+    <g transform="translate(130, 40)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="50" rx="6" fill="url(#pipelineGrad)"/>
+      <text x="80" y="22" fill="white" font-family="system-ui, sans-serif" font-size="13" font-weight="500" text-anchor="middle">NemotronAnalyzer</text>
+      <text x="80" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Event Creation</text>
+    </g>
+
+    <!-- GPUMonitor -->
+    <g transform="translate(370, 40)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="50" rx="6" fill="url(#pipelineGrad)"/>
+      <text x="80" y="22" fill="white" font-family="system-ui, sans-serif" font-size="13" font-weight="500" text-anchor="middle">GPUMonitor</text>
+      <text x="80" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Stats Collection</text>
+    </g>
+
+    <!-- HealthMonitor -->
+    <g transform="translate(610, 40)" filter="url(#shadow)">
+      <rect x="0" y="0" width="160" height="50" rx="6" fill="url(#pipelineGrad)"/>
+      <text x="80" y="22" fill="white" font-family="system-ui, sans-serif" font-size="13" font-weight="500" text-anchor="middle">HealthMonitor</text>
+      <text x="80" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Service Status</text>
+    </g>
+  </g>
+
+  <!-- Arrows from Pipeline to Redis -->
+  <g stroke="#F59E0B" stroke-width="2" fill="none" marker-end="url(#arrowAmber)">
+    <path d="M210 160 L210 195 Q210 205 220 205 L280 205"/>
+    <path d="M450 160 L450 205 L380 205"/>
+    <path d="M690 160 L690 195 Q690 205 680 205 L620 205"/>
+  </g>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#EF4444"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3B82F6"/>
+    </marker>
+  </defs>
+
+  <!-- Redis Pub/Sub Section -->
+  <g transform="translate(0, 180)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="800" height="100" rx="8" fill="#EF4444" fill-opacity="0.1" stroke="#EF4444" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="70" y="25" fill="#EF4444" font-family="system-ui, sans-serif" font-size="12" font-weight="600">REDIS PUB/SUB</text>
+
+    <!-- security_events channel -->
+    <g transform="translate(200, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="180" height="50" rx="6" fill="url(#redisGrad)"/>
+      <text x="90" y="22" fill="white" font-family="system-ui, sans-serif" font-size="13" font-weight="500" text-anchor="middle">security_events</text>
+      <text x="90" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">channel</text>
+    </g>
+
+    <!-- system_status channel -->
+    <g transform="translate(520, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="180" height="50" rx="6" fill="url(#redisGrad)"/>
+      <text x="90" y="22" fill="white" font-family="system-ui, sans-serif" font-size="13" font-weight="500" text-anchor="middle">system_status</text>
+      <text x="90" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">channel</text>
+    </g>
+  </g>
+
+  <!-- Arrows from Redis to Backend -->
+  <g stroke="#EF4444" stroke-width="2" fill="none">
+    <!-- From security_events -->
+    <path d="M290 280 L290 320 Q290 330 280 330 L180 330" marker-end="url(#arrowRed)"/>
+    <path d="M290 280 L290 320 Q290 330 300 330 L400 330" marker-end="url(#arrowRed)"/>
+    <!-- From system_status -->
+    <path d="M610 280 L610 320 Q610 330 600 330 L500 330" marker-end="url(#arrowRed)"/>
+    <path d="M610 280 L610 320 Q610 330 620 330 L720 330" marker-end="url(#arrowRed)"/>
+  </g>
+
+  <!-- Backend Instances Section -->
+  <g transform="translate(0, 300)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="800" height="100" rx="8" fill="#10B981" fill-opacity="0.1" stroke="#10B981" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="70" y="25" fill="#10B981" font-family="system-ui, sans-serif" font-size="12" font-weight="600">BACKEND INSTANCES</text>
+
+    <!-- EventBroadcaster 1 -->
+    <g transform="translate(100, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="140" height="50" rx="6" fill="url(#backendGrad)"/>
+      <text x="70" y="22" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">EventBroadcaster</text>
+      <text x="70" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Instance 1</text>
+    </g>
+
+    <!-- EventBroadcaster 2 -->
+    <g transform="translate(300, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="140" height="50" rx="6" fill="url(#backendGrad)"/>
+      <text x="70" y="22" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">EventBroadcaster</text>
+      <text x="70" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Instance 2</text>
+    </g>
+
+    <!-- SystemBroadcaster 1 -->
+    <g transform="translate(460, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="150" height="50" rx="6" fill="url(#backendGrad)"/>
+      <text x="75" y="22" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">SystemBroadcaster</text>
+      <text x="75" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Instance 1</text>
+    </g>
+
+    <!-- SystemBroadcaster 2 -->
+    <g transform="translate(660, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="150" height="50" rx="6" fill="url(#backendGrad)"/>
+      <text x="75" y="22" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">SystemBroadcaster</text>
+      <text x="75" y="38" fill="rgba(255,255,255,0.8)" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">Instance 2</text>
+    </g>
+  </g>
+
+  <!-- Arrows from Backend to WebSocket -->
+  <g stroke="#10B981" stroke-width="2" fill="none">
+    <!-- EventBroadcasters to /ws/events -->
+    <path d="M170 400 L170 440 Q170 450 180 450 L270 450" marker-end="url(#arrowGreen)"/>
+    <path d="M370 400 L370 440 Q370 450 360 450 L330 450"/>
+    <!-- SystemBroadcasters to /ws/system -->
+    <path d="M535 400 L535 440 Q535 450 545 450 L570 450"/>
+    <path d="M735 400 L735 440 Q735 450 725 450 L630 450" marker-end="url(#arrowGreen)"/>
+  </g>
+
+  <!-- WebSocket Endpoints Section -->
+  <g transform="translate(0, 420)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="800" height="90" rx="8" fill="#3B82F6" fill-opacity="0.1" stroke="#3B82F6" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="70" y="25" fill="#3B82F6" font-family="system-ui, sans-serif" font-size="12" font-weight="600">WEBSOCKET ENDPOINTS</text>
+
+    <!-- /ws/events -->
+    <g transform="translate(180, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="140" height="45" rx="6" fill="url(#wsGrad)"/>
+      <text x="70" y="28" fill="white" font-family="monospace" font-size="14" font-weight="500" text-anchor="middle">/ws/events</text>
+    </g>
+
+    <!-- /ws/system -->
+    <g transform="translate(520, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="140" height="45" rx="6" fill="url(#wsGrad)"/>
+      <text x="70" y="28" fill="white" font-family="monospace" font-size="14" font-weight="500" text-anchor="middle">/ws/system</text>
+    </g>
+  </g>
+
+  <!-- Arrows from WebSocket to Clients -->
+  <g stroke="#3B82F6" stroke-width="2" fill="none">
+    <!-- From /ws/events -->
+    <path d="M250 510 L250 555 Q250 565 240 565 L180 565" marker-end="url(#arrowBlue)"/>
+    <path d="M250 510 L250 555 Q250 565 260 565 L320 565"/>
+    <!-- From /ws/system -->
+    <path d="M590 510 L590 555 Q590 565 580 565 L520 565"/>
+    <path d="M590 510 L590 555 Q590 565 600 565 L660 565" marker-end="url(#arrowBlue)"/>
+  </g>
+
+  <!-- Dashboard Clients Section -->
+  <g transform="translate(0, 540)">
+    <!-- Section background -->
+    <rect x="50" y="0" width="800" height="90" rx="8" fill="#8B5CF6" fill-opacity="0.1" stroke="#8B5CF6" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="70" y="25" fill="#8B5CF6" font-family="system-ui, sans-serif" font-size="12" font-weight="600">DASHBOARD CLIENTS</text>
+
+    <!-- Browser 1 -->
+    <g transform="translate(100, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="45" rx="6" fill="url(#clientGrad)"/>
+      <text x="50" y="28" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">Browser 1</text>
+    </g>
+
+    <!-- Browser 2 -->
+    <g transform="translate(260, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="45" rx="6" fill="url(#clientGrad)"/>
+      <text x="50" y="28" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">Browser 2</text>
+    </g>
+
+    <!-- Browser 3 -->
+    <g transform="translate(440, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="45" rx="6" fill="url(#clientGrad)"/>
+      <text x="50" y="28" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">Browser 3</text>
+    </g>
+
+    <!-- Browser N -->
+    <g transform="translate(600, 35)" filter="url(#shadow)">
+      <rect x="0" y="0" width="100" height="45" rx="6" fill="url(#clientGrad)"/>
+      <text x="50" y="28" fill="white" font-family="system-ui, sans-serif" font-size="12" font-weight="500" text-anchor="middle">Browser N</text>
+    </g>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(50, 655)">
+    <rect x="0" y="-12" width="800" height="30" rx="4" fill="rgba(255,255,255,0.05)"/>
+    <circle cx="20" cy="3" r="6" fill="#F59E0B"/>
+    <text x="35" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">AI Pipeline</text>
+    <circle cx="130" cy="3" r="6" fill="#EF4444"/>
+    <text x="145" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">Redis Pub/Sub</text>
+    <circle cx="260" cy="3" r="6" fill="#10B981"/>
+    <text x="275" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">Backend</text>
+    <circle cx="360" cy="3" r="6" fill="#3B82F6"/>
+    <text x="375" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">WebSocket</text>
+    <circle cx="470" cy="3" r="6" fill="#8B5CF6"/>
+    <text x="485" y="7" fill="#9CA3AF" font-family="system-ui, sans-serif" font-size="10">Clients</text>
+  </g>
+</svg>

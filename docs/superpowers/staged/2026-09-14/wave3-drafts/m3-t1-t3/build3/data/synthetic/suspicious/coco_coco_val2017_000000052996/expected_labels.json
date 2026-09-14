@@ -1,0 +1,51 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000052996",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "handbag",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 7
+    },
+    {
+      "class": "backpack",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "knife",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 25,
+    "max_score": 45,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 1 handbag, 1 backpack, 1 knife, 7 person. From COCO object detection dataset."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "generated_at": "2026-01-06T00:00:00Z",
+  "generator": "bandit",
+  "results": [],
+  "_comment": "Bandit baseline file for tracking known security findings. Run 'bandit -r backend/ -f json -o .bandit.baseline' to regenerate. Empty results indicate clean baseline."
+}

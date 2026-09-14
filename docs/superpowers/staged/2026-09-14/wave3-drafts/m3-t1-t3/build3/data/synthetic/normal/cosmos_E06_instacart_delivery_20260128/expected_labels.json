@@ -1,0 +1,41 @@
+{
+  "source": "cosmos",
+  "video_id": "E06",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 2
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "delivering",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 25,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person carrying multiple grocery bags in both hands walks up carefully, sets bags down at the door, rings do..."
+  }
+}

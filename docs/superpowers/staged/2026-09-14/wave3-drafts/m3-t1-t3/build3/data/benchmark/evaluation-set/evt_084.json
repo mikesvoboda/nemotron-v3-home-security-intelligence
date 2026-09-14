@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_084",
+  "prompt": "Analyze security event: Door-to-door salesperson. Camera: side_gate. Time: 06:52. Detected: solicitor.",
+  "expected_response": {
+    "risk_score": 31,
+    "risk_level": "medium",
+    "summary": "Door-to-door salesperson",
+    "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+  },
+  "context": {
+    "camera": "side_gate",
+    "timestamp": "2026-01-29T06:52:00",
+    "detection_type": "solicitor",
+    "location": "front_door"
+  }
+}

@@ -1,0 +1,1534 @@
+"""Admin API routes for seeding test data.
+
+Provides endpoints for seeding cameras, events, and pipeline latency data
+for development and testing purposes.
+"""
+
+import random
+import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any  # Still used for cameras list in SeedCamerasResponse
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.api.routes.auth import get_current_admin_user
+from backend.api.schemas.auth import (
+    AdminUserCreateRequest,
+    AdminUserDeleteResponse,
+    AdminUserListResponse,
+    UserResponse,
+)
+from backend.core.config import get_settings
+from backend.core.database import get_db
+from backend.core.dependencies import get_redis_dependency
+from backend.core.logging import get_logger
+from backend.core.redis import RedisClient
+from backend.models.audit import AuditAction, AuditStatus
+from backend.models.camera import Camera
+from backend.models.detection import Detection
+from backend.models.event import Event
+from backend.models.user import User
+from backend.services.audit import get_db_audit_service
+from backend.services.auth_service import AuthService
+
+logger = get_logger(__name__)
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+# --- Request/Response Schemas ---
+
+
+class SeedCamerasRequest(BaseModel):
+    """Request schema for seeding cameras."""
+
+    count: int = Field(default=6, ge=1, le=6, description="Number of cameras to create (1-6)")
+    clear_existing: bool = Field(default=False, description="Remove existing cameras first")
+    create_folders: bool = Field(default=False, description="Create camera folders on filesystem")
+
+
+class SeedCamerasResponse(BaseModel):
+    """Response schema for seed cameras endpoint."""
+
+    created: int
+    cleared: int
+    cameras: list[dict[str, Any]]
+
+
+class SeedEventsRequest(BaseModel):
+    """Request schema for seeding events."""
+
+    count: int = Field(default=15, ge=1, le=100, description="Number of events to create (1-100)")
+    clear_existing: bool = Field(default=False, description="Remove existing events and detections")
+
+
+class SeedEventsResponse(BaseModel):
+    """Response schema for seed events endpoint."""
+
+    events_created: int
+    detections_created: int
+    events_cleared: int
+    detections_cleared: int
+
+
+class ClearDataRequest(BaseModel):
+    """Request schema for clearing data - requires confirmation."""
+
+    confirm: str = Field(
+        ...,
+        description="Must be exactly 'DELETE_ALL_DATA' to confirm deletion",
+    )
+
+
+class ClearDataResponse(BaseModel):
+    """Response schema for clear data endpoint."""
+
+    cameras_cleared: int
+    events_cleared: int
+    detections_cleared: int
+
+
+class OrphanCleanupRequest(BaseModel):
+    """Request schema for orphan cleanup endpoint."""
+
+    dry_run: bool = Field(
+        default=True,
+        description="If True, only report what would be deleted without actually deleting",
+    )
+    min_age_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description="Minimum age in hours before a file can be deleted (1-720)",
+    )
+    max_delete_gb: float = Field(
+        default=10.0,
+        ge=0.1,
+        le=100.0,
+        description="Maximum gigabytes to delete in one run (0.1-100)",
+    )
+
+
+class OrphanCleanupResponse(BaseModel):
+    """Response schema for orphan cleanup endpoint."""
+
+    scanned_files: int
+    orphaned_files: int
+    deleted_files: int
+    deleted_bytes: int
+    deleted_bytes_formatted: str
+    failed_count: int
+    failed_deletions: list[str]
+    duration_seconds: float
+    dry_run: bool
+    skipped_young: int
+    skipped_size_limit: int
+
+
+class SeedPipelineLatencyRequest(BaseModel):
+    """Request schema for seeding pipeline latency data."""
+
+    num_samples: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="Number of latency samples to generate per stage (10-1000)",
+    )
+    time_span_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="Time span in hours for the generated samples (1-168)",
+    )
+
+
+class SeedPipelineLatencyResponse(BaseModel):
+    """Response schema for seed pipeline latency endpoint."""
+
+    samples_per_stage: int
+    stages_seeded: list[str]
+    time_span_hours: int
+    message: str
+
+
+# --- Sample Data ---
+
+
+def _get_sample_cameras() -> list[dict[str, str]]:
+    """Generate sample camera data using configured foscam_base_path.
+
+    This ensures seeded cameras have folder_paths that are valid under
+    the configured base path, avoiding 404 errors when serving snapshots.
+    """
+    settings = get_settings()
+    base_path = settings.foscam_base_path
+
+    return [
+        {
+            "id": "front-door",
+            "name": "Front Door",
+            "folder_path": f"{base_path}/front_door",
+            "status": "online",
+        },
+        {
+            "id": "backyard",
+            "name": "Backyard",
+            "folder_path": f"{base_path}/backyard",
+            "status": "online",
+        },
+        {
+            "id": "garage",
+            "name": "Garage",
+            "folder_path": f"{base_path}/garage",
+            "status": "offline",
+        },
+        {
+            "id": "driveway",
+            "name": "Driveway",
+            "folder_path": f"{base_path}/driveway",
+            "status": "online",
+        },
+        {
+            "id": "side-gate",
+            "name": "Side Gate",
+            "folder_path": f"{base_path}/side_gate",
+            "status": "online",
+        },
+        {
+            "id": "living-room",
+            "name": "Living Room",
+            "folder_path": f"{base_path}/living_room",
+            "status": "offline",
+        },
+    ]
+
+
+MOCK_SUMMARIES = {
+    "low": [
+        "Routine activity detected. Family member arriving home from work.",
+        "Delivery driver dropped off package at front door. Normal delivery activity.",
+        "Neighborhood cat passing through the backyard. No security concern.",
+        "Mail carrier delivering daily mail. Expected activity.",
+        "Landscaping crew performing scheduled yard maintenance.",
+    ],
+    "medium": [
+        "Unknown vehicle parked briefly in driveway. Driver appeared to check phone.",
+        "Unrecognized person approached front door but left without ringing bell.",
+        "Motion detected at unusual hour. Appears to be neighbor retrieving item.",
+        "Unknown individual walking slowly past property, looking at houses.",
+        "Vehicle made U-turn in driveway. Could not identify occupants.",
+    ],
+    "high": [
+        "Suspicious individual observed checking door handles on parked vehicles.",
+        "Person wearing hood lingering near side gate for extended period.",
+        "Multiple unknown individuals approaching property from different directions.",
+        "Person photographing house and property from sidewalk.",
+        "Individual attempted to open gate latch before walking away quickly.",
+    ],
+}
+
+MOCK_REASONING = {
+    "low": [
+        "Activity matches expected patterns for this time of day. No indicators of threat.",
+        "Standard delivery behavior observed. Driver followed normal protocol.",
+        "Animal activity only. No human presence detected. Motion was brief.",
+    ],
+    "medium": [
+        "While not overtly threatening, the combination of unfamiliar face and hesitant "
+        "approach warrants attention. Recommend reviewing if activity repeats.",
+        "Vehicle presence was brief but unexplained. Pattern does not match delivery.",
+        "Unusual timing raises baseline concern. Activity appears benign but unusual.",
+    ],
+    "high": [
+        "Multiple risk indicators present: unknown individual, suspicious behavior pattern, "
+        "evasive movement. High probability of criminal intent.",
+        "Subject exhibited classic pre-surveillance behavior: slow approach, extended "
+        "observation, photographing security features. Immediate review recommended.",
+        "Coordinated approach by multiple unknowns suggests planning. Behavior inconsistent "
+        "with legitimate visitors.",
+    ],
+}
+
+OBJECT_TYPES = ["person", "vehicle", "animal", "package"]
+
+
+# --- Security: Admin Access Control ---
+
+
+def require_admin_access() -> None:
+    """Require admin access for destructive/seeding operations.
+
+    Admin endpoints are enabled by default for single-user local deployments.
+    Network binding to 127.0.0.1 is the primary security boundary.
+
+    Raises:
+        HTTPException: 403 Forbidden if admin_enabled is False
+    """
+    settings = get_settings()
+
+    if not settings.admin_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin endpoints require ADMIN_ENABLED=true",
+        )
+
+
+# --- Endpoints ---
+
+
+@router.post(
+    "/seed/cameras",
+    response_model=SeedCamerasResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "Cameras created successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def seed_cameras(
+    request: SeedCamerasRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> SeedCamerasResponse:
+    """Seed test cameras into the database.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Args:
+        request: Seed configuration (count, clear_existing, create_folders)
+        http_request: FastAPI request for audit logging
+        db: Database session
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of seeded cameras
+    """
+
+    cleared = 0
+    created = 0
+    cameras_created: list[dict[str, Any]] = []
+
+    # Clear existing cameras if requested
+    if request.clear_existing:
+        result = await db.execute(select(Camera))
+        existing = result.scalars().all()
+        cleared = len(existing)
+
+        if cleared > 0:
+            await db.execute(delete(Camera))
+            await db.commit()
+
+    # Seed cameras
+    cameras_to_create = _get_sample_cameras()[: request.count]
+
+    # Batch load existing camera IDs to avoid N+1 queries
+    camera_ids_to_check = [c["id"] for c in cameras_to_create]
+    existing_result = await db.execute(select(Camera.id).where(Camera.id.in_(camera_ids_to_check)))
+    existing_ids = {row[0] for row in existing_result.all()}
+
+    for camera_data in cameras_to_create:
+        # Check if camera already exists using batch-loaded set
+        if camera_data["id"] in existing_ids:
+            continue
+
+        # Create camera folder if requested
+        if request.create_folders:
+            folder_path = Path(camera_data["folder_path"])
+            try:
+                folder_path.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                # Folder creation is optional - continue with camera registration even if
+                # filesystem operations fail. Camera will be created in DB regardless.
+                # See: NEM-2540 for rationale
+                pass
+
+        # Create camera in database
+        camera = Camera(
+            id=camera_data["id"],
+            name=camera_data["name"],
+            folder_path=camera_data["folder_path"],
+            status=camera_data["status"],
+        )
+        db.add(camera)
+        created += 1
+        cameras_created.append(
+            {
+                "id": camera.id,
+                "name": camera.name,
+                "folder_path": camera.folder_path,
+                "status": camera.status,
+            }
+        )
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_SEEDED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "seed_cameras",
+                "cameras_created": created,
+                "cameras_cleared": cleared,
+                "clear_existing": request.clear_existing,
+                "create_folders": request.create_folders,
+                "requested_count": request.count,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_SEEDED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    logger.info(
+        "Admin operation: seed_cameras",
+        extra={
+            "admin_operation": True,
+            "operation": "seed_cameras",
+            "parameters": {
+                "count": request.count,
+                "clear_existing": request.clear_existing,
+                "create_folders": request.create_folders,
+            },
+            "result": {
+                "cameras_created": created,
+                "cameras_cleared": cleared,
+            },
+        },
+    )
+
+    await db.commit()
+
+    return SeedCamerasResponse(
+        created=created,
+        cleared=cleared,
+        cameras=cameras_created,
+    )
+
+
+@router.post(
+    "/seed/events",
+    response_model=SeedEventsResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "Events and detections created successfully"},
+        400: {"description": "Bad request - No cameras found"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def seed_events(
+    request: SeedEventsRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> SeedEventsResponse:
+    """Seed mock events and detections into the database.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    Requires cameras to exist first.
+
+    Args:
+        request: Seed configuration (count, clear_existing)
+        http_request: FastAPI request for audit logging
+        db: Database session
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of seeded events and detections
+    """
+
+    events_cleared = 0
+    detections_cleared = 0
+    events_created = 0
+    detections_created = 0
+
+    # Clear existing data if requested
+    if request.clear_existing:
+        events_result = await db.execute(select(Event))
+        events_cleared = len(events_result.scalars().all())
+
+        detections_result = await db.execute(select(Detection))
+        detections_cleared = len(detections_result.scalars().all())
+
+        await db.execute(delete(Event))
+        await db.execute(delete(Detection))
+        await db.commit()
+
+    # Get cameras
+    result = await db.execute(select(Camera))
+    cameras = result.scalars().all()
+
+    if not cameras:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No cameras found. Seed cameras first with POST /api/admin/seed/cameras",
+        )
+
+    # Create events
+    for _ in range(request.count):
+        # Pick a random camera
+        camera = random.choice(cameras)  # noqa: S311
+
+        # Determine risk level with weighted distribution
+        risk_roll = random.random()  # noqa: S311
+        if risk_roll < 0.5:
+            risk_level = "low"
+            risk_score = random.randint(5, 33)  # noqa: S311
+        elif risk_roll < 0.85:
+            risk_level = "medium"
+            risk_score = random.randint(34, 66)  # noqa: S311
+        else:
+            risk_level = "high"
+            risk_score = random.randint(67, 95)  # noqa: S311
+
+        # Generate timestamps (spread over last 24 hours)
+        hours_ago = random.uniform(0, 24)  # noqa: S311
+        started_at = datetime.now(UTC) - timedelta(hours=hours_ago)
+        duration_seconds = random.randint(10, 180)  # noqa: S311
+        ended_at = started_at + timedelta(seconds=duration_seconds)
+
+        # Create batch ID
+        batch_id = str(uuid.uuid4())[:8]
+
+        # Create 1-5 detections for this event
+        num_detections = random.randint(1, 5)  # noqa: S311
+        detection_ids = []
+
+        for j in range(num_detections):
+            object_type = random.choice(OBJECT_TYPES)  # noqa: S311
+            confidence = random.uniform(0.65, 0.98)  # noqa: S311
+
+            # Generate mock bounding box
+            bbox_x = random.randint(50, 400)  # noqa: S311
+            bbox_y = random.randint(50, 300)  # noqa: S311
+            bbox_width = random.randint(80, 200)  # noqa: S311
+            bbox_height = random.randint(100, 250)  # noqa: S311
+
+            # Use mock image path
+            folder_name = camera.folder_path.split("/")[-1]
+            file_path = f"/app/data/cameras/{folder_name}/capture_00{j + 1}.jpg"
+
+            detection = Detection(
+                camera_id=camera.id,
+                file_path=file_path,
+                file_type="image/jpeg",
+                detected_at=started_at + timedelta(seconds=j * 2),
+                object_type=object_type,
+                confidence=round(confidence, 2),
+                bbox_x=bbox_x,
+                bbox_y=bbox_y,
+                bbox_width=bbox_width,
+                bbox_height=bbox_height,
+            )
+            db.add(detection)
+            await db.flush()  # Get the ID
+            detection_ids.append(str(detection.id))
+            detections_created += 1
+
+        # Create event
+        summary = random.choice(MOCK_SUMMARIES[risk_level])  # noqa: S311
+        reasoning = random.choice(MOCK_REASONING[risk_level])  # noqa: S311
+
+        event = Event(
+            batch_id=batch_id,
+            camera_id=camera.id,
+            started_at=started_at,
+            ended_at=ended_at,
+            risk_score=risk_score,
+            risk_level=risk_level,
+            summary=summary,
+            reasoning=reasoning,
+            reviewed=random.random() < 0.3,  # noqa: S311
+        )
+        db.add(event)
+        await db.flush()  # Get event ID for junction table
+
+        # Link detections via junction table (NEM-1592, NEM-3350)
+        # Uses bulk INSERT for better performance
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from backend.models.event_detection import event_detections
+
+        if detection_ids:
+            values = [
+                {"event_id": event.id, "detection_id": int(det_id)} for det_id in detection_ids
+            ]
+            stmt = (
+                pg_insert(event_detections)
+                .values(values)
+                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+            )
+            await db.execute(stmt)
+
+        events_created += 1
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_SEEDED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "seed_events",
+                "events_created": events_created,
+                "detections_created": detections_created,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+                "clear_existing": request.clear_existing,
+                "requested_count": request.count,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_SEEDED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    logger.info(
+        "Admin operation: seed_events",
+        extra={
+            "admin_operation": True,
+            "operation": "seed_events",
+            "parameters": {
+                "count": request.count,
+                "clear_existing": request.clear_existing,
+            },
+            "result": {
+                "events_created": events_created,
+                "detections_created": detections_created,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+            },
+        },
+    )
+
+    await db.commit()
+
+    return SeedEventsResponse(
+        events_created=events_created,
+        detections_created=detections_created,
+        events_cleared=events_cleared,
+        detections_cleared=detections_cleared,
+    )
+
+
+@router.delete(
+    "/seed/clear",
+    response_model=ClearDataResponse,
+    responses={
+        400: {"description": "Bad request - Confirmation required"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def clear_seeded_data(
+    body: ClearDataRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> ClearDataResponse:
+    """Clear all seeded data (cameras, events, detections).
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    Requires JSON body confirmation to prevent accidental data deletion:
+    {"confirm": "DELETE_ALL_DATA"}
+
+    Args:
+        body: Request body with confirmation string
+        request: FastAPI request for audit logging
+        db: Database session
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of cleared data counts
+
+    Raises:
+        HTTPException: 400 if confirmation string is incorrect
+    """
+    # Validate confirmation string
+    if body.confirm != "DELETE_ALL_DATA":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Confirmation required: body must contain {"confirm": "DELETE_ALL_DATA"}',
+        )
+
+    # Count existing data
+    events_result = await db.execute(select(Event))
+    events_cleared = len(events_result.scalars().all())
+
+    detections_result = await db.execute(select(Detection))
+    detections_cleared = len(detections_result.scalars().all())
+
+    cameras_result = await db.execute(select(Camera))
+    cameras_cleared = len(cameras_result.scalars().all())
+
+    # Delete in order (respecting foreign keys)
+    await db.execute(delete(Event))
+    await db.execute(delete(Detection))
+    await db.execute(delete(Camera))
+
+    # Log deletion to audit log
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_CLEARED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "clear_seeded_data",
+                "cameras_cleared": cameras_cleared,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+            },
+            request=request,
+            status=AuditStatus.SUCCESS,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_CLEARED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for destructive admin operation (WARNING level)
+    logger.warning(
+        "Admin operation: clear_seeded_data (DESTRUCTIVE)",
+        extra={
+            "admin_operation": True,
+            "operation": "clear_seeded_data",
+            "destructive": True,
+            "result": {
+                "cameras_cleared": cameras_cleared,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+            },
+        },
+    )
+
+    await db.commit()
+
+    return ClearDataResponse(
+        cameras_cleared=cameras_cleared,
+        events_cleared=events_cleared,
+        detections_cleared=detections_cleared,
+    )
+
+
+@router.post(
+    "/cleanup/orphans",
+    response_model=OrphanCleanupResponse,
+    responses={
+        200: {"description": "Orphan cleanup completed successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def cleanup_orphans(
+    request: OrphanCleanupRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> OrphanCleanupResponse:
+    """Manually trigger orphaned file cleanup.
+
+    Scans camera upload directories for files that have no corresponding
+    database records and optionally deletes them.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Safety features:
+    - dry_run=True by default (no actual deletions)
+    - min_age_hours threshold prevents deleting files being processed
+    - max_delete_gb limits total deletion per run
+
+    Args:
+        request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)
+        http_request: FastAPI request for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of cleanup operation with statistics
+    """
+    from backend.jobs.orphan_cleanup_job import OrphanCleanupJob
+    from backend.services.job_tracker import get_job_tracker
+
+    # Get job tracker for progress tracking
+    job_tracker = get_job_tracker()
+
+    # Create and run cleanup job
+    job = OrphanCleanupJob(
+        min_age_hours=request.min_age_hours,
+        dry_run=request.dry_run,
+        max_delete_gb=request.max_delete_gb,
+        job_tracker=job_tracker,
+    )
+
+    # Run the cleanup
+    report = await job.run()
+
+    # Log to audit
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.CLEANUP_EXECUTED,
+            resource_type="orphan_cleanup",
+            actor="admin",
+            details={
+                "operation": "cleanup_orphans",
+                "dry_run": request.dry_run,
+                "min_age_hours": request.min_age_hours,
+                "max_delete_gb": request.max_delete_gb,
+                "scanned_files": report.scanned_files,
+                "orphaned_files": report.orphaned_files,
+                "deleted_files": report.deleted_files,
+                "deleted_bytes": report.deleted_bytes,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.CLEANUP_EXECUTED.value,
+                "resource_id": None,
+                "resource_type": "orphan_cleanup",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    # Use WARNING level if actual deletions occurred (destructive operation)
+    log_func = logger.warning if report.deleted_files > 0 else logger.info
+    log_func(
+        f"Admin operation: cleanup_orphans {'(DESTRUCTIVE)' if report.deleted_files > 0 else '(dry run)'}",
+        extra={
+            "admin_operation": True,
+            "operation": "cleanup_orphans",
+            "destructive": report.deleted_files > 0,
+            "parameters": {
+                "dry_run": request.dry_run,
+                "min_age_hours": request.min_age_hours,
+                "max_delete_gb": request.max_delete_gb,
+            },
+            "result": {
+                "scanned_files": report.scanned_files,
+                "orphaned_files": report.orphaned_files,
+                "deleted_files": report.deleted_files,
+                "deleted_bytes": report.deleted_bytes,
+                "skipped_young": report.skipped_young,
+                "skipped_size_limit": report.skipped_size_limit,
+                "failed_count": len(report.failed_deletions),
+            },
+        },
+    )
+
+    return OrphanCleanupResponse(
+        scanned_files=report.scanned_files,
+        orphaned_files=report.orphaned_files,
+        deleted_files=report.deleted_files,
+        deleted_bytes=report.deleted_bytes,
+        deleted_bytes_formatted=report._format_bytes(report.deleted_bytes),
+        failed_count=len(report.failed_deletions),
+        failed_deletions=report.failed_deletions[:50],  # Limit to 50
+        duration_seconds=report.duration_seconds,
+        dry_run=report.dry_run,
+        skipped_young=report.skipped_young,
+        skipped_size_limit=report.skipped_size_limit,
+    )
+
+
+@router.post(
+    "/seed/pipeline-latency",
+    response_model=SeedPipelineLatencyResponse,
+    responses={
+        200: {"description": "Pipeline latency data seeded successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def seed_pipeline_latency(
+    request: SeedPipelineLatencyRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> SeedPipelineLatencyResponse:
+    """Seed the pipeline latency tracker with mock historical data.
+
+    This populates the in-memory PipelineLatencyTracker with realistic
+    latency samples for UI testing and development. Data is distributed
+    across the specified time span with realistic variance.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Typical latency ranges (ms):
+    - watch_to_detect: 50-200ms (file processing + YOLO26 inference)
+    - detect_to_batch: 10-50ms (detection aggregation)
+    - batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)
+    - total_pipeline: 5100-15300ms (end-to-end)
+
+    Args:
+        request: Configuration for sample generation
+        http_request: FastAPI request for audit logging
+        db: Database session for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of seeded latency data
+    """
+    import time
+
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    tracker = get_pipeline_latency_tracker()
+
+    # Latency ranges (min_ms, max_ms, typical_ms) for each stage
+    stage_latency_ranges = {
+        "watch_to_detect": (50, 300, 120),  # YOLO26 inference
+        "detect_to_batch": (10, 100, 30),  # Batch aggregation
+        "batch_to_analyze": (3000, 20000, 8000),  # Nemotron LLM
+        "total_pipeline": (3100, 20500, 8200),  # End-to-end
+    }
+
+    # Calculate time interval between samples
+    time_span_seconds = request.time_span_hours * 3600
+    interval_seconds = time_span_seconds / request.num_samples
+    current_time = time.time()
+    start_time = current_time - time_span_seconds
+
+    stages_seeded = []
+
+    for stage, (min_ms, max_ms, typical_ms) in stage_latency_ranges.items():
+        for i in range(request.num_samples):
+            # Generate realistic latency with occasional spikes
+            # S311: pseudo-random is fine for test data seeding
+            if random.random() < 0.05:  # noqa: S311 - 5% chance of spike
+                latency = random.uniform(typical_ms * 1.5, max_ms)  # noqa: S311
+            else:
+                # Normal distribution around typical value
+                latency = random.gauss(typical_ms, (typical_ms - min_ms) / 2)
+                latency = max(min_ms, min(max_ms, latency))  # Clamp to range
+
+            # Calculate timestamp for this sample
+            sample_time = start_time + (i * interval_seconds)
+
+            # Record with backdated timestamp by temporarily modifying tracker's time source
+            # We use the internal _samples deque directly for backdated data
+            tracker._samples[stage].append((sample_time, latency))
+
+        stages_seeded.append(stage)
+        logger.info(
+            f"Seeded {request.num_samples} latency samples for stage {stage}",
+            extra={"stage": stage, "num_samples": request.num_samples},
+        )
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_SEEDED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "seed_pipeline_latency",
+                "samples_per_stage": request.num_samples,
+                "stages_seeded": stages_seeded,
+                "time_span_hours": request.time_span_hours,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_SEEDED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    logger.info(
+        "Admin operation: seed_pipeline_latency",
+        extra={
+            "admin_operation": True,
+            "operation": "seed_pipeline_latency",
+            "parameters": {
+                "num_samples": request.num_samples,
+                "time_span_hours": request.time_span_hours,
+            },
+            "result": {
+                "samples_per_stage": request.num_samples,
+                "stages_seeded": stages_seeded,
+            },
+        },
+    )
+
+    return SeedPipelineLatencyResponse(
+        samples_per_stage=request.num_samples,
+        stages_seeded=stages_seeded,
+        time_span_hours=request.time_span_hours,
+        message=f"Seeded {request.num_samples} samples per stage across {request.time_span_hours} hours",
+    )
+
+
+# --- Maintenance Action Schemas ---
+
+
+class ClearCacheResponse(BaseModel):
+    """Response schema for cache clear endpoint."""
+
+    keys_cleared: int
+    cache_types: list[str]
+    duration_seconds: float
+    message: str
+
+
+class FlushQueuesResponse(BaseModel):
+    """Response schema for queue flush endpoint."""
+
+    queues_flushed: list[str]
+    items_cleared: dict[str, int]
+    duration_seconds: float
+    message: str
+
+
+# --- Maintenance Endpoints ---
+
+
+@router.post(
+    "/maintenance/clear-cache",
+    response_model=ClearCacheResponse,
+    responses={
+        200: {"description": "Cache cleared successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def clear_cache(
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> ClearCacheResponse:
+    """Clear all cached data from Redis.
+
+    Invalidates all cache entries including:
+    - Events cache
+    - Cameras cache
+    - System status cache
+    - Stats cache
+    - Detections cache
+    - Alerts cache
+    - Summaries cache
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Args:
+        http_request: FastAPI request for audit logging
+        db: Database session for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of cache clear operation
+    """
+    import time
+
+    from backend.services.cache_service import get_cache_service
+
+    start_time = time.time()
+
+    try:
+        cache = await get_cache_service()
+    except Exception as e:
+        logger.error(f"Failed to get cache service: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to connect to cache service: {e}",
+        ) from e
+
+    # Clear all cache types
+    cache_types = []
+    total_keys = 0
+
+    # Invalidate each cache type
+    cache_invalidations = [
+        ("events", cache.invalidate_events),
+        ("event_stats", cache.invalidate_event_stats),
+        ("cameras", cache.invalidate_cameras),
+        ("system", cache.invalidate_system_status),
+        ("alerts", cache.invalidate_alerts),
+        ("detections", cache.invalidate_detections),
+        ("summaries", cache.invalidate_summaries),
+    ]
+
+    for cache_type, invalidate_func in cache_invalidations:
+        try:
+            keys_cleared = await invalidate_func()
+            if keys_cleared > 0:
+                cache_types.append(cache_type)
+                total_keys += keys_cleared
+                logger.info(
+                    f"Cleared {keys_cleared} keys from {cache_type} cache",
+                    extra={"cache_type": cache_type, "keys_cleared": keys_cleared},
+                )
+        except Exception as e:
+            logger.warning(
+                f"Failed to clear {cache_type} cache: {e}",
+                extra={"cache_type": cache_type, "error": str(e)},
+            )
+
+    duration = time.time() - start_time
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.CLEANUP_EXECUTED,
+            resource_type="cache",
+            actor="admin",
+            details={
+                "operation": "clear_cache",
+                "cache_types": cache_types,
+                "keys_cleared": total_keys,
+                "duration_seconds": round(duration, 3),
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.CLEANUP_EXECUTED.value,
+                "resource_type": "cache",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    logger.info(
+        "Admin operation: clear_cache",
+        extra={
+            "admin_operation": True,
+            "operation": "clear_cache",
+            "result": {
+                "keys_cleared": total_keys,
+                "cache_types": cache_types,
+                "duration_seconds": round(duration, 3),
+            },
+        },
+    )
+
+    return ClearCacheResponse(
+        keys_cleared=total_keys,
+        cache_types=cache_types,
+        duration_seconds=round(duration, 3),
+        message=f"Cleared {total_keys} cache keys across {len(cache_types)} cache types",
+    )
+
+
+@router.post(
+    "/maintenance/flush-queues",
+    response_model=FlushQueuesResponse,
+    responses={
+        200: {"description": "Queues flushed successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def flush_queues(
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    redis: RedisClient = Depends(get_redis_dependency),
+    _admin: None = Depends(require_admin_access),
+) -> FlushQueuesResponse:
+    """Flush all processing queues in Redis.
+
+    Clears the following queues:
+    - Detection queue (incoming detection jobs)
+    - Analysis queue (LLM analysis jobs)
+    - DLQ detection queue (failed detection jobs)
+    - DLQ analysis queue (failed analysis jobs)
+
+    WARNING: This will discard any pending items in the queues.
+    Items will need to be reprocessed from scratch.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Args:
+        http_request: FastAPI request for audit logging
+        db: Database session for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of queue flush operation
+    """
+    import time
+
+    from backend.core.constants import (
+        ANALYSIS_QUEUE,
+        DETECTION_QUEUE,
+        DLQ_ANALYSIS_QUEUE,
+        DLQ_DETECTION_QUEUE,
+        get_prefixed_queue_name,
+    )
+
+    start_time = time.time()
+
+    # Define queues to flush (using prefixed names)
+    queue_definitions = [
+        ("detection_queue", get_prefixed_queue_name(DETECTION_QUEUE)),
+        ("analysis_queue", get_prefixed_queue_name(ANALYSIS_QUEUE)),
+        ("dlq_detection_queue", get_prefixed_queue_name(DLQ_DETECTION_QUEUE)),
+        ("dlq_analysis_queue", get_prefixed_queue_name(DLQ_ANALYSIS_QUEUE)),
+    ]
+
+    queues_flushed = []
+    items_cleared: dict[str, int] = {}
+
+    for queue_name, prefixed_name in queue_definitions:
+        try:
+            # Get queue length before clearing
+            queue_len = await redis.get_queue_length(prefixed_name)
+            items_cleared[queue_name] = queue_len
+
+            # Clear the queue
+            if queue_len > 0:
+                cleared = await redis.clear_queue(prefixed_name)
+                if cleared:
+                    queues_flushed.append(queue_name)
+                    logger.info(
+                        f"Flushed {queue_len} items from {queue_name}",
+                        extra={"queue_name": queue_name, "items_cleared": queue_len},
+                    )
+        except Exception as e:
+            logger.warning(
+                f"Failed to flush {queue_name}: {e}",
+                extra={"queue_name": queue_name, "error": str(e)},
+            )
+            items_cleared[queue_name] = 0
+
+    duration = time.time() - start_time
+    total_items = sum(items_cleared.values())
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.CLEANUP_EXECUTED,
+            resource_type="queue",
+            actor="admin",
+            details={
+                "operation": "flush_queues",
+                "queues_flushed": queues_flushed,
+                "items_cleared": items_cleared,
+                "total_items": total_items,
+                "duration_seconds": round(duration, 3),
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.CLEANUP_EXECUTED.value,
+                "resource_type": "queue",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Use WARNING level since this is a destructive operation
+    logger.warning(
+        "Admin operation: flush_queues (DESTRUCTIVE)",
+        extra={
+            "admin_operation": True,
+            "operation": "flush_queues",
+            "destructive": True,
+            "result": {
+                "queues_flushed": queues_flushed,
+                "items_cleared": items_cleared,
+                "total_items": total_items,
+                "duration_seconds": round(duration, 3),
+            },
+        },
+    )
+
+    return FlushQueuesResponse(
+        queues_flushed=queues_flushed,
+        items_cleared=items_cleared,
+        duration_seconds=round(duration, 3),
+        message=f"Flushed {total_items} items from {len(queues_flushed)} queues",
+    )
+
+
+# --- User Management Endpoints ---
+
+
+def _generate_user_id() -> str:
+    """Generate a unique user ID."""
+    return str(uuid.uuid4())
+
+
+@router.post(
+    "/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "User created successfully"},
+        400: {"description": "Bad request - Username or email already exists"},
+        401: {"description": "Unauthorized - Not authenticated"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def create_user(
+    request: AdminUserCreateRequest,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Create a new user (admin only).
+
+    Allows administrators to create new user accounts with optional admin privileges.
+
+    Args:
+        request: User creation data (username, email, password, is_admin).
+        current_admin: Current authenticated admin user (from dependency).
+        db: Database session.
+
+    Returns:
+        UserResponse with the created user's information.
+
+    Raises:
+        HTTPException: 400 if username or email already exists.
+    """
+    # Check for duplicate username
+    username_check = await db.execute(select(User).where(User.username == request.username))
+    if username_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already taken",
+        )
+
+    # Check for duplicate email
+    email_check = await db.execute(select(User).where(User.email == request.email))
+    if email_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    # Hash password
+    auth_service = AuthService()
+    password_hash = auth_service.hash_password(request.password)
+
+    # Create user
+    user = User(
+        id=_generate_user_id(),
+        username=request.username,
+        email=request.email,
+        password_hash=password_hash,
+        is_active=True,
+        is_admin=request.is_admin,
+    )
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(
+        "Admin created new user",
+        extra={
+            "admin_user_id": current_admin.id,
+            "new_user_id": user.id,
+            "new_username": user.username,
+            "is_admin": user.is_admin,
+        },
+    )
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_active=user.is_active,
+        is_admin=user.is_admin,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+    )
+
+
+@router.get(
+    "/users",
+    response_model=AdminUserListResponse,
+    responses={
+        200: {"description": "List of users"},
+        401: {"description": "Unauthorized - Not authenticated"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def list_users(
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> AdminUserListResponse:
+    """List all users (admin only).
+
+    Returns a list of all users in the system.
+
+    Args:
+        current_admin: Current authenticated admin user (from dependency).
+        db: Database session.
+
+    Returns:
+        AdminUserListResponse with all users and total count.
+    """
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    users = result.scalars().all()
+
+    items = [
+        UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            is_admin=user.is_admin,
+            created_at=user.created_at,
+            last_login_at=user.last_login_at,
+        )
+        for user in users
+    ]
+
+    logger.info(
+        "Admin listed users",
+        extra={
+            "admin_user_id": current_admin.id,
+            "total_users": len(items),
+        },
+    )
+
+    return AdminUserListResponse(items=items, total=len(items))
+
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=AdminUserDeleteResponse,
+    responses={
+        200: {"description": "User deleted successfully"},
+        400: {"description": "Bad request - Cannot delete yourself"},
+        401: {"description": "Unauthorized - Not authenticated"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        404: {"description": "User not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def delete_user(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> AdminUserDeleteResponse:
+    """Delete a user (admin only).
+
+    Permanently deletes a user account. Admins cannot delete their own account.
+
+    Args:
+        user_id: ID of the user to delete.
+        current_admin: Current authenticated admin user (from dependency).
+        db: Database session.
+
+    Returns:
+        AdminUserDeleteResponse confirming deletion.
+
+    Raises:
+        HTTPException: 400 if trying to delete self.
+        HTTPException: 404 if user not found.
+    """
+    # Prevent self-deletion
+    if user_id == current_admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account",
+        )
+
+    # Find the user
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found",
+        )
+
+    # Delete the user
+    await db.delete(user)
+    await db.commit()
+
+    logger.warning(
+        "Admin deleted user",
+        extra={
+            "admin_user_id": current_admin.id,
+            "deleted_user_id": user_id,
+            "deleted_username": user.username,
+        },
+    )
+
+    return AdminUserDeleteResponse(message="User deleted successfully")

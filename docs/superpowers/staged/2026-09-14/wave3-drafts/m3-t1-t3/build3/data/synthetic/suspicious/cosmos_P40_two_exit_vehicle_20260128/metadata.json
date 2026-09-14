@@ -1,0 +1,18 @@
+{
+  "run_id": "20260128_170526",
+  "source": "cosmos",
+  "video_id": "P40",
+  "scenario": "two_exit_vehicle",
+  "category": "suspicious",
+  "format": "video",
+  "duration_sec": 5.8,
+  "resolution": "1280x704",
+  "fps": 16,
+  "generated_at": "2026-01-28T17:05:26.678512+00:00",
+  "files": ["media/P40_5s.mp4"],
+  "cosmos_metadata": {
+    "model": "Cosmos-Predict2.5-14B",
+    "seed": 0,
+    "guidance": 7
+  }
+}

@@ -1,0 +1,178 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ConfidenceBadge > snapshots > renders edge case at boundary 0.7 1`] = `
+<span
+  aria-label="Detection confidence: 70% (Medium Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-yellow-500/20 border-yellow-500/40 text-yellow-400"
+  role="status"
+  title="Medium Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    70%
+  </span>
+  <span
+    aria-hidden="true"
+    class="w-full overflow-hidden rounded-full bg-gray-700 h-1"
+  >
+    <span
+      class="block h-full rounded-full transition-all duration-300 bg-yellow-500"
+      style="width: 70%;"
+    />
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders edge case at boundary 0.85 1`] = `
+<span
+  aria-label="Detection confidence: 85% (High Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-green-500/20 border-green-500/40 text-green-400"
+  role="status"
+  title="High Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    85%
+  </span>
+  <span
+    aria-hidden="true"
+    class="w-full overflow-hidden rounded-full bg-gray-700 h-1"
+  >
+    <span
+      class="block h-full rounded-full transition-all duration-300 bg-green-500"
+      style="width: 85%;"
+    />
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders high confidence level (>= 85%) 1`] = `
+<span
+  aria-label="Detection confidence: 95% (High Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-green-500/20 border-green-500/40 text-green-400"
+  role="status"
+  title="High Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    95%
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders lg size variant correctly 1`] = `
+<span
+  aria-label="Detection confidence: 88% (High Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-base px-3 py-1.5 bg-green-500/20 border-green-500/40 text-green-400"
+  role="status"
+  title="High Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    88%
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders low confidence level (< 70%) 1`] = `
+<span
+  aria-label="Detection confidence: 50% (Low Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-red-500/20 border-red-500/40 text-red-400"
+  role="status"
+  title="Low Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    50%
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders md size variant correctly 1`] = `
+<span
+  aria-label="Detection confidence: 88% (High Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-sm px-2.5 py-1 bg-green-500/20 border-green-500/40 text-green-400"
+  role="status"
+  title="High Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    88%
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders medium confidence level (70-85%) 1`] = `
+<span
+  aria-label="Detection confidence: 75% (Medium Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-yellow-500/20 border-yellow-500/40 text-yellow-400"
+  role="status"
+  title="Medium Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    75%
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders sm size variant correctly 1`] = `
+<span
+  aria-label="Detection confidence: 88% (High Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-green-500/20 border-green-500/40 text-green-400"
+  role="status"
+  title="High Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    88%
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders with confidence bar visible 1`] = `
+<span
+  aria-label="Detection confidence: 82% (Medium Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-yellow-500/20 border-yellow-500/40 text-yellow-400"
+  role="status"
+  title="Medium Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    82%
+  </span>
+  <span
+    aria-hidden="true"
+    class="w-full overflow-hidden rounded-full bg-gray-700 h-1"
+  >
+    <span
+      class="block h-full rounded-full transition-all duration-300 bg-yellow-500"
+      style="width: 82%;"
+    />
+  </span>
+</span>
+`;
+
+exports[`ConfidenceBadge > snapshots > renders with custom className 1`] = `
+<span
+  aria-label="Detection confidence: 90% (High Confidence)"
+  class="inline-flex flex-col items-center gap-0.5 rounded-md border font-medium text-xs px-2 py-0.5 bg-green-500/20 border-green-500/40 text-green-400 custom-spacing mx-2"
+  role="status"
+  title="High Confidence"
+>
+  <span
+    class="font-semibold"
+  >
+    90%
+  </span>
+</span>
+`;

@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_015",
+  "prompt": "Analyze security event: Family member arriving home from work. Camera: side_gate. Time: 08:59. Detected: family.",
+  "expected_response": {
+    "risk_score": 10,
+    "risk_level": "low",
+    "summary": "Family member arriving home from work",
+    "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "side_gate",
+    "timestamp": "2026-01-24T08:59:00",
+    "detection_type": "family",
+    "location": "driveway"
+  }
+}

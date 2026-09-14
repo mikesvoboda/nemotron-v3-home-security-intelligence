@@ -1,0 +1,41 @@
+{
+  "source": "cosmos",
+  "video_id": "T05",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "breaking",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch at night, viewed from an elevated vantage point. Person repeatedly kicking at the front door, attempting to break it down. Violent forceful kicks, aggressive body language. S..."
+  }
+}

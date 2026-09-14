@@ -1,0 +1,891 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import NotificationSettings from './NotificationSettings';
+import * as api from '../../services/api';
+
+// Mock the API module
+vi.mock('../../services/api', () => ({
+  fetchNotificationConfig: vi.fn(),
+  testNotification: vi.fn(),
+  updateNotificationConfig: vi.fn(),
+  fetchNotificationPreferences: vi.fn(),
+  updateNotificationPreferences: vi.fn(),
+  fetchCameraNotificationSettings: vi.fn(),
+  updateCameraNotificationSetting: vi.fn(),
+  fetchQuietHoursPeriods: vi.fn(),
+  createQuietHoursPeriod: vi.fn(),
+  deleteQuietHoursPeriod: vi.fn(),
+  fetchCameras: vi.fn(),
+}));
+
+// Mock the useCamerasQuery hook
+vi.mock('../../hooks/useCamerasQuery', () => ({
+  useCamerasQuery: vi.fn(() => ({
+    cameras: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+}));
+
+// Mock the NotificationHistoryPanel component to avoid its hook dependencies
+vi.mock('../notifications/NotificationHistoryPanel', () => ({
+  default: function MockNotificationHistoryPanel() {
+    return <div data-testid="notification-history-panel">Notification History Panel</div>;
+  },
+}));
+
+const mockFetchNotificationConfig = vi.mocked(api.fetchNotificationConfig);
+const mockTestNotification = vi.mocked(api.testNotification);
+const mockUpdateNotificationConfig = vi.mocked(api.updateNotificationConfig);
+const mockFetchNotificationPreferences = vi.mocked(api.fetchNotificationPreferences);
+const mockFetchCameraNotificationSettings = vi.mocked(api.fetchCameraNotificationSettings);
+const mockFetchQuietHoursPeriods = vi.mocked(api.fetchQuietHoursPeriods);
+
+// Helper to create a wrapper with QueryClient
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+};
+
+describe('NotificationSettings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Setup default mocks for notification preferences
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical', 'high', 'medium'],
+    });
+
+    mockFetchCameraNotificationSettings.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+
+    mockFetchQuietHoursPeriods.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+  });
+
+  const mockFullConfig: api.NotificationConfig = {
+    notification_enabled: true,
+    email_configured: true,
+    webhook_configured: true,
+    push_configured: false,
+    available_channels: ['email', 'webhook'],
+    smtp_host: 'smtp.example.com',
+    smtp_port: 587,
+    smtp_from_address: 'alerts@example.com',
+    smtp_use_tls: true,
+    default_webhook_url: 'https://hooks.example.com/webhook',
+    webhook_timeout_seconds: 30,
+    default_email_recipients: ['user1@example.com', 'user2@example.com'],
+  };
+
+  const mockUnconfiguredConfig: api.NotificationConfig = {
+    notification_enabled: true,
+    email_configured: false,
+    webhook_configured: false,
+    push_configured: false,
+    available_channels: [],
+    smtp_host: null,
+    smtp_port: null,
+    smtp_from_address: null,
+    smtp_use_tls: null,
+    default_webhook_url: null,
+    webhook_timeout_seconds: null,
+    default_email_recipients: [],
+  };
+
+  it('should render the component title', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Settings')).toBeInTheDocument();
+    });
+  });
+
+  it('should show loading state initially', () => {
+    mockFetchNotificationConfig.mockImplementation(() => new Promise(() => {}));
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    // Should have skeleton loaders
+    expect(document.querySelector('.skeleton')).toBeInTheDocument();
+  });
+
+  it('should display error message when config fetch fails', async () => {
+    mockFetchNotificationConfig.mockRejectedValue(new Error('Network error'));
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeInTheDocument();
+    });
+  });
+
+  it('should show notifications enabled badge when enabled', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // There should be multiple "Enabled" texts (notifications status and TLS status)
+      const enabledElements = screen.getAllByText('Enabled');
+      expect(enabledElements.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('should show notifications disabled badge when disabled', async () => {
+    mockFetchNotificationConfig.mockResolvedValue({
+      ...mockFullConfig,
+      notification_enabled: false,
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Disabled')).toBeInTheDocument();
+    });
+  });
+
+  it('should display SMTP configuration when email is configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Check that SMTP configuration form fields have correct values
+      expect(screen.getByLabelText(/smtp host/i)).toHaveValue('smtp.example.com');
+      expect(screen.getByLabelText(/smtp port/i)).toHaveValue(587);
+      expect(screen.getByLabelText(/from address/i)).toHaveValue('alerts@example.com');
+    });
+  });
+
+  it('should display default email recipients', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('user1@example.com')).toBeInTheDocument();
+      expect(screen.getByText('user2@example.com')).toBeInTheDocument();
+    });
+  });
+
+  it('should display webhook configuration when webhook is configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Check that webhook URL field has correct value
+      expect(screen.getByLabelText(/webhook url/i)).toHaveValue(
+        'https://hooks.example.com/webhook'
+      );
+    });
+  });
+
+  it('should show "Disabled" badge when email is not configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockUnconfiguredConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Check that Disabled badges are shown when channels are not configured
+      const disabledBadges = screen.getAllByText('Disabled');
+      expect(disabledBadges.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('should show empty SMTP form fields when email is not configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockUnconfiguredConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Form fields should be present but empty
+      expect(screen.getByLabelText(/smtp host/i)).toHaveValue('');
+      expect(screen.getByLabelText(/from address/i)).toHaveValue('');
+    });
+  });
+
+  it('should show empty webhook URL field when webhook is not configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockUnconfiguredConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Webhook URL field should be present but empty
+      expect(screen.getByLabelText(/webhook url/i)).toHaveValue('');
+    });
+  });
+
+  it('should display available channels', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('EMAIL')).toBeInTheDocument();
+      expect(screen.getByText('WEBHOOK')).toBeInTheDocument();
+    });
+  });
+
+  it('should show no channels message when none are available', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockUnconfiguredConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('No notification channels configured')).toBeInTheDocument();
+    });
+  });
+
+  it('should show test email button when email is configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send test email/i })).toBeInTheDocument();
+    });
+  });
+
+  it('should show test webhook button when webhook is configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send test webhook/i })).toBeInTheDocument();
+    });
+  });
+
+  it('should call testNotification when test email button is clicked', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+    mockTestNotification.mockResolvedValue({
+      channel: 'email',
+      success: true,
+      error: null,
+      message: 'Test email sent successfully to user1@example.com, user2@example.com',
+    });
+
+    const user = userEvent.setup();
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send test email/i })).toBeInTheDocument();
+    });
+
+    const testButton = screen.getByRole('button', { name: /send test email/i });
+    await user.click(testButton);
+
+    expect(mockTestNotification).toHaveBeenCalledWith('email');
+
+    await waitFor(() => {
+      expect(screen.getByText(/test email sent successfully/i)).toBeInTheDocument();
+    });
+  });
+
+  it('should call testNotification when test webhook button is clicked', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+    mockTestNotification.mockResolvedValue({
+      channel: 'webhook',
+      success: true,
+      error: null,
+      message: 'Test webhook sent successfully to https://hooks.example.com/webhook',
+    });
+
+    const user = userEvent.setup();
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send test webhook/i })).toBeInTheDocument();
+    });
+
+    const testButton = screen.getByRole('button', { name: /send test webhook/i });
+    await user.click(testButton);
+
+    expect(mockTestNotification).toHaveBeenCalledWith('webhook');
+
+    await waitFor(() => {
+      expect(screen.getByText(/test webhook sent successfully/i)).toBeInTheDocument();
+    });
+  });
+
+  it('should show error message when test notification fails', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+    mockTestNotification.mockResolvedValue({
+      channel: 'email',
+      success: false,
+      error: 'SMTP connection failed',
+      message: 'Failed to send test email: SMTP connection failed',
+    });
+
+    const user = userEvent.setup();
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send test email/i })).toBeInTheDocument();
+    });
+
+    const testButton = screen.getByRole('button', { name: /send test email/i });
+    await user.click(testButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to send test email/i)).toBeInTheDocument();
+    });
+  });
+
+  it('should disable test buttons when notifications are disabled', async () => {
+    mockFetchNotificationConfig.mockResolvedValue({
+      ...mockFullConfig,
+      notification_enabled: false,
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      const testEmailButton = screen.getByRole('button', { name: /send test email/i });
+      const testWebhookButton = screen.getByRole('button', { name: /send test webhook/i });
+
+      expect(testEmailButton).toBeDisabled();
+      expect(testWebhookButton).toBeDisabled();
+    });
+  });
+
+  it('should show email channel enabled status when configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Check that the email channel is shown as enabled
+      const enabledBadges = screen.getAllByText('Enabled');
+      expect(enabledBadges.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('should show global preferences section', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Global Preferences')).toBeInTheDocument();
+    });
+  });
+
+  it('should show notification toggle switch', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('switch', { name: /toggle notifications/i })).toBeInTheDocument();
+    });
+  });
+
+  it('should show notification sound selector', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Sound')).toBeInTheDocument();
+    });
+  });
+
+  it('should show risk level filters', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Risk Level Filters')).toBeInTheDocument();
+      expect(screen.getByText('Critical')).toBeInTheDocument();
+      expect(screen.getByText('High')).toBeInTheDocument();
+      expect(screen.getByText('Medium')).toBeInTheDocument();
+      expect(screen.getByText('Low')).toBeInTheDocument();
+    });
+  });
+
+  it('should show camera notifications section', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Camera Notifications')).toBeInTheDocument();
+    });
+  });
+
+  it('should show no cameras message when no cameras configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+    });
+  });
+
+  it('should show quiet hours section', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Quiet Hours')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add period/i })).toBeInTheDocument();
+    });
+  });
+
+  it('should show no quiet hours message when none configured', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('No quiet hours configured')).toBeInTheDocument();
+    });
+  });
+
+  it('should show add period form when button is clicked', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    const user = userEvent.setup();
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add period/i })).toBeInTheDocument();
+    });
+
+    const addButton = screen.getByRole('button', { name: /add period/i });
+    await user.click(addButton);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('e.g., Night Time')).toBeInTheDocument();
+      expect(screen.getByText('Start Time')).toBeInTheDocument();
+      expect(screen.getByText('End Time')).toBeInTheDocument();
+      expect(screen.getByText('Days')).toBeInTheDocument();
+    });
+  });
+
+  it('should show existing quiet hours periods', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+    mockFetchQuietHoursPeriods.mockResolvedValue({
+      items: [
+        {
+          id: '1',
+          label: 'Night Time',
+          start_time: '22:00:00',
+          end_time: '06:00:00',
+          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        },
+      ],
+      pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Night Time')).toBeInTheDocument();
+      expect(screen.getByText(/22:00 - 06:00/)).toBeInTheDocument();
+    });
+  });
+
+  it('should show configuration note about environment variables', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/email and webhook settings are configured via environment variables/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  // NEM-3632: Notification Channel Configuration UI Tests
+
+  describe('Channel Configuration', () => {
+    beforeEach(() => {
+      mockUpdateNotificationConfig.mockResolvedValue({
+        smtp_enabled: true,
+        smtp_host: 'smtp.example.com',
+        smtp_port: 587,
+        smtp_from_address: 'alerts@example.com',
+        webhook_enabled: true,
+        default_webhook_url: 'https://hooks.example.com/webhook',
+        message: 'Configuration updated successfully',
+      });
+    });
+
+    it('should show email channel enable toggle', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('switch', { name: /toggle email channel/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should show webhook channel enable toggle', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('switch', { name: /toggle webhook channel/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should show SMTP configuration form when email is configured', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        // Check for SMTP configuration fields
+        expect(screen.getByLabelText(/smtp host/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/smtp port/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/from address/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show webhook URL configuration field', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/webhook url/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show save button for configuration changes', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /save configuration/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should call updateNotificationConfig when save button is clicked', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      const user = userEvent.setup();
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /save configuration/i })).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /save configuration/i });
+      await user.click(saveButton);
+
+      expect(mockUpdateNotificationConfig).toHaveBeenCalled();
+    });
+
+    it('should toggle email channel when toggle is clicked', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      const user = userEvent.setup();
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('switch', { name: /toggle email channel/i })).toBeInTheDocument();
+      });
+
+      const emailToggle = screen.getByRole('switch', { name: /toggle email channel/i });
+      await user.click(emailToggle);
+      await user.click(screen.getByRole('button', { name: /save configuration/i }));
+
+      expect(mockUpdateNotificationConfig).toHaveBeenCalled();
+    });
+
+    it('should update webhook URL field', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      const user = userEvent.setup();
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/webhook url/i)).toBeInTheDocument();
+      });
+
+      const webhookInput = screen.getByLabelText(/webhook url/i);
+      await user.clear(webhookInput);
+      await user.type(webhookInput, 'https://new-webhook.example.com/notify');
+
+      expect(webhookInput).toHaveValue('https://new-webhook.example.com/notify');
+    });
+
+    it('should show loading state when saving configuration', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+      mockUpdateNotificationConfig.mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 1000))
+      );
+
+      const user = userEvent.setup();
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /save configuration/i })).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /save configuration/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/saving/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show success message after saving configuration', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+      const user = userEvent.setup();
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /save configuration/i })).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /save configuration/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/configuration updated successfully/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should show error message when saving configuration fails', async () => {
+      mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+      mockUpdateNotificationConfig.mockRejectedValue(new Error('Failed to save configuration'));
+
+      const user = userEvent.setup();
+      render(<NotificationSettings />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /save configuration/i })).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole('button', { name: /save configuration/i });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/failed to save configuration/i)).toBeInTheDocument();
+      });
+    });
+  });
+  it('should show helper text explaining filter precedence', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/per-camera thresholds work with global risk filters/i)
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+describe('NotificationSettings - Threshold Conflict Detection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Setup default mocks for notification preferences
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical'], // Only critical (80-100) enabled
+    });
+
+    mockFetchCameraNotificationSettings.mockResolvedValue({
+      items: [
+        {
+          id: 'setting-1',
+          camera_id: 'front_door',
+          enabled: true,
+          risk_threshold: 0, // Would allow all, but global blocks most
+        },
+      ],
+      pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+    });
+
+    mockFetchQuietHoursPeriods.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+  });
+
+  const mockFullConfig: api.NotificationConfig = {
+    notification_enabled: true,
+    email_configured: true,
+    webhook_configured: true,
+    push_configured: false,
+    available_channels: ['email', 'webhook'],
+    smtp_host: 'smtp.example.com',
+    smtp_port: 587,
+    smtp_from_address: 'alerts@example.com',
+    smtp_use_tls: true,
+    default_webhook_url: 'https://hooks.example.com/webhook',
+    webhook_timeout_seconds: 30,
+    default_email_recipients: ['user@example.com'],
+  };
+
+  it('should show warning when camera threshold conflicts with global filters', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    // Mock cameras
+    const { useCamerasQuery } = await import('../../hooks/useCamerasQuery');
+    vi.mocked(useCamerasQuery).mockReturnValue({
+      cameras: [
+        {
+          id: 'front_door',
+          name: 'Front Door',
+          folder_path: '/cameras/front',
+          status: 'online',
+          created_at: '2025-01-01T00:00:00Z',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
+        },
+      ],
+      isLoading: false,
+      isRefetching: false,
+      isPlaceholderData: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Should show warning about blocked levels
+      expect(
+        screen.getByText(/alerts below 80% are blocked by global risk filters/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('should not show warning when no conflict exists', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    // Enable all risk levels
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical', 'high', 'medium', 'low'],
+    });
+
+    // Mock cameras
+    const { useCamerasQuery } = await import('../../hooks/useCamerasQuery');
+    vi.mocked(useCamerasQuery).mockReturnValue({
+      cameras: [
+        {
+          id: 'front_door',
+          name: 'Front Door',
+          folder_path: '/cameras/front',
+          status: 'online',
+          created_at: '2025-01-01T00:00:00Z',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
+        },
+      ],
+      isLoading: false,
+      isRefetching: false,
+      isPlaceholderData: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+    });
+
+    // Should not show any conflict warning
+    expect(
+      screen.queryByText(/alerts below.*are blocked by global risk filters/i)
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('NotificationSettings - NotificationHistoryPanel Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical', 'high', 'medium'],
+    });
+
+    mockFetchCameraNotificationSettings.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+
+    mockFetchQuietHoursPeriods.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+  });
+
+  const mockFullConfig: api.NotificationConfig = {
+    notification_enabled: true,
+    email_configured: true,
+    webhook_configured: true,
+    push_configured: false,
+    available_channels: ['email', 'webhook'],
+    smtp_host: 'smtp.example.com',
+    smtp_port: 587,
+    smtp_from_address: 'alerts@example.com',
+    smtp_use_tls: true,
+    default_webhook_url: 'https://hooks.example.com/webhook',
+    webhook_timeout_seconds: 30,
+    default_email_recipients: ['user@example.com'],
+  };
+
+  it('should render the NotificationHistoryPanel component', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Check for the "Notification History" section header
+      expect(screen.getByText('Notification History')).toBeInTheDocument();
+    });
+
+    // Check that the mocked NotificationHistoryPanel is rendered
+    expect(screen.getByTestId('notification-history-panel')).toBeInTheDocument();
+  });
+});

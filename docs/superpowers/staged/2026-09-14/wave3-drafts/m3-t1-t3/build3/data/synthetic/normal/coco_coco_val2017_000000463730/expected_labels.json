@@ -1,0 +1,56 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000463730",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "car",
+      "min_confidence": 0.5,
+      "count": 3
+    },
+    {
+      "class": "motorcycle",
+      "min_confidence": 0.5,
+      "count": 2
+    },
+    {
+      "class": "bus",
+      "min_confidence": 0.5,
+      "count": 2
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 14
+    },
+    {
+      "class": "backpack",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 14 person, 2 motorcycle, 2 bus, 3 car, 1 backpack. From COCO object detection dataset."
+  }
+}

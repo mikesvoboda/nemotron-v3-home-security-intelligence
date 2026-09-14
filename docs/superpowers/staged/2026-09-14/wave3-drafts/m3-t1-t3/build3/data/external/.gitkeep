@@ -1,0 +1,3 @@
+# External datasets directory
+# Stores open-licensed datasets for AI pipeline evaluation
+# See scripts/download_open_datasets.py for acquisition

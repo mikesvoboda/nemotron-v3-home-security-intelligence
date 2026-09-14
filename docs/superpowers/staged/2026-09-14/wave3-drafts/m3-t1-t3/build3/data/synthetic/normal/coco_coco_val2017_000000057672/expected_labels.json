@@ -1,0 +1,46 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000057672",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 11
+    },
+    {
+      "class": "car",
+      "min_confidence": 0.5,
+      "count": 3
+    },
+    {
+      "class": "truck",
+      "min_confidence": 0.5,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 3 car, 1 truck, 11 person. From COCO object detection dataset."
+  }
+}

@@ -1,0 +1,79 @@
+# OWASP ZAP Rule Configuration
+# Format: RULE_ID	ACTION	DESCRIPTION
+# Actions: IGNORE (suppress), WARN (report but don't fail), FAIL (always fail)
+#
+# Rule IDs reference: https://www.zaproxy.org/docs/alerts/
+#
+# This file configures ZAP alert behavior for the API security scan.
+# Add rules here to suppress known false positives or adjust severity.
+
+# ============================================================================
+# Informational alerts (typically safe to ignore in API context)
+# ============================================================================
+
+# Modern web security headers - may not apply to API-only endpoints
+10063	IGNORE	Permissions-Policy Header Not Set
+10037	IGNORE	Server Leaks Information via "X-Powered-By" HTTP Response Header Field(s)
+
+# Cookie flags - may be intentionally different for API tokens
+10010	IGNORE	Cookie No HttpOnly Flag
+10011	IGNORE	Cookie Without Secure Flag
+10054	IGNORE	Cookie without SameSite Attribute
+
+# Cache control - API responses may intentionally skip caching headers
+10015	IGNORE	Incomplete or No Cache-control Header Set
+
+# Content type - API endpoints return JSON, not HTML
+10021	IGNORE	X-Content-Type-Options Header Missing
+
+# ============================================================================
+# Low severity alerts (informational, rarely exploitable)
+# ============================================================================
+
+# Timestamp disclosure - acceptable for monitoring/debugging APIs
+10096	WARN	Timestamp Disclosure
+
+# Information disclosure - review but don't fail
+10027	WARN	Information Disclosure - Suspicious Comments
+
+# ============================================================================
+# Medium severity alerts (review required, may be false positives)
+# ============================================================================
+
+# CORS - configured intentionally for this application
+10098	WARN	Cross-Domain Misconfiguration
+
+# ============================================================================
+# High/Critical severity alerts (always report, investigate immediately)
+# ============================================================================
+
+# SQL Injection - never ignore
+40018	FAIL	SQL Injection
+40019	FAIL	SQL Injection - MySQL
+40020	FAIL	SQL Injection - Hypersonic SQL
+40021	FAIL	SQL Injection - Oracle
+40022	FAIL	SQL Injection - PostgreSQL
+40024	FAIL	SQL Injection - SQLite
+
+# Command Injection - never ignore
+90020	FAIL	Remote OS Command Injection
+
+# Path Traversal - never ignore
+6	FAIL	Path Traversal
+
+# XSS - never ignore (even for APIs that might render in browsers)
+40012	FAIL	Cross Site Scripting (Reflected)
+40014	FAIL	Cross Site Scripting (Persistent)
+
+# SSRF - never ignore
+40046	FAIL	Server Side Request Forgery
+
+# Authentication issues - never ignore
+10105	FAIL	Weak Authentication Method
+
+# ============================================================================
+# API-specific rules
+# ============================================================================
+
+# OpenAPI specification issues - warn but don't fail
+10058	WARN	GET for PUT/DELETE/etc. (REST API Issue)

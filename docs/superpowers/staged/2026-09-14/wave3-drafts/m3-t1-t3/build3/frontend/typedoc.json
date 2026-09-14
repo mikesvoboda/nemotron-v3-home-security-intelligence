@@ -1,0 +1,53 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "out": "../docs-output/typescript",
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/tests/**",
+    "**/node_modules/**",
+    "**/__mocks__/**",
+    "**/vite-env.d.ts"
+  ],
+  "name": "Home Security Dashboard - Frontend API",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "readme": "none",
+  "plugin": ["typedoc-plugin-markdown"],
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Components",
+    "Hooks",
+    "Services",
+    "Types",
+    "Utilities",
+    "*"
+  ],
+  "sort": ["source-order", "alphabetical"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Variable",
+    "Enum"
+  ],
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "@internal": false
+  },
+  "searchInComments": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence",
+    "API Docs": "../api-docs/index.html"
+  },
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}

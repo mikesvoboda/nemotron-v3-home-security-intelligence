@@ -1,0 +1,46 @@
+{
+  "source": "cosmos",
+  "video_id": "T30",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "package",
+      "min_confidence": 0.6,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Objects at varying distances: car far at street, person mid-distance, package close in the foreground. Wide-angle pers..."
+  }
+}

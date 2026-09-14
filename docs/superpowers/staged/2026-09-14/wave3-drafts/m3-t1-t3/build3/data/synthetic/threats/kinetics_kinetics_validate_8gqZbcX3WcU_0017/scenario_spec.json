@@ -1,0 +1,20 @@
+{
+  "id": "kinetics_validate_8gqZbcX3WcU_0017",
+  "category": "threats",
+  "name": "Breaking Glass",
+  "description": "Person performing action: breaking glass. Video clip from YouTube (8gqZbcX3WcU), seconds 17-27.",
+  "source": "kinetics",
+  "scene": {
+    "location": "varies",
+    "camera_type": "varies",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 10.0
+  }
+}

@@ -1,0 +1,122 @@
+# Build and publish Python 3.14 Free-Threaded Docker image
+#
+# This workflow builds a custom Python image with --disable-gil for true
+# multi-threaded parallelism. The image is published to GHCR for use by
+# the backend Dockerfile.
+#
+# Triggers:
+#   - Weekly rebuild (Monday 3am UTC) to pick up security updates
+#   - Manual dispatch for immediate rebuilds
+#   - Push to main when Dockerfile changes
+#
+# Image: ghcr.io/mikesvoboda/python:3.14t-slim-bookworm
+
+name: Python Free-Threaded Image
+
+on:
+  schedule:
+    # Rebuild weekly on Monday at 3am UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Python version to build (e.g., 3.14.2)'
+        required: false
+        default: '3.14.2'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docker/python-freethreaded/**'
+      - '.github/workflows/python-freethreaded.yml'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: mikesvoboda/python
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Python version from Dockerfile
+        id: python-version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.python_version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            version=$(grep 'ENV PYTHON_VERSION' docker/python-freethreaded/Dockerfile | awk '{print $3}')
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Primary tag: 3.14t-slim-bookworm
+            type=raw,value=3.14t-slim-bookworm
+            # Version-specific tag: 3.14.2t-slim-bookworm
+            type=raw,value=${{ steps.python-version.outputs.version }}t-slim-bookworm
+            # Date tag for tracking: 3.14t-20260121
+            type=raw,value=3.14t-{{date 'YYYYMMDD'}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/python-freethreaded
+          file: docker/python-freethreaded/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Build takes ~15-20 min due to --enable-optimizations (PGO)
+          # Consider removing PGO for faster builds if needed
+
+      - name: Verify free-threading is enabled
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:3.14t-slim-bookworm
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:3.14t-slim-bookworm \
+            python -c "import sysconfig; ft=bool(sysconfig.get_config_var('Py_GIL_DISABLED')); print(f'Free-threaded: {ft}'); assert ft"
+
+      - name: Output image details
+        run: |
+          echo "## Python Free-Threaded Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:3.14t-slim-bookworm\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Python Version:** ${{ steps.python-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Usage" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`dockerfile" >> $GITHUB_STEP_SUMMARY
+          echo "FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

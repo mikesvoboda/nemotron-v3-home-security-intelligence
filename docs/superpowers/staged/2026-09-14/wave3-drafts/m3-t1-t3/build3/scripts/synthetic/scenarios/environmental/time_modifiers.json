@@ -1,0 +1,140 @@
+{
+  "id": "time_modifiers",
+  "category": "environmental",
+  "name": "Time-Based Variations",
+  "description": "Environmental modifiers that adjust scenarios based on time of day. These affect lighting, visibility, and risk scoring.",
+
+  "modifiers": [
+    {
+      "id": "dawn",
+      "name": "Dawn / Early Morning",
+      "time_of_day": "dawn",
+      "time_range": "05:00-07:00",
+      "environment_settings": {
+        "lighting": "low_ambient_dawn",
+        "visibility": "medium",
+        "shadows": "long_soft"
+      },
+      "prompt_description": "Early morning at dawn, soft golden light beginning to illuminate the scene, long soft shadows, sky transitioning from dark to light blue and orange",
+      "camera_adjustments": {
+        "suggested_effects": [],
+        "exposure_note": "Camera may auto-adjust from night mode"
+      },
+      "risk_modifier": {
+        "base_adjustment": 5,
+        "factors_to_add": ["early_morning"],
+        "notes": "Slightly elevated risk due to low foot traffic and transitional lighting"
+      }
+    },
+    {
+      "id": "day",
+      "name": "Daytime",
+      "time_of_day": "day",
+      "time_range": "07:00-17:00",
+      "environment_settings": {
+        "lighting": "natural_daylight",
+        "visibility": "high",
+        "shadows": "normal"
+      },
+      "prompt_description": "Bright daytime with full natural sunlight, clear visibility, normal shadows cast by objects and people",
+      "camera_adjustments": {
+        "suggested_effects": [],
+        "exposure_note": "Standard daytime exposure"
+      },
+      "risk_modifier": {
+        "base_adjustment": 0,
+        "factors_to_add": [],
+        "notes": "Baseline risk level, best visibility for identification"
+      }
+    },
+    {
+      "id": "afternoon",
+      "name": "Late Afternoon",
+      "time_of_day": "afternoon",
+      "time_range": "15:00-17:00",
+      "environment_settings": {
+        "lighting": "warm_afternoon",
+        "visibility": "high",
+        "shadows": "lengthening"
+      },
+      "prompt_description": "Late afternoon with warm golden sunlight, lengthening shadows, slightly lower sun angle",
+      "camera_adjustments": {
+        "suggested_effects": [],
+        "exposure_note": "May have some glare from low sun angle"
+      },
+      "risk_modifier": {
+        "base_adjustment": 0,
+        "factors_to_add": [],
+        "notes": "Standard daytime visibility, some areas may have deep shadows"
+      }
+    },
+    {
+      "id": "dusk",
+      "name": "Dusk / Evening",
+      "time_of_day": "dusk",
+      "time_range": "17:00-20:00",
+      "environment_settings": {
+        "lighting": "low_ambient_dusk",
+        "visibility": "medium",
+        "shadows": "deep_fading"
+      },
+      "prompt_description": "Evening at dusk, fading daylight with orange and purple sky, increasing darkness, porch lights and streetlights beginning to turn on",
+      "camera_adjustments": {
+        "suggested_effects": ["low_light_noise"],
+        "exposure_note": "Camera transitioning to low-light mode"
+      },
+      "risk_modifier": {
+        "base_adjustment": 10,
+        "factors_to_add": ["low_light", "transitional_lighting"],
+        "notes": "Reduced visibility, identification more difficult, elevated baseline risk"
+      }
+    },
+    {
+      "id": "night",
+      "name": "Night",
+      "time_of_day": "night",
+      "time_range": "20:00-00:00",
+      "environment_settings": {
+        "lighting": "artificial_night",
+        "visibility": "low",
+        "shadows": "harsh_from_lights"
+      },
+      "prompt_description": "Nighttime with artificial lighting from porch lights and streetlights, dark sky, pools of light surrounded by darkness, harsh shadows from directional light sources",
+      "camera_adjustments": {
+        "suggested_effects": ["ir_night_vision", "low_light_noise"],
+        "exposure_note": "IR mode or low-light mode active"
+      },
+      "risk_modifier": {
+        "base_adjustment": 15,
+        "factors_to_add": ["nighttime"],
+        "notes": "Significantly reduced visibility, facial recognition difficult, higher baseline risk"
+      }
+    },
+    {
+      "id": "midnight",
+      "name": "Late Night / Midnight",
+      "time_of_day": "midnight",
+      "time_range": "00:00-05:00",
+      "environment_settings": {
+        "lighting": "minimal_ambient",
+        "visibility": "very_low",
+        "shadows": "extreme_contrast"
+      },
+      "prompt_description": "Late night / early morning hours, minimal ambient light, very dark with only security lights and distant streetlights, high contrast between lit and unlit areas",
+      "camera_adjustments": {
+        "suggested_effects": ["ir_night_vision"],
+        "exposure_note": "Full IR mode, grayscale image typical"
+      },
+      "risk_modifier": {
+        "base_adjustment": 25,
+        "factors_to_add": ["late_night", "unusual_hour"],
+        "notes": "Lowest visibility, any activity highly suspicious, maximum risk modifier"
+      }
+    }
+  ],
+
+  "usage": {
+    "application": "Apply time modifiers by merging environment_settings with base scenario environment. Add risk_modifier.factors_to_add to expected risk factors.",
+    "prompt_integration": "Insert prompt_description into the generation prompt to describe lighting conditions."
+  }
+}

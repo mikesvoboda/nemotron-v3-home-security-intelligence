@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P15_full_perimeter",
+  "category": "suspicious",
+  "name": "Full Perimeter",
+  "description": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They walk quickly along the side of the house toward the back. Brisk walking pace, glancing at windows while moving, continuous motion. Static viewpoint along the fence ",
+  "source": "cosmos",
+  "scene": {
+    "location": "side_yard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "dusk",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They walk quickly along the side of the house toward the back. Brisk walking pace, glancing at windows while moving, continuous motion. Static viewpoint along the fence line, medium field of view, standard wide-angle perspective, Transitional lighting quality, warm tones, automatic exposure adjusting. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

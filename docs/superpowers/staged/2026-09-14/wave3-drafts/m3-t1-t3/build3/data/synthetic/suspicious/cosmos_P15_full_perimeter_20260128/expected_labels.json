@@ -1,0 +1,41 @@
+{
+  "source": "cosmos",
+  "video_id": "P15",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "side_yard",
+    "time_of_day": "dusk",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 26,
+    "max_score": 60,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
+  }
+}

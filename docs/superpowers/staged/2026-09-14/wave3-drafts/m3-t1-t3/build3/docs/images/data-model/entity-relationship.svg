@@ -1,0 +1,620 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1400" width="1600" height="1400">
+  <defs>
+    <!-- Styles -->
+    <style>
+      .table-header { fill: #3B82F6; }
+      .table-header-text { fill: white; font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: bold; }
+      .table-body { fill: white; stroke: #D1D5DB; stroke-width: 1; }
+      .column-text { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; }
+      .pk-text { fill: #059669; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; font-weight: bold; }
+      .fk-text { fill: #DC2626; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; font-weight: bold; }
+      .uk-text { fill: #7C3AED; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; font-weight: bold; }
+      .type-text { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; }
+      .relationship-line { stroke: #6B7280; stroke-width: 2; fill: none; }
+      .relationship-line-dashed { stroke: #6B7280; stroke-width: 2; fill: none; stroke-dasharray: 5,5; }
+      .crow-foot { stroke: #6B7280; stroke-width: 2; fill: none; }
+      .title-text { fill: #111827; font-family: 'Segoe UI', Arial, sans-serif; font-size: 24px; font-weight: bold; }
+      .legend-text { fill: #374151; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; }
+      .section-label { fill: #6B7280; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-style: italic; }
+    </style>
+
+    <!-- Crow's foot markers -->
+    <marker id="crow-foot-many" viewBox="0 0 20 20" refX="20" refY="10" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 0 10 L 20 0 M 0 10 L 20 10 M 0 10 L 20 20" class="crow-foot"/>
+    </marker>
+    <marker id="crow-foot-one" viewBox="0 0 20 20" refX="20" refY="10" markerWidth="10" markerHeight="10" orient="auto">
+      <line x1="15" y1="0" x2="15" y2="20" class="crow-foot"/>
+      <line x1="20" y1="0" x2="20" y2="20" class="crow-foot"/>
+    </marker>
+
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#FAFAFA"/>
+
+  <!-- Title -->
+  <text x="800" y="40" text-anchor="middle" class="title-text">Entity Relationship Diagram - Home Security Intelligence</text>
+
+  <!-- Section Labels -->
+  <text x="300" y="75" text-anchor="middle" class="section-label">Core Entities</text>
+  <text x="1100" y="75" text-anchor="middle" class="section-label">Alerting System</text>
+  <text x="300" y="580" text-anchor="middle" class="section-label">Analytics &amp; Baselines</text>
+  <text x="1100" y="580" text-anchor="middle" class="section-label">System &amp; Audit</text>
+
+  <!-- ============ CAMERAS TABLE ============ -->
+  <g transform="translate(50, 95)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">cameras</text>
+    <rect x="0" y="30" width="220" height="130" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">STRING</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">name</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+
+    <text x="10" y="90" class="column-text">folder_path</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">status</text>
+    <text x="130" y="110" class="type-text">STRING</text>
+
+    <text x="10" y="130" class="column-text">created_at</text>
+    <text x="130" y="130" class="type-text">DATETIME</text>
+
+    <text x="10" y="150" class="column-text">last_seen_at</text>
+    <text x="130" y="150" class="type-text">DATETIME?</text>
+  </g>
+
+  <!-- ============ DETECTIONS TABLE ============ -->
+  <g transform="translate(50, 280)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">detections</text>
+    <rect x="0" y="30" width="220" height="250" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">camera_id</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+    <text x="195" y="70" class="fk-text">FK</text>
+
+    <text x="10" y="90" class="column-text">file_path</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">file_type</text>
+    <text x="130" y="110" class="type-text">STRING?</text>
+
+    <text x="10" y="130" class="column-text">detected_at</text>
+    <text x="130" y="130" class="type-text">DATETIME</text>
+
+    <text x="10" y="150" class="column-text">object_type</text>
+    <text x="130" y="150" class="type-text">STRING?</text>
+
+    <text x="10" y="170" class="column-text">confidence</text>
+    <text x="130" y="170" class="type-text">FLOAT?</text>
+
+    <text x="10" y="190" class="column-text">bbox_x, bbox_y</text>
+    <text x="130" y="190" class="type-text">INTEGER?</text>
+
+    <text x="10" y="210" class="column-text">bbox_width, bbox_height</text>
+    <text x="130" y="210" class="type-text">INTEGER?</text>
+
+    <text x="10" y="230" class="column-text">thumbnail_path</text>
+    <text x="130" y="230" class="type-text">STRING?</text>
+  </g>
+
+  <!-- ============ EVENTS TABLE ============ -->
+  <g transform="translate(330, 95)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">events</text>
+    <rect x="0" y="30" width="220" height="270" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">batch_id</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+
+    <text x="10" y="90" class="column-text">camera_id</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+    <text x="195" y="90" class="fk-text">FK</text>
+
+    <text x="10" y="110" class="column-text">started_at</text>
+    <text x="130" y="110" class="type-text">DATETIME</text>
+
+    <text x="10" y="130" class="column-text">ended_at</text>
+    <text x="130" y="130" class="type-text">DATETIME?</text>
+
+    <text x="10" y="150" class="column-text">risk_score</text>
+    <text x="130" y="150" class="type-text">INTEGER?</text>
+
+    <text x="10" y="170" class="column-text">risk_level</text>
+    <text x="130" y="170" class="type-text">STRING?</text>
+
+    <text x="10" y="190" class="column-text">summary</text>
+    <text x="130" y="190" class="type-text">TEXT?</text>
+
+    <text x="10" y="210" class="column-text">reasoning</text>
+    <text x="130" y="210" class="type-text">TEXT?</text>
+
+    <text x="10" y="230" class="column-text">detection_ids</text>
+    <text x="130" y="230" class="type-text">TEXT?</text>
+
+    <text x="10" y="250" class="column-text">reviewed</text>
+    <text x="130" y="250" class="type-text">BOOLEAN</text>
+
+    <text x="10" y="270" class="column-text">notes</text>
+    <text x="130" y="270" class="type-text">TEXT?</text>
+
+    <text x="10" y="290" class="column-text">is_fast_path</text>
+    <text x="130" y="290" class="type-text">BOOLEAN</text>
+  </g>
+
+  <!-- ============ ZONES TABLE ============ -->
+  <g transform="translate(330, 430)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">zones</text>
+    <rect x="0" y="30" width="220" height="210" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">STRING</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">camera_id</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+    <text x="195" y="70" class="fk-text">FK</text>
+
+    <text x="10" y="90" class="column-text">name</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">zone_type</text>
+    <text x="130" y="110" class="type-text">ENUM</text>
+
+    <text x="10" y="130" class="column-text">coordinates</text>
+    <text x="130" y="130" class="type-text">JSONB</text>
+
+    <text x="10" y="150" class="column-text">shape</text>
+    <text x="130" y="150" class="type-text">ENUM</text>
+
+    <text x="10" y="170" class="column-text">color</text>
+    <text x="130" y="170" class="type-text">STRING</text>
+
+    <text x="10" y="190" class="column-text">enabled</text>
+    <text x="130" y="190" class="type-text">BOOLEAN</text>
+
+    <text x="10" y="210" class="column-text">priority</text>
+    <text x="130" y="210" class="type-text">INTEGER</text>
+
+    <text x="10" y="230" class="column-text">created_at, updated_at</text>
+    <text x="130" y="230" class="type-text">DATETIME</text>
+  </g>
+
+  <!-- ============ ALERTS TABLE ============ -->
+  <g transform="translate(610, 95)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">alerts</text>
+    <rect x="0" y="30" width="220" height="230" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">UUID</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">event_id</text>
+    <text x="130" y="70" class="type-text">INTEGER</text>
+    <text x="195" y="70" class="fk-text">FK</text>
+
+    <text x="10" y="90" class="column-text">rule_id</text>
+    <text x="130" y="90" class="type-text">UUID?</text>
+    <text x="195" y="90" class="fk-text">FK</text>
+
+    <text x="10" y="110" class="column-text">severity</text>
+    <text x="130" y="110" class="type-text">ENUM</text>
+
+    <text x="10" y="130" class="column-text">status</text>
+    <text x="130" y="130" class="type-text">ENUM</text>
+
+    <text x="10" y="150" class="column-text">created_at</text>
+    <text x="130" y="150" class="type-text">DATETIME</text>
+
+    <text x="10" y="170" class="column-text">updated_at</text>
+    <text x="130" y="170" class="type-text">DATETIME</text>
+
+    <text x="10" y="190" class="column-text">delivered_at</text>
+    <text x="130" y="190" class="type-text">DATETIME?</text>
+
+    <text x="10" y="210" class="column-text">channels</text>
+    <text x="130" y="210" class="type-text">JSON?</text>
+
+    <text x="10" y="230" class="column-text">dedup_key</text>
+    <text x="130" y="230" class="type-text">STRING</text>
+
+    <text x="10" y="250" class="column-text">metadata</text>
+    <text x="130" y="250" class="type-text">JSON?</text>
+  </g>
+
+  <!-- ============ ALERT_RULES TABLE ============ -->
+  <g transform="translate(610, 380)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">alert_rules</text>
+    <rect x="0" y="30" width="220" height="310" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">UUID</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">name</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+
+    <text x="10" y="90" class="column-text">description</text>
+    <text x="130" y="90" class="type-text">TEXT?</text>
+
+    <text x="10" y="110" class="column-text">enabled</text>
+    <text x="130" y="110" class="type-text">BOOLEAN</text>
+
+    <text x="10" y="130" class="column-text">severity</text>
+    <text x="130" y="130" class="type-text">ENUM</text>
+
+    <text x="10" y="150" class="column-text">risk_threshold</text>
+    <text x="130" y="150" class="type-text">INTEGER?</text>
+
+    <text x="10" y="170" class="column-text">object_types</text>
+    <text x="130" y="170" class="type-text">JSON?</text>
+
+    <text x="10" y="190" class="column-text">camera_ids</text>
+    <text x="130" y="190" class="type-text">JSON?</text>
+
+    <text x="10" y="210" class="column-text">zone_ids</text>
+    <text x="130" y="210" class="type-text">JSON?</text>
+
+    <text x="10" y="230" class="column-text">min_confidence</text>
+    <text x="130" y="230" class="type-text">FLOAT?</text>
+
+    <text x="10" y="250" class="column-text">schedule</text>
+    <text x="130" y="250" class="type-text">JSON?</text>
+
+    <text x="10" y="270" class="column-text">dedup_key_template</text>
+    <text x="130" y="270" class="type-text">STRING</text>
+
+    <text x="10" y="290" class="column-text">cooldown_seconds</text>
+    <text x="130" y="290" class="type-text">INTEGER</text>
+
+    <text x="10" y="310" class="column-text">channels</text>
+    <text x="130" y="310" class="type-text">JSON?</text>
+
+    <text x="10" y="330" class="column-text">created_at, updated_at</text>
+    <text x="130" y="330" class="type-text">DATETIME</text>
+  </g>
+
+  <!-- ============ ACTIVITY_BASELINES TABLE ============ -->
+  <g transform="translate(50, 700)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">activity_baselines</text>
+    <rect x="0" y="30" width="220" height="130" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column_text">camera_id</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+    <text x="195" y="70" class="fk-text">FK</text>
+
+    <text x="10" y="90" class="column-text">hour</text>
+    <text x="130" y="90" class="type-text">INTEGER</text>
+
+    <text x="10" y="110" class="column-text">day_of_week</text>
+    <text x="130" y="110" class="type-text">INTEGER</text>
+
+    <text x="10" y="130" class="column-text">avg_count</text>
+    <text x="130" y="130" class="type-text">FLOAT</text>
+
+    <text x="10" y="150" class="column-text">sample_count, last_updated</text>
+    <text x="130" y="150" class="type-text">INT/DT</text>
+  </g>
+
+  <!-- ============ CLASS_BASELINES TABLE ============ -->
+  <g transform="translate(330, 700)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">class_baselines</text>
+    <rect x="0" y="30" width="220" height="130" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">camera_id</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+    <text x="195" y="70" class="fk-text">FK</text>
+
+    <text x="10" y="90" class="column-text">detection_class</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">hour</text>
+    <text x="130" y="110" class="type-text">INTEGER</text>
+
+    <text x="10" y="130" class="column-text">frequency</text>
+    <text x="130" y="130" class="type-text">FLOAT</text>
+
+    <text x="10" y="150" class="column-text">sample_count, last_updated</text>
+    <text x="130" y="150" class="type-text">INT/DT</text>
+  </g>
+
+  <!-- ============ AUDIT_LOGS TABLE ============ -->
+  <g transform="translate(890, 95)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">audit_logs</text>
+    <rect x="0" y="30" width="220" height="210" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">timestamp</text>
+    <text x="130" y="70" class="type-text">DATETIME</text>
+
+    <text x="10" y="90" class="column-text">action</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">resource_type</text>
+    <text x="130" y="110" class="type-text">STRING</text>
+
+    <text x="10" y="130" class="column-text">resource_id</text>
+    <text x="130" y="130" class="type-text">STRING?</text>
+
+    <text x="10" y="150" class="column-text">actor</text>
+    <text x="130" y="150" class="type-text">STRING</text>
+
+    <text x="10" y="170" class="column-text">ip_address</text>
+    <text x="130" y="170" class="type-text">STRING?</text>
+
+    <text x="10" y="190" class="column-text">user_agent</text>
+    <text x="130" y="190" class="type-text">TEXT?</text>
+
+    <text x="10" y="210" class="column-text">details</text>
+    <text x="130" y="210" class="type-text">JSONB?</text>
+
+    <text x="10" y="230" class="column-text">status</text>
+    <text x="130" y="230" class="type-text">STRING</text>
+  </g>
+
+  <!-- ============ GPU_STATS TABLE ============ -->
+  <g transform="translate(890, 360)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">gpu_stats</text>
+    <rect x="0" y="30" width="220" height="190" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">recorded_at</text>
+    <text x="130" y="70" class="type-text">DATETIME</text>
+
+    <text x="10" y="90" class="column-text">gpu_name</text>
+    <text x="130" y="90" class="type-text">STRING?</text>
+
+    <text x="10" y="110" class="column-text">gpu_utilization</text>
+    <text x="130" y="110" class="type-text">FLOAT?</text>
+
+    <text x="10" y="130" class="column-text">memory_used</text>
+    <text x="130" y="130" class="type-text">INTEGER?</text>
+
+    <text x="10" y="150" class="column-text">memory_total</text>
+    <text x="130" y="150" class="type-text">INTEGER?</text>
+
+    <text x="10" y="170" class="column-text">temperature</text>
+    <text x="130" y="170" class="type-text">FLOAT?</text>
+
+    <text x="10" y="190" class="column-text">power_usage</text>
+    <text x="130" y="190" class="type-text">FLOAT?</text>
+
+    <text x="10" y="210" class="column-text">inference_fps</text>
+    <text x="130" y="210" class="type-text">FLOAT?</text>
+  </g>
+
+  <!-- ============ LOGS TABLE ============ -->
+  <g transform="translate(890, 600)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">logs</text>
+    <rect x="0" y="30" width="220" height="270" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">timestamp</text>
+    <text x="130" y="70" class="type-text">DATETIME</text>
+
+    <text x="10" y="90" class="column-text">level</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">component</text>
+    <text x="130" y="110" class="type-text">STRING</text>
+
+    <text x="10" y="130" class="column-text">message</text>
+    <text x="130" y="130" class="type-text">TEXT</text>
+
+    <text x="10" y="150" class="column-text">camera_id</text>
+    <text x="130" y="150" class="type-text">STRING?</text>
+
+    <text x="10" y="170" class="column-text">event_id</text>
+    <text x="130" y="170" class="type-text">INTEGER?</text>
+
+    <text x="10" y="190" class="column-text">request_id</text>
+    <text x="130" y="190" class="type-text">STRING?</text>
+
+    <text x="10" y="210" class="column-text">detection_id</text>
+    <text x="130" y="210" class="type-text">INTEGER?</text>
+
+    <text x="10" y="230" class="column-text">duration_ms</text>
+    <text x="130" y="230" class="type-text">INTEGER?</text>
+
+    <text x="10" y="250" class="column-text">extra</text>
+    <text x="130" y="250" class="type-text">JSON?</text>
+
+    <text x="10" y="270" class="column-text">source</text>
+    <text x="130" y="270" class="type-text">STRING</text>
+
+    <text x="10" y="290" class="column-text">user_agent</text>
+    <text x="130" y="290" class="type-text">TEXT?</text>
+  </g>
+
+  <!-- ============ API_KEYS TABLE ============ -->
+  <g transform="translate(1170, 95)" filter="url(#shadow)">
+    <rect x="0" y="0" width="220" height="30" rx="5" ry="5" class="table-header"/>
+    <text x="110" y="20" text-anchor="middle" class="table-header-text">api_keys</text>
+    <rect x="0" y="30" width="220" height="110" class="table-body"/>
+
+    <text x="10" y="50" class="column-text">id</text>
+    <text x="130" y="50" class="type-text">INTEGER</text>
+    <text x="195" y="50" class="pk-text">PK</text>
+
+    <text x="10" y="70" class="column-text">key_hash</text>
+    <text x="130" y="70" class="type-text">STRING</text>
+    <text x="195" y="70" class="uk-text">UK</text>
+
+    <text x="10" y="90" class="column-text">name</text>
+    <text x="130" y="90" class="type-text">STRING</text>
+
+    <text x="10" y="110" class="column-text">created_at</text>
+    <text x="130" y="110" class="type-text">DATETIME</text>
+
+    <text x="10" y="130" class="column-text">is_active</text>
+    <text x="130" y="130" class="type-text">BOOLEAN</text>
+  </g>
+
+  <!-- ============ RELATIONSHIPS ============ -->
+
+  <!-- cameras -> detections (1:N) -->
+  <g>
+    <line x1="160" y1="255" x2="160" y2="280" class="relationship-line"/>
+    <!-- One side (cameras) -->
+    <line x1="155" y1="260" x2="165" y2="260" stroke="#6B7280" stroke-width="2"/>
+    <line x1="155" y1="265" x2="165" y2="265" stroke="#6B7280" stroke-width="2"/>
+    <!-- Many side (detections) - crow's foot -->
+    <line x1="150" y1="275" x2="160" y2="280" stroke="#6B7280" stroke-width="2"/>
+    <line x1="160" y1="280" x2="170" y2="275" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="160" cy="272" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- cameras -> events (1:N) -->
+  <g>
+    <path d="M 270 180 L 290 180 L 290 180 L 330 180" class="relationship-line" fill="none"/>
+    <!-- One side (cameras) -->
+    <line x1="275" y1="175" x2="275" y2="185" stroke="#6B7280" stroke-width="2"/>
+    <line x1="280" y1="175" x2="280" y2="185" stroke="#6B7280" stroke-width="2"/>
+    <!-- Many side (events) - crow's foot -->
+    <line x1="320" y1="173" x2="330" y2="180" stroke="#6B7280" stroke-width="2"/>
+    <line x1="330" y1="180" x2="320" y2="187" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="313" cy="180" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- cameras -> zones (1:N) -->
+  <g>
+    <path d="M 270 215 L 300 215 L 300 460 L 330 460" class="relationship-line" fill="none"/>
+    <!-- One side (cameras) -->
+    <line x1="275" y1="210" x2="275" y2="220" stroke="#6B7280" stroke-width="2"/>
+    <line x1="280" y1="210" x2="280" y2="220" stroke="#6B7280" stroke-width="2"/>
+    <!-- Many side (zones) - crow's foot -->
+    <line x1="320" y1="453" x2="330" y2="460" stroke="#6B7280" stroke-width="2"/>
+    <line x1="330" y1="460" x2="320" y2="467" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="313" cy="460" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- cameras -> activity_baselines (1:N) -->
+  <g>
+    <path d="M 160 255 L 160 560 L 160 560 L 160 700" class="relationship-line" fill="none"/>
+    <!-- Crow's foot at baselines end -->
+    <line x1="150" y1="695" x2="160" y2="700" stroke="#6B7280" stroke-width="2"/>
+    <line x1="160" y1="700" x2="170" y2="695" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="160" cy="692" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- cameras -> class_baselines (1:N) -->
+  <g>
+    <path d="M 200 255 L 200 660 L 440 660 L 440 700" class="relationship-line" fill="none"/>
+    <!-- Crow's foot at baselines end -->
+    <line x1="430" y1="695" x2="440" y2="700" stroke="#6B7280" stroke-width="2"/>
+    <line x1="440" y1="700" x2="450" y2="695" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="440" cy="692" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- events -> alerts (1:N) -->
+  <g>
+    <path d="M 550 200 L 580 200 L 580 200 L 610 200" class="relationship-line" fill="none"/>
+    <!-- One side (events) -->
+    <line x1="555" y1="195" x2="555" y2="205" stroke="#6B7280" stroke-width="2"/>
+    <line x1="560" y1="195" x2="560" y2="205" stroke="#6B7280" stroke-width="2"/>
+    <!-- Many side (alerts) - crow's foot -->
+    <line x1="600" y1="193" x2="610" y2="200" stroke="#6B7280" stroke-width="2"/>
+    <line x1="610" y1="200" x2="600" y2="207" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="593" cy="200" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- alert_rules -> alerts (1:N) -->
+  <g>
+    <path d="M 720 380 L 720 355" class="relationship-line" fill="none"/>
+    <!-- One side (alert_rules) -->
+    <line x1="715" y1="375" x2="725" y2="375" stroke="#6B7280" stroke-width="2"/>
+    <line x1="715" y1="370" x2="725" y2="370" stroke="#6B7280" stroke-width="2"/>
+    <!-- Many side (alerts) - crow's foot -->
+    <line x1="710" y1="360" x2="720" y2="355" stroke="#6B7280" stroke-width="2"/>
+    <line x1="720" y1="355" x2="730" y2="360" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="720" cy="362" r="3" fill="none" stroke="#6B7280" stroke-width="2"/>
+  </g>
+
+  <!-- events -> detections (soft relationship via detection_ids JSON) -->
+  <g>
+    <path d="M 330 350 L 280 350 L 280 400 L 270 400" class="relationship-line-dashed" fill="none"/>
+    <text x="290" y="385" class="section-label" font-size="10">JSON array</text>
+  </g>
+
+  <!-- ============ LEGEND ============ -->
+  <g transform="translate(1170, 280)">
+    <rect x="0" y="0" width="220" height="200" fill="white" stroke="#D1D5DB" rx="5"/>
+    <text x="110" y="25" text-anchor="middle" class="table-header-text" fill="#374151">Legend</text>
+
+    <!-- PK -->
+    <text x="15" y="55" class="pk-text">PK</text>
+    <text x="45" y="55" class="legend-text">Primary Key</text>
+
+    <!-- FK -->
+    <text x="15" y="80" class="fk-text">FK</text>
+    <text x="45" y="80" class="legend-text">Foreign Key</text>
+
+    <!-- UK -->
+    <text x="15" y="105" class="uk-text">UK</text>
+    <text x="45" y="105" class="legend-text">Unique Key</text>
+
+    <!-- One-to-Many -->
+    <line x1="15" y1="130" x2="50" y2="130" class="relationship-line"/>
+    <line x1="15" y1="125" x2="15" y2="135" stroke="#6B7280" stroke-width="2"/>
+    <line x1="20" y1="125" x2="20" y2="135" stroke="#6B7280" stroke-width="2"/>
+    <line x1="40" y1="123" x2="50" y2="130" stroke="#6B7280" stroke-width="2"/>
+    <line x1="50" y1="130" x2="40" y2="137" stroke="#6B7280" stroke-width="2"/>
+    <circle cx="35" cy="130" r="2" fill="none" stroke="#6B7280" stroke-width="2"/>
+    <text x="60" y="135" class="legend-text">One-to-Many</text>
+
+    <!-- Soft relationship -->
+    <line x1="15" y1="160" x2="50" y2="160" class="relationship-line-dashed"/>
+    <text x="60" y="165" class="legend-text">Soft Link (JSON)</text>
+
+    <!-- Nullable -->
+    <text x="15" y="190" class="type-text">TYPE?</text>
+    <text x="60" y="190" class="legend-text">Nullable Column</text>
+  </g>
+
+  <!-- Footer note -->
+  <text x="800" y="1380" text-anchor="middle" class="section-label">
+    Cascade delete: cameras deletion removes all related detections, events, zones, and baselines
+  </text>
+</svg>

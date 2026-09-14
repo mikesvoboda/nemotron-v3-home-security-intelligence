@@ -1,0 +1,351 @@
+{
+  "title": "LLM Inference Performance Optimization",
+  "overview": "Systematically benchmark and optimize the Nemotron inference stack to reduce latency (<15s P50), increase throughput (>8 req/min), fit full AI pipeline on single RTX A5500 (24GB), and maintain quality (≥95% of 30B baseline). Uses benchmark-first approach - measure everything, decide with data.",
+  "phases": [
+    {
+      "name": "Phase 1: Benchmark Infrastructure",
+      "objective": "Build measurement foundation before any optimizations - latency, throughput, VRAM, and quality metrics",
+      "research_findings": {
+        "codebase": [
+          "Existing metrics in ai/nemotron/model_hf.py (Prometheus)",
+          "Synthetic test data in data/synthetic/",
+          "Current baseline: 39.6s P50, ~2 req/min throughput"
+        ],
+        "online": [
+          "nvidia-smi for VRAM polling",
+          "httpx for request timing",
+          "JSON schema validation for quality scoring"
+        ],
+        "decisions": [
+          "100-event evaluation set (70 low, 20 medium, 8 high, 2 critical)",
+          "Four test scenarios: single request, sustained load, burst, cold start",
+          "Output as JSON reports with markdown comparison tool"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "scripts/benchmark/run_benchmark.py",
+            "purpose": "Main benchmark runner orchestrating all test scenarios"
+          },
+          {
+            "path": "scripts/benchmark/metrics.py",
+            "purpose": "Metrics collection (latency, VRAM, throughput)"
+          },
+          {
+            "path": "scripts/benchmark/quality.py",
+            "purpose": "Quality scoring against ground truth"
+          },
+          {
+            "path": "scripts/benchmark/compare.py",
+            "purpose": "Generate markdown comparison tables"
+          },
+          {
+            "path": "data/benchmark/evaluation-set/events.json",
+            "purpose": "Fixed 100-event test dataset"
+          }
+        ],
+        "modify": []
+      },
+      "tests": {
+        "unit": [
+          "Metrics collector captures latency accurately",
+          "VRAM polling returns valid GPU memory stats",
+          "Quality scorer calculates risk score delta correctly"
+        ],
+        "integration": [
+          "Full benchmark run completes against live Nemotron service",
+          "Results JSON contains all required metrics"
+        ],
+        "edge_cases": [
+          "Handle Nemotron service unavailable",
+          "Handle GPU not present (CPU-only mode)"
+        ]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Benchmark suite runs end-to-end",
+        "Baseline captured for current 30B Q4_K_M llama.cpp setup",
+        "Comparison tool generates readable markdown tables"
+      ]
+    },
+    {
+      "name": "Phase 2: Model Comparison",
+      "objective": "Benchmark Nemotron 30B/9B/8B/4B variants to determine if smaller models meet quality threshold",
+      "research_findings": {
+        "codebase": [
+          "Model download via ai/download_models.sh",
+          "Models stored at /export/ai_models/nemotron/"
+        ],
+        "online": [
+          "Nemotron-Nano-9B-V2 available on HuggingFace",
+          "Nemotron-Nano-8B-V1 available as GGUF",
+          "Nemotron-Nano-4B-V1.1 smallest option"
+        ],
+        "decisions": [
+          "Quality threshold: 95% of 30B baseline to consider adoption",
+          "If 4B ≥85% quality, consider speculative decoding",
+          "Test all models with same prompts, same parameters"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "scripts/benchmark/model_comparison.py",
+            "purpose": "Run benchmark suite across multiple models"
+          },
+          {
+            "path": "docs/reports/model-comparison.md",
+            "purpose": "Document model comparison results"
+          }
+        ],
+        "modify": [
+          {
+            "path": "ai/download_models.sh",
+            "changes": "Add download commands for 9B, 8B, 4B models"
+          }
+        ]
+      },
+      "tests": {
+        "unit": [
+          "Model loader handles different GGUF files",
+          "Quality comparison calculates relative scores correctly"
+        ],
+        "integration": [
+          "Each model produces valid JSON responses",
+          "Benchmark completes for all 4 models"
+        ],
+        "edge_cases": ["Model file not found", "Model too large for available VRAM"]
+      },
+      "dependencies": [
+        "Nemotron-Nano-9B-V2 Q4_K_M GGUF",
+        "Nemotron-Nano-8B-V1 Q4_K_M GGUF",
+        "Nemotron-Nano-4B-V1.1 Q4_K_M GGUF"
+      ],
+      "acceptance_criteria": [
+        "All 4 models benchmarked with same evaluation set",
+        "Quality comparison documented with data",
+        "Model recommendation made based on 95% threshold"
+      ]
+    },
+    {
+      "name": "Phase 3: Quantization Exploration",
+      "objective": "Test aggressive quantization formats (Q3_K, Q2_K, IQ variants) to find optimal VRAM/quality tradeoff",
+      "research_findings": {
+        "codebase": [
+          "Current: Q4_K_M at ~14.7GB VRAM",
+          "Need 3-5GB savings to fit full stack on A5500"
+        ],
+        "online": [
+          "IQ3_M offers better quality than Q3_K at similar size",
+          "IQ2_M offers better quality than Q2_K at similar size",
+          "llama.cpp supports all GGUF quantization formats"
+        ],
+        "decisions": [
+          "Test Q4_K_S, Q3_K_M, Q3_K_S, Q2_K, IQ3_M, IQ2_M",
+          "Generate quality/VRAM tradeoff curves",
+          "Compare 9B@Q4 vs 30B@Q3 if both meet quality threshold"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "scripts/benchmark/quantization_comparison.py",
+            "purpose": "Run benchmarks across quantization formats"
+          },
+          {
+            "path": "docs/reports/quantization-comparison.md",
+            "purpose": "Document quantization tradeoff curves"
+          }
+        ],
+        "modify": []
+      },
+      "tests": {
+        "unit": [
+          "VRAM measurement accurate for each quantization",
+          "Quality delta calculation correct"
+        ],
+        "integration": [
+          "Each quantization format loads and runs inference",
+          "Results capture VRAM savings vs quality loss"
+        ],
+        "edge_cases": ["Quantization too aggressive (gibberish output)", "Model file corruption"]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All quantization levels benchmarked",
+        "Quality/VRAM tradeoff curve documented",
+        "Optimal quantization selected for winning model"
+      ]
+    },
+    {
+      "name": "Phase 4: vLLM Engine Evaluation",
+      "objective": "Evaluate vLLM as inference backend for continuous batching and PagedAttention benefits",
+      "research_findings": {
+        "codebase": [
+          "Current: llama.cpp with PARALLEL=1",
+          "Existing Triton migration plan at docs/plans/triton-migration.md",
+          "OpenAI-compatible API already used"
+        ],
+        "online": [
+          "vLLM provides PagedAttention for 2-4x memory efficiency",
+          "Continuous batching enables 5-10x throughput",
+          "Prefix caching reduces latency for shared system prompts"
+        ],
+        "decisions": [
+          "Deploy vLLM alongside llama.cpp for A/B comparison",
+          "Test with winning model from Phase 2",
+          "If vLLM ≥5x throughput AND fits 24GB, migrate"
+        ]
+      },
+      "files": {
+        "create": [
+          { "path": "ai/vllm/Dockerfile", "purpose": "vLLM container definition" },
+          { "path": "ai/vllm/docker-compose.yml", "purpose": "vLLM service configuration" },
+          {
+            "path": "scripts/benchmark/engine_comparison.py",
+            "purpose": "Compare llama.cpp vs vLLM"
+          },
+          {
+            "path": "docs/reports/engine-comparison.md",
+            "purpose": "Document engine comparison results"
+          }
+        ],
+        "modify": [
+          { "path": "docker-compose.prod.yml", "changes": "Add optional vllm service definition" }
+        ]
+      },
+      "tests": {
+        "unit": [
+          "vLLM container starts and responds to health check",
+          "OpenAI-compatible API works with existing client"
+        ],
+        "integration": [
+          "Full benchmark suite runs against vLLM",
+          "Continuous batching shows throughput improvement"
+        ],
+        "edge_cases": ["vLLM OOM on 24GB GPU", "vLLM cold start timeout"]
+      },
+      "dependencies": ["vllm"],
+      "acceptance_criteria": [
+        "vLLM benchmarked against llama.cpp with same model",
+        "Throughput and latency comparison documented",
+        "Engine recommendation made based on fit and performance"
+      ]
+    },
+    {
+      "name": "Phase 5: Batching and Scheduling Optimization",
+      "objective": "Maximize throughput through priority queues, request coalescing, and PARALLEL tuning",
+      "research_findings": {
+        "codebase": [
+          "Current: 90s batch windows, 30s idle timeout",
+          "PARALLEL=1 limits concurrency",
+          "Priority queue infrastructure exists but underutilized",
+          "Semaphore at AI_MAX_CONCURRENT_INFERENCES=4"
+        ],
+        "online": [
+          "Continuous batching can coalesce similar requests",
+          "Priority scheduling ensures critical alerts processed first"
+        ],
+        "decisions": [
+          "Priority levels: P0 (weapon/unknown night), P1 (unknown vehicle), P2 (normal), P3 (known faces)",
+          "Coalesce same-camera + same-object detections",
+          "Tune PARALLEL based on winning engine"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "backend/services/batch_coalescer.py",
+            "purpose": "Merge similar detections into single inference"
+          },
+          {
+            "path": "scripts/benchmark/load_test.py",
+            "purpose": "Sustained load and burst testing"
+          }
+        ],
+        "modify": [
+          {
+            "path": "backend/services/nemotron_analyzer.py",
+            "changes": "Add priority scheduling and coalescing integration"
+          },
+          {
+            "path": "backend/core/config.py",
+            "changes": "Add priority queue configuration options"
+          }
+        ]
+      },
+      "tests": {
+        "unit": [
+          "Priority queue orders requests correctly",
+          "Coalescer merges compatible detections",
+          "Coalescer keeps incompatible detections separate"
+        ],
+        "integration": [
+          "Burst of 10 detections processed with priority ordering",
+          "Throughput improves under sustained load"
+        ],
+        "edge_cases": ["All requests same priority", "No coalescable requests in batch"]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Priority scheduling routes critical alerts faster",
+        "Request coalescing reduces inference count by 20-40%",
+        "Throughput gains measured under realistic load"
+      ]
+    },
+    {
+      "name": "Phase 6: Integration and Validation",
+      "objective": "Combine winning optimizations and validate end-to-end against success criteria",
+      "research_findings": {
+        "codebase": [
+          "docker-compose.prod.yml manages full stack",
+          "Multi-GPU config in docs/development/multi-gpu.md"
+        ],
+        "online": [],
+        "decisions": [
+          "Success: ≥3 of 4 dimensions improved",
+          "Fallback: document optimal A5500+A400 split if single-GPU fails"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "docs/reports/final-optimization-report.md",
+            "purpose": "Final benchmark results and recommendations"
+          }
+        ],
+        "modify": [
+          { "path": "docker-compose.prod.yml", "changes": "Apply winning configuration" },
+          {
+            "path": "docs/deployment/README.md",
+            "changes": "Update deployment guide with new settings"
+          }
+        ]
+      },
+      "tests": {
+        "unit": [],
+        "integration": [
+          "Full stack starts on A5500 without OOM",
+          "All benchmark targets met",
+          "Existing tests pass"
+        ],
+        "edge_cases": ["Single-GPU target not achievable"]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "P50 latency <15s (from 39.6s)",
+        "Throughput >8 req/min (from ~2)",
+        "VRAM <24GB for full stack",
+        "Quality ≥95% of 30B baseline"
+      ]
+    }
+  ],
+  "risks": [
+    "Smaller models may not meet 95% quality threshold",
+    "vLLM may not fit winning model in 24GB",
+    "Aggressive quantization may hurt quality too much",
+    "Benchmarks may not reflect real-world workload patterns"
+  ],
+  "open_questions": []
+}

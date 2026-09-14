@@ -1,0 +1,1593 @@
+/**
+ * WebSocket Event Map and Typed Event Utilities
+ *
+ * Provides a type-safe event map for WebSocket message handling with utility types
+ * for handlers, event keys, and payload extraction. This module complements the
+ * discriminated union types in websocket.ts by providing an event-based API
+ * for typed event subscription and emission.
+ *
+ * @example
+ * ```ts
+ * const emitter = new TypedWebSocketEmitter();
+ *
+ * // Type-safe subscription - handler parameter is typed correctly
+ * emitter.on('event', (data) => {
+ *   // data is typed as SecurityEventData
+ *   console.log(data.risk_score);
+ * });
+ *
+ * // Type-safe emission - data must match event type
+ * emitter.emit('event', {
+ *   id: '123',
+ *   camera_id: 'front_door',
+ *   risk_score: 75,
+ *   risk_level: 'high',
+ *   summary: 'Person detected',
+ * });
+ * ```
+ */
+
+import type {
+  SecurityEventData,
+  ServiceStatusData,
+  SystemStatusData,
+  GpuStatusData,
+} from './websocket';
+
+// ============================================================================
+// Event Map Definition
+// ============================================================================
+
+/**
+ * Heartbeat payload for ping messages.
+ * Matches the HeartbeatMessage type from websocket.ts but as a payload.
+ */
+export interface HeartbeatPayload {
+  type: 'ping';
+}
+
+/**
+ * GPU stats payload for dedicated GPU monitoring events.
+ */
+export interface GpuStatsPayload extends GpuStatusData {
+  timestamp?: string;
+}
+
+/**
+ * Error payload for WebSocket errors.
+ */
+export interface WebSocketErrorPayload {
+  code?: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Pong payload for pong responses.
+ */
+export interface PongPayload {
+  type: 'pong';
+}
+
+/**
+ * WebSocket Event Map
+ *
+ * Maps event keys to their corresponding payload types for type-safe
+ * event handling. This provides an event-based API on top of the
+ * discriminated union message types.
+ *
+ * Event keys correspond to the `type` field in WebSocket messages:
+ * - 'event' -> SecurityEventData (from EventMessage.data)
+ * - 'service_status' -> ServiceStatusData (from ServiceStatusMessage.data)
+ * - 'system_status' -> SystemStatusData (from SystemStatusMessage.data)
+ * - 'camera_status' -> CameraStatusEventPayload (NEM-2295)
+ * - 'ping' -> HeartbeatPayload
+ * - 'gpu_stats' -> GpuStatsPayload (derived from system status)
+ * - 'error' -> WebSocketErrorPayload
+ * - 'pong' -> PongPayload
+ *
+ * Legacy job event types (underscore format - NEM-2505):
+ * - 'job_progress' -> LegacyJobProgressPayload
+ * - 'job_completed' -> LegacyJobCompletedPayload
+ * - 'job_failed' -> LegacyJobFailedPayload
+ *
+ * New hierarchical event types (NEM-2382):
+ * - 'alert.created' -> AlertCreatedPayload
+ * - 'alert.updated' -> AlertUpdatedPayload (generic update payload)
+ * - 'alert.deleted' -> AlertDeletedPayload (generic delete payload)
+ * - 'camera.online' -> CameraStatusEventPayload
+ * - 'camera.offline' -> CameraStatusEventPayload
+ * - 'job.started' -> JobStartedPayload
+ * - 'job.progress' -> JobProgressPayload
+ * - 'job.completed' -> JobCompletedPayload
+ * - 'job.failed' -> JobFailedPayload
+ * - 'system.health_changed' -> SystemHealthChangedPayload
+ * - 'system.error' -> SystemErrorPayload
+ */
+
+/**
+ * Batched message payload (NEM-3738).
+ * Sent by server to group high-frequency messages together.
+ */
+export interface BatchedMessagePayload {
+  /** Message type, always 'batch' */
+  type: 'batch';
+  /** Channel the messages belong to (e.g., 'detections', 'alerts') */
+  channel: string;
+  /** Number of messages in this batch */
+  count: number;
+  /** Array of individual message payloads */
+  messages: Record<string, unknown>[];
+  /** Unix timestamp when batch was created */
+  batched_at: number;
+}
+
+export interface WebSocketEventMap {
+  /** Security event from the events channel */
+  event: SecurityEventData;
+  /** Service status update (e.g., AI service health) */
+  service_status: ServiceStatusData;
+  /** System status broadcast */
+  system_status: SystemStatusData;
+  /** Camera status change event (NEM-2295) */
+  camera_status: CameraStatusEventPayload;
+  /** Server heartbeat ping */
+  ping: HeartbeatPayload;
+  /** GPU statistics (can be extracted from system_status or dedicated) */
+  gpu_stats: GpuStatsPayload;
+  /** WebSocket error */
+  error: WebSocketErrorPayload;
+  /** Pong response */
+  pong: PongPayload;
+  /** Batched messages from server (NEM-3738) */
+  batch: BatchedMessagePayload;
+
+  // ========================================================================
+  // Legacy job event types (underscore format - NEM-2505)
+  // These are the actual event types sent by the backend schemas
+  // ========================================================================
+
+  /** Job progress event (legacy underscore format) */
+  job_progress: LegacyJobProgressPayload;
+  /** Job completed event (legacy underscore format) */
+  job_completed: LegacyJobCompletedPayload;
+  /** Job failed event (legacy underscore format) */
+  job_failed: LegacyJobFailedPayload;
+
+  // ========================================================================
+  // New hierarchical event types (NEM-2382)
+  // ========================================================================
+
+  // Batch analysis events (NEM-3607)
+  /** Batch analysis started - batch dequeued and entering LLM analysis */
+  'batch.analysis_started': BatchAnalysisStartedPayload;
+  /** Batch analysis completed - LLM analysis finished successfully */
+  'batch.analysis_completed': BatchAnalysisCompletedPayload;
+  /** Batch analysis failed - LLM analysis failed with error */
+  'batch.analysis_failed': BatchAnalysisFailedPayload;
+
+  // Event lifecycle events (NEM-2515)
+  /** Event created - new security event detected and stored */
+  'event.created': EventCreatedPayload;
+  /** Event updated - security event was modified (risk score, status, etc.) */
+  'event.updated': EventUpdatedPayload;
+  /** Event deleted - security event was removed */
+  'event.deleted': EventDeletedPayload;
+
+  /** Alert created event */
+  'alert.created': AlertCreatedPayload;
+  /** Alert updated event */
+  'alert.updated': AlertUpdatedPayload;
+  /** Alert deleted event */
+  'alert.deleted': AlertDeletedPayload;
+  /** Alert acknowledged event */
+  'alert.acknowledged': AlertAcknowledgedPayload;
+  /** Alert dismissed event */
+  'alert.dismissed': AlertDismissedPayload;
+  /** Alert resolved event */
+  'alert.resolved': AlertResolvedPayload;
+
+  /** Camera online event */
+  'camera.online': CameraStatusEventPayload;
+  /** Camera offline event */
+  'camera.offline': CameraStatusEventPayload;
+  /** Camera status changed event */
+  'camera.status_changed': CameraStatusChangedPayload;
+  /** Camera error event */
+  'camera.error': CameraStatusEventPayload;
+  /** Camera enabled event (NEM-3634) */
+  'camera.enabled': CameraEnabledPayload;
+  /** Camera disabled event (NEM-3634) */
+  'camera.disabled': CameraDisabledPayload;
+  /** Camera config updated event (NEM-3634) */
+  'camera.config_updated': CameraConfigUpdatedPayload;
+
+  /** Job started event */
+  'job.started': JobStartedPayload;
+  /** Job progress event */
+  'job.progress': JobProgressPayload;
+  /** Job completed event */
+  'job.completed': JobCompletedPayload;
+  /** Job failed event */
+  'job.failed': JobFailedPayload;
+
+  /** System health changed event */
+  'system.health_changed': SystemHealthChangedPayload;
+  /** System error event */
+  'system.error': SystemErrorPayload;
+
+  // Worker events (NEM-3127)
+  /** Worker started event - pipeline worker began running */
+  'worker.started': WorkerStartedPayload;
+  /** Worker stopped event - pipeline worker stopped */
+  'worker.stopped': WorkerStoppedPayload;
+  /** Worker error event - pipeline worker encountered an error */
+  'worker.error': WorkerErrorPayload;
+  /** Worker health check failed event */
+  'worker.health_check_failed': WorkerHealthCheckFailedPayload;
+  /** Worker restarting event - pipeline worker is restarting */
+  'worker.restarting': WorkerRestartingPayload;
+  /** Worker recovered event - pipeline worker recovered from error */
+  'worker.recovered': WorkerRecoveredPayload;
+
+  // Prometheus alert events (NEM-3123)
+  /** Prometheus/Alertmanager infrastructure alert */
+  'prometheus.alert': PrometheusAlertPayload;
+
+  // Enrichment events (NEM-3627)
+  /** Enrichment started event */
+  'enrichment.started': EnrichmentStartedPayload;
+  /** Enrichment progress event */
+  'enrichment.progress': EnrichmentProgressPayload;
+  /** Enrichment completed event */
+  'enrichment.completed': EnrichmentCompletedPayload;
+  /** Enrichment failed event */
+  'enrichment.failed': EnrichmentFailedPayload;
+
+  // Queue metrics events (NEM-3637)
+  /** Queue status event */
+  'queue.status': QueueStatusPayload;
+  /** Pipeline throughput event */
+  'pipeline.throughput': PipelineThroughputPayload;
+
+  // Plate read events (NEM-4865)
+  /** Plate read created event - new license plate detected */
+  'plate_read.created': PlateReadDetectedPayload;
+
+  // Dwell time events (NEM-4714)
+  /** Dwell entry event - entity entered a zone */
+  'dwell.entry': DwellEntryPayload;
+  /** Dwell exit event - entity exited a zone */
+  'dwell.exit': DwellExitPayload;
+
+  // Scene change events
+  /** Scene change detected event - potential camera tampering */
+  'scene_change.detected': SceneChangeDetectedPayload;
+  /** Scene change acknowledged event - user acknowledged the scene change */
+  'scene_change.acknowledged': SceneChangeAcknowledgedPayload;
+}
+
+// ============================================================================
+// Utility Types
+// ============================================================================
+
+/**
+ * All valid event keys from the WebSocket event map.
+ */
+export type WebSocketEventKey = keyof WebSocketEventMap;
+
+/**
+ * Extract the payload type for a specific event key.
+ *
+ * @example
+ * ```ts
+ * type EventPayload = WebSocketEventPayload<'event'>; // SecurityEventData
+ * type StatusPayload = WebSocketEventPayload<'system_status'>; // SystemStatusData
+ * ```
+ */
+export type WebSocketEventPayload<K extends WebSocketEventKey> = WebSocketEventMap[K];
+
+/**
+ * Type-safe event handler function for a specific event key.
+ *
+ * @example
+ * ```ts
+ * const handler: WebSocketEventHandler<'event'> = (data) => {
+ *   // data is SecurityEventData
+ *   console.log(data.risk_score);
+ * };
+ * ```
+ */
+export type WebSocketEventHandler<K extends WebSocketEventKey> = (
+  data: WebSocketEventMap[K]
+) => void;
+
+/**
+ * Handler map type for registering multiple handlers at once.
+ *
+ * @example
+ * ```ts
+ * const handlers: WebSocketEventHandlerMap = {
+ *   event: (data) => console.log(data.risk_score),
+ *   system_status: (data) => console.log(data.health),
+ * };
+ * ```
+ */
+export type WebSocketEventHandlerMap = {
+  [K in WebSocketEventKey]?: WebSocketEventHandler<K>;
+};
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * All valid event keys as a constant array for runtime checks.
+ */
+export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
+  // Legacy event keys (underscore format)
+  'event',
+  'service_status',
+  'system_status',
+  'camera_status',
+  'ping',
+  'gpu_stats',
+  'error',
+  'pong',
+  // Batched messages (NEM-3738)
+  'batch',
+  // Legacy job event keys (underscore format - NEM-2505)
+  'job_progress',
+  'job_completed',
+  'job_failed',
+  // New hierarchical event keys (NEM-2382)
+  // Batch analysis events (NEM-3607)
+  'batch.analysis_started',
+  'batch.analysis_completed',
+  'batch.analysis_failed',
+  // Event lifecycle events (NEM-2515)
+  'event.created',
+  'event.updated',
+  'event.deleted',
+  // Alert events
+  'alert.created',
+  'alert.updated',
+  'alert.deleted',
+  'alert.acknowledged',
+  'alert.dismissed',
+  'alert.resolved',
+  'camera.online',
+  'camera.offline',
+  'camera.status_changed',
+  'camera.error',
+  // Camera config events (NEM-3634)
+  'camera.enabled',
+  'camera.disabled',
+  'camera.config_updated',
+  // Job events (hierarchical format)
+  'job.started',
+  'job.progress',
+  'job.completed',
+  'job.failed',
+  'system.health_changed',
+  'system.error',
+  // Worker events (NEM-3127)
+  'worker.started',
+  'worker.stopped',
+  'worker.error',
+  'worker.health_check_failed',
+  'worker.restarting',
+  'worker.recovered',
+  // Prometheus alert events (NEM-3123)
+  'prometheus.alert',
+  // Enrichment events (NEM-3627)
+  'enrichment.started',
+  'enrichment.progress',
+  'enrichment.completed',
+  'enrichment.failed',
+  // Queue metrics events (NEM-3637)
+  'queue.status',
+  'pipeline.throughput',
+  // Plate read events (NEM-4865)
+  'plate_read.created',
+  // Dwell time events (NEM-4714)
+  'dwell.entry',
+  'dwell.exit',
+  // Scene change events
+  'scene_change.detected',
+  'scene_change.acknowledged',
+] as const;
+
+/**
+ * Mapping from legacy underscore format event types to hierarchical dot format.
+ * These are alternative event type strings that should be normalized.
+ *
+ * NEM-2505: Added to resolve naming inconsistency between legacy and hierarchical formats.
+ * Note: job_progress, job_completed, job_failed are the ACTUAL wire format used by backend
+ * schemas, so they are NOT aliases - they are first-class event types now.
+ */
+export const LEGACY_EVENT_TYPE_ALIASES: Record<string, WebSocketEventKey> = {
+  // Event types sent by E2E test fixtures with underscore format
+  // Map to hierarchical format for consistent handling
+  event_created: 'event.created',
+  event_updated: 'event.updated',
+  event_deleted: 'event.deleted',
+  // Note: job_* are now first-class types in WEBSOCKET_EVENT_KEYS, not aliases
+} as const;
+
+/**
+ * Normalize an event type string, converting legacy underscore formats to
+ * either hierarchical dot format or recognized first-class event types.
+ *
+ * @example
+ * ```ts
+ * normalizeEventType('event_created') // returns 'event.created'
+ * normalizeEventType('job_progress')  // returns 'job_progress' (first-class)
+ * normalizeEventType('event')         // returns 'event'
+ * normalizeEventType('unknown')       // returns undefined
+ * ```
+ */
+export function normalizeEventType(eventType: string): WebSocketEventKey | undefined {
+  // Check if it's already a valid event key
+  if (isWebSocketEventKey(eventType)) {
+    return eventType;
+  }
+
+  // Check if it's a legacy alias that needs mapping
+  const alias = LEGACY_EVENT_TYPE_ALIASES[eventType];
+  if (alias) {
+    return alias;
+  }
+
+  return undefined;
+}
+
+/**
+ * Type guard to check if a string is a valid WebSocket event key.
+ *
+ * @example
+ * ```ts
+ * const type = 'event';
+ * if (isWebSocketEventKey(type)) {
+ *   // type is narrowed to WebSocketEventKey
+ *   emitter.emit(type, payload);
+ * }
+ * ```
+ */
+export function isWebSocketEventKey(value: unknown): value is WebSocketEventKey {
+  return typeof value === 'string' && WEBSOCKET_EVENT_KEYS.includes(value as WebSocketEventKey);
+}
+
+/**
+ * Extract the event type from a WebSocket message object.
+ * Returns undefined if the message doesn't have a valid type field.
+ *
+ * This function normalizes legacy underscore format event types (e.g., 'event_created')
+ * to hierarchical dot format (e.g., 'event.created') for consistent handling.
+ *
+ * @example
+ * ```ts
+ * const message = JSON.parse(event.data);
+ * const eventType = extractEventType(message);
+ * if (eventType) {
+ *   emitter.emit(eventType, message.data ?? message);
+ * }
+ * ```
+ */
+export function extractEventType(message: unknown): WebSocketEventKey | undefined {
+  if (!message || typeof message !== 'object') {
+    return undefined;
+  }
+
+  const msg = message as Record<string, unknown>;
+
+  if ('type' in msg && typeof msg.type === 'string') {
+    // Use normalizeEventType to handle both direct matches and legacy aliases
+    return normalizeEventType(msg.type);
+  }
+
+  return undefined;
+}
+
+/**
+ * Extract the payload from a WebSocket message based on its type.
+ * For messages with a 'data' field, returns the data. Otherwise returns the message itself.
+ *
+ * @example
+ * ```ts
+ * const message = { type: 'event', data: { risk_score: 75, ... } };
+ * const payload = extractEventPayload(message, 'event');
+ * // payload is the SecurityEventData object
+ * ```
+ */
+export function extractEventPayload<K extends WebSocketEventKey>(
+  message: unknown,
+  eventType: K
+): WebSocketEventMap[K] | undefined {
+  if (!message || typeof message !== 'object') {
+    return undefined;
+  }
+
+  const msg = message as Record<string, unknown>;
+
+  // Verify the type matches
+  if (msg.type !== eventType) {
+    return undefined;
+  }
+
+  // For messages with data field, return the data
+  if ('data' in msg && msg.data !== undefined) {
+    return msg.data as WebSocketEventMap[K];
+  }
+
+  // For simple messages (like ping/pong), return the message itself
+  return msg as unknown as WebSocketEventMap[K];
+}
+
+// ============================================================================
+// WebSocket Event Type Registry (NEM-1984)
+// Matches backend/api/schemas/websocket.py WSEventType enum
+// ============================================================================
+
+/**
+ * Comprehensive WebSocket event type registry.
+ *
+ * This enum defines all WebSocket event types used in the system.
+ * Event types follow a hierarchical naming convention: {domain}.{action}
+ *
+ * Domains:
+ * - detection: AI detection events from the pipeline
+ * - event: Security event lifecycle events
+ * - alert: Alert notifications and state changes
+ * - camera: Camera status and configuration changes
+ * - job: Background job lifecycle events
+ * - system: System health and status events
+ * - gpu: GPU monitoring events
+ */
+export enum WSEventType {
+  // Detection events - AI pipeline results
+  DETECTION_NEW = 'detection.new',
+  DETECTION_BATCH = 'detection.batch',
+
+  // Batch analysis events - Processing status (NEM-3607)
+  BATCH_ANALYSIS_STARTED = 'batch.analysis_started',
+  BATCH_ANALYSIS_COMPLETED = 'batch.analysis_completed',
+  BATCH_ANALYSIS_FAILED = 'batch.analysis_failed',
+
+  // Event events - Security event lifecycle
+  EVENT_CREATED = 'event.created',
+  EVENT_UPDATED = 'event.updated',
+  EVENT_DELETED = 'event.deleted',
+
+  // Alert events - Alert notifications
+  ALERT_CREATED = 'alert.created',
+  ALERT_UPDATED = 'alert.updated',
+  ALERT_ACKNOWLEDGED = 'alert.acknowledged',
+  ALERT_RESOLVED = 'alert.resolved',
+  ALERT_DISMISSED = 'alert.dismissed',
+
+  // Camera events - Camera status changes (NEM-2295)
+  CAMERA_ONLINE = 'camera.online',
+  CAMERA_OFFLINE = 'camera.offline',
+  CAMERA_ERROR = 'camera.error',
+  CAMERA_UPDATED = 'camera.updated',
+  // Legacy camera events
+  CAMERA_STATUS_CHANGED = 'camera.status_changed',
+  CAMERA_ENABLED = 'camera.enabled',
+  CAMERA_DISABLED = 'camera.disabled',
+  // Camera config events (NEM-3634)
+  CAMERA_CONFIG_UPDATED = 'camera.config_updated',
+
+  // Job events - Background job lifecycle
+  JOB_STARTED = 'job.started',
+  JOB_PROGRESS = 'job.progress',
+  JOB_COMPLETED = 'job.completed',
+  JOB_FAILED = 'job.failed',
+
+  // System events - System health monitoring
+  SYSTEM_HEALTH_CHANGED = 'system.health_changed',
+  SYSTEM_STATUS = 'system.status',
+
+  // GPU events - GPU monitoring
+  GPU_STATS_UPDATED = 'gpu.stats_updated',
+
+  // Service events - Container/service status
+  SERVICE_STATUS_CHANGED = 'service.status_changed',
+
+  // Scene change events - Camera view monitoring
+  SCENE_CHANGE_DETECTED = 'scene_change.detected',
+  SCENE_CHANGE_ACKNOWLEDGED = 'scene_change.acknowledged',
+
+  // Worker events - Pipeline worker lifecycle (NEM-3127)
+  WORKER_STARTED = 'worker.started',
+  WORKER_STOPPED = 'worker.stopped',
+  WORKER_ERROR = 'worker.error',
+  WORKER_HEALTH_CHECK_FAILED = 'worker.health_check_failed',
+  WORKER_RESTARTING = 'worker.restarting',
+  WORKER_RECOVERED = 'worker.recovered',
+
+  // Prometheus alert events - Infrastructure monitoring (NEM-3124)
+  PROMETHEUS_ALERT = 'prometheus.alert',
+
+  // Enrichment events - Detection enrichment pipeline (NEM-3627)
+  ENRICHMENT_STARTED = 'enrichment.started',
+  ENRICHMENT_PROGRESS = 'enrichment.progress',
+  ENRICHMENT_COMPLETED = 'enrichment.completed',
+  ENRICHMENT_FAILED = 'enrichment.failed',
+
+  // Queue metrics events - Pipeline queue status (NEM-3637)
+  QUEUE_STATUS = 'queue.status',
+  PIPELINE_THROUGHPUT = 'pipeline.throughput',
+
+  // Dwell time events - Zone dwell tracking (NEM-4714)
+  DWELL_ENTRY = 'dwell.entry',
+  DWELL_EXIT = 'dwell.exit',
+
+  // Legacy event types for backward compatibility
+  // These map to the existing message types in the codebase
+  EVENT = 'event',
+  SERVICE_STATUS = 'service_status',
+  CAMERA_STATUS = 'camera_status',
+  SCENE_CHANGE = 'scene_change',
+  PING = 'ping',
+  PONG = 'pong',
+  ERROR = 'error',
+}
+
+/**
+ * Generic WebSocket event wrapper with type, payload, and metadata.
+ * Matches backend WSEvent model.
+ */
+export interface WSEvent<T = Record<string, unknown>> {
+  /** Event type from WSEventType enum */
+  type: WSEventType;
+  /** Event-specific payload data */
+  payload: T;
+  /** ISO 8601 timestamp when the event occurred */
+  timestamp: string;
+  /** Optional channel identifier (e.g., 'events', 'system') */
+  channel?: string;
+}
+
+// ============================================================================
+// Type-Safe Payload Interfaces
+// ============================================================================
+
+/**
+ * Payload for detection.new events.
+ */
+export interface DetectionNewPayload {
+  detection_id: string;
+  event_id?: string;
+  label: string;
+  confidence: number;
+  bbox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  camera_id: string;
+  timestamp?: string;
+}
+
+/**
+ * Payload for detection.batch events.
+ */
+export interface DetectionBatchPayload {
+  batch_id: string;
+  detections: DetectionNewPayload[];
+  frame_timestamp: string;
+  camera_id: string;
+}
+
+/**
+ * Payload for batch.analysis_started events (NEM-3607).
+ * Sent when a batch is dequeued and LLM analysis begins.
+ */
+export interface BatchAnalysisStartedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID that captured the detections */
+  camera_id: string;
+  /** Number of detections in the batch */
+  detection_count: number;
+  /** Position in queue when dequeued (0 = front) */
+  queue_position?: number;
+  /** ISO 8601 timestamp when analysis started */
+  started_at: string;
+}
+
+/**
+ * Payload for batch.analysis_completed events (NEM-3607).
+ * Sent when LLM analysis finishes successfully and an Event is created.
+ */
+export interface BatchAnalysisCompletedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID that captured the detections */
+  camera_id: string;
+  /** ID of the created Event record */
+  event_id: number;
+  /** Risk score assigned by LLM (0-100) */
+  risk_score: number;
+  /** Risk level (low, medium, high, critical) */
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  /** Analysis duration in milliseconds */
+  duration_ms: number;
+  /** ISO 8601 timestamp when analysis completed */
+  completed_at: string;
+}
+
+/**
+ * Payload for batch.analysis_failed events (NEM-3607).
+ * Sent when LLM analysis fails with an error.
+ */
+export interface BatchAnalysisFailedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID that captured the detections */
+  camera_id: string;
+  /** Error message describing the failure */
+  error: string;
+  /** Categorized error type for UI display */
+  error_type: string;
+  /** Whether the operation can be retried */
+  retryable: boolean;
+  /** ISO 8601 timestamp when analysis failed */
+  failed_at: string;
+}
+
+/**
+ * Payload for event.created events.
+ */
+export interface EventCreatedPayload {
+  id: number;
+  event_id: number;
+  batch_id: string;
+  camera_id: string;
+  risk_score: number;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  summary: string;
+  reasoning: string;
+  started_at?: string;
+}
+
+/**
+ * Payload for event.updated events.
+ */
+export interface EventUpdatedPayload {
+  id: number;
+  updated_fields: string[];
+  risk_score?: number;
+  risk_level?: 'low' | 'medium' | 'high' | 'critical';
+}
+
+/**
+ * Payload for event.deleted events.
+ */
+export interface EventDeletedPayload {
+  id: number;
+  reason?: string;
+}
+
+/**
+ * Payload for alert.created events.
+ */
+export interface AlertCreatedPayload {
+  alert_id: number;
+  event_id: number;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  message: string;
+  created_at: string;
+}
+
+/**
+ * Payload for alert.updated events.
+ */
+export interface AlertUpdatedPayload {
+  alert_id: number;
+  updated_at: string;
+  updated_fields?: string[];
+}
+
+/**
+ * Payload for alert.deleted events.
+ */
+export interface AlertDeletedPayload {
+  alert_id: number;
+  deleted_at: string;
+  reason?: string;
+}
+
+/**
+ * Payload for alert.acknowledged events.
+ */
+export interface AlertAcknowledgedPayload {
+  alert_id: number;
+  acknowledged_at: string;
+}
+
+/**
+ * Payload for alert.dismissed events.
+ */
+export interface AlertDismissedPayload {
+  alert_id: number;
+  dismissed_at: string;
+  reason?: string;
+}
+
+/**
+ * Payload for alert.resolved events.
+ */
+export interface AlertResolvedPayload {
+  alert_id: number;
+  resolved_at: string;
+  reason?: string;
+}
+
+/**
+ * Camera event types for WebSocket messages (NEM-2295).
+ *
+ * Distinguishes between different types of camera status changes:
+ * - camera.online: Camera came online
+ * - camera.offline: Camera went offline
+ * - camera.error: Camera encountered an error
+ * - camera.updated: Camera configuration was updated
+ */
+export type CameraEventType =
+  | 'camera.online'
+  | 'camera.offline'
+  | 'camera.error'
+  | 'camera.updated';
+
+/**
+ * Camera status values.
+ */
+export type CameraStatusValue = 'online' | 'offline' | 'error' | 'unknown';
+
+/**
+ * Payload for camera status events (NEM-2295).
+ *
+ * This is the new unified payload format for all camera status WebSocket events.
+ * Includes event_type to distinguish between camera.online, camera.offline,
+ * camera.error, and camera.updated events.
+ */
+export interface CameraStatusEventPayload {
+  /** Type of camera event */
+  event_type: CameraEventType;
+  /** Normalized camera ID (e.g., 'front_door') */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** Current camera status */
+  status: CameraStatusValue;
+  /** ISO 8601 timestamp when the event occurred */
+  timestamp: string;
+  /** Previous camera status before this change */
+  previous_status?: CameraStatusValue | null;
+  /** Optional reason for the status change */
+  reason?: string | null;
+  /** Optional additional details */
+  details?: Record<string, unknown> | null;
+}
+
+/**
+ * Payload for camera.status_changed events.
+ * @deprecated Use CameraStatusEventPayload instead (NEM-2295)
+ */
+export interface CameraStatusChangedPayload {
+  camera_id: string;
+  status: CameraStatusValue;
+  previous_status: CameraStatusValue;
+  message?: string;
+}
+
+/**
+ * Payload for camera.enabled events.
+ */
+export interface CameraEnabledPayload {
+  camera_id: string;
+  enabled_at: string;
+}
+
+/**
+ * Payload for camera.disabled events.
+ */
+export interface CameraDisabledPayload {
+  camera_id: string;
+  disabled_at: string;
+  reason?: string;
+}
+
+/**
+ * Payload for camera.config_updated events (NEM-3634).
+ *
+ * Broadcast when camera configuration is changed (e.g., stream URL, name, settings).
+ */
+export interface CameraConfigUpdatedPayload {
+  /** Camera ID */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** ISO 8601 timestamp when config was updated */
+  updated_at: string;
+  /** List of field names that changed */
+  updated_fields?: string[];
+  /** Optional details about the changes */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Payload for job.started events.
+ */
+export interface JobStartedPayload {
+  job_id: string;
+  job_type: string;
+  started_at: string;
+  estimated_duration?: number;
+}
+
+/**
+ * Payload for job.progress events.
+ */
+export interface JobProgressPayload {
+  job_id: string;
+  progress: number;
+  message?: string;
+}
+
+/**
+ * Payload for job.completed events.
+ */
+export interface JobCompletedPayload {
+  job_id: string;
+  completed_at: string;
+  result?: Record<string, unknown>;
+}
+
+/**
+ * Payload for job.failed events.
+ */
+export interface JobFailedPayload {
+  job_id: string;
+  failed_at: string;
+  error: string;
+  retryable: boolean;
+}
+
+// ============================================================================
+// Legacy Job Event Payloads (underscore format - NEM-2505)
+// These match the actual backend schema definitions in WebSocketJobProgressMessage etc.
+// ============================================================================
+
+/**
+ * Payload for job_progress events (legacy underscore format).
+ * Matches backend/api/schemas/websocket.py WebSocketJobProgressData.
+ */
+export interface LegacyJobProgressPayload {
+  job_id: string;
+  job_type: string;
+  progress: number;
+  status: string;
+}
+
+/**
+ * Payload for job_completed events (legacy underscore format).
+ * Matches backend/api/schemas/websocket.py WebSocketJobCompletedData.
+ */
+export interface LegacyJobCompletedPayload {
+  job_id: string;
+  job_type: string;
+  result?: unknown;
+}
+
+/**
+ * Payload for job_failed events (legacy underscore format).
+ * Matches backend/api/schemas/websocket.py WebSocketJobFailedData.
+ */
+export interface LegacyJobFailedPayload {
+  job_id: string;
+  job_type: string;
+  error: string;
+}
+
+/**
+ * Payload for system.health_changed events.
+ */
+export interface SystemHealthChangedPayload {
+  health: 'healthy' | 'degraded' | 'unhealthy';
+  previous_health: 'healthy' | 'degraded' | 'unhealthy';
+  components: Record<string, 'healthy' | 'degraded' | 'unhealthy'>;
+}
+
+/**
+ * Payload for system.error events.
+ */
+export interface SystemErrorPayload {
+  error: string;
+  message: string;
+  timestamp: string;
+  component?: string;
+  severity?: 'warning' | 'error' | 'critical';
+}
+
+/**
+ * Payload for system.status events.
+ */
+export interface SystemStatusPayload {
+  gpu: {
+    utilization: number | null;
+    memory_used: number | null;
+    memory_total: number | null;
+    temperature: number | null;
+    inference_fps: number | null;
+  };
+  cameras: {
+    active: number;
+    total: number;
+  };
+  queue: {
+    pending: number;
+    processing: number;
+  };
+  health: 'healthy' | 'degraded' | 'unhealthy';
+}
+
+/**
+ * Payload for gpu.stats_updated events.
+ */
+export interface GpuStatsUpdatedPayload {
+  utilization: number | null;
+  memory_used: number | null;
+  memory_total: number | null;
+  temperature: number | null;
+  inference_fps: number | null;
+}
+
+// =============================================================================
+// Enrichment Event Payloads (NEM-3627)
+// =============================================================================
+
+/**
+ * Enrichment status values
+ */
+export type EnrichmentStatus = 'full' | 'partial' | 'failed' | 'skipped';
+
+/**
+ * Payload for enrichment.started events
+ */
+export interface EnrichmentStartedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera identifier */
+  camera_id: string;
+  /** Number of detections to enrich */
+  detection_count: number;
+  /** ISO 8601 timestamp when started */
+  timestamp: string;
+  /** List of enabled enrichment models */
+  enabled_models?: string[];
+}
+
+/**
+ * Payload for enrichment.progress events
+ */
+export interface EnrichmentProgressPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Progress percentage (0-100) */
+  progress: number;
+  /** Current enrichment step name */
+  current_step: string;
+  /** Total number of enrichment steps */
+  total_steps?: number;
+  /** List of completed step names */
+  completed_steps?: string[];
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+}
+
+/**
+ * Payload for enrichment.completed events
+ */
+export interface EnrichmentCompletedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Enrichment status (full, partial, failed) */
+  status: EnrichmentStatus;
+  /** Number of successfully enriched detections */
+  enriched_count: number;
+  /** Total processing duration in milliseconds */
+  duration_ms?: number;
+  /** ISO 8601 timestamp when completed */
+  timestamp?: string;
+  /** Enrichment summary details */
+  summary?: Record<string, unknown>;
+}
+
+/**
+ * Payload for enrichment.failed events
+ */
+export interface EnrichmentFailedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Error message */
+  error: string;
+  /** Categorized error type */
+  error_type?: string;
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+  /** Additional error details */
+  details?: Record<string, unknown>;
+  /** Whether the error is recoverable */
+  recoverable?: boolean;
+}
+
+// =============================================================================
+// Dwell Time Event Payloads (NEM-4714)
+// =============================================================================
+
+/**
+ * Payload for dwell.entry events.
+ * Sent when an entity enters a polygon zone and dwell tracking begins.
+ */
+export interface DwellEntryPayload {
+  /** Zone ID the entity entered */
+  zone_id: number;
+  /** Zone name for display */
+  zone_name: string;
+  /** Dwell record ID */
+  record_id: number;
+  /** Track ID of the entity */
+  track_id: string;
+  /** Camera ID */
+  camera_id: string;
+  /** Object class (e.g., 'person', 'vehicle', 'car') */
+  object_class: string;
+  /** Entry time (ISO 8601 format) */
+  entry_time: string;
+  /** ISO 8601 timestamp of the event */
+  timestamp: string;
+}
+
+/**
+ * Payload for dwell.exit events.
+ * Sent when an entity exits a polygon zone.
+ */
+export interface DwellExitPayload {
+  /** Zone ID the entity exited */
+  zone_id: number;
+  /** Zone name for display */
+  zone_name: string;
+  /** Dwell record ID */
+  record_id: number;
+  /** Track ID of the entity */
+  track_id: string;
+  /** Camera ID */
+  camera_id: string;
+  /** Object class (e.g., 'person', 'vehicle', 'car') */
+  object_class: string;
+  /** Entry time (ISO 8601 format) */
+  entry_time: string;
+  /** Exit time (ISO 8601 format) */
+  exit_time: string;
+  /** Total dwell duration in seconds */
+  dwell_seconds: number;
+  /** Whether the dwell time exceeded the loitering threshold */
+  triggered_alert: boolean;
+  /** ISO 8601 timestamp of the event */
+  timestamp: string;
+}
+
+// =============================================================================
+// Queue Metrics Event Payloads (NEM-3637)
+// =============================================================================
+
+/**
+ * Information about a single queue
+ */
+export interface QueueInfo {
+  /** Queue name (detection, analysis, etc.) */
+  name: string;
+  /** Number of items in queue */
+  depth: number;
+  /** Number of active workers */
+  workers: number;
+  /** Queue health status */
+  status?: string;
+}
+
+/**
+ * Payload for queue.status events
+ */
+export interface QueueStatusPayload {
+  /** List of queue statuses */
+  queues: QueueInfo[];
+  /** Total items across all queues */
+  total_queued: number;
+  /** Total items being processed */
+  total_processing: number;
+  /** Total active workers */
+  total_workers?: number;
+  /** Overall system status (healthy/warning/critical) */
+  overall_status: string;
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+}
+
+/**
+ * Payload for pipeline.throughput events
+ */
+export interface PipelineThroughputPayload {
+  /** Detections processed per minute */
+  detections_per_minute: number;
+  /** Events created per minute */
+  events_per_minute: number;
+  /** Enrichments per minute */
+  enrichments_per_minute?: number;
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+  /** Measurement window in seconds */
+  window_seconds?: number;
+}
+
+// =============================================================================
+// Plate Read Event Payloads (NEM-4865)
+// =============================================================================
+
+/**
+ * Payload for plate_read.created events.
+ * Sent when a new license plate is detected by the ALPR system.
+ */
+export interface PlateReadDetectedPayload {
+  /** Database record ID */
+  id: number;
+  /** Camera ID where plate was detected */
+  camera_id: string;
+  /** Recognized plate text (alphanumeric only) */
+  plate_text: string;
+  /** Plate detection confidence (0-1) */
+  detection_confidence: number;
+  /** Text recognition confidence (0-1) */
+  ocr_confidence: number;
+  /** Detection timestamp (ISO 8601 format) */
+  timestamp: string;
+}
+
+/**
+ * Payload for service.status_changed events.
+ */
+export interface ServiceStatusChangedPayload {
+  service: string;
+  status: 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+  previous_status?: string;
+  message?: string;
+}
+
+/**
+ * Payload for scene_change.detected events.
+ */
+export interface SceneChangeDetectedPayload {
+  id: number;
+  camera_id: string;
+  detected_at: string;
+  change_type: 'view_blocked' | 'angle_changed' | 'view_tampered' | 'unknown';
+  similarity_score: number;
+}
+
+/**
+ * Payload for scene_change.acknowledged events.
+ * Sent when a scene change is acknowledged by a user.
+ */
+export interface SceneChangeAcknowledgedPayload {
+  /** Scene change record ID */
+  id: number;
+  /** Camera ID where the scene change was detected */
+  camera_id: string;
+  /** Whether the scene change is now acknowledged */
+  acknowledged: boolean;
+  /** ISO 8601 timestamp when the scene change was acknowledged */
+  acknowledged_at: string | null;
+}
+
+// ============================================================================
+// Worker Event Payloads (NEM-3127)
+// Matches backend/core/websocket/event_schemas.py Worker* payloads
+// ============================================================================
+
+/**
+ * Worker types in the pipeline.
+ */
+export type WorkerType = 'detection' | 'analysis' | 'timeout' | 'metrics';
+
+/**
+ * Worker state values.
+ */
+export type WorkerState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+
+/**
+ * Payload for worker.started events.
+ */
+export interface WorkerStartedPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** ISO 8601 timestamp when started */
+  timestamp: string;
+  /** Additional worker metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Payload for worker.stopped events.
+ */
+export interface WorkerStoppedPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** ISO 8601 timestamp when stopped */
+  timestamp: string;
+  /** Reason for stopping */
+  reason?: string;
+  /** Total items processed before stop */
+  items_processed?: number;
+}
+
+/**
+ * Payload for worker.error events.
+ */
+export interface WorkerErrorPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** Error message */
+  error: string;
+  /** Categorized error type */
+  error_type?: string;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Additional error details */
+  details?: Record<string, unknown>;
+  /** Whether the error is recoverable */
+  recoverable: boolean;
+}
+
+/**
+ * Payload for worker.health_check_failed events.
+ */
+export interface WorkerHealthCheckFailedPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** Error message or description */
+  error: string;
+  /** Categorized error type */
+  error_type?: string;
+  /** Number of consecutive failures */
+  failure_count: number;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+}
+
+/**
+ * Payload for worker.restarting events.
+ */
+export interface WorkerRestartingPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** Current restart attempt number */
+  attempt: number;
+  /** Maximum restart attempts allowed */
+  max_attempts?: number;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Reason for restart */
+  reason?: string;
+}
+
+/**
+ * Payload for worker.recovered events.
+ */
+export interface WorkerRecoveredPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** State before recovery */
+  previous_state: WorkerState;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Time to recover in milliseconds */
+  recovery_duration_ms?: number;
+}
+
+// ============================================================================
+// Prometheus Alert Event Payloads (NEM-3124)
+// Matches backend/core/websocket/event_schemas.py PrometheusAlertPayload
+// ============================================================================
+
+/**
+ * Prometheus alert status values.
+ */
+export type PrometheusAlertStatus = 'firing' | 'resolved';
+
+/**
+ * Prometheus alert severity levels.
+ */
+export type PrometheusAlertSeverity = 'critical' | 'warning' | 'info';
+
+/**
+ * Payload for prometheus.alert events.
+ *
+ * Represents a Prometheus/Alertmanager alert received via webhook.
+ * These are infrastructure monitoring alerts (GPU, memory, pipeline health, etc.)
+ * separate from AI-generated security alerts.
+ */
+export interface PrometheusAlertPayload {
+  /** Unique alert fingerprint for deduplication */
+  fingerprint: string;
+  /** Alert status (firing or resolved) */
+  status: PrometheusAlertStatus;
+  /** Name of the alert */
+  alertname: string;
+  /** Alert severity level */
+  severity: PrometheusAlertSeverity;
+  /** Alert labels (key-value pairs) */
+  labels: Record<string, string>;
+  /** Alert annotations (summary, description, etc.) */
+  annotations: Record<string, string>;
+  /** ISO 8601 timestamp when alert started */
+  starts_at: string;
+  /** ISO 8601 timestamp when alert resolved (null if still firing) */
+  ends_at: string | null;
+  /** ISO 8601 timestamp when backend received alert */
+  received_at: string;
+}
+
+// ============================================================================
+// Event Registry Response Types (from API)
+// ============================================================================
+
+/**
+ * Information about a single WebSocket event type.
+ * Matches backend EventTypeInfo model.
+ */
+export interface EventTypeInfo {
+  /** Event type identifier */
+  type: string;
+  /** Human-readable description */
+  description: string;
+  /** WebSocket channel this event is broadcast on */
+  channel: string | null;
+  /** JSON Schema for the event payload */
+  payload_schema: Record<string, unknown>;
+  /** Example payload */
+  example?: Record<string, unknown>;
+  /** Whether this event type is deprecated */
+  deprecated: boolean;
+  /** Replacement event type if deprecated */
+  replacement: string | null;
+}
+
+/**
+ * Response from GET /api/system/websocket/events endpoint.
+ * Matches backend EventRegistryResponse model.
+ */
+export interface EventRegistryResponse {
+  /** List of all available event types */
+  event_types: EventTypeInfo[];
+  /** List of all available WebSocket channels */
+  channels: string[];
+  /** Total number of event types */
+  total_count: number;
+  /** Number of deprecated event types */
+  deprecated_count: number;
+}
+
+// ============================================================================
+// Typed Event Registry Map
+// ============================================================================
+
+/**
+ * Maps WSEventType values to their typed payload interfaces.
+ * Use this for type-safe event handling.
+ *
+ * @example
+ * ```ts
+ * function handleEvent<T extends WSEventType>(
+ *   type: T,
+ *   payload: WSEventPayloadMap[T]
+ * ) {
+ *   // payload is typed based on event type
+ * }
+ * ```
+ */
+export interface WSEventPayloadMap {
+  [WSEventType.DETECTION_NEW]: DetectionNewPayload;
+  [WSEventType.DETECTION_BATCH]: DetectionBatchPayload;
+  // Batch analysis events (NEM-3607)
+  [WSEventType.BATCH_ANALYSIS_STARTED]: BatchAnalysisStartedPayload;
+  [WSEventType.BATCH_ANALYSIS_COMPLETED]: BatchAnalysisCompletedPayload;
+  [WSEventType.BATCH_ANALYSIS_FAILED]: BatchAnalysisFailedPayload;
+  [WSEventType.EVENT_CREATED]: EventCreatedPayload;
+  [WSEventType.EVENT_UPDATED]: EventUpdatedPayload;
+  [WSEventType.EVENT_DELETED]: EventDeletedPayload;
+  [WSEventType.ALERT_CREATED]: AlertCreatedPayload;
+  [WSEventType.ALERT_UPDATED]: AlertUpdatedPayload;
+  [WSEventType.ALERT_ACKNOWLEDGED]: AlertAcknowledgedPayload;
+  [WSEventType.ALERT_RESOLVED]: AlertResolvedPayload;
+  [WSEventType.ALERT_DISMISSED]: AlertDismissedPayload;
+  // Camera events (NEM-2295)
+  [WSEventType.CAMERA_ONLINE]: CameraStatusEventPayload;
+  [WSEventType.CAMERA_OFFLINE]: CameraStatusEventPayload;
+  [WSEventType.CAMERA_ERROR]: CameraStatusEventPayload;
+  [WSEventType.CAMERA_UPDATED]: CameraStatusEventPayload;
+  // Legacy camera events
+  [WSEventType.CAMERA_STATUS_CHANGED]: CameraStatusChangedPayload;
+  [WSEventType.CAMERA_ENABLED]: CameraEnabledPayload;
+  [WSEventType.CAMERA_DISABLED]: CameraDisabledPayload;
+  // Camera config events (NEM-3634)
+  [WSEventType.CAMERA_CONFIG_UPDATED]: CameraConfigUpdatedPayload;
+  [WSEventType.JOB_STARTED]: JobStartedPayload;
+  [WSEventType.JOB_PROGRESS]: JobProgressPayload;
+  [WSEventType.JOB_COMPLETED]: JobCompletedPayload;
+  [WSEventType.JOB_FAILED]: JobFailedPayload;
+  [WSEventType.SYSTEM_HEALTH_CHANGED]: SystemHealthChangedPayload;
+  [WSEventType.SYSTEM_STATUS]: SystemStatusPayload;
+  [WSEventType.GPU_STATS_UPDATED]: GpuStatsUpdatedPayload;
+  [WSEventType.SERVICE_STATUS_CHANGED]: ServiceStatusChangedPayload;
+  [WSEventType.SCENE_CHANGE_DETECTED]: SceneChangeDetectedPayload;
+  [WSEventType.SCENE_CHANGE_ACKNOWLEDGED]: SceneChangeAcknowledgedPayload;
+  // Worker events (NEM-3127)
+  [WSEventType.WORKER_STARTED]: WorkerStartedPayload;
+  [WSEventType.WORKER_STOPPED]: WorkerStoppedPayload;
+  [WSEventType.WORKER_ERROR]: WorkerErrorPayload;
+  [WSEventType.WORKER_HEALTH_CHECK_FAILED]: WorkerHealthCheckFailedPayload;
+  [WSEventType.WORKER_RESTARTING]: WorkerRestartingPayload;
+  [WSEventType.WORKER_RECOVERED]: WorkerRecoveredPayload;
+  // Prometheus alert events (NEM-3123)
+  [WSEventType.PROMETHEUS_ALERT]: PrometheusAlertPayload;
+  // Enrichment events (NEM-3627)
+  [WSEventType.ENRICHMENT_STARTED]: EnrichmentStartedPayload;
+  [WSEventType.ENRICHMENT_PROGRESS]: EnrichmentProgressPayload;
+  [WSEventType.ENRICHMENT_COMPLETED]: EnrichmentCompletedPayload;
+  [WSEventType.ENRICHMENT_FAILED]: EnrichmentFailedPayload;
+  // Queue metrics events (NEM-3637)
+  [WSEventType.QUEUE_STATUS]: QueueStatusPayload;
+  [WSEventType.PIPELINE_THROUGHPUT]: PipelineThroughputPayload;
+  // Dwell time events (NEM-4714)
+  [WSEventType.DWELL_ENTRY]: DwellEntryPayload;
+  [WSEventType.DWELL_EXIT]: DwellExitPayload;
+  // Legacy types
+  [WSEventType.EVENT]: SecurityEventData;
+  [WSEventType.SERVICE_STATUS]: ServiceStatusData;
+  [WSEventType.CAMERA_STATUS]: CameraStatusEventPayload;
+  [WSEventType.SCENE_CHANGE]: SceneChangeDetectedPayload;
+  [WSEventType.PING]: HeartbeatPayload;
+  [WSEventType.PONG]: PongPayload;
+  [WSEventType.ERROR]: WebSocketErrorPayload;
+}
+
+/**
+ * Type-safe event handler for a specific WSEventType.
+ */
+export type WSEventHandler<T extends WSEventType> = (payload: WSEventPayloadMap[T]) => void;
+
+/**
+ * All WSEventType values as an array for runtime validation.
+ */
+export const WS_EVENT_TYPES: readonly WSEventType[] = Object.values(WSEventType);
+
+/**
+ * Type guard to check if a string is a valid WSEventType.
+ */
+export function isWSEventType(value: unknown): value is WSEventType {
+  return typeof value === 'string' && WS_EVENT_TYPES.includes(value as WSEventType);
+}

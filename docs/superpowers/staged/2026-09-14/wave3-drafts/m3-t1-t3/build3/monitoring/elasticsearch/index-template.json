@@ -1,0 +1,12 @@
+{
+  "index_patterns": ["jaeger-span-*", "jaeger-service-*", "jaeger-dependencies-*"],
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "jaeger-ilm-policy",
+      "index.lifecycle.rollover_alias": "jaeger-span-write",
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    }
+  }
+}

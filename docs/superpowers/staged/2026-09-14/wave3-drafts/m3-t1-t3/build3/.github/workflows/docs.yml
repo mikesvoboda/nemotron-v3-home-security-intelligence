@@ -1,0 +1,363 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Sets permissions for GITHUB_TOKEN for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+  UV_VERSION: '0.9.18'
+
+jobs:
+  # ============================================================================
+  # Generate OpenAPI Specification
+  # ============================================================================
+  openapi:
+    name: Generate OpenAPI Spec
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Generate OpenAPI spec
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
+          REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: ci
+        run: |
+          mkdir -p docs-output/api
+          uv run python -c "
+          from backend.main import app
+          import json
+
+          spec = app.openapi()
+          with open('docs-output/api/openapi.json', 'w') as f:
+              json.dump(spec, f, indent=2)
+          print(f'OpenAPI spec written with {len(spec.get(\"paths\", {}))} paths')
+          "
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-artifact@v6
+        with:
+          name: openapi-spec
+          path: docs-output/api/openapi.json
+          retention-days: 30
+
+  # ============================================================================
+  # Generate TypeScript Documentation with TypeDoc
+  # ============================================================================
+  typedoc:
+    name: Generate TypeDoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Install TypeDoc
+        run: cd frontend && npm install --save-dev typedoc typedoc-plugin-markdown
+
+      - name: Generate TypeDoc documentation
+        run: |
+          cd frontend
+          npx typedoc --out ../docs-output/typescript \
+            --entryPoints src \
+            --entryPointStrategy expand \
+            --exclude "**/*.test.ts" \
+            --exclude "**/*.test.tsx" \
+            --exclude "**/tests/**" \
+            --exclude "**/node_modules/**" \
+            --plugin typedoc-plugin-markdown \
+            --readme none \
+            --name "Home Security Dashboard - Frontend API" \
+            --includeVersion \
+            --excludePrivate \
+            --excludeInternal
+
+      - name: Upload TypeDoc output
+        uses: actions/upload-artifact@v6
+        with:
+          name: typedoc-output
+          path: docs-output/typescript/
+          retention-days: 30
+
+  # ============================================================================
+  # Generate API Documentation HTML (Redoc)
+  # ============================================================================
+  redoc:
+    name: Generate Redoc HTML
+    runs-on: ubuntu-latest
+    needs: openapi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download OpenAPI spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs-output/api/
+
+      - name: Install redoc-cli
+        run: npm install -g @redocly/cli
+
+      - name: Generate Redoc HTML
+        run: |
+          mkdir -p docs-output/api-html
+          redocly build-docs docs-output/api/openapi.json \
+            --output docs-output/api-html/index.html \
+            --title "Home Security Intelligence API Documentation"
+
+      - name: Upload Redoc output
+        uses: actions/upload-artifact@v6
+        with:
+          name: redoc-html
+          path: docs-output/api-html/
+          retention-days: 30
+
+  # ============================================================================
+  # Build Documentation Site
+  # ============================================================================
+  build-docs:
+    name: Build Documentation Site
+    runs-on: ubuntu-latest
+    needs: [openapi, typedoc, redoc]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download OpenAPI spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs-output/api/
+
+      - name: Download TypeDoc output
+        uses: actions/download-artifact@v4
+        with:
+          name: typedoc-output
+          path: docs-output/typescript/
+
+      - name: Download Redoc HTML
+        uses: actions/download-artifact@v4
+        with:
+          name: redoc-html
+          path: docs-output/api-html/
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install docs dependencies
+        run: uv sync --extra docs --frozen
+
+      - name: Build MkDocs site
+        run: uv run mkdocs build --site-dir docs-site
+
+      - name: Integrate API documentation artifacts
+        run: |
+          # Overlay generated artifacts into the MkDocs site
+          mkdir -p docs-site/api docs-site/typescript docs-site/api-docs
+          cp -r docs-output/api/* docs-site/api/ 2>/dev/null || true
+          cp -r docs-output/typescript/* docs-site/typescript/ 2>/dev/null || true
+          cp -r docs-output/api-html/* docs-site/api-docs/ 2>/dev/null || true
+
+      - name: Upload documentation site
+        uses: actions/upload-artifact@v6
+        with:
+          name: docs-site
+          path: docs-site/
+          retention-days: 30
+
+      - name: Setup Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs-site/
+
+  # ============================================================================
+  # Validate Documentation Links
+  # ============================================================================
+  link-check:
+    name: Validate Documentation Links
+    runs-on: ubuntu-latest
+    needs: build-docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download docs site
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: docs-site/
+
+      - name: Create lychee configuration
+        run: |
+          cat > lychee.toml << 'EOF'
+          # Lychee Configuration for Documentation Link Checking
+
+          # Check external links with a timeout of 30 seconds
+          timeout = 30
+
+          # Maximum number of concurrent requests
+          max_concurrency = 32
+
+          # User agent for external requests
+          user_agent = "lychee/0.14"
+
+          # URLs to accept as valid (even if they fail to respond)
+          accept = [200, 429]
+
+          # Exclude specific patterns
+          exclude = [
+            # Localhost and internal URLs (application-only)
+            "http://localhost",
+            "https://localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            # Example/placeholder domains
+            "example.com",
+            "example.org",
+            "example.net",
+            # Local development references
+            "file://",
+            # Email addresses (not URLs)
+            "mailto:",
+            # Anchors within same page
+            "^#",
+          ]
+
+          EOF
+          cat lychee.toml
+
+      - name: Check markdown links
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: --verbose --config lychee.toml './docs/**/*.md'
+          fail: true
+        continue-on-error: true
+
+      - name: Check HTML links
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: --verbose --config lychee.toml './docs-site/**/*.html'
+          fail: true
+        continue-on-error: true
+
+  # ============================================================================
+  # Deploy to GitHub Pages (main branch only)
+  # ============================================================================
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [build-docs]
+    # link-check is informational only — don't block deployment
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ============================================================================
+  # Archive OpenAPI Spec (for versioning)
+  # ============================================================================
+  archive-openapi:
+    name: Archive OpenAPI Spec
+    runs-on: ubuntu-latest
+    needs: openapi
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download OpenAPI spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi-archive/
+
+      - name: Create versioned archive
+        run: |
+          mkdir -p openapi-versions
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          # Copy with version info
+          cp openapi-archive/openapi.json "openapi-versions/openapi-${TIMESTAMP}-${SHORT_SHA}.json"
+          cp openapi-archive/openapi.json "openapi-versions/openapi-latest.json"
+
+          # Create manifest
+          cat > openapi-versions/manifest.json << EOF
+          {
+            "latest": "openapi-latest.json",
+            "versions": [
+              {
+                "file": "openapi-${TIMESTAMP}-${SHORT_SHA}.json",
+                "timestamp": "${TIMESTAMP}",
+                "commit": "${{ github.sha }}",
+                "short_sha": "${SHORT_SHA}"
+              }
+            ]
+          }
+          EOF
+
+          echo "Created OpenAPI archive: openapi-${TIMESTAMP}-${SHORT_SHA}.json"
+
+      - name: Upload versioned OpenAPI
+        uses: actions/upload-artifact@v6
+        with:
+          name: openapi-versioned-${{ github.sha }}
+          path: openapi-versions/
+          retention-days: 90

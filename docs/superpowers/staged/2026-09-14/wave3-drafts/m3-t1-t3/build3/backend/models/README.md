@@ -1,0 +1,193 @@
+# Database Models
+
+SQLAlchemy 2.0 models for the home security intelligence system.
+
+## Entity Relationship Diagram
+
+![Database Cascade Delete ERD](../../docs/images/architecture/database-cascade-delete.png)
+
+_Database schema showing cascade delete relationships between Camera, Event, Detection, and related tables._
+
+## Models
+
+### Camera (`camera.py`)
+
+Represents a security camera in the system.
+
+**Fields:**
+
+- `id` (str, PK): Unique camera identifier
+- `name` (str): Human-readable camera name
+- `folder_path` (str): File system path for FTP uploads
+- `status` (str): Camera status (default: "online")
+- `created_at` (datetime): Creation timestamp
+- `last_seen_at` (datetime, optional): Last activity timestamp
+
+**Relationships:**
+
+- `detections`: One-to-many with Detection (cascade delete)
+- `events`: One-to-many with Event (cascade delete)
+
+### Detection (`detection.py`)
+
+Represents an object detection result from YOLO26v2.
+
+**Fields:**
+
+- `id` (int, PK): Auto-incrementing ID
+- `camera_id` (str, FK): References cameras.id
+- `file_path` (str): Path to source image file
+- `file_type` (str, optional): MIME type (e.g., "image/jpeg", "video/mp4")
+- `detected_at` (datetime): Detection timestamp
+- `object_type` (str, optional): Detected object class
+- `confidence` (float, optional): Detection confidence (0-1)
+- `bbox_x`, `bbox_y`, `bbox_width`, `bbox_height` (int, optional): Bounding box coordinates
+- `thumbnail_path` (str, optional): Path to detection thumbnail
+
+**Relationships:**
+
+- `camera`: Many-to-one with Camera
+- `event_records`: One-to-many with EventDetection (junction table)
+
+**Indexes:**
+
+- `idx_detections_camera_id`: For camera-based queries
+- `idx_detections_detected_at`: For time-based queries
+- `idx_detections_camera_time`: Composite index for camera+time queries
+
+### Event (`event.py`)
+
+Represents a security event aggregated from multiple detections.
+
+**Fields:**
+
+- `id` (int, PK): Auto-incrementing ID
+- `batch_id` (str): Batch processing identifier
+- `camera_id` (str, FK): References cameras.id
+- `started_at` (datetime): Event start time
+- `ended_at` (datetime, optional): Event end time
+- `risk_score` (int, optional): LLM-determined risk score (0-100)
+- `risk_level` (str, optional): Risk level classification
+- `summary` (text, optional): LLM-generated event summary
+- `reasoning` (text, optional): LLM reasoning for risk assessment
+- `detection_ids` (text, optional): JSON array of detection IDs (e.g., "[1, 2, 3]")
+- `reviewed` (bool): User review flag (default: False)
+- `notes` (text, optional): User notes
+
+**Relationships:**
+
+- `camera`: Many-to-one with Camera
+- `detection_records`: One-to-many with EventDetection (junction table)
+
+**Indexes:**
+
+- `idx_events_camera_id`: For camera-based queries
+- `idx_events_started_at`: For time-based queries
+- `idx_events_risk_score`: For risk-based queries
+- `idx_events_reviewed`: For review status queries
+- `idx_events_batch_id`: For batch processing queries
+
+### EventDetection (`event_detection.py`)
+
+Junction/association table for Event-Detection many-to-many relationship.
+This normalizes the relationship from the legacy detection_ids JSON array column.
+
+**Fields:**
+
+- `event_id` (int, PK, FK): References events.id (CASCADE delete)
+- `detection_id` (int, PK, FK): References detections.id (CASCADE delete)
+- `created_at` (datetime): When the association was created
+
+**Relationships:**
+
+- `event`: Many-to-one with Event
+- `detection`: Many-to-one with Detection
+
+**Indexes:**
+
+- `idx_event_detections_event_id`: For event-based queries
+- `idx_event_detections_detection_id`: For detection-based queries
+- `idx_event_detections_created_at`: For time-based queries
+
+### GPUStats (`gpu_stats.py`)
+
+Tracks GPU performance metrics for AI inference monitoring.
+
+**Fields:**
+
+- `id` (int, PK): Auto-incrementing ID
+- `recorded_at` (datetime): Recording timestamp
+- `gpu_utilization` (float, optional): GPU utilization percentage
+- `memory_used` (int, optional): GPU memory used (MB)
+- `memory_total` (int, optional): Total GPU memory (MB)
+- `temperature` (float, optional): GPU temperature (°C)
+- `inference_fps` (float, optional): Inference frames per second
+
+**Indexes:**
+
+- `idx_gpu_stats_recorded_at`: For time-series queries
+
+The models directory contains 52+ model files. Key models not detailed above include: `camera_zone.py`, `analytics_zone.py`, `face_identity.py`, `household.py`, `plate_read.py`, `track.py`, `user.py`, `api_key.py`, `gpu_config.py`, `outbound_webhook.py`, `scheduled_report.py`, `llm_interaction.py`, `zone_anomaly.py`, `zone_baseline.py`, and others.
+
+## Usage
+
+```python
+from backend.models import Base, Camera, Detection, Event, GPUStats
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+# Create async engine and tables (PostgreSQL)
+engine = create_async_engine("postgresql+asyncpg://security:password@localhost:5432/security")
+async_session = async_sessionmaker(engine, class_=AsyncSession)
+
+# Create session
+async with async_session() as session:
+    # Create a camera
+    camera = Camera(
+        id="front_door",
+        name="Front Door Camera",
+        folder_path="/export/foscam/front_door"
+    )
+    session.add(camera)
+    await session.commit()
+
+    # Query cameras
+    result = await session.execute(select(Camera))
+    cameras = result.scalars().all()
+```
+
+## Testing
+
+Comprehensive unit tests are available in `/backend/tests/unit/test_models.py`:
+
+```bash
+# Run model tests
+pytest backend/tests/unit/test_models.py -v
+
+# Run with coverage
+pytest backend/tests/unit/test_models.py --cov=backend.models
+```
+
+## Design Decisions
+
+1. **SQLAlchemy 2.0 Style**: Uses modern `Mapped` type hints and `mapped_column()` syntax
+2. **Cascade Deletes**: Camera deletion automatically removes associated detections and events
+3. **Indexes**: Strategic indexes on foreign keys and commonly queried fields
+4. **Optional Fields**: Many fields are optional to support gradual data enrichment
+5. **Type Safety**: Full type hints for better IDE support and type checking
+6. **Base Class**: Shared `Base` class in camera.py for all models
+
+## Schema Evolution
+
+When modifying models:
+
+1. Update the model class
+2. Create an Alembic migration (future task)
+3. Update tests in `test_models.py`
+4. Update this README
+
+## Related Tasks
+
+- Database Models: Implemented with PostgreSQL + SQLAlchemy 2.0 async
+- Model tests in `backend/tests/unit/models/`
+- Redis integration (separate module in `backend/core/redis.py`)
+- FastAPI initialization (see `backend/main.py`)

@@ -1,0 +1,11 @@
+{
+  "format": "Q4_K_S",
+  "tests": [
+    { "test": 1, "risk_score": null, "tokens": 300 },
+    { "test": 2, "risk_score": null, "tokens": 300 },
+    { "test": 3, "risk_score": null, "tokens": 300 },
+    { "test": 4, "risk_score": 7, "tokens": 300 },
+    { "test": 5, "risk_score": null, "tokens": 300 }
+  ],
+  "vram_mb": 22839
+}

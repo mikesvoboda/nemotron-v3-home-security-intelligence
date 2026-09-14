@@ -1,0 +1,1431 @@
+"""GPU monitoring service using pynvml, nvidia-smi, or AI container endpoints.
+
+This service polls GPU statistics at a configurable interval, stores them in the
+database, and can expose them for real-time monitoring via WebSocket.
+
+Fallback order:
+1. pynvml (direct NVML bindings - fastest, requires GPU access)
+2. nvidia-smi subprocess (works when nvidia-smi is available in PATH)
+3. AI container health endpoints (YOLO26 reports VRAM usage)
+4. Mock data (for development environments without GPU)
+
+Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
+from AI containers are obtained exclusively from YOLO26.
+
+Memory Pressure Monitoring (NEM-1727):
+This module provides GPU memory pressure monitoring with configurable thresholds:
+- NORMAL: Memory usage < 85% - normal operations
+- WARNING: Memory usage 85-95% - moderate throttling recommended
+- CRITICAL: Memory usage >= 95% - aggressive throttling required
+
+When memory pressure changes, registered callbacks are invoked to allow
+downstream services (like inference_semaphore) to throttle operations.
+"""
+
+import asyncio
+import contextlib
+import shutil
+import subprocess
+from collections import deque
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
+
+import httpx
+from sqlalchemy import select
+
+from backend.core.config import get_settings
+from backend.core.database import get_session
+from backend.core.logging import get_logger, sanitize_error  # noqa: F401
+from backend.models.gpu_stats import GPUStats
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = get_logger(__name__)
+
+
+class GPUStatsDict(TypedDict):
+    """Type for GPU statistics dictionary returned by get_current_stats methods."""
+
+    gpu_name: str | None
+    gpu_utilization: float | None
+    memory_used: int | None
+    memory_total: int | None
+    temperature: float | None
+    power_usage: float | None
+    recorded_at: datetime
+    # Extended metrics for throttling detection and hardware health
+    fan_speed: int | None
+    sm_clock: int | None
+    memory_bandwidth_utilization: float | None
+    pstate: int | None
+    # High-value metrics for throttling detection
+    throttle_reasons: int | None  # Bitfield of current throttle reasons
+    power_limit: float | None  # Power limit in watts
+    sm_clock_max: int | None  # Max SM clock frequency in MHz
+    compute_processes_count: int | None  # Number of compute processes
+    pcie_replay_counter: int | None  # PCIe replay counter (error indicator)
+    temp_slowdown_threshold: float | None  # Temperature slowdown threshold in Celsius
+    # Medium-value metrics for hardware monitoring
+    memory_clock: int | None  # Current memory clock in MHz
+    memory_clock_max: int | None  # Max memory clock in MHz
+    pcie_link_gen: int | None  # PCIe link generation (1-4)
+    pcie_link_width: int | None  # PCIe link width (x1-x16)
+    pcie_tx_throughput: int | None  # PCIe TX throughput in KB/s
+    pcie_rx_throughput: int | None  # PCIe RX throughput in KB/s
+    encoder_utilization: int | None  # Video encoder utilization %
+    decoder_utilization: int | None  # Video decoder utilization %
+    bar1_used: int | None  # BAR1 memory used in MB
+
+
+class MemoryPressureMetrics(TypedDict):
+    """Type for memory pressure monitoring metrics."""
+
+    current_level: str
+    warning_threshold: float
+    critical_threshold: float
+    total_warning_events: int
+    total_critical_events: int
+    last_warning_event_at: str | None
+    last_critical_event_at: str | None
+
+
+class Broadcaster(Protocol):
+    """Protocol for WebSocket broadcasters that can send GPU stats."""
+
+    async def broadcast_gpu_stats(self, stats: dict[str, Any]) -> None:
+        """Broadcast GPU statistics via WebSocket."""
+        ...
+
+
+# Memory pressure thresholds (NEM-1727)
+MEMORY_PRESSURE_WARNING_THRESHOLD = 85.0  # Percentage
+MEMORY_PRESSURE_CRITICAL_THRESHOLD = 95.0  # Percentage
+
+
+class MemoryPressureLevel(Enum):
+    """GPU memory pressure levels for throttling decisions.
+
+    Used to determine when to reduce inference concurrency and apply
+    backpressure to batch processing.
+
+    Thresholds:
+    - NORMAL: Memory usage < 85%
+    - WARNING: Memory usage 85-95%
+    - CRITICAL: Memory usage >= 95%
+    """
+
+    NORMAL = "normal"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+# Type alias for memory pressure callbacks
+MemoryPressureCallback = Callable[[MemoryPressureLevel, MemoryPressureLevel], Any]
+
+
+class GPUMonitor:
+    """Monitor NVIDIA GPU statistics using pynvml, nvidia-smi, or AI container endpoints.
+
+    Features:
+    - Async polling at configurable intervals
+    - Graceful handling of missing GPU or pynvml errors
+    - In-memory stats history for quick access
+    - Database persistence for historical analysis
+    - nvidia-smi subprocess fallback when pynvml unavailable
+    - AI container querying when nvidia-smi unavailable
+    - Mock data mode as final fallback
+    """
+
+    def __init__(
+        self,
+        poll_interval: float | None = None,
+        history_minutes: int | None = None,
+        broadcaster: Broadcaster | None = None,
+        http_timeout: float | None = None,
+    ):
+        """Initialize GPU monitor.
+
+        Args:
+            poll_interval: Polling interval in seconds (default from settings)
+            history_minutes: Minutes of history to retain in memory (default from settings)
+            broadcaster: Optional broadcaster for WebSocket updates
+            http_timeout: HTTP timeout for AI container queries (default from settings)
+        """
+        settings = get_settings()
+        self.poll_interval = poll_interval or settings.gpu_poll_interval_seconds
+        self.history_minutes = history_minutes or settings.gpu_stats_history_minutes
+        self.broadcaster = broadcaster
+        self._http_timeout = http_timeout or settings.gpu_http_timeout
+
+        # Track running state
+        self.running = False
+        self._poll_task: asyncio.Task | None = None
+
+        # In-memory circular buffer for stats history
+        self._stats_history: deque[GPUStatsDict] = deque(maxlen=1000)
+
+        # GPU state
+        self._gpu_available = False
+        self._nvml_initialized = False
+        self._gpu_handle: Any = None
+        self._gpu_name: str | None = None
+
+        # nvidia-smi availability (checked once at init)
+        self._nvidia_smi_available = False
+        self._nvidia_smi_path: str | None = None
+
+        # Memory pressure monitoring (NEM-1727)
+        self._last_memory_pressure_level = MemoryPressureLevel.NORMAL
+        self._memory_pressure_callbacks: list[MemoryPressureCallback] = []
+        self._memory_pressure_warning_events = 0
+        self._memory_pressure_critical_events = 0
+        self._last_warning_event_at: datetime | None = None
+        self._last_critical_event_at: datetime | None = None
+
+        # Initialize pynvml first, then check nvidia-smi as fallback
+        self._initialize_nvml()
+
+        # If pynvml unavailable, check for nvidia-smi
+        if not self._gpu_available:
+            self._check_nvidia_smi()
+
+        logger.info(
+            f"GPUMonitor initialized (poll_interval={self.poll_interval}s, "
+            f"history_minutes={self.history_minutes}m, http_timeout={self._http_timeout}s, "
+            f"gpu_available={self._gpu_available}, nvidia_smi_available={self._nvidia_smi_available})"
+        )
+
+    def _initialize_nvml(self) -> None:
+        """Initialize NVIDIA Management Library (pynvml).
+
+        Attempts to initialize pynvml and get the first GPU device.
+        If this fails (no GPU, no drivers, no permissions), falls back to mock mode.
+        """
+        try:
+            import pynvml
+
+            pynvml.nvmlInit()
+            self._nvml_initialized = True
+
+            # Try to get first GPU device
+            try:
+                self._gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                self._gpu_name = pynvml.nvmlDeviceGetName(self._gpu_handle)
+                self._gpu_available = True
+                logger.info(f"GPU detected: {self._gpu_name}")
+            except pynvml.NVMLError as e:
+                logger.warning(f"No GPU device found: {e}. Will return mock data.")
+                self._gpu_available = False
+
+        except ImportError:
+            logger.warning("pynvml not installed. Will try nvidia-smi fallback.")
+            self._nvml_initialized = False
+            self._gpu_available = False
+        except Exception as e:
+            logger.warning(f"Failed to initialize NVML: {e}. Will try nvidia-smi fallback.")
+            self._nvml_initialized = False
+            self._gpu_available = False
+
+    def _check_nvidia_smi(self) -> None:
+        """Check if nvidia-smi is available as a fallback for GPU stats.
+
+        This is used when pynvml is not available (e.g., running in a container
+        where the NVIDIA driver libraries aren't mounted, but nvidia-smi is in PATH).
+        """
+        nvidia_smi_path = shutil.which("nvidia-smi")
+        if nvidia_smi_path:
+            # Verify it works by running a quick test query
+            try:
+                # nvidia_smi_path is validated via shutil.which, not user input
+                result = subprocess.run(  # noqa: S603
+                    [nvidia_smi_path, "--query-gpu=name", "--format=csv,noheader,nounits"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    self._nvidia_smi_available = True
+                    self._nvidia_smi_path = nvidia_smi_path
+                    self._gpu_name = result.stdout.strip().split("\n")[0]
+                    logger.info(f"nvidia-smi available at {nvidia_smi_path}, GPU: {self._gpu_name}")
+                else:
+                    logger.warning(f"nvidia-smi found but returned error: {result.stderr.strip()}")
+            except subprocess.TimeoutExpired:
+                logger.warning("nvidia-smi found but timed out during test query")
+            except Exception as e:
+                logger.warning(f"nvidia-smi found but failed during test: {e}")
+        else:
+            logger.debug("nvidia-smi not found in PATH")
+
+    def _get_gpu_stats_nvidia_smi(self) -> GPUStatsDict:
+        """Get GPU statistics using nvidia-smi subprocess.
+
+        This is a fallback for when pynvml is not available but nvidia-smi is.
+        Queries temperature, power draw, utilization, and memory in a single call.
+
+        Returns:
+            Dictionary containing GPU statistics
+
+        Raises:
+            RuntimeError: If nvidia-smi fails or is not available
+        """
+        if not self._nvidia_smi_available or not self._nvidia_smi_path:
+            raise RuntimeError("nvidia-smi not available")
+
+        try:
+            # Query all needed metrics in one call for efficiency
+            # Format: temperature, power, utilization, memory_used, memory_total, name
+            # self._nvidia_smi_path is validated via shutil.which at init, not user input
+            result = subprocess.run(  # noqa: S603
+                [
+                    self._nvidia_smi_path,
+                    "--query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,memory.total,name",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"nvidia-smi returned error: {result.stderr.strip()}")
+
+            # Parse CSV output: "39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"
+            line = result.stdout.strip().split("\n")[0]  # Take first GPU if multiple
+            parts = [p.strip() for p in line.split(",")]
+
+            if len(parts) < 5:
+                raise RuntimeError(f"Unexpected nvidia-smi output format: {line}")
+
+            # Parse values with error handling for each field
+            try:
+                temperature = float(parts[0]) if parts[0] and parts[0] != "[N/A]" else None
+            except ValueError:
+                temperature = None
+
+            try:
+                power_usage = float(parts[1]) if parts[1] and parts[1] != "[N/A]" else None
+            except ValueError:
+                power_usage = None
+
+            try:
+                gpu_utilization = float(parts[2]) if parts[2] and parts[2] != "[N/A]" else None
+            except ValueError:
+                gpu_utilization = None
+
+            try:
+                memory_used = int(float(parts[3])) if parts[3] and parts[3] != "[N/A]" else None
+            except ValueError:
+                memory_used = None
+
+            try:
+                memory_total = int(float(parts[4])) if parts[4] and parts[4] != "[N/A]" else None
+            except ValueError:
+                memory_total = None
+
+            gpu_name = parts[5] if len(parts) > 5 else self._gpu_name
+
+            return {
+                "gpu_name": gpu_name,
+                "gpu_utilization": gpu_utilization,
+                "memory_used": memory_used,
+                "memory_total": memory_total,
+                "temperature": temperature,
+                "power_usage": power_usage,
+                "recorded_at": datetime.now(UTC),
+                # Extended metrics not available via basic nvidia-smi query
+                "fan_speed": None,
+                "sm_clock": None,
+                "memory_bandwidth_utilization": None,
+                "pstate": None,
+                # High-value metrics not available via basic nvidia-smi query
+                "throttle_reasons": None,
+                "power_limit": None,
+                "sm_clock_max": None,
+                "compute_processes_count": None,
+                "pcie_replay_counter": None,
+                "temp_slowdown_threshold": None,
+                # Medium-value metrics not available via basic nvidia-smi query
+                "memory_clock": None,
+                "memory_clock_max": None,
+                "pcie_link_gen": None,
+                "pcie_link_width": None,
+                "pcie_tx_throughput": None,
+                "pcie_rx_throughput": None,
+                "encoder_utilization": None,
+                "decoder_utilization": None,
+                "bar1_used": None,
+            }
+
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError("nvidia-smi timed out") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
+
+    async def _get_gpu_stats_nvidia_smi_async(self) -> GPUStatsDict:
+        """Get GPU statistics using nvidia-smi subprocess asynchronously.
+
+        This is the async version that doesn't block the event loop.
+        Uses asyncio.to_thread to run subprocess in a thread pool.
+
+        Returns:
+            Dictionary containing GPU statistics
+
+        Raises:
+            RuntimeError: If nvidia-smi fails or is not available
+        """
+        if not self._nvidia_smi_available or not self._nvidia_smi_path:
+            raise RuntimeError("nvidia-smi not available")
+
+        from backend.core.async_utils import async_subprocess_run
+
+        try:
+            # Query all needed metrics in one call for efficiency
+            # Format: temperature, power, utilization, memory_used, memory_total, name
+            result = await async_subprocess_run(
+                [
+                    self._nvidia_smi_path,
+                    "--query-gpu=temperature.gpu,power.draw,utilization.gpu,memory.used,memory.total,name",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5.0,
+            )
+
+            # With text=True, stdout/stderr are strings
+            stdout_str: str = str(result.stdout)
+            stderr_str: str = str(result.stderr) if result.stderr else ""
+
+            if result.returncode != 0:
+                raise RuntimeError(f"nvidia-smi returned error: {stderr_str.strip()}")
+
+            # Parse CSV output: "39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"
+            line = stdout_str.strip().split("\n")[0]  # Take first GPU if multiple
+            parts = [p.strip() for p in line.split(",")]
+
+            if len(parts) < 5:
+                raise RuntimeError(f"Unexpected nvidia-smi output format: {line}")
+
+            # Parse values with error handling for each field
+            try:
+                temperature = float(parts[0]) if parts[0] and parts[0] != "[N/A]" else None
+            except ValueError:
+                temperature = None
+
+            try:
+                power_usage = float(parts[1]) if parts[1] and parts[1] != "[N/A]" else None
+            except ValueError:
+                power_usage = None
+
+            try:
+                gpu_utilization = float(parts[2]) if parts[2] and parts[2] != "[N/A]" else None
+            except ValueError:
+                gpu_utilization = None
+
+            try:
+                memory_used = int(float(parts[3])) if parts[3] and parts[3] != "[N/A]" else None
+            except ValueError:
+                memory_used = None
+
+            try:
+                memory_total = int(float(parts[4])) if parts[4] and parts[4] != "[N/A]" else None
+            except ValueError:
+                memory_total = None
+
+            gpu_name = parts[5] if len(parts) > 5 else self._gpu_name
+
+            return {
+                "gpu_name": gpu_name,
+                "gpu_utilization": gpu_utilization,
+                "memory_used": memory_used,
+                "memory_total": memory_total,
+                "temperature": temperature,
+                "power_usage": power_usage,
+                "recorded_at": datetime.now(UTC),
+                # Extended metrics not available via basic nvidia-smi query
+                "fan_speed": None,
+                "sm_clock": None,
+                "memory_bandwidth_utilization": None,
+                "pstate": None,
+                # High-value metrics not available via basic nvidia-smi query
+                "throttle_reasons": None,
+                "power_limit": None,
+                "sm_clock_max": None,
+                "compute_processes_count": None,
+                "pcie_replay_counter": None,
+                "temp_slowdown_threshold": None,
+                # Medium-value metrics not available via basic nvidia-smi query
+                "memory_clock": None,
+                "memory_clock_max": None,
+                "pcie_link_gen": None,
+                "pcie_link_width": None,
+                "pcie_tx_throughput": None,
+                "pcie_rx_throughput": None,
+                "encoder_utilization": None,
+                "decoder_utilization": None,
+                "bar1_used": None,
+            }
+
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError("nvidia-smi timed out") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to get GPU stats via nvidia-smi: {e}") from e
+
+    def _get_extended_metrics(self) -> dict[str, Any]:
+        """Get extended GPU metrics (high and medium value).
+
+        Returns:
+            Dictionary containing extended GPU metrics, with None for unavailable metrics.
+        """
+        import pynvml
+
+        metrics: dict[str, Any] = {}
+        handle = self._gpu_handle
+
+        # HIGH-VALUE METRICS - for throttling and error detection
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["throttle_reasons"] = int(
+                pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(handle)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["power_limit"] = float(
+                pynvml.nvmlDeviceGetPowerManagementLimit(handle) / 1000.0
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["sm_clock_max"] = int(
+                pynvml.nvmlDeviceGetMaxClockInfo(handle, pynvml.NVML_CLOCK_SM)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            processes = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+            metrics["compute_processes_count"] = len(processes)
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_replay_counter"] = int(pynvml.nvmlDeviceGetPcieReplayCounter(handle))
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["temp_slowdown_threshold"] = float(
+                pynvml.nvmlDeviceGetTemperatureThreshold(
+                    handle, pynvml.NVML_TEMPERATURE_THRESHOLD_SLOWDOWN
+                )
+            )
+
+        # MEDIUM-VALUE METRICS - for hardware monitoring
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["memory_clock"] = int(
+                pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_MEM)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["memory_clock_max"] = int(
+                pynvml.nvmlDeviceGetMaxClockInfo(handle, pynvml.NVML_CLOCK_MEM)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_link_gen"] = int(pynvml.nvmlDeviceGetCurrPcieLinkGeneration(handle))
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_link_width"] = int(pynvml.nvmlDeviceGetCurrPcieLinkWidth(handle))
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_tx_throughput"] = int(
+                pynvml.nvmlDeviceGetPcieThroughput(handle, pynvml.NVML_PCIE_UTIL_TX_BYTES)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            metrics["pcie_rx_throughput"] = int(
+                pynvml.nvmlDeviceGetPcieThroughput(handle, pynvml.NVML_PCIE_UTIL_RX_BYTES)
+            )
+        with contextlib.suppress(pynvml.NVMLError):
+            enc_util, _ = pynvml.nvmlDeviceGetEncoderUtilization(handle)
+            metrics["encoder_utilization"] = int(enc_util)
+        with contextlib.suppress(pynvml.NVMLError):
+            dec_util, _ = pynvml.nvmlDeviceGetDecoderUtilization(handle)
+            metrics["decoder_utilization"] = int(dec_util)
+        with contextlib.suppress(pynvml.NVMLError, AttributeError):
+            bar1_info = pynvml.nvmlDeviceGetBAR1MemoryInfo(handle)
+            metrics["bar1_used"] = int(bar1_info.bar1Used / (1024 * 1024))  # Convert to MB
+
+        return metrics
+
+    def _get_gpu_stats_real(self) -> GPUStatsDict:
+        """Get real GPU statistics from pynvml.
+
+        Returns:
+            Dictionary containing GPU statistics
+
+        Raises:
+            RuntimeError: If pynvml is not initialized or GPU not available
+        """
+        if not self._gpu_available or not self._gpu_handle:
+            raise RuntimeError("GPU not available")
+
+        try:
+            import pynvml
+
+            handle = self._gpu_handle
+
+            # Get GPU utilization and memory bandwidth utilization
+            gpu_utilization: float | None = None
+            memory_bandwidth_utilization: float | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                gpu_utilization = float(utilization.gpu)
+                memory_bandwidth_utilization = float(utilization.memory)
+
+            # Get memory info
+            memory_used: int | None = None
+            memory_total: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                memory_used = int(memory_info.used / (1024 * 1024))  # Convert to MB
+                memory_total = int(memory_info.total / (1024 * 1024))  # Convert to MB
+
+            # Get temperature
+            temperature: float | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                temperature = float(
+                    pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+                )
+
+            # Get power usage
+            power_usage: float | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                power_usage = float(pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0)
+
+            # Get fan speed (percentage)
+            fan_speed: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                fan_speed = int(pynvml.nvmlDeviceGetFanSpeed(handle))
+
+            # Get SM clock (MHz)
+            sm_clock: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                sm_clock = int(pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_SM))
+
+            # Get performance state (P0 = max performance, P15 = idle)
+            pstate: int | None = None
+            with contextlib.suppress(pynvml.NVMLError):
+                pstate = int(pynvml.nvmlDeviceGetPerformanceState(handle))
+
+            # Get extended metrics from helper method
+            extended = self._get_extended_metrics()
+
+            return {
+                "gpu_name": self._gpu_name,
+                "gpu_utilization": gpu_utilization,
+                "memory_used": memory_used,
+                "memory_total": memory_total,
+                "temperature": temperature,
+                "power_usage": power_usage,
+                "recorded_at": datetime.now(UTC),
+                # Extended metrics
+                "fan_speed": fan_speed,
+                "sm_clock": sm_clock,
+                "memory_bandwidth_utilization": memory_bandwidth_utilization,
+                "pstate": pstate,
+                # High-value metrics
+                "throttle_reasons": extended.get("throttle_reasons"),
+                "power_limit": extended.get("power_limit"),
+                "sm_clock_max": extended.get("sm_clock_max"),
+                "compute_processes_count": extended.get("compute_processes_count"),
+                "pcie_replay_counter": extended.get("pcie_replay_counter"),
+                "temp_slowdown_threshold": extended.get("temp_slowdown_threshold"),
+                # Medium-value metrics
+                "memory_clock": extended.get("memory_clock"),
+                "memory_clock_max": extended.get("memory_clock_max"),
+                "pcie_link_gen": extended.get("pcie_link_gen"),
+                "pcie_link_width": extended.get("pcie_link_width"),
+                "pcie_tx_throughput": extended.get("pcie_tx_throughput"),
+                "pcie_rx_throughput": extended.get("pcie_rx_throughput"),
+                "encoder_utilization": extended.get("encoder_utilization"),
+                "decoder_utilization": extended.get("decoder_utilization"),
+                "bar1_used": extended.get("bar1_used"),
+            }
+
+        except Exception as e:
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Error reading GPU stats",
+                extra={
+                    "gpu_id": 0,
+                    "gpu_name": self._gpu_name,
+                    "operation": "get_gpu_stats_pynvml",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            raise
+
+    def _get_gpu_stats_mock(self) -> GPUStatsDict:
+        """Get mock GPU statistics when real GPU is unavailable.
+
+        Provides simulated values for development environments without a GPU.
+        Values are deterministic but vary slightly based on time to simulate
+        realistic GPU activity patterns.
+
+        Returns:
+            Dictionary containing mock GPU statistics with simulated values
+        """
+        import math
+
+        # Generate slightly varying values based on time for realism
+        # Uses seconds since epoch modulo to create small fluctuations
+        now = datetime.now(UTC)
+        time_factor = now.timestamp() % 100 / 100  # 0.0 to 1.0, cycling every ~100 seconds
+
+        # Simulate utilization between 15-45% (typical idle to light workload)
+        base_util = 25.0
+        util_variance = 10.0 * math.sin(time_factor * 2 * math.pi)
+        gpu_utilization = round(base_util + util_variance, 1)
+
+        # Simulate memory: 2-4 GB used of 24 GB total (RTX A5500 spec)
+        base_memory = 3072  # 3 GB base
+        memory_variance = int(512 * math.cos(time_factor * 2 * math.pi))
+        memory_used = base_memory + memory_variance
+        memory_total = 24576  # 24 GB in MB
+
+        # Simulate temperature: 35-55°C (idle to moderate)
+        base_temp = 42.0
+        temp_variance = 8.0 * math.sin(time_factor * 2 * math.pi + 0.5)
+        temperature = round(base_temp + temp_variance, 1)
+
+        # Simulate power usage: 30-80W (idle to light workload)
+        base_power = 50.0
+        power_variance = 20.0 * math.sin(time_factor * 2 * math.pi + 1.0)
+        power_usage = round(base_power + power_variance, 1)
+
+        return {
+            "gpu_name": "Mock GPU (Development Mode)",
+            "gpu_utilization": gpu_utilization,
+            "memory_used": memory_used,
+            "memory_total": memory_total,
+            "temperature": temperature,
+            "power_usage": power_usage,
+            "recorded_at": now,
+            # Extended metrics (simulated)
+            "fan_speed": int(30 + 10 * math.sin(time_factor * 2 * math.pi)),
+            "sm_clock": int(1500 + 300 * math.sin(time_factor * 2 * math.pi)),
+            "memory_bandwidth_utilization": round(
+                15.0 + 5.0 * math.sin(time_factor * 2 * math.pi), 1
+            ),
+            "pstate": 8 if gpu_utilization < 30 else 0,  # P8 when idle, P0 when active
+            # High-value metrics (simulated)
+            "throttle_reasons": 0,  # No throttling in mock mode
+            "power_limit": 230.0,  # Typical RTX A5500 power limit
+            "sm_clock_max": 1800,  # Typical max SM clock
+            "compute_processes_count": 2,  # Simulated active processes
+            "pcie_replay_counter": 0,  # No errors
+            "temp_slowdown_threshold": 83.0,  # Typical slowdown threshold
+            # Medium-value metrics (simulated)
+            "memory_clock": int(8000 + 500 * math.sin(time_factor * 2 * math.pi)),
+            "memory_clock_max": 8501,  # Typical max memory clock
+            "pcie_link_gen": 4,  # PCIe Gen4
+            "pcie_link_width": 16,  # x16
+            "pcie_tx_throughput": int(100000 + 50000 * math.sin(time_factor * 2 * math.pi)),
+            "pcie_rx_throughput": int(80000 + 40000 * math.sin(time_factor * 2 * math.pi)),
+            "encoder_utilization": 0,  # No encoding in mock
+            "decoder_utilization": 0,  # No decoding in mock
+            "bar1_used": 256,  # Typical BAR1 usage
+        }
+
+    def _parse_yolo26_response(
+        self, data: dict[str, Any]
+    ) -> tuple[float, str | None, float | None, int | None, float | None]:
+        """Parse YOLO26 health response for GPU stats.
+
+        Returns:
+            Tuple of (vram_used_mb, gpu_device_name or None, gpu_utilization or None,
+                      temperature or None, power_watts or None)
+        """
+        vram_mb = 0.0
+        device = None
+        gpu_utilization = None
+        temperature = None
+        power_watts = None
+
+        if data.get("vram_used_gb") is not None:
+            vram_mb = data["vram_used_gb"] * 1024  # Convert GB to MB
+        if data.get("device"):
+            device = data["device"]
+        if data.get("gpu_utilization") is not None:
+            gpu_utilization = data["gpu_utilization"]
+        if data.get("temperature") is not None:
+            temperature = data["temperature"]
+        if data.get("power_watts") is not None:
+            power_watts = data["power_watts"]
+
+        return vram_mb, device, gpu_utilization, temperature, power_watts
+
+    def _parse_vram_metric_line(self, line: str) -> float:
+        """Parse a single Prometheus metric line for VRAM value.
+
+        Returns VRAM in MB, or 0 if parsing fails.
+        """
+        parts = line.split()
+        if len(parts) < 2:
+            return 0.0
+        try:
+            value = float(parts[-1])
+        except ValueError:
+            return 0.0
+
+        # Convert based on unit in metric name
+        line_lower = line.lower()
+        if "bytes" in line_lower:
+            return value / (1024 * 1024)
+        if "gb" in line_lower:
+            return value * 1024
+        # Assume MB if unit unclear
+        return value
+
+    async def _get_gpu_stats_from_ai_containers(self) -> GPUStatsDict | None:
+        """Query AI containers for GPU statistics.
+
+        Queries YOLO26v2 health endpoint for GPU usage information.
+        YOLO26v2 reports vram_used_gb, gpu_utilization, temperature, and power_watts.
+
+        Note: Nemotron (llama.cpp server) does not expose a /metrics endpoint,
+        so GPU stats are obtained exclusively from YOLO26v2.
+
+        Returns:
+            Dictionary containing aggregated GPU stats from AI containers, or None if unavailable.
+        """
+        settings = get_settings()
+        total_vram_used_mb = 0.0
+        gpu_name = "NVIDIA GPU (via AI Containers)"
+        gpu_utilization: float | None = None
+        temperature: int | None = None
+        power_watts: float | None = None
+
+        try:
+            async with httpx.AsyncClient(timeout=self._http_timeout) as client:
+                # Query YOLO26 health endpoint
+                try:
+                    resp = await client.get(f"{settings.yolo26_url}/health")
+                    if resp.status_code == 200:
+                        vram_mb, device, util, temp, power = self._parse_yolo26_response(
+                            resp.json()
+                        )
+                        total_vram_used_mb += vram_mb
+                        if device:
+                            gpu_name = f"NVIDIA GPU ({device})"
+                        if util is not None:
+                            gpu_utilization = util
+                        if temp is not None:
+                            temperature = temp
+                        if power is not None:
+                            power_watts = power
+                        logger.debug(
+                            f"YOLO26v2 GPU stats: {vram_mb / 1024:.2f} GB, "
+                            f"util={gpu_utilization}%, temp={temperature}C, power={power_watts}W"
+                        )
+                except Exception as e:
+                    logger.debug(f"Failed to query YOLO26v2 health: {e}")
+
+                # Note: Nemotron (llama.cpp server) does not support a /metrics endpoint.
+                # The /slots endpoint is used elsewhere for active slot monitoring.
+                # GPU VRAM tracking is handled by the YOLO26v2 container which has
+                # better visibility into GPU memory usage.
+
+                if total_vram_used_mb > 0 or gpu_utilization is not None:
+                    # RTX A5500 has 24GB VRAM - use this as default
+                    # Use actual values from YOLO26v2 when available
+                    return {
+                        "gpu_name": gpu_name,
+                        "gpu_utilization": gpu_utilization if gpu_utilization is not None else 0.0,
+                        "memory_used": int(total_vram_used_mb),
+                        "memory_total": 24576,  # 24GB in MB (RTX A5500 default)
+                        "temperature": temperature if temperature is not None else 0,
+                        "power_usage": power_watts if power_watts is not None else 0.0,
+                        "recorded_at": datetime.now(UTC),
+                        # Extended metrics not available from AI container endpoints
+                        "fan_speed": None,
+                        "sm_clock": None,
+                        "memory_bandwidth_utilization": None,
+                        "pstate": None,
+                        # High-value metrics not available from AI container endpoints
+                        "throttle_reasons": None,
+                        "power_limit": None,
+                        "sm_clock_max": None,
+                        "compute_processes_count": None,
+                        "pcie_replay_counter": None,
+                        "temp_slowdown_threshold": None,
+                        # Medium-value metrics not available from AI container endpoints
+                        "memory_clock": None,
+                        "memory_clock_max": None,
+                        "pcie_link_gen": None,
+                        "pcie_link_width": None,
+                        "pcie_tx_throughput": None,
+                        "pcie_rx_throughput": None,
+                        "encoder_utilization": None,
+                        "decoder_utilization": None,
+                        "bar1_used": None,
+                    }
+
+        except Exception as e:
+            logger.warning(f"Failed to query AI containers for GPU stats: {e}")
+
+        return None
+
+    async def get_current_stats_async(self) -> GPUStatsDict:
+        """Get current GPU statistics asynchronously.
+
+        Tries in order:
+        1. Local pynvml (if GPU available)
+        2. nvidia-smi subprocess (if available)
+        3. AI container health endpoints (YOLO26v2)
+        4. Mock data as fallback
+
+        Returns:
+            Dictionary containing current GPU stats
+        """
+        try:
+            # First try local pynvml
+            if self._gpu_available:
+                return self._get_gpu_stats_real()
+
+            # Try nvidia-smi subprocess as second option (async version to avoid blocking)
+            if self._nvidia_smi_available:
+                try:
+                    return await self._get_gpu_stats_nvidia_smi_async()
+                except Exception as e:
+                    logger.warning(f"nvidia-smi async fallback failed: {e}")
+                    # Continue to try other methods
+
+            # Try AI container endpoints
+            ai_stats = await self._get_gpu_stats_from_ai_containers()
+            if ai_stats is not None:
+                return ai_stats
+
+            # Fallback to mock data
+            return self._get_gpu_stats_mock()
+        except Exception as e:
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to get GPU stats",
+                extra={
+                    "gpu_id": 0,
+                    "gpu_name": self._gpu_name,
+                    "operation": "get_current_stats_async",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return self._get_gpu_stats_mock()
+
+    def get_current_stats(self) -> GPUStatsDict:
+        """Get current GPU statistics (sync version).
+
+        Note: This sync version cannot query AI containers. Use get_current_stats_async()
+        for the full functionality including AI container querying.
+
+        Tries in order:
+        1. Local pynvml (if GPU available)
+        2. nvidia-smi subprocess (if available)
+        3. Mock data as fallback
+
+        Returns:
+            Dictionary containing current GPU stats (real or mock)
+        """
+        try:
+            if self._gpu_available:
+                return self._get_gpu_stats_real()
+
+            # Try nvidia-smi subprocess as fallback
+            if self._nvidia_smi_available:
+                try:
+                    return self._get_gpu_stats_nvidia_smi()
+                except Exception as e:
+                    logger.warning(f"nvidia-smi fallback failed: {e}")
+                    # Continue to mock data
+
+            return self._get_gpu_stats_mock()
+        except Exception as e:
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to get GPU stats",
+                extra={
+                    "gpu_id": 0,
+                    "gpu_name": self._gpu_name,
+                    "operation": "get_current_stats",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return self._get_gpu_stats_mock()
+
+    def get_stats_history(self, minutes: int | None = None) -> list[GPUStatsDict]:
+        """Get GPU statistics history from memory.
+
+        Args:
+            minutes: Number of minutes of history to return (default: all available)
+
+        Returns:
+            List of GPU stats dictionaries, newest first
+        """
+        if minutes is None:
+            # Return all history
+            return list(reversed(self._stats_history))
+
+        # Filter by time
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=minutes)
+        filtered = [stats for stats in self._stats_history if stats["recorded_at"] >= cutoff_time]
+        return list(reversed(filtered))
+
+    async def _calculate_inference_fps(self, session: AsyncSession) -> float | None:
+        """Calculate inference FPS from recent detection throughput.
+
+        Counts detections processed in the last 60 seconds and calculates
+        the frames per second rate.
+
+        Args:
+            session: SQLAlchemy async session for database queries
+
+        Returns:
+            Inference FPS as a float, or None if calculation fails
+        """
+        try:
+            from sqlalchemy import func
+
+            from backend.models.detection import Detection
+
+            # Count detections in last 60 seconds
+            cutoff = datetime.now(UTC) - timedelta(seconds=60)
+            result = await session.execute(
+                select(func.count(Detection.id)).where(Detection.detected_at >= cutoff)
+            )
+            count = result.scalar() or 0
+            return count / 60.0 if count >= 0 else 0.0
+        except Exception as e:
+            logger.warning(f"Failed to calculate inference FPS: {e}")
+            return None
+
+    async def _store_stats(self, stats: GPUStatsDict) -> None:
+        """Store GPU statistics in database.
+
+        Args:
+            stats: Dictionary containing GPU statistics
+        """
+        try:
+            async with get_session() as session:
+                # Calculate inference FPS from recent detections
+                inference_fps = await self._calculate_inference_fps(session)
+
+                gpu_stats = GPUStats(
+                    recorded_at=stats["recorded_at"],
+                    gpu_name=stats["gpu_name"],
+                    gpu_utilization=stats["gpu_utilization"],
+                    memory_used=stats["memory_used"],
+                    memory_total=stats["memory_total"],
+                    temperature=stats["temperature"],
+                    power_usage=stats["power_usage"],
+                    inference_fps=inference_fps,
+                    # Extended metrics
+                    fan_speed=stats.get("fan_speed"),
+                    sm_clock=stats.get("sm_clock"),
+                    memory_bandwidth_utilization=stats.get("memory_bandwidth_utilization"),
+                    pstate=stats.get("pstate"),
+                    # High-value metrics
+                    throttle_reasons=stats.get("throttle_reasons"),
+                    power_limit=stats.get("power_limit"),
+                    sm_clock_max=stats.get("sm_clock_max"),
+                    compute_processes_count=stats.get("compute_processes_count"),
+                    pcie_replay_counter=stats.get("pcie_replay_counter"),
+                    temp_slowdown_threshold=stats.get("temp_slowdown_threshold"),
+                    # Medium-value metrics
+                    memory_clock=stats.get("memory_clock"),
+                    memory_clock_max=stats.get("memory_clock_max"),
+                    pcie_link_gen=stats.get("pcie_link_gen"),
+                    pcie_link_width=stats.get("pcie_link_width"),
+                    pcie_tx_throughput=stats.get("pcie_tx_throughput"),
+                    pcie_rx_throughput=stats.get("pcie_rx_throughput"),
+                    encoder_utilization=stats.get("encoder_utilization"),
+                    decoder_utilization=stats.get("decoder_utilization"),
+                    bar1_used=stats.get("bar1_used"),
+                )
+                session.add(gpu_stats)
+                await session.commit()
+                logger.debug(f"Stored GPU stats: {gpu_stats}")
+        except Exception as e:
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to store GPU stats in database",
+                extra={
+                    "gpu_name": stats.get("gpu_name"),
+                    "operation": "store_stats",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+
+    async def _broadcast_stats(self, stats: GPUStatsDict) -> None:
+        """Broadcast GPU statistics via WebSocket.
+
+        Args:
+            stats: Dictionary containing GPU statistics
+        """
+        if self.broadcaster is None:
+            return
+
+        try:
+            # Convert datetime to ISO format for JSON serialization
+            broadcast_stats: dict[str, Any] = {
+                "gpu_name": stats["gpu_name"],
+                "gpu_utilization": stats["gpu_utilization"],
+                "memory_used": stats["memory_used"],
+                "memory_total": stats["memory_total"],
+                "temperature": stats["temperature"],
+                "power_usage": stats["power_usage"],
+                "recorded_at": stats["recorded_at"].isoformat(),
+            }
+
+            await self.broadcaster.broadcast_gpu_stats(broadcast_stats)
+            logger.debug("Broadcasted GPU stats via WebSocket")
+        except Exception as e:
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to broadcast GPU stats",
+                extra={
+                    "operation": "broadcast_stats",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+
+    async def _poll_loop(self) -> None:
+        """Main polling loop that collects and stores GPU statistics."""
+        logger.info("GPU monitoring poll loop started")
+
+        while self.running:
+            try:
+                # Get current stats (use async version to query AI containers)
+                stats = await self.get_current_stats_async()
+
+                # Add to in-memory history
+                self._stats_history.append(stats)
+
+                # Store in database
+                await self._store_stats(stats)
+
+                # Broadcast via WebSocket
+                await self._broadcast_stats(stats)
+
+                # Check memory pressure and trigger callbacks if changed (NEM-1727)
+                await self.check_memory_pressure()
+
+                # Wait for next poll interval
+                await asyncio.sleep(self.poll_interval)
+
+            except asyncio.CancelledError:
+                logger.debug("GPU monitor poll loop cancelled")
+                break
+            except Exception as e:
+                # NEM-1123: Enhanced error logging with context
+                logger.error(
+                    "Error in GPU monitor poll loop",
+                    extra={
+                        "gpu_name": self._gpu_name,
+                        "operation": "poll_loop",
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
+                # Continue polling even if one iteration fails
+                await asyncio.sleep(self.poll_interval)
+
+        logger.info("GPU monitoring poll loop stopped")
+
+    async def start(self) -> None:
+        """Start GPU monitoring.
+
+        This method is idempotent - calling it multiple times is safe.
+        """
+        if self.running:
+            logger.warning("GPUMonitor already running")
+            return
+
+        logger.info("Starting GPU monitoring")
+        self.running = True
+
+        # Start polling task
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._poll_task = asyncio.create_task(self._poll_loop(), name="gpu-monitor")
+
+        logger.info("GPU monitoring started successfully")
+
+    async def stop(self) -> None:
+        """Stop GPU monitoring and cleanup resources."""
+        if not self.running:
+            logger.debug("GPUMonitor not running, nothing to stop")
+            return
+
+        logger.info("Stopping GPU monitoring")
+        self.running = False
+
+        # Cancel polling task
+        if self._poll_task and not self._poll_task.done():
+            self._poll_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._poll_task
+
+        self._poll_task = None
+
+        # Shutdown NVML if initialized
+        if self._nvml_initialized:
+            try:
+                import pynvml
+
+                pynvml.nvmlShutdown()
+                logger.debug("NVML shutdown successfully")
+            except Exception as e:
+                logger.warning(f"Error shutting down NVML: {e}")
+
+        logger.info("GPU monitoring stopped")
+
+    async def __aenter__(self) -> GPUMonitor:
+        """Async context manager entry.
+
+        Starts GPU monitoring and returns self for use in async with statements.
+
+        Returns:
+            Self for use in the context manager block.
+
+        Example:
+            async with GPUMonitor() as monitor:
+                # monitor is started and polling GPU stats
+                stats = await monitor.get_current_stats_async()
+            # monitor is automatically stopped when exiting the block
+        """
+        await self.start()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Async context manager exit.
+
+        Stops GPU monitoring, ensuring cleanup even if an exception occurred.
+
+        Args:
+            exc_type: Exception type if an exception was raised, None otherwise.
+            exc_val: Exception value if an exception was raised, None otherwise.
+            exc_tb: Exception traceback if an exception was raised, None otherwise.
+        """
+        await self.stop()
+
+    async def get_stats_from_db(
+        self,
+        minutes: int | None = None,
+        limit: int | None = None,
+    ) -> list[GPUStats]:
+        """Get GPU statistics from database.
+
+        Args:
+            minutes: Number of minutes of history to retrieve
+            limit: Maximum number of records to return
+
+        Returns:
+            List of GPUStats model instances, newest first
+        """
+        try:
+            async with get_session() as session:
+                query = select(GPUStats).order_by(GPUStats.recorded_at.desc())
+
+                # Filter by time if specified
+                if minutes is not None:
+                    cutoff_time = datetime.now(UTC) - timedelta(minutes=minutes)
+                    query = query.where(GPUStats.recorded_at >= cutoff_time)
+
+                # Limit results if specified
+                if limit is not None:
+                    query = query.limit(limit)
+
+                result = await session.execute(query)
+                return list(result.scalars().all())
+
+        except Exception as e:
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to retrieve GPU stats from database",
+                extra={
+                    "operation": "get_stats_from_database",
+                    "minutes_filter": minutes,
+                    "limit_filter": limit,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return []
+
+    # =========================================================================
+    # Memory Pressure Monitoring (NEM-1727)
+    # =========================================================================
+
+    def register_memory_pressure_callback(self, callback: MemoryPressureCallback) -> None:
+        """Register a callback to be invoked when memory pressure level changes.
+
+        The callback will receive (new_level, old_level) when pressure changes.
+        Callbacks can be async or sync functions.
+
+        Args:
+            callback: Function to call on pressure change. Signature:
+                      async def callback(new_level: MemoryPressureLevel,
+                                        old_level: MemoryPressureLevel) -> None
+        """
+        self._memory_pressure_callbacks.append(callback)
+        logger.debug(
+            f"Registered memory pressure callback: {callback.__name__}",
+            extra={"callback_count": len(self._memory_pressure_callbacks)},
+        )
+
+    async def check_memory_pressure(self) -> MemoryPressureLevel:
+        """Check current GPU memory pressure level.
+
+        Retrieves current GPU stats and determines the memory pressure level
+        based on VRAM usage percentage:
+        - NORMAL: < 85%
+        - WARNING: 85-95%
+        - CRITICAL: >= 95%
+
+        If memory pressure level changes from the previous check, registered
+        callbacks are invoked.
+
+        Returns:
+            Current MemoryPressureLevel
+
+        Note:
+            On error (e.g., GPU unavailable), returns NORMAL to avoid
+            unnecessary throttling. Errors are logged but don't raise.
+        """
+        try:
+            stats = await self.get_current_stats_async()
+
+            memory_used = stats.get("memory_used")
+            memory_total = stats.get("memory_total")
+
+            if memory_used is None or memory_total is None or memory_total == 0:
+                # Cannot determine memory usage, assume NORMAL
+                logger.debug(
+                    "Cannot determine memory pressure: missing memory stats",
+                    extra={"memory_used": memory_used, "memory_total": memory_total},
+                )
+                return MemoryPressureLevel.NORMAL
+
+            usage_percent = (memory_used / memory_total) * 100.0
+
+            # Determine pressure level
+            if usage_percent >= MEMORY_PRESSURE_CRITICAL_THRESHOLD:
+                new_level = MemoryPressureLevel.CRITICAL
+            elif usage_percent >= MEMORY_PRESSURE_WARNING_THRESHOLD:
+                new_level = MemoryPressureLevel.WARNING
+            else:
+                new_level = MemoryPressureLevel.NORMAL
+
+            # Check for level change
+            old_level = self._last_memory_pressure_level
+            if new_level != old_level:
+                await self._handle_pressure_level_change(new_level, old_level, usage_percent)
+
+            self._last_memory_pressure_level = new_level
+            return new_level
+
+        except Exception as e:
+            logger.error(
+                "Error checking memory pressure",
+                extra={
+                    "operation": "check_memory_pressure",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            # On error, return NORMAL to avoid unnecessary throttling
+            return MemoryPressureLevel.NORMAL
+
+    async def _handle_pressure_level_change(
+        self,
+        new_level: MemoryPressureLevel,
+        old_level: MemoryPressureLevel,
+        usage_percent: float,
+    ) -> None:
+        """Handle memory pressure level change.
+
+        Updates metrics, logs the change, and invokes registered callbacks.
+
+        Args:
+            new_level: New pressure level
+            old_level: Previous pressure level
+            usage_percent: Current memory usage percentage
+        """
+        now = datetime.now(UTC)
+
+        # Update metrics
+        if new_level == MemoryPressureLevel.WARNING:
+            self._memory_pressure_warning_events += 1
+            self._last_warning_event_at = now
+        elif new_level == MemoryPressureLevel.CRITICAL:
+            self._memory_pressure_critical_events += 1
+            self._last_critical_event_at = now
+
+        # Log the change
+        log_level = "warning" if new_level != MemoryPressureLevel.NORMAL else "info"
+        log_fn = getattr(logger, log_level)
+        log_fn(
+            f"GPU memory pressure changed: {old_level.value} -> {new_level.value} "
+            f"(usage: {usage_percent:.1f}%)",
+            extra={
+                "old_level": old_level.value,
+                "new_level": new_level.value,
+                "memory_usage_percent": usage_percent,
+                "warning_threshold": MEMORY_PRESSURE_WARNING_THRESHOLD,
+                "critical_threshold": MEMORY_PRESSURE_CRITICAL_THRESHOLD,
+            },
+        )
+
+        # Invoke callbacks
+        for callback in self._memory_pressure_callbacks:
+            try:
+                result = callback(new_level, old_level)
+                # Support both sync and async callbacks
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as e:
+                logger.error(
+                    f"Memory pressure callback failed: {callback.__name__}",
+                    extra={
+                        "callback": callback.__name__,
+                        "new_level": new_level.value,
+                        "old_level": old_level.value,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                    exc_info=True,
+                )
+
+    def get_memory_pressure_metrics(self) -> MemoryPressureMetrics:
+        """Get memory pressure monitoring metrics.
+
+        Returns:
+            Dictionary containing:
+            - current_level: Current pressure level
+            - warning_threshold: Warning threshold percentage
+            - critical_threshold: Critical threshold percentage
+            - total_warning_events: Count of warning transitions
+            - total_critical_events: Count of critical transitions
+            - last_warning_event_at: Timestamp of last warning (or None)
+            - last_critical_event_at: Timestamp of last critical (or None)
+        """
+        return {
+            "current_level": self._last_memory_pressure_level.value,
+            "warning_threshold": MEMORY_PRESSURE_WARNING_THRESHOLD,
+            "critical_threshold": MEMORY_PRESSURE_CRITICAL_THRESHOLD,
+            "total_warning_events": self._memory_pressure_warning_events,
+            "total_critical_events": self._memory_pressure_critical_events,
+            "last_warning_event_at": (
+                self._last_warning_event_at.isoformat() if self._last_warning_event_at else None
+            ),
+            "last_critical_event_at": (
+                self._last_critical_event_at.isoformat() if self._last_critical_event_at else None
+            ),
+        }

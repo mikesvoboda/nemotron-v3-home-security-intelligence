@@ -1,0 +1,260 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DetectionThumbnail > snapshots > renders error state 1`] = `
+<div
+  class=""
+>
+  <div
+    class="w-[240px] h-[180px] flex flex-col items-center justify-center rounded-lg border border-red-800 bg-gray-800"
+    data-testid="error-display"
+  >
+    <svg
+      aria-hidden="true"
+      class="mb-2 h-6 w-6 text-red-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+      />
+    </svg>
+    <span
+      class="text-xs text-gray-400"
+    >
+      Image not found
+    </span>
+    <button
+      class="mt-2 rounded bg-gray-700 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-gray-600"
+      type="button"
+    >
+      Retry
+    </button>
+  </div>
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders lg size loading skeleton 1`] = `
+<div
+  class="relative "
+>
+  <div
+    class="w-[320px] h-[240px] animate-pulse rounded-lg bg-gray-700"
+    data-testid="loading-skeleton"
+  >
+    <div
+      class="flex h-full items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="h-8 w-8 text-gray-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+        />
+      </svg>
+    </div>
+  </div>
+  <img
+    alt=""
+    aria-hidden="true"
+    class="absolute opacity-0"
+    src="/api/detections/123/image"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders loaded state with image 1`] = `
+<div
+  class="relative overflow-hidden rounded-lg "
+>
+  <img
+    alt="Person detected at front door"
+    class="w-[240px] h-[180px] rounded-lg object-cover"
+    src="/api/detections/123/image"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders loading skeleton state 1`] = `
+<div
+  class="relative "
+>
+  <div
+    class="w-[240px] h-[180px] animate-pulse rounded-lg bg-gray-700"
+    data-testid="loading-skeleton"
+  >
+    <div
+      class="flex h-full items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="h-8 w-8 text-gray-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+        />
+      </svg>
+    </div>
+  </div>
+  <img
+    alt=""
+    aria-hidden="true"
+    class="absolute opacity-0"
+    src="/api/detections/123/image"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders md size loading skeleton 1`] = `
+<div
+  class="relative "
+>
+  <div
+    class="w-[240px] h-[180px] animate-pulse rounded-lg bg-gray-700"
+    data-testid="loading-skeleton"
+  >
+    <div
+      class="flex h-full items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="h-8 w-8 text-gray-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+        />
+      </svg>
+    </div>
+  </div>
+  <img
+    alt=""
+    aria-hidden="true"
+    class="absolute opacity-0"
+    src="/api/detections/123/image"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders sm size loading skeleton 1`] = `
+<div
+  class="relative "
+>
+  <div
+    class="w-[120px] h-[90px] animate-pulse rounded-lg bg-gray-700"
+    data-testid="loading-skeleton"
+  >
+    <div
+      class="flex h-full items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="h-8 w-8 text-gray-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+        />
+      </svg>
+    </div>
+  </div>
+  <img
+    alt=""
+    aria-hidden="true"
+    class="absolute opacity-0"
+    src="/api/detections/123/image"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders with custom className 1`] = `
+<div
+  class="relative custom-border border-4"
+>
+  <div
+    class="w-[240px] h-[180px] animate-pulse rounded-lg bg-gray-700"
+    data-testid="loading-skeleton"
+  >
+    <div
+      class="flex h-full items-center justify-center"
+    >
+      <svg
+        aria-hidden="true"
+        class="h-8 w-8 text-gray-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+        />
+      </svg>
+    </div>
+  </div>
+  <img
+    alt=""
+    aria-hidden="true"
+    class="absolute opacity-0"
+    src="/api/detections/123/image"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders with onClick handler (clickable state) 1`] = `
+<div
+  aria-label="Person detected at front door"
+  class="relative overflow-hidden rounded-lg "
+  role="button"
+  tabindex="0"
+>
+  <img
+    alt="Person detected at front door"
+    class="w-[240px] h-[180px] rounded-lg object-cover"
+    src="/api/detections/123/image"
+  />
+  <div
+    class="absolute inset-0 rounded-lg bg-black/0 transition-colors hover:bg-black/20"
+  />
+</div>
+`;
+
+exports[`DetectionThumbnail > snapshots > renders with showLoading disabled 1`] = `
+<div
+  class="relative overflow-hidden rounded-lg "
+>
+  <img
+    alt="Person detected at front door"
+    class="w-[240px] h-[180px] rounded-lg object-cover"
+    src="/api/detections/123/image"
+  />
+</div>
+`;

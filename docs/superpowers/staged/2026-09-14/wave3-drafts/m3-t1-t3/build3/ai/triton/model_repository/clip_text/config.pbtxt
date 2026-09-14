@@ -1,0 +1,44 @@
+# SigLIP 2 Base (patch16-224) Text Encoder - ONNX Runtime
+# Replaces CLIP ViT-L/14 text encoder
+# Input: tokenized text (B, 64) INT64 (SigLIP 2 max_length=64, not CLIP's 77)
+# Output: pooler_output (B, 768) FP32
+# Note: SigLIP 2 text model does NOT use attention_mask
+# Source: onnx-community/siglip2-base-patch16-224-ONNX (text_model_quantized.onnx)
+
+name: "clip_text"
+backend: "onnxruntime"
+max_batch_size: 8
+
+input [
+  {
+    name: "input_ids"
+    data_type: TYPE_INT64
+    dims: [64]
+  }
+]
+
+output [
+  {
+    name: "pooler_output"
+    data_type: TYPE_FP32
+    dims: [768]
+  }
+]
+
+instance_group [
+  {
+    count: 2
+    kind: KIND_CPU
+    rate_limiter {
+      resources [
+        { name: "global" count: 1 }
+      ]
+      priority: 3
+    }
+  }
+]
+
+dynamic_batching {
+  preferred_batch_size: [1, 4, 8]
+  max_queue_delay_microseconds: 50000
+}

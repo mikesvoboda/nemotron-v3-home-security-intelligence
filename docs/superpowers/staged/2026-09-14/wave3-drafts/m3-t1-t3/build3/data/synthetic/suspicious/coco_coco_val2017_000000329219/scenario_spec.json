@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000329219",
+  "category": "suspicious",
+  "name": "COCO Scene 329219",
+  "description": "Scene containing 1 knife, 1 dog, 1 person. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}

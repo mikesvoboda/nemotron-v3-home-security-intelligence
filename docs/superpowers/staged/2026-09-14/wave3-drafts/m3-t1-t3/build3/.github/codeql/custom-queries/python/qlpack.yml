@@ -1,0 +1,6 @@
+name: home-security-python-queries
+version: 1.0.0
+description: Custom CodeQL queries for FastAPI/Python security patterns
+dependencies:
+  codeql/python-all: '*'
+extractor: python

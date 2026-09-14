@@ -1,0 +1,402 @@
+# AI Pipeline Alerting Rules for New Metrics (NEM-5525)
+#
+# Comprehensive alerting for GPU OOM, enrichment pipeline, prompt/LLM,
+# batch coalescing, score calibration, and CLIP/Florence service health.
+#
+# These alerts cover metrics added across the AI pipeline including:
+#   - GPU OOM detection (ai_gpu_oom_total from ai/gpu_oom_handler.py)
+#   - Enrichment pipeline health (hsi_enrichment_* from backend/core/metrics.py)
+#   - LLM context and inference (hsi_llm_*, hsi_prompts_*, hsi_nemotron_*)
+#   - Batch coalescing effectiveness (hsi_batch_coalesce_*)
+#   - Risk score calibration drift (hsi_risk_tier_total, hsi_risk_score_distribution)
+#   - CLIP/Florence service availability (clip_inference_requests_total, florence_inference_requests_total)
+#
+# Alert Severity Levels:
+# - critical: Immediate action required. System is down or data loss is imminent.
+# - warning:  Action required soon. Performance degradation or approaching limits.
+# - info:     Informational. No immediate action required but worth monitoring.
+#
+# Validation:
+#   promtool check rules monitoring/ai-pipeline-alerts.yml
+
+groups:
+  # =============================================================================
+  # GPU & Infrastructure Alerts
+  # =============================================================================
+  # Monitor GPU out-of-memory errors and memory pressure across AI services.
+  # OOM events are tracked by ai/gpu_oom_handler.py in each inference service.
+  - name: gpu_oom_alerts
+    interval: 15s
+    rules:
+      # Critical: Any GPU OOM error occurring
+      # OOM errors indicate the GPU is exhausting VRAM during inference.
+      # Even a single OOM can crash an inference pipeline.
+      - alert: GPUOOMCritical
+        expr: rate(ai_gpu_oom_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: gpu
+          service: ai_inference
+        annotations:
+          summary: 'GPU OOM errors detected on {{ $labels.service }}'
+          description: 'GPU out-of-memory errors are occurring on service {{ $labels.service }} (endpoint: {{ $labels.endpoint }}) at a rate of {{ $value | printf "%.3f" }}/sec. Any OOM is serious and may crash inference. Check VRAM usage and consider reducing batch sizes or unloading unused models.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-oom'
+
+      # Warning: GPU memory utilization above 90% (from JSON exporter hsi_gpu_* metrics)
+      - alert: GPUMemoryHigh
+        expr: |
+          (hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: nvidia
+        annotations:
+          summary: 'GPU memory utilization > 90%'
+          description: 'GPU VRAM usage is {{ $value | humanizePercentage }} for more than 5 minutes. OOM errors are likely if load increases. Consider reducing model concurrency or batch sizes.'
+
+      # Critical: GPU memory utilization above 95%
+      - alert: GPUMemoryCritical
+        expr: |
+          (hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+          service: nvidia
+        annotations:
+          summary: 'GPU memory utilization > 95%'
+          description: 'GPU VRAM usage is {{ $value | humanizePercentage }} for more than 2 minutes. OOM errors are imminent. Immediate action required: reduce batch sizes, evict models, or restart services.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-memory-high'
+
+  # =============================================================================
+  # Enrichment Pipeline Alerts
+  # =============================================================================
+  # Monitor the enrichment pipeline for timeouts, model errors, and quality
+  # degradation. The enrichment pipeline runs CLIP, Florence, vehicle/pet/clothing
+  # classification and other models in parallel.
+  - name: enrichment_pipeline_alerts
+    interval: 15s
+    rules:
+      # Warning: Enrichment pipeline timeouts increasing
+      # hsi_enrichment_pipeline_timeouts_total tracks hard timeouts where the
+      # entire enrichment pipeline exceeds its deadline.
+      - alert: EnrichmentPipelineTimeout
+        expr: rate(hsi_enrichment_pipeline_timeouts_total[5m]) > 0.1 / 60
+        for: 5m
+        labels:
+          severity: warning
+          component: enrichment
+          service: pipeline
+        annotations:
+          summary: 'Enrichment pipeline timeouts detected'
+          description: 'Enrichment pipeline is experiencing timeouts at a rate of {{ $value | printf "%.4f" }}/sec (> 0.1/min). Some detections are being processed with incomplete enrichment data.'
+
+      # Critical: Enrichment pipeline timeout rate high
+      - alert: EnrichmentPipelineTimeoutCritical
+        expr: rate(hsi_enrichment_pipeline_timeouts_total[5m]) > 1 / 60
+        for: 5m
+        labels:
+          severity: critical
+          component: enrichment
+          service: pipeline
+        annotations:
+          summary: 'Enrichment pipeline timeout rate critical (> 1/min)'
+          description: 'Enrichment pipeline timeout rate is {{ $value | printf "%.4f" }}/sec (> 1/min). A significant portion of detections are losing enrichment data. Check AI service health and GPU load.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/enrichment-timeouts'
+
+      # Warning: Enrichment model error rate above 5%
+      # Compares hsi_enrichment_model_errors_total against hsi_enrichment_model_calls_total
+      # Both have a "model" label (brisque, violence, clothing, vehicle, pet, etc.)
+      - alert: EnrichmentModelErrorRate
+        expr: |
+          (
+            sum(rate(hsi_enrichment_model_errors_total[5m]))
+            /
+            (sum(rate(hsi_enrichment_model_calls_total[5m])) + 0.001)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: enrichment
+          service: model_inference
+        annotations:
+          summary: 'Enrichment model error rate above 5%'
+          description: 'Enrichment model error rate is {{ $value | humanizePercentage }}. Some enrichment models are failing frequently. Check individual model health in the enrichment pipeline dashboard.'
+
+      # Critical: Enrichment model error rate above 20%
+      - alert: EnrichmentModelErrorCritical
+        expr: |
+          (
+            sum(rate(hsi_enrichment_model_errors_total[5m]))
+            /
+            (sum(rate(hsi_enrichment_model_calls_total[5m])) + 0.001)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          component: enrichment
+          service: model_inference
+        annotations:
+          summary: 'Enrichment model error rate critical (> 20%)'
+          description: 'Enrichment model error rate is {{ $value | humanizePercentage }}. A large portion of enrichment calls are failing. Detection quality is severely degraded.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/enrichment-errors'
+
+      # Warning: Enrichment quality level degraded
+      # hsi_enrichment_quality_level gauge: 1=minimal, 2=standard, 3=full
+      # Quality below 3 (full) for extended period means enrichment is incomplete.
+      - alert: EnrichmentQualityDegraded
+        expr: hsi_enrichment_quality_level < 3
+        for: 10m
+        labels:
+          severity: warning
+          component: enrichment
+          service: pipeline
+        annotations:
+          summary: 'Enrichment quality level degraded (not full)'
+          description: 'Enrichment quality level is {{ $value }} (1=minimal, 2=standard, 3=full) for more than 10 minutes. The pipeline is running with reduced enrichment models, possibly due to GPU memory pressure or service failures.'
+
+  # =============================================================================
+  # Prompt & LLM Inference Alerts
+  # =============================================================================
+  # Monitor LLM context utilization, prompt truncation, and inference latency.
+  # These alerts detect when the Nemotron LLM is struggling with workload.
+  - name: prompt_llm_alerts
+    interval: 15s
+    rules:
+      # Warning: High rate of prompt truncation
+      # hsi_prompts_truncated_total counts prompts that exceeded context limits.
+      # Truncated prompts lose information, degrading analysis quality.
+      - alert: PromptTruncationHigh
+        expr: rate(hsi_prompts_truncated_total[5m]) > 0.5 / 60
+        for: 5m
+        labels:
+          severity: warning
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'Prompt truncation rate is high (> 0.5/min)'
+          description: 'Prompts are being truncated at a rate of {{ $value | printf "%.4f" }}/sec due to context window overflow. Truncated prompts may produce lower quality risk assessments. Consider optimizing prompt templates or increasing context window.'
+
+      # Warning: LLM context utilization consistently high
+      # hsi_llm_context_utilization histogram tracks how full the context window is.
+      # High utilization means prompts are near the limit and at risk of truncation.
+      - alert: PromptContextUtilizationHigh
+        expr: |
+          histogram_quantile(0.95, rate(hsi_llm_context_utilization_bucket[5m])) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'LLM context utilization consistently above 80%'
+          description: 'P95 LLM context utilization is {{ $value | humanizePercentage }} for more than 10 minutes. Prompts are consistently near context window limits. Risk of truncation is elevated.'
+
+      # Warning: LLM inference latency P95 above 30 seconds
+      # Uses hsi_nemotron_inference_seconds histogram for Nemotron-specific latency.
+      - alert: LLMInferenceLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(hsi_nemotron_inference_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'LLM inference P95 latency > 30s'
+          description: 'Nemotron LLM inference P95 latency is {{ $value | printf "%.1f" }}s. Analysis results are taking too long, which delays real-time security event processing.'
+
+      # Critical: LLM inference latency P95 above 60 seconds
+      - alert: LLMInferenceLatencyCritical
+        expr: |
+          histogram_quantile(0.95, rate(hsi_nemotron_inference_seconds_bucket[5m])) > 60
+        for: 5m
+        labels:
+          severity: critical
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'LLM inference P95 latency > 60s'
+          description: 'Nemotron LLM inference P95 latency is {{ $value | printf "%.1f" }}s. Real-time analysis is severely delayed. Analysis queue is likely backing up. Check GPU utilization and Nemotron health.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/llm-latency-critical'
+
+  # =============================================================================
+  # Batch Coalescing Alerts
+  # =============================================================================
+  # Monitor batch coalescing effectiveness. Coalescing merges similar detections
+  # within a batch window to reduce redundant LLM calls.
+  - name: batch_coalescing_alerts
+    interval: 30s
+    rules:
+      # Info: Coalescing merge rate very low (not effective)
+      # hsi_batch_coalesce_merge_rate gauge tracks the ratio of merged detections.
+      # Very low merge rate means coalescing is not finding duplicates to merge.
+      - alert: CoalescingMergeRateLow
+        expr: |
+          hsi_batch_coalesce_merge_rate < 0.05
+          and
+          hsi_batch_coalesce_merge_rate >= 0
+        for: 30m
+        labels:
+          severity: info
+          component: batch
+          service: pipeline
+        annotations:
+          summary: 'Batch coalescing merge rate below 5%'
+          description: 'Batch coalescing merge rate is {{ $value | humanizePercentage }}. Coalescing is not finding many duplicate detections to merge. This may be normal for single-camera setups or low-traffic periods.'
+
+      # Warning: Coalescing merge rate very high (possible duplicate detections)
+      # Very high merge rate may indicate the detection pipeline is producing
+      # excessive duplicate detections that need investigation.
+      - alert: CoalescingMergeRateHigh
+        expr: hsi_batch_coalesce_merge_rate > 0.8
+        for: 30m
+        labels:
+          severity: warning
+          component: batch
+          service: pipeline
+        annotations:
+          summary: 'Batch coalescing merge rate above 80%'
+          description: 'Batch coalescing merge rate is {{ $value | humanizePercentage }}. Most detections are being merged as duplicates. This may indicate the detection pipeline is producing excessive duplicate detections. Investigate YOLO26 detection thresholds and camera overlap.'
+
+  # =============================================================================
+  # Risk Score Calibration Alerts
+  # =============================================================================
+  # Monitor risk score distribution for calibration drift. Risk scores should
+  # follow an expected distribution across tiers:
+  #   low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
+  # Significant deviation from expected distribution indicates model miscalibration.
+  - name: score_calibration_alerts
+    interval: 30s
+    rules:
+      # Warning: Risk score distribution has drifted
+      # Checks if any single tier accounts for a disproportionate share of scores.
+      # If more than 60% of scores fall in a single tier for an extended period,
+      # calibration may have drifted.
+      - alert: RiskScoreCalibrationDrift
+        expr: |
+          (
+            max(
+              rate(hsi_risk_tier_total[1h])
+            ) by (tier)
+            /
+            (sum(rate(hsi_risk_tier_total[1h])) + 0.001)
+          ) > 0.6
+        for: 1h
+        labels:
+          severity: warning
+          component: scoring
+          service: calibration
+        annotations:
+          summary: 'Risk score calibration drift detected (tier {{ $labels.tier }})'
+          description: 'More than 60% of risk scores are concentrated in the "{{ $labels.tier }}" tier over the last hour. This may indicate model miscalibration or a change in scene conditions. Expected distribution should be more balanced across tiers.'
+
+      # Critical: More than 10% of scores are CRITICAL tier
+      # An unusually high rate of critical scores suggests miscalibration
+      # rather than a genuine widespread security threat.
+      - alert: RiskScoreAllCritical
+        expr: |
+          (
+            rate(hsi_risk_tier_total{tier="critical"}[30m])
+            /
+            (sum(rate(hsi_risk_tier_total[30m])) + 0.001)
+          ) > 0.1
+        for: 30m
+        labels:
+          severity: critical
+          component: scoring
+          service: calibration
+        annotations:
+          summary: 'More than 10% of risk scores are CRITICAL'
+          description: 'Over 10% of risk scores are in the CRITICAL tier (81-100) for the last 30 minutes. This likely indicates model miscalibration rather than a genuine security incident. Review Nemotron prompt templates and scoring logic.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/score-calibration'
+
+      # Warning: Almost all scores are LOW tier (pipeline may be broken)
+      # If 99%+ of scores are LOW, the pipeline may not be enriching properly
+      # or the LLM may be defaulting to low scores.
+      - alert: RiskScoreAllLow
+        expr: |
+          (
+            rate(hsi_risk_tier_total{tier="low"}[1h])
+            /
+            (sum(rate(hsi_risk_tier_total[1h])) + 0.001)
+          ) > 0.99
+        for: 1h
+        labels:
+          severity: warning
+          component: scoring
+          service: calibration
+        annotations:
+          summary: 'Over 99% of risk scores are LOW'
+          description: 'More than 99% of risk scores are in the LOW tier (0-20) for the last hour. The LLM may be defaulting to low scores due to missing enrichment data or prompt issues. Check enrichment pipeline health and LLM context utilization.'
+
+  # =============================================================================
+  # CLIP & Florence Service Health Alerts
+  # =============================================================================
+  # Monitor CLIP and Florence AI service availability. These services provide
+  # critical enrichment capabilities (visual embeddings, scene understanding).
+  # Metrics come from the AI service containers themselves, scraped by Prometheus.
+  - name: clip_florence_alerts
+    interval: 15s
+    rules:
+      # Critical: CLIP service not receiving any calls while enrichment is active
+      # clip_inference_requests_total is exposed by the ai-clip container.
+      # If enrichment is running (hsi_enrichment_model_calls_total increasing)
+      # but no CLIP calls are happening, the CLIP service may be down.
+      - alert: CLIPServiceDown
+        expr: |
+          rate(clip_inference_requests_total[10m]) == 0
+          and
+          sum(rate(hsi_enrichment_model_calls_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: critical
+          component: ai
+          service: clip
+        annotations:
+          summary: 'CLIP service receiving no requests while enrichment is active'
+          description: 'No CLIP inference requests have been made in the last 10 minutes, but the enrichment pipeline is actively processing. CLIP may be down or unreachable. Visual embedding and anomaly detection are unavailable.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/clip-service-down'
+
+      # Critical: Florence service not receiving any calls while enrichment is active
+      # florence_inference_requests_total is exposed by the ai-florence container.
+      - alert: FlorenceServiceDown
+        expr: |
+          rate(florence_inference_requests_total[10m]) == 0
+          and
+          sum(rate(hsi_enrichment_model_calls_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: critical
+          component: ai
+          service: florence
+        annotations:
+          summary: 'Florence service receiving no requests while enrichment is active'
+          description: 'No Florence inference requests have been made in the last 10 minutes, but the enrichment pipeline is actively processing. Florence may be down or unreachable. Scene captioning and OCR are unavailable.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/florence-service-down'
+
+      # Warning: CLIP anomaly scores consistently high across cameras
+      # Uses hsi_ai_request_duration_seconds with service="clip_anomaly" to detect
+      # when CLIP anomaly scoring is active, and checks pipeline error rates for
+      # clip_anomaly errors. High anomaly scores across all cameras may indicate
+      # baseline drift or widespread scene changes (e.g., weather, lighting).
+      # Note: Individual anomaly scores are not exposed as Prometheus metrics.
+      # This alert uses clip error rate as a proxy for CLIP health issues that
+      # could produce unreliable anomaly scores.
+      - alert: CLIPAnomalyErrorsHigh
+        expr: |
+          (
+            sum(rate(hsi_pipeline_errors_total{error_type=~"clip_anomaly.*"}[5m]))
+            /
+            (sum(rate(hsi_ai_request_duration_seconds_count{service="clip_anomaly"}[5m])) + 0.001)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: clip
+        annotations:
+          summary: 'CLIP anomaly scoring error rate above 20%'
+          description: 'CLIP anomaly scoring is failing at a rate of {{ $value | humanizePercentage }}. Anomaly detection capabilities are degraded. Check CLIP service health, baseline availability, and network connectivity to ai-clip.'

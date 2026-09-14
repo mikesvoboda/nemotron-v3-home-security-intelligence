@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T23_tracking_13",
+  "category": "threats",
+  "name": "Tracking 13",
+  "description": "Parking lot or shared driveway area at midday, viewed from an elevated position. Multiple vehicles visible including sedans, SUVs, pickup truck, and motorcycle. Vehicles appear parked with some movement. Wide view showing multiple parked cars and building structures. Static elevated viewpoint, clear daytime footage.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

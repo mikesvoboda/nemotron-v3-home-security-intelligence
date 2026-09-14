@@ -1,0 +1,54 @@
+# =============================================================================
+# Shared Base Dependencies for Python Services
+# =============================================================================
+# This file contains common dependencies used across multiple services:
+#   - Backend API (FastAPI, database, caching, etc.)
+#   - AI Services (FastAPI, HTTP client, utilities)
+#
+# Services that extend this base image:
+#   - backend: Adds database migrations, WebSocket, monitoring, etc.
+#   - AI enrichment: Adds transformers, vision models, etc.
+#   - AI YOLO26: Adds ultralytics, TensorRT models, etc.
+#   - AI CLIP: Adds transformers, ONNX models, etc.
+#
+# Build time reduction:
+#   - 60-80% faster rebuilds when only service-specific deps change
+#   - Base image cached across all dependent services
+#   - Cache invalidated only when base deps change
+#
+# =============================================================================
+
+# Core Web Framework (FastAPI + ASGI server)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+
+# HTTP Client (used by AI services for health checks)
+httpx>=0.28.0
+
+# Configuration and Validation
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.1
+
+# Database and Caching (backend + utilities)
+sqlalchemy>=2.0.36
+asyncpg>=0.30.0
+psycopg2-binary>=2.9.10
+greenlet>=3.1.0
+redis>=5.2.0
+
+# Image Processing (common across services)
+pillow>=11.0.0
+opencv-python>=4.8.0
+numpy>=1.26.0
+
+# Utilities
+prometheus-client>=0.21.0
+nvidia-ml-py>=12.560.30,<14.0.0
+
+# Logging
+python-json-logger>=2.0.7
+
+# TLS/Cryptography
+cryptography>=44.0.0

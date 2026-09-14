@@ -1,0 +1,36 @@
+{
+  "source": "kinetics",
+  "video_id": "kinetics_validate_0g813Qgrc-M_0785",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "fighting",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 70,
+    "max_score": 90,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Person performing action: punching person (boxing). Video clip from YouTube (0g813Qgrc-M), seconds 785-795."
+  }
+}

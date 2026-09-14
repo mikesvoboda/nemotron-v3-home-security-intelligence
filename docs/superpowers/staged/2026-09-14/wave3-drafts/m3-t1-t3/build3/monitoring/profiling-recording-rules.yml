@@ -1,0 +1,180 @@
+# Profiling Recording Rules for Automated Regression Detection (NEM-4133)
+# Pre-computes profiling-related metrics for efficient regression detection.
+# These rules establish baselines and compute ratios for CPU and memory usage
+# that enable automated detection when services deviate from normal patterns.
+
+groups:
+  # =============================================================================
+  # Service CPU Usage Recording Rules
+  # =============================================================================
+  # Track CPU usage across all services using process_cpu_seconds_total from
+  # the various Prometheus exporters. These metrics form the baseline for
+  # regression detection.
+  - name: profiling-cpu-metrics
+    interval: 1m
+    rules:
+      # Backend service CPU rate (5-minute window)
+      # Source: hsi-backend-metrics job scraping /api/metrics
+      - record: job:backend_cpu_seconds:rate5m
+        expr: |
+          sum(rate(process_cpu_seconds_total{job="hsi-backend-metrics"}[5m]))
+        labels:
+          service: backend
+
+      # Per-service CPU usage rate (5-minute window)
+      # Aggregates CPU across all scraped jobs that expose process_cpu_seconds_total
+      - record: job:service_cpu_seconds:rate5m
+        expr: |
+          sum by (job) (rate(process_cpu_seconds_total[5m]))
+
+      # Per-service CPU usage rate (1-hour window for baseline)
+      - record: job:service_cpu_seconds:rate1h
+        expr: |
+          sum by (job) (rate(process_cpu_seconds_total[1h]))
+
+      # AI service CPU rates (individual tracking for fine-grained analysis)
+      - record: job:ai_llm_cpu_seconds:rate5m
+        expr: |
+          sum(rate(process_cpu_seconds_total{job="ai-llm-metrics"}[5m]))
+        labels:
+          service: ai-llm
+
+      - record: job:ai_yolo26_cpu_seconds:rate5m
+        expr: |
+          sum(rate(process_cpu_seconds_total{job="ai-yolo26-metrics"}[5m]))
+        labels:
+          service: ai-yolo26
+
+      - record: job:ai_florence_cpu_seconds:rate5m
+        expr: |
+          sum(rate(process_cpu_seconds_total{job="ai-florence-metrics"}[5m]))
+        labels:
+          service: ai-florence
+
+      - record: job:ai_clip_cpu_seconds:rate5m
+        expr: |
+          sum(rate(process_cpu_seconds_total{job="ai-clip-metrics"}[5m]))
+        labels:
+          service: ai-clip
+
+      - record: job:ai_enrichment_cpu_seconds:rate5m
+        expr: |
+          sum(rate(process_cpu_seconds_total{job="ai-enrichment-metrics"}[5m]))
+        labels:
+          service: ai-enrichment
+
+  # =============================================================================
+  # Service Memory Usage Recording Rules
+  # =============================================================================
+  # Track memory usage for regression detection. Memory growth over time
+  # can indicate leaks or inefficient allocations.
+  - name: profiling-memory-metrics
+    interval: 1m
+    rules:
+      # Current resident memory per service
+      - record: job:service_memory_bytes:current
+        expr: |
+          sum by (job) (process_resident_memory_bytes)
+
+      # Backend memory usage
+      - record: job:backend_memory_bytes:current
+        expr: |
+          sum(process_resident_memory_bytes{job="hsi-backend-metrics"})
+        labels:
+          service: backend
+
+      # Virtual memory per service (heap + mmap)
+      - record: job:service_virtual_memory_bytes:current
+        expr: |
+          sum by (job) (process_virtual_memory_bytes)
+
+      # Memory growth rate (bytes per hour)
+      - record: job:service_memory_bytes:deriv1h
+        expr: |
+          deriv(sum by (job) (process_resident_memory_bytes)[1h:1m])
+
+  # =============================================================================
+  # CPU Regression Ratio Rules
+  # =============================================================================
+  # Compute the ratio of current CPU usage vs historical baseline.
+  # Values > 1.0 indicate increased CPU usage compared to baseline.
+  # Values > 1.5 (50% increase) trigger regression alerts.
+  - name: profiling-regression-ratios
+    interval: 1m
+    rules:
+      # CPU regression ratio: current 5m rate vs 24h average
+      # A value of 1.5 means 50% more CPU than the 24-hour average
+      - record: job:service_cpu_regression_ratio:5m_vs_24h
+        expr: |
+          (
+            job:service_cpu_seconds:rate5m
+            /
+            (avg_over_time(job:service_cpu_seconds:rate5m[1d]) + 0.001)
+          )
+
+      # CPU regression ratio: current 5m rate vs 1-hour average
+      # More sensitive to recent changes
+      - record: job:service_cpu_regression_ratio:5m_vs_1h
+        expr: |
+          (
+            job:service_cpu_seconds:rate5m
+            /
+            (avg_over_time(job:service_cpu_seconds:rate5m[1h]) + 0.001)
+          )
+
+      # Memory regression ratio: current vs 6-hour average
+      - record: job:service_memory_regression_ratio:current_vs_6h
+        expr: |
+          (
+            job:service_memory_bytes:current
+            /
+            (avg_over_time(job:service_memory_bytes:current[6h]) + 1)
+          )
+
+      # Memory growth prediction: projected memory in 24 hours
+      # Uses linear regression on the last 2 hours
+      - record: job:service_memory_bytes:predicted_24h
+        expr: |
+          predict_linear(job:service_memory_bytes:current[2h], 3600 * 24)
+
+  # =============================================================================
+  # AI Service Inference Latency Rules
+  # =============================================================================
+  # Track inference latency percentiles for regression detection.
+  # Latency increases can indicate CPU contention or memory pressure.
+  - name: profiling-latency-metrics
+    interval: 1m
+    rules:
+      # YOLO26 P95 inference latency
+      - record: job:yolo26_inference_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum(rate(yolo26_inference_latency_seconds_bucket[5m])) by (le))
+
+      # YOLO26 P99 inference latency
+      - record: job:yolo26_inference_latency:p99_5m
+        expr: |
+          histogram_quantile(0.99, sum(rate(yolo26_inference_latency_seconds_bucket[5m])) by (le))
+
+      # Florence P95 inference latency
+      - record: job:florence_inference_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))
+
+      # CLIP P95 inference latency
+      - record: job:clip_inference_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))
+
+      # Backend API P99 latency
+      - record: job:backend_api_latency:p99_5m
+        expr: |
+          histogram_quantile(0.99, sum(rate(hsi_http_request_duration_seconds_bucket[5m])) by (le))
+
+      # Latency regression ratio (current P95 vs 1h average P95)
+      - record: job:yolo26_latency_regression_ratio:p95_vs_1h
+        expr: |
+          (
+            job:yolo26_inference_latency:p95_5m
+            /
+            (avg_over_time(job:yolo26_inference_latency:p95_5m[1h]) + 0.001)
+          )

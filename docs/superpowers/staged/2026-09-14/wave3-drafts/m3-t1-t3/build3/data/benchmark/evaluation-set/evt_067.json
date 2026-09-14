@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_067",
+  "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: driveway. Time: 05:28. Detected: mail.",
+  "expected_response": {
+    "risk_score": 12,
+    "risk_level": "low",
+    "summary": "Mail carrier placing package on porch",
+    "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "driveway",
+    "timestamp": "2026-01-27T05:28:00",
+    "detection_type": "mail",
+    "location": "front_porch"
+  }
+}

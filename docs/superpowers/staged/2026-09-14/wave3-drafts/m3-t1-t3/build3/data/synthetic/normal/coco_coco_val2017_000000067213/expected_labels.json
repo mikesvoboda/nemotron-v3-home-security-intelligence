@@ -1,0 +1,46 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000067213",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "dog",
+      "min_confidence": 0.5,
+      "count": 1
+    },
+    {
+      "class": "car",
+      "min_confidence": 0.5,
+      "count": 5
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 8
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 8 person, 1 dog, 5 car. From COCO object detection dataset."
+  }
+}

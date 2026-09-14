@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_046",
+  "prompt": "Analyze security event: Squirrel running across lawn. Camera: patio. Time: 21:41. Detected: animal.",
+  "expected_response": {
+    "risk_score": 19,
+    "risk_level": "low",
+    "summary": "Squirrel running across lawn",
+    "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "patio",
+    "timestamp": "2026-02-04T21:41:00",
+    "detection_type": "animal",
+    "location": "front_yard"
+  }
+}

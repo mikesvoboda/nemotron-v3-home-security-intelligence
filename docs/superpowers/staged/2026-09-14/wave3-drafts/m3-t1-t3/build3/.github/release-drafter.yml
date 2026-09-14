@@ -1,0 +1,194 @@
+# Release Drafter Configuration
+# https://github.com/release-drafter/release-drafter
+#
+# This configuration automatically categorizes PRs based on labels
+# and generates draft release notes when PRs are merged to main.
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+# Categories for organizing changes in release notes
+# Based on conventional commit prefixes and PR labels
+categories:
+  - title: 'Features'
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+    collapse-after: 10
+
+  - title: 'Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+    collapse-after: 10
+
+  - title: 'Security'
+    labels:
+      - 'security'
+      - 'vulnerability'
+
+  - title: 'Documentation'
+    labels:
+      - 'docs'
+      - 'documentation'
+    collapse-after: 5
+
+  - title: 'Dependencies'
+    labels:
+      - 'dependencies'
+      - 'deps'
+      - 'chore(deps)'
+    collapse-after: 5
+
+  - title: 'Performance'
+    labels:
+      - 'perf'
+      - 'performance'
+
+  - title: 'Refactoring'
+    labels:
+      - 'refactor'
+      - 'code-quality'
+
+  - title: 'Tests'
+    labels:
+      - 'test'
+      - 'testing'
+      - 'tdd'
+
+  - title: 'CI/CD'
+    labels:
+      - 'ci'
+      - 'github-actions'
+
+  - title: 'Breaking Changes'
+    labels:
+      - 'breaking'
+      - 'breaking-change'
+
+  - title: 'Other Changes'
+    labels:
+      - 'chore'
+      - '*'
+
+# Exclude certain labels from release notes
+exclude-labels:
+  - 'skip-changelog'
+  - 'no-changelog'
+  - 'wip'
+
+# Label to PR title prefix mapping for auto-labeling
+autolabeler:
+  - label: 'feat'
+    title:
+      - '/^feat(\(.+\))?:/i'
+      - '/^feature(\(.+\))?:/i'
+
+  - label: 'fix'
+    title:
+      - '/^fix(\(.+\))?:/i'
+      - '/^bugfix(\(.+\))?:/i'
+
+  - label: 'security'
+    title:
+      - '/^security(\(.+\))?:/i'
+
+  - label: 'docs'
+    title:
+      - '/^docs(\(.+\))?:/i'
+      - '/^documentation(\(.+\))?:/i'
+
+  - label: 'dependencies'
+    title:
+      - '/^chore\(deps\):/i'
+      - '/^deps(\(.+\))?:/i'
+
+  - label: 'perf'
+    title:
+      - '/^perf(\(.+\))?:/i'
+
+  - label: 'refactor'
+    title:
+      - '/^refactor(\(.+\))?:/i'
+
+  - label: 'test'
+    title:
+      - '/^test(\(.+\))?:/i'
+
+  - label: 'ci'
+    title:
+      - '/^ci(\(.+\))?:/i'
+
+  - label: 'chore'
+    title:
+      - '/^chore(\(.+\))?:/i'
+
+  - label: 'breaking'
+    title:
+      - '/^.+!:/i'
+    body:
+      - '/BREAKING CHANGE/i'
+
+# Version resolution based on labels
+version-resolver:
+  major:
+    labels:
+      - 'breaking'
+      - 'breaking-change'
+      - 'major'
+  minor:
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+      - 'minor'
+  patch:
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'security'
+      - 'docs'
+      - 'dependencies'
+      - 'patch'
+  default: patch
+
+# Template for change entries
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'
+
+# Replacer for extracting Linear issue links from PR titles/bodies
+replacers:
+  # Extract NEM-XXX references and link them
+  - search: '/NEM-(\d+)/g'
+    replace: '[NEM-$1](https://linear.app/nemotron-v3-home-security/issue/NEM-$1)'
+
+# Template for the release notes body
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ## Linear Issues
+
+  The following Linear issues were addressed in this release:
+  <!-- Linear issues are automatically linked from PR titles and descriptions -->
+
+  ## Contributors
+
+  $CONTRIBUTORS
+
+  ---
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+# Filter pull requests to include
+filter-by-commitish: true
+
+# Include pre-releases in version calculation
+include-pre-releases: false
+
+# Commit message format for automated commits
+commitish: main

@@ -1,0 +1,235 @@
+# Benchmarks Directory - Agent Guide
+
+## Purpose
+
+This directory contains benchmark results and performance measurements for the Home Security Intelligence system. Benchmarks document AI model performance, VRAM usage, load times, and inference speeds.
+
+## Directory Contents
+
+```
+benchmarks/
+  AGENTS.md                  # This file
+  model-zoo-benchmark.md     # Model Zoo benchmark results
+  yolo26-vs-yolo26.md        # YOLO26 vs YOLO26 accuracy comparison (auto-generated)
+  yolo26-export-formats.md   # YOLO26 export format evaluation (Phase 1.4)
+```
+
+## Key Files
+
+### model-zoo-benchmark.md
+
+**Purpose:** Benchmark results for AI models in the Model Zoo.
+
+**Content:**
+
+- Date and GPU information (NVIDIA RTX A5500)
+- Summary table with model performance metrics
+- Statistics on models benchmarked, success/failure rates
+- Success criteria and pass/fail status
+- Detailed results per model including:
+  - Load time (seconds)
+  - VRAM usage (MB)
+  - Inference time (ms)
+  - VRAM recovery status
+
+**Models Benchmarked:**
+
+| Model                  | Status | VRAM  | Inference |
+| ---------------------- | ------ | ----- | --------- |
+| fashion-clip           | ERROR  | N/A   | N/A       |
+| weather-classification | OK     | 444MB | 274ms     |
+| pet-classifier         | OK     | 2MB   | N/A       |
+
+**Success Criteria:**
+
+- Max VRAM per model: <1500MB
+- Max load time: <5s
+- VRAM recovered after unload
+
+**When to use:** Evaluating model performance, deciding which models to use, debugging VRAM issues.
+
+### yolo26-vs-yolo26.md
+
+**Purpose:** Accuracy comparison between YOLO26 variants and YOLO26 on security-relevant classes.
+
+**Content:**
+
+- Accuracy benchmarks on 9 security-relevant classes (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
+- Model comparison (YOLO26N/S/M vs YOLO26)
+- Per-class recall analysis
+- Inference speed comparisons
+- Model selection recommendations
+
+**Key Results:**
+
+| Model   | Recall | Avg Inference (ms) | Key Strength                   |
+| ------- | ------ | ------------------ | ------------------------------ |
+| YOLO26N | 66.7%  | 31.6               | Lowest VRAM (~150MB)           |
+| YOLO26S | 66.7%  | 28.7               | Balanced                       |
+| YOLO26M | 91.7%  | 27.4               | Best efficiency (recall/speed) |
+| YOLO26  | 100.0% | 49.1               | Best accuracy                  |
+
+**Key Findings:**
+
+- YOLO26M is 44% faster than YOLO26 with only 8.3% lower recall
+- YOLO26N/S struggle with cat detection (0% recall)
+- YOLO26 excels at small/distant object detection
+- All models occasionally confuse compact cars with trucks
+
+**Model Selection Guide:**
+
+| Use Case                      | Recommended Model |
+| ----------------------------- | ----------------- |
+| Real-time streaming (30+ FPS) | YOLO26S           |
+| Balanced accuracy/speed       | YOLO26M           |
+| Maximum accuracy              | YOLO26            |
+| Resource-constrained          | YOLO26N           |
+| Pet detection priority        | YOLO26M or YOLO26 |
+
+**When to use:** Choosing detection models for home security, comparing YOLO26 variants, evaluating YOLO26 replacement options.
+
+**Script:** `scripts/benchmark_yolo26_accuracy.py`
+
+### yolo26-export-formats.md
+
+**Purpose:** Export format evaluation for YOLO26 deployment (Phase 1.4).
+
+**Content:**
+
+- Export format comparison (ONNX, TensorRT, OpenVINO)
+- File size analysis
+- Inference speed benchmarks
+- Version requirements
+- Deployment recommendations
+
+**Key Results:**
+
+| Format             | File Size | Status        | Best For            |
+| ------------------ | --------- | ------------- | ------------------- |
+| PyTorch (.pt)      | 5.29 MB   | Baseline      | Development         |
+| ONNX (.onnx)       | 9.48 MB   | Exported      | Cross-platform      |
+| TensorRT (.engine) | ~5-6 MB   | Requires CUDA | Production (NVIDIA) |
+
+**Recommendations:**
+
+- **Production (NVIDIA GPU):** TensorRT with FP16
+- **Cross-platform:** ONNX
+- **Development:** PyTorch
+
+**When to use:** Choosing export format for deployment, understanding version requirements, troubleshooting export issues.
+
+**Script:** `scripts/export_yolo26.py`
+
+## Benchmark Format
+
+Benchmark files follow this structure:
+
+```markdown
+# [Model/Component] Benchmark Results
+
+**Date:** YYYY-MM-DD HH:MM:SS
+**GPU:** [GPU Model]
+
+## Summary
+
+| Model | Load Time | VRAM Used | Inference | Recovered | Status |
+| ----- | --------- | --------- | --------- | --------- | ------ |
+| ...   | ...       | ...       | ...       | ...       | ...    |
+
+## Statistics
+
+- Models benchmarked: X
+- Successful: X
+- Failed: X
+- Total VRAM: XMB
+
+## Success Criteria
+
+| Criteria | Target | Actual | Pass |
+| -------- | ------ | ------ | ---- |
+| ...      | ...    | ...    | ...  |
+
+## Detailed Results
+
+### [Model Name]
+
+- Load time: Xs
+- VRAM before/after: XMB
+- Inference time: Xms
+- Unload time: Xs
+```
+
+## Running Benchmarks
+
+Benchmarks are generated by running the benchmark scripts:
+
+```bash
+# Model Zoo benchmark (requires GPU)
+uv run python scripts/benchmark_model_zoo.py
+
+# Benchmark specific models
+uv run python scripts/benchmark_model_zoo.py --models yolo11-license-plate,clip-vit-l
+
+# Results are written to docs/benchmarks/model-zoo-benchmark.md
+
+# YOLO26 vs YOLO26 accuracy benchmark (requires GPU)
+python3 scripts/benchmark_yolo26_accuracy.py --local-only
+
+# Full COCO validation benchmark (requires COCO val2017 dataset)
+python3 scripts/benchmark_yolo26_accuracy.py --coco-path /path/to/coco
+
+# Benchmark specific detection models
+python3 scripts/benchmark_yolo26_accuracy.py --models yolo26n,yolo26m,yolo26 --local-only
+
+# Results are written to docs/benchmarks/yolo26-vs-yolo26.md
+```
+
+**Note:** The YOLO26 benchmark requires system Python with CUDA-enabled PyTorch (not uv run) due to GPU requirements.
+
+## Refresh Procedure
+
+Benchmark results should be refreshed when:
+
+1. **New models added:** After adding new models to the Model Zoo
+2. **Model updates:** After updating model versions or configurations
+3. **Hardware changes:** When deploying to new GPU hardware
+4. **Quarterly review:** At minimum, refresh benchmarks quarterly
+
+To refresh benchmark results:
+
+```bash
+# 1. Ensure GPU is available and models are downloaded
+nvidia-smi  # Verify GPU access
+
+# 2. Download any missing models
+uv run python scripts/download-model-zoo.py
+
+# 3. Run the benchmark script
+uv run python scripts/benchmark_model_zoo.py
+
+# 4. Review the results
+cat docs/benchmarks/model-zoo-benchmark.md
+
+# 5. Commit the updated results
+git add docs/benchmarks/model-zoo-benchmark.md
+git commit -m "docs: refresh model zoo benchmark results"
+```
+
+**Note:** Running benchmarks requires a GPU with sufficient VRAM. The benchmark script will skip models that fail to load.
+
+## Adding New Benchmarks
+
+When adding new benchmark results:
+
+1. Use date-prefixed filenames if version-specific: `YYYY-MM-DD-benchmark-name.md`
+2. Include GPU/hardware information
+3. Document success criteria
+4. Include both summary and detailed results
+5. Update this AGENTS.md with the new file
+
+## Related Documentation
+
+- **docs/AGENTS.md:** Documentation directory overview
+- **docs/architecture/ai-pipeline.md:** AI pipeline architecture
+- **ai/AGENTS.md:** AI services implementation
+- **docs/operator/ai-performance.md:** AI performance tuning

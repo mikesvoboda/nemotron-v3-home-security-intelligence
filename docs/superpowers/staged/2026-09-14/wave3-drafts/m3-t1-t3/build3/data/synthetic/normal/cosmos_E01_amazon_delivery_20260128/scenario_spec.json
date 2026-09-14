@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_E01_amazon_delivery",
+  "category": "normal",
+  "name": "Amazon Delivery",
+  "description": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. An Amazon delivery driver in blue Amazon vest walks up carrying a package, places it at the door, takes a photo with phone, and walks back to blue Amazon van. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. An Amazon delivery driver in blue Amazon vest walks up carrying a package, places it at the door, takes a photo with phone, and walks back to blue Amazon van. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

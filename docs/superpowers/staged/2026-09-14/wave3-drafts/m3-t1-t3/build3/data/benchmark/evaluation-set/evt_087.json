@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_087",
+  "prompt": "Analyze security event: Unknown person at door during evening. Camera: driveway. Time: 16:25. Detected: unknown_person.",
+  "expected_response": {
+    "risk_score": 38,
+    "risk_level": "medium",
+    "summary": "Unknown person at door during evening",
+    "reasoning": "Detection at afternoon hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+  },
+  "context": {
+    "camera": "driveway",
+    "timestamp": "2026-01-16T16:25:00",
+    "detection_type": "unknown_person",
+    "location": "front_door"
+  }
+}

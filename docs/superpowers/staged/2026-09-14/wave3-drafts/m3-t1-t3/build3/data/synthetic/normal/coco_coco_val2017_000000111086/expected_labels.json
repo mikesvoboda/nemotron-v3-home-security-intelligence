@@ -1,0 +1,41 @@
+{
+  "source": "coco",
+  "video_id": "coco_val2017_000000111086",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "car",
+      "min_confidence": 0.5,
+      "count": 12
+    },
+    {
+      "class": "person",
+      "min_confidence": 0.5,
+      "count": 4
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 10,
+    "max_score": 30,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Scene containing 4 person, 12 car. From COCO object detection dataset."
+  }
+}
