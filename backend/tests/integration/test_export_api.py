@@ -293,6 +293,7 @@ class TestExportCreation:
 class TestExportFormats:
     """Tests for different export formats (CSV, JSON)."""
 
+    @pytest.mark.timeout(30)
     async def test_export_to_csv_format(
         self, client: AsyncClient, sample_export_events, clean_exports, ensure_export_dir
     ):
@@ -331,6 +332,7 @@ class TestExportFormats:
             assert status_data["result"]["format"] == "csv"
             assert status_data["result"]["output_path"] is not None
 
+    @pytest.mark.timeout(30)
     async def test_export_to_json_format(
         self, client: AsyncClient, sample_export_events, clean_exports, ensure_export_dir
     ):
@@ -410,6 +412,7 @@ class TestExportLifecycle:
             # fails it, so PENDING is only observable if the runner defers.
             assert job.status in (ExportJobStatus.PENDING, ExportJobStatus.FAILED)
 
+    @pytest.mark.timeout(30)
     async def test_export_job_completion(
         self, client: AsyncClient, sample_export_events, clean_exports, ensure_export_dir
     ):
