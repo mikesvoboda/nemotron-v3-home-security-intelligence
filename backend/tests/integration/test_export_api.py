@@ -447,6 +447,7 @@ class TestExportLifecycle:
         status_data = status_response.json()
         assert status_data["status"] in ("completed", "failed")
 
+    @pytest.mark.timeout(30)
     async def test_export_job_failure_handling(
         self, client: AsyncClient, clean_exports, monkeypatch
     ):
@@ -589,6 +590,7 @@ class TestExportDownload:
 class TestExportErrorScenarios:
     """Tests for error handling in export operations."""
 
+    @pytest.mark.timeout(30)
     async def test_export_fails_mid_operation(
         self, client: AsyncClient, clean_exports, monkeypatch
     ):
@@ -723,6 +725,7 @@ class TestExportStatusRetrieval:
         for job_id in job_ids:
             assert job_id in listed_job_ids
 
+    @pytest.mark.timeout(30)
     async def test_list_exports_with_status_filter(
         self, client: AsyncClient, sample_export_events, clean_exports, ensure_export_dir
     ):
@@ -820,6 +823,7 @@ class TestExportCancellation:
             assert cancel_data["cancelled"] is True
             assert cancel_data["status"] == "failed"
 
+    @pytest.mark.timeout(30)
     async def test_cancel_completed_export_fails(
         self, client: AsyncClient, sample_export_events, clean_exports, ensure_export_dir
     ):
