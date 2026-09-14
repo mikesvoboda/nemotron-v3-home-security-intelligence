@@ -1062,3 +1062,30 @@ schema instances. Test 4 already did this and passed — the tell.
 models/detection.py: bounding_box dict is a ghost kwarg; shipped columns
 bbox_x/bbox_y/bbox_width/bbox_height; camera_id FKs cameras.id so the
 fixture creates the camera first.
+
+## R-T9-DEBUGGATE — require_debug_mode is a disabled stub; empty-id path 307-redirects (2026-09-14, H5 clean run)
+
+routes/debug.py:57-71: "Debug mode check disabled for local development" —
+endpoints answer even with settings.debug=False, contradicting the module
+docstring's 404-gating claim. Test realigned to shipped pass-through;
+DIVERGENCE (gate disabled in shipped code vs docstring'd gate) noted as an
+owner-awareness item, NOT a test-side fix to make.
+Also GET /api/debug/recordings/ (empty id) matches the LIST route →
+Starlette redirect_slashes 307, not 404. Asserted with follow_redirects=False.
+
+
+## R-T9-SKELETON — SkeletonActionService requires model_dict; buffer is _buffers; no classify_actions (2026-09-14, H5 clean run)
+
+Tests constructed SkeletonActionService() with zero args (ctor takes
+model_dict + optional tuning, skeleton_action_service.py:76), read a ghost
+_keypoint_buffers attribute (shipped: _buffers defaultdict, :100), and
+called classify_actions(camera_id=...) which doesn't exist (entry point:
+await add_keypoints(person_id, keypoints) → None below min_frames).
+Rewritten to shipped surface with a stub model dict; buffering asserted
+via get_buffer_status().
+
+
+## R-T9-STGCN — adjacency builder is module-private _build_coco_adjacency (2026-09-14, H5 clean run)
+
+Test imported public build_coco_adjacency; shipped name has the underscore
+(stgcn_loader.py:166). Import aligned (white-box check of the matrix).
