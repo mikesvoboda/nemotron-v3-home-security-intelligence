@@ -257,8 +257,12 @@ describe('DataManagementPage', () => {
 
       renderWithProviders(<DataManagementPage />);
 
+      // Shipped card shows the TRUNCATED id (job.id.slice(0,8)+'...',
+      // DataManagementPage.tsx:301); the full id lives on the card's
+      // data-testid. Test was written against full-id-as-text — aligned
+      // to the shipped contract.
       await waitFor(() => {
-        expect(screen.getByText('pending-job-123')).toBeInTheDocument();
+        expect(screen.getByTestId('export-job-pending-job-123')).toBeInTheDocument();
       });
     });
 
@@ -267,9 +271,9 @@ describe('DataManagementPage', () => {
 
       renderWithProviders(<DataManagementPage />);
 
-      // Wait for jobs to load
+      // Wait for jobs to load (testid — card text is truncated id)
       await waitFor(() => {
-        expect(screen.getByText('pending-job-123')).toBeInTheDocument();
+        expect(screen.getByTestId('export-job-pending-job-123')).toBeInTheDocument();
       });
 
       // Check status badges - they should all be present
