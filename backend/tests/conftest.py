@@ -359,20 +359,30 @@ def _check_redis_connection(host: str = "localhost", port: int = 6379) -> bool:
     return _check_tcp_connection(host, port)
 
 
-def _apply_timeout_marker(item: pytest.Item, fspath_str: str) -> None:
+def _apply_timeout_marker(item: pytest.Item, fspath_str: str, cli_cap: float | None = None) -> None:
     """Apply appropriate timeout marker to a test item.
 
     Helper function extracted from pytest_collection_modifyitems to reduce
     branch complexity in the main hook.
 
-    Timeout hierarchy:
-    1. Explicit @pytest.mark.timeout(N) on test - unchanged
-    2. @pytest.mark.slow marker - 30 seconds
-    3. Integration tests (in integration/ directory) - 5 seconds
-    4. Default from pyproject.toml - 1 second (no marker needed)
+    Timeout hierarchy (M3 T5: a CLI --timeout now GOVERNS — pytest-timeout's
+    per-item markers override the CLI option, so validate.sh's --timeout=30
+    integration stage silently ran at the 5s stamp; ruling packet
+    docs/superpowers/rulings/2026-09-14-m3-t5-timeout-config-ruling-packet.md,
+    owner-approved 2026-09-14):
+    1. Explicit @pytest.mark.timeout(N) on test - always unchanged
+    2. CLI --timeout=N (cli_cap) - governs slow/integration tiers
+    3. @pytest.mark.slow marker - 30 seconds
+    4. Integration tests (in integration/ directory) - 5 seconds
+    5. Default from pyproject.toml - no marker needed
     """
     # Skip if test has explicit timeout marker
     if item.get_closest_marker("timeout"):
+        return
+
+    # CLI --timeout governs everything unmarked (M3 T5 honesty fix).
+    if cli_cap:
+        item.add_marker(pytest.mark.timeout(cli_cap))
         return
 
     # Slow-marked tests get 30s
@@ -403,12 +413,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     3. Soft delete tests (test_soft_delete.py in /unit/models/):
        - Gets xdist_group marker to force serial execution (prevents DB deadlocks)
 
-    Timeout hierarchy (highest priority first):
+    Timeout hierarchy (highest priority first; M3 T5 — CLI now governs):
     1. CLI --timeout=0 disables all timeouts (for CI)
     2. Explicit @pytest.mark.timeout(N) on test - unchanged
-    3. @pytest.mark.slow marker - 30 seconds
-    4. Integration tests (in integration/ directory) - 5 seconds
-    5. Default from pyproject.toml - 1 second
+    3. CLI --timeout=N - governs every unmarked item (was: silently
+       overridden by the stamps below; ruling packet owner-approved 2026-09-14)
+    4. @pytest.mark.slow marker - 30 seconds
+    5. Integration tests (in integration/ directory) - 5 seconds
+    6. Default from pyproject.toml (timeout ini) for everything else
     """
     # Check if timeouts are disabled via CLI (--timeout=0)
     # This is used in CI where environment is slower
@@ -460,7 +472,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
         # === TIMEOUT HANDLING ===
         if not timeouts_disabled:
-            _apply_timeout_marker(item, fspath_str)
+            _apply_timeout_marker(item, fspath_str, cli_timeout)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

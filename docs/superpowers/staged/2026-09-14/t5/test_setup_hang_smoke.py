@@ -7,9 +7,10 @@ Proves, under the PROPOSED config (signal + func_only=false), that:
      claimed harm mechanism) — a setup-hang under --rerun=1 reruns and
      fails cleanly, process survives.
 
-Run standalone, serial, cheap DB-free:
-  cd repo && uv run pytest /tmp/t5/test_setup_hang_smoke.py -p no:cacheprovider \
-    -p pytest_time...tamp --timeout=5 -q
+Run standalone, serial, cheap DB-free (T5 step 1 absorbed the stamp plugin
+into conftest, so no -p plugin needed; -n0 overrides pyproject addopts -n8):
+  cd repo && uv run pytest docs/superpowers/staged/2026-09-14/t5/test_setup_hang_smoke.py \
+    -p no:cacheprovider -p no:randomly -n0 --timeout=5 -q
 Expected under proposed config: 1 error (setup timeout) in ~5-6s, exit 1,
 NO "node down". Under thread-method this kills the process (exit 1, no
 summary) — that contrast is the audit Part 6 claim re-verified.
