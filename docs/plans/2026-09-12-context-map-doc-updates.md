@@ -1250,3 +1250,77 @@ untouched (perf feature, NEM-3741).
 behavior is 200 with `items == []` and `pagination.total == 0`. Test aligned
 to the shipped filter semantics. If a 404 contract is wanted, that is a
 production decision — not silently bent here.
+
+### R-T9-ZONEANOM addendum — the `since` boundary raced the fixture's own clock (2026-09-14, J-1 green)
+
+Retargeted since-filter test first used since = now-1h; the fixture's second
+row is timestamped (fixture-now) - 1h, computed microseconds EARLIER, so
+`timestamp >= since` excluded it — count 1, not 3 (wave I-3 'assert 1 == 3').
+A boundary-exact window can never be deterministic; the fix widens the window
+(now-3h) rather than moving prod semantics.
+## R-T9-RISKBAND — smoke fixture paired risk_score 75 with risk_level "medium" (2026-09-14, wave I-8 red → J fix)
+
+**[VERIFIED against shipped data flow]** Nothing re-derives risk_level from
+risk_score server-side — the LLM assigns both, and test_risk_level_consistency
+enforces the test's own bands (low 0-33 / medium 34-66 / high 67-100). The
+sample_event_with_llm fixture shipped the self-contradicting pair, so the test
+could never pass. Fixture now uses "high" (raw_response JSON too). Test-only.
+
+## R-T9-RAISEONSQL — event↔llm_interaction test asserted implicit lazy load the shipped N+1 guard forbids (2026-09-14, wave I-8 red → J fix)
+
+get_relationship_lazy_mode (core/orm_utils.py, NEM-3405) binds relationships
+to raise_on_sql in dev/test; the wave I-8 error "'Event.llm_interaction' is
+not available due to lazy='raise_on_sql'" IS the guard working. The test's
+premise ("should trigger lazy load") contradicts the shipped contract — it now
+eager-loads with selectinload, the supported path in that environment.
+Production behavior untouched.
+
+## R-T9-DEFERRED — deferred() columns must be read by explicit select, not attribute access, under asyncio (2026-09-14, wave I-10 red → J fix)
+
+Detection.enrichment_data ships deferred (models/detection.py:78); touching it
+on an instance in an async context sync-lazy-loads → MissingGreenlet. The
+idempotency verify block now selects the column directly.
+
+## R-T9-RTSPLEN — RTSPTestRequest.rtsp_url ships max_length=500 (2026-09-14, wave I-10 red → J fix)
+
+The long-url test built a ~725-char URL expecting 200; pydantic answers 422
+first (schemas/camera.py:566-570). Test now builds a near-cap URL
+(400 < len <= 500). The 500 cap itself is a shipped input-validation decision,
+left as-is.
+
+## R-T9-BULKEVENTS — Event.batch_id ships unique=True; per-item batch_ids required (2026-09-14, wave I-9 red → J fix)
+
+Bulk-create success test posted two events sharing one batch_id. The second
+flush raised IntegrityError; the endpoint's per-item catch marks that item
+failed, but the aborted Postgres transaction then fails the final commit —
+and the endpoint (correctly, per its code) flips ALL results to failed
+('Transaction commit failed'). Response: succeeded=0. Each item now gets its
+own batch_id. Note for future: the endpoint's poisoned-transaction path means
+one constraint violation reports the whole request failed — a real behavioral
+quirk, left untouched (align test, don't bend prod).
+
+## R-T9-MVSOURCE — materialized-view DDL has no shipped source since 6d7ae425 (OWNER RULING PENDING) (2026-09-14)
+
+backend/alembic/versions/f6g7h8i9j0k1_add_dashboard_materialized_views.py
+(mv_daily_detection_counts, mv_hourly_event_stats,
+mv_detection_type_distribution, mv_entity_tracking_summary,
+mv_risk_score_aggregations, refresh_dashboard_materialized_views(), JSON
+extraction functions) was deleted in 6d7ae425 ("flatten alembic migrations
+into single initial schema"). The promised 0001_initial_schema replacement is
+NOT in the tree; backend/alembic is gone entirely; backend/entrypoint.sh runs
+no migrations despite the Dockerfile comments; test DB builds via
+metadata.create_all, which cannot emit matviews/SQL functions. Meanwhile
+services/materialized_views.py, the scheduler, and the API router still query
+those objects — on any real deployment the dashboard aggregation path would
+fail at runtime. UNRESOLVED: intentional schema drop or accidental loss in
+the flatten-merge? The integration file's object-existence/data tests now
+skip with a reason citing this ruling (fixture rename async_session→db_session
+kept). Owner decision needed before the gate can honestly claim coverage of
+this feature.
+
+## R-T9-CAMSTATUS — Camera.status CHECK accepts online|offline|error|unknown only (2026-09-14, wave I-3)
+
+**[VERIFIED against shipped model]** models/camera.py:87 ships
+ck_cameras_status; fixtures using status="active" error at flush — every test
+in test_zone_anomaly_service.py died in fixture setup. Sample camera now uses
+"online". Test-only.
