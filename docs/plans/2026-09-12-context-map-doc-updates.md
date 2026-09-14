@@ -982,3 +982,10 @@ every non-whitelisted DLQ route (401/422-leg tests survived because the
 guard answers BEFORE auth dep — that's why only half the file failed).
 Shipped DLQ auth messages asserted as-is ("API key required…" /
 "Invalid API key", routes/dlq.py:72-88).
+
+## R-T9-COALESCER — zrangebyscore mock took positional args; wrapper calls named (2026-09-14, batch F green)
+
+RedisClient.zrangebyscore(key, min_score=…, max_score=…)
+(core/redis.py:1360) calls the inner client with keywords; the
+test's mock signature (key, min, max) positional-only → TypeError.
+Mock now declares (key, min_score, max_score).
