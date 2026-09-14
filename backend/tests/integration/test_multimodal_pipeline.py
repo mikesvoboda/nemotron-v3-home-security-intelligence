@@ -494,6 +494,7 @@ class TestGroundTruthGenerator:
         tmp_path: Path,
     ) -> None:
         """Ground truth generation should produce a valid DataFrame."""
+        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)")
         # Create test images
         normal_dir = tmp_path / "normal"
         normal_dir.mkdir()
@@ -519,6 +520,7 @@ class TestGroundTruthGenerator:
         tmp_path: Path,
     ) -> None:
         """Should export ground truth to parquet format."""
+        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)")
         # Create test images
         normal_dir = tmp_path / "images" / "normal"
         normal_dir.mkdir(parents=True)
@@ -543,6 +545,7 @@ class TestGroundTruthGenerator:
         tmp_path: Path,
     ) -> None:
         """Summary should provide correct statistics."""
+        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)")
         # Create images in different categories
         for category in ["normal", "threat"]:
             cat_dir = tmp_path / category
@@ -574,9 +577,16 @@ class TestComparisonReport:
 
     @pytest.fixture
     def sample_dataframes(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Create sample DataFrames for testing."""
+        """Create sample DataFrames for testing.
+
+        pandas lives in the optional `nemo` uv group only (pyproject
+        [nemo]/[group.nemo]) — the base gate env has no pandas, so skip
+        honestly instead of erroring. Same convention as root conftest's
+        synthetic_scenarios fixture (conftest:2510). (ledger R-T7-PANDAS)
+        """
         import json
 
+        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep")
         import pandas as pd
 
         local_results = pd.DataFrame(
@@ -660,6 +670,7 @@ class TestComparisonReport:
         """Should track failure cases where alignment fails."""
         import json
 
+        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep")
         import pandas as pd
 
         # Create a case with high risk deviation
