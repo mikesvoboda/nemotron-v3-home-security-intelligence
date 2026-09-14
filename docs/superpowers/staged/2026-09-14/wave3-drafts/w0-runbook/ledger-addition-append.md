@@ -1,0 +1,45 @@
+# W0 §6 ledger record — APPEND AT EOF at apply time (cat >> docs/plans/2026-09-12-context-map-doc-updates.md).
+# Replaces ledger-addition.patch: anchored diffs break on every ledger append (T5 entries moved the anchor twice today).
+# Fill every [PLACEHOLDER]/[RUN:] before committing.
+
+++ b/docs/plans/2026-09-12-context-map-doc-updates.md
+<!-- STAGED DRAFT (W0 runbook /tmp/wave3-drafts/w0-runbook/): apply ONLY after gate 16 GREEN; replace every [PLACEHOLDER] with real captured output before committing. -->
+
+## M1 §6 CLOSE-OUT — gate 16 GREEN record (2026-09-[RUN: date +%F])
+
+**Gate 16 verdict (banner-only proof).** Bare `./scripts/validate.sh` (no flags, no ulimit wrapper, `.env` ABSENT per R-T8-ENVLEAK), pid [PLACEHOLDER pid], launched [RUN: date] at tip [PLACEHOLDER sha -oneline at launch], log `/tmp/validate-full-16.log` (fd 1+2 via nohup; script is `#!/bin/sh` so colors are OFF — `[ -t 1 ]` false, validate.sh:33-41 → banner is plain ASCII). The line `  VALIDATION SUCCESSFUL: codebase is healthy!` is emitted ONLY by validate.sh's final printf (:529), reached only after every stage passed under `set -e` (:17); every failure path prints `[ERROR] …` to stderr and `exit 1` first (validate.sh:197-501 site list). Proof block (verbatim output):
+
+```
+$ grep -FxC 1 '  VALIDATION SUCCESSFUL: codebase is healthy!' /tmp/validate-full-16.log
+[PLACEHOLDER paste the 3-line block: ===banner-above / banner / ===banner-below]
+$ grep -cF '  VALIDATION SUCCESSFUL: codebase is healthy!' /tmp/validate-full-16.log
+[PLACEHOLDER 1]
+$ grep -cE '^\[ERROR\] ' /tmp/validate-full-16.log
+[PLACEHOLDER 0 — validate.sh stage-failure lines only; in-test frontend console noise is NOT a stage failure]
+```
+
+Stage summary lines (real, transcribed, not inferred):
+- Coverage TOTAL (combined unit+integration, gate=80, validate.sh:354-358): `[PLACEHOLDER TOTAL row + log line no. — gate-14 tier log showed 87.96% mid-run; gate 16 final row prevails]`
+- Backend unit pytest summary (side log): `[PLACEHOLDER from /tmp/validate-backend-unit.log — record its mtime to bind it to gate 16]`
+- Backend integration pytest summary (side log): `[PLACEHOLDER from /tmp/validate-backend-integration.log — + mtime]`
+- Frontend vitest (ANSI-stripped copy): `[PLACEHOLDER Test Files / Tests / Duration rows from /tmp/validate-full-16.clean.log]`
+- Coverage report side log exists: `[PLACEHOLDER /tmp/validate-coverage-report.log tail -2]`
+
+**§6 exit bullets (re-verified post-gate, AFTER env restore + reconciliation, single-tenant):**
+- [ ] Services `Up`+`healthy` — `podman compose -f docker-compose.prod.yml -f config/docker-compose.gb300.yml ps` output: [PLACEHOLDER paste table; expect 16 running + foscam-init `Exited (0)` one-shot; redis-exporter + json-exporter plain-Up BY DESIGN (bootstrap-gb300.sh:49-50)]
+- [ ] `ai-*` + `dcgm-exporter` ABSENT from `podman ps` (anchored patterns cannot match dgx-inference-*): [PLACEHOLDER output + empty-exit]
+- [ ] `/api/system/health/ready` = 200 direct :[PLACEHOLDER API_PORT from .env] AND proxied :[PLACEHOLDER FRONTEND_HTTP_PORT]; `/api/system/health` = [PLACEHOLDER code] (503-degraded = M1 design, bootstrap addendum :407-408; 200 = record as unexpected-but-pass); frontend nginx `/health` = 200
+- [ ] Pipeline-worker startup: `podman logs nemotron-v3-home-security-intelligence-backend-1` contains `Pipeline workers started` (backend/main.py:794-796; requires LOG_LEVEL=INFO — .env backup:102; compose default WARNING masks the line, task-6 proven): [PLACEHOLDER log excerpt + timestamp]
+- [ ] validate exit 0 with coverage gate 80 combined (above); CI's unit=85 separately noted (ci.yml unit job — [PLACEHOLDER one-line confirm])
+- [ ] `podman compose … logs --tail=50` scan: [PLACEHOLDER N error-ish hits, each triaged with one-line why, or "0 hits"] — full capture saved at /tmp/w0-compose-logs-tail50.log
+- [ ] spec + plan + ledger + bootstrap committed on `feat/context-map-2026-09-12`: [PLACEHOLDER commit sha]
+
+**Task 8 Step 2 — idempotency exercise:** `bootstrap-gb300.sh gate` → PASS [PLACEHOLDER ok/fail counts]; `phase-a` already-up → no-op, container-churn check (before/after project-labeled `podman ps -aq` sets equal, per cmd_phase_a): [PLACEHOLDER]; `bash -n scripts/bootstrap-gb300.sh` rc=0; shellcheck: [PLACEHOLDER which route used — uvx --from shellcheck-py / installed binary — + findings count].
+
+**Env restore:** `.env` restored from `/tmp/env-backup-gb300.env` (mode 600; generated-content sanity: POSTGRES_PORT=5433, REDIS_PORT=6380, API_PORT=8000, LOG_LEVEL=INFO at backup:66-68/102). diff-vs-`.env.example` sanity recorded (expected rc=1, large expected diff — generated file vs template; secrets present → NOT committed, stored /tmp only).
+
+**Single-tenant reconciliation (critic GAP):** compose publishes `127.0.0.1:${POSTGRES_PORT:-5432}:5432` (docker-compose.prod.yml:61) and `127.0.0.1:${REDIS_PORT:-6379}:6379` (:565) while docker-side gate-postgres/gate-redis hold host :5432/:6379. Resolution chosen: [PLACEHOLDER option-1 stop-the-gates | option-2 keep-5433/6380-dodge]. `ss -ltnp` before/after for 5432/5433/6379/6380: [PLACEHOLDER both blocks]. dgx-inference-* untouched (two-daemon rule, Phase A provider note; `docker` CLI = rootful dockerd = gate DBs; project stack = rootless podman).
+
+**/platform-healthcheck (run AFTER the gate + this bring-up):** executed podman-adapted per project rules; PASS as recorded with M1 deviations: [PLACEHOLDER — compose ps all Up/healthy, targets down = allowlist set only {ai-llm-metrics triton-metrics cadvisor dcgm-exporter hsi-health} (bootstrap:59), /api/system/health/ready 200, redis PONG, pg_isready ok, GPU rows N/A (spec §8)].
+
+**§9 release event:** this green record IS the M1 close-out; M2-T3 (validate.sh + vite.config.ts governed pair) application is unblocked for W1 immediately after this entry + push.
