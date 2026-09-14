@@ -1001,8 +1001,7 @@ existence. Aligned to 400.
 test_rum_api.py empty-metrics test asserted "detail" in body; shipped
 validation_exception_handler (api/exception_handlers.py) emits
 {"error": {"code": "VALIDATION_ERROR", "message", "errors":[{field,
-message, value}]}}. Aligned. Wave H1: outbound+rum+risk_score green
-(71p/2s).
+message, value}]}}. Aligned.
 
 ## R-T7-OUTBOUND — patch the service's _send_request, not httpx.AsyncClient.post (2026-09-14)
 
@@ -1019,3 +1018,16 @@ asyncpg DataError → global SQLAlchemyError handler → 503
 (exception_handlers.py:636). Test now asserts the shipped 503; a 422
 would be the nicer contract but changing it is a production change —
 queued for owner awareness only.
+
+VERIFICATION SCOPE: batch B's '2 failed' line predates the R-T9-RISKVAL
+skip-guard fix (B launched before it landed). Wave H1 ran AFTER the fix:
+71p/2s — outbound+rum+risk_score all green, the gap-rate test now the
+visible skip. Commit 69ba9efd's claim stands.
+
+## R-T9-RISKVAL — gap-rate test must skip on zero processed scenarios, not IndexError (2026-09-14)
+
+_validate_all_scenarios skips scenarios whose events were never
+processed; in the gate env that's ALL of them → results == [] →
+largest_gaps[0] IndexError. Asserting gap_rate<20 on zero scenarios
+would be vacuously green, so the test now pytest.skips with a loud
+reason. Production untouched.
