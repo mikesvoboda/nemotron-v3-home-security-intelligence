@@ -545,6 +545,42 @@ outside — results are recoverable by rerun, and reruns are now safe; (2) the e
 ceiling and the fix removes the churn; (3) validate.sh's integration tier no longer
 PANICs gate-postgres mid-run.
 
+### R-T7-WS-OOM (2026-09-14): the worker OOM leak IS FOUND — mock-fed pipeline worker loops (fix fbb2f4ee)
+
+- **Run-8**: unit tier green 27524P/84.8s in-gate. Integration tier: a gw3
+  worker reached **17.7 GB RSS (VmSize pinned at the 20GiB cap) with ZERO
+  completed tests** — py-spy: main thread wedged at TestClient.__enter__
+  (lifespan startup) in test_websocket_auth_flow.py::detections_auth_client.
+  The replacement worker wedged the same way on the same file's FIRST test;
+  killed both, aborting run-8 per protocol (1 node-down; evidence:
+  /tmp/run8-evidence-integration.log, /tmp/rss-trace-run8/, smaps: 17.6GB
+  Pss_Dirty anon, largest single mapping 1.4GB). **Corrects run-6's "leak is
+  cross-file accumulation"**: it was first-fixture blow-up; healthy-worker
+  drift (~1GB/700 tests, run-7) stands.
+- **Mechanism** (full writeup: docs/discoveries/pytest-oom-asyncmock-worker-loop.md):
+  the flow file's lifespan-mock suite was abbreviated (redis/broadcaster/gpu/
+  cleanup only), so get_pipeline_manager/FileWatcher/worker_supervisor stayed
+  REAL. TestClient(app) then started production `_run_loop` workers whose
+  AsyncMock consume_detections returns a truthy iterable-of-Mocks →
+  `if not messages: continue` spins unthrottled (except-branch backoff never
+  runs — mocks don't raise) and unittest.mock records one _Call per iteration
+  forever: ~300 MB/s. timeout_func_only=true excludes fixture setup, so the
+  5s cap never fires. 64 sandbox OOM kills total, 60 today — all this.
+- **Fix (test-only)**: ported the sibling test_websocket_auth.py's proven full
+  mock suite into the flow file's two helpers. Verified: repro test 1 passed
+  3.6s (was: never terminates); the 3 websocket files -n0 = 93P/2xfail 9.1s
+  under ulimit -v 12GB. Blast radius (test_websocket_auth.py/test_websocket.py)
+  already had the full suite — this file was the outlier.
+- **Owner-ruling candidates (NOT shipped)**: (P1) throttle the unthrottled
+  `if not messages: continue` paths in pipeline_workers.py:413/:935 (+audit
+  BatchTimeout/QueueMetrics loops) — latent prod hazard beyond tests: any mock
+  or fast-empty stream there spins the event loop; (P2) timeout_func_only=true
+  keeps fixture hangs unkillable — dropping it or signal-method makes the 5s
+  cap cover fixtures too; (P3) load/test_performance.py frame-buffer "memory
+  limit" asserts are arithmetic on constants, pass regardless of real memory.
+- **Run-8b** relaunched with the fix (same instruments: 20GiB cap, disk-guard
+  v2, per-test RSS traces).
+
 ### R-T7-JOBSAPI close-out (2026-09-14): tracker-seeded rewrite landed, file 20/20 (commit 4079e2d1)
 
 The run-6 pending-owner-ruling item is resolved: tests now seed the JobTracker
