@@ -767,6 +767,32 @@ def integration_env(
 
     get_settings.cache_clear()
 
+    # Cross-test rate-limit hygiene (gate run 8): the shipped RateLimiter
+    # counts per (tier, client-IP) in THIS worker's redis DB over a 60s
+    # sliding window (BULK tier = 10/min + burst 2, shared by the events
+    # and detections bulk routes). Legitimate bulk-tier traffic from one
+    # test file therefore leaks into the next whenever the scheduler
+    # lands two bulk-heavy files on one worker inside a window — victims
+    # then see 429 where they assert 207 (test_events_cache_invalidation
+    # + test_cache_invalidation_mutations joint run reproduces it at -n0).
+    # No integration test requires limiter counters to survive a test
+    # boundary: the tests that VERIFY rate limiting drive it per-test
+    # (dependency_overrides counting limiter in test_prompt_management_api,
+    # or accept 200-or-429 in test_auth_integration). Clearing at test
+    # start keeps the shipped in-test behavior byte-identical.
+    try:
+        import redis as redis_sync
+
+        _rl = redis_sync.Redis.from_url(worker_redis_url, socket_connect_timeout=2)
+        try:
+            _keys = list(_rl.scan_iter(match="rate_limit:*", count=500))
+            if _keys:
+                _rl.delete(*_keys)
+        finally:
+            _rl.close()
+    except Exception as _e:  # pragma: no cover - hygiene, never fatal
+        logger.debug("rate-limit hygiene skip: %s", _e)
+
     try:
         yield worker_db_url
     finally:
