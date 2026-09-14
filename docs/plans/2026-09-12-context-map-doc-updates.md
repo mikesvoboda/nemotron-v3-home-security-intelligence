@@ -1031,3 +1031,20 @@ processed; in the gate env that's ALL of them → results == [] →
 largest_gaps[0] IndexError. Asserting gap_rate<20 on zero scenarios
 would be vacuously green, so the test now pytest.skips with a loud
 reason. Production untouched.
+
+## R-T9-APIKEYHDR — shared client bakes TEST_API_KEY; "no key" must send an explicit empty header (2026-09-14, H3 clean run 105 passed / 3 failed elsewhere)
+
+test_api_errors TestDLQ401 omitted X-API-Key expecting the "key required"
+401 branch, but the integration conftest client sets a default TEST_API_KEY
+header — the request carried a WRONG key instead, hitting the "Invalid API
+key" branch whose message assert then failed. Sending headers={"X-API-Key":
+""} hits the intended require_api_key empty-key path (dlq.py:72-76). Same
+family as R-T9-INBOUND2.
+
+
+## R-T9-CALIBRATION — threshold adjustment is INTEGER; old float bound was unattainable (2026-09-14, H3 clean run)
+
+calibration_service.py:388-436 `_compute_threshold_adjustment` returns ints:
+base = int(10*decay) = 1 at default decay 0.1; SEVERITY_WRONG halves to
+max(1, base//2) = 1. The test bounded the delta at `< 10*0.1` (= <1.0),
+impossible for a delta floored at 1. Assert now equals the shipped formula.
