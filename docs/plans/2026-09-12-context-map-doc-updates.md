@@ -2278,3 +2278,26 @@ block" over-scoped — live autouse cleanup_stale_databases + helpers of live
 fixtures sit inside that range; actual deletable = 409 root + 32 contracts +
 20 routes lines. Patch built + syntax-verified at /tmp/t2build (pre-T1 base),
 staged as t2-dead-fixtures.patch.
+
+## OWNER RULINGS RECORDED (2026-09-14, second batch via AskUserQuestion)
+
+1. **init_db seam — APPROVED kwarg-only opt-out** (memo item b).
+   `backend/core/database.py init_db(create_schema: bool = True)`; production
+   default unchanged; test worker-DB bootstrap creates schema once, fixtures
+   pass False. Unblocks: M3-T4 follow-up (setup p90 1.161s floor), W4/W5
+   measurement-slot cost. Patch-time check required (memo note): confirm no
+   caller depends on the :396-398 "skip schema if advisory lock busy" behavior.
+2. **chaos — APPROVED delete fixtures + placeholders** (memo item c).
+   chaos/conftest.py (718 ln, 18/18 dead re-verified today) + the 19
+   "Implementation would" placeholder files delete in M3-T2/T7 scope; harness
+   lives on in git history. Unblocks: M3-T2 chaos half, M3-T7 direction.
+3. **M2-T14 nightly — APPROVED variant A** (full nightly workflow, per-tier
+   --cov-fail-under=0 + combined --fail-under=80, same bar as validate.sh).
+   t14-nightly-workflow.patch ships; t14-nightly-workflow-schedule-only.patch
+   is SUPERSEDED (do not apply; delete at T14 landing).
+
+Combined with batch 1 (T5 timeout swap approved 2026-09-14): memo items a-d now
+all ruled; remaining OPEN memo items (e-i: P1 busy-loop, P3 frame-buffer,
+R-T7-APIKEY-DEAD, P4 risk_level, logout gap, DetectionStreamService, ~102
+uncategorized) stay parked with their evidence in the memo — none block the
+M1/M2/M3 critical paths currently planned.
