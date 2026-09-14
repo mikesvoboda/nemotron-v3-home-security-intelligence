@@ -1461,3 +1461,29 @@ ENVLEAK close-out already landed. Regression note kept: any .env appearing
 mid-run re-creates the hang class; gate protocol (ABSENT during runs) is
 the guard, T5's signal timeout the backstop. Step 4 (scripts/ hang-harness
 test) rides T5's implementation (needs signal semantics to demo cleanly).
+
+## M3 prep measurements (execution gated on M2 green) — T2/T7/chaos, all static (2026-09-14)
+
+**[VERIFIED via grep/AST, no pytest]**
+- **T2 dead-fixture proofs:** of audit 5.3's list, true zero-consumer:
+  mock_threat_detector (0/0), template_database (0 test consumers; the 5
+  conftest refs are the worker-DB block itself), worker_database (1 = the
+  block), patch_database_dependency + patch_redis_dependency (0 test; 1
+  conftest ref each = internal). FALSE positives corrected:
+  authenticated_client — test_debug_api.py:25 imports
+  `authenticated_async_client` (a DIFFERENT, live fixture) under that alias;
+  mock_model_zoo — conftest:2587 ref is a docstring example +
+  test_model_downloader uses a local MagicMock (not the fixture);
+  enrichment_scenarios — test_enrichment_edge_cases imports the PYTHON
+  MODULE tools.nemo_data_designer.enrichment_scenarios, not the fixture.
+  All six/plus-worker-block are dead → deletable at T2 execution.
+- **T7 census reconciled (19-vs-30):** authoritative = 19 "# Implementation
+  would"-class placeholder sites, ALL in chaos/ (5 pool_exhaustion,
+  3 ftp_failures, 4 gpu_runtime, 4 pubsub, 3 timeout_cascade). The audit's
+  30 swept wider placeholder phrasing; the exact-census number is 19.
+- **chaos/conftest.py ruling packet (718 lines):** 18 fixtures; consumer
+  grep = 17 with ZERO; `yolo26_timeout`'s sole hit is
+  CircuitBreaker(name="yolo26_timeout") — a STRING, not a fixture request.
+  Effectively 18/18 dead (audit said 16/18; worse). Whole FaultInjector
+  conftest is live-dead — delete proposal stands; owner ruling required
+  before touching (plan T2/T7 stop-and-ask).
