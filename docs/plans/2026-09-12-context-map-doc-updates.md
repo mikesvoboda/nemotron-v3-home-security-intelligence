@@ -901,3 +901,28 @@ running — pgrep -c pytest reads 0 because worker comm is "python", not
 and passed; pass-2 is a verification aid, so no gate summary is tainted,
 but the pass-2 F-list must be read with contention as a possible
 contributor. Corrected census command going forward: pgrep -f "python -m pytest".
+
+## R-T9-INBOUND2 — last 4 inbound-webhook ghosts: baked default header + "all zones" message (2026-09-14)
+
+test_inbound_webhooks_api.py standalone serial run: 4 failed / 33 passed
+(no hang — the combined-run "Timeout" at ~index 55 was -n-free but
+DB-contention-slow; file alone finishes in 86s). Root causes, all
+test-side:
+1. test_set_mode_missing_api_key + test_all_endpoints_require_auth omitted
+   the header — but the shared client bakes X-API-Key=TEST_API_KEY as a
+   default header (integration/conftest.py:1458), so the request still
+   authenticated and got 200. Shipped stub: `if not x_api_key` → 401
+   "Missing X-API-Key header"; the falsy-empty-value form (already applied
+   to alert/arm/disarm in R-T7 batch) is what actually hits that branch.
+2. arm/disarm empty-zone-list tests expected "for 0 zones queued"; shipped
+   message is f"…for {zone_count}…" with zone_count =
+   len(zone_ids) if zone_ids else "all" (routes/inbound_webhooks.py:267,
+   317) — empty list is falsy → "all zones queued".
+Verified: 37 passed standalone.
+
+RUN-HANG NOTE: pass-2/pass-3 both died to the timeout-stamp plugin's
+hard-timeout at ~7 min while running ~18 integration files together; the
+same files pass standalone. The stamp's 30s is per-item; the combined
+death is the session-level wall (plugin prints stacks + os._exit).
+Verification strategy going forward: per-file or small-batch serial runs,
+not one 18-file chain. (Ledger lesson, not a code change.)

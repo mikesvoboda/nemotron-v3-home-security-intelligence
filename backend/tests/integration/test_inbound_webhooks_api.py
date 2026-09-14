@@ -111,10 +111,19 @@ async def test_create_alert_success(client, valid_api_key, sample_alert_payload)
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_create_alert_missing_api_key(client, sample_alert_payload):
-    """Test alert creation fails without API key."""
+    """Test alert creation fails without API key.
+
+    The shared `client` bakes a default X-API-Key header (conftest:1458), so
+    "without a key" means OVERWRITING it with the empty string — the stub's
+    verify_api_key branches on `if not x_api_key` (inbound_webhooks.py:137),
+    which an empty header value hits exactly like an absent one. Omitting
+    headers instead silently authenticates with the default key.
+    (ledger R-T7-INBOUND)
+    """
     response = await client.post(
         "/api/webhooks/inbound/alert",
         json=sample_alert_payload,
+        headers={"X-API-Key": ""},
     )
 
     assert response.status_code == 401
@@ -357,10 +366,15 @@ async def test_arm_zones_no_mode(client, valid_api_key):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_arm_zones_missing_api_key(client, sample_arm_payload):
-    """Test zone arming fails without API key."""
+    """Test zone arming fails without API key.
+
+    Empty-string X-API-Key overrides the client's default header — see
+    test_create_alert_missing_api_key for why (ledger R-T7-INBOUND).
+    """
     response = await client.post(
         "/api/webhooks/inbound/arm",
         json=sample_arm_payload,
+        headers={"X-API-Key": ""},
     )
 
     assert response.status_code == 401
@@ -401,7 +415,9 @@ async def test_arm_zones_empty_zone_list(client, valid_api_key):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "received"
-    assert "Arm command for 0 zones queued" in data["message"]
+    # Shipped contract (routes/inbound_webhooks.py:267): an empty list is
+    # falsy → zone_count renders as "all", not 0.
+    assert "Arm command for all zones queued" in data["message"]
 
 
 # =============================================================================
@@ -470,10 +486,15 @@ async def test_disarm_zones_no_reason(client, valid_api_key):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_disarm_zones_missing_api_key(client, sample_disarm_payload):
-    """Test zone disarming fails without API key."""
+    """Test zone disarming fails without API key.
+
+    Empty-string X-API-Key overrides the client's default header — see
+    test_create_alert_missing_api_key for why (ledger R-T7-INBOUND).
+    """
     response = await client.post(
         "/api/webhooks/inbound/disarm",
         json=sample_disarm_payload,
+        headers={"X-API-Key": ""},
     )
 
     assert response.status_code == 401
@@ -532,7 +553,8 @@ async def test_disarm_zones_empty_zone_list(client, valid_api_key):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "received"
-    assert "Disarm command for 0 zones queued" in data["message"]
+    # Shipped contract (routes/inbound_webhooks.py:317): empty list → "all".
+    assert "Disarm command for all zones queued" in data["message"]
 
 
 # =============================================================================
@@ -650,10 +672,16 @@ async def test_set_mode_missing_mode(client, valid_api_key):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_set_mode_missing_api_key(client, sample_mode_payload):
-    """Test mode change fails without API key."""
+    """Test mode change fails without API key.
+
+    The shared client bakes TEST_API_KEY into default headers
+    (integration/conftest.py:1458), so "missing" must be sent as an
+    explicit empty value to actually exercise the branch (R-T7-INBOUND).
+    """
     response = await client.post(
         "/api/webhooks/inbound/mode",
         json=sample_mode_payload,
+        headers={"X-API-Key": ""},
     )
 
     assert response.status_code == 401
@@ -778,6 +806,8 @@ async def test_all_endpoints_require_auth(client):
         ("/api/webhooks/inbound/mode", {"mode": "home"}),
     ]
 
+    # Explicit empty key: the shared client bakes TEST_API_KEY as a default
+    # header, so an omitted header still authenticates (R-T7-INBOUND).
     for endpoint, payload in endpoints:
-        response = await client.post(endpoint, json=payload)
+        response = await client.post(endpoint, json=payload, headers={"X-API-Key": ""})
         assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
