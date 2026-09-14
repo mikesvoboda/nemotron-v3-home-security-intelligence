@@ -373,7 +373,21 @@ def create_test_image(path: Path) -> None:
 
 @pytest.fixture
 async def mock_redis() -> MockRedisClient:
-    """Provide a mock Redis client for tests."""
+    """Provide a mock Redis client for tests.
+
+    Also rebinds the process-wide AnalysisStreamService singleton to THIS
+    mock. get_analysis_stream_service (services/redis_streams.py:1192) is
+    first-client-wins: ANY earlier test in the same xdist worker that
+    closed a batch via the streams path caches its client there, and this
+    file's close_batch assertions then xadd into the dead mock instead of
+    the fixture (run-3 gate: "MagicMock object can't be awaited",
+    test_full_pipeline_multiple_images_same_camera; ledger
+    R-T9-PIPELINE-E2E — the file already reset inline at two enqueue
+    sites; the fixture boundary makes it universal).
+    """
+    import backend.services.redis_streams as _redis_streams
+
+    _redis_streams._analysis_stream_service = None
     return MockRedisClient()
 
 
