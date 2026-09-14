@@ -1,34 +1,37 @@
 # Documentation Updates Ledger — 2026-09-12
+
 Captures doc/code drift found by the codebase context survey + arm64 port probes.
 Captured, not fixed (spec §5 M1). Promotion to Linear deferred to owner.
 
 ## Verified drift (each row re-verified by direct check)
-| # | Location | Claim | Reality (evidence) |
-|---|---|---|---|
-| D1 | CLAUDE.md port table + backend client defaults | five standalone AI servers | consolidated into ai-gateway (Triton shim); `florence_client.py:259` DEFAULT_FLORENCE_URL=http://ai-florence:8092 dead; enrichment_client same :8094 |
-| D2 | .env.example YOLO26_PORT/FLORENCE_PORT/CLIP_PORT/ENRICHMENT_PORT/ENRICHMENT_LIGHT_PORT | REQUIRED per table | zero compose references (grep docker-compose*.yml) |
-| D3 | .env.example | defines all compose-referenced vars | TEMPO_PORT, TEMPO_OTLP_GRPC, AI_GATEWAY_METRICS_PORT, GPU_AI_SERVICES referenced in compose but absent (setup.py port-scan blind) — FIXED by Task 2 (done 2026-09-12) |
-| D4 | monitoring/prometheus.yml rule_files | 7 files | compose mounts only 4 (profiling-recording-rules, profiling-regression-alerts, ai-pipeline-alerts missing in-container) — FIXED additively by Task 4 override |
-| D5 | backend/AGENTS.md + backend/Dockerfile:117,222 | Alembic migrations | no alembic.ini/alembic dir; schema via create_all(); integration test skipped wholesale |
-| D6 | docs/development/multi-gpu.md + gpu_config_service.py | generates ai-yolo26/ai-enrichment overrides | those services no longer exist; generator output dead |
-| D7 | docker-compose.ghcr.yml | GHCR deploy path | pre-consolidation topology (elasticsearch/jaeger/cadvisor; no ai-gateway/tempo) — broken |
-| D8 | video-analytics.md + docs/reference/models.md | X-CLIP action model | production uses ST-GCN++ (NEM-5563); gateway /action-classify still calls xclip_action; stgcn_action has no adapter cache path |
-| D9 | docs VRAM figures (glossary ~7GB / video-analytics 4+6.8GB / multi-gpu 14-21.7GB LLM) | consistent VRAM | mutually contradictory; all A5500-24GB-shaped |
-| D10 | .env.example cadvisor 8083 / systemd unit 8088 / setup.py fallback 8082 | one cadvisor port | three values |
-| D11 | ai/AGENTS.md | five standalone AI containers, CLIP ViT-L, TRITON_ENABLED | one ai-gateway; SigLIP2-base 768-dim; gating gone. ai/gateway/ has no AGENTS.md |
-| D12 | ci.yml PYTHON_VERSION 3.11 (pyproject >=3.14; .python-version 3.14) | CI python 3.14 | one workflow drifted |
-| D13 | scripts/restart-all.sh + setup.py URL writes | per-model services restartable | names no longer exist |
-| D14 | scripts/validate.sh:274 pytest step | "tests skipped if services down" | explicit path overrides pyproject testpaths → whole backend tree incl. integration with 5s timeout; DB-backed guaranteed fail (blocker-audit, verified) |
-| D15 | backend/tests/conftest.py:578 | skips without DB | RuntimeError hard-fails collection; isolated_db fixture visible to all backend/tests |
-| D16 | scripts/validate.sh:123 container discovery | finds DB containers | greps `_postgres_` (podman-compose v1 spelling); docker compose v2 names are `project-service-1` — depends on provider (P2 records identity) |
-| D17 | backend/tests/load/test_performance.py:155 | load tests opt-in | no `load` marker on module → runs in default validate.sh gate w/ hardcoded p99<50ms budgets tuned on different CPU |
-| D18 | docker-compose.prod.yml:384 comment | ":U ignored by Docker (backward compatible)" | comment false — but M1 unaffected: :U lines only on ai-llm-vllm hf_cache (never starts in M1) + frontend_certs; reproduction: docker compose 2.40.3 ACCEPTS :U on named volumes (verified /tmp/uprobe) |
-| D19 | .env.example:58 TMPDIR=/ephemeral/podman-tmp | valid tmp | /ephemeral does not exist on this host — FIXED Task 3 template delta |
-| D20 | backend/tests/unit/api/routes/test_system.py:2655 | health latency <100ms absolute | wall-clock asserts on a different CPU class — watch in Task 7 triage |
-| D21 | backend/tests/benchmarks/test_memory.py:145 | memray opt-in | skip guard is OS-only; limit_memory markers activate without --memray flag; aarch64+mimalloc interaction — watch Task 7 |
-| D22 | .github/workflows/gpu-tests.yml:15 | GPU suite runnable | runner labels [self-hosted, gpu, rtx-a5500] — no GB300 label exists; exit-5 tolerated = "nothing ran" reads as success (M2) |
+
+| #   | Location                                                                               | Claim                                                     | Reality (evidence)                                                                                                                                                                                     |
+| --- | -------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | CLAUDE.md port table + backend client defaults                                         | five standalone AI servers                                | consolidated into ai-gateway (Triton shim); `florence_client.py:259` DEFAULT_FLORENCE_URL=http://ai-florence:8092 dead; enrichment_client same :8094                                                   |
+| D2  | .env.example YOLO26_PORT/FLORENCE_PORT/CLIP_PORT/ENRICHMENT_PORT/ENRICHMENT_LIGHT_PORT | REQUIRED per table                                        | zero compose references (grep docker-compose\*.yml)                                                                                                                                                    |
+| D3  | .env.example                                                                           | defines all compose-referenced vars                       | TEMPO_PORT, TEMPO_OTLP_GRPC, AI_GATEWAY_METRICS_PORT, GPU_AI_SERVICES referenced in compose but absent (setup.py port-scan blind) — FIXED by Task 2 (done 2026-09-12)                                  |
+| D4  | monitoring/prometheus.yml rule_files                                                   | 7 files                                                   | compose mounts only 4 (profiling-recording-rules, profiling-regression-alerts, ai-pipeline-alerts missing in-container) — FIXED additively by Task 4 override                                          |
+| D5  | backend/AGENTS.md + backend/Dockerfile:117,222                                         | Alembic migrations                                        | no alembic.ini/alembic dir; schema via create_all(); integration test skipped wholesale                                                                                                                |
+| D6  | docs/development/multi-gpu.md + gpu_config_service.py                                  | generates ai-yolo26/ai-enrichment overrides               | those services no longer exist; generator output dead                                                                                                                                                  |
+| D7  | docker-compose.ghcr.yml                                                                | GHCR deploy path                                          | pre-consolidation topology (elasticsearch/jaeger/cadvisor; no ai-gateway/tempo) — broken                                                                                                               |
+| D8  | video-analytics.md + docs/reference/models.md                                          | X-CLIP action model                                       | production uses ST-GCN++ (NEM-5563); gateway /action-classify still calls xclip_action; stgcn_action has no adapter cache path                                                                         |
+| D9  | docs VRAM figures (glossary ~7GB / video-analytics 4+6.8GB / multi-gpu 14-21.7GB LLM)  | consistent VRAM                                           | mutually contradictory; all A5500-24GB-shaped                                                                                                                                                          |
+| D10 | .env.example cadvisor 8083 / systemd unit 8088 / setup.py fallback 8082                | one cadvisor port                                         | three values                                                                                                                                                                                           |
+| D11 | ai/AGENTS.md                                                                           | five standalone AI containers, CLIP ViT-L, TRITON_ENABLED | one ai-gateway; SigLIP2-base 768-dim; gating gone. ai/gateway/ has no AGENTS.md                                                                                                                        |
+| D12 | ci.yml PYTHON_VERSION 3.11 (pyproject >=3.14; .python-version 3.14)                    | CI python 3.14                                            | one workflow drifted                                                                                                                                                                                   |
+| D13 | scripts/restart-all.sh + setup.py URL writes                                           | per-model services restartable                            | names no longer exist                                                                                                                                                                                  |
+| D14 | scripts/validate.sh:274 pytest step                                                    | "tests skipped if services down"                          | explicit path overrides pyproject testpaths → whole backend tree incl. integration with 5s timeout; DB-backed guaranteed fail (blocker-audit, verified)                                                |
+| D15 | backend/tests/conftest.py:578                                                          | skips without DB                                          | RuntimeError hard-fails collection; isolated_db fixture visible to all backend/tests                                                                                                                   |
+| D16 | scripts/validate.sh:123 container discovery                                            | finds DB containers                                       | greps `_postgres_` (podman-compose v1 spelling); docker compose v2 names are `project-service-1` — depends on provider (P2 records identity)                                                           |
+| D17 | backend/tests/load/test_performance.py:155                                             | load tests opt-in                                         | no `load` marker on module → runs in default validate.sh gate w/ hardcoded p99<50ms budgets tuned on different CPU                                                                                     |
+| D18 | docker-compose.prod.yml:384 comment                                                    | ":U ignored by Docker (backward compatible)"              | comment false — but M1 unaffected: :U lines only on ai-llm-vllm hf_cache (never starts in M1) + frontend_certs; reproduction: docker compose 2.40.3 ACCEPTS :U on named volumes (verified /tmp/uprobe) |
+| D19 | .env.example:58 TMPDIR=/ephemeral/podman-tmp                                           | valid tmp                                                 | /ephemeral does not exist on this host — FIXED Task 3 template delta                                                                                                                                   |
+| D20 | backend/tests/unit/api/routes/test_system.py:2655                                      | health latency <100ms absolute                            | wall-clock asserts on a different CPU class — watch in Task 7 triage                                                                                                                                   |
+| D21 | backend/tests/benchmarks/test_memory.py:145                                            | memray opt-in                                             | skip guard is OS-only; limit_memory markers activate without --memray flag; aarch64+mimalloc interaction — watch Task 7                                                                                |
+| D22 | .github/workflows/gpu-tests.yml:15                                                     | GPU suite runnable                                        | runner labels [self-hosted, gpu, rtx-a5500] — no GB300 label exists; exit-5 tolerated = "nothing ran" reads as success (M2)                                                                            |
 
 ## M2 forward-looking notes (do not act in M1)
+
 - llama.cpp Dockerfile default arch `75,80,86,89` (no Blackwell); pinned commit b7972; CUDA_ARCHITECTURES already plumbed (compose:136); setup.py --defaults already detects cc via nvidia_detect (verified: '10.3')
 - TensorRT engines arch-bound → re-export via ai/gateway/export/export_all.sh on GB300; fresh cache ⇒ "degraded" health is expected until export completes
 - discard on any GPU host move: triton-kernel-cache, llama-cache, llama-nv-cache, AI_MODELS_PATH/triton
@@ -37,13 +40,14 @@ Captured, not fixed (spec §5 M1). Promotion to Linear deferred to owner.
 - health flags mask degradation: AIFallbackService default score 50 + READINESS_REQUIRE_PIPELINE_WORKERS=false (compose:497) → M2 gate must prove real inference
 
 ## Probe Log
+
 <!-- Task 1 appends rows here: date | probe | provider | result | decision -->
 
-| date | probe | provider | result | decision |
-|---|---|---|---|---|
-| 2026-09-12 | P0 `!override` parse (`/tmp/p0probe`: `podman compose -f base.yml -f over.yml config`) | docker compose v2.40.3 (podman 4.9.3 external provider) | override-parseable-yes. Resolved service `a` shows `depends_on: c: {condition: service_started, required: true}` and no `b`; no YAML tag error | Task 4 MAY use `depends_on: !override`. Two-phase bring-up stays primary (spec 3.2) |
-| 2026-09-12 | P1 CDI GPU visibility (`podman run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi ...`) | podman 4.9.3, CDI | cdi-gpu-visible. Output `NVIDIA GB300, 10.3`; tag resolved for arm64, no substitution needed; exit 0 | Record-only, non-gating for M1. M2 GPU lanes may assume `--device nvidia.com/gpu=all` works host-side |
-| 2026-09-12 | P2 provider identity + prod file parse (`podman compose -f docker-compose.prod.yml config -q`) | docker compose v2.40.3 (`Executing external compose provider "/usr/libexec/docker/cli-plugins/docker-compose"`) | FAIL as written: `required variable POSTGRES_PASSWORD is missing a value` (host has no `.env`). Same command with `PODMAN_SOCKET` and `POSTGRES_PASSWORD` supplied: exit 0, config-ok. `podman --version` = 4.9.3, `podman compose version` = `Docker Compose version 2.40.3+ds1-0ubuntu1~24.04.1` | P2 = provider + config-ok. The as-written FAIL is missing env, not a compose defect; do not read it as one. Consequence for D16: active provider names containers `project-service-1` (compose v2 spelling), so validate.sh:123 `_postgres_` grep cannot match on this host (re-confirmed at Task 2, 2026-09-12) |
+| date       | probe                                                                                                                              | provider                                                                                                        | result                                                                                                                                                                                                                                                                                             | decision                                                                                                                                                                                                                                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-12 | P0 `!override` parse (`/tmp/p0probe`: `podman compose -f base.yml -f over.yml config`)                                             | docker compose v2.40.3 (podman 4.9.3 external provider)                                                         | override-parseable-yes. Resolved service `a` shows `depends_on: c: {condition: service_started, required: true}` and no `b`; no YAML tag error                                                                                                                                                     | Task 4 MAY use `depends_on: !override`. Two-phase bring-up stays primary (spec 3.2)                                                                                                                                                                                                                              |
+| 2026-09-12 | P1 CDI GPU visibility (`podman run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi ...`) | podman 4.9.3, CDI                                                                                               | cdi-gpu-visible. Output `NVIDIA GB300, 10.3`; tag resolved for arm64, no substitution needed; exit 0                                                                                                                                                                                               | Record-only, non-gating for M1. M2 GPU lanes may assume `--device nvidia.com/gpu=all` works host-side                                                                                                                                                                                                            |
+| 2026-09-12 | P2 provider identity + prod file parse (`podman compose -f docker-compose.prod.yml config -q`)                                     | docker compose v2.40.3 (`Executing external compose provider "/usr/libexec/docker/cli-plugins/docker-compose"`) | FAIL as written: `required variable POSTGRES_PASSWORD is missing a value` (host has no `.env`). Same command with `PODMAN_SOCKET` and `POSTGRES_PASSWORD` supplied: exit 0, config-ok. `podman --version` = 4.9.3, `podman compose version` = `Docker Compose version 2.40.3+ds1-0ubuntu1~24.04.1` | P2 = provider + config-ok. The as-written FAIL is missing env, not a compose defect; do not read it as one. Consequence for D16: active provider names containers `project-service-1` (compose v2 spelling), so validate.sh:123 `_postgres_` grep cannot match on this host (re-confirmed at Task 2, 2026-09-12) |
 
 ### Port map (generated .env) — 2026-09-12, Task 3
 
@@ -55,38 +59,38 @@ Exactly ONE port moved vs `.env.example`: `API_PORT` 8000→8001 (`:8000` held b
 127.0.0.1:9093, which is free. Guarded against collision: `podman compose -f docker-compose.prod.yml config -q`
 → exit 0 (also closes P2's as-written FAIL, which was just the missing `.env`).
 
-| var | value | localhost bind check |
-|---|---|---|
-| `GO2RTC_API_PORT` | 1984 | free |
-| `GRAFANA_PORT` | 3002 | free |
-| `LOKI_PORT` | 3100 | free |
-| `PYROSCOPE_PORT` | 4040 | free |
-| `JAEGER_OTLP_GRPC_PORT` | 4317 | free |
-| `JAEGER_OTLP_HTTP_PORT` | 4318 | free |
-| `FRONTEND_PORT` | 5173 | free |
-| `POSTGRES_PORT` | 5432 | free |
-| `REDIS_PORT` | 6379 | free |
-| `JSON_EXPORTER_PORT` | 7979 | free |
-| `API_PORT` | **8001** (was 8000) | free |
-| `FRONTEND_HTTP_PORT` | 8080 | free |
-| `CADVISOR_PORT` | 8083 | free |
-| `LLM_PORT` | 8091 | free |
-| `FLORENCE_PORT` | 8092 | free |
-| `CLIP_PORT` | 8093 | free |
-| `ENRICHMENT_PORT` | 8094 | free |
-| `YOLO26_PORT` | 8095 | free |
-| `ENRICHMENT_LIGHT_PORT` | 8096 | free |
-| `FRONTEND_HTTPS_PORT` | 8444 | free |
-| `GO2RTC_WEBRTC_PORT` | 8555 | free |
-| `PROMETHEUS_PORT` | 9090 | free |
-| `ALERTMANAGER_PORT` | 9093 | free |
-| `NODE_EXPORTER_PORT` | 9100 | free |
-| `BLACKBOX_EXPORTER_PORT` | 9115 | free |
-| `REDIS_EXPORTER_PORT` | 9121 | free |
-| `ELASTICSEARCH_PORT` | 9200 | free |
-| `DCGM_EXPORTER_PORT` | 9400 | free |
-| `ALLOY_UI_PORT` | 12345 | free |
-| `JAEGER_UI_PORT` | 16686 | free |
+| var                      | value               | localhost bind check |
+| ------------------------ | ------------------- | -------------------- |
+| `GO2RTC_API_PORT`        | 1984                | free                 |
+| `GRAFANA_PORT`           | 3002                | free                 |
+| `LOKI_PORT`              | 3100                | free                 |
+| `PYROSCOPE_PORT`         | 4040                | free                 |
+| `JAEGER_OTLP_GRPC_PORT`  | 4317                | free                 |
+| `JAEGER_OTLP_HTTP_PORT`  | 4318                | free                 |
+| `FRONTEND_PORT`          | 5173                | free                 |
+| `POSTGRES_PORT`          | 5432                | free                 |
+| `REDIS_PORT`             | 6379                | free                 |
+| `JSON_EXPORTER_PORT`     | 7979                | free                 |
+| `API_PORT`               | **8001** (was 8000) | free                 |
+| `FRONTEND_HTTP_PORT`     | 8080                | free                 |
+| `CADVISOR_PORT`          | 8083                | free                 |
+| `LLM_PORT`               | 8091                | free                 |
+| `FLORENCE_PORT`          | 8092                | free                 |
+| `CLIP_PORT`              | 8093                | free                 |
+| `ENRICHMENT_PORT`        | 8094                | free                 |
+| `YOLO26_PORT`            | 8095                | free                 |
+| `ENRICHMENT_LIGHT_PORT`  | 8096                | free                 |
+| `FRONTEND_HTTPS_PORT`    | 8444                | free                 |
+| `GO2RTC_WEBRTC_PORT`     | 8555                | free                 |
+| `PROMETHEUS_PORT`        | 9090                | free                 |
+| `ALERTMANAGER_PORT`      | 9093                | free                 |
+| `NODE_EXPORTER_PORT`     | 9100                | free                 |
+| `BLACKBOX_EXPORTER_PORT` | 9115                | free                 |
+| `REDIS_EXPORTER_PORT`    | 9121                | free                 |
+| `ELASTICSEARCH_PORT`     | 9200                | free                 |
+| `DCGM_EXPORTER_PORT`     | 9400                | free                 |
+| `ALLOY_UI_PORT`          | 12345               | free                 |
+| `JAEGER_UI_PORT`         | 16686               | free                 |
 
 Blind spots (same class as D3): `generate_env_content` emits no line for `AI_GATEWAY_PORT` (8090),
 `AI_GATEWAY_METRICS_PORT` (8002), `TEMPO_PORT` (3200), `VLLM_PORT` (8097), `FRONTEND_INTERNAL_PORT` (8080)
@@ -106,28 +110,28 @@ Provider note: `podman compose` delegates to docker-compose v2.40.3 against the 
 socket** — all 15 containers live in podman's DB (`podman ps`), while `docker` CLI talks to the
 co-resident **rootful dockerd** (dgx-inference). The two daemons share host ports: a stray
 dockerd-side container on :9100 caused one spurious `rootlessport ... bind: address already in use`
-during bring-up (removed; dockerd now holds only dgx-inference-*).
+during bring-up (removed; dockerd now holds only dgx-inference-\*).
 
 First pulls: all 16 registry images (15 bases + grafana base) pulled clean on arm64, zero errors;
 grafana + pyroscope built local (`build --no-cache`, exit 0). `up -d` attempt 5: **UP_EXIT=0**.
 
-| service | status | health |
-|---|---|---|
-| postgres | Up | healthy |
-| redis | Up | healthy |
-| foscam-init | Exited (0) | (one-shot chown, by design) |
-| go2rtc (`hsi-go2rtc`) | Up | healthy |
-| prometheus | Up | healthy |
-| grafana | Up | healthy |
-| loki | Up | healthy |
-| tempo | Up | healthy |
-| alloy | Up | healthy |
-| alertmanager | Up | healthy |
-| pyroscope | Up | healthy |
-| node-exporter | Up | healthy |
-| redis-exporter | Up | (healthcheck `disable: true` — plain Up correct) |
-| json-exporter | Up | (no healthcheck defined — plain Up correct) |
-| blackbox-exporter | Up | healthy |
+| service               | status     | health                                           |
+| --------------------- | ---------- | ------------------------------------------------ |
+| postgres              | Up         | healthy                                          |
+| redis                 | Up         | healthy                                          |
+| foscam-init           | Exited (0) | (one-shot chown, by design)                      |
+| go2rtc (`hsi-go2rtc`) | Up         | healthy                                          |
+| prometheus            | Up         | healthy                                          |
+| grafana               | Up         | healthy                                          |
+| loki                  | Up         | healthy                                          |
+| tempo                 | Up         | healthy                                          |
+| alloy                 | Up         | healthy                                          |
+| alertmanager          | Up         | healthy                                          |
+| pyroscope             | Up         | healthy                                          |
+| node-exporter         | Up         | healthy                                          |
+| redis-exporter        | Up         | (healthcheck `disable: true` — plain Up correct) |
+| json-exporter         | Up         | (no healthcheck defined — plain Up correct)      |
+| blackbox-exporter     | Up         | healthy                                          |
 
 Prometheus probes: `curl :9090/-/ready` → `Prometheus Server is Ready.` (exit 0); `/-/healthy` →
 `Prometheus Server is Healthy.` (exit 0); config `lastError: ''`. All 7 rule_files resolve (Task 4
@@ -135,22 +139,23 @@ C1 mounts confirmed in-container).
 
 `TARGETS-DOWN` (9, every one maps to an M1-absent service; nothing unexpected):
 
-| job | reason |
-|---|---|
-| ai-llm-metrics | ai-llm absent in M1 (GPU) — DNS `no such host` |
-| triton-metrics | ai-gateway absent in M1 (GPU) — DNS `no such host` |
-| cadvisor | host.containers.internal:8088 refused — cadvisor not started in M1 |
-| dcgm-exporter | host.containers.internal:9400 refused — no GPU stack in M1 |
-| hsi-backend-metrics | backend absent until Task 6 — DNS `no such host` |
+| job                                              | reason                                                                                   |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| ai-llm-metrics                                   | ai-llm absent in M1 (GPU) — DNS `no such host`                                           |
+| triton-metrics                                   | ai-gateway absent in M1 (GPU) — DNS `no such host`                                       |
+| cadvisor                                         | host.containers.internal:8088 refused — cadvisor not started in M1                       |
+| dcgm-exporter                                    | host.containers.internal:9400 refused — no GPU stack in M1                               |
+| hsi-backend-metrics                              | backend absent until Task 6 — DNS `no such host`                                         |
 | hsi-health / hsi-telemetry / hsi-stats / hsi-gpu | via json-exporter → backend:8000 returns 503 from co-resident :8000 service until Task 6 |
 
 `TARGETS-UP` (12 jobs incl. node-exporter after the delta below): alertmanager, blackbox-exporter,
 blackbox-http-2xx/health/live/ready, blackbox-tcp (postgres:5432 + redis:6379 `probe_success=1`),
-json-exporter, node-exporter, prometheus, pyroscope, redis. Note: blackbox-http-* jobs report
+json-exporter, node-exporter, prometheus, pyroscope, redis. Note: blackbox-http-_ jobs report
 target `up` even while every `probe_success=0` (probe-failure is inside the exporter response) —
-real probe targets (backend/ai-*/frontend) turn green with Task 6.
+real probe targets (backend/ai-_/frontend) turn green with Task 6.
 
 Findings:
+
 - **NE-MOUNT (fixed additively, C3):** prod `/:/host:ro,rslave` fails ONLY through the
   compose→podman-API path (podman records bind Options `["bind"]` non-rbind + rslave; runc init:
   `mounting "/" to rootfs at "/host" ... MS_RDONLY|MS_BIND: invalid argument`; 3/3 deterministic;
@@ -161,24 +166,26 @@ Findings:
   node-exporter starts won't appear in its filesystem collector until node-exporter restarts.
   Controller independently reproduced the EINVAL standalone and ruled this fix (2026-09-12).
   Host-state observation during bring-up: attempt 3 hit `rootlessport listen tcp 127.0.0.1:9100:
-  bind: address already in use`. Cause: a DEBUG container accidentally created in the co-resident
+bind: address already in use`. Cause: a DEBUG container accidentally created in the co-resident
   rootful dockerd (docker CLI defaults there; project lives in rootless podman) held host :9100 —
   the two daemons share host ports. Removing the dockerd-side container freed it (verified via
   `ss`) before the final up; no netavark reservation leak remained, so the controller's ordered
   remedy (project-scoped `podman network reload --fresh` + orphan-rootlessport hunt) was not
   ultimately needed. Not blocking; lesson: debug this stack with `podman`, never bare `docker`.
-- **alloy UI unreachable on host:** alloy binds 127.0.0.1:12345 *inside* the container, so the
+- **alloy UI unreachable on host:** alloy binds 127.0.0.1:12345 _inside_ the container, so the
   rootless port-forward connects-then-resets (`curl` → connection reset). Healthcheck is
   `pgrep -f alloy` → healthy; OTLP 4317/4318 bind 0.0.0.0 (forwarded fine). Cosmetic host-access
   gap only.
 - **alloy eBPF profiler gives up:** `pyroscope.ebpf.native_profiling` → `map create: operation not
-  permitted (MEMLOCK ...)` after 4 tries — expected under rootless without BPF/cap privileges;
+permitted (MEMLOCK ...)` after 4 tries — expected under rootless without BPF/cap privileges;
   recorded, non-gating (M2 lane if eBPF profiling wanted).
 - **go2rtc / loki / tempo / pyroscope** host probes OK (`/api/streams` 200, `/ready` 200s;
   pyroscope `/healthy` 301→index, container healthcheck green).
 
 ## Convergence Queue
+
 <!-- additive-only fixes that graduate into prod files once arch-neutral proven -->
+
 - C1: prometheus rule mounts (Task 4 override) → docker-compose.prod.yml once M1 green
 - C2: .env.example four vars (Task 2) — already prod-file-neutral; stays
 - C3: node-exporter `/:/host:ro` (drop rslave; rootless-podman compose-API EINVAL, see Phase A
@@ -188,11 +195,11 @@ Findings:
 
 Three uncommitted owner-ruling fixes verified + committed separately (each with repro/verification):
 
-| # | Fix | Commit | Verification |
-|---|---|---|---|
-| F1 | `backend/main.py` — `zones_redirect_router` registered AFTER `zone_anomalies`/`zone_household`; the /api/zones→/api/analytics-zones 308 (NEM-5377, 89b2001b) shadowed `/api/zones/{zone_id}/household*` (Zone Trust Matrix broken) | dfa8bc0c | Repro: with fix stashed, `test_zone_household_api.py::test_get_config_returns_config_when_exists` fails `assert 308 == 200`; with fix, all 32 tests in `test_zone_household_api.py` pass (count of 32 confirmed). Redirect itself still pinned by `test_zones_redirect.py` (11 unit tests, router mounted alone — no full-app ordering test exists; see F2-adjacent gap below) |
-| F2 | `backend/services/threat_monitor_service.py` `_check_cooldown` — cutoff kept tz-aware; naive datetimes bind as server-LOCAL vs timestamptz, shifting the cooldown boundary by the local-UTC offset (4h on EDT) so cooldown never matched | 5ccb3645 | Numeric demo: naive-as-EDT cutoff 09:40Z vs aware 05:40Z (4h error). 148 unit tests pass under UTC and `TZ=America/New_York`; existing unit tests mock the session so they don't discriminate (gap recorded) |
-| F3 | `backend/tests/integration/test_api_protection.py` — session-cookie/setup_required/409/503-body contract repair + `unmocked_setup_client` fixture; two tests asserted unobservable contracts (503 through guard-mocked client; `/api/auth/me` + X-API-Key → 200, unachievable: `get_current_user` is cookie-only, no path validates DB-created keys, AuthMiddleware disabled NEM-5527) | 294d1a7f | File 15/15 pass (was 13P+2F). API-key test now asserts shipped contract: creation 201 + `nemo_k1_` format + settings-listed key authenticating `POST /api/system/cleanup?dry_run=true` (side-effect-free `verify_api_key` route) |
+| #   | Fix                                                                                                                                                                                                                                                                                                                                                                                    | Commit   | Verification                                                                                                                                                                                                                                                                                                                                                                   |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| F1  | `backend/main.py` — `zones_redirect_router` registered AFTER `zone_anomalies`/`zone_household`; the /api/zones→/api/analytics-zones 308 (NEM-5377, 89b2001b) shadowed `/api/zones/{zone_id}/household*` (Zone Trust Matrix broken)                                                                                                                                                     | dfa8bc0c | Repro: with fix stashed, `test_zone_household_api.py::test_get_config_returns_config_when_exists` fails `assert 308 == 200`; with fix, all 32 tests in `test_zone_household_api.py` pass (count of 32 confirmed). Redirect itself still pinned by `test_zones_redirect.py` (11 unit tests, router mounted alone — no full-app ordering test exists; see F2-adjacent gap below) |
+| F2  | `backend/services/threat_monitor_service.py` `_check_cooldown` — cutoff kept tz-aware; naive datetimes bind as server-LOCAL vs timestamptz, shifting the cooldown boundary by the local-UTC offset (4h on EDT) so cooldown never matched                                                                                                                                               | 5ccb3645 | Numeric demo: naive-as-EDT cutoff 09:40Z vs aware 05:40Z (4h error). 148 unit tests pass under UTC and `TZ=America/New_York`; existing unit tests mock the session so they don't discriminate (gap recorded)                                                                                                                                                                   |
+| F3  | `backend/tests/integration/test_api_protection.py` — session-cookie/setup_required/409/503-body contract repair + `unmocked_setup_client` fixture; two tests asserted unobservable contracts (503 through guard-mocked client; `/api/auth/me` + X-API-Key → 200, unachievable: `get_current_user` is cookie-only, no path validates DB-created keys, AuthMiddleware disabled NEM-5527) | 294d1a7f | File 15/15 pass (was 13P+2F). API-key test now asserts shipped contract: creation 201 + `nemo_k1_` format + settings-listed key authenticating `POST /api/system/cleanup?dry_run=true` (side-effect-free `verify_api_key` route)                                                                                                                                               |
 
 Environment deltas (this sandbox, not GB300): `libgl1` + `libglib2.0-0t64` required for backend
 imports (cv2 import chain from auth_service module graph); integration tests run via
@@ -201,6 +208,7 @@ postgres at host.docker.internal:5432 is the co-resident dgx stack (credentials 
 not the test DB) — do not probe it further.
 
 ### Sibling bugs of the F2 class (recorded, NOT fixed — M2 candidates)
+
 - `backend/services/alert_engine.py:994` — `utc_now_naive()`-derived cutoff (naive) compared
   to timestamptz `Alert.created_at`: same asyncpg local-time encoding; on non-UTC host engine
   cooldown never matches → duplicate alerts. Unit tests pass aware datetimes (:788,:801,:819)
@@ -216,6 +224,7 @@ not the test DB) — do not probe it further.
   `backend/tests/integration/test_alert_engine.py` fixture naive timestamps are the same class.
 
 ### Verification-scope note
+
 Testcontainers can exercise the DB-backed suites in this sandbox; the full no-flag
 `validate.sh` gate requires the Phase A container topology for container discovery
 (D16) — see close-out rows below for how the gate is run here.
@@ -251,38 +260,38 @@ pytest stage ran the whole backend tree incl. integration). Result: **315 failed
 
 ### Run-1 red triage — batch 2 (2026-09-13, all class (c) unless noted)
 
-| file | was | root cause | commit | now |
-|---|---|---|---|---|
-| integration/services/test_model_loaders.py | 19F | fixture cuda=False vs prod fail-fast CUDA guards; AutoModel alias; SigLIP 2 regex/vram 800→200; models.yml +preprocessing +alpr | f0d8ca5e | 38/38 |
-| integration/test_alert_rules.py | 21F | metric renames (probe_success blackbox, hsi_system_healthy/hsi_database_healthy/hsi_redis_healthy, *_queue_depth) + 3 stale-rule classes (deleted) | 71e27668 | 39/39 |
-| integration/test_file_watcher_integration.py | 10F | sibling of R-T7-WATCHER — legacy add_to_queue_safe observation point; queue_contract ported w/ camera_id | 9540d694 | 26/26 |
-| integration/test_services_api.py | 17F | DI trap: patch() on routes.services.get_orchestrator is a no-op (FastAPI captured original fn at route decl). Fix: dependency_overrides + zero-arg override fns + MagicMock get_service | 9ab1b75b | 20/20 |
-| security/test_api_security.py | 8F | (iv) media rate limiter Depends(get_redis) → no ambient Redis → 503 CACHE_UNAVAILABLE before route body. Fix: stub backend.core.redis._redis_client (+evalsha [1,0]) | 157bcc5b | 52/52 |
-| integration/test_job_history_api.py | 12F | PROD BUG: _get_transitions bound UUID object vs JobTransition.job_id String(36) VARCHAR → 'varchar = uuid' on every read (fixed in service); tests seed jobs rows (dual tracking is shipped design); since param '+' URL-encode | e3f9e27e | 19/19 |
-| integration/test_onvif_discovery_api.py | 10F | patch target TYPE_CHECKING-only; 422 envelope is error.code; Phase-2 design fields (ip/port/rtsp_urls/requires_auth/timeout_count) never shipped | 5f53c88c | 11/11 |
-| integration/test_cameras_rtsp.py | 9F | TDD red-phase artifact: CameraResponse SHIPS rtsp_password echo (schema/routes/frontend/canonical-suite all agree); omitted-vs-explicit-None validator; no auto-clear-on-mode-change | d4c6c1ff | 18/18 |
-| integration/test_stream_config_api.py | 17F | (ii) never implemented: NEM-4394/4395 Phase 3 GREEN never shipped. Mirror companion unit files' skipif-import guard (auto-greens when feature ships) | ae429127 | 19 skipped |
+| file                                         | was | root cause                                                                                                                                                                                                                       | commit   | now        |
+| -------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- |
+| integration/services/test_model_loaders.py   | 19F | fixture cuda=False vs prod fail-fast CUDA guards; AutoModel alias; SigLIP 2 regex/vram 800→200; models.yml +preprocessing +alpr                                                                                                  | f0d8ca5e | 38/38      |
+| integration/test_alert_rules.py              | 21F | metric renames (probe_success blackbox, hsi_system_healthy/hsi_database_healthy/hsi_redis_healthy, \*\_queue_depth) + 3 stale-rule classes (deleted)                                                                             | 71e27668 | 39/39      |
+| integration/test_file_watcher_integration.py | 10F | sibling of R-T7-WATCHER — legacy add_to_queue_safe observation point; queue_contract ported w/ camera_id                                                                                                                         | 9540d694 | 26/26      |
+| integration/test_services_api.py             | 17F | DI trap: patch() on routes.services.get_orchestrator is a no-op (FastAPI captured original fn at route decl). Fix: dependency_overrides + zero-arg override fns + MagicMock get_service                                          | 9ab1b75b | 20/20      |
+| security/test_api_security.py                | 8F  | (iv) media rate limiter Depends(get_redis) → no ambient Redis → 503 CACHE_UNAVAILABLE before route body. Fix: stub backend.core.redis.\_redis_client (+evalsha [1,0])                                                            | 157bcc5b | 52/52      |
+| integration/test_job_history_api.py          | 12F | PROD BUG: \_get_transitions bound UUID object vs JobTransition.job_id String(36) VARCHAR → 'varchar = uuid' on every read (fixed in service); tests seed jobs rows (dual tracking is shipped design); since param '+' URL-encode | e3f9e27e | 19/19      |
+| integration/test_onvif_discovery_api.py      | 10F | patch target TYPE_CHECKING-only; 422 envelope is error.code; Phase-2 design fields (ip/port/rtsp_urls/requires_auth/timeout_count) never shipped                                                                                 | 5f53c88c | 11/11      |
+| integration/test_cameras_rtsp.py             | 9F  | TDD red-phase artifact: CameraResponse SHIPS rtsp_password echo (schema/routes/frontend/canonical-suite all agree); omitted-vs-explicit-None validator; no auto-clear-on-mode-change                                             | d4c6c1ff | 18/18      |
+| integration/test_stream_config_api.py        | 17F | (ii) never implemented: NEM-4394/4395 Phase 3 GREEN never shipped. Mirror companion unit files' skipif-import guard (auto-greens when feature ships)                                                                             | ae429127 | 19 skipped |
 
 DI-trap documented twice now (R-T7-SERVICES, R-T7-APISEC): `Depends()` captures the original
 function object at route-declaration time; `unittest.mock.patch` on the module attribute never
 reaches the route. Use `app.dependency_overrides[<exact function>]`.
 
 M2 candidates recorded: full stream-config GREEN implementation (schema+service+routes, owner
-design decisions needed); alert_engine tz siblings (above); websocket/db-pool metrics (hsi_*).
+design decisions needed); alert*engine tz siblings (above); websocket/db-pool metrics (hsi*\*).
 
 ### Run-1 red triage — batch 3 (2026-09-13, misc-small lanes; all class (c) unless noted)
 
-| file | was | root cause | commit | now |
-|---|---|---|---|---|
-| api/routes/test_model_management_integration.py | 8F | DI trap (same as R-T7-SERVICES): patch() on routes-local get_http_client no-op → override_http_client helper | 2143a424 | 15/15 |
-| test_florence_validation.py | 8F | NEM-5570 cascade gate shipped after tests (conf 0.75-0.92 never reach Florence); conflict-YOLO-wins branch unreachable through pipeline (only <0.7 forwarded) — 5 conf fixes + 4 extractor-level reshapes | eb557bbf | 9/9 |
-| api/test_feedback_routes.py | 8F | TDD RED artifact: list/get-by-id/delete feedback endpoints never implemented (1d0ee935 shipped 3 paths; git -S zero). no_crud conditional guard | 9110f4b6 | 18P+7 skip |
-| test_search_api.py | 5F | SearchResponse contract (total_count, no query echo, relevance_score not rank, no highlights) + since-param '+' URL encoding | 9fe387a4 | 12/12 |
-| test_preview_api.py | 17F+12E | Camera() folder_path required + status ck constraint + get_go2rtc_client never existed (seam = cameras._get_go2rtc_client, request-time call) + static stream_id vs token_hex suffix | c98b94cf | 16P+1 preskip |
-| test_prompt_management_api.py | 7F+1E | PROD: PromptVersion never imported in models/__init__ → create_all never built prompt_versions (order-dependent ERROR). Tests: RFC7807 problem-detail detail-string; GET default-config 200 contract; counting-limiter override; import-preview diff shape | e32074fa | 41/41 |
-| test_orchestrator_integration.py | 6F | file-local clients lacked SetupGuard bypass (middleware postdates tests) | ccf3ddd6 | 13/13 |
-| test_gpu_config_workflow.py | 3F | service_name-sort inverted by ai-detector→ai-yolo26 rename; [0] assertion never green at 6d7ae425; AsyncMock redis → truthy child mock in 409 pre-check | fc4041e4 | 18/18 |
-| test_alpr_service.py | 0F | mis-paired in run-1 tally (7F belonged to prompt file); 14/14 verified standalone | — | 14/14 |
+| file                                            | was     | root cause                                                                                                                                                                                                                                                 | commit   | now           |
+| ----------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------- |
+| api/routes/test_model_management_integration.py | 8F      | DI trap (same as R-T7-SERVICES): patch() on routes-local get_http_client no-op → override_http_client helper                                                                                                                                               | 2143a424 | 15/15         |
+| test_florence_validation.py                     | 8F      | NEM-5570 cascade gate shipped after tests (conf 0.75-0.92 never reach Florence); conflict-YOLO-wins branch unreachable through pipeline (only <0.7 forwarded) — 5 conf fixes + 4 extractor-level reshapes                                                  | eb557bbf | 9/9           |
+| api/test_feedback_routes.py                     | 8F      | TDD RED artifact: list/get-by-id/delete feedback endpoints never implemented (1d0ee935 shipped 3 paths; git -S zero). no_crud conditional guard                                                                                                            | 9110f4b6 | 18P+7 skip    |
+| test_search_api.py                              | 5F      | SearchResponse contract (total_count, no query echo, relevance_score not rank, no highlights) + since-param '+' URL encoding                                                                                                                               | 9fe387a4 | 12/12         |
+| test_preview_api.py                             | 17F+12E | Camera() folder_path required + status ck constraint + get_go2rtc_client never existed (seam = cameras.\_get_go2rtc_client, request-time call) + static stream_id vs token_hex suffix                                                                      | c98b94cf | 16P+1 preskip |
+| test_prompt_management_api.py                   | 7F+1E   | PROD: PromptVersion never imported in models/**init** → create_all never built prompt_versions (order-dependent ERROR). Tests: RFC7807 problem-detail detail-string; GET default-config 200 contract; counting-limiter override; import-preview diff shape | e32074fa | 41/41         |
+| test_orchestrator_integration.py                | 6F      | file-local clients lacked SetupGuard bypass (middleware postdates tests)                                                                                                                                                                                   | ccf3ddd6 | 13/13         |
+| test_gpu_config_workflow.py                     | 3F      | service_name-sort inverted by ai-detector→ai-yolo26 rename; [0] assertion never green at 6d7ae425; AsyncMock redis → truthy child mock in 409 pre-check                                                                                                    | fc4041e4 | 18/18         |
+| test_alpr_service.py                            | 0F      | mis-paired in run-1 tally (7F belonged to prompt file); 14/14 verified standalone                                                                                                                                                                          | —        | 14/14         |
 
 Remaining from run-1's 315 FAILED: 48 files × 1-5 failures, most of which are downstream of the
 run-1 systemic ERROR cascade (container port-forward churn — my own concurrent probes). Decision:
@@ -309,8 +318,8 @@ cascade-artifact failures individually wastes cycles on non-defects.
 ### Run-3 (2026-09-13, with TEST_DATABASE_URL + gate services): 352F/355E in 1147s
 
 - **Root cause of the 355 ERRORs: OOM-kill cascade.** dmesg: `Out of memory: Killed process
-  [pytest-xdist r] anon-rss:51844004kB` (52 GB per worker!) — 11 `node down: Not properly
-  terminated` events; xdist relaunched as gw8-gw15, restarted workers lose the session-scoped
+[pytest-xdist r] anon-rss:51844004kB` (52 GB per worker!) — 11 `node down: Not properly
+terminated` events; xdist relaunched as gw8-gw15, restarted workers lose the session-scoped
   testcontainer handles → connection storms → setup ERRORs (face_recognition 20, cache_service 47,
   zone_anomaly 32, notification_delivery 27, file_watcher 24, redis_pubsub 20).
 - **The leak: OpenTelemetry BatchSpanProcessor.** otel_enabled defaults True; every TestClient with
@@ -391,9 +400,9 @@ cascade-artifact failures individually wastes cycles on non-defects.
   get_test_db_url returns it VERBATIM) fail 3+ under -n4, while integration's own worker_db
   fixtures correctly use per-worker security_test_gwN DBs. Same class as the unit-run
   `Key (name)=(Video Test Camera) already exists` residue collisions. FIX = the planned FCL Task 6
-  cutover (get_test_db_url -> per-worker <base>_gwN, plan
+  cutover (get_test_db_url -> per-worker <base>\_gwN, plan
   docs/superpowers/plans/2026-09-12-fast-confidence-loop.md:1064) — M1's last substrate blocker;
-  helpers (_create_worker_database) already exist at integration/conftest.py:455 to lift up.
+  helpers (\_create_worker_database) already exist at integration/conftest.py:455 to lift up.
 - **jobs_api 9F root-caused (class ii)**: routes serve JobTracker (Redis/in-memory,
   job_tracker.py:188-268 get_all_jobs/cancel_job) while the test seeds the Postgres `jobs` table
   via db_session — every test in the file is red by construction regardless of state. TDD-RED
@@ -414,15 +423,15 @@ cascade-artifact failures individually wastes cycles on non-defects.
   URL verbatim. Also `cleanup_stale_databases` only sweeps `test_db_gw%`/`template_test`, which the
   never-used fixtures would have created.
 - **Fix (FCL plan Tasks 5+6, run here as M1's last substrate blocker)**: e85c2cf3 adds
-  worker_id/worker_db_name/_create_worker_database/_drop_worker_database to root conftest (helpers
+  worker_id/worker_db_name/\_create_worker_database/\_drop_worker_database to root conftest (helpers
   mirrored from integration/conftest.py:455; conftest-to-conftest import deliberately avoided);
   e8619d80 cuts get_test_db_url over to `<base>_gwN`/`<base>_main` copies created idempotently,
   with TEST_DB_NO_WORKER_SUFFIX=1 as the documented rollback lever. Contract tests:
   backend/tests/test_db_isolation.py (13, run live against gate-postgres).
 - **Proofs**: 13/13 isolation tests green, twice under -n4 (idempotent create against leftover DBs);
   the 14-file contention set under -n4 = 262 passed / 22 skipped (was 3F+1E); unit/core/test_database
-  + unit/repositories -n8 = 181P/8.1s. New worker DBs visible in pg_database (security_gw0..3,
-  security_main) — cutover verifiably live.
+  - unit/repositories -n8 = 181P/8.1s. New worker DBs visible in pg_database (security_gw0..3,
+    security_main) — cutover verifiably live.
 - **Cost swap accepted per plan**: first fixture call per worker pays full DDL in its fresh DB
   (8 parallel DDL runs replace the serialized advisory-lock queue). Session-scoped create-once +
   drop-at-end + stale-sweep of the new `<base>_gwN` names is FCL Task 7's job; leak is bounded
@@ -438,7 +447,7 @@ cascade-artifact failures individually wastes cycles on non-defects.
 - **Why it's a new shape**: run-5's DiskFull was testcontainer-per-worker filling /dev/vdd; here
   TEST_DATABASE_URL was exported (no testcontainers), df showed /var/lib/docker at 19-24% before
   and 7.1G free 40s AFTER the panic — a fast burst, not accumulation. `du` into /var/lib/docker
-  returns 4.0K from this namespace (co-resident rootful dockerd owns it; dgx-inference-* live
+  returns 4.0K from this namespace (co-resident rootful dockerd owns it; dgx-inference-\* live
   there — untouchable). Unattributable from inside the sandbox; prime suspect is neighbor
   pressure on /dev/vdd. NOT fixed by us; MITIGATED by /tmp/disk-guard.sh (kills the rehearsal at
   <1.5G free so results die before the postmaster PANICs and the 90s recovery window poisons
@@ -451,7 +460,7 @@ cascade-artifact failures individually wastes cycles on non-defects.
 
 - backend/api/routes/backup.py: router with 7 endpoints, prefix /api/backup, implemented since
   f79f066e ("implement backup/webhook systems", NEM-3566/3624/3667); exported via
-  routes/__init__.py `backup_router`. **Never appears in backend/main.py** — not in the
+  routes/**init**.py `backup_router`. **Never appears in backend/main.py** — not in the
   `from backend.api.routes import (...)` block (audit→auth→cost_analytics, alphabetical skip),
   never include_router'd, in ANY revision (git log -S across --all: zero hits). Frontend
   frontend/src/services/backupApi.ts calls /api/backup in production => the backup UI 404s live.
@@ -549,7 +558,7 @@ PANICs gate-postgres mid-run.
 
 - **Run-8**: unit tier green 27524P/84.8s in-gate. Integration tier: a gw3
   worker reached **17.7 GB RSS (VmSize pinned at the 20GiB cap) with ZERO
-  completed tests** — py-spy: main thread wedged at TestClient.__enter__
+  completed tests** — py-spy: main thread wedged at TestClient.**enter**
   (lifespan startup) in test_websocket_auth_flow.py::detections_auth_client.
   The replacement worker wedged the same way on the same file's FIRST test;
   killed both, aborting run-8 per protocol (1 node-down; evidence:
@@ -563,7 +572,7 @@ PANICs gate-postgres mid-run.
   REAL. TestClient(app) then started production `_run_loop` workers whose
   AsyncMock consume_detections returns a truthy iterable-of-Mocks →
   `if not messages: continue` spins unthrottled (except-branch backoff never
-  runs — mocks don't raise) and unittest.mock records one _Call per iteration
+  runs — mocks don't raise) and unittest.mock records one \_Call per iteration
   forever: ~300 MB/s. timeout_func_only=true excludes fixture setup, so the
   5s cap never fires. 64 sandbox OOM kills total, 60 today — all this.
 - **Fix (test-only)**: ported the sibling test_websocket_auth.py's proven full
@@ -591,20 +600,20 @@ bulk-cancel empty list is 422 (BulkCancelRequest min_length=1; no non-generated
 caller sends []), and JobStatsResponse by_status/by_type are LISTS of
 {status|job_type, count} — assertions flatten lists before comparing.
 
-### R-T7-WORKERDOWN (2026-09-13): gw3/gw6 "crashes" were pytest-timeout os._exit(1), not the leak (commits e466db3c, e9f9e1ac)
+### R-T7-WORKERDOWN (2026-09-13): gw3/gw6 "crashes" were pytest-timeout os.\_exit(1), not the leak (commits e466db3c, e9f9e1ac)
 
 Both capped-run worker deaths ended on a test in
 integration/test_llm_analysis_pipeline.py::TestErrorHandlingWithEnrichment. Root cause:
-conftest _apply_timeout_marker stamps integration tests timeout=5; this class's
+conftest \_apply_timeout_marker stamps integration tests timeout=5; this class's
 LLM-error path legitimately takes 7–9s (guided_json precheck burns 3 retries with
 1+2+4s sleeps BEFORE the post-call retries' 1+2s sleeps; measured 8.8s alone with
---timeout=0 → PASSES). pytest-timeout's thread method dumps stacks and os._exit(1)s —
+--timeout=0 → PASSES). pytest-timeout's thread method dumps stacks and os.\_exit(1)s —
 killing the whole xdist worker, which xdist reports as "node down: Not properly
 terminated". The RSS traces at death (82/830MB) were the REPLACEMENT worker's — the
 clobbering v2 plugin fixes the attribution.
 
 Fix: @pytest.mark.slow on the class (→30s tier). Separate drift bug in the same file,
-commit e466db3c: capture_prompt read args[1]["messages"] but _call_llm posts the
+commit e466db3c: capture_prompt read args[1]["messages"] but \_call_llm posts the
 payload in the json= KWARG under key "prompt" — the assert could never pass.
 File now 11/11 green (-n4, gate-postgres). Implication for the leak hunt: real leak
 evidence is ONLY the pre-fix kernel kills (22–58GB RSS); post-cutover unit drift is
@@ -613,10 +622,10 @@ evidence is ONLY the pre-fix kernel kills (22–58GB RSS); post-cutover unit dri
 
 ### R-T7-TIMEOUT-GATE (2026-09-13/14, runs 8b–8e): the gate's --timeout=30 never governed unmarked integration tests
 
-conftest._apply_timeout_marker stamps timeout(5) on unmarked integration items, and
+conftest.\_apply_timeout_marker stamps timeout(5) on unmarked integration items, and
 pytest-timeout per-item markers OVERRIDE the CLI --timeout — so validate.sh's
 integration stage ("--timeout=30") has been running at a 5s effective cap all along.
-Under -n8 contention legitimate tests exceed 5s → thread-method os._exit(1) → whole
+Under -n8 contention legitimate tests exceed 5s → thread-method os.\_exit(1) → whole
 xdist worker dies silently (same mechanism as R-T7-WORKERDOWN, but file-wide: run-8b
 deaths at cursor_pagination/events_api/face_recognition, normal RSS, ~20–30% mark).
 Run protocol fix: /tmp/timeout_stamp_plugin.py (tryfirst hook stamps timeout(30) on
@@ -678,7 +687,7 @@ was already green and unchanged.
 test_cursor_with_filters root cause was NOT the cursor: the fixture seeded
 risk_score=i*4 (0–96) with hand-labeled risk_level strings — scores 85–96 are
 CRITICAL per the severity taxonomy (60–84 high, 85–100 critical,
-api/schemas/events._compute_risk_level / NEM-3398), and the list schema
+api/schemas/events.\_compute_risk_level / NEM-3398), and the list schema
 SERIALIZES risk_level as a computed field recomputed from risk_score. Probe proved
 it: seeded "high" rows with score 88 came back risk_level="critical". Fix: fixture
 scores recomputed to sit inside each band ((i*84)//24 → 0–84). Test-side done.
@@ -710,7 +719,7 @@ R-T7-TIMEOUT-GATE's hole, caught red-handed in the faulthandler dump).
 
 Evidence: first AUTH error live-line position = 57% progress (.env at ~33%
 wall-clock; onset lags via per-worker settings caches); 0 AUTH errors
-anywhere pre-57%; gw6 dump wedged in starlette TestClient.__enter__ ←
+anywhere pre-57%; gw6 dump wedged in starlette TestClient.**enter** ←
 test_media_api.py:201 client fixture. run-9 (identical protocol, .env
 ABSENT, +durations_plugin) is the re-derivation: pre-57% files stand as true
 reds (28 files, incl. every already-analyzed cluster); post-57% files are
@@ -761,12 +770,12 @@ census, and -n0 on the shared worker DB mid-run is a false-red generator):
 - test_outbound_webhooks_api.py (R-T7-OUTBOUND): test_webhook success/failure
   patched httpx.AsyncClient.post — intercepts the TEST client's own request
   (it IS an httpx AsyncClient; endpoint never ran). Seam moved to
-  WebhookService._send_request (returns (status,body,ms)). httpx import
+  WebhookService.\_send_request (returns (status,body,ms)). httpx import
   dropped. Invalid-uuid→[400,422] NOT touched yet: shipped route path param
   is plain str + WHERE, expect 404 — but that's a run-9-score call, not a
   guess (503s in run-8e were SetupGuard signature).
-- test_rum_api.py (R-T7-RUM): 422 body is the custom envelope
-  {"error":{"code":"VALIDATION_ERROR",...}} (exception_handlers.validation_
+- test*rum_api.py (R-T7-RUM): 422 body is the custom envelope
+  {"error":{"code":"VALIDATION_ERROR",...}} (exception_handlers.validation*
   exception_handler registered for RequestValidationError) — NOT FastAPI
   default {"detail":[...]}. http_exception_handler (the 422→VALIDATION_ERROR
   status map in that file) is NOT app-registered (only problem_details +
@@ -836,10 +845,11 @@ Run-9 finished 934s, ZERO node-downs, ZERO AUTH errors (ENVLEAK protocol
 confirmed), 4,303 tests with full phase data (/tmp/test_durations.csv).
 
 Totals (setup+call+teardown): p50 1.26s / p90 3.36 / p99 4.16 / max 17.51.
->3s: 1,738 (40%) · >4s: 45 (1.0%) · >5s: 17 (0.4%) · >10s: 7.
-SETUP alone: p50 0.10 / p90 1.17 / p99 1.33 / max 2.48; only 4 tests >2s;
-ZERO tests with setup >5s. TEARDOWN dominates: 2,679/4,303 (62%) spend >50%
-of total time in teardown — the per-test integration_db cost the audit names.
+
+> 3s: 1,738 (40%) · >4s: 45 (1.0%) · >5s: 17 (0.4%) · >10s: 7.
+> SETUP alone: p50 0.10 / p90 1.17 / p99 1.33 / max 2.48; only 4 tests >2s;
+> ZERO tests with setup >5s. TEARDOWN dominates: 2,679/4,303 (62%) spend >50%
+> of total time in teardown — the per-test integration_db cost the audit names.
 
 CAVEAT the ruling must state: run-9 ran under /tmp/timeout_stamp_plugin.py
 (30s on unmarked integration items), so these are UNTRIMMED durations — the
@@ -869,7 +879,7 @@ fixtures, a shared 5s budget kills ~14 tests on day 1; post-T4 it should be
 ≈0. (3) Blast-radius math assumed thread-method worker survival; with
 timeout_method=signal the budget interrupts the await IN the worker — growth
 caps at budget×leak-rate, matching the 5s≈1.5GiB figure; thread method remains
-UNSAFE with func_only=false (os._exit = node respawn, no clean failure).
+UNSAFE with func_only=false (os.\_exit = node respawn, no clean failure).
 Synthetic three-hang harness (setup/body/teardown) still owed in the packet.
 
 ## R-T9-HEATMAP — test_heatmap_service.py chased a ghost HeatmapService API (2026-09-14, run-9 dig)
@@ -890,7 +900,7 @@ production change — pure test-alignment.
 ## R-T9-ZERODCE — should_enhance takes PIL Image, not ndarray (2026-09-14, run-9 dig)
 
 run-9: 2 FAILED AttributeError 'numpy.ndarray' object has no attribute
-'mode'. Test built np arrays; shipped should_enhance/_compute_mean_brightness
+'mode'. Test built np arrays; shipped should_enhance/\_compute_mean_brightness
 (zero_dce_loader.py:145-173) consume PIL Images (.mode/.convert). Tests now
 build via Image.fromarray. Verified serially 3 passed (no-DB file, 2.2s).
 
@@ -908,6 +918,7 @@ test_inbound_webhooks_api.py standalone serial run: 4 failed / 33 passed
 (no hang — the combined-run "Timeout" at ~index 55 was -n-free but
 DB-contention-slow; file alone finishes in 86s). Root causes, all
 test-side:
+
 1. test_set_mode_missing_api_key + test_all_endpoints_require_auth omitted
    the header — but the shared client bakes X-API-Key=TEST_API_KEY as a
    default header (integration/conftest.py:1458), so the request still
@@ -916,14 +927,13 @@ test-side:
    to alert/arm/disarm in R-T7 batch) is what actually hits that branch.
 2. arm/disarm empty-zone-list tests expected "for 0 zones queued"; shipped
    message is f"…for {zone_count}…" with zone_count =
-   len(zone_ids) if zone_ids else "all" (routes/inbound_webhooks.py:267,
-   317) — empty list is falsy → "all zones queued".
-Verified: 37 passed standalone.
+   len(zone_ids) if zone_ids else "all" (routes/inbound_webhooks.py:267, 317) — empty list is falsy → "all zones queued".
+   Verified: 37 passed standalone.
 
 RUN-HANG NOTE: pass-2/pass-3 both died to the timeout-stamp plugin's
 hard-timeout at ~7 min while running ~18 integration files together; the
 same files pass standalone. The stamp's 30s is per-item; the combined
-death is the session-level wall (plugin prints stacks + os._exit).
+death is the session-level wall (plugin prints stacks + os.\_exit).
 Verification strategy going forward: per-file or small-batch serial runs,
 not one 18-file chain. (Ledger lesson, not a code change.)
 
@@ -939,7 +949,7 @@ allowlist untouched (non-negotiable: align tests to shipped contract).
 ## R-T9-SETUPGUARD — events-cache client bypassed auth middleware but not SetupGuardMiddleware (2026-09-14, batch E green)
 
 test_events_cache_invalidation.py's client_with_cache patched the auth
-middleware but not SetupGuardMiddleware._check_setup_complete; with zero
+middleware but not SetupGuardMiddleware.\_check_setup_complete; with zero
 users in the worker DB every event mutation answered 503 (run-9: 12
 failures). Shared conftest client has the bypass (conftest.py ~1452); the
 file's own client had diverged. Same root cause family as R-T9-DLQGUARD.
@@ -1003,12 +1013,12 @@ validation_exception_handler (api/exception_handlers.py) emits
 {"error": {"code": "VALIDATION_ERROR", "message", "errors":[{field,
 message, value}]}}. Aligned.
 
-## R-T7-OUTBOUND — patch the service's _send_request, not httpx.AsyncClient.post (2026-09-14)
+## R-T7-OUTBOUND — patch the service's \_send_request, not httpx.AsyncClient.post (2026-09-14)
 
 Test patched httpx.AsyncClient.post globally; the shared client fixture IS
 an httpx AsyncClient, so the patch hijacked the test's own request and
 the endpoint never ran. Shipped external boundary is
-WebhookService._send_request → (status_code, body, ms). Patch.object on
+WebhookService.\_send_request → (status_code, body, ms). Patch.object on
 the service method instead. Wave H1 green.
 
 ## R-T9-WEBHOOKUUID — invalid-UUID GET answers 503 via DataError handler, not 422 (2026-09-14)
@@ -1026,7 +1036,7 @@ visible skip. Commit 69ba9efd's claim stands.
 
 ## R-T9-RISKVAL — gap-rate test must skip on zero processed scenarios, not IndexError (2026-09-14)
 
-_validate_all_scenarios skips scenarios whose events were never
+\_validate_all_scenarios skips scenarios whose events were never
 processed; in the gate env that's ALL of them → results == [] →
 largest_gaps[0] IndexError. Asserting gap_rate<20 on zero scenarios
 would be vacuously green, so the test now pytest.skips with a loud
@@ -1041,7 +1051,6 @@ key" branch whose message assert then failed. Sending headers={"X-API-Key":
 ""} hits the intended require_api_key empty-key path (dlq.py:72-76). Same
 family as R-T9-INBOUND2.
 
-
 ## R-T9-CALIBRATION — threshold adjustment is INTEGER; old float bound was unattainable (2026-09-14, H3 clean run)
 
 calibration_service.py:388-436 `_compute_threshold_adjustment` returns ints:
@@ -1049,15 +1058,14 @@ base = int(10*decay) = 1 at default decay 0.1; SEVERITY_WRONG halves to
 max(1, base//2) = 1. The test bounded the delta at `< 10*0.1` (= <1.0),
 impossible for a delta floored at 1. Assert now equals the shipped formula.
 
-## R-T9-AIHEALTH2 — _check_ai_service_health mock must return real AIServiceHealthDetail (2026-09-14, H4 clean run 8 passed)
+## R-T9-AIHEALTH2 — \_check_ai_service_health mock must return real AIServiceHealthDetail (2026-09-14, H4 clean run 8 passed)
 
 The route asyncio.gathers the patched coroutine's return values and hands
 them to AIServicesHealthResponse; an AsyncMock fails response validation →
 global handler 500 INTERNAL_ERROR (run-9 + batch G). Tests now build real
 schema instances. Test 4 already did this and passed — the tell.
 
-
-## R-T9-NEM3262 — Detection: file_path required, bbox_* columns, camera FK seeded (2026-09-14, H4 clean run)
+## R-T9-NEM3262 — Detection: file*path required, bbox*\* columns, camera FK seeded (2026-09-14, H4 clean run)
 
 models/detection.py: bounding_box dict is a ghost kwarg; shipped columns
 bbox_x/bbox_y/bbox_width/bbox_height; camera_id FKs cameras.id so the
@@ -1073,19 +1081,17 @@ owner-awareness item, NOT a test-side fix to make.
 Also GET /api/debug/recordings/ (empty id) matches the LIST route →
 Starlette redirect_slashes 307, not 404. Asserted with follow_redirects=False.
 
-
-## R-T9-SKELETON — SkeletonActionService requires model_dict; buffer is _buffers; no classify_actions (2026-09-14, H5 clean run)
+## R-T9-SKELETON — SkeletonActionService requires model_dict; buffer is \_buffers; no classify_actions (2026-09-14, H5 clean run)
 
 Tests constructed SkeletonActionService() with zero args (ctor takes
 model_dict + optional tuning, skeleton_action_service.py:76), read a ghost
-_keypoint_buffers attribute (shipped: _buffers defaultdict, :100), and
+\_keypoint_buffers attribute (shipped: \_buffers defaultdict, :100), and
 called classify_actions(camera_id=...) which doesn't exist (entry point:
 await add_keypoints(person_id, keypoints) → None below min_frames).
 Rewritten to shipped surface with a stub model dict; buffering asserted
 via get_buffer_status().
 
-
-## R-T9-STGCN — adjacency builder is module-private _build_coco_adjacency (2026-09-14, H5 clean run)
+## R-T9-STGCN — adjacency builder is module-private \_build_coco_adjacency (2026-09-14, H5 clean run)
 
 Test imported public build_coco_adjacency; shipped name has the underscore
 (stgcn_loader.py:166). Import aligned (white-box check of the matrix).
@@ -1093,7 +1099,6 @@ Test imported public build_coco_adjacency; shipped name has the underscore
 ## R-T9-DWELL — retention helper is cleanup_stale_records(zone_id, max_age_seconds); no delete_old_records (2026-09-14, H6 clean run — dwell green)
 
 dwell_time_service.py:440. Test renamed + re-targeted.
-
 
 ## R-T9-ZONEANOM — no camera_id kwarg; zone_id is VARCHAR (uuid.UUID comparison has no operator) (2026-09-14, fixes pending re-run)
 
@@ -1126,7 +1131,6 @@ test compared it to uuid.UUID(zone_id) → asyncpg
    log file in the same turn, with the batch's own summary line as
    evidence; otherwise the message says "pending re-verification (wave N)".
 
-
 ## R-T9-JOBSEARCH — isoformat "+00:00" in a raw query string decodes to a space → 422 (2026-09-14, verified wave I — see commit for log line)
 
 Four job-search tests interpolated `datetime.isoformat()` straight into the
@@ -1137,7 +1141,6 @@ R-T7-JOBSEARCH (created_after/created_before/range). All five now pass the
 filters through httpx `params={}` so the value is percent-encoded. API
 contract unchanged — a URL-encoded timestamp was always accepted.
 
-
 ## R-T9-READINESS — "error" worker state is OPERATIONAL; the honest not_ready fixture is "stopped" (2026-09-14, verified wave I — see commit for log line)
 
 system.py:671-691 `_are_critical_pipeline_workers_healthy` (NEM-3901) counts
@@ -1147,11 +1150,11 @@ transient self-recovering state and stays ready. The
 so it could only pass by racing that rule (it greened in some runs, failed
 in others). Renamed to `..._detection_worker_stopped` with state="stopped".
 Also in-file, aligned to shipped contracts rather than docs:
+
 - R-T7-SYSTEM: /api/system/performance with no collector answers 200 with
   null field groups (system.py:2140), not the 503 the route docstring claims.
 - R-T7-TRACE: ContextFilter coerces absent trace context to "" (`or ""`), so
   records never carry None trace_id/span_id.
-
 
 ## R-T9-CORR — header-propagation test uses /health/live, not the dependency-loaded /health (2026-09-14, verified wave I — see commit for log line)
 
@@ -1160,22 +1163,22 @@ dependency check isn't green — orthogonal to what the test asserts (trace /
 correlation response headers). Switched to get_liveness, which answers 200
 with no dependency evaluation. No production change.
 
-
 ## R-T9-PIPELINE-E2E — shipped default is Redis Streams; fast path ships disabled (2026-09-14, fix-forward after H3 3 failures)
 
 Three distinct shipped-vs-test divergences in test_pipeline_e2e.py:
+
 1. **xadd mock**: use_redis_streams defaults True (config.py:2104) →
    BatchAggregator.close_batch enqueues via
    AnalysisStreamService.add_batch → `_redis._client.xadd`. The file's
    MockRedis inner MagicMock returned a non-awaitable MagicMock → TypeError
    in every close_batch test (11 run-9 failures). Mock now implements the
    real contract: async, (name, fields, maxlen, approximate), entries
-   recorded in parent._streams, incrementing "n-0" ids.
+   recorded in parent.\_streams, incrementing "n-0" ids.
 2. **stream vs legacy LIST**: with xadd working, close_batch takes the
    stream branch — nothing lands in the legacy "analysis_queue" LIST the
    tests peeked (batch_aggregator.py:928-954). Tests now assert the
    "analysis:stream" entry (detection_ids JSON-decoded), reset the
-   module-level _analysis_stream_service singleton first (it caches the
+   module-level \_analysis_stream_service singleton first (it caches the
    first redis client ever seen) and read via mock peek_stream().
 3. **fast path is DISABLED by design** (threshold=2.0, types=[] —
    "DO NOT RE-ENABLE WITHOUT ENRICHMENT", batch_aggregator.py:1163-1178).
@@ -1215,6 +1218,7 @@ failed with NotNullViolation. Both fixtures now pass
 `decode_responses=True` (`backend/core/redis.py:615`), so pubsub channel/data
 arrive as `str`; `.decode()` raised AttributeError. Assertion now compares the
 str directly. Test-only change.
+
 ### R-T9-AUTHHEALTH — auth-coverage test must not require 200 from dependency-loaded /health (2026-09-14, wave I10)
 
 **[VERIFIED against shipped behavior]** The endpoint-coverage test asserts AUTH
@@ -1232,7 +1236,6 @@ those DELETEs — `session.get()` answers from the identity map and returned the
 stale in-memory instances. Added `session.expire_all()` after the flush so the
 gets re-SELECT. Test-only change; cascade behavior itself is shipped and
 correct.
-
 
 ## R-T9-VIDSTREAM — GZipMiddleware removes content-length from compressible video responses (2026-09-14, standalone 2 passed)
 
@@ -1258,6 +1261,7 @@ row is timestamped (fixture-now) - 1h, computed microseconds EARLIER, so
 `timestamp >= since` excluded it — count 1, not 3 (wave I-3 'assert 1 == 3').
 A boundary-exact window can never be deterministic; the fix widens the window
 (now-3h) rather than moving prod semantics.
+
 ## R-T9-RISKBAND — smoke fixture paired risk_score 75 with risk_level "medium" (2026-09-14, wave I-8 red → J fix)
 
 **[VERIFIED against shipped data flow]** Nothing re-derives risk_level from
@@ -1340,12 +1344,12 @@ NOT papered over in tests. Fix candidates for the owner: select the deferred
 columns explicitly in the export query, or un-defer them. Owner ruling
 requested; affected export lifecycle/download tests skip citing this ref.
 
-## R-T9-MQTTPUMP — MQTTClient never starts its message pump; _process_messages never returns (OWNER RULING NEEDED) (2026-09-14)
+## R-T9-MQTTPUMP — MQTTClient never starts its message pump; \_process_messages never returns (OWNER RULING NEEDED) (2026-09-14)
 
 **[VERIFIED against shipped code + reproduced standalone]**
 connect()'s comment promises "message processing task is started when first
 subscription is added" — no such code path exists; subscribe() only registers
-a callback; _message_processing_loop has ZERO callers in the repo, and no
+a callback; \_message_processing_loop has ZERO callers in the repo, and no
 production module instantiates/consumes MQTTClient. Consequences: (1) delivery
 assertions (5 tests: full flow, qos1, qos2, retained, wildcard) can never see
 messages; (2) test_full_publish_subscribe_flow additionally
@@ -1378,7 +1382,7 @@ Test-side landing: the 6 delivery-dependent tests (5 asserts + the
 infinite-`await _process_messages()` hang site) skip citing the ref; the
 infinite await is deleted outright (it never returns even against a fixed
 client — the pump must be a spawned task; verified: an explicitly spawned
-_process_messages() task delivers end-to-end outside pytest). 13
+\_process_messages() task delivers end-to-end outside pytest). 13
 connection/publish/throughput tests stay live. Wave K-2: 13 passed, 6
 skipped in 10.84s (/tmp/verify-waveK.log); committed a6edea98.
 
@@ -1430,7 +1434,7 @@ audit 1.1's duplicate list (which covers only the two symlinks, −134), yet
 run-9's per-file nodeids show ~208 tests executing under BOTH test_system.py
 and test_system_api.py. That also explains run-9's red-file bookkeeping:
 test_system.py::test_readiness_endpoint_not_ready_when_detection_worker_in_error
-and ..._performance_endpoint_without_collector were the SAME two shipped-
+and ...\_performance_endpoint_without_collector were the SAME two shipped-
 contract reds as test_system_api.py's (already fixed, c4979d0c) counted
 twice. Real dedup delta for T1 ≈ −342 (−134 symlinks −~208 shim), pending
 exact collect-only before/after at T1 execution (post-M2-green). Add
@@ -1465,6 +1469,7 @@ test) rides T5's implementation (needs signal semantics to demo cleanly).
 ## M3 prep measurements (execution gated on M2 green) — T2/T7/chaos, all static (2026-09-14)
 
 **[VERIFIED via grep/AST, no pytest]**
+
 - **T2 dead-fixture proofs:** of audit 5.3's list, true zero-consumer:
   mock_threat_detector (0/0), template_database (0 test consumers; the 5
   conftest refs are the worker-DB block itself), worker_database (1 = the
@@ -1495,7 +1500,7 @@ timeout(5) on every integration item lacking an explicit marker, overriding
 CLI --timeout=30 (R-T7-TIMEOUT-GATE). Wave runs used the /tmp stamp plugin
 (raises the stamp to 30 when CLI timeout given) so long poll-loop tests
 passed — but the REAL gate has no plugin: a 30×0.2s poll loop + fixture
-overhead exceeds 5s under -n8 → thread-method os._exit → node-down + silent
+overhead exceeds 5s under -n8 → thread-method os.\_exit → node-down + silent
 session. Fix-forward (test-side only, supported path — conftest honors
 explicit markers, same mechanism the stamp plugin itself uses):
 export_api's 3 poll-loop tests (csv/json format + job completion) and
@@ -1564,7 +1569,8 @@ integration/test_consolidated_fixtures.py (2 sites) — FILE NO LONGER
 EXISTS; integration/test_ab_rollout_production.py — FILE NO LONGER
 EXISTS (only unit/core/test_ab_rollout_metrics.py, 138 lines, no
 assert_called). So 5 real sites remain (pipeline_worker:485 + 4 confirmed)
-+ 3 audit-stale paths to close as vanished. T7 exec list updated.
+
+- 3 audit-stale paths to close as vanished. T7 exec list updated.
 
 ## Wave N close-out — run-9 red files re-scored (2026-09-14)
 
@@ -1593,6 +1599,7 @@ that failed in run-9 has now been scored green on this branch.
 ## Full-gate runs 2-4 — M1-exit convergence (2026-09-14)
 
 **[VERIFIED, logs cited per item]**
+
 - Run 1 (/tmp/validate-full-1.log): died at Ruff format precheck, zero
   tests run. "Would reformat: test_ai_pipeline_smoke.py /
   test_multimodal_pipeline.py" — line-wrap only; commit f8243b31.
@@ -1633,16 +1640,16 @@ that failed in run-9 has now been scored green on this branch.
 - Run 4 (/tmp/validate-full-4.log): unit tier died
   "1 failed, 27523 passed, 168 skipped, 8 xfailed in 82.65s" — NEW class,
   runs 2/3 unit tier green. Victim
-  unit/routes/test_restore_endpoints.py::TestRestoreEvent::test_restore_
+  unit/routes/test*restore_endpoints.py::TestRestoreEvent::test_restore*
   deleted_event_success on gw2: "got Future attached to a different
   loop" reading real redis. Path: restore route -> event_service.py:238
-  NEM-1988 cancel-file-deletion leg -> FileService._get_redis ->
+  NEM-1988 cancel-file-deletion leg -> FileService.\_get_redis ->
   get_redis_client_sync (core/redis.py:2776) — reads the MODULE GLOBAL
-  _redis_client at call time; a prior lifespan-ish test on the same
+  \_redis_client at call time; a prior lifespan-ish test on the same
   worker can leave a client whose futures sit on its closed loop.
   close_redis() (2794-2801) nulls the global, so full-lifespan runners
   are not the leaker; unit/conftest.py:107 ASGITransport clients do NOT
-  run lifespan. 70+ unit files assign "_redis_client" attributes — the
+  run lifespan. 70+ unit files assign "\_redis_client" attributes — the
   exact leaker is unproven (not sentinel: file doesn't touch the global).
   [VERIFIED deterministic repro]: leak-sim plugin binding a real
   RedisClient on a loop that then dies -> HEAD victim fails
@@ -1683,6 +1690,7 @@ that failed in run-9 has now been scored green on this branch.
 
 All 4 failures fixed test-side only (shipped code untouched), each
 verified isolated and jointly ("Test Files 3 passed / Tests 68 passed"):
+
 - 7fc6bef8 banner: getByRole('button', {name: 'View threat event'})
   replaces ambiguous /view/i.
 - 39cc79dc DataManagementPage: getByTestId('export-job-<full-id>')
@@ -1741,26 +1749,26 @@ failure per se: zero assertion failures anywhere in run 6.
 ### Run-6 root cause CLOSED + fixed (2026-09-14, R-T7-WS-OOM)
 
 The seed-replay (3182027294, -p rsswatch) reproduced the hang verbatim:
-gw4 stuck on test_media_api.py::TestCompatMediaRoute::test_compat_thumbnail_served
+gw4 stuck on test*media_api.py::TestCompatMediaRoute::test_compat_thumbnail_served
 growing ~110 MB/s (40.6 -> 45.9 GB in 20 s). py-spy pinned the mechanism
-live: thread "asyncio-portal-*" active+gil inside unittest/mock.py:2613
-(_Call.__init__) <- redis_streams.py:377 consume_detections <-
-pipeline_workers.py:410 _run_loop, while the MAIN thread sat at
-starlette/testclient.py:688 __enter__ <- test_media_api.py:201.
+live: thread "asyncio-portal-\*" active+gil inside unittest/mock.py:2613
+(\_Call.**init**) <- redis_streams.py:377 consume_detections <-
+pipeline_workers.py:410 \_run_loop, while the MAIN thread sat at
+starlette/testclient.py:688 **enter** <- test_media_api.py:201.
 Mechanism [VERIFIED deterministic]: test_media_api.py + test_media_security.py
 module-scoped client fixtures patch every lifespan service EXCEPT
 backend.main.get_worker_supervisor -> lifespan (main.py:826-861) registers
 REAL create_detection_worker(redis_client=MagicMock) workers and starts
 them. The streams branch (config default use_redis_streams=True,
-config.py:2104) calls get_detection_stream_service(self._redis) — but
-redis_streams._detection_stream_service is a PROCESS-GLOBAL singleton:
+config.py:2104) calls get_detection_stream_service(self.\_redis) — but
+redis_streams.\_detection_stream_service is a PROCESS-GLOBAL singleton:
 whoever calls first wins (redis_streams.py:1176-1190, zero reset). If an
 earlier file on that xdist worker primed it with an AsyncMock-backed
 RedisClient (several do: integration/conftest.py:1169, test_dlq_api.py:166,
-test_file_watcher_*.py), the worker's consume_detections hits the cached
+test_file_watcher*\*.py), the worker's consume_detections hits the cached
 AsyncMock service whose xreadgroup returns a truthy mock -> parse loop
 iterates zero messages -> `if not messages: continue` (:413) with NO real
-await in the iteration -> event loop starved + unittest.mock._Call history
+await in the iteration -> event loop starved + unittest.mock.\_Call history
 grows unbounded. With the singleton UNPRIMED the MagicMock path raises
 TypeError at the first await (MagicMock can't be awaited) -> except path
 sleeps 1 s -> bounded (probe: 9 calls/3 s) — which is why standalone file
@@ -1814,7 +1822,7 @@ run 8's seed landed test_cache_invalidation_mutations.py immediately
 before test_events_cache_invalidation.py on gw6 (gw6 schedule read
 from the log). NOT the R-T7-WS-OOM class; not a product bug — the
 shipped limiter works as designed.
-FIX c6e6d5e0 (test-side only): integration_env clears rate_limit:*
+FIX c6e6d5e0 (test-side only): integration_env clears rate_limit:\*
 keys in its worker redis DB at test start. No integration test needs
 counters across a test boundary — the tests that VERIFY limiting drive
 it per-test (test_prompt_management_api counting-limiter via
@@ -1841,13 +1849,14 @@ xdist does not respawn healthy workers; if run 9 shows ANY anomaly, re-run
 rather than attribute. Gate-9 verdict remains valid for M1 as recorded.
 
 Task 4 change as landed (single commit):
+
 - (a) NEW session-scoped `_ensure_worker_schema` (sync SQLAlchemy engine,
-  psycopg2 precedent from _create_worker_database): advisory lock (same
+  psycopg2 precedent from \_create_worker_database): advisory lock (same
   historical key namespace) + create_all + 4 ALTERs + 2 dedup DELETEs +
   2 unique indexes — ONCE per worker DB (worker_db_url is session-scoped).
 - (b) `integration_db` slimmed to per-test essentials: settings cache clear
-  + close_db/init_db (engine CANNOT cross pytest-asyncio 1.3 per-test loops
-  — engine churn is intrinsic; SCHEMA churn was the waste) + teardown sweep.
+  - close_db/init_db (engine CANNOT cross pytest-asyncio 1.3 per-test loops
+    — engine churn is intrinsic; SCHEMA churn was the waste) + teardown sweep.
 - Safety sweep: no test mutates Base tables (only own-table DDL in
   test_partition_manager/test_disaster_recovery; DROP TABLE hits are
   injection STRINGS). test_database_isolation advisory-lock tests use their
@@ -1859,10 +1868,10 @@ Task 4 change as landed (single commit):
 - Measurement: BEFORE baseline must run post-gate-9 on the OLD tree is no
   longer possible (tree now edited) — baseline instead taken from run 7/8/9
   integration-tier wall clock (validate-backend-integration.log timestamps)
-  + a durations-plugin run of a representative subset reverted via git
-  stash if a clean A/B is demanded. AFTER = full tier x2 with
-  /tmp/durations_plugin.py. Numbers land in the ledger before the commit
-  claim is stated.
+  - a durations-plugin run of a representative subset reverted via git
+    stash if a clean A/B is demanded. AFTER = full tier x2 with
+    /tmp/durations_plugin.py. Numbers land in the ledger before the commit
+    claim is stated.
 
 ## Gate run 9 (2026-09-14 ~07:29-07:52 local) — DEAD: gw5 crash → worker-DB teardown hazard cascade
 
@@ -1870,6 +1879,7 @@ Verdict: integration tier FAILED (4 failed / 3166 passed / 995 errors,
 63 reruns, 637s). Not valid for M1.
 
 Cascade (evidence line refs = /tmp/validate-backend-integration.log):
+
 1. gw5 `node down: Not properly terminated` at line 6552 (~75%). Not the
    OOM class (dmesg OOM = 10:22 UTC, an hour prior; none in-window). Cause
    of gw5's own death UNRESOLVED — last activity websocket rate-limit
@@ -1878,7 +1888,7 @@ Cascade (evidence line refs = /tmp/validate-backend-integration.log):
    "security_test_gwN" does not exist (all 8 workers; e.g. line 8868), at
    init_db fixture setup. Old-code tracebacks confirm the run used the
    pre-Task-4 conftest. Mechanism: worker-database DROP +
-   pg_terminate_backend teardown (_drop_worker_database at
+   pg_terminate_backend teardown (\_drop_worker_database at
    integration/conftest.py:612-621, plus the same-shape blocks in the ROOT
    conftest :697-1288 — the family M3 Task 3 targets) fired while
    surviving workers still needed their DBs. postgres-side: mass
@@ -1916,9 +1926,9 @@ proven by name-mapping: get_worker_db_name() maps xdist ids to
 security_test_gwN. My verification run `pytest test_database_isolation.py
 -n auto` (launched ~07:50 local, INSIDE the gate tier window, same
 gate-postgres server) spawned gw0-gw7 WORKERS THAT REUSED THE GATE'S OWN
-DATABASES (_create_worker_database = CREATE IF NOT EXISTS — no-op on
+DATABASES (\_create_worker_database = CREATE IF NOT EXISTS — no-op on
 existing names), TRUNCATEd their tables via clean_tables, and at session
-teardown RAN _drop_worker_database on all eight. Postgres evidence: mass
+teardown RAN \_drop_worker_database on all eight. Postgres evidence: mass
 FATAL 'terminating connection due to administrator command' 11:50:14-17
 UTC = pg_terminate_backend from the drop helper; every gate test after the
 ~70% mark then errors InvalidCatalogNameError 'security_test_gwN does not
@@ -1947,6 +1957,7 @@ Before-anchor: run 8 = 953.40s (same box, old fixture). The audit's
 
 Why smaller than modeled (durations TSVs, /tmp/dur-runs/run10, first 1607
 integration tests):
+
 - setup p50 0.068s (DDL block gone — MECHANISM CONFIRMED), but setup p90
   1.12s: init_db() STILL runs its own create_all + advisory lock per test
   (production function, per-test engine/loop coupling) — the remaining
@@ -1976,13 +1987,13 @@ Commit A (memoized deletion order, audit 2.2 + conditional third-sweep skip)
 verified by a full verification tier BEFORE commit (the protocol working as
 designed): 4165 passed / 131 skipped / 2 xfailed, 618.53s, zero FAILED/ERROR
 lines, zero node-downs, event_search 30/30 PASSED on the previously-polluted
-worker DB (dropped stale security_test* DBs first; killed-run debris was the
+worker DB (dropped stale security_test\* DBs first; killed-run debris was the
 25-fail cause, not fixture logic).
 
 - teardown p50 1.043 -> 0.224s (p90 1.115 — non-client tests keep their
   sweep by design: only client/clean_tables/db_session/isolated_db_session
-  stacks suppress it; _SWEEP_OWNERS is deliberately conservative, file-local
-  wrappers like _fts_db keep the sweep).
+  stacks suppress it; \_SWEEP_OWNERS is deliberately conservative, file-local
+  wrappers like \_fts_db keep the sweep).
 - setup p90 1.161s unchanged — init_db()'s own create_all + advisory lock
   per engine creation is the next target (production-code seam, ruling
   packet idea logged: init_db(create_schema=False)).
@@ -1997,10 +2008,10 @@ worker DB (dropped stale security_test* DBs first; killed-run debris was the
 First commit-A draft dropped integration_db's sweep unconditionally (the
 plan's literal "drop the redundant third cleanup pass" wording).
 Verification tier caught 25 test_event_search failures on gw5: tests
-consuming integration_db via thin file-local wrappers (_fts_db) have NO
+consuming integration_db via thin file-local wrappers (\_fts_db) have NO
 client/clean_tables in their stack — that sweep was their ONLY cleanup, and
 on a reused worker DB the previous session's rows broke ts_rank baselines.
-Fix = conditional skip via request.fixturenames ∩ _SWEEP_OWNERS. Ledger
+Fix = conditional skip via request.fixturenames ∩ \_SWEEP_OWNERS. Ledger
 binding reaffirmed: MEASURED green tiers, not plan wording, decide what a
 fixture may drop.
 
@@ -2009,6 +2020,7 @@ fixture may drop.
 Gate 10's first-ever frontend-tier completion failed 18 tests / 10 files
 (+2 fork crashes). Root causes, one fix per commit, ALL aligning tests to
 the shipped contract (zero production bending):
+
 1. PromptPlayground x4 files: strict vi.mock('../../../services/api')
    factories missing module-graph exports — the useRoutePrefetch ->
    routePrefetching chain references fetchCameras etc. at module-eval, and
@@ -2018,7 +2030,7 @@ the shipped contract (zero production bending):
    import time"). Verified 31/31.
 2. alertsApi x2: double-invocation bug — one mockResolvedValueOnce consumed
    by call 1; call 2 fell through the exhausted spy to msw's GLOBAL server
-   (setup.ts server.listen) which answers /api/alerts/* 2xx -> rejects
+   (setup.ts server.listen) which answers /api/alerts/\* 2xx -> rejects
    assertion vs resolved promise. Fix: assert both expectations on ONE
    rejection promise; ALSO the 'Alert not found' substring never matched
    contiguously (shipped client forwards detail verbatim) -> assert actual
@@ -2058,6 +2070,7 @@ unhandled-rejection files above, not CleanupRow itself).
 ## M2-T2 landed (2026-09-14, commit 44b1d925) — flake allowlist + retry-mask teardown
 
 Root cause + evidence:
+
 - api job (old ci.yml:436-470): `if uv run pytest ... | tee test-output.log; then`
   with no `set -o pipefail` anywhere in ci.yml -> the `if` tested tee's status
   (always 0), so the retry loop's attempt-1 `exit 0` fired unconditionally even
@@ -2085,7 +2098,7 @@ Root cause + evidence:
 
 Key facts the wave-2 plan rests on, each with evidence:
 
-1. **M1-gate live; the §9 release condition is its GREEN RECORD, not its end.** FCL plan:11/§9 ("execution begins only after M1 close-out — M1's final no-flag validate.sh run recorded green in the M1 ledger") binds `scripts/validate.sh`, `pyproject.toml` addopts and `frontend/vite.config.ts` *behavior* changes. Ref: spec §9 (design doc :107), plan Global Constraints :16.
+1. **M1-gate live; the §9 release condition is its GREEN RECORD, not its end.** FCL plan:11/§9 ("execution begins only after M1 close-out — M1's final no-flag validate.sh run recorded green in the M1 ledger") binds `scripts/validate.sh`, `pyproject.toml` addopts and `frontend/vite.config.ts` _behavior_ changes. Ref: spec §9 (design doc :107), plan Global Constraints :16.
 2. **T1 landed, T2 not yet on disk.** `scripts/check-test-collection.py` + allowlist exist; `.github/workflows/flake-allowlist.yml` and `scripts/check-flake-allowlist.py` absent (ls scripts/ .github/workflows/). The §5.1 frontend hack is still live: ci.yml:1321 `pkill -9 -P $vitest_pid`, exit-0 sites at :370,:472,:583,:700,:809,:1285,:1324,:1389 — T4/T2 file targets confirmed at plan anchors.
 3. **"T3" artifact discrepancy:** `/tmp/t3-draft` does NOT exist. `/tmp/t3-files.txt` exists listing 4 files (test_events_coverage, test_system, test_soft_delete, test_redis_prefix_isolation) = M3 Task 3 scope (ledger "M3 T3 MEASUREMENT" section), NOT M2 Task 3. M2-T3's actual targets (vite.config.ts test block, validate.sh RAM block) are CLEAN in git status — the M2-T3 patch is not drafted on disk anywhere found. Orchestrator must confirm which T3 the draft refers to before W1.
 4. **Frontend baseline for W1 measurement = 2981.18s** (serial vitest, /tmp/validate-full-10.log :35473 `Duration 2981.18s`) — supersedes spec §1's 1472s figure for the before-number. T3-parallel target <600s = the largest single wall-clock win in the whole program; front-load it.
@@ -2111,6 +2124,7 @@ Key facts the wave-2 plan rests on, each with evidence:
 **Sequencing-rule citations:** spec §9.1 (§3.1 first, unblocks measurements) · §9.2 (§3.3 independent) · §9.3 (5.1-5.3 after §3.3 envs — hence T4 after T3) · §9.4 (--fast after §3.1: selection over a contended suite lies) · §9.5 (loadgroup removal strictly after green-x2; moot per fact 5) · M3 plan Sequencing 1-5 (post-M2 green; T4 gates T5's packet; T10 after M2 T10-13; owner rulings; gate protocol transplant).
 
 ## M3 work-list survey (2026-09-14, survey agent; box-lease respected — zero pytest)
+
 - **Baseline selection [VERIFIED from /tmp/dur-runs/]:** runA2 is the correct
   baseline for ALL remaining M3 tasks (tree post-0b815c82 = T4c landed; summary
   line 4165 passed/131 skipped/2 xfailed in 618.53s; analyze_run.py: setup p99
@@ -2167,6 +2181,7 @@ Key facts the wave-2 plan rests on, each with evidence:
 ## Wave-2 corrections (critic pass) + current chain state (2026-09-14)
 
 Supersedes three facts in today's WAVE-2 dependency-map section, which were true pre-T2-landing:
+
 1. **T2 IS on disk** (44b1d925 + b10e0b42; relocated 17b62e1c): allowlist now at `.github/flake-allowlist.yml`, checker + k-filter + 5-test self-suite in scripts/, ci.yml masks torn down. T4 anchors cited there use pre-T2 ci.yml line numbers — re-anchor at T4 time.
 2. **/tmp/t3-draft EXISTS and is the correct M2-T3 artifact**: t3.patch `git apply --check`-clean against 6c0329b7 (verified 2026-09-14), 3 files +26/−6; apply-notes.md documents deliberate deviations (minWorkers dropped — vitest 4.0.18 has no such key; `|| 4` gotcha form; print_info→print_step; MEM_KB empty-guard; package.json NODE_OPTIONS now interpolates ${VITEST_HEAP_MB:-8192}).
 3. **W1 acceptance arm corrected (DANGER caught):** NEVER 16 workers × 32768 MB (512 GiB ceiling on a 62.69 GiB box — MemTotal 65,744,332 kB; this box also trips validate.sh's 64 GiB auto-parallel gate in the OFF direction, so T3 acceptance here is by manual override). Arm 1: VITEST_PARALLEL=1 VITEST_MAX_WORKERS=8 VITEST_HEAP_MB=8192 + RSS sampling; arm 2 (only if RSS data supports): 16×4096. Forecast straddles §6.2's 10-min bar (7–12.5 min) — if both arms land >600s, record measured numbers + flag the bar to owner; do NOT invent a fallback config.
@@ -2177,7 +2192,9 @@ Supersedes three facts in today's WAVE-2 dependency-map section, which were true
 **Deferred to post-gate-14 micro-slots:** T5 smoke (/tmp/t5: --rerun=1 and plain arms, expect clean failure no node-down) then owner ruling; T4 ci.yml honesty draft.
 
 ## Wave-2 box-free drafts (workflow wf_e7c66bcc, 2026-09-14) — staged, NOT applied
+
 All under /tmp/wave2-drafts/ (repo untouched by drafters; lease held). Reviewer-verified at 439cb23b:
+
 - **t4/** M2-T4 CI frontend honesty: ci-frontend-honesty.patch git-apply-clean (only .github/workflows/ci.yml, +54/−30). Kills the exit-0-on-first-summary hack (now :1293-1329) → foreground vitest under set -euo pipefail, real exit code; keeps CI sequential VITEST_PARALLEL='0'; ports T2 flake-rerun convention; Actions acceptance recipe + local fake-vitest exit-code proof (old step 0 vs new step 1 on passed-line+exit-1). Apply gates: T3 first (same push ok), M1 record, gate-14 green as first-run-red pre-check.
 - **m3-static/** T2/T7/T10 drafts w/ file:line evidence. Corrections to audit: dead worker-DB family is conftest.py:948-1335 (~390 ln, not :626-1187) and cleanup_stale_databases is autouse-LIVE stale-sweep → keep-or-fold decision, not blind delete; root-tier session's only consumers = permanently-skipped soft_delete tests (delete rides T3 commit); chaos/conftest.py 718 ln, 18/18 fixtures + 3 assert helpers dead — DECISION-NEEDED. t10 taxonomy AST mapper + ~102-file map draft; t7 lists.
 - **owner-memo-2026-09-14.md** (126 ln): all nine STOP-AND-ASK rulings packaged with re-anchored evidence + what each unblocks. Hand to owner next touchpoint.
@@ -2188,8 +2205,8 @@ All under /tmp/wave2-drafts/ (repo untouched by drafters; lease held). Reviewer-
 
 1. **Fork OOM crash = useLocalStorage identity feedback loop.** cross-tab-sync.integration.test.ts:359 passed an INLINE OBJECT LITERAL as useLocalStorage's initialValue. readValue memoizes on [key, initialValue]; its sync effect setStoredValue(readValue()) re-runs per identity change; JSON.parse returns fresh objects → setState→effect→render never settles → 8 GiB heap exhausted mid-test-3 (tests: 0ms, same signature gate 10 :35473). Bisected: solo-file OOM 97s deterministic; single-test -t "persist complex objects" repros alone; hook mounts fine alone; ALL 4 production call sites + sibling :306 test pass identity-stable values. FIX (test-side, contract-alignment): hoist initialValue const. 15/15 in 8.04s.
 2. **CleanupRow leaked-timer = tremor useTooltip REAL-timer leak; CleanupRow was the innocent neighbor.** tremor Button.cjs t.useTooltip(300) schedules real setTimeout(300ms) on pointer-enter (every userEvent.click) and cancels only via state — a hover in a file's last ~300ms leaves it live; setup.ts clearAllTimers clears only FAKE timers. Timer fires post-jsdom-teardown in the reused fork → setState → window undefined → Unhandled Error attributed to whichever file runs NEXT (verbatim "while it was running"). 14/14 solo runs clean; dir batch reproduced; dir tree has ZERO Tooltip refs. FIX (test-infra): setup.ts afterAll awaits 350ms (>300ms delay) with env alive; components already unmounted by afterEach cleanup so flushed setState is a React-19 silent no-op. Repro dir now Errors 0 (206 passed).
-**Knowledge: (a) reused forks attribute cross-file unhandled errors to the NEXT file, not the source; (b) real-timer library leaks are invisible to vitest fake-timer cleanup; (c) useLocalStorage's contract requires identity-stable initialValue — any inline-literal call site is a render-loop bomb.**
-Both fixes NOT in quarantine (neither file excluded — exclusion widening not even an option). Static checks: eslint/prettier/tsc pass.
+   **Knowledge: (a) reused forks attribute cross-file unhandled errors to the NEXT file, not the source; (b) real-timer library leaks are invisible to vitest fake-timer cleanup; (c) useLocalStorage's contract requires identity-stable initialValue — any inline-literal call site is a render-loop bomb.**
+   Both fixes NOT in quarantine (neither file excluded — exclusion widening not even an option). Static checks: eslint/prettier/tsc pass.
 
 ## Restart checkpoint: RAM bump to 96 GiB (2026-09-14)
 
@@ -2216,16 +2233,16 @@ only; gate ×2 runs post-restart on 96 GiB.
 - **Step 3 smoke, both arms (staged t5/test_setup_hang_smoke.py, signal
   config live, serial, DB-free):**
   - plain `--timeout=5`: **1 error in 5.17s, exit 1, no node-down** — signal
-    fires inside fixture *setup* (func_only=false behavior confirmed).
+    fires inside fixture _setup_ (func_only=false behavior confirmed).
   - `--timeout=5 --reruns=1`: **1 failed, 1 rerun in 125.18s, exit 1, no
     node-down, full summary** — scar-comment scenario cannot harm.
   - **CAVEAT (new finding)**: attempt 1's setup hang times out cleanly, but
-    on the *rerun* attempt pytest-timeout's signal does not re-arm during
+    on the _rerun_ attempt pytest-timeout's signal does not re-arm during
     setup — the 120s sleep ran to completion and the test body executed
     (hence 125s, and "failed" not "error"). Strictly better than the old
-    config (thread+func_only=true never caught setup hangs at all, and
-    thread's os._exit killed whole workers); CI reruns paths are
-    `|| true`-guarded. If a setup hang ever needs to time out on *every*
+    config (thread+func*only=true never caught setup hangs at all, and
+    thread's os.\_exit killed whole workers); CI reruns paths are
+    `|| true`-guarded. If a setup hang ever needs to time out on \_every*
     attempt, that's a pytest-timeout issue, not a regression introduced here.
 - **Also found**: `-p no:randomly` loses to addopts `-p randomly` (plugins
   both loaded → pytest-randomly stays); its faker_seed crashes on unset
@@ -2235,13 +2252,15 @@ only; gate ×2 runs post-restart on 96 GiB.
 ## M3 T1 landed — duplicate symlinks + zero-byte placeholders (2026-09-14, 70c9c47d)
 
 Audit 1.1/1.2 executed from wave-3 draft (m3-t1-t3/t1.patch). Measurement rows:
+
 - before: integration collect-only **4298**; test_events_api **72**, test_cameras_api **62**
-- after:  **4164** — delta exactly −134 = the two symlinks' double-collection (audit [ESTIMATE] "134 fewer duplicated tests" CONFIRMED, measured)
+- after: **4164** — delta exactly −134 = the two symlinks' double-collection (audit [ESTIMATE] "134 fewer duplicated tests" CONFIRMED, measured)
 - 4 zero-byte files deleted (test_zone_baselines / test_cameras_heatmap / test_result / test_matchers); collection-sanity allowlist tightened by its 4 waivers (never widened — §rule held); CI invocation of check-test-collection: **3659 files, all collect >= 1**
 - unit tier after deletions: **27335 passed, 165 skipped, 8 xfailed in 76.87s** exit 0 (seed 42, /tmp/t1-unit-verify.log)
 - grep proof: no import references to the 4 deleted module names anywhere in backend/ or scripts/
 
 ### R-T1-OUTOFTURN (2026-09-14): T1 applied then reverted same session
+
 70c9c47d applied T1 ahead of plan rule 1 (M3 repo changes wait for M2-green;
 T5 was covered by the owner ruling, T1 is not). Reverted 21a710dc; census rows
 above stay as measured inputs (legitimate exception class). Re-apply staged
@@ -2255,24 +2274,24 @@ Audit 5.3 re-verified against CURRENT tree (audit line numbers stale ~300+).
 Grep census method: fixture-arg in def signatures, usefixtures strings,
 getfixturevalue (zero hits repo-wide), alias-import disambiguation.
 
-| fixture | def (pre-T2) | consumers | verdict |
-|---|---|---|---|
-| template_database | root 1123-1219 | only worker_database (also dead) | DEAD (pair) |
-| worker_database | root 1222-1347 | 0 (header docstring only) | DEAD |
-| root mock_redis | root 1874-1900 | 0 in unit/contracts/security (e2e conftest :4 "inherited" comment STALE; integration tier resolves integration/conftest.py:1253) | DEAD |
-| mock_threat_detector | root 2566-2588 | 0 | DEAD |
-| mock_model_zoo | root 2591-2637 | 0 (docstring example + local var in test_model_downloader) | DEAD |
-| enrichment_scenarios | root 2640-2674 | 0 (the other hits are a tools MODULE import) | DEAD |
-| authenticated_client (fixture) | unit/api/routes/conftest 87-106 | 0 as fixture; test_debug_api uses alias-import of unit/conftest FUNCTION authenticated_async_client (stays) | DEAD |
-| patch_database_dependency | contracts/conftest 96-110 | 0 requesters | DEAD |
-| patch_redis_dependency | contracts/conftest 113-127 | 0 requesters | DEAD |
-| root session | root 1718-1751 | ALIVE unit/models/test_soft_delete.py (17+ sites) | KEEP NOW — deleted by m3-t3 t3.patch hunk @@1703 (file relocates to integration/) |
-| cleanup_stale_databases | root 960 | autouse + template_database | KEEP (autouse live) |
-| _ensure_clean_db/_reset_db_schema/_cleanup_test_cameras/_get_table_deletion_order | root 1354-1655 | _reset_db_schema+_cleanup_test_cameras called by test_db (ALIVE integration uses local twins); _ensure_clean_db only by isolated_db (ALIVE) | KEEP (helpers of live fixtures) |
-| chaos fault_injector | chaos/conftest, 18 fixtures | 0 test consumers CONFIRMED | OWNER-GATED — memo item, do not touch |
+| fixture                                                                               | def (pre-T2)                    | consumers                                                                                                                                      | verdict                                                                           |
+| ------------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| template_database                                                                     | root 1123-1219                  | only worker_database (also dead)                                                                                                               | DEAD (pair)                                                                       |
+| worker_database                                                                       | root 1222-1347                  | 0 (header docstring only)                                                                                                                      | DEAD                                                                              |
+| root mock_redis                                                                       | root 1874-1900                  | 0 in unit/contracts/security (e2e conftest :4 "inherited" comment STALE; integration tier resolves integration/conftest.py:1253)               | DEAD                                                                              |
+| mock_threat_detector                                                                  | root 2566-2588                  | 0                                                                                                                                              | DEAD                                                                              |
+| mock_model_zoo                                                                        | root 2591-2637                  | 0 (docstring example + local var in test_model_downloader)                                                                                     | DEAD                                                                              |
+| enrichment_scenarios                                                                  | root 2640-2674                  | 0 (the other hits are a tools MODULE import)                                                                                                   | DEAD                                                                              |
+| authenticated_client (fixture)                                                        | unit/api/routes/conftest 87-106 | 0 as fixture; test_debug_api uses alias-import of unit/conftest FUNCTION authenticated_async_client (stays)                                    | DEAD                                                                              |
+| patch_database_dependency                                                             | contracts/conftest 96-110       | 0 requesters                                                                                                                                   | DEAD                                                                              |
+| patch_redis_dependency                                                                | contracts/conftest 113-127      | 0 requesters                                                                                                                                   | DEAD                                                                              |
+| root session                                                                          | root 1718-1751                  | ALIVE unit/models/test_soft_delete.py (17+ sites)                                                                                              | KEEP NOW — deleted by m3-t3 t3.patch hunk @@1703 (file relocates to integration/) |
+| cleanup_stale_databases                                                               | root 960                        | autouse + template_database                                                                                                                    | KEEP (autouse live)                                                               |
+| \_ensure_clean_db/\_reset_db_schema/\_cleanup_test_cameras/\_get_table_deletion_order | root 1354-1655                  | \_reset_db_schema+\_cleanup_test_cameras called by test_db (ALIVE integration uses local twins); \_ensure_clean_db only by isolated_db (ALIVE) | KEEP (helpers of live fixtures)                                                   |
+| chaos fault_injector                                                                  | chaos/conftest, 18 fixtures     | 0 test consumers CONFIRMED                                                                                                                     | OWNER-GATED — memo item, do not touch                                             |
 
 Audit [REPORTED] claims: 6 of the 8 named fixtures DEAD-confirmed (all six
-named root ones dead); authenticated_client + patch_* dead TOO (audit missed
+named root ones dead); authenticated*client + patch*\* dead TOO (audit missed
 they were consumers-free at their tiers). [ESTIMATE] root :626-1187 "worker-DB
 block" over-scoped — live autouse cleanup_stale_databases + helpers of live
 fixtures sit inside that range; actual deletable = 409 root + 32 contracts +
@@ -2325,15 +2344,27 @@ NEW flake territory, load-dependent.)
 ## Gate 17 RED (2026-09-14, tip 3f93ae3b) — Prettier format:check on 126bf536's edit; vitest never ran
 
 Backend fully green under the T5 config for the first time (from summary lines):
+
 - unit: `27524 passed, 168 skipped, 8 xfailed in 84.34s` — [OK] coverage sufficient
 - integration: `4165 passed, 131 skipped, 2 xfailed in 588.94s` — ZERO node-downs under
   signal method + timeout_func_only=false + CLI-honoring conftest at -n8 (first gate
   exercising the ed237d99/c1e10c2b stack; T5 step-4 evidence, 1/2 gates)
-ESLint [OK], tsc [OK], then Prettier `format:check` failed on
-`src/App.lazy.test.tsx` — the single-line waitFor edits in 126bf536 exceeded the
-print width. Frontend vitest stage never ran. rc=1, no test failures anywhere.
+  ESLint [OK], tsc [OK], then Prettier `format:check` failed on
+  `src/App.lazy.test.tsx` — the single-line waitFor edits in 126bf536 exceeded the
+  print width. Frontend vitest stage never ran. rc=1, no test failures anywhere.
 
 Fix: `npx prettier --write` (wraps the two waitFor calls only; no logic change),
 file re-checked clean, standalone vitest 5/5 (2.04s). Gate 18 relaunches from the
 formatted tip. Lesson for the ledger: frontend edits must clear
 `npm run format:check` before a gate — validate.sh checks, it does not format.
+
+## Process finding (2026-09-14): sandbox had NO git hooks installed (root cause enabler of gate 17)
+
+`.git/hooks/` was empty in this sandbox (setup.py never run here; pre-commit absent from
+the venv) — so the prettier-frontend commit-stage hook (config: `prettier --write` on
+staged frontend TS) never fired and 126bf536's format violation reached a 50-minute gate.
+Fixed: `uv pip install pre-commit` (venv-local, no lock drift) + `pre-commit install`
+(commit stage: prettier-frontend/eslint/tsc/ruff/mypy/semgrep/cmsg/secrets). pre-push hook
+installed then REMOVED for gate windows: its parallel-tests entry fans out full pytest +
+vitest on every push — collides with a live gate's worker DBs (run-9 class). Reinstall
+between gates if desired. Pushes during gates run bare by design, not by bypass.
