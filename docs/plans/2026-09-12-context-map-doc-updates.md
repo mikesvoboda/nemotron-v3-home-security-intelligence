@@ -1549,3 +1549,19 @@ test_config_affects_anomaly_detection asserted a z-score contract; shipped
 is_anomalous scores relative ClassBaseline frequency (score=1-class/total;
 flag score > 1-1/(t+1)) — rewrote seed to two ClassBaseline rows (score
 0.5), asserts cutoff crossing 0.667→0.4 at threshold 2.0→1.5.
+
+## M3 T7 prep — circular-mock site reconciliation vs current tree (2026-09-14)
+
+**[VERIFIED this session, AST pass]** Audit's 8 sites, re-checked:
+unit/services/test_pipeline_worker.py:485 → drift: line now inside
+test_shutdown_cancels_pending_queue_reads (awaits real code; not the
+circular shape) — the named test_shutdown_cleans_up_resources@485 IS
+circular (disconnects mock, asserts the mock was called); fix at exec
+time by calling the real shutdown. chaos/test_timeout_cascade.py:198,226
+CONFIRMED circular (assert_called-only bodies). chaos/test_pubsub_failures
+.py:325 CONFIRMED. integration/test_disaster_recovery.py:262 CONFIRMED.
+integration/test_consolidated_fixtures.py (2 sites) — FILE NO LONGER
+EXISTS; integration/test_ab_rollout_production.py — FILE NO LONGER
+EXISTS (only unit/core/test_ab_rollout_metrics.py, 138 lines, no
+assert_called). So 5 real sites remain (pipeline_worker:485 + 4 confirmed)
++ 3 audit-stale paths to close as vanished. T7 exec list updated.
