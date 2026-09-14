@@ -1406,3 +1406,18 @@ init_schema.py, not Alembic; pre-dates this cycle, commit 55e266a8),
 17 backup_restore (pg_dump/pg_restore absent in sandbox — environmental,
 pre-existing skipif at file line 68), 5 audit (R-T9-CIAUDIT, fixed above).
 Wave M = remaining 82 unscored files.
+
+## M3 T3 MEASUREMENT (prep; execution gated on M2 green) — 27-vs-43 reconciled: 43 tests / 26 sites (2026-09-14)
+
+**[VERIFIED via AST pass, no pytest needed]** conftest.py
+pytest_collection_modifyitems (:419-441) skips every /unit/ item whose
+keywords include 'integration' with no DB-availability check, so
+integration-marked tests under unit/ never execute in ANY gate stage —
+phantom coverage, confirming audit 1.3's mechanism. Authoritative counts
+(ast walk, 4 files): 43 affected tests, 26 decorator sites (audit's
+27-vs-43: both passes were under/over-counting sites — 26 actual; 43
+confirmed). Breakdown: test_system.py 11 (6 class marks), test_soft_delete.py
+15 (5 class marks), test_events_coverage.py 3 (1 class mark),
+test_redis_prefix_isolation.py 14 (14 function marks). T3 execution:
+DB-backed ones move to integration/, mock-only ones lose the stray marker —
+per-file, after M2 green. No tree change made now.
