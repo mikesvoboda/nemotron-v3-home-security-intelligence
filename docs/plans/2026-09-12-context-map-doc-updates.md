@@ -1215,3 +1215,9 @@ failed with NotNullViolation. Both fixtures now pass
 `decode_responses=True` (`backend/core/redis.py:615`), so pubsub channel/data
 arrive as `str`; `.decode()` raised AttributeError. Assertion now compares the
 str directly. Test-only change.
+### R-T9-AUTHHEALTH — auth-coverage test must not require 200 from dependency-loaded /health (2026-09-14, wave I10)
+
+**[VERIFIED against shipped behavior]** The endpoint-coverage test asserts AUTH
+behavior (never 401/403). /api/system/health legitimately answers 503 when
+dependency checks are not green in the test env (R-T9-CORR family) — a 200
+assert conflated service health with auth. Asserts now exclude 401/403 only.
