@@ -743,3 +743,76 @@ findings we'd already paid for: the setup-hang hole (gw6 hang, R-T7-TIMEOUT-GATE
 and .env/timeout-gate protocol items; run-9's 0-AUTH-at-67% continues to confirm
 R-T8-ENVLEAK. M3 is in-scope for the branch but NOT for the current /goal Stop
 condition (M1+M2 only) — it does not gate this session's completion.
+
+### R-T7 batch (2026-09-14): statically-analyzed run-8e reds — edits applied, verification queued behind run-9
+
+Seven files edited to the SHIPPED contract while run-9 holds the DB (serial
+verify + per-cluster commits happen AFTER run-9 completes — single-heavy-job
+census, and -n0 on the shared worker DB mid-run is a false-red generator):
+
+- test_trace_propagation.py (R-T7-TRACE): ContextFilter coerces absent trace
+  ctx with `or ""` (core/logging.py filter body) — record.trace_id is "" not
+  None on the no-OTel path; get_current_trace_context's OWN dict still
+  returns None (that contract unchanged, tests at :229/:246 correct as-is).
+- test_inbound_webhooks_api.py (R-T7-INBOUND): 3× missing-key tests now send
+  headers={"X-API-Key": ""} — shared client bakes the default key
+  (conftest:1458), stub branches on `if not x_api_key` so empty header ==
+  absent for the 401 path. Corrects earlier assumption: /alert IS key-gated.
+- test_outbound_webhooks_api.py (R-T7-OUTBOUND): test_webhook success/failure
+  patched httpx.AsyncClient.post — intercepts the TEST client's own request
+  (it IS an httpx AsyncClient; endpoint never ran). Seam moved to
+  WebhookService._send_request (returns (status,body,ms)). httpx import
+  dropped. Invalid-uuid→[400,422] NOT touched yet: shipped route path param
+  is plain str + WHERE, expect 404 — but that's a run-9-score call, not a
+  guess (503s in run-8e were SetupGuard signature).
+- test_rum_api.py (R-T7-RUM): 422 body is the custom envelope
+  {"error":{"code":"VALIDATION_ERROR",...}} (exception_handlers.validation_
+  exception_handler registered for RequestValidationError) — NOT FastAPI
+  default {"detail":[...]}. http_exception_handler (the 422→VALIDATION_ERROR
+  status map in that file) is NOT app-registered (only problem_details +
+  validation + pydantic + sqlalchemy + redis handlers are).
+- test_risk_score_validation.py (R-T7-RISKVAL): select(Event).join(Detection)
+  is unresolvable post-normalization (no direct FK; many-to-many via
+  event_detections junction, secondary= on Event.detections). Explicit
+  two-hop join through EventDetection added.
+- test_materialized_views_migration.py (R-T7-ASYNCSESS): 52× fixture param
+  `async_session` → `db_session` (the actual integration conftest fixture,
+  :1081). "fixture 'async_session' not found" was the whole error.
+- test_multimodal_pipeline.py (R-T7-PANDAS): pandas is optional [nemo]/
+  [group.nemo] only — base env has numpy but no pandas. Two runtime sites
+  guarded with pytest.importorskip (repo's own conftest:2510 convention);
+  TYPE_CHECKING import + future-annotations keep class body import-clean.
+
+### R-T7 batch part 1 (2026-09-14, ledger refs closing the gap): line_zone, face_recog, cursor_pagination, job_search, health_checks, system_api, mqtt, export_api
+
+- test_line_zone_service.py (R-T7-LINEZONE): rewritten to shipped service
+  surface — get_zone/get_zones_by_camera/delete_zone/
+  update_zone(zone_id, data=LineZoneUpdate(...))/get_all_zones;
+  reset_counts returns None (no count dict).
+- test_face_recognition.py (R-T7-FACERECOG): endpoints wrap payloads in
+  response_model envelopes — {"items": [...], "total": N}; three bare
+  `isinstance(data, list)` asserts → dict + items contract.
+- api/test_cursor_pagination.py (R-T7-CURSPAG): cursor-precedence rewrites +
+  severity-band seed scores recomputed inside bands (prior segment).
+- test_job_search_api.py (R-T7-JOBSEARCH): datetimes moved to params= dict —
+  raw "+00:00" in an f-string URL gets "+"→space via parse_qsl → 422 on the
+  datetime query param.
+- test_health_checks.py (R-T7-HEALTH): (1) check_redis_health(None) reports
+  details={"error": "Redis client not available"} — shipped system.py has no
+  details=None contract; (2) autouse clear_health_cache() around
+  TestHealthCheckFailureScenarios — get_readiness caches 10s (NEM-3892),
+  state-mutating tests were reading a STALE verdict from the previous test
+  (test_system_api.py cache-reset precedent).
+- test_system_api.py (R-T7-SYSTEM): /api/system/performance WITHOUT collector
+  is shipped 200-with-null-fields (system.py:2140), not 503 — docstring
+  stale, endpoint authoritative. (test_system.py is a wildcard re-export of
+  this file — one canonical source, don't dual-edit.)
+- test_mqtt_integration.py (R-T7-MQTT): module-scoped async broker fixture
+  needs @pytest_asyncio.fixture(loop_scope="module", scope="module") under
+  pytest-asyncio 1.x or every request ScopeMismatch-errors before the
+  container starts.
+- test_export_api.py (R-T7-DETIDS): Event.detection_ids legacy JSON column
+  REMOVED from the model (event.py:170 — normalized event_detections
+  junction + viewonly relationship); 3 seed sites dropped. 30 more sites
+  across 5 other files remain in this class (grep detection_ids), same
+  removal pattern, queued next.
