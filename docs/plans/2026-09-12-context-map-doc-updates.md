@@ -1182,3 +1182,28 @@ Three distinct shipped-vs-test divergences in test_pipeline_e2e.py:
    The old test relied on removed permissive defaults; it now opts the
    aggregator instance into the legacy 0.90/person gate to exercise the
    shipped gate honestly.
+
+### R-T9-PROMPTREPLAY — test_prompt_replay.py asserted distributions the shipped targets make impossible (2026-09-14, wave I7)
+
+**[VERIFIED against shipped code]** Two self-contradictory fixtures in
+`backend/tests/integration/test_prompt_replay.py`:
+
+1. `test_distribution_validation_passing` built stats 55/35/10 and expected
+   "Distribution meets all target ranges", but `TARGET_HIGH_MIN` is 15.0 in
+   `HistoricalReplayInfrastructure` — HIGH at 10% fails the floor, so the
+   all-clear string could never appear. Fixed to 50/35/15 (inside LOW 50-60 /
+   MEDIUM 30-40 / HIGH 15-20).
+2. `test_batch_replay_scenarios` ramped mock scores `25 + idx*5`; the 4th
+   scenario scored 40, which `classify_risk_level` (<40 = low) classes as
+   "medium", contradicting the test's own low-band assertion. Fixed to
+   `22 + idx*4` (22/26/30/34 — all strictly below 40).
+
+Test-only change; shipped thresholds untouched.
+
+### R-T9-CLEANUPISO — Event.started_at is NOT NULL; cleanup-isolation fixtures omitted it (2026-09-14, wave I7)
+
+**[VERIFIED against shipped model]** `backend/tests/integration/test_cleanup_isolation.py`
+constructed `Event(batch_id=..., camera_id=..., risk_score=...)` without
+`started_at`, which is `nullable=False` on the shipped `Event` model — INSERT
+failed with NotNullViolation. Both fixtures now pass
+`started_at=datetime.now(UTC)`. Test-only change.
