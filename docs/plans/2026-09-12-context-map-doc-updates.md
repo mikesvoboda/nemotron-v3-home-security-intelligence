@@ -816,3 +816,16 @@ census, and -n0 on the shared worker DB mid-run is a false-red generator):
   junction + viewonly relationship); 3 seed sites dropped. 30 more sites
   across 5 other files remain in this class (grep detection_ids), same
   removal pattern, queued next.
+
+### Correction (2026-09-14, same day): R-T7-DETIDS scope was overstated — 3 sites, not 33
+
+The batch-1 entry claimed "30 more sites across 5 other files remain".
+Wrong: the 33-hit grep conflated three unrelated things — (a) local variable
+names (test_concurrency, test_full_stack, test_models), (b) REAL live-API
+kwargs (analyze_batch(batch_id, camera_id, detection_ids=…),
+ContextEnricher.enrich(detection_ids=…), CoalesceCandidate.detection_ids —
+all shipped signatures, untouched), and (c) actual dropped-ORM-column
+constructions = ONLY the 3 export_api Event(detection_ids=json.dumps(...))
+sites already fixed. Zero `Event(detection_ids=…)` constructors remain
+anywhere (verified: grep "detection_ids=json" = 0 hits). The
+detection_ids-removal cleanup is COMPLETE.
