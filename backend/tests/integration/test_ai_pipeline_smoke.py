@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from backend.models import Camera, Event
 from backend.models.llm_interaction import LLMInteraction
@@ -86,7 +87,13 @@ async def sample_event_with_llm(session, sample_camera):
         camera_id=sample_camera.id,
         started_at=_utcnow(),
         risk_score=75,
-        risk_level="medium",
+        # risk_level must be consistent with risk_score (the LLM assigns both;
+        # nothing re-derives them server-side). The test's own band table is
+        # low 0-33 / medium 34-66 / high 67-100 — score 75 pairs with "high";
+        # the fixture shipped "medium", so test_risk_level_consistency could
+        # never pass (wave I-8 "Risk score 75 should map to 'high', got
+        # 'medium'"). (ledger R-T9-RISKBAND)
+        risk_level="high",
         summary="Test event for AI pipeline quality validation",
         reasoning="This is a test event created to validate AI pipeline quality metrics",
     )
@@ -96,7 +103,7 @@ async def sample_event_with_llm(session, sample_camera):
     # Create LLMInteraction with proper structure
     llm_interaction = LLMInteraction(
         event_id=event.id,
-        raw_response='{"risk_score": 75, "risk_level": "medium", "summary": "Test event", "reasoning": "Test reasoning for validation"}',
+        raw_response='{"risk_score": 75, "risk_level": "high", "summary": "Test event", "reasoning": "Test reasoning for validation"}',
         enrichment_snapshot={
             "weather": {"temperature": 72, "condition": "clear"},
             "faces": [],
@@ -320,16 +327,28 @@ class TestEventLinkageIntegrity:
 
     @pytest.mark.asyncio
     async def test_event_llm_relationship(self, session, sample_event_with_llm):
-        """Verify Event <-> LLMInteraction relationship is bidirectional."""
+        """Verify Event <-> LLMInteraction relationship is bidirectional.
+
+        Relationships are loaded EXPLICITLY (selectinload), not by implicit
+        lazy load: the shipped ORM guard (get_relationship_lazy_mode,
+        core/orm_utils.py, NEM-3405) binds these relationships to
+        raise_on_sql in dev/test so accidental N+1 loads raise — the wave I-8
+        failure "'Event.llm_interaction' is not available due to
+        lazy='raise_on_sql'" IS that guard doing its job. Production code
+        under the same environment must eager-load the same way; the test
+        follows the shipped contract. (ledger R-T9-RAISEONSQL)
+        """
         event, llm_interaction = sample_event_with_llm
 
         # Fetch event with relationship loaded
         result = await session.execute(
-            select(Event).where(Event.id == event.id).options()  # Use default lazy loading
+            select(Event).where(Event.id == event.id).options(
+                selectinload(Event.llm_interaction)
+            )
         )
         fetched_event = result.scalar_one()
 
-        # Access the relationship (should trigger lazy load)
+        # Access the relationship (already loaded)
         interaction_from_event = fetched_event.llm_interaction
         assert interaction_from_event is not None, "Event should have llm_interaction relationship"
         assert interaction_from_event.id == llm_interaction.id, (
@@ -338,11 +357,13 @@ class TestEventLinkageIntegrity:
 
         # Fetch LLMInteraction with relationship loaded
         result = await session.execute(
-            select(LLMInteraction).where(LLMInteraction.id == llm_interaction.id).options()
+            select(LLMInteraction).where(LLMInteraction.id == llm_interaction.id).options(
+                selectinload(LLMInteraction.event)
+            )
         )
         fetched_interaction = result.scalar_one()
 
-        # Access the relationship (should trigger lazy load)
+        # Access the relationship (already loaded)
         event_from_interaction = fetched_interaction.event
         assert event_from_interaction is not None, "LLMInteraction should have event relationship"
         assert event_from_interaction.id == event.id, (
