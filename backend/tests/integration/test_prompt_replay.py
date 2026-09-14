@@ -1413,12 +1413,17 @@ class TestReplayInfrastructure:
         """Test distribution validation with passing values."""
         infra = HistoricalReplayInfrastructure(analyzer)
 
-        # Create stats within target ranges
+        # Create stats within target ranges. TARGET_HIGH_MIN is 15.0
+        # (R-T9-PROMPTREPLAY): the old 55/35/10 split left HIGH at 10% —
+        # below the floor, so "Distribution meets all target ranges" could
+        # never appear (messages only gets the all-clear string when it was
+        # otherwise empty). 50/35/15 sits inside LOW 50-60 / MEDIUM 30-40 /
+        # HIGH 15-20.
         stats = ReplayStatistics(
             total_events=100,
-            low_count=55,
+            low_count=50,
             medium_count=35,
-            high_count=10,
+            high_count=15,
             mean_score=45.0,
             median_score=42.0,
             std_dev=15.0,
@@ -1594,8 +1599,11 @@ class TestBatchReplayScenarios:
         # Simulate replay with new prompt (returning lower scores)
         replay_results = []
         for idx, event_id in enumerate(event_ids):
-            # Mock new score (simulating prompt improvement)
-            new_score = 25 + (idx * 5)  # 25-40 range (LOW)
+            # Mock new score (simulating prompt improvement). Must stay
+            # strictly below the test-local classify_risk_level low bound
+            # (<40): the old 25+idx*5 ramp hit 40 for the 4th scenario →
+            # "medium" → self-contradictory assert (R-T9-PROMPTREPLAY).
+            new_score = 22 + (idx * 4)  # 22/26/30/34 — all LOW
             replay_results.append(
                 ReplayResult(
                     event_id=event_id,
