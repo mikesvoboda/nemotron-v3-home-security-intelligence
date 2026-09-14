@@ -357,8 +357,10 @@ describe('AuthContext', () => {
       // the observer in the failed state it emptied the cache but never
       // re-rendered the mounted hook (in-sandbox trace: getQueryData()
       // undefined while result.current.user stayed mockUser for the whole
-      // 1s waitFor).
-      await act(async () => {
+      // 1s waitFor). Sync act: setQueryData itself is synchronous (async
+      // act tripped @typescript-eslint/require-await in gate run 7); the
+      // one-tick-notify wait is handled by the waitFor below.
+      act(() => {
         queryClient.setQueryData(['auth', 'current-user'], null);
       });
 
