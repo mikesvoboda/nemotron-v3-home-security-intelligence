@@ -2078,3 +2078,88 @@ Root cause + evidence:
   clean on all 3 scripts; grep: 0 retry loops remain in the four jobs (5
   remaining 'for attempt' loops are e2e/install/deploy retry steps, out of
   scope per plan).
+
+## WAVE-2 dependency map (T4-T15 + M3) — read-only orchestration audit (2026-09-14)
+
+**[VERIFIED — docs/git/ps census only; box lease honored: gate run 13 (sh ./scripts/validate.sh, PID 885467) sat in the integration tier the entire audit; zero test execs issued from this read]**
+
+Key facts the wave-2 plan rests on, each with evidence:
+
+1. **M1-gate live; the §9 release condition is its GREEN RECORD, not its end.** FCL plan:11/§9 ("execution begins only after M1 close-out — M1's final no-flag validate.sh run recorded green in the M1 ledger") binds `scripts/validate.sh`, `pyproject.toml` addopts and `frontend/vite.config.ts` *behavior* changes. Ref: spec §9 (design doc :107), plan Global Constraints :16.
+2. **T1 landed, T2 not yet on disk.** `scripts/check-test-collection.py` + allowlist exist; `.github/workflows/flake-allowlist.yml` and `scripts/check-flake-allowlist.py` absent (ls scripts/ .github/workflows/). The §5.1 frontend hack is still live: ci.yml:1321 `pkill -9 -P $vitest_pid`, exit-0 sites at :370,:472,:583,:700,:809,:1285,:1324,:1389 — T4/T2 file targets confirmed at plan anchors.
+3. **"T3" artifact discrepancy:** `/tmp/t3-draft` does NOT exist. `/tmp/t3-files.txt` exists listing 4 files (test_events_coverage, test_system, test_soft_delete, test_redis_prefix_isolation) = M3 Task 3 scope (ledger "M3 T3 MEASUREMENT" section), NOT M2 Task 3. M2-T3's actual targets (vite.config.ts test block, validate.sh RAM block) are CLEAN in git status — the M2-T3 patch is not drafted on disk anywhere found. Orchestrator must confirm which T3 the draft refers to before W1.
+4. **Frontend baseline for W1 measurement = 2981.18s** (serial vitest, /tmp/validate-full-10.log :35473 `Duration 2981.18s`) — supersedes spec §1's 1472s figure for the before-number. T3-parallel target <600s = the largest single wall-clock win in the whole program; front-load it.
+5. **No `--dist` flag in validate.sh** (grep verified — only prose mentions at :288/:292/:298). Task 8's conditional flag-removal clause resolves to "no supersession needed, record only".
+6. **M1's own frontend tail is the run-13 risk:** gate-10's 6 frontend failure classes — 5 landed (commits 0b815c82..0e779506 region incl. the App/NEM-5322 alignment) + the CleanupRow leaked-timer and 2 fork-crash re-assessment still queued; if run 13 dies there, it is continuation work, not a new class.
+7. **Single-tenant box rule is binding for the chain** (ledger CORRECTION section: worker-DB names collide by construction — a concurrent `-n auto` verification killed gate 9 via `_drop_worker_database` on the gate's own DBs). Every measurement slot below must be launched only after `ps -eo args | grep -E 'python -m pytest|uv run pytest|vitest'` census is clear.
+
+**PROPOSED WAVE-2 SERIAL CHAIN** (one box job per slot; file-only work fills the gaps; chain = M1-record -> M2 fast-lane -> M3 measurable):
+
+- W0 **M1 close-out record** (file; after run 13 goes green — the §9 release event).
+- W1 **M2-T3 apply + MEASURE** — box slot #1: `VITEST_PARALLEL=1 VITEST_MAX_WORKERS=16 VITEST_HEAP_MB=32768` full-suite vs the 2981s anchor + §6.2 18-file green-alone re-prove. Biggest win, first (gated ONLY on W0 — validate.sh/vite.config are the M1-governed pair).
+- W2 **M2-T4** ci.yml frontend honesty (file; consumes T3 envs per spec §9.3; acceptance = injected-failing-test red, verified on GH Actions, no local box) — can be drafted during W1's run.
+- W3 **M2-T5→T6→T7** conftest helpers / `get_test_db_url` cutover / worker-DB lifecycle (file + MICRO box slots; live helpers need gate-postgres, so census-clear only; no conftest edits while any gate is live — run-9 attribution lesson).
+- W4 **M2-T8** DBRACE acceptance: full backend tier green x2 (HEAVY box, two serial single-tenant runs; fills measurements row 1; records "no loadgroup supersession").
+- W5 **M2-T9** per-worker Redis (file, then HEAVY box full-tier re-run; gated on T8's green-x2 for clean attribution).
+- W6 **M2-T10 + T11** fast_select.py + vitest-related runner (file-heavy + LIGHT box: scripts tests are DB-free; runner needs a micro vitest related run).
+- W7 **M2-T12** §6.3 playbook — box slot, 5 changes x <=10min (~50min heavy).
+- W8 **M2-T13** validate.sh `--fast` wiring + AGENTS.md/help sync (file; M1-governed, W0 covers it; LIGHT box dispatch check).
+- W9 **M2-T14** nightly workflow (file-only; validated by schedule) → **M2-T15** measurements doc (file-only; rows arrive from W1/W4/W5/W7). M2 green at W9/W10.
+- W10 **M3 measurable tasks** (execution begins after M2 green; M3-T4 already owner-pulled ahead): M3-T1 zero-risk deletions (LIGHT box census deltas) -> M3-T3 apply the drafted 4-file marker reconciliation (LIGHT box) -> M3-T4 REMAINING sub-steps: repositories serial-marker drop (needs x2 green), api_protection sleep->poll, commit-B/C candidates (HEAVY box slots) -> M3-T6 close-out (likely settles from run 13's media_api result, file) -> M3-T7/T8/T9 truth-rewrites + parametrize + mock specs (file + per-file LIGHT box) -> M3-T2 dead-fixture purge MINUS chaos (chaos half is owner-gated) -> M3-T10 taxonomy LAST, after M2-T13 selectors exist + owner map.
+- **ASK-THE-OWNER QUEUE (parallel, never on the box chain):** (a) M3-T5 timeout swap `signal`+`func_only=false`+timeout value — ruling packet nearly fed: run-A2 setup p90=1.161s satisfies the "p99<<2s → keep timeout=5 + @slow" decision rule, R-T9-TIMEOUT-STAMP markers retire wholesale on landing; (b) `init_db(create_schema=False)` production seam (setup p90's remaining cost, backend/core/database.py); (c) chaos/conftest.py FaultInjector disposition — census says 18/18 fixtures dead; (d) redis_streams DetectionStreamService/AnalysisStreamService singleton reset-guard (standing R-T7-WS-OOM hazard); (e) frontend logout() shipped-gap (leaves isAuthenticated true); (f) pipeline_workers P1 packet (prepare only, never patch); (g) M3-T10 ~102-file category map; (h) unit/conftest session-scoped autouse redis-global guard (run-4 residual risk).
+
+**Sequencing-rule citations:** spec §9.1 (§3.1 first, unblocks measurements) · §9.2 (§3.3 independent) · §9.3 (5.1-5.3 after §3.3 envs — hence T4 after T3) · §9.4 (--fast after §3.1: selection over a contended suite lies) · §9.5 (loadgroup removal strictly after green-x2; moot per fact 5) · M3 plan Sequencing 1-5 (post-M2 green; T4 gates T5's packet; T10 after M2 T10-13; owner rulings; gate protocol transplant).
+
+## M3 work-list survey (2026-09-14, survey agent; box-lease respected — zero pytest)
+- **Baseline selection [VERIFIED from /tmp/dur-runs/]:** runA2 is the correct
+  baseline for ALL remaining M3 tasks (tree post-0b815c82 = T4c landed; summary
+  line 4165 passed/131 skipped/2 xfailed in 618.53s; analyze_run.py: setup p99
+  1.470s, teardown p50 0.224/p99 1.407, n=4298). run10 = pre-Commit-A baseline
+  (919.75s, teardown p50 1.122s) — T4-family comparisons ONLY. runA = partial
+  subset (gw3/gw5-heavy, ~1/20 rows) — never cite for wall or percentile claims.
+- **T5 ruling-packet new input [VERIFIED from runA2 TSVs, stdlib pass]:**
+  post-T4c per-test total (setup+call+teardown) p50 1.00s, p99 3.63s, p99.9
+  10.20s, max 12.03s; >5s = 12 tests (0.28%). Setup p99 1.470s ≪ 2s → plan
+  decision rule keeps `timeout = 5`. Offender list for @pytest.mark.slow (11
+  of 12 unmarked): test_cameras_api.py ×6 (incl. 12.0s max), test_pipeline_e2e
+  ×2, test_llm_analysis_pipeline ×2, test_export_api cancellation ×1. Ruling
+  still NOT returned (docs/superpowers/rulings/ carries no approval;
+  rerunfailures smoke per packet §2 not run).
+- **T1 count correction [VERIFIED from runA2]:** duplicated-path execution cost
+  = 438s CPU over 208 nodeids (test_events.py 72/152s, test_cameras.py 62/145s,
+  test_system.py shim 74/141s). The earlier "~208 shim double-collects" note is
+  WRONG: the star-import shim duplicates 74 nodeids (test_system_api.py holds
+  exactly 74 module-level test functions); 208 is the TOTAL across all three
+  duplicate paths. T1 dedup delta = −208 collected, not −342. Estimated wall
+  −30–60s; confirm by collect-only census + next integration summary line.
+  Tree re-verified present: both symlinks, 4 zero-byte files (wave M's rc=5
+  file among them), shim; collection-sanity-allowlist.txt has the 4 zero-byte
+  entries (R-M2-COLLECTION-FINDINGS) — T1 removes exactly those 4 lines.
+- **T5 step-4 harness + T8 guard drafted** (DRAFTS only, /tmp/m3-draft/):
+  t5-hang-harness.sh (three synthetic hangs, asserts summary survives + no
+  node-down), parametrize-guard.py (raises-match bucketing, refuses cross-match
+  merges — audit's 41 false-identical families).
+- **T10 hard blocker confirmed:** scripts/fast_select.py absent, validate.sh has
+  no --fast dispatch → M2 T10–T13 unlanded; T10 layout moves cannot honor the
+  "selectors exist first" sequencing rule yet.
+- **Commit B (drop client PRE-test sweep)** code intact at integration/
+  conftest.py:1456-1457; feasible now; regression-precedent risk documented in
+  the T4c regression note (only crash-mid-teardown leaves dirty pre-state;
+  post-sweep + conditional integration_db sweep still cover data families).
+  **Commit C (coalesce TRUNCATEs)** deprioritized behind B: teardown p50 is
+  already 0.224s post-T4c; C also loses per-table 5s-timeout/skip semantics —
+  needs to_regclass pre-filtering. Measure B first, decide C on the number.
+- Survey tier map: integration-tier-NEEDING tasks = T1(census), T3(movers run
+  first time), T4-CommitB, T5, T10, T11 (full gates). Unit-only: T2, T7(unit
+  sites), T8, T9 (chaos tier direct-run — chaos is NOT in validate.sh).
+
+## Gate run 13 postmortem + T2 relocation (2026-09-14)
+
+**Integration tier VERIFIED summary line:** `11 failed, 4154 passed, 131 skipped, 2 xfailed in 597.47s` — validate.sh stopped before frontend (exit at integration), so run 13 never tested the six frontend fixes. Wall −3.4% vs runA2's 618.53s (same T4c code; within noise).
+
+**All 11 failures = one NEW class, caused by M2-T2 landing, caught TEST-SIDE per protocol:** `backend/tests/integration/test_github_workflows.py` meta-validates every `.github/workflows/*.yml|*.yaml` (glob at :64) against workflow-schema rules (name/on/jobs keys, pinned actions, named steps…). T2 landed the flake allowlist AT `.github/workflows/flake-allowlist.yml` (plan's stated path) — a pure data file with `flakes: []`, which has none of those keys. The plan's file placement collides with this meta-test; the plan didn't know about it.
+
+**Fix (production-side zero; test-side zero — placement only):** `git mv .github/workflows/flake-allowlist.yml .github/flake-allowlist.yml` + repointed all 7 refs (check-flake-allowlist.py DEFAULT_FILE, flake-k-filter.py DEFAULT_FILE, test REPO_ALLOWLIST, ci.yml x4 `[ -f ]` guards, check-test-collection.py docstring). Plan doc left as-written; this entry + a one-line supersession note govern. Verified WITHOUT pytest first: checker exit 0 + k-filter exit 0 from new location, py_compile all 3, YAML parses; THEN ran the 5 self-tests explicitly (-p no:randomly -o addopts='' -n0, box idle, no tier live): 5 passed in 0.36s incl. test_repo_allowlist_is_valid_today against the real file.
+**Knowledge: anything dropped in .github/workflows/ is asserted to BE a workflow by test_github_workflows.py. Data files belong elsewhere (e.g. .github/).**
+
+**Frontend run-12/13 chain closed:** TS2322 (drainRetryBackoff catcher union) → first fix attempt traded it for eslint no-redundant-type-constituents (`Promise<T | unknown>` collapses) → final form: unannotated ternary + `return (await tracked) as T`. Verified: tsc exit 0, eslint clean, vitest 17/17 zero unhandled.
