@@ -35,6 +35,39 @@ function createMockErrorResponse(status: number, statusText: string, detail?: st
   } as Response;
 }
 
+/**
+ * The shipped fetchApi retries 5xx/network failures MAX_RETRIES=3 times with
+ * exponential backoff (BASE_DELAY_MS=1000 -> delays 1s/2s/4s). Two hazards for
+ * single-shot mocks here: (a) real-timer waits, and (b) once a
+ * mockResolvedValueOnce queue is exhausted the retry call falls THROUGH the
+ * spy into msw's global interceptor, whose /api/logs/frontend handler answers
+ * 204 -> handleResponse resolves undefined -> "promise resolved instead of
+ * rejecting". Wrap failure-path calls in this helper: fake timers drive the
+ * ladder deterministically (repo idiom, api.test.ts:2888) while the caller
+ * keeps a PERSISTENT (non-Once) failing mock so every attempt fails and the
+ * ladder terminates in ApiError(500) / ApiError(0).
+ */
+async function drainRetryBackoff<T>(
+  start: () => Promise<T>,
+  catcher?: (error: unknown) => unknown
+): Promise<T> {
+  vi.useFakeTimers();
+  try {
+    const promise = start();
+    // fetchApi's in-flight dedup path (POST requests) wraps fetchWithRetry in
+    // .finally() — a transform, NOT a catcher — so the rejection is briefly
+    // unmarked and vitest's unhandled-rejection hook flags it before a
+    // test-side await attaches (the pattern's own :1321 comment calls this
+    // path racy by design; callers should pass a signal). Attaching the
+    // caller's catcher at start time marks the chain handled immediately.
+    const tracked = catcher ? promise.catch(catcher) : promise;
+    await vi.advanceTimersByTimeAsync(7000); // 1000 + 2000 + 4000 backoff sum
+    return await tracked;
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 describe('logFrontendError', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
@@ -130,7 +163,9 @@ describe('logFrontendError', () => {
 
   describe('error handling', () => {
     it('throws ApiError on server error', async () => {
-      fetchSpy.mockResolvedValueOnce(createMockErrorResponse(500, 'Internal Server Error'));
+      // 500 IS retried (shouldRetry: status 0 || 5xx) — persistent mock so all
+      // 4 attempts fail; see drainRetryBackoff for why.
+      fetchSpy.mockResolvedValue(createMockErrorResponse(500, 'Internal Server Error'));
 
       const payload: FrontendErrorLogRequest = {
         level: 'ERROR',
@@ -138,7 +173,15 @@ describe('logFrontendError', () => {
         component: 'Test',
       };
 
-      await expect(logFrontendError(payload)).rejects.toThrow();
+      // Catcher attached at start time (marks dedup-chain rejection handled).
+      let caught: unknown;
+      await drainRetryBackoff(
+        () => logFrontendError(payload),
+        (error) => {
+          caught = error;
+        }
+      );
+      expect(caught).toBeInstanceOf(Error);
     });
 
     it('throws ApiError on validation error', async () => {
@@ -156,7 +199,9 @@ describe('logFrontendError', () => {
     });
 
     it('throws ApiError on network error', async () => {
-      fetchSpy.mockRejectedValueOnce(new Error('Network error'));
+      // Network errors ARE retried — persistent rejection so the ladder ends
+      // in ApiError(0, 'Network error'); see drainRetryBackoff.
+      fetchSpy.mockRejectedValue(new Error('Network error'));
 
       const payload: FrontendErrorLogRequest = {
         level: 'ERROR',
@@ -164,7 +209,14 @@ describe('logFrontendError', () => {
         component: 'Test',
       };
 
-      await expect(logFrontendError(payload)).rejects.toThrow();
+      let caught: unknown;
+      await drainRetryBackoff(
+        () => logFrontendError(payload),
+        (error) => {
+          caught = error;
+        }
+      );
+      expect(caught).toBeInstanceOf(Error);
     });
   });
 });
@@ -199,7 +251,8 @@ describe('logFrontendErrorNoThrow', () => {
   });
 
   it('returns false and logs warning on server error without throwing', async () => {
-    fetchSpy.mockResolvedValueOnce(createMockErrorResponse(500, 'Internal Server Error'));
+    // Persistent 500 across all retry attempts (see drainRetryBackoff).
+    fetchSpy.mockResolvedValue(createMockErrorResponse(500, 'Internal Server Error'));
 
     const payload: FrontendErrorLogRequest = {
       level: 'ERROR',
@@ -207,7 +260,7 @@ describe('logFrontendErrorNoThrow', () => {
       component: 'Test',
     };
 
-    const result = await logFrontendErrorNoThrow(payload);
+    const result = await drainRetryBackoff(() => logFrontendErrorNoThrow(payload));
 
     expect(result).toBe(false);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -217,7 +270,7 @@ describe('logFrontendErrorNoThrow', () => {
   });
 
   it('returns false and logs warning on network error without throwing', async () => {
-    fetchSpy.mockRejectedValueOnce(new Error('Network error'));
+    fetchSpy.mockRejectedValue(new Error('Network error'));
 
     const payload: FrontendErrorLogRequest = {
       level: 'ERROR',
@@ -225,14 +278,14 @@ describe('logFrontendErrorNoThrow', () => {
       component: 'Test',
     };
 
-    const result = await logFrontendErrorNoThrow(payload);
+    const result = await drainRetryBackoff(() => logFrontendErrorNoThrow(payload));
 
     expect(result).toBe(false);
     expect(consoleWarnSpy).toHaveBeenCalled();
   });
 
   it('prevents app crash when logging fails', async () => {
-    fetchSpy.mockRejectedValueOnce(new Error('Backend unavailable'));
+    fetchSpy.mockRejectedValue(new Error('Backend unavailable'));
 
     const payload: FrontendErrorLogRequest = {
       level: 'ERROR',
@@ -241,7 +294,7 @@ describe('logFrontendErrorNoThrow', () => {
     };
 
     // Should not throw
-    const result = await logFrontendErrorNoThrow(payload);
+    const result = await drainRetryBackoff(() => logFrontendErrorNoThrow(payload));
 
     expect(result).toBe(false);
     // App continues running
