@@ -1503,3 +1503,32 @@ mqtt's high_throughput/message_latency now carry @pytest.mark.timeout(30)
 with why-comments. Wave N re-scores both files with the stamps present
 (stamp plugin inactive in wave runs is fine — markers win over everything).
 Retired wholesale when T5's ruling lands (then CLI --timeout governs).
+
+## Verification-hygiene incident — brief ghost-driver overlap during wave M restart (2026-09-14, self-reported)
+
+**[VERIFIED from logs]** While restarting wave M after the L-13 kill, a
+second driver was launched by mistake and killed ~15s later (waveM2.log
+holds one batch header, no done-line — wrapper died mid-batch). Overlap
+window ≈01:31:35–01:31:50: the ghost's first batch ran concurrently with the
+main driver's L-14 (test_detections_bulk_api). Both batches in the window
+completed rc=0 — a false-RED is the documented risk of shared-DB overlap; no
+red occurred, so no verdict was contaminated. The ghost's file
+(test_household_matcher_service.py) was re-scored cleanly by the main driver
+at L-33 (2 passed in 3.90s) — authoritative. Wave M verdicts stand.
+Process lesson: restart drivers only after censusing the OLD one's exit;
+the kill-old-then-launch-new ordering was inverted here.
+
+## Wave M close-out (2026-09-14)
+
+**[VERIFIED from /tmp/verify-waveM.log, re-read same turn]** 82 batches:
+80 scored rc=0, L-13 rc=143 (my intentional kill; test_detections_api
+re-queued for wave N rescore), L-79 rc=5 "no tests ran" —
+test_zone_baselines.py is 0 bytes (wc -c = 0), the known M3 T1 phantom
+(allowlist R-M2-COLLECTION-FINDINGS); honest disposition = T1 deletion,
+gated on M2 green, not a test to fix. Zero reds across all 79 scored
+real files. Wave N next: 27 files (23 run-9-reds fixed after the run +
+4 re-scores: detections_api, audit, export_api, mqtt_integration with the
+new timeout markers).
+
+**[VERIFIED totals, re-read from /tmp/waveM-out/*.log same turn]** 1765
+passed, 42 skipped, 0 failed across the 79 scored files.
