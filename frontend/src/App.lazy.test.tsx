@@ -8,7 +8,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { Suspense, lazy, ComponentType, ReactNode } from 'react';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
-import { FAST_TIMEOUT } from './test/setup';
+import { FAST_TIMEOUT, STANDARD_TIMEOUT } from './test/setup';
 
 describe('App lazy loading', () => {
   afterEach(() => {
@@ -194,7 +194,11 @@ describe('App lazy loading', () => {
         </TestErrorBoundary>
       );
 
-      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), FAST_TIMEOUT);
+      // 300ms FAST_TIMEOUT is a coin-flip here: React 19 delivers a lazy
+      // rejection to the boundary only after the microtask + act flush (verified
+      // via minimal repro catching at ~250-300ms edge). STANDARD_TIMEOUT is the
+      // repo constant for real async renders.
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), STANDARD_TIMEOUT);
 
       expect(screen.getByTestId('error-boundary')).toHaveTextContent('Loading chunk failed');
 
