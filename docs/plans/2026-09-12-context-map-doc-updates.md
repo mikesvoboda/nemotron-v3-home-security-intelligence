@@ -1737,3 +1737,47 @@ NOTE: runs 2-5 integration NEVER had this OOM — random scheduling only
 loads one worker with the right accumulation mix; the seed replay decides
 whether this is deterministic-at-seed or scheduling roulette. NOT a test
 failure per se: zero assertion failures anywhere in run 6.
+
+### Run-6 root cause CLOSED + fixed (2026-09-14, R-T7-WS-OOM)
+
+The seed-replay (3182027294, -p rsswatch) reproduced the hang verbatim:
+gw4 stuck on test_media_api.py::TestCompatMediaRoute::test_compat_thumbnail_served
+growing ~110 MB/s (40.6 -> 45.9 GB in 20 s). py-spy pinned the mechanism
+live: thread "asyncio-portal-*" active+gil inside unittest/mock.py:2613
+(_Call.__init__) <- redis_streams.py:377 consume_detections <-
+pipeline_workers.py:410 _run_loop, while the MAIN thread sat at
+starlette/testclient.py:688 __enter__ <- test_media_api.py:201.
+Mechanism [VERIFIED deterministic]: test_media_api.py + test_media_security.py
+module-scoped client fixtures patch every lifespan service EXCEPT
+backend.main.get_worker_supervisor -> lifespan (main.py:826-861) registers
+REAL create_detection_worker(redis_client=MagicMock) workers and starts
+them. The streams branch (config default use_redis_streams=True,
+config.py:2104) calls get_detection_stream_service(self._redis) — but
+redis_streams._detection_stream_service is a PROCESS-GLOBAL singleton:
+whoever calls first wins (redis_streams.py:1176-1190, zero reset). If an
+earlier file on that xdist worker primed it with an AsyncMock-backed
+RedisClient (several do: integration/conftest.py:1169, test_dlq_api.py:166,
+test_file_watcher_*.py), the worker's consume_detections hits the cached
+AsyncMock service whose xreadgroup returns a truthy mock -> parse loop
+iterates zero messages -> `if not messages: continue` (:413) with NO real
+await in the iteration -> event loop starved + unittest.mock._Call history
+grows unbounded. With the singleton UNPRIMED the MagicMock path raises
+TypeError at the first await (MagicMock can't be awaited) -> except path
+sleeps 1 s -> bounded (probe: 9 calls/3 s) — which is why standalone file
+runs pass; run 6 hit it only under the seed's file->worker mapping.
+PoC (temp, untracked): singleton primer + the victim test = hard hang,
+killed by --timeout=60 (rc=124 at fixture enter, 0 lines of test output)
+PRE-FIX; post-fix primer + media_api + media_security = "70 passed in
+4.51s" under the identical poison. FIX = fbb2f4ee precedent
+(test_websocket.py:235 style) in both fixtures: mock_worker_supervisor =
+MagicMock with AsyncMock start/stop/register_worker, worker_count=4,
+patch("backend.main.get_worker_supervisor", return_value=...). Commits
+146195aa (media_api) + ec713f17 (media_security). Honest-sweep result:
+only these two files had TestClient(app) lifespans lacking the supervisor
+patch (test_baggage_propagation.py builds its own mini-app — innocent).
+STANDING HAZARD recorded (owner-ruling queue candidate): the
+DetectionStreamService/get_analysis_stream_service process-global singletons
+in redis_streams.py have no reset hook — any future lifespan file over a
+MagicMock redis without the supervisor mock re-opens this class, and a
+conftest-level guard (session autouse reset) would make the hazard
+schedule-independent. Not scoping a fix now (M3 tests-only + no ruling).
