@@ -146,7 +146,10 @@ class TestAbortJobRedisPubSub:
         msg = await pubsub.get_message(timeout=1.0)
         assert msg is not None
         assert msg["type"] == "message"
-        assert msg["channel"].decode() == f"job:{job_id}:control"
+        # The shipped client connects with decode_responses=True
+        # (core/redis.py:615) — pubsub payloads arrive as str, not bytes;
+        # .decode() raised AttributeError (R-T9-JOBABORT).
+        assert msg["channel"] == f"job:{job_id}:control"
 
         data = json.loads(msg["data"])
         assert data["action"] == "abort"
