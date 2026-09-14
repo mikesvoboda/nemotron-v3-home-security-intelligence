@@ -1781,3 +1781,47 @@ in redis_streams.py have no reset hook — any future lifespan file over a
 MagicMock redis without the supervisor mock re-opens this class, and a
 conftest-level guard (session autouse reset) would make the hazard
 schedule-independent. Not scoping a fix now (M3 tests-only + no ruling).
+
+## Gate runs 7-8 (2026-09-14 07:00-07:30) — run 7 died on my own lint error; run 8 died on bulk-tier rate-limit cross-test bleed
+
+RUN 7 (/tmp/validate-full-7.log, PID 628764 first launch — killed by me
+immediately: the untracked PoC poison primer was still in the tree and
+would have been collected into the gate; relaunched clean 628904):
+backend unit [OK], integration [OK] (the 146195aa+ec713f17 supervisor
+fix carried the whole tier — zero node-downs, zero OOM, proving the
+run-6 class closed), coverage combine 87.96% >= 80 [OK], frontend died
+at ESLint: 6c09a8b4's `await act(async () => setQueryData(...))` trips
+@typescript-eslint/require-await (setQueryData is sync). Fixed 3c673566
+(sync act + existing waitFor, 18/18 file-verified; all three frontend
+test files I touched now proactively lint-clean). NOTE runs 2-7 never
+reached frontend ESLint, so gate-lint coverage of test files written
+during the gate cycle first bit at run 7.
+RUN 8 (/tmp/validate-full-8.log + validate-backend-integration.log
+timestamped 07:29, 953.40s): "4 failed, 4161 passed, 131 skipped,
+2 xfailed" — ALL FOUR = assert 429 == 207 in
+test_events_cache_invalidation.py::TestBulkDeleteEventsCacheInvalidation,
+all [gw6], captured log "Rate limit exceeded ... tier bulk: 12/12".
+ROOT CAUSE [VERIFIED deterministic]: shipped RateLimiter counts per
+(tier, client-IP) in the worker's per-xdist redis DB, BULK tier
+10/min + burst 2, SHARED by events AND detections bulk routes
+(rate_limit.py:322-326); the two cache-invalidation files each make
+~13-16 bulk-tier calls. Individually under the limit (standalone
+12/12 passed); any two bulk-heavy files on one worker inside one 60s
+window legitimately trip. Repro: the pair at -n0 = run-8's exact
+signature (4x 429==207, victims in both files). Order-dependence
+explains run-7-pass/run-8-fail on identical integration content:
+run 8's seed landed test_cache_invalidation_mutations.py immediately
+before test_events_cache_invalidation.py on gw6 (gw6 schedule read
+from the log). NOT the R-T7-WS-OOM class; not a product bug — the
+shipped limiter works as designed.
+FIX c6e6d5e0 (test-side only): integration_env clears rate_limit:*
+keys in its worker redis DB at test start. No integration test needs
+counters across a test boundary — the tests that VERIFY limiting drive
+it per-test (test_prompt_management_api counting-limiter via
+dependency_overrides, re-verified green; test_auth_integration accepts
+200-or-429, green). Post-fix: the pair passes 27/27 at -n0, all FIVE
+bulk-tier files (events_bulk/detections_bulk/soft_delete + both
+cache-invalidation files) pass 69 passed/2 skipped on one worker.
+Honest-sweep: bulk-tier files enumerated via RateLimitTier.BULK sites
+(events.py:1439, detections.py:1651) -> the five above;
+api/test_jobs_api.py's /bulk refs are export jobs (EXPORT tier).
