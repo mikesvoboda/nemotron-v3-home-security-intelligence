@@ -1487,3 +1487,19 @@ test) rides T5's implementation (needs signal semantics to demo cleanly).
   Effectively 18/18 dead (audit said 16/18; worse). Whole FaultInjector
   conftest is live-dead — delete proposal stands; owner ruling required
   before touching (plan T2/T7 stop-and-ask).
+
+## R-T9-TIMEOUT-STAMP hazard — long-body tests need explicit markers until T5 retires the conftest 5s stamp (2026-09-14)
+
+**[VERIFIED conftest code + protocol math]** The shipped conftest stamps
+timeout(5) on every integration item lacking an explicit marker, overriding
+CLI --timeout=30 (R-T7-TIMEOUT-GATE). Wave runs used the /tmp stamp plugin
+(raises the stamp to 30 when CLI timeout given) so long poll-loop tests
+passed — but the REAL gate has no plugin: a 30×0.2s poll loop + fixture
+overhead exceeds 5s under -n8 → thread-method os._exit → node-down + silent
+session. Fix-forward (test-side only, supported path — conftest honors
+explicit markers, same mechanism the stamp plugin itself uses):
+export_api's 3 poll-loop tests (csv/json format + job completion) and
+mqtt's high_throughput/message_latency now carry @pytest.mark.timeout(30)
+with why-comments. Wave N re-scores both files with the stamps present
+(stamp plugin inactive in wave runs is fine — markers win over everything).
+Retired wholesale when T5's ruling lands (then CLI --timeout governs).
