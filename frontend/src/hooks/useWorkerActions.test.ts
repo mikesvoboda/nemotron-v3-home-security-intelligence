@@ -320,19 +320,24 @@ describe('useWorkerActions', () => {
   });
 
   it('handles API errors with detailed messages', async () => {
-    const detailedError = {
-      message: 'Worker operation failed',
+    // Ship contract: useWorkerActions stores the rejection as-is when it is
+    // an Error and wraps it in `new Error(String(err))` otherwise
+    // (useWorkerActions.ts:79-81) — a plain-object rejection lands in state
+    // as `Error: [object Object]`, losing details. Real API clients reject
+    // with Errors, so model that: an Error carrying `details`.
+    const detailedError = Object.assign(new Error('Worker operation failed'), {
       details: 'Worker is in failed state and cannot be started',
-    };
+    });
 
     vi.mocked(supervisorApi.startWorker).mockRejectedValue(detailedError);
 
     const { result } = renderHook(() => useWorkerActions());
 
-    await expect(result.current.startWorker('failed_worker')).rejects.toEqual(detailedError);
+    await expect(result.current.startWorker('failed_worker')).rejects.toBe(detailedError);
 
     await waitFor(() => {
-      expect(result.current.error).toEqual(detailedError);
+      expect(result.current.error).toBe(detailedError);
+      expect(result.current.error?.message).toBe('Worker operation failed');
     });
   });
 });
