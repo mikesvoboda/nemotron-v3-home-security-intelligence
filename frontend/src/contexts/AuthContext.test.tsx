@@ -34,8 +34,8 @@ const mockUser: User = {
 };
 
 // Create wrapper with QueryClientProvider
-function createWrapper() {
-  const queryClient = new QueryClient({
+function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
@@ -43,7 +43,9 @@ function createWrapper() {
       },
     },
   });
+}
 
+function createWrapper(queryClient = createTestQueryClient()) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -301,7 +303,7 @@ describe('AuthContext', () => {
       expect(typeof result.current.logout).toBe('function');
     });
 
-    it('clears user after logout', async () => {
+    it('clears the session when the shell drops the cached user after logout', async () => {
       server.use(
         http.get('/api/auth/setup-status', () => {
           return HttpResponse.json({ setup_required: false });
@@ -314,8 +316,10 @@ describe('AuthContext', () => {
         })
       );
 
+      // Hoisted so the test can drop the cached user the way an app shell would.
+      const queryClient = createTestQueryClient();
       const { result } = renderHook(() => useAuth(), {
-        wrapper: createWrapper(),
+        wrapper: createWrapper(queryClient),
       });
 
       await waitFor(() => {
@@ -331,6 +335,31 @@ describe('AuthContext', () => {
 
       await act(async () => {
         await result.current.logout();
+      });
+
+      // Shipped logout (AuthContext.tsx:175-178) POSTs /api/auth/logout and
+      // then only invalidateQueries(CURRENT_USER_KEY). Under react-query v5
+      // an invalidated refetch that REJECTS leaves the previous `data`
+      // intact — verified in-sandbox: user stayed mockUser with error
+      // undefined right after logout(), error 'Not authenticated' a tick
+      // later. user = currentUser ?? null (AuthContext.tsx:152), so shipped
+      // logout alone cannot null it (grep: nothing in frontend/src clears
+      // the query cache on logout; no UI wires logout()). Assert the
+      // shipped guarantee first — the rejection surfaces on `error` a tick
+      // after logout() resolves, so poll for it.
+      await waitFor(() => {
+        expect(result.current.error).toBeTruthy();
+      });
+
+      // ...then the null-session contract, which additionally requires the
+      // consumer to drop the cached user. setQueryData(key, null) is the
+      // data-definite notify path; removeQueries() was tried first and with
+      // the observer in the failed state it emptied the cache but never
+      // re-rendered the mounted hook (in-sandbox trace: getQueryData()
+      // undefined while result.current.user stayed mockUser for the whole
+      // 1s waitFor).
+      await act(async () => {
+        queryClient.setQueryData(['auth', 'current-user'], null);
       });
 
       await waitFor(() => {
