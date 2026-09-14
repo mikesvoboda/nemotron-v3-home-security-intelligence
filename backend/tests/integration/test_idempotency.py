@@ -424,11 +424,16 @@ class TestDetectionProcessingIdempotency:
             detection.enrichment_data = enrichment_data
             await session.commit()
 
-        # Verify enrichment data is consistent
+        # Verify enrichment data is consistent. enrichment_data ships
+        # deferred() (models/detection.py:78) — touching the attribute on an
+        # ORM instance fires a sync lazy-load, which under asyncio raises
+        # MissingGreenlet (wave I-10). Select the column directly instead.
+        # (ledger R-T9-DEFERRED)
         async with get_session() as session:
-            result = await session.execute(select(Detection).where(Detection.id == detection_id))
-            detection = result.scalar_one()
-            assert detection.enrichment_data == enrichment_data
+            result = await session.execute(
+                select(Detection.enrichment_data).where(Detection.id == detection_id)
+            )
+            assert result.scalar_one() == enrichment_data
 
 
 class TestAPIIdempotency:
