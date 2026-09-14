@@ -2301,3 +2301,23 @@ all ruled; remaining OPEN memo items (e-i: P1 busy-loop, P3 frame-buffer,
 R-T7-APIKEY-DEAD, P4 risk_level, logout gap, DetectionStreamService, ~102
 uncategorized) stay parked with their evidence in the memo — none block the
 M1/M2/M3 critical paths currently planned.
+
+## Gate 16 RED (2026-09-14, tip 5cd37663) — lone frontend flake, fixed 126bf536
+
+Bare validate.sh on the CURRENT box (62.69 GiB — restart NOT required for the
+gate itself; 96 GiB is only T3's 8x8192 heap arm): backend tiers all silently
+green (unit+integration+coverage combined >= 80), frontend vitest
+**1 failed | 777 passed | 3 skipped in 3045.87s**, exit rc=1, banner
+"[ERROR] Frontend tests failed" at log :32184. (Gate 14 was 0 failed — this is
+NEW flake territory, load-dependent.)
+
+- FAILED: src/App.lazy.test.tsx > "lazy loads different routes independently"
+  waitFor@132 expired at FAST_TIMEOUT (300ms) — Suspense "Loading" still on
+  screen. Same React-19 lazy-delivery-after-microtask+act-flush class this file
+  already documents at its error-boundary site (~250-300ms edge). Test-side
+  fix: route1+route2 waitFors -> STANDARD_TIMEOUT (1000ms), the repo constant
+  for real async renders; mock-resolved sites keep FAST. Standalone repro:
+  5/5 pass before AND after (contention-only); file+tsc+eslint clean.
+- Protocol note: gate launched WITHOUT the 96 GiB restart deliberately — gate
+  14 proved this box runs every tier; idle-box waiting was the worse trade.
+- Next: gate 17 at tip incl. this fix.
