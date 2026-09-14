@@ -1324,3 +1324,36 @@ this feature.
 ck_cameras_status; fixtures using status="active" error at flush — every test
 in test_zone_anomaly_service.py died in fixture setup. Sample camera now uses
 "online". Test-only.
+
+## R-T9-EXPORTDEFER — export service touches deferred Event columns → every non-empty export fails (OWNER RULING NEEDED) (2026-09-14)
+
+**[VERIFIED against shipped code + reproduced standalone]**
+Event.reasoning and Event.llm_prompt ship deferred() (models/event.py:70,72).
+export_events_with_progress reads event.reasoning on ORM instances inside the
+async request path (export_service.py:824) — the deferred load is a sync IO
+call, raising sqlalchemy.exc.MissingGreenlet. Effect: POST /api/exports with
+any events present → background job fails ('Export job failed' traceback in
+server logs) and the job row lands FAILED. The integration file cannot assert
+completed/failed lifecycle honestly, and the download test's status-poll loop
+hangs. NOT fixed in production here (M3 scope: tests/scripts/docs only) and
+NOT papered over in tests. Fix candidates for the owner: select the deferred
+columns explicitly in the export query, or un-defer them. Owner ruling
+requested; affected export lifecycle/download tests skip citing this ref.
+
+## R-T9-MQTTPUMP — MQTTClient never starts its message pump; _process_messages never returns (OWNER RULING NEEDED) (2026-09-14)
+
+**[VERIFIED against shipped code + reproduced standalone]**
+connect()'s comment promises "message processing task is started when first
+subscription is added" — no such code path exists; subscribe() only registers
+a callback; _message_processing_loop has ZERO callers in the repo, and no
+production module instantiates/consumes MQTTClient. Consequences: (1) delivery
+assertions (5 tests: full flow, qos1, qos2, retained, wildcard) can never see
+messages; (2) test_full_publish_subscribe_flow additionally
+`await second_mqtt_client._process_messages()` — that method is an infinite
+`async for message in self._client.messages`, so the await NEVER returns; the
+test hangs the entire pytest session (the wave I-5/J-6/J-7 unexplained timeouts
+were this: randomly-ordered runs hit the delivery tests or this hang before a
+summary ever prints). The broker itself is healthy (starts in 0.7s, TCP fine,
+publish OK — verified outside pytest). Production fix (start the pump on
+subscribe, as the comment says) is owner ruling; delivery-dependent tests skip
+citing this ref. Pure-publish tests (assert-True class) stay live.
