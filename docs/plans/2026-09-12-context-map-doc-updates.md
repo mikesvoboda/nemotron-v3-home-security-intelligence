@@ -1159,3 +1159,26 @@ The full health endpoint returns 503 in the test environment whenever any
 dependency check isn't green — orthogonal to what the test asserts (trace /
 correlation response headers). Switched to get_liveness, which answers 200
 with no dependency evaluation. No production change.
+
+
+## R-T9-PIPELINE-E2E — shipped default is Redis Streams; fast path ships disabled (2026-09-14, fix-forward after H3 3 failures)
+
+Three distinct shipped-vs-test divergences in test_pipeline_e2e.py:
+1. **xadd mock**: use_redis_streams defaults True (config.py:2104) →
+   BatchAggregator.close_batch enqueues via
+   AnalysisStreamService.add_batch → `_redis._client.xadd`. The file's
+   MockRedis inner MagicMock returned a non-awaitable MagicMock → TypeError
+   in every close_batch test (11 run-9 failures). Mock now implements the
+   real contract: async, (name, fields, maxlen, approximate), entries
+   recorded in parent._streams, incrementing "n-0" ids.
+2. **stream vs legacy LIST**: with xadd working, close_batch takes the
+   stream branch — nothing lands in the legacy "analysis_queue" LIST the
+   tests peeked (batch_aggregator.py:928-954). Tests now assert the
+   "analysis:stream" entry (detection_ids JSON-decoded), reset the
+   module-level _analysis_stream_service singleton first (it caches the
+   first redis client ever seen) and read via mock peek_stream().
+3. **fast path is DISABLED by design** (threshold=2.0, types=[] —
+   "DO NOT RE-ENABLE WITHOUT ENRICHMENT", batch_aggregator.py:1163-1178).
+   The old test relied on removed permissive defaults; it now opts the
+   aggregator instance into the legacy 0.90/person gate to exercise the
+   shipped gate honestly.
