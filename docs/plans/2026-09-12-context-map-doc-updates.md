@@ -2196,3 +2196,38 @@ Both fixes NOT in quarantine (neither file excluded — exclusion widening not e
 Owner decision: VM memory 62.69 -> 96 GiB (restart required). Gate 15 killed at ~15 min (backend green, frontend ESLint stage) — pre-verdict, no signal lost; gate 16 on the new box records M1 §6 on identical tip (9eb02b3e + docs commits) with the two frontend fixes already file-verified. Rationale: 8 workers x 8 GiB heap caps (T3 arm 1) fit worst-case only at 96; clears validate.sh's 64 GiB auto-parallel gate honestly (no threshold ruling needed anymore); margin for compose-alongside-gate later. CPU ceiling unchanged (16 cores -> ~8-12 vitest workers sweet spot regardless of RAM).
 **RULINGS RECORDED:** M3-T5 timeout swap APPROVED as written (signal + func_only=false + timeout=5; execution per packet §5: conftest CLI-honoring fix + stamp-plugin retirement -> pyproject swap -> /tmp/t5 smoke both arms -> gate x2).
 **Restart-proofing:** all /tmp draft assets copied to docs/superpowers/staged/2026-09-14/ (t3-draft, t5, t2, wave2-drafts, wave3-drafts, dur plugin, timeout_stamp_plugin.py); env backup mirrored to /home/agent/env-backup-gb300.env; measurement runs mirrored to /home/agent/dur-runs-backup. Goal hook + monitors die with the session — re-issue goal from docs/goal-prompt-m1-m2-m3-2026-09-14.md (updated below) after restart.
+
+## M3 T5 execution — steps 1–2 landed + smoke verdict (2026-09-14, pre-restart)
+
+Ruling executed per packet §5 (owner: "Approve as written"). Box-free steps
+only; gate ×2 runs post-restart on 96 GiB.
+
+- **Step 1 (c1e10c2b)**: `_apply_timeout_marker(item, fspath, cli_cap)` —
+  CLI `--timeout` now stamps every unmarked item (pytest-timeout markers
+  override the CLI option, which is what made validate.sh's `--timeout=30`
+  integration stage silently run at 5s — closes R-T7-TIMEOUT-GATE).
+  Explicit markers still win; slow=30 / integration=5 ladder serves default
+  runs. `timeout_stamp_plugin.py` deleted (in-tree staged copy + /tmp) —
+  its function is absorbed. Verified collect-only: `--timeout=30` → (30.0)
+  on unit items; default → unit `None` (ini 5), slow (30), integration (5).
+- **Step 2 (ed237d99)**: pyproject `timeout_method = "signal"`,
+  `timeout_func_only = false`, `timeout = 5`, scar comment replaced with the
+  disproven-mechanism explanation.
+- **Step 3 smoke, both arms (staged t5/test_setup_hang_smoke.py, signal
+  config live, serial, DB-free):**
+  - plain `--timeout=5`: **1 error in 5.17s, exit 1, no node-down** — signal
+    fires inside fixture *setup* (func_only=false behavior confirmed).
+  - `--timeout=5 --reruns=1`: **1 failed, 1 rerun in 125.18s, exit 1, no
+    node-down, full summary** — scar-comment scenario cannot harm.
+  - **CAVEAT (new finding)**: attempt 1's setup hang times out cleanly, but
+    on the *rerun* attempt pytest-timeout's signal does not re-arm during
+    setup — the 120s sleep ran to completion and the test body executed
+    (hence 125s, and "failed" not "error"). Strictly better than the old
+    config (thread+func_only=true never caught setup hangs at all, and
+    thread's os._exit killed whole workers); CI reruns paths are
+    `|| true`-guarded. If a setup hang ever needs to time out on *every*
+    attempt, that's a pytest-timeout issue, not a regression introduced here.
+- **Also found**: `-p no:randomly` loses to addopts `-p randomly` (plugins
+  both loaded → pytest-randomly stays); its faker_seed crashes on unset
+  seed (TypeError str+int) — standalone runs need `--randomly-seed=N`.
+- **Remaining T5**: step 4 = gate ×2 green, zero node-downs (post-restart).
