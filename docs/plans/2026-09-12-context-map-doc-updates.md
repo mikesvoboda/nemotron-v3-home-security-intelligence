@@ -2321,3 +2321,19 @@ NEW flake territory, load-dependent.)
 - Protocol note: gate launched WITHOUT the 96 GiB restart deliberately — gate
   14 proved this box runs every tier; idle-box waiting was the worse trade.
 - Next: gate 17 at tip incl. this fix.
+
+## Gate 17 RED (2026-09-14, tip 3f93ae3b) — Prettier format:check on 126bf536's edit; vitest never ran
+
+Backend fully green under the T5 config for the first time (from summary lines):
+- unit: `27524 passed, 168 skipped, 8 xfailed in 84.34s` — [OK] coverage sufficient
+- integration: `4165 passed, 131 skipped, 2 xfailed in 588.94s` — ZERO node-downs under
+  signal method + timeout_func_only=false + CLI-honoring conftest at -n8 (first gate
+  exercising the ed237d99/c1e10c2b stack; T5 step-4 evidence, 1/2 gates)
+ESLint [OK], tsc [OK], then Prettier `format:check` failed on
+`src/App.lazy.test.tsx` — the single-line waitFor edits in 126bf536 exceeded the
+print width. Frontend vitest stage never ran. rc=1, no test failures anywhere.
+
+Fix: `npx prettier --write` (wraps the two waitFor calls only; no logic change),
+file re-checked clean, standalone vitest 5/5 (2.04s). Gate 18 relaunches from the
+formatted tip. Lesson for the ledger: frontend edits must clear
+`npm run format:check` before a gate — validate.sh checks, it does not format.
