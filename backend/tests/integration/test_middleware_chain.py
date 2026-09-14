@@ -131,12 +131,12 @@ async def test_security_headers_hsts_added_for_https(client):
 @pytest.mark.asyncio
 async def test_cors_middleware_adds_headers_for_allowed_origin(client):
     """Test that CORSMiddleware adds headers for allowed origins."""
-    response = await client.get("/", headers={"Origin": "http://localhost:3000"})
+    response = await client.get("/", headers={"Origin": "https://localhost:8444"})
 
     assert response.status_code == 200
     # CORS headers should be present
     assert "access-control-allow-origin" in response.headers
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert response.headers["access-control-allow-origin"] == "https://localhost:8444"
 
     assert "access-control-allow-credentials" in response.headers
     assert response.headers["access-control-allow-credentials"] == "true"
@@ -148,7 +148,7 @@ async def test_cors_middleware_handles_preflight_options(client):
     response = await client.options(
         "/api/cameras",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "https://localhost:8444",
             "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": "content-type",
         },
@@ -174,7 +174,7 @@ async def test_cors_middleware_handles_preflight_options(client):
 @pytest.mark.asyncio
 async def test_middleware_chain_order_all_headers_present(client):
     """Test that all middleware adds headers in correct order."""
-    response = await client.get("/", headers={"Origin": "http://localhost:3000"})
+    response = await client.get("/", headers={"Origin": "https://localhost:8444"})
 
     assert response.status_code == 200
 
@@ -469,7 +469,7 @@ async def test_middleware_chain_complete_flow(client):
     response = await client.get(
         "/",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "https://localhost:8444",
             "X-Custom-Header": "test-value",
         },
     )

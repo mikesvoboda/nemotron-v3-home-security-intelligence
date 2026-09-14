@@ -926,3 +926,12 @@ same files pass standalone. The stamp's 30s is per-item; the combined
 death is the session-level wall (plugin prints stacks + os._exit).
 Verification strategy going forward: per-file or small-batch serial runs,
 not one 18-file chain. (Ledger lesson, not a code change.)
+
+## R-T9-CORS — CORS tests assumed http://localhost:3000; shipped allowlist is :8444 trio + frontend:8080 (2026-09-14, batch E green 48p)
+
+test_middleware_chain.py + test_api.py used Origin http://localhost:3000 and
+asserted the ACAO echo. Shipped cors_origins default (config.py:884):
+https://localhost:8444, https://127.0.0.1:8444, https://0.0.0.0:8444,
+http://frontend:8080 — Starlette omits ACAO for unlisted origins and the
+preflight answers 400. Tests now use https://localhost:8444. Production
+allowlist untouched (non-negotiable: align tests to shipped contract).
