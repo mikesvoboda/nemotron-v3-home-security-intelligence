@@ -610,3 +610,82 @@ File now 11/11 green (-n4, gate-postgres). Implication for the leak hunt: real l
 evidence is ONLY the pre-fix kernel kills (22–58GB RSS); post-cutover unit drift is
 ~1GB/700 tests. Run-8 (full tier, uncapped-RSS/20GB-VmSize cap, gate-matched
 --timeout=30) is the first run whose summary can be trusted end to end.
+
+### R-T7-TIMEOUT-GATE (2026-09-13/14, runs 8b–8e): the gate's --timeout=30 never governed unmarked integration tests
+
+conftest._apply_timeout_marker stamps timeout(5) on unmarked integration items, and
+pytest-timeout per-item markers OVERRIDE the CLI --timeout — so validate.sh's
+integration stage ("--timeout=30") has been running at a 5s effective cap all along.
+Under -n8 contention legitimate tests exceed 5s → thread-method os._exit(1) → whole
+xdist worker dies silently (same mechanism as R-T7-WORKERDOWN, but file-wide: run-8b
+deaths at cursor_pagination/events_api/face_recognition, normal RSS, ~20–30% mark).
+Run protocol fix: /tmp/timeout_stamp_plugin.py (tryfirst hook stamps timeout(30) on
+unmarked integration items before conftest's hook sees them — verified: collect-only
+probe shows timeout=(30,)). Repo fix candidates for owner (P2 companion): drop the
+5s stamp, or make conftest honor an explicit CLI timeout. REPO CHANGE NOT SHIPPED.
+
+### R-T7-DOUBLEJOB (2026-09-13 ~22:29–22:50): concurrent heavy jobs poisoned runs 8c/8d AND explain the deaths
+
+A second full integration tier (seed 1234, .venv pytest direct, --durations, >
+/tmp/baseline_full.txt — launched OUTSIDE this session's transcripts, sibling-agent
+fingerprint) ran alongside run-8c/8d from their first minute. Both runs died/aborted
+at the 26–30% mark cluster; the baseline itself lost gw3/gw2/gw0 by 40% — it had NO
+timeout-stamp plugin (so integration items sat at the 5s conftest cap) and ran
+contended → R-T7-TIMEOUT-GATE kills, exactly. All overlapping jobs killed 22:50
+(xdist workers had reparented to init — kill by PID list, not just controller);
+machine verified quiet (1G RSS total) before run-8e launch 22:52:28. Run-8e = first
+integration tier with (a) exactly one heavy job, (b) timeout-stamp plugin, (c) the
+WS-OOM fix. Runs 8c/8d summaries are VOID; partials: /tmp/baseline-partial-2239.txt
+(44%), /tmp/validate-backend-integration.log (8d, 26%). Protocol now in goal prompt:
+census `ps -eo args | grep -E 'python -m pytest|uv run pytest'` BEFORE any gate run.
+
+### R-T7-AUTHFLOW close-out (2026-09-14, commit 3230e3f3): auth_flow rewritten to shipped cookie-session contract
+
+Class-(c) TDD-RED drift (15 reds): JWT-era draft asserted access/refresh token
+pairs, POST /api/auth/refresh, login-by-email, multi-user registration, Bearer auth
+on /api/cameras — none shipped (NEM-5312/5322 redesign, ruling F3; test_api_protection
+is the reference). Rewrite pins: first-admin-only register (409 once any user
+exists; dupes 400 unreachable but pinned), login → {user,message} + httponly cookie
+(negative half: no access_token/refresh_token/token_type), /refresh → 404, api-key
+CRUD session-cookie-only (list {items,total}, revoke 200+message record survives
+is_active=False), multi-session + logout-invalidates via real_redis seam. Serial
+26/26 green.
+
+### R-T7-APIKEY-DEAD (2026-09-14, owner-ruling candidate): DB-created API keys authenticate NOTHING
+
+/api/auth/api-keys CRUD writes the api_keys table (key_hash, prefix), but NO shipped
+auth path reads it: every verify_api_key implementation validates settings.api_keys
+only (system.py:272, dlq.py:41 — sha256 vs settings list; inbound_webhooks.py:121 is
+a dev stub accepting any key ≥16 chars; global AuthMiddleware disabled NEM-5527 —
+its code is settings-hashes too). A key minted through the admin UI therefore
+unlocks zero routes. Test pins the gap: test_db_created_key_does_not_authenticate
+(created key → 401 on the one side-effect-free verify_api_key route, cleanup dry_run).
+Options for owner: (a) wire a DB-backed validator (check is_active, expiry,
+last_used_at) into verify_api_key, (b) remove/deprecate the CRUD surface as
+future-only, (c) document settings-only as the contract. NOT a test fix — needs ruling.
+
+### R-T7-CURSOR (2026-09-14): cursor-pagination 400-conflict rule was WITHDRAWN in #3011 — tests realigned; prod inconsistency found
+
+Archaeology: the "reject simultaneous offset+cursor (NEM-2613)" 400 was ADDED in
+4c3d1760 (#2992) and REMOVED in 28209ba2 (#3011, consolidate-bob-branch). Shipped
+contract on BOTH endpoints (events.py:417, detections.py:276): "cursor … takes
+precedence over offset" → 200, offset ignored, deprecation_warning ONLY for
+offset-without-cursor (pagination.get_deprecation_warning). Tests asserting 400
+(2 sites in api/test_cursor_pagination.py) rewritten to pin precedence + warning-
+suppression + identical-items-to-cursor-only; 4th test (offset=0+cursor allowed)
+was already green and unchanged.
+
+test_cursor_with_filters root cause was NOT the cursor: the fixture seeded
+risk_score=i*4 (0–96) with hand-labeled risk_level strings — scores 85–96 are
+CRITICAL per the severity taxonomy (60–84 high, 85–100 critical,
+api/schemas/events._compute_risk_level / NEM-3398), and the list schema
+SERIALIZES risk_level as a computed field recomputed from risk_score. Probe proved
+it: seeded "high" rows with score 88 came back risk_level="critical". Fix: fixture
+scores recomputed to sit inside each band ((i*84)//24 → 0–84). Test-side done.
+
+P4 owner-ruling candidate (NOT touched): the /api/events risk_level FILTER queries
+the DB COLUMN while the RESPONSE serializes the COMPUTED level — for any row where
+the column contradicts the score (legacy rows, direct-SQL writes), the filter and
+payload disagree; ?risk_level=critical returns 0 rows for score-90-but-column-high
+events, etc. Either normalize the column on write, or filter on computed_risk_level
+(hybrid SQL expression already exists, models/event.py:403).
