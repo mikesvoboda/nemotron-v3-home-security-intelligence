@@ -86,7 +86,7 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
     """
     from datetime import UTC, datetime
 
-    from backend.models.baseline import ActivityBaseline
+    from backend.models.baseline import ClassBaseline
     from backend.models.camera import Camera
 
     # Create test camera
@@ -98,17 +98,36 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
     )
     db_session.add(camera)
 
-    # Create baseline data with known statistics
-    # avg_count=10.0, so detecting 20 items would be 2 standard deviations above
-    baseline = ActivityBaseline(
-        camera_id="test_cam_config",
-        hour=14,
-        day_of_week=0,  # Monday
-        avg_count=10.0,
-        sample_count=30,  # Sufficient samples
-        last_updated=datetime.now(UTC),
+    # SHIPPED contract (services/baseline.py is_anomalous): the score is
+    # relative class FREQUENCY, 1.0 - class_freq/total_freq over
+    # ClassBaseline rows for the queried hour, and the flag is
+    # score > 1 - 1/(threshold+1). ActivityBaseline rows are not consulted
+    # here (they back get_current_deviation), so seed class baselines.
+    # person=3, vehicle=5 -> relative 3/8 -> score 0.625, which sits in
+    # the window that flips: cutoff at t=2.0 is 1-1/3=0.667 (0.625 not
+    # above it), cutoff at t=1.5 is 1-1/2.5=0.60 (0.625 IS above it).
+    # Fresh last_updated keeps the time-decay factor at 1.0.
+    now = datetime.now(UTC)
+    db_session.add_all(
+        [
+            ClassBaseline(
+                camera_id="test_cam_config",
+                detection_class="person",
+                hour=14,
+                frequency=3.0,
+                sample_count=10,
+                last_updated=now,
+            ),
+            ClassBaseline(
+                camera_id="test_cam_config",
+                detection_class="vehicle",
+                hour=14,
+                frequency=5.0,
+                sample_count=10,
+                last_updated=now,
+            ),
+        ]
     )
-    db_session.add(baseline)
     await db_session.commit()
 
     # Get the baseline service
@@ -116,21 +135,19 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
 
     service = get_baseline_service()
 
-    # Reset to default threshold of 2.0 standard deviations
-    service.update_config(threshold_stdev=2.0)
+    # Reset explicitly (singleton is process-wide; test order is randomized)
+    service.update_config(threshold_stdev=2.0, min_samples=10)
 
-    # Test detection at exactly 2.0 standard deviations above mean
-    # With threshold=2.0, this should NOT be anomalous (needs to exceed threshold)
-    test_time = datetime(2026, 1, 27, 14, 0, 0, tzinfo=UTC)  # Monday at 14:00
+    # score=0.625; at threshold=2.0 the cutoff is 1 - 1/3 = 0.667 -> not anomalous
+    test_time = datetime(2026, 1, 27, 14, 0, 0, tzinfo=UTC)  # hour 14 matches seed
     is_anomalous, score = await service.is_anomalous(
         "test_cam_config",
         "person",
         test_time,
         session=db_session,
     )
-
-    # At threshold=2.0, score=2.0 should not be anomalous
-    assert not is_anomalous, "Score at threshold should not be anomalous"
+    assert score == 0.625
+    assert not is_anomalous, "Score below the 2.0-threshold cutoff should not be anomalous"
 
     # Now lower the threshold to 1.5 via API
     headers = {"X-API-Key": "test-api-key-12345"}
@@ -152,9 +169,12 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
         session=db_session,
     )
 
-    # With threshold=1.5, score=2.0 should now be anomalous
-    assert is_anomalous_new, "Score above new threshold should be anomalous"
+    # score unchanged; cutoff moved to 1 - 1/2.5 = 0.4 -> 0.5 > 0.4 anomalous
     assert score_new == score, "Score calculation should not change"
+    assert is_anomalous_new, "Score above new threshold cutoff should be anomalous"
+
+    # Restore shipped defaults so the singleton's next reader sees a clean config
+    service.update_config(threshold_stdev=2.0, min_samples=10)
 
 
 @pytest.mark.asyncio
