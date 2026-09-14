@@ -112,6 +112,21 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
     mock_pipeline_manager.start = AsyncMock()
     mock_pipeline_manager.stop = AsyncMock()
 
+    # Mock WorkerSupervisor so the lifespan never starts real supervised
+    # workers over the MagicMock redis below. Without this, lifespan's
+    # get_worker_supervisor + create_detection_worker chain spawns real
+    # _run_loop tasks whose stream calls hit a globally-cached
+    # DetectionStreamService possibly bound to an earlier file's AsyncMock
+    # redis: consume returns a truthy mock, `if not messages: continue`
+    # spins unthrottled, and unittest.mock._Call history grows until the
+    # xdist worker is OOM-killed (gate run 6, gw4; see
+    # docs/discoveries/pytest-oom-asyncmock-worker-loop.md, fbb2f4ee precedent).
+    mock_worker_supervisor = MagicMock()
+    mock_worker_supervisor.start = AsyncMock()
+    mock_worker_supervisor.stop = AsyncMock()
+    mock_worker_supervisor.register_worker = AsyncMock()
+    mock_worker_supervisor.worker_count = 4
+
     mock_service_health_monitor = MagicMock()
     mock_service_health_monitor.start = AsyncMock()
     mock_service_health_monitor.stop = AsyncMock()
@@ -187,6 +202,7 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
         patch("backend.main.FileWatcher", return_value=mock_file_watcher),
         patch("backend.main.get_pipeline_manager", mock_get_pipeline_manager),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.get_worker_supervisor", return_value=mock_worker_supervisor),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
