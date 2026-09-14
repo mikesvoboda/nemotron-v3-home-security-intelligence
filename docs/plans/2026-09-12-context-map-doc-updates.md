@@ -1937,3 +1937,120 @@ specifically was friendly fire, not that hazard.
 Post-correction state: Task 4 commit 9d7aba25 stands (fixture correctness
 proven by -n0 runs); run 9 voided by collision, not by code. Run 10
 launches with zero concurrent activity.
+
+## Task 4 MEASUREMENT #1 (gate run 10, 2026-09-14): real, but small — 953s -> 919.75s (−3.4%)
+
+Full tier GREEN on Task-4 conftest: 4165 passed / 131 skipped / 2 xfailed,
+919.75s, zero errors, zero node-downs (run 9's friendly-fire voided).
+Before-anchor: run 8 = 953.40s (same box, old fixture). The audit's
+18-21 min [ESTIMATE] is DEAD — honest number is ~34s wall saved.
+
+Why smaller than modeled (durations TSVs, /tmp/dur-runs/run10, first 1607
+integration tests):
+- setup p50 0.068s (DDL block gone — MECHANISM CONFIRMED), but setup p90
+  1.12s: init_db() STILL runs its own create_all + advisory lock per test
+  (production function, per-test engine/loop coupling) — the remaining
+  per-test schema cost lives in backend/core/database.py, not the fixture.
+- teardown p50 1.04s / summed 1,584s = 3x full-schema cleanup sweeps per
+  client test (client pre-clean + client post-clean + integration_db's
+  redundant third pass) + reflection churn. Teardown is now the dominant
+  fixture cost by 10x.
+- setup+teardown total ~2,300s over 16 workers ~= 145s of a 920s wall;
+  everything else is real test time + coverage.
+
+=> Commit A (owner-approved "do commit A", 2026-09-14, same Task 4
+sub-step family): (1) get_table_deletion_order memoized per worker
+(schema immutable post-Task-4a makes caching safe; only SUCCESS caches);
+(2) redundant third sweep removed from integration_db teardown (plan's
+explicit alias-site directive; client pre+post and clean_tables post
+still cover every data family). Expected teardown p50 1.04 -> ~0.7s.
+Commit B candidate: drop client PRE-test sweep (post-clean suffices;
+crashed-teardown is the accepted-risk edge) -> ~0.35s, 1 sweep/test.
+Commit C candidate (only if still fat): coalesce 27 per-test TRUNCATEs
+into one statement — same relfilenode churn as today, honors
+R-T7-ENOSPC-RECUR binding.
+
+## Task 4c VERIFICATION + MEASUREMENT #2 (run A2, 2026-09-14): teardown fixed, wall 919.75 -> 618.53s (−33%)
+
+Commit A (memoized deletion order, audit 2.2 + conditional third-sweep skip)
+verified by a full verification tier BEFORE commit (the protocol working as
+designed): 4165 passed / 131 skipped / 2 xfailed, 618.53s, zero FAILED/ERROR
+lines, zero node-downs, event_search 30/30 PASSED on the previously-polluted
+worker DB (dropped stale security_test* DBs first; killed-run debris was the
+25-fail cause, not fixture logic).
+
+- teardown p50 1.043 -> 0.224s (p90 1.115 — non-client tests keep their
+  sweep by design: only client/clean_tables/db_session/isolated_db_session
+  stacks suppress it; _SWEEP_OWNERS is deliberately conservative, file-local
+  wrappers like _fts_db keep the sweep).
+- setup p90 1.161s unchanged — init_db()'s own create_all + advisory lock
+  per engine creation is the next target (production-code seam, ruling
+  packet idea logged: init_db(create_schema=False)).
+- Wall −301s/worker-pass is larger than the sweep-count model predicted
+  (~2,300s summed setup+teardown / 16 workers ≈ 145s): fewer sweeps also
+  means fewer lock waits and less WAL churn feeding into EVERY call phase —
+  the model undercounted second-order effects. Lesson: fixture cost is not
+  additive across workers.
+
+## Regression (caught pre-commit, 2026-09-14): unconditional third-sweep removal
+
+First commit-A draft dropped integration_db's sweep unconditionally (the
+plan's literal "drop the redundant third cleanup pass" wording).
+Verification tier caught 25 test_event_search failures on gw5: tests
+consuming integration_db via thin file-local wrappers (_fts_db) have NO
+client/clean_tables in their stack — that sweep was their ONLY cleanup, and
+on a reused worker DB the previous session's rows broke ts_rank baselines.
+Fix = conditional skip via request.fixturenames ∩ _SWEEP_OWNERS. Ledger
+binding reaffirmed: MEASURED green tiers, not plan wording, decide what a
+fixture may drop.
+
+## Frontend vitest (gate 10 failure classes): 5/6 fixed on branch, all test-side
+
+Gate 10's first-ever frontend-tier completion failed 18 tests / 10 files
+(+2 fork crashes). Root causes, one fix per commit, ALL aligning tests to
+the shipped contract (zero production bending):
+1. PromptPlayground x4 files: strict vi.mock('../../../services/api')
+   factories missing module-graph exports — the useRoutePrefetch ->
+   routePrefetching chain references fetchCameras etc. at module-eval, and
+   PromptPlayground imports fetchEvents directly (api.ts :51). Fixed by
+   grafting the validation-test passthrough block (its own comment already
+   documented the crash: "omitting any of them crashes the whole graph at
+   import time"). Verified 31/31.
+2. alertsApi x2: double-invocation bug — one mockResolvedValueOnce consumed
+   by call 1; call 2 fell through the exhausted spy to msw's GLOBAL server
+   (setup.ts server.listen) which answers /api/alerts/* 2xx -> rejects
+   assertion vs resolved promise. Fix: assert both expectations on ONE
+   rejection promise; ALSO the 'Alert not found' substring never matched
+   contiguously (shipped client forwards detail verbatim) -> assert actual
+   message. Verified 26/26.
+3. useWorkerActions x1: test rejected a PLAIN OBJECT; shipped hook wraps
+   non-Errors in new Error(String(err)) (:79-81) -> state held
+   "Error: [object Object]". Fix: reject a real Error carrying .details.
+   Verified 14/14.
+4. api.frontend-error-log x5: shipped fetchApi RETRIES 5xx/network 3x
+   (1s/2s/4s backoff). Single-shot mocks: attempt 2 falls through the
+   exhausted Once queue into msw's /api/logs/frontend handler -> 204 ->
+   handleResponse resolves undefined -> "promise resolved instead of
+   rejecting". Fix: drainRetryBackoff helper (repo idiom api.test.ts:2888
+   fake-timer advance) + PERSISTENT failing mocks; catcher attached at
+   start-time because fetchApi's POST dedup path wraps in .finally() (a
+   transform, not a catcher) -> PromiseRejectionHandledWarning otherwise.
+   Verified 17/17, zero unhandled.
+5. useEventDetectionsQuery x3: THREE stacked causes — (a) a second local
+   setupServer never sees requests (the GLOBAL server from setup.ts answers
+   FIRST; its handlers.ts:373 default returns EMPTY items) -> use
+   server.use() overrides per repo idiom; (b) hook hard-codes TanStack
+   retry:2 (153) so isError needs ~3s to settle -> waitFor timeout 6000;
+   abandoned ladders poison fetchApi's module-global GET dedup map for the
+   same URL; (c) createWrapper's gcTime:0 GCs the observer-less prefetch
+   entry the instant it resolves -> isCached() never true. gcTime:5000.
+   Verified 16/16. (R-T7-VITEST knowledge: NEVER run two setupServers +
+   global; empty-200 from global handler masquerades as app bug.)
+6. App.test/App.lazy x7 (AuthProvider/ProtectedRoute drift, NEM-5322):
+   OPEN — biggest design job; tests mock Layout/Dashboard but not
+   contexts/AuthProvider so ProtectedRoute's isLoading never resolves.
+   Next.
+
+Then re-run: CleanupRow leaked-timer unhandled error + the 2 fork-worker
+crashes get re-assessed after 1-5 land (crash candidates were probably the
+unhandled-rejection files above, not CleanupRow itself).
