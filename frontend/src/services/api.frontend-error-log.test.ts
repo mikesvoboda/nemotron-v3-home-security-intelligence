@@ -60,9 +60,15 @@ async function drainRetryBackoff<T>(
     // test-side await attaches (the pattern's own :1321 comment calls this
     // path racy by design; callers should pass a signal). Attaching the
     // caller's catcher at start time marks the chain handled immediately.
+    // Unannotated ternary types as Promise<T> | Promise<unknown>; awaiting
+    // yields unknown, cast at the return (annotating the union here would
+    // trip @typescript-eslint/no-redundant-type-constituents: T | unknown).
     const tracked = catcher ? promise.catch(catcher) : promise;
     await vi.advanceTimersByTimeAsync(7000); // 1000 + 2000 + 4000 backoff sum
-    return await tracked;
+    // When a catcher is passed the call REJECTS (both callers assert via
+    // expect(rejects) on the caller-held promise), so the resolved-T branch is
+    // the only one reachable here; cast satisfies tsc, not runtime.
+    return (await tracked) as T;
   } finally {
     vi.useRealTimers();
   }
