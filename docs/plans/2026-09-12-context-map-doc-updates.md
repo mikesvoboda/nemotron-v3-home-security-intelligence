@@ -1003,3 +1003,19 @@ validation_exception_handler (api/exception_handlers.py) emits
 {"error": {"code": "VALIDATION_ERROR", "message", "errors":[{field,
 message, value}]}}. Aligned. Wave H1: outbound+rum+risk_score green
 (71p/2s).
+
+## R-T7-OUTBOUND — patch the service's _send_request, not httpx.AsyncClient.post (2026-09-14)
+
+Test patched httpx.AsyncClient.post globally; the shared client fixture IS
+an httpx AsyncClient, so the patch hijacked the test's own request and
+the endpoint never ran. Shipped external boundary is
+WebhookService._send_request → (status_code, body, ms). Patch.object on
+the service method instead. Wave H1 green.
+
+## R-T9-WEBHOOKUUID — invalid-UUID GET answers 503 via DataError handler, not 422 (2026-09-14)
+
+Route webhook_id: str; service compares OutboundWebhook.id == literal →
+asyncpg DataError → global SQLAlchemyError handler → 503
+(exception_handlers.py:636). Test now asserts the shipped 503; a 422
+would be the nicer contract but changing it is a production change —
+queued for owner awareness only.
