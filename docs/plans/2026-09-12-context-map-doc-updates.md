@@ -1449,3 +1449,15 @@ per-test setup+call+teardown p99 = 4.16s, max 17.5s. Note for the ruling
 packet: setup ALONE fits inside 5s — the func_only=false blocker is
 TEARDOWN (p99 2.4s, max 2.86s) plus setup (2.5s) jointly; post-T4 numbers
 are the second required input (T4 gates T5, plan §Sequencing 2).
+
+## M3 T6 CLOSE-OUT (first step done, measurement prep) — media_api lifespan hang GREEN post-ENVLEAK (2026-09-14)
+
+**[VERIFIED from run-9 log, /tmp/validate-backend-integration-r9.log]**
+`grep -cE "^FAILED|^ERROR" | grep media_api` = 0; 105 test_media_api node
+lines, all PASSED. The gw6-class TestClient lifespan hang was the leaked
+.env's unresolvable compose hostnames (R-T8-ENVLEAK diagnosis), not a mock
+seam bug — audit Open Q2 answered: no root-cause hunt needed beyond the
+ENVLEAK close-out already landed. Regression note kept: any .env appearing
+mid-run re-creates the hang class; gate protocol (ABSENT during runs) is
+the guard, T5's signal timeout the backstop. Step 4 (scripts/ hang-harness
+test) rides T5's implementation (needs signal semantics to demo cleanly).
