@@ -134,7 +134,10 @@ describe('App lazy loading', () => {
       // under full-suite contention — gate 16's lone FAIL was exactly here at
       // 3045s of loaded runtime). STANDARD_TIMEOUT is the repo constant for real
       // async renders; FAST stays for the mock-resolved sites above.
-      await waitFor(() => expect(screen.getByTestId('route1')).toBeInTheDocument(), STANDARD_TIMEOUT);
+      await waitFor(
+        () => expect(screen.getByTestId('route1')).toBeInTheDocument(),
+        STANDARD_TIMEOUT
+      );
 
       // Only route1 should be imported
       expect(importedRoutes).toEqual(['route1']);
@@ -148,7 +151,10 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(() => expect(screen.getByTestId('route2')).toBeInTheDocument(), STANDARD_TIMEOUT);
+      await waitFor(
+        () => expect(screen.getByTestId('route2')).toBeInTheDocument(),
+        STANDARD_TIMEOUT
+      );
 
       // Now both routes should be imported
       expect(importedRoutes).toEqual(['route1', 'route2']);
