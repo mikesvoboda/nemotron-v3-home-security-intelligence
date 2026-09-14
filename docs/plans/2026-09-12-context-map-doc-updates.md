@@ -943,3 +943,18 @@ middleware but not SetupGuardMiddleware._check_setup_complete; with zero
 users in the worker DB every event mutation answered 503 (run-9: 12
 failures). Shared conftest client has the bypass (conftest.py ~1452); the
 file's own client had diverged. Same root cause family as R-T9-DLQGUARD.
+
+## R-T9-FEEDBACK — snapshot suite drove ghost routes; consistency test reshaped + snapshot regenerated (2026-09-14)
+
+Shipped feedback router: POST /api/feedback, GET /event/{event_id},
+GET /stats — nothing else (routes/feedback.py). Suite's
+GET /api/feedback/{id} + GET list tests were ghosts; removed with note.
+Consistency test now compares create-response vs get-by-event-response
+(both EventFeedbackResponse) and its snapshot entry was captured fresh
+(--snapshot-update added exactly one .ambr entry; 8 pre-existing snapshots
+unchanged). The batch-F '1 failed' line WAS the rewritten suite — it
+failed only on `assert create_schema == snapshot` because the .ambr had
+no entry for the renamed test (the route-shape consistency assert itself
+passed). Fresh capture with --snapshot-update: 9 passed, 1 generated, 8
+pre-existing passed. No-flag confirmation ride scheduled for the
+next serial wave.

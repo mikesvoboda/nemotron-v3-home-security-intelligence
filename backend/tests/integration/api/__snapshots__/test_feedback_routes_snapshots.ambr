@@ -45,6 +45,20 @@
     'type': 'str',
   })
 # ---
+# name: test_feedback_schema_consistency_across_endpoints
+  dict({
+    'actual_identity': 'NoneType',
+    'actual_threat_level': 'NoneType',
+    'created_at': 'str',
+    'event_id': 'int',
+    'feedback_type': 'str',
+    'id': 'int',
+    'model_failures': 'NoneType',
+    'notes': 'NoneType',
+    'suggested_score': 'NoneType',
+    'what_was_wrong': 'NoneType',
+  })
+# ---
 # name: test_feedback_validation_error_schema_snapshot
   dict({
     'error': dict({
