@@ -494,7 +494,9 @@ class TestGroundTruthGenerator:
         tmp_path: Path,
     ) -> None:
         """Ground truth generation should produce a valid DataFrame."""
-        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)")
+        pytest.importorskip(
+            "pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)"
+        )
         # Create test images
         normal_dir = tmp_path / "normal"
         normal_dir.mkdir()
@@ -520,7 +522,9 @@ class TestGroundTruthGenerator:
         tmp_path: Path,
     ) -> None:
         """Should export ground truth to parquet format."""
-        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)")
+        pytest.importorskip(
+            "pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)"
+        )
         # Create test images
         normal_dir = tmp_path / "images" / "normal"
         normal_dir.mkdir(parents=True)
@@ -545,7 +549,9 @@ class TestGroundTruthGenerator:
         tmp_path: Path,
     ) -> None:
         """Summary should provide correct statistics."""
-        pytest.importorskip("pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)")
+        pytest.importorskip(
+            "pandas", reason="pandas is an optional nemo-group dep (R-T9-MULTIMODAL)"
+        )
         # Create images in different categories
         for category in ["normal", "threat"]:
             cat_dir = tmp_path / category

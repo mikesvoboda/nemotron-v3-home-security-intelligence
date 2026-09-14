@@ -342,9 +342,7 @@ class TestEventLinkageIntegrity:
 
         # Fetch event with relationship loaded
         result = await session.execute(
-            select(Event).where(Event.id == event.id).options(
-                selectinload(Event.llm_interaction)
-            )
+            select(Event).where(Event.id == event.id).options(selectinload(Event.llm_interaction))
         )
         fetched_event = result.scalar_one()
 
@@ -357,9 +355,9 @@ class TestEventLinkageIntegrity:
 
         # Fetch LLMInteraction with relationship loaded
         result = await session.execute(
-            select(LLMInteraction).where(LLMInteraction.id == llm_interaction.id).options(
-                selectinload(LLMInteraction.event)
-            )
+            select(LLMInteraction)
+            .where(LLMInteraction.id == llm_interaction.id)
+            .options(selectinload(LLMInteraction.event))
         )
         fetched_interaction = result.scalar_one()
 
