@@ -2054,3 +2054,27 @@ the shipped contract (zero production bending):
 Then re-run: CleanupRow leaked-timer unhandled error + the 2 fork-worker
 crashes get re-assessed after 1-5 land (crash candidates were probably the
 unhandled-rejection files above, not CleanupRow itself).
+
+## M2-T2 landed (2026-09-14, commit 44b1d925) — flake allowlist + retry-mask teardown
+
+Root cause + evidence:
+- api job (old ci.yml:436-470): `if uv run pytest ... | tee test-output.log; then`
+  with no `set -o pipefail` anywhere in ci.yml -> the `if` tested tee's status
+  (always 0), so the retry loop's attempt-1 `exit 0` fired unconditionally even
+  with 100% test failures. Mask, not retry. The four in-loop exit-0s cited by
+  spec §5.2 (:462/:573/:690/:799) are now gone; :360 unit-tests-summary exit-0
+  is the legitimate skipped-tests branch and stays (verified untouched).
+- Teardown per plan Task 2 Step 6: four integration steps (api/websocket/
+  services/models) collapse to single honest runs under `set -euo pipefail`,
+  -k lists and junit/coverage filenames verbatim; registered-flake pre-run
+  (`--reruns 2`) executes only when the allowlist is non-empty (today empty).
+- Hygiene: `Flake allowlist hygiene` step added to collection-sanity; checker
+  runs standalone stdlib (no PyYAML dep). Self-test file lands UNRUN (box
+  leased to validation gate) - pending: uv run pytest
+  scripts/test_check_flake_allowlist.py -v -p no:randomly -o addopts="".
+- Sanity done WITHOUT pytest: checker on real allowlist exit 0 ("0 entries");
+  manual violation case exit 1 (missing tracking + expired); k-filter prints
+  empty string exit 0; both workflow YAMLs parse via uv-run PyYAML; py_compile
+  clean on all 3 scripts; grep: 0 retry loops remain in the four jobs (5
+  remaining 'for attempt' loops are e2e/install/deploy retry steps, out of
+  scope per plan).
