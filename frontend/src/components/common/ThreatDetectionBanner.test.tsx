@@ -230,7 +230,11 @@ describe('ThreatDetectionBanner', () => {
         />
       );
 
-      const viewButton = screen.getByRole('button', { name: /view/i });
+      // When onClick is provided the banner wrapper itself becomes
+      // role="button" (ThreatDetectionBanner.tsx:182) and its accessible
+      // name contains the "View" text — /view/i matches both nodes.
+      // Query the inner button by its exact aria-label instead.
+      const viewButton = screen.getByRole('button', { name: 'View threat event' });
       await user.click(viewButton);
       expect(onViewEvent).toHaveBeenCalled();
       expect(onClick).not.toHaveBeenCalled();
