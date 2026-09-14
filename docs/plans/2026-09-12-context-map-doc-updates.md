@@ -545,6 +545,16 @@ outside — results are recoverable by rerun, and reruns are now safe; (2) the e
 ceiling and the fix removes the churn; (3) validate.sh's integration tier no longer
 PANICs gate-postgres mid-run.
 
+### R-T7-JOBSAPI close-out (2026-09-14): tracker-seeded rewrite landed, file 20/20 (commit 4079e2d1)
+
+The run-6 pending-owner-ruling item is resolved: tests now seed the JobTracker
+singleton (create_job/start/complete/fail + timestamp pinning) instead of the
+Postgres `jobs` table the routes never read. QUEUED→PENDING, CANCELLED→FAILED
+(StrEnum has neither). The last two reds were shipped-contract drift:
+bulk-cancel empty list is 422 (BulkCancelRequest min_length=1; no non-generated
+caller sends []), and JobStatsResponse by_status/by_type are LISTS of
+{status|job_type, count} — assertions flatten lists before comparing.
+
 ### R-T7-WORKERDOWN (2026-09-13): gw3/gw6 "crashes" were pytest-timeout os._exit(1), not the leak (commits e466db3c, e9f9e1ac)
 
 Both capped-run worker deaths ended on a test in
