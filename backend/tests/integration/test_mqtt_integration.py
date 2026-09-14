@@ -594,6 +594,7 @@ async def test_publish_during_reconnection(mqtt_client):
 @pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.slow
+@pytest.mark.timeout(30)  # 100 sequential publishes; >5s under -n8 contention
 async def test_high_throughput_publishing(mqtt_client):
     """Test high-throughput message publishing.
 
@@ -621,6 +622,7 @@ async def test_high_throughput_publishing(mqtt_client):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
+@pytest.mark.timeout(30)  # 10 publishes with 0.1s spacing + propagation wait
 async def test_message_latency(mqtt_client, second_mqtt_client):
     """Test end-to-end message latency.
 
