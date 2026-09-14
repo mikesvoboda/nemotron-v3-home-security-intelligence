@@ -1381,3 +1381,28 @@ client — the pump must be a spawned task; verified: an explicitly spawned
 _process_messages() task delivers end-to-end outside pytest). 13
 connection/publish/throughput tests stay live. Wave K-2: 13 passed, 6
 skipped in 10.84s (/tmp/verify-waveK.log); committed a6edea98.
+
+## R-T9-CIAUDIT — "CI" env-var skip gate hid 5 real DB tests from every local gate run (2026-09-14, wave L-31)
+
+**[VERIFIED]** test_audit.py's TestAuditServiceDatabase (the file's only
+class, 5 tests, real test_db fixture usage) was gated on
+`"CI" not in os.environ` — an env var scripts/validate.sh never sets.
+TEST_DATABASE_URL is persistent (gate protocol), a real PostgreSQL is
+always reachable, yet the whole class skipped on every local gate run:
+silent coverage shrink, not a shipped-contract requirement. Gate replaced
+with the honest condition (skip only when neither TEST_DATABASE_URL nor
+DATABASE_URL is set — mirroring integration conftest.py:309 resolution).
+grep: this pattern exists in test_audit.py ONLY repo-wide. Verification:
+file is outside wave M's list (was L-31); standalone green run required
+before commit.
+
+## Wave L scoreboard — first 41 never-scored integration files (2026-09-14)
+
+**[VERIFIED from /tmp/verify-waveL.log, re-read same turn]** 41/41 batches
+rc=0: 715 passed, 26 skipped, 0 failed, 0 hangs (--timeout=30 + stamp
+plugin, per-file full logs /tmp/waveL-out/). Skip inventory: 4 alembic
+(pre-existing @pytest.mark.skip placeholder — project ships
+init_schema.py, not Alembic; pre-dates this cycle, commit 55e266a8),
+17 backup_restore (pg_dump/pg_restore absent in sandbox — environmental,
+pre-existing skipif at file line 68), 5 audit (R-T9-CIAUDIT, fixed above).
+Wave M = remaining 82 unscored files.
