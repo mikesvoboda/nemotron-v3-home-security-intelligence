@@ -1532,3 +1532,20 @@ new timeout markers).
 
 **[VERIFIED totals, re-read from /tmp/waveM-out/*.log same turn]** 1765
 passed, 42 skipped, 0 failed across the 79 scored files.
+
+## M3 T8 prep — Part 4 clusters re-verified by AST (audit [REPORTED] counts drifted) (2026-09-14)
+
+**[VERIFIED this session, AST pass]** Current method counts vs audit's:
+TestValidateDedupKey 39 (audit: 26 — audit measured the one same-match
+sub-cluster), TestGetActionRiskWeight 23 (22), TestPipelineLatencyHistory
+ParameterValidation 18 (18), TestYOLOFlorenceSemanticEquivalence 22 (19),
+TestTopicMapping 18 (14). TestValidateDedupKey has exactly 4 distinct
+raises(match=...) texts → confirms the 41-false-identical-cluster finding
+and the parametrize-guard requirement (refuse cross-match merges). Current
+mergeable total across the five named clusters ≈ 96→5 as claimed in spirit
+but member counts must come from the guard tool at execution, not this
+session's snapshot. Wave N red #1 root-cause note:
+test_config_affects_anomaly_detection asserted a z-score contract; shipped
+is_anomalous scores relative ClassBaseline frequency (score=1-class/total;
+flag score > 1-1/(t+1)) — rewrote seed to two ClassBaseline rows (score
+0.5), asserts cutoff crossing 0.667→0.4 at threshold 2.0→1.5.
