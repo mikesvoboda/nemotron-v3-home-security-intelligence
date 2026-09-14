@@ -161,6 +161,15 @@ def _topological_sort(tables: set[str], dependencies: dict[str, set[str]]) -> li
     return sorted_tables
 
 
+# Per-worker-session memo (M3 Task 4c, audit 2.2). Safe because the worker
+# DB schema is immutable after _ensure_worker_schema (Task 4a): reflection
+# after the first call is pure waste (27 per-table FK queries per sweep).
+# Tests that create their own tables (test_partition_manager etc.) own and
+# drop those tables themselves — cleanup only ever needs the Base schema.
+# Only a successful reflection is cached; fallbacks re-attempt next call.
+_TABLE_DELETION_ORDER_CACHE: list[str] | None = None
+
+
 async def get_table_deletion_order(engine) -> list[str]:
     """Get tables in FK-safe deletion order using topological sort.
 
@@ -169,6 +178,9 @@ async def get_table_deletion_order(engine) -> list[str]:
     the safe deletion order. Tables that reference other tables (via FK) must
     be deleted first.
 
+    Memoized per worker process (audit 2.2): the schema is fixed for the
+    life of a worker database since Task 4a moved all DDL to session scope.
+
     Args:
         engine: SQLAlchemy async engine
 
@@ -176,6 +188,9 @@ async def get_table_deletion_order(engine) -> list[str]:
         List of table names in safe deletion order (dependent tables first,
         parent tables last).
     """
+    global _TABLE_DELETION_ORDER_CACHE  # noqa: PLW0603
+    if _TABLE_DELETION_ORDER_CACHE is not None:
+        return _TABLE_DELETION_ORDER_CACHE
 
     def _inspect_tables(sync_conn):
         """Synchronous function to inspect tables - called via run_sync."""
@@ -208,6 +223,7 @@ async def get_table_deletion_order(engine) -> list[str]:
             return HARDCODED_TABLE_DELETION_ORDER
 
         logger.debug(f"Computed table deletion order: {sorted_tables}")
+        _TABLE_DELETION_ORDER_CACHE = sorted_tables
         return sorted_tables
 
     except Exception as e:
@@ -976,8 +992,25 @@ def integration_env(
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+# Fixtures that run a full data sweep in their own teardown (which executes
+# BEFORE integration_db's, since they depend on it -> finalize first). A test
+# whose fixture stack contains one of these does not need integration_db's
+# sweep. File-local client-like wrappers (e.g. client_with_cache variants)
+# deliberately NOT listed: conservative — unknown wrappers keep the sweep.
+_SWEEP_OWNERS = frozenset({"client", "clean_tables", "db_session", "isolated_db_session"})
+
+
+def _closer_fixture_sweeps(request: pytest.FixtureRequest) -> bool:
+    """True if the test's (transitive) fixture stack already sweeps data."""
+    return bool(_SWEEP_OWNERS.intersection(request.fixturenames))
+
+
 @pytest.fixture
-async def integration_db(integration_env: str, _ensure_worker_schema: str) -> AsyncGenerator[str]:
+async def integration_db(
+    request: pytest.FixtureRequest,
+    integration_env: str,
+    _ensure_worker_schema: str,
+) -> AsyncGenerator[str]:
     """Wire a per-test engine against the worker's already-migrated schema.
 
     M3 Task 4b: the schema DDL moved to ``_ensure_worker_schema`` (session
@@ -987,7 +1020,8 @@ async def integration_db(integration_env: str, _ensure_worker_schema: str) -> As
     - engine create/dispose — pytest-asyncio 1.3 runs each test on its own
       event loop and SQLAlchemy engines cannot cross loops, so the engine
       itself is inherently per-test (unlike the schema, which is not)
-    - teardown: test-data sweep + guarded ``close_db()``
+    - teardown: a data sweep ONLY when the test has no closer fixture that
+      already sweeps (see _SWEEP_OWNERS below) — plus guarded ``close_db()``
 
     The historical docstring claimed module scope was impossible "because
     pytest-asyncio doesn't support module-scoped async fixtures well" — that
@@ -1008,12 +1042,23 @@ async def integration_db(integration_env: str, _ensure_worker_schema: str) -> As
     try:
         yield integration_env
     finally:
-        # Clean up test cameras before closing the database
-        # Add timeout protection to prevent hanging during teardown
-        try:
-            await asyncio.wait_for(_cleanup_test_cameras(), timeout=10.0)
-        except TimeoutError:
-            logger.warning("Test data cleanup timed out after 10s during integration_db teardown")
+        # Data sweep, CONDITIONALLY skipped (M3 Task 4c). Rationale: this was
+        # a redundant third sweep for every `client`/`db_session` test (the
+        # client fixture sweeps pre+post; clean_tables sweeps post) — audit
+        # 2.2 / plan "drop the redundant third cleanup pass". BUT the
+        # unconditional drop REGRESSED (verification run 2026-09-14, 25 fails
+        # in test_event_search on a reused dirty DB): tests that consume
+        # integration_db DIRECTLY (no client, no clean_tables — e.g. via thin
+        # file-local wrappers like test_event_search._fts_db) rely on THIS
+        # sweep as their only cleanup. So: skip only when a closer sweeping
+        # fixture is in this test's fixture stack.
+        if not _closer_fixture_sweeps(request):
+            try:
+                await asyncio.wait_for(_cleanup_test_data(), timeout=10.0)
+            except TimeoutError:
+                logger.warning(
+                    "Test data cleanup timed out after 10s during integration_db teardown"
+                )
 
         # Close database with timeout protection
         try:
