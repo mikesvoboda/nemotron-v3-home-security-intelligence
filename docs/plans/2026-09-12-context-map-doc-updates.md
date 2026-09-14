@@ -958,3 +958,10 @@ no entry for the renamed test (the route-shape consistency assert itself
 passed). Fresh capture with --snapshot-update: 9 passed, 1 generated, 8
 pre-existing passed. No-flag confirmation ride scheduled for the
 next serial wave.
+
+## R-T9-POLYZONE — polygon zone tests rewritten to shipped PolygonZoneService API (2026-09-14, batch F green 24p)
+
+Ghost names (get_polygon_zone/list_zones/toggle_zone…) → shipped
+get_zone/get_zones_by_camera(active_only=True)/update_zone(PolygonZoneUpdate)/
+delete_zone/set_active/get_all_zones; Sequence returns read via list();
+grid-less service (R-T9-HEATMAP's gridless lesson applies here too).
