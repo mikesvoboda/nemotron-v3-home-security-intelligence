@@ -1357,3 +1357,27 @@ summary ever prints). The broker itself is healthy (starts in 0.7s, TCP fine,
 publish OK — verified outside pytest). Production fix (start the pump on
 subscribe, as the comment says) is owner ruling; delivery-dependent tests skip
 citing this ref. Pure-publish tests (assert-True class) stay live.
+
+### R-T9-EXPORTDEFER addendum — test alignment landed (wave K-1R) + ASGITransport inline-background finding (2026-09-14)
+
+Test-side landing: TestExportDownload skips citing the ref; the two
+queued-state tests now accept PENDING-or-FAILED on the DB re-read;
+format/lifecycle tests (terminal-state asserts) stay live; response-snapshot
+`pending` asserts untouched. Wave K-1R: 19 passed, 2 skipped in 54.74s
+(/tmp/verify-waveK1r.log); committed 1c98b6fc.
+**[VERIFIED]** New finding: the httpx ASGITransport test client executes the
+POST's BackgroundTasks INLINE — the export job has already run (and, under
+this defect, FAILED) by the time the test's next request reads the row. Any
+test asserting an intermediate job state via DB re-read after a POST observes
+a terminal state regardless of R-T9-EXPORTDEFER; only the 202-response
+snapshot shows PENDING. Relevant to any future export-lifecycle test design.
+
+### R-T9-MQTTPUMP addendum — test alignment landed (wave K-2) (2026-09-14)
+
+Test-side landing: the 6 delivery-dependent tests (5 asserts + the
+infinite-`await _process_messages()` hang site) skip citing the ref; the
+infinite await is deleted outright (it never returns even against a fixed
+client — the pump must be a spawned task; verified: an explicitly spawned
+_process_messages() task delivers end-to-end outside pytest). 13
+connection/publish/throughput tests stay live. Wave K-2: 13 passed, 6
+skipped in 10.84s (/tmp/verify-waveK.log); committed a6edea98.
