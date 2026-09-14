@@ -1207,3 +1207,11 @@ constructed `Event(batch_id=..., camera_id=..., risk_score=...)` without
 `started_at`, which is `nullable=False` on the shipped `Event` model — INSERT
 failed with NotNullViolation. Both fixtures now pass
 `started_at=datetime.now(UTC)`. Test-only change.
+
+### R-T9-JOBABORT — pubsub payloads are str, not bytes (decode_responses=True) (2026-09-14, wave I9)
+
+**[VERIFIED against shipped client]** `test_job_abort.py` asserted
+`msg["channel"].decode() == ...`, but the shipped Redis client connects with
+`decode_responses=True` (`backend/core/redis.py:615`), so pubsub channel/data
+arrive as `str`; `.decode()` raised AttributeError. Assertion now compares the
+str directly. Test-only change.
