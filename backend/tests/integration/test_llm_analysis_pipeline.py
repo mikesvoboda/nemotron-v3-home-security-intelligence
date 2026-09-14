@@ -608,9 +608,9 @@ class TestPromptFormattingWithEnrichment:
             # payload carries "prompt" (ChatML string), not "messages".
             payload = kwargs.get("json")
             if isinstance(payload, dict):
-                actual_prompt = payload.get("prompt") or payload.get(
-                    "messages", [{}]
-                )[0].get("content", "")
+                actual_prompt = payload.get("prompt") or payload.get("messages", [{}])[0].get(
+                    "content", ""
+                )
             return mock_response
 
         with (
@@ -682,7 +682,6 @@ class TestPromptFormattingWithEnrichment:
 
 
 @pytest.mark.slow  # LLM error path: guided_json precheck retries (3) + post retries (3) => 7-9s wall, over the 5s integration cap
-
 class TestErrorHandlingWithEnrichment:
     """Test error handling when LLM fails with enriched data."""
 

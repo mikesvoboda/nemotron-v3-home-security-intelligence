@@ -679,9 +679,7 @@ def _create_worker_database(base_url: str, db_name: str) -> str:
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
                 try:
-                    cur.execute(
-                        sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name))
-                    )
+                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
                 except psycopg2.errors.DuplicateDatabase:
                     pass  # lost the race to a sibling worker: the DB exists, that is all we wanted
     finally:
@@ -692,9 +690,7 @@ def _create_worker_database(base_url: str, db_name: str) -> str:
     return worker_url
 
 
-_PROTECTED_DB_NAMES = frozenset(
-    {"security", "security_test", "postgres", "template1", "template0"}
-)
+_PROTECTED_DB_NAMES = frozenset({"security", "security_test", "postgres", "template1", "template0"})
 
 
 def _drop_worker_database(base_url: str, db_name: str, max_retries: int = 3) -> None:

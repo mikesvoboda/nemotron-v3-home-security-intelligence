@@ -1053,7 +1053,7 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
                         # tables, so DELETE's row scan is free while TRUNCATE's inode
                         # churn is not. FK checks are already off via
                         # session_replication_role=replica, so CASCADE is unneeded.
-                        await session.execute(text(f"DELETE FROM {table_name}"))  # nosemgrep
+                        await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
                     except Exception as e:
                         # Skip tables that don't exist - they may not be migrated yet
                         logger.debug(f"Skipping table {table_name}: {e}")

@@ -5,6 +5,7 @@ behavior: name derivation must be deterministic per worker and collision-free
 across workers; helpers must be idempotent and must refuse to drop protected
 databases. Run live (helpers act on the real dev Postgres validate.sh exports).
 """
+
 from __future__ import annotations
 
 import os

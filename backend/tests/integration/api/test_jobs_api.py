@@ -82,7 +82,7 @@ def test_jobs(clean_tracker) -> list[JobInfo]:
     for job_type, status, hour_offset, progress in job_configs:
         created_at = base_time + timedelta(hours=hour_offset)
         job_id = tracker.create_job(job_type)
-        job = tracker._jobs[job_id]  # noqa: SLF001 - test seeding of tracker state
+        job = tracker._jobs[job_id]  # seeding the tracker's own store, on purpose
 
         if status == "running":
             tracker.start_job(job_id)
