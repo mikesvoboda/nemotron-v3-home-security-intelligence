@@ -1703,3 +1703,37 @@ verified isolated and jointly ("Test Files 3 passed / Tests 68 passed"):
   (no OOM yet); if it completes, the ONLY remaining expected reds are
   zero. The authoritative frontend evidence for M1 §6 is gate run 6's
   own Vitest section, not this probe.
+
+## Gate run 6 (2026-09-14 06:08-06:25) — first bare launch, OOM-killed
+
+Launch contract fixed per run-5 lesson: bare `nohup ./scripts/validate.sh`
+(NO ulimit wrapper), .env absent, gate-postgres/gate-redis Up in docker,
+TEST_DATABASE_URL/TEST_REDIS_URL exported. Sections: ruff lint OK, ruff
+format OK (1514 files), mypy OK (1514 files), unit tier OK (first full
+unit pass on a bare run), integration tier DIED at 16:04 with
+"1 failed, 4164 passed, 131 skipped, 2 xfailed" — [gw4] node down: Not
+properly terminated, replacing crashed worker gw4; the FAILED line is the
+crash-victim bookkeeping line, not an assertion failure (the FAILURES
+block contains ONLY "worker 'gw4' crashed while running test_media_api.py::
+TestCompatMediaRoute::test_compat_thumbnail_served").
+ROOT CAUSE [VERIFIED via kernel log, /tmp dmesg +31025s]: the container's
+cgroup OOM-killer fired — "asyncio-portal- invoked oom-killer ... Out of
+memory: Killed process 10477 ([pytest-xdist r) total-vm:62648220kB,
+anon-rss:57471548kB". memory.events oom_kill=1; host has 62 GB total, no
+container memory.max set, so one xdist worker ballooned to ~57.5 GB anon
+and ate the machine. gw4's final scheduled file WAS test_media_api.py
+(the victim), but the compat test is 3 asserts on a temp-dir FileResponse
+— standalone file run "21 passed in 4.21s" — the 57.5 GB is accumulated
+worker-state, R-T7-OTEL-OOM CLASS (validate.sh :298 comment: workers
+running TestClient lifespans accumulate ML-stack Rust state), now with a
+hard number instead of the earlier "30-50GB RSS" estimate. gw4's schedule
+before the crash (work-steal order): webhooks x2, ai_degradation,
+websocket_auth, event_search, soft_delete, jobs, file_watcher_filesystem,
+cache_behavior, threat_monitor, database, then media_api.
+Diagnosis in flight: full-tier replay at the gate seed 3182027294 with
+per-worker RSS logging (/tmp/rsslog/<worker>.log) to pin which file's
+tests inflate the worker past ~50GB.
+NOTE: runs 2-5 integration NEVER had this OOM — random scheduling only
+loads one worker with the right accumulation mix; the seed replay decides
+whether this is deterministic-at-seed or scheduling roulette. NOT a test
+failure per se: zero assertion failures anywhere in run 6.
