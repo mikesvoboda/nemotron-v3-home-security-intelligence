@@ -1421,3 +1421,19 @@ confirmed). Breakdown: test_system.py 11 (6 class marks), test_soft_delete.py
 test_redis_prefix_isolation.py 14 (14 function marks). T3 execution:
 DB-backed ones move to integration/, mock-only ones lose the stray marker —
 per-file, after M2 green. No tree change made now.
+
+## M3 T1 ADDENDUM MEASUREMENT — test_system.py is a star-import shim double-collecting ~208 tests (2026-09-14)
+
+**[VERIFIED from run-9 log]** backend/tests/integration/test_system.py (9
+lines, `from backend.tests.integration.test_system_api import *`) is NOT on
+audit 1.1's duplicate list (which covers only the two symlinks, −134), yet
+run-9's per-file nodeids show ~208 tests executing under BOTH test_system.py
+and test_system_api.py. That also explains run-9's red-file bookkeeping:
+test_system.py::test_readiness_endpoint_not_ready_when_detection_worker_in_error
+and ..._performance_endpoint_without_collector were the SAME two shipped-
+contract reds as test_system_api.py's (already fixed, c4979d0c) counted
+twice. Real dedup delta for T1 ≈ −342 (−134 symlinks −~208 shim), pending
+exact collect-only before/after at T1 execution (post-M2-green). Add
+test_system.py to the T1 deletion set; the naming-convention check it
+references ("to satisfy the naming convention check") must be re-pointed at
+test_system_api.py in the same commit — check scripts/check-test-collection.py.
