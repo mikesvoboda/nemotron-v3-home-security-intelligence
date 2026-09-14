@@ -157,7 +157,23 @@ afterEach(() => {
  * Final cleanup after all tests in a file complete.
  * Ensures any remaining state is properly cleaned up.
  */
-afterAll(() => {
+afterAll(async () => {
+  /**
+   * Flush pending REAL timers before this file's jsdom environment is torn
+   * down. @tremor/react's Button/Badge/ProgressBar call useTooltip(300), which
+   * schedules a real setTimeout on pointer-enter (every userEvent.click fires
+   * one) and only cancels it through state — a hover inside the last ~300ms of
+   * a file can leave the open-timer live. vi.clearAllTimers() (above) only
+   * clears vitest-managed FAKE timers; a real timer needs wall time. Left
+   * alive, it fires after teardown and its setState dereferences `window` ->
+   * "ReferenceError: window is not defined", an unhandled error attributed to
+   * whichever file the reused fork runs next (gate 10/14's "CleanupRow
+   * leaked-timer": CleanupRow was the innocent neighbor, not the source).
+   * Components are already unmounted by afterEach's cleanup(), so the flushed
+   * setState is a silent no-op. 350ms > the 300ms tooltip delay.
+   */
+  await new Promise((resolve) => setTimeout(resolve, 350));
+
   // Stop MSW server - closes all request interception
   server.close();
 
