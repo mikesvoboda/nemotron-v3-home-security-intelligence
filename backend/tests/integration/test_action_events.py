@@ -36,9 +36,15 @@ class TestActionEventsAPIIntegration:
     async def test_get_camera_action_events_returns_404_for_nonexistent_camera(
         self, async_client: AsyncClient
     ):
-        """Verify 404 returned when camera doesn't exist."""
+        """Shipped contract (R-T9-ACTIONEVENTS404): the camera route is a pure
+        filter — action_events.py:225 never checks camera existence (declared
+        error responses are 422/500 only), so an unknown camera answers 200
+        with an empty page, not 404."""
         response = await async_client.get("/api/action-events/camera/nonexistent")
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"] == []
+        assert data["pagination"]["total"] == 0
 
     @pytest.mark.asyncio
     async def test_list_suspicious_actions_returns_empty_list(self, async_client: AsyncClient):
