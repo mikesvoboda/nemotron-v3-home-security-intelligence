@@ -1102,3 +1102,26 @@ camera filter exists (zone_anomaly_service.py:465-470); test retargeted to
 the shipped `since` boundary. (2) ZoneAnomaly.zone_id is String; the cascade
 test compared it to uuid.UUID(zone_id) → asyncpg
 "operator does not exist: character varying = uuid". Pass the string.
+
+## R-T9-VERIFYHYGIENE — three self-inflicted verification failures this session, and the discipline that follows (2026-09-14)
+
+1. **Mid-run stash contamination (H2 invalid)**: `git stash push` +
+   `git stash pop` rewrote test files ~2min51s into the H2 batch run.
+   pytest had already collected the pre-stash versions, so H2's "9 failed"
+   listed test names that no longer existed — the failures measured a tree
+   that was momentarily on disk, not the pending fixes. H2 was re-queued as
+   wave I1. RULE: no working-tree rewrites (stash, checkout, reset) while
+   any driver batch is in flight; check `ps` census first and only touch
+   files belonging to LATER batches.
+2. **`git reset --hard` wiped 16 uncommitted fixes**: an attempt to drop a
+   duplicated commit discarded every pending fix. Recovered losslessly via
+   the dropped stash's orphan commit found with
+   `git fsck --unreachable --no-reflogs` + `git stash apply <oid>`.
+   RULE: undo commits with `--soft`/`--mixed`; never `--hard` with a dirty
+   tree.
+3. **Claimed green summaries that were never printed** (H2 "101 passed",
+   H3 "435 passed" — neither number existed in the log at claim time).
+   Three commits carrying those claims were reset before push. RULE: a
+   verification claim in a commit message cites ONLY text re-read from the
+   log file in the same turn, with the batch's own summary line as
+   evidence; otherwise the message says "pending re-verification (wave N)".
