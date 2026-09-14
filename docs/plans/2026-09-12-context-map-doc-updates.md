@@ -1048,3 +1048,17 @@ calibration_service.py:388-436 `_compute_threshold_adjustment` returns ints:
 base = int(10*decay) = 1 at default decay 0.1; SEVERITY_WRONG halves to
 max(1, base//2) = 1. The test bounded the delta at `< 10*0.1` (= <1.0),
 impossible for a delta floored at 1. Assert now equals the shipped formula.
+
+## R-T9-AIHEALTH2 — _check_ai_service_health mock must return real AIServiceHealthDetail (2026-09-14, H4 clean run 8 passed)
+
+The route asyncio.gathers the patched coroutine's return values and hands
+them to AIServicesHealthResponse; an AsyncMock fails response validation →
+global handler 500 INTERNAL_ERROR (run-9 + batch G). Tests now build real
+schema instances. Test 4 already did this and passed — the tell.
+
+
+## R-T9-NEM3262 — Detection: file_path required, bbox_* columns, camera FK seeded (2026-09-14, H4 clean run)
+
+models/detection.py: bounding_box dict is a ghost kwarg; shipped columns
+bbox_x/bbox_y/bbox_width/bbox_height; camera_id FKs cameras.id so the
+fixture creates the camera first.
