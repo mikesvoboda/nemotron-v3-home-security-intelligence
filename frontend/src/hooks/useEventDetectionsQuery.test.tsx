@@ -16,7 +16,6 @@ import {
   PREFETCH_STALE_TIME,
   PREFETCH_DEFAULT_LIMIT,
 } from './useEventDetectionsQuery';
-
 import { server } from '../mocks/server';
 
 import type { ReactNode } from 'react';
