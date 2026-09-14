@@ -935,3 +935,11 @@ https://localhost:8444, https://127.0.0.1:8444, https://0.0.0.0:8444,
 http://frontend:8080 — Starlette omits ACAO for unlisted origins and the
 preflight answers 400. Tests now use https://localhost:8444. Production
 allowlist untouched (non-negotiable: align tests to shipped contract).
+
+## R-T9-SETUPGUARD — events-cache client bypassed auth middleware but not SetupGuardMiddleware (2026-09-14, batch E green)
+
+test_events_cache_invalidation.py's client_with_cache patched the auth
+middleware but not SetupGuardMiddleware._check_setup_complete; with zero
+users in the worker DB every event mutation answered 503 (run-9: 12
+failures). Shared conftest client has the bypass (conftest.py ~1452); the
+file's own client had diverged. Same root cause family as R-T9-DLQGUARD.
