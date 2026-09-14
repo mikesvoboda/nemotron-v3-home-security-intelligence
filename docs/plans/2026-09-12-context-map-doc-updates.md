@@ -1825,3 +1825,41 @@ cache-invalidation files) pass 69 passed/2 skipped on one worker.
 Honest-sweep: bulk-tier files enumerated via RateLimitTier.BULK sites
 (events.py:1439, detections.py:1651) -> the five above;
 api/test_jobs_api.py's /bulk refs are export jobs (EXPORT tier).
+
+## Owner ruling 2026-09-14: M3 Task 4 pulled ahead of M2 (runs concurrent with gate 9)
+
+Owner: "lets do that now so we can iterate faster" + "just execute on it
+even with gate9 running" — explicit lift of the M3-after-M2 sequencing rule
+for Task 4 (integration_db (a)/(b) split, audit Part 2.1) ONLY. Tasks 1-3,
+5-11 remain queued behind M2 (Task 4 gates Task 5's ruling packet anyway).
+
+Attribution note (R-T9-VERIFYHYGIENE): backend/tests/integration/conftest.py
+was edited while gate run 9 (PID 738729) sat in its integration tier. The
+running xdist workers had already imported the OLD conftest at spawn, so the
+in-flight results reflect pre-Task-4 code. The edit window was <1 min and
+xdist does not respawn healthy workers; if run 9 shows ANY anomaly, re-run
+rather than attribute. Gate-9 verdict remains valid for M1 as recorded.
+
+Task 4 change as landed (single commit):
+- (a) NEW session-scoped `_ensure_worker_schema` (sync SQLAlchemy engine,
+  psycopg2 precedent from _create_worker_database): advisory lock (same
+  historical key namespace) + create_all + 4 ALTERs + 2 dedup DELETEs +
+  2 unique indexes — ONCE per worker DB (worker_db_url is session-scoped).
+- (b) `integration_db` slimmed to per-test essentials: settings cache clear
+  + close_db/init_db (engine CANNOT cross pytest-asyncio 1.3 per-test loops
+  — engine churn is intrinsic; SCHEMA churn was the waste) + teardown sweep.
+- Safety sweep: no test mutates Base tables (only own-table DDL in
+  test_partition_manager/test_disaster_recovery; DROP TABLE hits are
+  injection STRINGS). test_database_isolation advisory-lock tests use their
+  own keys, untouched. client + integration_env scopes preserved per audit
+  do-not-hoist notes.
+- Not in this commit (separate plan sub-steps, each own commit):
+  get_table_deletion_order memoize (audit 2.2), repositories serial-marker
+  drop, test_api_protection sleep->poll.
+- Measurement: BEFORE baseline must run post-gate-9 on the OLD tree is no
+  longer possible (tree now edited) — baseline instead taken from run 7/8/9
+  integration-tier wall clock (validate-backend-integration.log timestamps)
+  + a durations-plugin run of a representative subset reverted via git
+  stash if a clean A/B is demanded. AFTER = full tier x2 with
+  /tmp/durations_plugin.py. Numbers land in the ledger before the commit
+  claim is stated.
