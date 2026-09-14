@@ -453,7 +453,7 @@ jobs:
           set -euo pipefail
           START_TIME=$(date +%s)
           RERUNS=""
-          if [ -f .github/workflows/flake-allowlist.yml ]; then
+          if [ -f .github/flake-allowlist.yml ]; then
             RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
           fi
           if [ -n "$RERUNS" ]; then
@@ -569,7 +569,7 @@ jobs:
         run: |
           set -euo pipefail
           RERUNS=""
-          if [ -f .github/workflows/flake-allowlist.yml ]; then
+          if [ -f .github/flake-allowlist.yml ]; then
             RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
           fi
           if [ -n "$RERUNS" ]; then
@@ -685,7 +685,7 @@ jobs:
         run: |
           set -euo pipefail
           RERUNS=""
-          if [ -f .github/workflows/flake-allowlist.yml ]; then
+          if [ -f .github/flake-allowlist.yml ]; then
             RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
           fi
           if [ -n "$RERUNS" ]; then
@@ -793,7 +793,7 @@ jobs:
         run: |
           set -euo pipefail
           RERUNS=""
-          if [ -f .github/workflows/flake-allowlist.yml ]; then
+          if [ -f .github/flake-allowlist.yml ]; then
             RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
           fi
           if [ -n "$RERUNS" ]; then

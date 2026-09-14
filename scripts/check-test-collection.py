@@ -14,7 +14,7 @@ this script: one id per line, `#` starts the tracking-ref comment (ruling
 R-FCL-T1-ALLOWLIST). A missing file is an empty allowlist; --allowlist FILE
 points somewhere else (tests use that to stay off the repo's file); --allow
 entries add on top and stay emergency-only — each allowed id must also appear
-in .github/workflows/flake-allowlist.yml with a tracking ref (enforced in Task 2).
+in .github/flake-allowlist.yml with a tracking ref (enforced in Task 2).
 """
 
 from __future__ import annotations

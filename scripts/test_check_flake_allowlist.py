@@ -7,9 +7,7 @@ import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent / "check-flake-allowlist.py"
-REPO_ALLOWLIST = (
-    Path(__file__).resolve().parents[1] / ".github" / "workflows" / "flake-allowlist.yml"
-)
+REPO_ALLOWLIST = Path(__file__).resolve().parents[1] / ".github" / "flake-allowlist.yml"
 
 
 def run_on(tmp_path: Path, body: str) -> subprocess.CompletedProcess:

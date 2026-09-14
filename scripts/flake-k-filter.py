@@ -15,7 +15,7 @@ import re
 import sys
 from pathlib import Path
 
-DEFAULT_FILE = ".github/workflows/flake-allowlist.yml"
+DEFAULT_FILE = ".github/flake-allowlist.yml"
 ENTRY_RE = re.compile(r"^\s*-\s+id:\s*(\S+)")
 FIELD_RE = re.compile(r"^\s+(tracking|expires|note):\s*(.+?)\s*$")
 
