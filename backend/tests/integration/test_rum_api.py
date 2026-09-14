@@ -466,7 +466,14 @@ class TestRUMMetricsValidation:
 
     @pytest.mark.asyncio
     async def test_empty_metrics_array_returns_422(self, client, mock_redis):
-        """Test that empty metrics array returns 422 Unprocessable Entity."""
+        """Test that empty metrics array returns 422 Unprocessable Entity.
+
+        Body shape is the SHIPPED validation envelope: api/exception_handlers.py
+        validation_exception_handler emits {"error": {"code":
+        "VALIDATION_ERROR", "message", "errors": [{field, message, value}]}}
+        — NOT FastAPI's default {"detail": [...]} — registered for
+        RequestValidationError at handler-registration time. (ledger R-T7-RUM)
+        """
         response = await client.post(
             "/api/rum",
             json={"metrics": []},
@@ -474,7 +481,8 @@ class TestRUMMetricsValidation:
 
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        assert data["error"]["code"] == "VALIDATION_ERROR"
+        assert any(e["field"].endswith("metrics") for e in data["error"]["errors"])
 
     @pytest.mark.asyncio
     async def test_missing_metrics_field_returns_422(self, client, mock_redis):

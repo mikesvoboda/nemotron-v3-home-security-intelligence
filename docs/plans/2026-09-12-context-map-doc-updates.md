@@ -995,3 +995,11 @@ Mock now declares (key, min_score, max_score).
 test asserted 404 for valid-camera-invalid… ordering wrong: shipped
 route returns 400 when start_time > end_time regardless of camera
 existence. Aligned to 400.
+
+## R-T7-RUM — 422 envelope is the custom VALIDATION_ERROR handler, not FastAPI {"detail": ...} (2026-09-14)
+
+test_rum_api.py empty-metrics test asserted "detail" in body; shipped
+validation_exception_handler (api/exception_handlers.py) emits
+{"error": {"code": "VALIDATION_ERROR", "message", "errors":[{field,
+message, value}]}}. Aligned. Wave H1: outbound+rum+risk_score green
+(71p/2s).
