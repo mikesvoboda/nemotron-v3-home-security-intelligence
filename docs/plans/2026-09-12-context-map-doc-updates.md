@@ -886,3 +886,18 @@ is the shipped no-op-on-unknown contract, returns False; get_accumulator_stats
 → None). Tests rewritten to those five shipped behaviors. Verified
 serially, 4 passed (single-file run, plugin-armed). None of this is
 production change — pure test-alignment.
+
+## R-T9-ZERODCE — should_enhance takes PIL Image, not ndarray (2026-09-14, run-9 dig)
+
+run-9: 2 FAILED AttributeError 'numpy.ndarray' object has no attribute
+'mode'. Test built np arrays; shipped should_enhance/_compute_mean_brightness
+(zero_dce_loader.py:145-173) consume PIL Images (.mode/.convert). Tests now
+build via Image.fromarray. Verified serially 3 passed (no-DB file, 2.2s).
+
+CENSUS-SLIP NOTE (mine, same sitting): two targeted single-file verifies
+(heatmap, zero_dce) were launched while the 19-file pass-2 was still
+running — pgrep -c pytest reads 0 because worker comm is "python", not
+"pytest"; use pgrep -f "python -m pytest". Both targeted runs were no-DB
+and passed; pass-2 is a verification aid, so no gate summary is tainted,
+but the pass-2 F-list must be read with contention as a possible
+contributor. Corrected census command going forward: pgrep -f "python -m pytest".
