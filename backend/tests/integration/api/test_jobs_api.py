@@ -4,120 +4,103 @@ Tests for the background job management API including:
 1. Listing jobs with filtering and pagination
 2. Job statistics endpoint
 3. Job detail endpoint
-4. Database-backed job operations
+4. Cancel/delete/bulk-cancel operations
+
+Ruling (2026-09-13, owner): these tests previously seeded the Postgres `jobs`
+table, but GET /api/jobs, /api/jobs/stats, /api/jobs/{id}, cancel and delete all
+read the in-memory JobTracker singleton (+ Redis fallback) — the DB-backed
+job_history_service only serves the detail/history/logs routes. The seed was
+invisible to the routes by construction. Tests now seed the tracker singleton
+itself, the same way production does. See ledger
+docs/plans/2026-09-12-context-map-doc-updates.md (R-T7-JOBSAPI).
 
 Uses shared fixtures from conftest.py:
 - integration_db: Clean PostgreSQL test database via testcontainers
 - client: httpx AsyncClient with test app
-- db_session: AsyncSession for database operations
 """
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.job import Job, JobStatus
+from backend.services.job_tracker import JobInfo, get_job_tracker, reset_job_tracker
 
 
 @pytest.fixture
-async def clean_job_data(integration_db, db_session: AsyncSession):
-    """Delete all job data before and after each test for isolation.
+def clean_tracker():
+    """Reset the JobTracker singleton before and after the test.
 
-    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
-    when tests run in parallel with xdist.
+    The routes read the singleton via get_job_tracker_dep; reset_job_tracker()
+    guarantees this test's view contains exactly what it seeds — nothing from a
+    prior test on the same xdist worker.
     """
-    # Clean before test - also clean related tables
-    await db_session.execute(text("DELETE FROM job_logs"))  # nosemgrep: avoid-sqlalchemy-text
-    await db_session.execute(
-        text("DELETE FROM job_transitions")
-    )  # nosemgrep: avoid-sqlalchemy-text
-    await db_session.execute(text("DELETE FROM job_attempts"))  # nosemgrep: avoid-sqlalchemy-text
-    await db_session.execute(text("DELETE FROM jobs"))  # nosemgrep: avoid-sqlalchemy-text
-    await db_session.commit()
-
+    reset_job_tracker()
     yield
-
-    # Clean after test (best effort)
-    try:
-        await db_session.execute(text("DELETE FROM job_logs"))  # nosemgrep: avoid-sqlalchemy-text
-        await db_session.execute(
-            text("DELETE FROM job_transitions")
-        )  # nosemgrep: avoid-sqlalchemy-text
-        await db_session.execute(
-            text("DELETE FROM job_attempts")
-        )  # nosemgrep: avoid-sqlalchemy-text
-        await db_session.execute(text("DELETE FROM jobs"))  # nosemgrep: avoid-sqlalchemy-text
-        await db_session.commit()
-    except Exception:
-        pass
+    reset_job_tracker()
 
 
 @pytest.fixture
-async def test_jobs(db_session: AsyncSession, clean_job_data) -> list[Job]:
-    """Create test jobs with various states for API testing."""
-    base_time = datetime(2025, 12, 1, 12, 0, 0, tzinfo=UTC)
-    jobs = []
+def test_jobs(clean_tracker) -> list[JobInfo]:
+    """Seed the JobTracker singleton with jobs in various states.
 
-    # Create jobs with different statuses and types
+    Production-shaped seeding: create_job() then the status-transition methods
+    where they apply. created_at/started_at/completed_at are overwritten after
+    creation so ordering and duration stats are deterministic.
+
+    JobStatus is StrEnum with auto() values: PENDING/RUNNING/COMPLETED/FAILED
+    only — there is no QUEUED/CANCELLED state; queued maps to PENDING and the
+    formerly-CANCELLED job maps to FAILED (terminal, non-cancellable).
+    """
+    base_time = datetime(2025, 12, 1, 12, 0, 0, tzinfo=UTC)
+    tracker = get_job_tracker()
+
     job_configs = [
         # Completed export jobs
-        ("export", JobStatus.COMPLETED.value, 0, 100),
-        ("export", JobStatus.COMPLETED.value, 1, 100),
-        ("export", JobStatus.COMPLETED.value, 2, 100),
+        ("export", "completed", 0, 100),
+        ("export", "completed", 1, 100),
+        ("export", "completed", 2, 100),
         # Running export job
-        ("export", JobStatus.RUNNING.value, 3, 50),
-        # Queued export job
-        ("export", JobStatus.QUEUED.value, 4, 0),
+        ("export", "running", 3, 50),
+        # Queued (pending) export job
+        ("export", "pending", 4, 0),
         # Completed cleanup jobs
-        ("cleanup", JobStatus.COMPLETED.value, 5, 100),
-        ("cleanup", JobStatus.COMPLETED.value, 6, 100),
+        ("cleanup", "completed", 5, 100),
+        ("cleanup", "completed", 6, 100),
         # Failed cleanup job
-        ("cleanup", JobStatus.FAILED.value, 7, 25),
-        # Queued backup jobs
-        ("backup", JobStatus.QUEUED.value, 8, 0),
-        ("backup", JobStatus.QUEUED.value, 9, 0),
-        # Cancelled import job
-        ("import", JobStatus.CANCELLED.value, 10, 75),
+        ("cleanup", "failed", 7, 25),
+        # Queued (pending) backup jobs
+        ("backup", "pending", 8, 0),
+        ("backup", "pending", 9, 0),
+        # Cancelled-then-failed import job (FAILED is the terminal non-cancellable state)
+        ("import", "failed", 10, 75),
     ]
 
+    jobs: list[JobInfo] = []
     for job_type, status, hour_offset, progress in job_configs:
         created_at = base_time + timedelta(hours=hour_offset)
-        job = Job(
-            id=str(uuid.uuid4()),
-            job_type=job_type,
-            status=status,
-            priority=2,
-            created_at=created_at,
-            progress_percent=progress,
-            max_attempts=3,
-            attempt_number=1,
-        )
+        job_id = tracker.create_job(job_type)
+        job = tracker._jobs[job_id]  # noqa: SLF001 - test seeding of tracker state
 
-        # Set timestamps based on status
-        if status in (JobStatus.RUNNING.value, JobStatus.COMPLETED.value, JobStatus.FAILED.value):
-            job.started_at = created_at + timedelta(seconds=5)
+        if status == "running":
+            tracker.start_job(job_id)
+        elif status in ("completed", "failed"):
+            tracker.start_job(job_id)
+            if status == "completed":
+                tracker.complete_job(job_id, result=None)
+            else:
+                tracker.fail_job(job_id, error="Test error message")
 
-        if status in (JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value):
-            job.completed_at = created_at + timedelta(minutes=2)
-
-        if status == JobStatus.FAILED.value:
-            job.error_message = "Test error message"
-            job.error_traceback = "Traceback: ..."
-
-        db_session.add(job)
+        # Deterministic timestamps for ordering + stats duration math
+        job["created_at"] = created_at.isoformat()
+        if status in ("running", "completed", "failed"):
+            job["started_at"] = (created_at + timedelta(seconds=5)).isoformat()
+        if status in ("completed", "failed"):
+            job["completed_at"] = (created_at + timedelta(minutes=2)).isoformat()
+        job["progress"] = progress
         jobs.append(job)
-
-    await db_session.commit()
-
-    # Refresh to get any DB-generated values
-    for job in jobs:
-        await db_session.refresh(job)
 
     return jobs
 
@@ -127,7 +110,7 @@ class TestListJobsEndpoint:
 
     @pytest.mark.asyncio
     async def test_list_jobs_returns_paginated_response(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test that listing jobs returns proper paginated response."""
         response = await client.get("/api/jobs?limit=5")
@@ -143,7 +126,7 @@ class TestListJobsEndpoint:
 
     @pytest.mark.asyncio
     async def test_list_jobs_filter_by_status(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test filtering jobs by status."""
         response = await client.get("/api/jobs?status=completed")
@@ -152,12 +135,13 @@ class TestListJobsEndpoint:
         data = response.json()
 
         # All returned jobs should be completed
+        assert len(data["items"]) == 5  # 3 export + 2 cleanup
         for job in data["items"]:
             assert job["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_list_jobs_filter_by_job_type(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test filtering jobs by job type."""
         response = await client.get("/api/jobs?job_type=export")
@@ -166,12 +150,13 @@ class TestListJobsEndpoint:
         data = response.json()
 
         # All returned jobs should be export type
+        assert len(data["items"]) == 5
         for job in data["items"]:
             assert job["job_type"] == "export"
 
     @pytest.mark.asyncio
     async def test_list_jobs_pagination_offset(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test pagination with offset."""
         # Get first page
@@ -190,7 +175,7 @@ class TestListJobsEndpoint:
         assert first_page_ids.isdisjoint(second_page_ids)
 
     @pytest.mark.asyncio
-    async def test_list_jobs_empty_when_no_jobs(self, client: AsyncClient, clean_job_data) -> None:
+    async def test_list_jobs_empty_when_no_jobs(self, client: AsyncClient, clean_tracker) -> None:
         """Test empty response when no jobs exist."""
         response = await client.get("/api/jobs")
 
@@ -205,7 +190,7 @@ class TestJobTypesEndpoint:
     """Integration tests for GET /api/jobs/types endpoint."""
 
     @pytest.mark.asyncio
-    async def test_list_job_types(self, client: AsyncClient, clean_job_data) -> None:
+    async def test_list_job_types(self, client: AsyncClient, clean_tracker) -> None:
         """Test listing available job types."""
         response = await client.get("/api/jobs/types")
 
@@ -230,7 +215,7 @@ class TestJobStatsEndpoint:
 
     @pytest.mark.asyncio
     async def test_job_stats_returns_correct_structure(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test that job stats returns the expected structure."""
         response = await client.get("/api/jobs/stats")
@@ -245,7 +230,7 @@ class TestJobStatsEndpoint:
 
     @pytest.mark.asyncio
     async def test_job_stats_counts_correct(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test that job stats counts are correct."""
         response = await client.get("/api/jobs/stats")
@@ -253,11 +238,17 @@ class TestJobStatsEndpoint:
         assert response.status_code == 200
         data = response.json()
 
-        # Total should match number of test jobs
+        # Shipped JobStatsResponse shape: by_status/by_type are LISTS of
+        # {status|job_type, count} (JobStatusCount/JobTypeCount), not dicts.
+        # by_status omits zero-count statuses; by_type is sorted by name.
         assert data["total_jobs"] == len(test_jobs)
+        status_counts = {e["status"]: e["count"] for e in data["by_status"]}
+        assert status_counts == {"completed": 5, "pending": 3, "running": 1, "failed": 2}
+        type_counts = {e["job_type"]: e["count"] for e in data["by_type"]}
+        assert type_counts == {"export": 5, "cleanup": 3, "backup": 2, "import": 1}
 
     @pytest.mark.asyncio
-    async def test_job_stats_empty_when_no_jobs(self, client: AsyncClient, clean_job_data) -> None:
+    async def test_job_stats_empty_when_no_jobs(self, client: AsyncClient, clean_tracker) -> None:
         """Test job stats with no jobs."""
         response = await client.get("/api/jobs/stats")
 
@@ -272,58 +263,59 @@ class TestGetJobStatusEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_job_status_returns_job(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test getting a specific job's status."""
         job = test_jobs[0]
-        response = await client.get(f"/api/jobs/{job.id}")
+        response = await client.get(f"/api/jobs/{job['job_id']}")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data["job_id"] == job.id
-        assert data["job_type"] == job.job_type
-        assert data["status"] == job.status
+        assert data["job_id"] == job["job_id"]
+        assert data["job_type"] == job["job_type"]
+        assert data["status"] == job["status"]
 
     @pytest.mark.asyncio
-    async def test_get_job_status_not_found(self, client: AsyncClient, clean_job_data) -> None:
+    async def test_get_job_status_not_found(self, client: AsyncClient, clean_tracker) -> None:
         """Test getting a non-existent job returns 404."""
         response = await client.get("/api/jobs/nonexistent-job-id")
 
         assert response.status_code == 404
         data = response.json()
-        assert "not found" in data["detail"].lower()
+        # Route detail is f"No job found with ID: {job_id}"
+        assert "no job found" in data["detail"].lower()
 
 
 class TestCancelJobEndpoint:
     """Integration tests for POST /api/jobs/{job_id}/cancel endpoint."""
 
     @pytest.mark.asyncio
-    async def test_cancel_pending_job(self, client: AsyncClient, test_jobs: list[Job]) -> None:
-        """Test cancelling a pending/queued job."""
-        # Find a queued job
-        queued_job = next(job for job in test_jobs if job.status == JobStatus.QUEUED.value)
+    async def test_cancel_pending_job(self, client: AsyncClient, test_jobs: list[JobInfo]) -> None:
+        """Test cancelling a pending (queued) job."""
+        # Find a pending job
+        pending_job = next(job for job in test_jobs if job["status"] == "pending")
 
-        response = await client.post(f"/api/jobs/{queued_job.id}/cancel")
+        response = await client.post(f"/api/jobs/{pending_job['job_id']}/cancel")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["job_id"] == queued_job.id
+        assert data["job_id"] == pending_job["job_id"]
 
     @pytest.mark.asyncio
     async def test_cancel_completed_job_fails(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test that cancelling a completed job returns 409."""
         # Find a completed job
-        completed_job = next(job for job in test_jobs if job.status == JobStatus.COMPLETED.value)
+        completed_job = next(job for job in test_jobs if job["status"] == "completed")
 
-        response = await client.post(f"/api/jobs/{completed_job.id}/cancel")
+        response = await client.post(f"/api/jobs/{completed_job['job_id']}/cancel")
 
         assert response.status_code == 409
 
     @pytest.mark.asyncio
-    async def test_cancel_nonexistent_job(self, client: AsyncClient, clean_job_data) -> None:
+    async def test_cancel_nonexistent_job(self, client: AsyncClient, clean_tracker) -> None:
         """Test cancelling a non-existent job returns 404."""
         response = await client.post("/api/jobs/nonexistent-job-id/cancel")
 
@@ -334,11 +326,11 @@ class TestBulkCancelEndpoint:
     """Integration tests for POST /api/jobs/bulk-cancel endpoint."""
 
     @pytest.mark.asyncio
-    async def test_bulk_cancel_jobs(self, client: AsyncClient, test_jobs: list[Job]) -> None:
+    async def test_bulk_cancel_jobs(self, client: AsyncClient, test_jobs: list[JobInfo]) -> None:
         """Test bulk cancelling multiple jobs."""
-        # Get IDs of queued jobs
-        queued_jobs = [job for job in test_jobs if job.status == JobStatus.QUEUED.value]
-        job_ids = [job.id for job in queued_jobs]
+        # Get IDs of pending jobs
+        pending_jobs = [job for job in test_jobs if job["status"] == "pending"]
+        job_ids = [job["job_id"] for job in pending_jobs]
 
         response = await client.post(
             "/api/jobs/bulk-cancel",
@@ -352,71 +344,72 @@ class TestBulkCancelEndpoint:
         assert "cancelled" in data
         assert "failed" in data
         assert data["cancelled"] + data["failed"] == len(job_ids)
+        assert data["cancelled"] == len(job_ids)
 
     @pytest.mark.asyncio
-    async def test_bulk_cancel_empty_list(self, client: AsyncClient, clean_job_data) -> None:
-        """Test bulk cancel with empty list."""
+    async def test_bulk_cancel_empty_list(self, client: AsyncClient, clean_tracker) -> None:
+        """Test bulk cancel with empty list is rejected.
+
+        Shipped contract: BulkCancelRequest.job_ids has min_length=1
+        ("1-100 jobs"), so an empty list is a 422 validation failure before
+        the route body runs — not a 200 with zero counts.
+        """
         response = await client.post(
             "/api/jobs/bulk-cancel",
             json={"job_ids": []},
         )
 
-        assert response.status_code == 200
-        data = response.json()
-
-        assert data["cancelled"] == 0
-        assert data["failed"] == 0
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_bulk_cancel_mixed_results(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test bulk cancel with mix of cancellable and non-cancellable jobs."""
-        # Mix of queued (cancellable) and completed (not cancellable) jobs
-        queued_job = next(job for job in test_jobs if job.status == JobStatus.QUEUED.value)
-        completed_job = next(job for job in test_jobs if job.status == JobStatus.COMPLETED.value)
+        # Mix of pending (cancellable) and completed (not cancellable) jobs
+        pending_job = next(job for job in test_jobs if job["status"] == "pending")
+        completed_job = next(job for job in test_jobs if job["status"] == "completed")
 
         response = await client.post(
             "/api/jobs/bulk-cancel",
-            json={"job_ids": [queued_job.id, completed_job.id]},
+            json={"job_ids": [pending_job["job_id"], completed_job["job_id"]]},
         )
 
         assert response.status_code == 200
         data = response.json()
 
-        # Should have at least one of each
-        assert data["cancelled"] >= 0
-        assert data["failed"] >= 0
-        assert data["cancelled"] + data["failed"] == 2
+        # Exactly one cancelled (pending), one failed (completed)
+        assert data["cancelled"] == 1
+        assert data["failed"] == 1
 
 
 class TestDeleteJobEndpoint:
     """Integration tests for DELETE /api/jobs/{job_id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_delete_queued_job(self, client: AsyncClient, test_jobs: list[Job]) -> None:
-        """Test deleting (cancelling) a queued job."""
-        queued_job = next(job for job in test_jobs if job.status == JobStatus.QUEUED.value)
+    async def test_delete_queued_job(self, client: AsyncClient, test_jobs: list[JobInfo]) -> None:
+        """Test deleting (cancelling) a pending job."""
+        pending_job = next(job for job in test_jobs if job["status"] == "pending")
 
-        response = await client.delete(f"/api/jobs/{queued_job.id}")
+        response = await client.delete(f"/api/jobs/{pending_job['job_id']}")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["job_id"] == queued_job.id
+        assert data["job_id"] == pending_job["job_id"]
 
     @pytest.mark.asyncio
     async def test_delete_completed_job_fails(
-        self, client: AsyncClient, test_jobs: list[Job]
+        self, client: AsyncClient, test_jobs: list[JobInfo]
     ) -> None:
         """Test that deleting a completed job returns 400."""
-        completed_job = next(job for job in test_jobs if job.status == JobStatus.COMPLETED.value)
+        completed_job = next(job for job in test_jobs if job["status"] == "completed")
 
-        response = await client.delete(f"/api/jobs/{completed_job.id}")
+        response = await client.delete(f"/api/jobs/{completed_job['job_id']}")
 
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_job(self, client: AsyncClient, clean_job_data) -> None:
+    async def test_delete_nonexistent_job(self, client: AsyncClient, clean_tracker) -> None:
         """Test deleting a non-existent job returns 404."""
         response = await client.delete("/api/jobs/nonexistent-job-id")
 
