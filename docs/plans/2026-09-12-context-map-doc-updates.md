@@ -689,3 +689,35 @@ the column contradicts the score (legacy rows, direct-SQL writes), the filter an
 payload disagree; ?risk_level=critical returns 0 rows for score-90-but-column-high
 events, etc. Either normalize the column on write, or filter on computed_risk_level
 (hybrid SQL expression already exists, models/event.py:403).
+
+### R-T8-ENVLEAK (2026-09-14): run-8e's summary was SELF-CONTAMINATED — bootstrap `env` phase fired mid-gate; .env must not exist during runs
+
+Run-8e (first solo+plugin run, 1 death, dmesg clean, coverage PASS 87.65%)
+looked trustworthy — 123F/268E. But Task 8 prep ran `bootstrap-gb300.sh env`
+at 22:59, ~5 min AFTER the integration tier started (22:53:56). The generated
+.env carries REDIS_PASSWORD + host-form URLs (REDIS_URL=redis://redis:6380,
+DATABASE_URL=…@postgres:5433) for the PRODUCTION compose stack. Pydantic
+Settings reads .env lazily per worker settings-cache instantiation; the
+integration conftest pins DATABASE_URL/REDIS_URL env vars per-worker but does
+NOT pin REDIS_PASSWORD. As workers rebuilt settings caches after 22:59 they
+picked up AUTH against passwordless gate-redis → the entire post-57% error
+wave: AuthenticationError clusters (dlq_retry 21, zone_anomaly 32,
+redis_pubsub 20, cache_behavior 16, cache_invalidation 30, auth_flow 12 —
+the latter serially verified 26/26 BEFORE the leak), plus likely the gw6
+media_api TestClient lifespan HANG (unresolvable `redis`/`postgres`
+hostnames hang lifespan startup; func_only=true never times out setup —
+R-T7-TIMEOUT-GATE's hole, caught red-handed in the faulthandler dump).
+
+Evidence: first AUTH error live-line position = 57% progress (.env at ~33%
+wall-clock; onset lags via per-worker settings caches); 0 AUTH errors
+anywhere pre-57%; gw6 dump wedged in starlette TestClient.__enter__ ←
+test_media_api.py:201 client fixture. run-9 (identical protocol, .env
+ABSENT, +durations_plugin) is the re-derivation: pre-57% files stand as true
+reds (28 files, incl. every already-analyzed cluster); post-57% files are
+quarantined as leak victims until run-9 re-scores them.
+
+PROTOCOL ADDITION: gate runs execute with .env ABSENT (mv it out if present);
+Task 8's env phase runs only AFTER the final green gate recording, never
+during — and long-running gate jobs must be launched before any repo-adjacent
+file generation. bootstrap-gb300.sh itself is fine (idempotent; env phase
+verified no-op-on-existing) — the error was MY sequencing, not the script.
