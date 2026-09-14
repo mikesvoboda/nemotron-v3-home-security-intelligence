@@ -1125,3 +1125,37 @@ test compared it to uuid.UUID(zone_id) → asyncpg
    verification claim in a commit message cites ONLY text re-read from the
    log file in the same turn, with the batch's own summary line as
    evidence; otherwise the message says "pending re-verification (wave N)".
+
+
+## R-T9-JOBSEARCH — isoformat "+00:00" in a raw query string decodes to a space → 422 (2026-09-14, verified wave I — see commit for log line)
+
+Four job-search tests interpolated `datetime.isoformat()` straight into the
+URL. Starlette's `parse_qsl` percent-decodes `+` to a space, so
+`created_after=2026-09-13T21:17:02+00:00` arrives as
+`...21:17:02 00:00` → pydantic invalid datetime → 422. Same shape as
+R-T7-JOBSEARCH (created_after/created_before/range). All five now pass the
+filters through httpx `params={}` so the value is percent-encoded. API
+contract unchanged — a URL-encoded timestamp was always accepted.
+
+
+## R-T9-READINESS — "error" worker state is OPERATIONAL; the honest not_ready fixture is "stopped" (2026-09-14, verified wave I — see commit for log line)
+
+system.py:671-691 `_are_critical_pipeline_workers_healthy` (NEM-3901) counts
+a worker non-operational for stopped/stopping/starting only — "error" is a
+transient self-recovering state and stays ready. The
+`..._detection_worker_in_error` test asserted not_ready on state="error",
+so it could only pass by racing that rule (it greened in some runs, failed
+in others). Renamed to `..._detection_worker_stopped` with state="stopped".
+Also in-file, aligned to shipped contracts rather than docs:
+- R-T7-SYSTEM: /api/system/performance with no collector answers 200 with
+  null field groups (system.py:2140), not the 503 the route docstring claims.
+- R-T7-TRACE: ContextFilter coerces absent trace context to "" (`or ""`), so
+  records never carry None trace_id/span_id.
+
+
+## R-T9-CORR — header-propagation test uses /health/live, not the dependency-loaded /health (2026-09-14, verified wave I — see commit for log line)
+
+The full health endpoint returns 503 in the test environment whenever any
+dependency check isn't green — orthogonal to what the test asserts (trace /
+correlation response headers). Switched to get_liveness, which answers 200
+with no dependency evaluation. No production change.
