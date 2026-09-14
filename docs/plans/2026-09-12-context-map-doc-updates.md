@@ -1437,3 +1437,15 @@ exact collect-only before/after at T1 execution (post-M2-green). Add
 test_system.py to the T1 deletion set; the naming-convention check it
 references ("to satisfy the naming convention check") must be re-pointed at
 test_system_api.py in the same commit — check scripts/check-test-collection.py.
+
+## M3 T5 RULING-PACKET INPUT — run-9 per-phase durations (pre-split baseline) (2026-09-14)
+
+**[VERIFIED from /tmp/test_durations.csv, 4303 rows, computed this session]**
+setup p50=0.100s p90=1.167 p99=1.333 max=2.48s; call p50=0.013s p99=1.53s;
+teardown p50=1.135s p99=2.416 max=2.86s. Sum: setup 2179s + teardown 4795s
+= 6974s CPU across the 934s wall (8 workers) — the fixture-cost the T4
+split attacks. T5 decision rule check: setups >2s = 4 (0.1%), >5s = 0;
+per-test setup+call+teardown p99 = 4.16s, max 17.5s. Note for the ruling
+packet: setup ALONE fits inside 5s — the func_only=false blocker is
+TEARDOWN (p99 2.4s, max 2.86s) plus setup (2.5s) jointly; post-T4 numbers
+are the second required input (T4 gates T5, plan §Sequencing 2).
