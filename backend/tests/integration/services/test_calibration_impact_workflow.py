@@ -218,11 +218,16 @@ class TestSeverityAdjustmentViaCalibration:
             db_session, feedback, event_high, user_id
         )
 
-        # Verify adjustment is smaller than false positive would be
+        # Verify adjustment matches the shipped formula. _compute_threshold_adjustment
+        # (calibration_service.py:388-436) is INTEGER-valued: base_adjustment =
+        # int(10 * decay) = 1 at the default decay 0.1, and SEVERITY_WRONG applies
+        # half_adjustment = max(1, base // 2) = 1. The old bound
+        # delta < 10 * DEFAULT_DECAY_FACTOR (i.e. < 1.0) was unattainable for an
+        # int delta floored at 1 (ledger R-T9-CALIBRATION).
         adjustment_delta = updated_calibration.high_threshold - high_before
-        # Should be positive but smaller than base adjustment
+        # Should be positive and equal to the shipped half-adjustment at decay 0.1
         assert adjustment_delta > 0
-        assert adjustment_delta < (10 * DEFAULT_DECAY_FACTOR)  # Base adjustment
+        assert adjustment_delta == max(1, int(10 * DEFAULT_DECAY_FACTOR) // 2)
 
     @pytest.mark.asyncio
     async def test_accurate_feedback_no_threshold_change(
