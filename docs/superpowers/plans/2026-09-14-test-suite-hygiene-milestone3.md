@@ -48,11 +48,11 @@
 
 ### Task 1: Zero-risk deletions (audit 1.1, 1.2)
 
-- [ ] Census before: `uv run pytest backend/tests/integration --collect-only -q | wc -l` (+ the four affected paths' counts: expect 72/72/62/62).
-- [ ] `git rm backend/tests/integration/test_events.py backend/tests/integration/test_cameras.py` (symlinks; targets `test_events_api.py`/`test_cameras_api.py` remain and keep collecting).
-- [ ] Delete the four zero-byte files. Check M2 Task 1's collection-sanity gate (`scripts/check-test-collection.py`) for `--allow` entries naming them; remove those entries in the same commit so the gate tightens.
-- [ ] Census after: integration collection −134 exactly; unit tier green.
-- [ ] Ledger row: counts before/after. Commit: `test(hygiene): delete duplicate symlinks + zero-byte placeholders (M3 T1, audit 1.1/1.2)`.
+- [x] Census before: `uv run pytest backend/tests/integration --collect-only -q | wc -l` (+ the four affected paths' counts: expect 72/72/62/62).
+- [x] `git rm backend/tests/integration/test_events.py backend/tests/integration/test_cameras.py` (symlinks; targets `test_events_api.py`/`test_cameras_api.py` remain and keep collecting).
+- [x] Delete the four zero-byte files. Check M2 Task 1's collection-sanity gate (`scripts/check-test-collection.py`) for `--allow` entries naming them; remove those entries in the same commit so the gate tightens.
+- [x] Census after: integration collection −134 exactly; unit tier green.
+- [x] Ledger row: counts before/after. Commit: `test(hygiene): delete duplicate symlinks + zero-byte placeholders (M3 T1, audit 1.1/1.2)`.
 
 ### Task 2: Dead fixtures purge (audit 5.3)
 

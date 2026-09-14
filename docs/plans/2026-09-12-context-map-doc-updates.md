@@ -2231,3 +2231,12 @@ only; gate ×2 runs post-restart on 96 GiB.
   both loaded → pytest-randomly stays); its faker_seed crashes on unset
   seed (TypeError str+int) — standalone runs need `--randomly-seed=N`.
 - **Remaining T5**: step 4 = gate ×2 green, zero node-downs (post-restart).
+
+## M3 T1 landed — duplicate symlinks + zero-byte placeholders (2026-09-14, 70c9c47d)
+
+Audit 1.1/1.2 executed from wave-3 draft (m3-t1-t3/t1.patch). Measurement rows:
+- before: integration collect-only **4298**; test_events_api **72**, test_cameras_api **62**
+- after:  **4164** — delta exactly −134 = the two symlinks' double-collection (audit [ESTIMATE] "134 fewer duplicated tests" CONFIRMED, measured)
+- 4 zero-byte files deleted (test_zone_baselines / test_cameras_heatmap / test_result / test_matchers); collection-sanity allowlist tightened by its 4 waivers (never widened — §rule held); CI invocation of check-test-collection: **3659 files, all collect >= 1**
+- unit tier after deletions: **27335 passed, 165 skipped, 8 xfailed in 76.87s** exit 0 (seed 42, /tmp/t1-unit-verify.log)
+- grep proof: no import references to the 4 deleted module names anywhere in backend/ or scripts/
