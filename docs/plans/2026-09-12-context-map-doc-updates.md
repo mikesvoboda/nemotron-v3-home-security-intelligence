@@ -2518,3 +2518,97 @@ this entry + push. T3 rides with owner ruling recorded 2026-09-14: LAND the t3
 code + box-safe arms (serial control, fork census), DEFER the 8x8192 heap arm
 (72 GiB ceiling vs 62.69 GiB, zero swap) to the 96 GiB box with this deferral row
 as provenance; never silently degrade the arm.
+
+## M2 measurement + landing block (2026-09-14/15, tips 8af682f1..e53c2b0e)
+
+**T3 (spec 3.2 heap wrapper) — APPLIED + MEASURED; parallel arm OWNER-DEFERRED.**
+Owner ruling on record: "Land T3 code, defer the arm" (8×8192 heap arm needs the
+96 GiB box; MemTotal here 65,744,332 kB = 62.69 GiB — never silently degraded).
+
+- Control arm (patch APPLIED, envs unset = inertness proof, THIS box, serial
+  path): **2985.45 s**, 778 passed / 3 skipped files, 20235 passed / 136 skipped
+  tests, rc=0, VALIDATION SUCCESSFUL banner — test-file/test counts
+  BYTE-IDENTICAL to gate 19 (2966.63 s). Delta +18.82 s = +0.63%, within noise;
+  Duration-line split shows only `tests` moved (+ session-dependent body time);
+  transform/setup/import match ±3%. No behavioral change from the patch.
+  Evidence /tmp/t3-control-2.log + .rc (2026-09-14 22:16).
+- Serial-path proof: NO "Parallel vitest" banner (validate.sh:490 branch needs
+  MemTotal ≥ 67,108,864 kB); wrapper fired `NODE_OPTIONS="--max-old-space-size=
+${VITEST_HEAP_MB:-8192}"` → 8192 MB default inherited.
+- RSS sampling (plan Step 4, 5 s cadence): peak single node worker **0.56 GiB**,
+  peak concurrent-summed **0.82 GiB** (serial single fork) — the 8192 MB ceiling
+  is a fat-box concern only. 1192 samples /tmp/t3-rss-2.log.
+- Fork census (plan Step 3): `vitest related --run src/hooks/useAlertsQuery.ts`
+  → 20 files / 671 passed / 1 skipped / 176.40 s; peak CONCURRENT worker forks
+  **1** (serial contract holds — no parallelism without VITEST_PARALLEL).
+  Honest scale note: `related` follows the full TRANSITIVE import graph — a
+  1-hook probe still pulls 20 files / 672 tests / 176 s; runner header
+  documents this as honest-by-design.
+- Box incident during measurement: frontend/node_modules found gutted (boot-
+  drift class, disk 96% full) → reclaimed 6.5 GB verified-duplicate /tmp
+  scratch (patch md5s matched tracked copies first; gate artifacts untouched),
+  `npm ci` restored eslint v9.39.2 + vitest 4.0.18, control arm then green.
+
+**T13 (spec 4.1 `--fast` wiring) — LANDED e7e16e4f, inert by construction.**
++93/−0 (validate.sh +84, scripts/AGENTS.md +9); two executable sites
+unreachable without `--fast` (arg case + `RUN_FAST` guard, initialized false).
+Probes: `sh -n` OK; `--bogus` still exit 1 with identical two lines
+(/tmp/t13-bogus.log); `--help` lists the flag. pyproject.toml delta across
+1be83995..HEAD: ZERO (§6.5 byte-identity input for the PR quote).
+
+**T14 (spec 5.4 nightly, variant A) — LANDED ed3c9f0a** (owner ruling batch 2;
+schedule-only variant deleted at landing per ruling). Registration constraint
+found: GitHub registers workflows ONLY from the default branch — dispatch to
+nightly-full-gate.yml on this branch returns 404 (gh api, 2026-09-14). First
+trend row fills after merge-to-main (first 04:17 UTC schedule run or manual
+dispatch). NOT a blocker; recorded so the endgame doesn't misread the 404.
+
+**T15 + T12 (spec 6.3 playbook, measurements doc) — playbook LANDED e53c2b0e;
+first execution found + killed two landed bugs (06c574c4).**
+
+- Run 1 exposed: (1) `npx vitest` from repo root resolved NO local vitest
+  (frontend/node_modules is one level down) and downloaded registry-LATEST
+  **v5.0.0** running with root as vitest-root — v5 mock-hoisting hard-errors on
+  files v4.0.18 runs green in the gate; (2) `vitest | tee LOG; RC=$?` captured
+  TEE's exit — a crashed run reported rc=0 (spec §5 mask class, the exact thing
+  this milestone exists to kill); (3) count regex read the FAILED count on red
+  runs; (4) plan-listing `/* */` probe comment is Python-invalid — SyntaxError'd
+  114 collecting tests (rc=123 via xargs). All four fixed with reconciliation
+  headers; run-1 evidence preserved at /home/agent/gate19-prep/
+  fcl-playbook-run1-logs/ before the trap wiped LOGDIR.
+- Playbook run 2 (BASE=HEAD, probe-only diffs, rc=0): route(alerts.py) 9 s
+  be-sel-8; service(alert_service.py) 7 s be-sel-3/159 tests; component 21 s
+  fe-sel-1; hook 178 s fe-sel-20-files/672-tests (transitive-graph honest
+  scale, matches the 176.40 s census); config(vite.config.ts) 1 s — GUARD
+  NOTICE fired, SELECTED 0, Tier-0 fallback by design. 5/5 within the 600 s
+  wall. Summary /tmp/fcl-playbook2.log.
+- Measurements doc lands at docs/development/fast-confidence-loop-measurements.md
+  (box-reality header precedes every number; rows B1-B3/F1-F2/H1/S1-S2 + gate-19
+  rows; §6.1 fat-box target met early on this box: unit 84.45 s + integration
+  574.01 s ≈ ~11 min total backend wall < 30 min).
+- H1 status line: first red-on-injection CI record needs post-merge GH-side run
+  (same registration constraint as T14). ci.yml push-job exit-0 hack STILL LIVE
+  (T4-class, ci.yml:1319 pkill); nightly deliberately does NOT copy it.
+- S2 finding carried: 5 `for attempt in 1 2 3` loops remain in ci.yml, all
+  frontend-side; the two Playwright E2E TEST-retry loops are blanket test
+  retries → owner ruling queued (spec §6 row 6 "zero blanket retries" cannot be
+  signed while they live).
+
+**First `validate.sh --fast` exercise (T13 Step 2).** VALIDATE_BASE=HEAD,
+docs-only diff: rc=0; footer `SELECTED: 0 files total (backend: 0, frontend:
+0)` + loud `FAST TIER — no coverage proof; full gate still required before
+merge.`; `grep -c "VALIDATION SUCCESSFUL"` = 0 on the fast-path log; tree
+clean after. A probe-race bonus (recorded honestly): an earlier probe variant
+ran while run 2's hook case was mid-flight → the runner detected the real
+dirty useAlertsQuery.ts and ran the honest 20-file related path, rc=0.
+
+**M2 DONE assessment:** spec tasks T2–T15 all landed with records; `--fast`
+meets §4.1 output contract (both empty-selection and real-change paths
+probed); playbook green within walls; T15 recorded at
+docs/development/fast-confidence-loop-measurements.md (486d4cdc). Honest
+qualifier: the §6.1 "green ×2 under new config" is carried by gate 19 (2/2 —
+config byte-identical to current tip for the no-flag gate path: the T13
+delta is unreachable without `--fast`) + the T3 control arm (full frontend
+suite rc=0 post-T3, counts byte-identical); a fresh end-to-end no-flag gate
+on the FINAL tip runs as M3's final gate ×2 (S5 DoD) rather than a separate
+M2 gate.
