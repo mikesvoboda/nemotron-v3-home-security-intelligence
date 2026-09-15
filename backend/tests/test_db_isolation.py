@@ -249,3 +249,130 @@ class TestNameSafetyInvariants:
         assert worker_db_name(self.BASES[0]) == "security_main"
         monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
         assert worker_db_name(self.BASES[1]) == "security_test_main"
+
+
+class TestSessionLifecycle:
+    """Contract tests for the Task 7 lifecycle (memo + sweep + reclaim).
+
+    [RECONCILIATION - loud] Plan Task 7 sketches an autouse session-scoped
+    `worker_database` FIXTURE. That name is already taken in root conftest by
+    the DEAD template-family fixture the M3-static census maps
+    (backend/tests/conftest.py:1210, zero consumers; purge is M3 Task 2's
+    pending half) — adding the plan's fixture next to it would shadow it and
+    fight the census. Worse, an autouse session fixture fires once per xdist
+    WORKER (each worker = its own session), so a sweep written that way runs
+    -n times and races itself. The lifecycle therefore ships as
+    pytest_sessionstart/pytest_sessionfinish HOOKS (coordination process only)
+    + a create-once memo, and these tests pin the collision-safety contracts
+    of that shipped shape. Fully offline: DB-touching helpers are monkeypatched
+    spies, so this class is safe to run next to a live gate (unlike the
+    create/drop classes above, which predate the run-9 lesson).
+    """
+
+    BASE = "postgresql+asyncpg://u:p@h:5432/security"
+
+    def test_hooks_are_wired(self):
+        import backend.tests.conftest as ct
+
+        for fn in ("pytest_sessionstart", "pytest_sessionfinish"):
+            assert callable(getattr(ct, fn)), f"{fn} missing from root conftest"
+        for fn in (
+            "_memo_worker_database",
+            "_sweep_stale_worker_dbs",
+            "_reclaim_worker_dbs",
+            "_coordination_worker_id",
+        ):
+            assert callable(getattr(ct, fn)), f"{fn} missing"
+
+    def test_memo_second_call_is_pure_cache_hit(self, monkeypatch):
+        import backend.tests.conftest as ct
+
+        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gwt")  # xdist never spawns 'gwt'
+        monkeypatch.setattr(ct, "_worker_db_url_cache", {})
+        calls: list[str] = []
+
+        def fake_create(base, name):
+            calls.append(name)
+            return f"postgresql+asyncpg://u:p@h:5432/{name}"
+
+        monkeypatch.setattr(ct, "_create_worker_database", fake_create)
+        first = ct._memo_worker_database(self.BASE)
+        second = ct._memo_worker_database(self.BASE)
+        assert first == second == "postgresql+asyncpg://u:p@h:5432/security_gwt"
+        assert calls == ["security_gwt"], "second call must hit the memo, not psycopg2"
+
+    def test_memo_key_covers_worker_and_base_url(self, monkeypatch):
+        # A monkeypatched env change must NOT return another worker's URL
+        # (stale-URL class: settings cache_clear + wrong DB = contamination).
+        import backend.tests.conftest as ct
+
+        monkeypatch.setattr(ct, "_worker_db_url_cache", {})
+        seen: set[str] = set()
+
+        def fake_create(base, name):
+            seen.add(name)
+            return f"postgresql+asyncpg://u:p@h:5432/{name}"
+
+        monkeypatch.setattr(ct, "_create_worker_database", fake_create)
+        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")
+        u1 = ct._memo_worker_database(self.BASE)
+        monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw2")
+        u2 = ct._memo_worker_database(self.BASE)
+        monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+        u3 = ct._memo_worker_database(self.BASE)
+        assert len({u1, u2, u3}) == 3, f"per-worker memo broken: {u1} {u2} {u3}"
+        assert seen == {"security_gw1", "security_gw2", "security_main"}
+
+    def test_sweep_membership_and_active_guard(self, monkeypatch):
+        # The run-9 invariants as executable code: integration-tier names,
+        # the base DB, legacy names and foreign prefixes must never be drop
+        # candidates; live names are skipped, not stolen.
+        import backend.tests.conftest as ct
+
+        catalog = [
+            "security_gw0",  # stale root-tier copy -> drop
+            "security_main",  # stale root-tier copy -> drop
+            "security_gw3",  # matches, but ACTIVE -> skip
+            "security",  # base DB -> never
+            "security_test",  # integration serial DB -> never
+            "security_test_gw3",  # live gate DB class -> never
+            "security_gwX",  # malformed -> never
+            "template_test",  # legacy (cleanup_stale_databases' half) -> never
+            "test_db_gw2",  # legacy -> never
+            "otherprefix_gw1",  # foreign base -> never
+        ]
+        dropped: list[str] = []
+        monkeypatch.setattr(ct, "_list_databases_by_prefix", lambda _base, _prefix: catalog)
+        monkeypatch.setattr(
+            ct, "_db_has_active_connections", lambda _base, name: name == "security_gw3"
+        )
+        monkeypatch.setattr(ct, "_drop_worker_database", lambda _base, name: dropped.append(name))
+        ct._sweep_stale_worker_dbs(self.BASE)
+        assert dropped == ["security_gw0", "security_main"]
+
+    def test_reclaim_is_memo_scoped_and_connection_guarded(self, monkeypatch):
+        import backend.tests.conftest as ct
+
+        monkeypatch.setattr(ct, "_worker_dbs_created", {"security_gw5", "security_gw6"})
+        live = {"security_gw5"}  # gw5 = a concurrent session still on it
+        dropped: list[str] = []
+        monkeypatch.setattr(ct, "_db_has_active_connections", lambda _base, name: name in live)
+        monkeypatch.setattr(ct, "_drop_worker_database", lambda _base, name: dropped.append(name))
+        ct._reclaim_worker_dbs(self.BASE)
+        assert dropped == ["security_gw6"]
+
+    def test_reclaim_fail_closed_on_server_loss(self, monkeypatch):
+        import psycopg2
+
+        import backend.tests.conftest as ct
+
+        monkeypatch.setattr(ct, "_worker_dbs_created", {"security_gw7"})
+
+        def boom(base, name):
+            raise psycopg2.OperationalError("server went away")
+
+        dropped: list[str] = []
+        monkeypatch.setattr(ct, "_db_has_active_connections", boom)
+        monkeypatch.setattr(ct, "_drop_worker_database", lambda _base, name: dropped.append(name))
+        ct._reclaim_worker_dbs(self.BASE)  # must not raise
+        assert dropped == []

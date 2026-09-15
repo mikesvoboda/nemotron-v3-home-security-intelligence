@@ -529,14 +529,52 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo) -> Gener
         report.wasxfail = "Quarantined flaky test"
 
 
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Pre-clean crashed sessions' root-tier worker databases (spec 3.1 Task 7).
+
+    Coordination (master) process only — every xdist worker sets
+    PYTEST_XDIST_WORKER before its inner session starts (xdist/remote.py), so
+    the same conftest loaded in a worker skips. Silent when Postgres or the
+    test-DB env is absent: AI-tier / setup_lib sessions share this testpaths
+    and must not gain a Postgres dependency from this hook.
+
+    Deliberately a hook, not the plan's autouse session fixture: an autouse
+    session fixture fires inside EVERY xdist worker (each worker = its own
+    session), so a sweep written that way runs -n times and races itself;
+    pytest_sessionstart is the only place the once-per-run semantics live.
+    """
+    if _coordination_worker_id() != "master":
+        return
+    base_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not base_url or os.environ.get("TEST_DB_NO_WORKER_SUFFIX"):
+        return
+    if not _check_postgres_connection():
+        return
+    try:
+        _sweep_stale_worker_dbs(base_url)
+    except Exception as exc:  # hygiene must never fail a session at startup
+        logger.warning(f"worker-DB stale sweep failed: {exc}")
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """Write flaky test tracking data at end of test session.
 
     Outputs a JSON file with test outcomes for aggregation across CI runs.
     This data is used by scripts/analyze-flaky-tests.py to detect flaky tests.
+
+    Then reclaims this process's worker databases (spec 3.1 Task 7). Placement
+    note: conftest hooks run before pytest-runner's sessionfinish (LIFO), i.e.
+    before session-scoped fixture finalizers — that is safe ONLY because
+    _reclaim_worker_dbs is guard-first (any connection still on the database,
+    ours or a foreign session's, defers the drop to the next session's sweep).
     """
     import json
     from datetime import UTC, datetime
+
+    # NOTE: the flaky-data block below ends in `return` when
+    # FLAKY_TEST_RESULTS_FILE is unset, so worker-DB reclamation must run
+    # BEFORE it, not at the function tail.
+    _reclaim_root_worker_dbs_at_session_end()
 
     if not FLAKY_TEST_RESULTS_FILE:
         return
@@ -621,13 +659,11 @@ def get_test_db_url() -> str:
         # Ensure asyncpg driver
         if "postgresql://" in env_url and "asyncpg" not in env_url:
             env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
-        name = worker_db_name(env_url)
-        return _create_worker_database(env_url, name)
+        return _memo_worker_database(env_url)
 
     # 2. Check for local PostgreSQL (development environment with Podman/Docker)
     if _check_postgres_connection():
-        name = worker_db_name(DEFAULT_DEV_POSTGRES_URL)
-        return _create_worker_database(DEFAULT_DEV_POSTGRES_URL, name)
+        return _memo_worker_database(DEFAULT_DEV_POSTGRES_URL)
 
     raise RuntimeError(
         "PostgreSQL not available for unit testing. Options:\n"
@@ -645,8 +681,8 @@ def get_test_db_url() -> str:
 # duplication across conftests is deliberate (conftest-to-conftest imports are
 # brittle under pytest's importer) and matches the existing _get_advisory_lock_key
 # duplication. get_test_db_url now routes through these helpers (the spec 3.1
-# cutover landed in e8619d80); session lifecycle (create-once memo, stale
-# sweep, collision-safe reclamation) lives below get_test_redis_url.
+# cutover landed in e8619d80); session lifecycle (create-once memo, master-only
+# stale sweep, collision-safe reclamation) lives above get_test_redis_url.
 
 
 def worker_id() -> str:
@@ -760,6 +796,194 @@ def _drop_worker_database(base_url: str, db_name: str, max_retries: int = 3) -> 
     logger.warning(
         f"could not drop worker database {db_name}; stale copy will be swept next session"
     )
+
+
+# ── Worker-DB session lifecycle: create-once memo + sweep + reclaim ─────────
+# Task 7 (spec 3.1). Create-per-call (Task 6) is idempotent but re-parses
+# pg_database on every fixture invocation, and crashed sessions leak copies.
+# The collision-safety rules gate run 9 demands (ledger: "worker-DB names
+# COLLIDE by construction"):
+#   - only names in THIS process's memo are ever drop candidates at teardown;
+#   - a name with ANY live connection (ours, a sibling worker's, or another
+#     pytest session's) is skipped, never fought over;
+#   - the sweep's membership regex can never match the base DB, the
+#     integration tier's 'security_test' / 'security_test_gwN' names, or
+#     template_test/test_db_gw* (those stay with cleanup_stale_databases);
+#   - nothing here ever runs a DROP during session setup except the
+#     master-only sweep of exactly-matched stale names.
+
+_worker_db_url_cache: dict[tuple[str, str], str] = {}
+_worker_dbs_created: set[str] = set()
+
+
+def _coordination_worker_id() -> str:
+    """Master/worker id for session bookkeeping WITHOUT importing xdist.
+
+    Reads the env var xdist sets in every worker before its inner session
+    starts (xdist/remote.py: os.environ["PYTEST_XDIST_WORKER"]). Kept separate
+    from worker_id() — same value, different contract: session hooks must not
+    import xdist's helpers (a worker runs pytest_sessionstart before its
+    plugins are configured) nor take a fixture ``request`` (hooks have none).
+    """
+    return os.environ.get("PYTEST_XDIST_WORKER", "master")
+
+
+def _memo_worker_database(base_url: str) -> str:
+    """Create-once: memoized per (worker, base URL) worker-database creation.
+
+    Cache hit returns the URL without a psycopg2 round trip. The key includes
+    worker_id() so an in-process env change (a test monkeypatching
+    TEST_DATABASE_URL under a different PYTEST_XDIST_WORKER, as
+    test_db_isolation does) re-derives instead of returning another worker's
+    URL. Names created are bookkept for _reclaim_worker_dbs.
+    """
+    key = (worker_id(), base_url)
+    url = _worker_db_url_cache.get(key)
+    if url is None:
+        name = worker_db_name(base_url)
+        url = _create_worker_database(base_url, name)
+        _worker_db_url_cache[key] = url
+        _worker_dbs_created.add(name)
+    return url
+
+
+def _base_db_prefix(base_url: str) -> str:
+    """Sanitized worker-DB name prefix for a base URL.
+
+    Mirrors worker_db_name()'s sanitize/strip/cap logic exactly (minus the
+    worker suffix) so sweep membership and name derivation cannot diverge.
+    """
+    base = urlparse(base_url.replace("+asyncpg", "")).path.lstrip("/") or "test"
+    prefix = re.sub(r"[^a-z0-9_]", "_", base.lower()).strip("_") or "test"
+    return prefix[:63]
+
+
+def _list_databases_by_prefix(base_url: str, prefix: str) -> list[str]:
+    """Existing database names starting with prefix (anchored, LIKE-escaped).
+
+    Connects to the server's 'postgres' db. Connection errors propagate to the
+    caller (the sweep treats them as "skip hygiene this session", never as
+    "no databases" — fail-closed).
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        user=parsed.username or "postgres",
+        password=parsed.password or "postgres",
+        dbname="postgres",
+    )
+    try:
+        with conn.cursor() as cur:
+            like_prefix = prefix.replace("\\", "\\\\").replace("_", "\\_")
+            cur.execute(
+                "SELECT datname FROM pg_database WHERE datname LIKE %s || '%' ORDER BY 1",
+                (like_prefix,),
+            )
+            return [row[0] for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def _db_has_active_connections(base_url: str, db_name: str) -> bool:
+    """True if any server process is currently connected to db_name.
+
+    Fail-closed: psycopg2.Error propagates — an unreachable server must read
+    as "do not drop", not as "nobody is home".
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        user=parsed.username or "postgres",
+        password=parsed.password or "postgres",
+        dbname="postgres",
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM pg_stat_activity WHERE datname = %s LIMIT 1",
+                (db_name,),
+            )
+            return cur.fetchone() is not None
+    finally:
+        conn.close()
+
+
+def _sweep_stale_worker_dbs(base_url: str) -> None:
+    """Drop <prefix>_main / <prefix>_gw<N> leftovers from crashed sessions.
+
+    Master-only (pytest_sessionstart). Membership is exactly the live
+    root-tier naming: anchored fullmatch of prefix_main or prefix_gw<digits>
+    — so 'security_test' / 'security_test_gw0' (integration tier, possibly a
+    LIVE gate's right now), the bare base DB, and template_test / test_db_gw*
+    (kept by cleanup_stale_databases) can never match. Anything still holding
+    a connection is a live session's database (gate run 9: 'a concurrent
+    -n auto run dropped the live gate's DBs') and is skipped, never stolen.
+    """
+    prefix = _base_db_prefix(base_url)
+    try:
+        candidates = [
+            name
+            for name in _list_databases_by_prefix(base_url, prefix)
+            if name not in _PROTECTED_DB_NAMES
+            and re.fullmatch(rf"^{prefix}_(?:gw[0-9]+|main)$", name)
+        ]
+    except psycopg2.Error as exc:
+        logger.warning(f"worker-DB stale sweep skipped (server unreachable): {exc}")
+        return
+    for name in candidates:
+        try:
+            if _db_has_active_connections(base_url, name):
+                logger.info(f"worker DB {name} is in active use (live session?) — sweep skips it")
+                continue
+        except psycopg2.Error as exc:
+            logger.warning(f"worker DB {name} liveness check failed ({exc}) — sweep skips it")
+            continue
+        logger.info(f"Dropping stale root-tier worker database: {name}")
+        _drop_worker_database(base_url, name)
+
+
+def _reclaim_root_worker_dbs_at_session_end() -> None:
+    """Gate the Task-7 reclamation: coordination process only, env only.
+
+    xdist workers never drop anything: gate run 9 proved a session-end drop
+    kills siblings mid-flight, and xdist can recycle a gwN id for a
+    late-spawned replacement worker (worksteal reschedule) whose database a
+    per-worker drop would then delete out from under it. Parallel runs' worker
+    DBs therefore persist until the next session's sweep — the plan's own
+    tolerance ("leaked fcl/test worker DBs are cleaned by the next session's
+    pre-clean sweep, never by failing tests").
+    """
+    if _coordination_worker_id() != "master" or os.environ.get("TEST_DB_NO_WORKER_SUFFIX"):
+        return
+    base_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not base_url:
+        return
+    try:
+        _reclaim_worker_dbs(base_url)
+    except Exception as exc:  # cleanup errors never fail the session (NEM-4491 doctrine)
+        logger.warning(f"worker-DB session teardown failed: {exc}")
+
+
+def _reclaim_worker_dbs(base_url: str) -> None:
+    """Drop databases THIS process created at session end, if provably unused.
+
+    Master-only caller (_reclaim_root_worker_dbs_at_session_end). Memo-scoped
+    ownership + zero-connection check are the two collision guards; leftovers
+    are tolerated by design and picked up by the next session's sweep.
+    """
+    for name in sorted(_worker_dbs_created):
+        try:
+            if _db_has_active_connections(base_url, name):
+                logger.info(
+                    f"worker DB {name} still has connections; next session's sweep reclaims it"
+                )
+                continue
+        except psycopg2.Error as exc:
+            logger.warning(f"worker DB {name} liveness check failed ({exc}); leaving it in place")
+            continue
+        _drop_worker_database(base_url, name)
 
 
 def get_test_redis_url() -> str:
