@@ -11,6 +11,7 @@
 #   ./scripts/validate.sh              # Full validation
 #   ./scripts/validate.sh --backend    # Backend only
 #   ./scripts/validate.sh --frontend   # Frontend only
+#   ./scripts/validate.sh --fast       # Change-scoped advisory tier (<=10 min, no coverage)
 #   ./scripts/validate.sh --help       # Show help
 #
 
@@ -27,6 +28,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Flags
 RUN_BACKEND=true
 RUN_FRONTEND=true
+RUN_FAST=false
 
 # Colors (portable - works in sh)
 if [ -t 1 ]; then
@@ -78,11 +80,16 @@ Options:
     -h, --help      Show this help message
     --backend       Run backend validation only
     --frontend      Run frontend validation only
+    --fast          Change-scoped advisory tier (<=10 min, no coverage proof;
+                    base ref via VALIDATE_BASE=<ref>, per-file reasons via
+                    VALIDATE_WHY=1). Never prints the full gate's success
+                    banner - the full gate stays required before merge.
 
 Examples:
     ./scripts/validate.sh               # Full validation
     ./scripts/validate.sh --backend     # Backend only
     ./scripts/validate.sh --frontend    # Frontend only
+    ./scripts/validate.sh --fast        # Advisory tier on the change set
 
 Requirements:
     Backend:  Python 3.14+, uv (https://docs.astral.sh/uv/)
@@ -189,6 +196,12 @@ while [ $# -gt 0 ]; do
         --frontend)
             RUN_BACKEND=false
             RUN_FRONTEND=true
+            shift
+            ;;
+        --fast)
+            RUN_FAST=true
+            RUN_BACKEND=false
+            RUN_FRONTEND=false
             shift
             ;;
         *)
@@ -520,6 +533,69 @@ run_frontend_validation() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Fast Tier (change-scoped advisory gate - fast-confidence-loop spec SS4.1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# [M1 §6 GATE] This ENTIRE function is reachable only via the `--fast` case
+# added to the arg parser above (RUN_FAST=true). With no --fast flag,
+# RUN_FAST stays false and nothing here ever executes, so the default
+# (no-flag / --backend / --frontend) path is unchanged — the M1 spec §9
+# freeze on scripts/validate.sh behavior holds while M1's final no-flag
+# validate.sh run is outstanding (the §6 "exit criteria" record). It may
+# APPLY only once the M1 §6 record is in the ledger.
+
+run_fast_validation() {
+    # Base ref: default = merge-base with main (fallback origin/main on clones
+    # without a local main; a bare `git merge-base HEAD main` dies there).
+    _FCL_MAIN=$(git rev-parse --verify -q main || echo origin/main)
+    VALIDATE_BASE="${VALIDATE_BASE:-$(git merge-base HEAD "$_FCL_MAIN")}"
+    print_step "Fast tier: change set against ${VALIDATE_BASE}"
+
+    SEL_LIST=$(mktemp)
+    FE_LOG=$(mktemp)
+    # One accumulated EXIT trap: POSIX sh replaces (does not stack) prior traps.
+    trap 'rm -f "$SEL_LIST" "$FE_LOG"' EXIT
+
+    print_step "Backend selection (import-truth selector)..."
+    # `if ! VAR=$(...)` form: with set -e a bare VAR=$(cmd) propagates failure
+    # at the assignment without letting us print context; and NO pipe here —
+    # validate.sh is /bin/sh without pipefail, so `cmd | tee` would test tee's
+    # status and mask the runner's verdict (the ci.yml retry-mask class).
+    if ! BACKEND_OUT=$(uv run python "$SCRIPT_DIR/fast_select.py" \
+        --base "$VALIDATE_BASE" --list-out "$SEL_LIST" ${VALIDATE_WHY:+--why}); then
+        print_error "Backend selector (fast_select.py) failed"
+        exit 1
+    fi
+    printf '%s\n' "$BACKEND_OUT"
+
+    print_step "Backend: selected tests (no coverage, deterministic)..."
+    if ! BACKEND_RUN=$(sh "$SCRIPT_DIR/fast-backend-runner.sh" "$SEL_LIST"); then
+        printf '%s\n' "$BACKEND_RUN"
+        print_error "Fast backend tests failed"
+        exit 1
+    fi
+    printf '%s\n' "$BACKEND_RUN"
+
+    print_step "Frontend: vitest related..."
+    if ! FE_OUT=$(sh "$SCRIPT_DIR/fast-frontend-runner.sh" "$VALIDATE_BASE" 2>&1); then
+        printf '%s\n' "$FE_OUT"
+        print_error "Fast frontend tests failed"
+        exit 1
+    fi
+    printf '%s\n' "$FE_OUT"
+    printf '%s\n' "$FE_OUT" > "$FE_LOG"
+
+    BE_N=$(printf '%s\n' "$BACKEND_OUT" "$BACKEND_RUN" \
+        | sed -n 's/^SELECTED-BACKEND-FILES: //p' | tail -1)
+    FE_N=$(sed -n 's/^SELECTED-FRONTEND-FILES: //p' "$FE_LOG" | tail -1)
+    printf '\nSELECTED: %s files total (backend: %s via import-truth, frontend: %s via related, smoke: contracts-included-when-api-changed)\n' \
+        "$(( ${BE_N:-0} + ${FE_N:-0} ))" "${BE_N:-0}" "${FE_N:-0}"
+    printf '%s\n' "FAST TIER — no coverage proof; full gate still required before merge."
+    # Deliberately NO "VALIDATION SUCCESSFUL" banner: that string belongs to
+    # the full gate alone (spec SS4.1 output contract).
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -527,6 +603,14 @@ printf "${GREEN}Starting project validation...${NC}\n"
 printf "Project root: ${CYAN}%s${NC}\n" "$PROJECT_ROOT"
 
 cd "$PROJECT_ROOT"
+
+# [M1 §6 GATE] Fast-tier dispatch. Reachable ONLY when --fast set
+# RUN_FAST=true; the no-flag path never enters this branch, so the default
+# behavior freeze (M1 spec §9, pending M1's §6 green record) is preserved.
+if [ "$RUN_FAST" = true ]; then
+    run_fast_validation
+    exit 0   # fast tier never falls through to the full-gate banner
+fi
 
 if [ "$RUN_BACKEND" = true ]; then
     run_backend_validation
