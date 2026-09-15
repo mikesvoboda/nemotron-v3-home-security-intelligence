@@ -2486,6 +2486,19 @@ jobs:
           echo "test_files=$TOTAL_TEST_FILES" >> $GITHUB_OUTPUT
           echo "impl_files=$TOTAL_IMPL_FILES" >> $GITHUB_OUTPUT
 
+  # Version Consistency - every runtime-version declaration must agree with
+  # .nvmrc / .python-version (kills the "label said 3.11, uv ran 3.14" class)
+  version-consistency:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check versions against source of truth
+        run: ./scripts/check-version-consistency.sh
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # Use this as the required check in branch protection to simplify configuration.
@@ -2506,6 +2519,7 @@ jobs:
       - frontend-tests-summary
       - frontend-e2e-summary
       - api-types-check
+      - version-consistency
     if: always()
     steps:
       - name: Check required job results
@@ -2536,6 +2550,7 @@ jobs:
           check_job "Frontend Tests (Vitest)" "${{ needs.frontend-tests-summary.result }}"
           check_job "E2E Tests (Chromium)" "${{ needs.frontend-e2e-summary.result }}"
           check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
+          check_job "Version Consistency" "${{ needs.version-consistency.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
