@@ -2702,3 +2702,54 @@ parallel arm is repeatable to ±0.2s.
 node-downs.** M2's carried "green ×2 under new config" note above is now discharged by these
 two bare no-flag gates rather than the earlier config-equivalence argument. T11's percentile
 row fills next from the gate-identical durations companion run.
+
+### T11 close-out — final-tip measurements (2026-09-15, tip 011c2691 lineage)
+
+Fills the OPEN cell above. Sources: gates 20+21 (bare, summary lines only) + a gate-identical
+durations companion run on the final tip (same flags as validate.sh's integration call +
+durations_plugin, seed 3798389216 = the T4 baseline seed, rc=0, `4071 passed / 131 skipped /
+2 xfailed in 537.06s`, 0 node-downs, 0 reruns).
+
+**Full-suite walls (green pair):** unit 83.92s / 83.54s; integration 561.28s / 537.46s
+(companion 537.06s — same-seed repeat sits in-band); vitest 395.00s / 394.80s on the new
+≥64GiB parallel branch; whole-gate **1253s / 1200s** vs the 2966.63s gate-19 anchor = **−58%**
+(RAM-confounded; vitest's own Duration is the attributable parallel-arm row).
+
+**Integration per-phase (gw-only, n=4204 setup/teardown, 4084 call):**
+setup p50/p90/p99/max = **0.067 / 1.032 / 1.201 / 2.432** (baseline 0.068 / 1.057 / 1.217 /
+2.370); teardown **0.090 / 0.995 / 1.151 / 9.052** (baseline 0.088 / 1.024 / 1.185 / 8.674);
+sums setup 1798.8s / call 270.3s / teardown 2050.4s (baseline 1810 / 285 / 2055). Across all of
+M3 the percentiles moved <3% — the tier's shape is stable and cleanup remains the cost center
+(audit 2.2 stands). T5's decision-rule recheck: setup p99 1.201 ≪ 2s → `timeout = 5` was the
+right keep.
+
+**Collection/executed delta, reconciled:** audit-era 4298 → final 4204 = net −94 = −134 symlink
+twins (T1, exact) + 39 T3 un-hides moved IN (T3 row) + 1 new miss-path test (f8dcc7e7). Unit
+totals match across both green gates (27669 items each; one item rides the passed/xfail seam —
+recorded honestly in the gate-21 row).
+
+**[ESTIMATE] verdicts (all against measured numbers):**
+
+1. Audit Part 0 #5 per-test "~3.3s derived" — **REFUTED.** Final-tip measured:
+   (1798.8+270.3+2050.4)/4204 = **0.98s/test** serialized phase-time, 0.128s/test wall at -n8.
+   The 3.3s was pre-split arithmetic; the fixture workstream moved the real cost off the
+   per-test path (worker-scoped schema + cleanup memoization).
+2. Audit fixture-split payoff "18–21 min saved" — **REFUTED** (was already marked DEAD at the
+   953.40→919.75s first-cut row; final honest number: old-fixture 953.40s → 537.06s same-tier
+   ≈ **−416s (−44%) tier wall**, not 18–21 min, and that includes the timeout swap + sleeps).
+3. Plan Task 4 "wall-clock target ≥15 min saved [ESTIMATE hypothesis — report the real number
+   even if smaller]" — **REFUTED with the number:** real same-tier delta ≈ 6.5 min; the ≥15-min
+   payoff materialized only at the WHOLE-GATE level (−29.4 min vs gate-19), driven mostly by
+   the 96GiB vitest parallel arm that wasn't part of Task 4's claim. Reported honestly: M3's
+   hygiene work bought tier stability, the RAM upgrade bought the headline.
+4. Symlink "[ESTIMATE] 134 fewer duplicated tests" — **CONFIRMED**, exact (4298→4164 at T1;
+   −134 = 72+62 twins ×2 + four zero-byte files contributing 0).
+5. T2a worker-DB block size estimate — landed at measured −437 lines with collect unchanged
+   (measured number superseded the estimate; see T2a row).
+
+**DoD cross-check (plan §"Definition of done"):** tasks T1–T11 all have ledger rows; timeout
+config changed only with the owner ruling (T5); no production runtime code touched (all M3
+commits are backend/tests/, scripts/, docs — gate-20/21 diff audit); final gate green ×2 with
+zero node-downs (gates 20+21); 134 dupes gone; integration_db no longer per-test-rebuilds
+(T4b/c); every audit [ESTIMATE] above replaced by a measured number.
+**T11 CLOSED.**
