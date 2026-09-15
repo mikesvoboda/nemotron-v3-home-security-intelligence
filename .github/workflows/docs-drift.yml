@@ -60,7 +60,7 @@ jobs:
             --output drift-report.json \
             --base "$BASE_REF" \
             --head "$HEAD_REF" \
-            ${PR_NUMBER:+--pr-number "$PR_NUMBER"}
+            ${PR_NUMBER:+--pr "$PR_NUMBER"}
 
       - name: Check if drift report exists
         id: check-drift
