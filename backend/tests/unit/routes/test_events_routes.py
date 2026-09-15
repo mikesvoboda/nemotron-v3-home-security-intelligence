@@ -14,11 +14,17 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastapi import BackgroundTasks, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
 from backend.api.routes import events as events_routes
 from backend.api.routes.events import parse_detection_ids, parse_severity_filter
 from backend.api.schemas.events import EventUpdate
+from backend.models.camera import Camera
+from backend.models.detection import Detection
+from backend.models.event import Event
+from backend.services.cache_service import CacheService
 
 
 @pytest.fixture
@@ -241,7 +247,7 @@ def create_mock_event(
     object_types: str | None = None,
 ) -> MagicMock:
     """Create a mock Event object for testing."""
-    mock = MagicMock()
+    mock = MagicMock(spec=Event)
     mock.id = event_id
     mock.camera_id = camera_id
     mock.started_at = started_at or datetime.now(UTC)
@@ -294,7 +300,7 @@ def create_mock_detection(
     detected_at: datetime | None = None,
 ) -> MagicMock:
     """Create a mock Detection object for testing."""
-    mock = MagicMock()
+    mock = MagicMock(spec=Detection)
     mock.id = detection_id
     mock.camera_id = camera_id
     mock.file_path = file_path
@@ -318,7 +324,7 @@ def create_mock_camera(
     name: str = "Front Door",
 ) -> MagicMock:
     """Create a mock Camera object for testing."""
-    mock = MagicMock()
+    mock = MagicMock(spec=Camera)
     mock.id = camera_id
     mock.name = name
     return mock
@@ -332,7 +338,7 @@ def create_mock_camera(
 @pytest.mark.asyncio
 async def test_list_events_returns_empty_list_when_no_events(mock_response: MagicMock) -> None:
     """Test that list_events returns an empty list when no events exist."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock count query
     count_result = MagicMock()
@@ -369,7 +375,7 @@ async def test_list_events_returns_empty_list_when_no_events(mock_response: Magi
 @pytest.mark.asyncio
 async def test_list_events_returns_events_with_detection_count(mock_response: MagicMock) -> None:
     """Test that list_events returns events with correct detection count."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(detection_ids="1,2,3")
 
@@ -407,7 +413,7 @@ async def test_list_events_returns_events_with_detection_count(mock_response: Ma
 @pytest.mark.asyncio
 async def test_list_events_returns_detection_ids_array(mock_response: MagicMock) -> None:
     """Test that list_events returns detection_ids as integer array."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(detection_ids="10,20,30")
 
@@ -444,7 +450,7 @@ async def test_list_events_returns_detection_ids_array(mock_response: MagicMock)
 @pytest.mark.asyncio
 async def test_list_events_with_empty_detection_ids(mock_response: MagicMock) -> None:
     """Test that list_events handles events with no detection_ids."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(detection_ids=None)
 
@@ -480,7 +486,7 @@ async def test_list_events_with_empty_detection_ids(mock_response: MagicMock) ->
 @pytest.mark.asyncio
 async def test_list_events_with_empty_string_detection_ids(mock_response: MagicMock) -> None:
     """Test that list_events handles events with empty string detection_ids."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(detection_ids="")
 
@@ -516,7 +522,7 @@ async def test_list_events_with_empty_string_detection_ids(mock_response: MagicM
 @pytest.mark.asyncio
 async def test_list_events_with_camera_id_filter(mock_response: MagicMock) -> None:
     """Test that list_events filters by camera_id."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(camera_id="cam-001")
 
@@ -552,7 +558,7 @@ async def test_list_events_with_camera_id_filter(mock_response: MagicMock) -> No
 @pytest.mark.asyncio
 async def test_list_events_with_risk_level_filter(mock_response: MagicMock) -> None:
     """Test that list_events filters by risk_level."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(risk_level="high")
 
@@ -588,7 +594,7 @@ async def test_list_events_with_risk_level_filter(mock_response: MagicMock) -> N
 @pytest.mark.asyncio
 async def test_list_events_with_date_filters(mock_response: MagicMock) -> None:
     """Test that list_events filters by start_date and end_date."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     now = datetime.now(UTC)
     mock_event = create_mock_event(started_at=now)
@@ -627,7 +633,7 @@ async def test_list_events_with_date_filters(mock_response: MagicMock) -> None:
 @pytest.mark.asyncio
 async def test_list_events_with_reviewed_filter_true(mock_response: MagicMock) -> None:
     """Test that list_events filters by reviewed=True."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(reviewed=True)
 
@@ -663,7 +669,7 @@ async def test_list_events_with_reviewed_filter_true(mock_response: MagicMock) -
 @pytest.mark.asyncio
 async def test_list_events_with_reviewed_filter_false(mock_response: MagicMock) -> None:
     """Test that list_events filters by reviewed=False."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(reviewed=False)
 
@@ -699,7 +705,7 @@ async def test_list_events_with_reviewed_filter_false(mock_response: MagicMock) 
 @pytest.mark.asyncio
 async def test_list_events_with_object_type_filter_matching(mock_response: MagicMock) -> None:
     """Test that list_events filters by object_type using the object_types column."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Event with object_types containing "person"
     mock_event = create_mock_event(detection_ids="1,2", object_types="person,vehicle")
@@ -735,7 +741,7 @@ async def test_list_events_with_object_type_filter_matching(mock_response: Magic
 @pytest.mark.asyncio
 async def test_list_events_with_object_type_filter_no_matches(mock_response: MagicMock) -> None:
     """Test that list_events returns empty when no events match object_type."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock count query - no matches due to SQL LIKE filter
     count_result = MagicMock()
@@ -769,7 +775,7 @@ async def test_list_events_with_object_type_filter_no_matches(mock_response: Mag
 @pytest.mark.asyncio
 async def test_list_events_with_object_type_filter_single_value(mock_response: MagicMock) -> None:
     """Test that list_events filters by object_type when it's the only value."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Event with only "person" as object_type
     mock_event = create_mock_event(detection_ids="1", object_types="person")
@@ -805,7 +811,7 @@ async def test_list_events_with_object_type_filter_single_value(mock_response: M
 @pytest.mark.asyncio
 async def test_list_events_with_object_type_filter_at_end(mock_response: MagicMock) -> None:
     """Test that list_events filters by object_type when it's at the end of the list."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Event with "person" at the end
     mock_event = create_mock_event(detection_ids="1,2", object_types="vehicle,person")
@@ -847,7 +853,7 @@ async def test_list_events_object_type_escapes_wildcard_characters(
     This prevents pattern injection attacks where special characters like %
     and _ could match unintended patterns.
     """
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Event with literal % and _ characters in object_type
     mock_event = create_mock_event(detection_ids="1", object_types="100%_complete")
@@ -888,7 +894,7 @@ async def test_list_events_object_type_escapes_wildcard_characters(
 @pytest.mark.asyncio
 async def test_list_events_pagination_with_custom_limit(mock_response: MagicMock) -> None:
     """Test that list_events respects custom limit parameter."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_events = [create_mock_event(event_id=i) for i in range(1, 4)]
 
@@ -924,7 +930,7 @@ async def test_list_events_pagination_with_custom_limit(mock_response: MagicMock
 @pytest.mark.asyncio
 async def test_list_events_pagination_with_offset(mock_response: MagicMock) -> None:
     """Test that list_events respects offset parameter."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_events = [create_mock_event(event_id=i) for i in range(6, 11)]
 
@@ -960,7 +966,7 @@ async def test_list_events_pagination_with_offset(mock_response: MagicMock) -> N
 @pytest.mark.asyncio
 async def test_list_events_multiple_events(mock_response: MagicMock) -> None:
     """Test that list_events handles multiple events correctly."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_events = [
         create_mock_event(event_id=1, camera_id="cam-001", risk_level="high"),
@@ -1000,7 +1006,7 @@ async def test_list_events_multiple_events(mock_response: MagicMock) -> None:
 @pytest.mark.asyncio
 async def test_list_events_detection_ids_with_whitespace(mock_response: MagicMock) -> None:
     """Test that list_events handles detection_ids with whitespace."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(detection_ids="1, 2, 3 , 4")
 
@@ -1036,7 +1042,7 @@ async def test_list_events_detection_ids_with_whitespace(mock_response: MagicMoc
 @pytest.mark.asyncio
 async def test_list_events_returns_reasoning_field(mock_response: MagicMock) -> None:
     """Test that list_events returns the reasoning field for each event."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1075,7 +1081,7 @@ async def test_list_events_returns_reasoning_field(mock_response: MagicMock) -> 
 @pytest.mark.asyncio
 async def test_list_events_returns_none_reasoning_when_not_set(mock_response: MagicMock) -> None:
     """Test that list_events returns None reasoning when not set."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1122,7 +1128,7 @@ def _create_mock_cache() -> MagicMock:
     This helper creates a mock CacheService that can be passed directly
     to route functions, replacing the previous @patch approach.
     """
-    mock_cache = MagicMock()
+    mock_cache = MagicMock(spec=CacheService)
     mock_cache.get = AsyncMock(return_value=None)  # Cache miss
     mock_cache.set = AsyncMock()
     return mock_cache
@@ -1132,7 +1138,7 @@ def _create_mock_cache() -> MagicMock:
 async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
     """Test that get_event_stats returns zero counts when no events exist."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock total count query - returns 0
     total_count_result = MagicMock()
@@ -1163,7 +1169,7 @@ async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
 async def test_get_event_stats_counts_events_by_risk_level() -> None:
     """Test that get_event_stats correctly counts events by risk level using SQL GROUP BY."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock total count query - returns 7
     total_count_result = MagicMock()
@@ -1198,7 +1204,7 @@ async def test_get_event_stats_counts_events_by_risk_level() -> None:
 async def test_get_event_stats_counts_events_by_camera() -> None:
     """Test that get_event_stats correctly counts events by camera using SQL GROUP BY."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock total count query - returns 5
     total_count_result = MagicMock()
@@ -1234,7 +1240,7 @@ async def test_get_event_stats_counts_events_by_camera() -> None:
 async def test_get_event_stats_with_unknown_camera() -> None:
     """Test that get_event_stats handles unknown camera IDs (NULL from LEFT JOIN)."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock total count query - returns 1
     total_count_result = MagicMock()
@@ -1261,7 +1267,7 @@ async def test_get_event_stats_with_unknown_camera() -> None:
 async def test_get_event_stats_with_date_filters() -> None:
     """Test that get_event_stats filters by date range."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     now = datetime.now(UTC)
 
@@ -1294,7 +1300,7 @@ async def test_get_event_stats_with_date_filters() -> None:
 async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
     """Test that get_event_stats ignores events with invalid risk levels."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock total count query - returns 3
     total_count_result = MagicMock()
@@ -1334,8 +1340,8 @@ async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
 @pytest.mark.asyncio
 async def test_get_event_returns_event_by_id() -> None:
     """Test that get_event returns the correct event."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     # Note: risk_level is computed from risk_score (NEM-3398)
     # risk_score=85 falls in the critical range (85-100)
@@ -1370,8 +1376,8 @@ async def test_get_event_returns_event_by_id() -> None:
 @pytest.mark.asyncio
 async def test_get_event_returns_404_when_not_found() -> None:
     """Test that get_event returns 404 when event doesn't exist."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     result = MagicMock()
     result.scalar_one_or_none.return_value = None
@@ -1388,8 +1394,8 @@ async def test_get_event_returns_404_when_not_found() -> None:
 @pytest.mark.asyncio
 async def test_get_event_with_no_detection_ids() -> None:
     """Test that get_event handles events with no detection_ids."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     mock_event = create_mock_event(detection_ids=None)
 
@@ -1406,8 +1412,8 @@ async def test_get_event_with_no_detection_ids() -> None:
 @pytest.mark.asyncio
 async def test_get_event_with_empty_detection_ids() -> None:
     """Test that get_event handles events with empty detection_ids."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     mock_event = create_mock_event(detection_ids="")
 
@@ -1424,8 +1430,8 @@ async def test_get_event_with_empty_detection_ids() -> None:
 @pytest.mark.asyncio
 async def test_get_event_includes_all_fields() -> None:
     """Test that get_event includes all required fields in response."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     now = datetime.now(UTC)
     ended = now + timedelta(minutes=5)
@@ -1467,8 +1473,8 @@ async def test_get_event_includes_all_fields() -> None:
 @pytest.mark.asyncio
 async def test_get_event_returns_reasoning_field() -> None:
     """Test that get_event returns the reasoning field."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     mock_event = create_mock_event(
         event_id=42,
@@ -1489,8 +1495,8 @@ async def test_get_event_returns_reasoning_field() -> None:
 @pytest.mark.asyncio
 async def test_get_event_returns_none_reasoning_when_not_set() -> None:
     """Test that get_event returns None reasoning when not set."""
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1514,7 +1520,7 @@ async def test_get_event_returns_none_reasoning_when_not_set() -> None:
 @pytest.mark.asyncio
 async def test_update_event_marks_as_reviewed() -> None:
     """Test that update_event can mark an event as reviewed."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, reviewed=False)
 
@@ -1525,8 +1531,8 @@ async def test_update_event_marks_as_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1543,7 +1549,7 @@ async def test_update_event_marks_as_reviewed() -> None:
 @pytest.mark.asyncio
 async def test_update_event_marks_as_not_reviewed() -> None:
     """Test that update_event can mark an event as not reviewed."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, reviewed=True)
 
@@ -1554,8 +1560,8 @@ async def test_update_event_marks_as_not_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=False)
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1570,7 +1576,7 @@ async def test_update_event_marks_as_not_reviewed() -> None:
 @pytest.mark.asyncio
 async def test_update_event_updates_notes() -> None:
     """Test that update_event can update event notes."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, notes=None)
 
@@ -1581,8 +1587,8 @@ async def test_update_event_updates_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes="New notes")
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1597,7 +1603,7 @@ async def test_update_event_updates_notes() -> None:
 @pytest.mark.asyncio
 async def test_update_event_clears_notes() -> None:
     """Test that update_event can clear event notes."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, notes="Existing notes")
 
@@ -1608,8 +1614,8 @@ async def test_update_event_clears_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes=None)
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1624,7 +1630,7 @@ async def test_update_event_clears_notes() -> None:
 @pytest.mark.asyncio
 async def test_update_event_updates_both_reviewed_and_notes() -> None:
     """Test that update_event can update both reviewed and notes."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, reviewed=False, notes=None)
 
@@ -1635,8 +1641,8 @@ async def test_update_event_updates_both_reviewed_and_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True, notes="Verified - delivery person")
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1652,15 +1658,15 @@ async def test_update_event_updates_both_reviewed_and_notes() -> None:
 @pytest.mark.asyncio
 async def test_update_event_returns_404_when_not_found() -> None:
     """Test that update_event returns 404 when event doesn't exist."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     result = MagicMock()
     result.scalar_one_or_none.return_value = None
     db.execute = AsyncMock(return_value=result)
 
     update_data = EventUpdate(reviewed=True)
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
 
     with pytest.raises(Exception) as exc_info:
         await events_routes.update_event(
@@ -1678,7 +1684,7 @@ async def test_update_event_returns_404_when_not_found() -> None:
 @pytest.mark.asyncio
 async def test_update_event_returns_correct_response() -> None:
     """Test that update_event returns the updated event with all fields."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1698,8 +1704,8 @@ async def test_update_event_returns_correct_response() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     response = await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1725,7 +1731,7 @@ async def test_update_event_returns_correct_response() -> None:
 @pytest.mark.asyncio
 async def test_update_event_preserves_reasoning_field() -> None:
     """Test that update_event preserves reasoning field in response."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(
         event_id=1,
@@ -1740,8 +1746,8 @@ async def test_update_event_preserves_reasoning_field() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     response = await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1756,7 +1762,7 @@ async def test_update_event_preserves_reasoning_field() -> None:
 @pytest.mark.asyncio
 async def test_update_event_with_no_changes() -> None:
     """Test that update_event works when no fields are changed."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, reviewed=True, notes="Existing")
 
@@ -1768,8 +1774,8 @@ async def test_update_event_with_no_changes() -> None:
 
     # Empty update - no fields set
     update_data = EventUpdate()
-    mock_request = MagicMock()
-    mock_background_tasks = MagicMock()
+    mock_request = MagicMock(spec=Request)
+    mock_background_tasks = MagicMock(spec=BackgroundTasks)
     response = await events_routes.update_event(
         event_id=1,
         update_data=update_data,
@@ -1790,7 +1796,7 @@ async def test_update_event_with_no_changes() -> None:
 @pytest.mark.asyncio
 async def test_get_event_detections_returns_detections() -> None:
     """Test that get_event_detections returns detections for an event."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids="1,2,3")
 
@@ -1827,7 +1833,7 @@ async def test_get_event_detections_returns_detections() -> None:
 @pytest.mark.asyncio
 async def test_get_event_detections_returns_404_when_event_not_found() -> None:
     """Test that get_event_detections returns 404 when event doesn't exist."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     result = MagicMock()
     result.scalar_one_or_none.return_value = None
@@ -1845,7 +1851,7 @@ async def test_get_event_detections_returns_404_when_event_not_found() -> None:
 @pytest.mark.asyncio
 async def test_get_event_detections_returns_empty_list_when_no_detections() -> None:
     """Test that get_event_detections returns empty list when event has no detections."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids=None)
 
@@ -1864,7 +1870,7 @@ async def test_get_event_detections_returns_empty_list_when_no_detections() -> N
 @pytest.mark.asyncio
 async def test_get_event_detections_returns_empty_list_when_empty_string() -> None:
     """Test that get_event_detections returns empty list when detection_ids is empty string."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids="")
 
@@ -1883,7 +1889,7 @@ async def test_get_event_detections_returns_empty_list_when_empty_string() -> No
 @pytest.mark.asyncio
 async def test_get_event_detections_with_pagination() -> None:
     """Test that get_event_detections supports pagination."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids="1,2,3,4,5")
 
@@ -1919,7 +1925,7 @@ async def test_get_event_detections_with_pagination() -> None:
 @pytest.mark.asyncio
 async def test_get_event_detections_handles_whitespace_in_detection_ids() -> None:
     """Test that get_event_detections handles whitespace in detection_ids."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids="1, 2 , 3")
 
@@ -1954,7 +1960,7 @@ async def test_get_event_detections_handles_whitespace_in_detection_ids() -> Non
 @pytest.mark.asyncio
 async def test_get_event_detections_custom_limit() -> None:
     """Test that get_event_detections respects custom limit."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids="1,2,3,4,5,6,7,8,9,10")
 
@@ -1990,7 +1996,7 @@ async def test_get_event_detections_custom_limit() -> None:
 @pytest.mark.asyncio
 async def test_list_events_with_all_filters_combined(mock_response: MagicMock) -> None:
     """Test that list_events handles all filters combined."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     now = datetime.now(UTC)
     mock_event = create_mock_event(
@@ -2034,7 +2040,7 @@ async def test_list_events_with_all_filters_combined(mock_response: MagicMock) -
 async def test_get_event_stats_empty_camera_list() -> None:
     """Test that get_event_stats handles case with events but no camera lookup (NULL from JOIN)."""
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock total count query - returns 1
     total_count_result = MagicMock()
@@ -2060,7 +2066,7 @@ async def test_get_event_stats_empty_camera_list() -> None:
 @pytest.mark.asyncio
 async def test_list_events_count_returns_zero_on_none(mock_response: MagicMock) -> None:
     """Test that list_events handles None count result."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock count query returning None
     count_result = MagicMock()
@@ -2093,7 +2099,7 @@ async def test_list_events_count_returns_zero_on_none(mock_response: MagicMock) 
 @pytest.mark.asyncio
 async def test_get_event_detections_count_returns_zero_on_none() -> None:
     """Test that get_event_detections handles None count result."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, detection_ids="1,2,3")
 
@@ -2126,7 +2132,7 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
 @pytest.mark.asyncio
 async def test_export_events_returns_csv_streaming_response() -> None:
     """Test that export_events returns a StreamingResponse with CSV content."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     now = datetime.now(UTC)
     mock_events = [
@@ -2153,7 +2159,7 @@ async def test_export_events_returns_csv_streaming_response() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2178,7 +2184,7 @@ async def test_export_events_returns_csv_streaming_response() -> None:
 @pytest.mark.asyncio
 async def test_export_events_returns_empty_csv_when_no_events() -> None:
     """Test that export_events returns CSV with only headers when no events."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock empty events query
     events_result = MagicMock()
@@ -2190,7 +2196,7 @@ async def test_export_events_returns_empty_csv_when_no_events() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2211,7 +2217,7 @@ async def test_export_events_returns_empty_csv_when_no_events() -> None:
 @pytest.mark.asyncio
 async def test_export_events_with_camera_filter() -> None:
     """Test that export_events filters by camera_id."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, camera_id="cam-001")
 
@@ -2225,7 +2231,7 @@ async def test_export_events_with_camera_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id="cam-001",
@@ -2244,7 +2250,7 @@ async def test_export_events_with_camera_filter() -> None:
 @pytest.mark.asyncio
 async def test_export_events_with_risk_level_filter() -> None:
     """Test that export_events filters by risk_level."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, risk_level="high")
 
@@ -2258,7 +2264,7 @@ async def test_export_events_with_risk_level_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2277,7 +2283,7 @@ async def test_export_events_with_risk_level_filter() -> None:
 @pytest.mark.asyncio
 async def test_export_events_with_date_filters() -> None:
     """Test that export_events filters by date range."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     now = datetime.now(UTC)
     mock_event = create_mock_event(event_id=1, started_at=now)
@@ -2295,7 +2301,7 @@ async def test_export_events_with_date_filters() -> None:
     start = now - timedelta(hours=1)
     end = now + timedelta(hours=1)
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2314,7 +2320,7 @@ async def test_export_events_with_date_filters() -> None:
 @pytest.mark.asyncio
 async def test_export_events_with_reviewed_filter() -> None:
     """Test that export_events filters by reviewed status."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, reviewed=True)
 
@@ -2328,7 +2334,7 @@ async def test_export_events_with_reviewed_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2347,7 +2353,7 @@ async def test_export_events_with_reviewed_filter() -> None:
 @pytest.mark.asyncio
 async def test_export_events_handles_unknown_camera() -> None:
     """Test that export_events shows 'Unknown' for missing camera."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event(event_id=1, camera_id="unknown-cam")
 
@@ -2361,7 +2367,7 @@ async def test_export_events_handles_unknown_camera() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2380,7 +2386,7 @@ async def test_export_events_handles_unknown_camera() -> None:
 @pytest.mark.asyncio
 async def test_export_events_handles_none_values() -> None:
     """Test that export_events handles events with None values gracefully."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Event with many None values
     mock_event = create_mock_event(
@@ -2405,7 +2411,7 @@ async def test_export_events_handles_none_values() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2424,7 +2430,7 @@ async def test_export_events_handles_none_values() -> None:
 @pytest.mark.asyncio
 async def test_export_events_multiple_events() -> None:
     """Test that export_events handles multiple events correctly."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     now = datetime.now(UTC)
     mock_events = [
@@ -2464,7 +2470,7 @@ async def test_export_events_multiple_events() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     response = await events_routes.export_events(
         request=mock_request,
         camera_id=None,
@@ -2490,7 +2496,7 @@ async def test_list_events_invalid_date_range_returns_400(mock_response: MagicMo
     """Test that list_events returns HTTP 400 when start_date > end_date."""
     from fastapi import HTTPException
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # start_date is after end_date
     start_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
@@ -2517,7 +2523,7 @@ async def test_list_events_invalid_date_range_returns_400(mock_response: MagicMo
 @pytest.mark.asyncio
 async def test_list_events_equal_dates_is_valid(mock_response: MagicMock) -> None:
     """Test that list_events accepts start_date == end_date (edge case)."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     mock_event = create_mock_event()
 
@@ -2558,7 +2564,7 @@ async def test_get_event_stats_invalid_date_range_returns_400() -> None:
     from fastapi import HTTPException
 
     mock_cache = _create_mock_cache()
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # start_date is after end_date
     start_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
@@ -2582,8 +2588,8 @@ async def test_export_events_invalid_date_range_returns_400() -> None:
     """Test that export_events returns HTTP 400 when start_date > end_date."""
     from fastapi import HTTPException
 
-    db = AsyncMock()
-    mock_request = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_request = MagicMock(spec=Request)
 
     # start_date is after end_date
     start_date = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
@@ -2612,7 +2618,7 @@ async def test_export_events_invalid_date_range_returns_400() -> None:
 @pytest.mark.asyncio
 async def test_list_events_excludes_soft_deleted(mock_response: MagicMock) -> None:
     """Test that list_events excludes soft-deleted events by default."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Create active and soft-deleted events
     active_event = create_mock_event(event_id=1, camera_id="cam-001")
@@ -2655,7 +2661,7 @@ async def test_list_events_excludes_soft_deleted(mock_response: MagicMock) -> No
 @pytest.mark.asyncio
 async def test_list_events_includes_soft_deleted_with_flag(mock_response: MagicMock) -> None:
     """Test that list_events includes soft-deleted events when include_deleted=True."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Create active and soft-deleted events
     active_event = create_mock_event(event_id=1, camera_id="cam-001")
