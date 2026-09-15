@@ -346,7 +346,7 @@ Original Mermaid diagram preserved for reference:
 flowchart TB
     subgraph Host["Host Machine (with GPU)"]
         subgraph Docker["Docker Compose Network"]
-            FE["Frontend Container<br/>Node 22 Alpine<br/>Port 5173 (dev) / 80 (prod)"]
+            FE["Frontend Container<br/>Node 24 Alpine<br/>Port 5173 (dev) / 80 (prod)"]
             BE["Backend Container<br/>Python 3.14<br/>Port 8000"]
             RD["Redis Container<br/>Redis 7 Alpine<br/>Port 6379"]
         end

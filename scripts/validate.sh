@@ -25,6 +25,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Required Node.js major version — keep in sync with .github/workflows/ci.yml
+# (env.NODE_VERSION) and frontend/.nvmrc. Node 24 = Latest LTS; Node 20 is EOL.
+REQUIRED_NODE_MAJOR=24
+
 # Flags
 RUN_BACKEND=true
 RUN_FRONTEND=true
@@ -93,7 +97,7 @@ Examples:
 
 Requirements:
     Backend:  Python 3.14+, uv (https://docs.astral.sh/uv/)
-    Frontend: Node.js 20.19+/22.12+, npm, node_modules installed
+    Frontend: Node.js 24+ (22.12+ accepted), npm, node_modules installed
 
 Setup:
     Run ./scripts/setup.sh first to install all dependencies.
@@ -404,17 +408,25 @@ run_frontend_validation() {
     if ! check_command node; then
         print_error "Node.js not found"
         echo ""
-        echo "Please install Node.js 20.19+ or 22.12+ from https://nodejs.org/"
-        echo "Or use nvm: nvm install 20 && nvm use 20"
+        echo "Please install Node.js $REQUIRED_NODE_MAJOR+ (22.12+ accepted) from https://nodejs.org/"
+        echo "Or use nvm: nvm install $REQUIRED_NODE_MAJOR && nvm use $REQUIRED_NODE_MAJOR"
         exit 1
     fi
 
-    NODE_VERSION=$(node --version | sed 's/v//' | cut -d. -f1)
-    if [ "$NODE_VERSION" -lt 20 ]; then
-        print_error "Node.js 20.19+ or 22.12+ required, found v$NODE_VERSION"
-        echo ""
-        echo "Please upgrade Node.js to version 20.19+ or 22.12+ (Vite 7 requirement)."
-        exit 1
+    # CI runs Node $REQUIRED_NODE_MAJOR (Latest LTS); 22.12+ is accepted as a
+    # maintenance-LTS floor (Vite 7 needs 20.19+/22.12+, and Node 20 is EOL).
+    NODE_FULL_VERSION=$(node --version | sed 's/^v//')
+    NODE_MAJOR=$(echo "$NODE_FULL_VERSION" | cut -d. -f1)
+    NODE_MINOR=$(echo "$NODE_FULL_VERSION" | cut -d. -f2)
+    if [ "$NODE_MAJOR" -lt "$REQUIRED_NODE_MAJOR" ]; then
+        if [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -ge 12 ]; then
+            print_warning "Node.js $(node --version) is older than CI's Node $REQUIRED_NODE_MAJOR — results may diverge from CI."
+        else
+            print_error "Node.js $REQUIRED_NODE_MAJOR+ (or 22.12+) required, found v$NODE_FULL_VERSION"
+            echo ""
+            echo "Please upgrade Node.js to version $REQUIRED_NODE_MAJOR+ (Latest LTS; Vite 7 floor is 22.12+)."
+            exit 1
+        fi
     fi
     print_success "Node.js $(node --version) found"
 

@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.11'
-  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '24'
   UV_VERSION: '0.9.18' # Update this single location to change uv version across all workflows
   PYROSCOPE_ENABLED: 'false' # Disable profiling in CI (pyroscope-io not installed)
 
@@ -136,7 +136,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -177,7 +177,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -205,7 +205,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
         shard: [1, 2, 3, 4]
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
@@ -387,7 +387,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -505,7 +505,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -614,7 +614,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -730,7 +730,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -1178,7 +1178,7 @@ jobs:
       needs.detect-changes.outputs.should-run-all == 'true' ||
       needs.detect-changes.outputs.frontend == 'true'
     env:
-      NODE_VERSION: '20'
+      NODE_VERSION: '24'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1210,7 +1210,7 @@ jobs:
       needs.detect-changes.outputs.should-run-all == 'true' ||
       needs.detect-changes.outputs.frontend == 'true'
     env:
-      NODE_VERSION: '20'
+      NODE_VERSION: '24'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1247,7 +1247,7 @@ jobs:
         # Each shard runs ~40-50 tests with acceptable memory usage
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     env:
-      NODE_VERSION: '20'
+      NODE_VERSION: '24'
       # 6GB heap with GC exposure - needed for Vitest itself
       # GitHub Actions runner has 7GB RAM
       # Deliberately NOT raised by the spec SS5.1 honesty change: the CI heap cap
@@ -1447,7 +1447,7 @@ jobs:
       matrix:
         shard: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     env:
-      NODE_VERSION: '20'
+      NODE_VERSION: '24'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1571,7 +1571,7 @@ jobs:
           echo "All E2E shards passed"
 
   # Secondary E2E tests (Firefox/WebKit) - nightly schedule only to improve PR merge velocity
-  # Intentionally kept on Node 20 only (no matrix) to avoid excessive CI time
+  # Intentionally kept on a single Node version (no matrix) to avoid excessive CI time
   # Nightly-only: Firefox/WebKit have known infrastructure flakiness (timeouts)
   # Move to nightly - too slow for every main push (20+ minutes)
   frontend-e2e-secondary:

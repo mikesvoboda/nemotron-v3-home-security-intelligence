@@ -20,7 +20,7 @@ This directory contains scripts to help you set up, test, and run the Nemotron v
 
 This will:
 
-- Check prerequisites (Python 3.14+, Node.js 20.19+/22.12+, git, etc.)
+- Check prerequisites (Python 3.14+, Node.js 24 LTS, 22.12+ accepted, git, etc.)
 - Install all backend and frontend dependencies
 - Set up pre-commit hooks
 - Create `.env` configuration file
@@ -142,7 +142,7 @@ pytest backend/tests/unit/test_feature.py -v
 ### Required
 
 - **Python 3.14+** - [Download](https://www.python.org/downloads/)
-- **Node.js 20.19+ or 22.12+** - [Download](https://nodejs.org/) (Vite 7 requirement)
+- **Node.js 24 LTS, 22.12+ accepted** - [Download](https://nodejs.org/) (Vite 7 requirement)
 - **git** - [Download](https://git-scm.com/)
 
 ### Optional
@@ -179,21 +179,21 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ```bash
 # Check Python version
-python3 --version  # Should be 3.11 or higher
+python3 --version  # Should be 3.14 or higher
 
 # If you have multiple Python versions, use specific version
-python3.11 -m venv .venv
+python3.14 -m venv .venv
 ```
 
 ### Node.js version issues
 
 ```bash
 # Check Node version
-node --version  # Should be 18 or higher
+node --version  # Should be 24 or higher
 
 # Use nvm (Node Version Manager) to install correct version
-nvm install 18
-nvm use 18
+nvm install 24
+nvm use 24
 ```
 
 ### Permission denied errors

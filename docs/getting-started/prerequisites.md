@@ -93,12 +93,12 @@ nvidia-smi
 
 | Requirement | Version                                                                                                                         |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Python**  | 3.10+ ([`pyproject.toml:5`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L5)) |
+| **Python**  | 3.14+ ([`pyproject.toml:5`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L5)) |
 
 ```bash
 # Verify Python version
 python3 --version
-# Python 3.10.x or higher
+# Python 3.14.x
 ```
 
 **Installation:**
@@ -107,36 +107,36 @@ python3 --version
 # Ubuntu/Debian
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install python3.10 python3.10-venv python3.10-dev
+sudo apt install python3.14 python3.14-venv python3.14-dev
 
 # macOS (via Homebrew)
-brew install python@3.10
+brew install python@3.14
 ```
 
 ### Node.js
 
-| Requirement | Version                                                                                                                                             |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Node.js** | 20.19+ or 22.12+ ([`frontend/package.json`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/package.json)) |
-| **npm**     | 10+                                                                                                                                                 |
+| Requirement | Version                                                                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Node.js** | 24 LTS (22.12+ accepted) ([`frontend/package.json`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/package.json)) |
+| **npm**     | 10+                                                                                                                                                         |
 
-> **Note:** Vite 7 requires Node.js 20.19+ or 22.12+ for native ESM support. Node.js 18 is NOT supported.
+> **Note:** Vite 7 requires Node.js 24 LTS, 22.12+ accepted for native ESM support. Node.js 18 is NOT supported.
 
 ```bash
 # Verify Node version
 node --version
-# v20.19.x or v22.12.x or higher
+# v24.x LTS
 ```
 
 **Installation:**
 
 ```bash
 # Ubuntu/Debian (via NodeSource)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install nodejs
 
 # macOS (via Homebrew)
-brew install node@20
+brew install node@24
 ```
 
 ### Container Runtime
@@ -250,8 +250,8 @@ Expected output (Docker example):
 
 ```
 NVIDIA-SMI 535.xxx  Driver Version: 535.xxx  CUDA Version: 12.x
-Python 3.10.x or higher
-v20.19.x (or v22.12.x+)
+Python 3.14.x
+v24.x (or 22.12.x+)
 10.x.x
 Docker version 24.x.x
 Docker Compose version v2.x.x
@@ -262,8 +262,8 @@ Expected output (Podman example):
 
 ```
 NVIDIA-SMI 535.xxx  Driver Version: 535.xxx  CUDA Version: 12.x
-Python 3.10.x or higher
-v20.19.x (or v22.12.x+)
+Python 3.14.x
+v24.x (or 22.12.x+)
 10.x.x
 podman version 4.x.x
 podman-compose version 1.x.x

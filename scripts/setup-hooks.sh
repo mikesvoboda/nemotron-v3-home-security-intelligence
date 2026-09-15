@@ -14,7 +14,7 @@
 #
 # Requirements:
 #   - Python 3.13+ with pre-commit installed
-#   - Node.js 20+ with npm
+#   - Node.js 24+ with npm
 #   - Git 2.5+ (for worktrees support)
 #
 # The script will:

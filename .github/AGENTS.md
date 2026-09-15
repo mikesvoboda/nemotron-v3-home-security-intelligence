@@ -154,7 +154,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Environment:**
 
 - Python 3.14 (using uv for package management)
-- Node.js 22
+- Node.js 24
 - PostgreSQL 16 (service container)
 - Redis 7 (service container for integration tests)
 - Coverage uploaded to Codecov

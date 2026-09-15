@@ -78,7 +78,7 @@ workflows/
 **Environment:**
 
 - Python 3.14
-- Node.js 22
+- Node.js 24
 - PostgreSQL 16 (service container)
 - Redis 7 (service container for integration tests)
 - Coverage uploaded to Codecov
@@ -629,7 +629,7 @@ Backend Changes
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: '22'
+    node-version: '24'
     cache: 'npm'
     cache-dependency-path: frontend/package-lock.json
 ```

@@ -2886,3 +2886,49 @@ raced the query. CI lost; idle local box never does. Fixed the data-dependent
 two (stage-label test, null-handling test — anchored on bars per the file's
 own convention/comment); left the three API-call-count waits (fire with
 isLoading flip, DOM-independent) alone.
+
+## Runtime parity: Node 24 LTS everywhere, honest Python 3.14 labels (2026-09-15)
+
+Follow-up to the CI/local parity discussion: CI ran Node 20 — EOL since
+2026-03-24 (every job carried the runner's "Node 20 deprecated" annotation) —
+while ci.yml's five+ matrix labels claimed python-version 3.11 but uv actually
+resolved 3.14.2 from .python-version/requires-python. That fiction cost triage
+time during the annotation-hazard hunt (it read like a version mismatch when
+the versions were already identical).
+
+Enforced policy (September 2026): Node 24 = Latest LTS (v24.21.0), accepted
+floor 22.12 (Maintenance LTS; Vite 7 requirement); Python 3.14 (3.14.7 latest
+stable, supported to 2030; 3.15 pre-release until ~2026-10-01).
+
+Changes in this commit (single source of truth: workflows env NODE_VERSION,
+frontend/.nvmrc, package.json engines, validate.sh REQUIRED_NODE_MAJOR,
+.python-version):
+
+- All 16 workflow files: NODE_VERSION '20' -> '24' (incl. ci.yml's four
+  job-level redeclarations that silently shadowed the workflow env — editing
+  only the top-level env would have left lint/typecheck/vitest/e2e on 20).
+- ci.yml: PYTHON_VERSION env + all python-version matrix labels 3.11 -> 3.14
+  (artifact names interpolate the matrix value; every download step uses a
+  glob pattern, verified — no cross-job contract breaks).
+- prompt-evaluation.yml setup-python 3.11 -> 3.14. build-setup.yml 3.12 and
+  vulnerability-management.yml 3.11 (raw setup-python tool steps, not the app
+  runtime) left as deliberate tooling pins.
+- frontend: .nvmrc 20 -> 24; engines ^20.19.0 || >=22.12.0 ->
+  ^22.12.0 || >=24.0.0 (drops EOL 20; evidence: all 661 engines.node-bearing
+  lockfile packages accept 24 — and 23 of them actually exclude 22.12.0,
+  preferring 22.13+/24); lockfile root engines mirrored via npm 11.19;
+  Dockerfile base node:20.19.6-alpine3.23 -> node:24.21.0-alpine3.23 (tag
+  exists on Docker Hub; prod stage is nginx-unprivileged — unaffected).
+- scripts/validate.sh: new REQUIRED_NODE_MAJOR=24 constant; gate now rejects
+  <24 except the 22.12+ maintenance floor (warns on 22.x divergence) — old
+  gate was major-only compare (Node 20.0.0 passed).
+- Docs/scripts stating versions updated (prerequisites, setup, local-setup,
+  contributing, README badge, ci-cd, coverage-requirements, TEST_QUICKSTART,
+  AGENTS.md files, generate-types/docs headers). Historical snapshots under
+  docs/superpowers/staged/\*\* intentionally untouched.
+
+Local evidence: frontend full vitest suite + production build under
+node v24.21.0 (npm 11.19.0, arm64) — results recorded in PR
+(ci/runtime-parity-2026-09-15). Expected fix-forward: scheduled/advisory
+workflows (visual-tests, mutation-testing, lighthouse...) on Node 24; all are
+non-gating, PR gate is ci.yml only.
