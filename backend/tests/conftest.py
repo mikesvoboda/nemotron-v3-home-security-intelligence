@@ -644,7 +644,9 @@ def get_test_db_url() -> str:
 # mirrors backend/tests/integration/conftest.py's proven worker machinery;
 # duplication across conftests is deliberate (conftest-to-conftest imports are
 # brittle under pytest's importer) and matches the existing _get_advisory_lock_key
-# duplication. get_test_db_url behavior is unchanged until the cutover task.
+# duplication. get_test_db_url now routes through these helpers (the spec 3.1
+# cutover landed in e8619d80); session lifecycle (create-once memo, stale
+# sweep, collision-safe reclamation) lives below get_test_redis_url.
 
 
 def worker_id() -> str:

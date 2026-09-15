@@ -137,3 +137,55 @@ class TestGetTestDbUrlCutover:
         assert get_test_db_url() == base_url.replace(
             "postgresql://", "postgresql+asyncpg://"
         ).replace("postgresql+asyncpg://", "postgresql+asyncpg://")
+
+
+class TestNameSafetyInvariants:
+    """Collision-safety contracts for the naming scheme (spec 3.1, run-9 lesson).
+
+    Gate run 9 died because the integration tier's serial DB is the *bare*
+    suffixed-less name ('security_test') while root-tier names are
+    '<base>_main'/'<base>_gw<N>' — both tiers keyed their worker names off the
+    same server. These tests pin the invariants that keep the two tiers and
+    the protected set disjoint; they are pure string logic, no DB needed.
+    """
+
+    BASES = (
+        "postgresql+asyncpg://u:p@localhost:5432/security",  # box/gate base
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",  # CI base  # pragma: allowlist secret
+        "postgresql+asyncpg://u:p@h:5432/postgres",
+    )
+    WORKERS = ("master", "gw0", "gw7")
+    INTEGRATION_NAMES = ("security_test", "security_test_gw0", "security_test_gw7")
+
+    def test_worker_db_name_never_yields_protected_or_base(self, monkeypatch):
+        for base in self.BASES:
+            base_name = base.rsplit("/", 1)[-1]
+            for wid in self.WORKERS:
+                monkeypatch.setenv("PYTEST_XDIST_WORKER", wid)
+                name = worker_db_name(base)
+                assert name not in PROTECTED, f"{base} @ {wid} -> {name}"
+                assert name != base_name, f"cutover must never return the base DB: {name}"
+
+    def test_root_names_disjoint_from_integration_tier(self, monkeypatch):
+        import re
+
+        for wid in self.WORKERS:
+            monkeypatch.setenv("PYTEST_XDIST_WORKER", wid)
+            name = worker_db_name(self.BASES[0])  # base = 'security'
+            assert name not in self.INTEGRATION_NAMES
+            # integration sweep patterns (root cleanup_stale_databases keeps
+            # exactly these) must not match root-tier names:
+            assert not re.fullmatch(r"test_db_gw[0-9]+", name)
+            assert name != "template_test"
+            # ...and the root lifecycle sweep pattern (Task 7) must not match
+            # integration names or the bare base DB:
+            assert not re.fullmatch(r"security_(gw[0-9]+|main)", "security_test")
+            assert not re.fullmatch(r"security_(gw[0-9]+|main)", "security")
+            assert not re.fullmatch(r"security_(gw[0-9]+|main)", "security_test_gw0")
+
+    def test_serial_names_differ_across_tiers(self, monkeypatch):
+        # master (root tier) = 'security_main'; serial integration = 'security_test'
+        monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+        assert worker_db_name(self.BASES[0]) == "security_main"
+        monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+        assert worker_db_name(self.BASES[1]) == "security_test_main"
