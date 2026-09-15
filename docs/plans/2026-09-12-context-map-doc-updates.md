@@ -2766,3 +2766,9 @@ push + Linear remain owner-held actions; the ready-to-run close kit lives at
 /home/agent/gate20-evidence/ (ENDGAME-STATUS-2026-09-15.md, linear_close.py with the evidence
 comment text, every gate/durations log). This ledger is the ground truth through tip of this
 commit; nothing further is executed in-sandbox for this goal.
+
+**S5 update (same day): PUSHED.** The GitHub secret landed after the disposition was written;
+`git push origin feat/context-map-2026-09-12` fast-forwarded 06e7c9bd → 6ac78b68 (proxy
+injection still inert — a one-shot credential helper over GH_TOKEN did it, nothing persisted
+to config). Verified `git rev-parse HEAD` == `origin/...`. Linear close-out remains owner-held
+(needs a LINEAR_API_KEY; kit at /home/agent/gate20-evidence/linear_close.py).
