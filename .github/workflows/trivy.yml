@@ -167,7 +167,7 @@ jobs:
           path: |
             sbom-python.json
             sbom-nodejs.json
-          retention-days: 90
+          retention-days: 30
 
   # =============================================================================
   # CVE EXPIRY CHECK - Weekly review date validation

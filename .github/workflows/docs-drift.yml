@@ -79,7 +79,12 @@ jobs:
           fi
 
       - name: Create Linear tasks for drift
-        if: steps.check-drift.outputs.drift_detected == 'true' && secrets.LINEAR_API_KEY
+        # NOTE: `secrets` is not an available context in step-level `if` — the
+        # old `&& secrets.LINEAR_API_KEY` guard made GitHub reject the whole
+        # workflow at parse time (failing run, 0 jobs, no log) on every push
+        # since it was added. The key arrives via env below; the script fails
+        # with a clear message if the secret is unset.
+        if: steps.check-drift.outputs.drift_detected == 'true'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

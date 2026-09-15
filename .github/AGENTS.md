@@ -33,7 +33,6 @@ This directory contains GitHub-specific configuration files for the Home Securit
     # API
     api-contract.yml          # API contract testing
     # Testing
-    gpu-tests.yml             # GPU integration tests
     load-tests.yml            # Load and performance testing
     mutation-testing.yml      # Mutation testing for test quality
     benchmarks.yml            # Performance benchmarks
@@ -46,7 +45,6 @@ This directory contains GitHub-specific configuration files for the Home Securit
     dependency-audit.yml      # Dependency vulnerability audit
     vulnerability-management.yml # CVE tracking and management
     # Quality & Analysis
-    ai-code-review.yml        # GPT-powered code review
     api-compatibility.yml     # API backward compatibility checks
     bundle-size.yml           # Frontend bundle size tracking
     ci-analytics.yml          # CI metrics and analytics
@@ -217,21 +215,9 @@ This directory contains GitHub-specific configuration files for the Home Securit
 | vulnerability-management.yml | Multiple        | Weekly               | CVE tracking and remediation  |
 | weekly-audit.yml             | Multiple        | Weekly (Monday 9 AM) | Security + code quality       |
 
-### GPU Tests (gpu-tests.yml)
-
-**Runner:** Self-hosted with `gpu, rtx-a5500` labels
-
-**Requirements:**
-
-- NVIDIA GPU available
-- CUDA drivers installed
-- Trusted source (fork protection enabled)
-- 30-minute timeout
-
-**Tests Run:**
-
-- GPU-marked pytest tests (`-m gpu`)
-- AI inference benchmarks
+> **Removed 2026-09-15:** `gpu-tests.yml` — its only runner
+> (`rtx-a5500-runner`, label `gpu`) is permanently offline, so every push to
+> main queued a job to its 6h timeout. Re-add when a GPU runner is online.
 
 ### Nightly Analysis (nightly.yml)
 
@@ -239,19 +225,8 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Jobs:**
 
-1. **Extended Benchmarks** (GPU runner) - Big-O tests, memory profiling
-2. **Complexity Trends** (ubuntu) - Wily code complexity reports
-3. **Security Audit** (ubuntu) - pip-audit, npm audit, Bandit
-
-### AI Code Review (ai-code-review.yml)
-
-**Trigger:** PR opened/synchronized (non-draft, non-dependabot)
-
-**Process:**
-
-1. Get PR diff (truncated to 20KB)
-2. Run through GPT-4o via GitHub Models
-3. Post review as PR comment
+1. **Complexity Trends** (ubuntu) - Wily code complexity reports
+2. **Security Audit** (ubuntu) - pip-audit, npm audit, Bandit
 
 ### Additional Workflows
 

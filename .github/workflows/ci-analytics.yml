@@ -157,7 +157,7 @@ jobs:
         with:
           name: weekly-ci-report-${{ github.run_id }}
           path: weekly-report.md
-          retention-days: 90
+          retention-days: 30
 
   # Alert on CI health degradation
   check-alerts:

@@ -360,4 +360,4 @@ jobs:
         with:
           name: openapi-versioned-${{ github.sha }}
           path: openapi-versions/
-          retention-days: 90
+          retention-days: 30
