@@ -2640,3 +2640,46 @@ true baseline numbers are these.
 | T9          | spec= increment, six hot files                                                                                                                                           | BEFORE census: mocks 332/361/319/272/218/214, unspecced 330/323/318/265/218/214, autospec sites 0 everywhere. AFTER (6 of 6 files landed): clip_client 67/67 patches autospec'd (1cb06090); database 119 sites spec'd (66bc45af); events_routes 108 spec'd (63c2724c); system_routes 228 bare parents -> 0 + 12 autospec (9d210eda); nemotron 166 spec'd + 86 autospec — verified 3 seeds (111/222/333), file's 150 tests rc=0 ×3 (26825327); xclip 202 -> 0 bare incl. 22 dtype string-sentinels -> real torch.float32 — verified 3 seeds, 152 passed rc=0 ×3 (ccc2b839). LIES EXPOSED exactly as the plan promised: (1) 4 database init_db stubs omitted database_url_read/use_pgbouncer that init_db reads on EVERY path — spec flipped them to AttributeError, stubs now honest; (2) nemotron's 3 inner re-patches of backend.core.config.get_settings can't autospec because the analyzer fixture (generator) holds that same attribute patched across the test body — InvalidSpecError, those 3 reverted with comment (fixture-level patch already covers them); (3) xclip's F823 local `import torch` shadowing was dead weight, dropped. pydantic-v2 trap recorded: MagicMock(spec=Settings) class-form silently permits ANY field-name assignment (fields not on class dir) — system_routes used create_autospec(Settings, instance=True) instead; nemotron's 3 class-spec sites kept because attrs are real field names and reads are enforced | 1cb06090, 66bc45af, 63c2724c, 9d210eda, 26825327, ccc2b839 |
 | T10         | marker taxonomy (non-pyproject parts only — pyproject moves need a NEW owner ruling); test_admin_api.py double-marker fixed                                              | unit+integration simultaneously was a lie in BOTH directions: the test requests mock_redis, which ships ONLY in integration/conftest.py:1253 — a unit-only invocation cannot resolve it; pytest.mark.unit line deleted. network/redis zero-use + chaos registration + flaky dedupe = all pyproject → STOP-AND-ASK list. ~102 remainder owner-held (ruling = hold; see this ledger's parked-memo list + the goal-prompt STOP-AND-ASK section).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | f9445c1b                                                   |
 | T11         | close-out                                                                                                                                                                | OPEN — fills from gates 20/21 (the final-tip ×2): full-suite walls, integration setup/teardown p50/p90/p99, collection delta, and every [ESTIMATE] in the M3 plan confirmed or refuted against its number. Baseline anchors for the comparison: T4 baseline wall 543s (seed 3798389216, 4071/131/2), gate-19 full-gate anchor 2966.63s, T3 parallel arm = first validate.sh run on the ≥64GiB branch (VITEST_PARALLEL=1, 8 workers, 16384MB heap).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | gates 20/21                                                |
+
+### Gate 20 — final-tip green #1 (2026-09-15, tip 6e63332b, bare `./scripts/validate.sh`)
+
+Verdict from summary lines only, rc=0: unit **27536 passed / 125 skipped / 8 xfailed in
+83.92s** (seed 2598815183); integration **4071 passed / 131 skipped / 2 xfailed in 561.28s**
+(seed 2816588759 — census byte-identical to the T4 baseline); coverage sufficient (both tiers,
+[OK] lines); frontend **20235 tests / 136 skipped (778 files / 3 skipped), vitest Duration
+395.00s**. Zero node-downs (grep "crash" hits are test names only), zero OOM (dmesg+journal
+count 0). Whole-gate wall **1253s (20.9 min)**: 2966.63s gate-19 anchor → −58%.
+
+**T3 parallel arm delivered:** validate.sh took the ≥64GiB branch for the first time —
+`Parallel vitest: 8 workers, 16384 MB heap (RAM 94 GB)`. Honest caveat: gate 19 ran on the
+smaller-memory box, so the −58% mixes the RAM change with everything else; the frontend tier
+alone (395s self-reported, parallel) is the directly-attributable payoff row.
+
+Attempt history (every abort classified before retry — none counted as verdict):
+
+1. libGL.so.1 missing (sandbox-recreation casualty; 1908F/1417E in 70s; `apt-get install
+libgl1 libglib2.0-0`). Side effect: podman arrived as an apt dependency → validate.sh's
+   container discovery now probes podman first, so the "No PostgreSQL container found" WARN
+   fires even though TEST_DATABASE_URL is exported and every integration test demonstrably
+   ran against gate-postgres. WARN is cosmetic on this box; recorded so a future gate doesn't
+   misread it.
+2. freezegun+SIGALRM leak — 13 unit failures, same-worker correlation 100%, forced-fire repro
+   3/3 leaks → root conftest guard (1e27025d); 3 leaks→0 forced-fire, healthy smoke clean.
+3. Integration DiskFull — WAL churn on vdd; rig rebuilt (gate-postgres max_wal_size=256MB,
+   checkpoint_timeout=30s, capped container logs).
+4. Integration DiskFull RESIDUE — ENOSPC while blocks sat 19–21%: **inode exhaustion** (vdd
+   caps at 655k inodes; an orphaned anonymous postgres volume from the attempt-3 rig survived
+   `docker rm` holding 409k). Sweeping it restored 639k free; the run's own peak then hit only
+   35% (min 427k free — curve archived). The 2 `idx_cameras_name_unique` failures in that run
+   were downstream poisoning (log :10763: DiskFull-interrupted cleanup left a live camera),
+   NOT test bugs — tests exonerated, fixture honors the shipped unique-name contract.
+5. Unit tier, 1 first-seen flake: batcher interval test asserted after one fixed 100ms sleep
+   against a 50ms shipped interval; gw2 loop descheduled past the boundary, flush landed in
+   stop()'s final flush_all (no loop error logged; standalone + 10-way-load reruns pass).
+   Fixed in-tree: bounded 2s poll aligned to the shipped "flushes on an interval tick"
+   contract (6e63332b); production untouched.
+6. GREEN (this row).
+
+Evidence (survives /tmp): /home/agent/gate20-evidence/ — summary-lines.txt, the three tier
+logs, and the 30s disk+inode curve. T11's full percentile row still awaits gate 21 + the
+durations_plugin companion run (gate-identical integration on the FINAL tip).
