@@ -262,9 +262,7 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
   }
 
   // Count contributing models
-  const contributingModels = models.filter(
-    (m) => audit.contributions[m.key as keyof typeof audit.contributions]
-  ).length;
+  const contributingModels = models.filter((m) => audit.contributions[m.key]).length;
 
   // Determine button label
   const buttonLabel = audit.is_fully_evaluated ? 'Re-run Evaluation' : 'Run Evaluation';
@@ -376,7 +374,7 @@ export default function EventAuditDetail({ eventId }: EventAuditDetailProps) {
         </h4>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {models.map((model) => {
-            const contributed = audit.contributions[model.key as keyof typeof audit.contributions];
+            const contributed = audit.contributions[model.key];
             return (
               <div
                 key={model.key}

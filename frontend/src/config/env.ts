@@ -175,7 +175,7 @@ let cachedConfig: EnvConfig | null = null;
  */
 export function getEnvConfig(): EnvConfig {
   if (cachedConfig === null) {
-    cachedConfig = validateEnv(import.meta.env as RawEnv);
+    cachedConfig = validateEnv(import.meta.env);
   }
   return cachedConfig;
 }

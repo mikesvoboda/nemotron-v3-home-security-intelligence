@@ -35,7 +35,7 @@ const mockResizeObserver = vi.fn(() => {
     disconnect: vi.fn(),
   };
 });
-window.ResizeObserver = mockResizeObserver as unknown as typeof ResizeObserver;
+window.ResizeObserver = mockResizeObserver;
 
 describe('ZoneCanvas', () => {
   const mockSnapshotUrl = 'http://localhost:8000/api/cameras/cam-1/snapshot';

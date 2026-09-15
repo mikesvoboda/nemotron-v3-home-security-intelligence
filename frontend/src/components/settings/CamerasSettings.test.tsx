@@ -129,17 +129,13 @@ const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
     Camera,
     Error,
     { name: string; folder_path: string; status: string }
-  >() as UseCameraMutationReturn['createMutation'],
+  >(),
   updateMutation: createMockMutation<
     Camera,
     Error,
     { id: string; data: { name?: string; folder_path?: string; status?: string } }
   >() as UseCameraMutationReturn['updateMutation'],
-  deleteMutation: createMockMutation<
-    void,
-    Error,
-    string
-  >() as UseCameraMutationReturn['deleteMutation'],
+  deleteMutation: createMockMutation<void, Error, string>(),
 });
 
 describe('CamerasSettings', () => {
@@ -244,11 +240,7 @@ describe('CamerasSettings', () => {
     });
 
     mockRestoreMutationReturn = {
-      restoreMutation: createMockMutation<
-        Camera,
-        Error,
-        string
-      >() as UseRestoreCameraMutationReturn['restoreMutation'],
+      restoreMutation: createMockMutation<Camera, Error, string>(),
     };
     vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
   });
@@ -1399,7 +1391,7 @@ describe('CamerasSettings', () => {
       const mockRestoreMutateAsync = vi.fn().mockResolvedValue(mockDeletedCameras[0]);
       mockRestoreMutationReturn.restoreMutation = createMockMutation({
         mutateAsync: mockRestoreMutateAsync,
-      }) as UseRestoreCameraMutationReturn['restoreMutation'];
+      });
       vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
 
       vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({

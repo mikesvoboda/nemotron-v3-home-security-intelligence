@@ -128,7 +128,7 @@ export function createImmerStore<T extends object>(
             // Type for Zustand's internal set function with optional replace parameter
             type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
             if (typeof partial === 'function') {
-              const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+              const nextState: T = produce<T>(get(), partial);
               // Cast to bypass Zustand's strict typing on replace parameter
               (set as unknown as SetFn)(nextState, replace);
             } else {
@@ -151,7 +151,7 @@ export function createImmerStore<T extends object>(
       // Type for Zustand's internal set function with optional replace parameter
       type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
       if (typeof partial === 'function') {
-        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        const nextState: T = produce<T>(get(), partial);
         // Cast to bypass Zustand's strict typing on replace parameter
         (set as unknown as SetFn)(nextState, replace);
       } else {
@@ -199,7 +199,7 @@ export function createImmerSelectorStore<T extends object>(
       // Type for Zustand's internal set function with optional replace parameter
       type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
       if (typeof partial === 'function') {
-        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        const nextState: T = produce<T>(get(), partial);
         // Cast to bypass Zustand's strict typing on replace parameter
         (set as SetFn)(nextState, replace);
       } else {
@@ -537,7 +537,7 @@ export function createImmerDevtoolsStore<T extends object>(
   const immerCreator = (set: ZustandSetFn, get: () => T, store: any): T => {
     const immerSet: ImmerSetState<T> = (partial, replace) => {
       if (typeof partial === 'function') {
-        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        const nextState: T = produce<T>(get(), partial);
         if (replace) {
           set(nextState, true);
         } else {
@@ -644,7 +644,9 @@ export function createImmerAction<T, Args extends unknown[]>(
  * @returns Current (frozen) state if draft, original value otherwise
  */
 export function safeReadCurrent<T>(draft: T): T {
-  return isDraft(draft) ? current(draft) : draft;
+  // immer 11.1.18 tightened current()'s parameter to Draft<T>; the isDraft()
+  // guard proves draft-ness at runtime but isn't a TS narrowing.
+  return isDraft(draft) ? current(draft as unknown as Draft<T>) : draft;
 }
 
 /**
@@ -668,7 +670,8 @@ export function safeReadCurrent<T>(draft: T): T {
  * @returns Original (pre-mutation) state, or undefined if not a draft
  */
 export function safeReadOriginal<T>(draft: T): T | undefined {
-  return isDraft(draft) ? original(draft) : undefined;
+  // See safeReadCurrent: isDraft() guard is runtime-only, immer 11.1.18 wants Draft<T>.
+  return isDraft(draft) ? original(draft as unknown as Draft<T>) : undefined;
 }
 
 /**

@@ -51,7 +51,7 @@ describe('useAudioNotifications', () => {
       close: vi.fn().mockResolvedValue(undefined),
       createGain: vi.fn().mockReturnValue(mockGainNode),
       createBufferSource: vi.fn().mockReturnValue(mockSourceNode),
-      decodeAudioData: vi.fn().mockResolvedValue({ duration: 1 } as AudioBuffer),
+      decodeAudioData: vi.fn().mockResolvedValue({ duration: 1 }),
       destination: {} as AudioDestinationNode,
     };
 
@@ -348,7 +348,7 @@ describe('useAudioNotifications', () => {
         close = vi.fn().mockResolvedValue(undefined);
         createGain = vi.fn().mockReturnValue(mockGainNode);
         createBufferSource = vi.fn().mockReturnValue(mockSourceNode);
-        decodeAudioData = vi.fn().mockResolvedValue({ duration: 1 } as AudioBuffer);
+        decodeAudioData = vi.fn().mockResolvedValue({ duration: 1 });
         destination = {} as AudioDestinationNode;
       }
 

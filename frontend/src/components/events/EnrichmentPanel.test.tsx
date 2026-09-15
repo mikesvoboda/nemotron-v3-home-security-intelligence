@@ -29,9 +29,7 @@ describe('EnrichmentPanel', () => {
     });
 
     it('renders nothing when enrichment_data is null', () => {
-      const { container } = render(
-        <EnrichmentPanel enrichment_data={null as unknown as EnrichmentData} />
-      );
+      const { container } = render(<EnrichmentPanel enrichment_data={null} />);
       expect(container.firstChild).toBeNull();
     });
 

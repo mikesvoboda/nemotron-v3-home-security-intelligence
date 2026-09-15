@@ -444,7 +444,7 @@ describe('useWorkerStatusWebSocket', () => {
         worker_name: 'detection-worker-1',
         worker_type: 'detection',
         timestamp: '2024-01-15T10:00:00Z',
-      } as WorkerStartedPayload);
+      });
 
       // Error another worker
       simulateWorkerEvent('worker.error', {
@@ -453,7 +453,7 @@ describe('useWorkerStatusWebSocket', () => {
         error: 'Failed',
         timestamp: '2024-01-15T10:00:00Z',
         recoverable: true,
-      } as WorkerErrorPayload);
+      });
 
       await waitFor(() => {
         expect(result.current.totalCount).toBe(2);
@@ -472,14 +472,14 @@ describe('useWorkerStatusWebSocket', () => {
         worker_name: 'detection-worker-1',
         worker_type: 'detection',
         timestamp: '2024-01-15T10:00:00Z',
-      } as WorkerStartedPayload);
+      });
 
       // Stop another worker
       simulateWorkerEvent('worker.stopped', {
         worker_name: 'analysis-worker-1',
         worker_type: 'analysis',
         timestamp: '2024-01-15T10:00:00Z',
-      } as WorkerStoppedPayload);
+      });
 
       await waitFor(() => {
         expect(result.current.totalCount).toBe(2);
@@ -524,19 +524,19 @@ describe('useWorkerStatusWebSocket', () => {
         worker_name: 'detection-worker-1',
         worker_type: 'detection',
         timestamp: '2024-01-15T10:00:00Z',
-      } as WorkerStartedPayload);
+      });
 
       simulateWorkerEvent('worker.started', {
         worker_name: 'analysis-worker-1',
         worker_type: 'analysis',
         timestamp: '2024-01-15T10:00:01Z',
-      } as WorkerStartedPayload);
+      });
 
       simulateWorkerEvent('worker.started', {
         worker_name: 'metrics-worker-1',
         worker_type: 'metrics',
         timestamp: '2024-01-15T10:00:02Z',
-      } as WorkerStartedPayload);
+      });
 
       await waitFor(() => {
         expect(result.current.totalCount).toBe(3);
@@ -550,7 +550,7 @@ describe('useWorkerStatusWebSocket', () => {
         worker_name: 'analysis-worker-1',
         worker_type: 'analysis',
         timestamp: '2024-01-15T10:01:00Z',
-      } as WorkerStoppedPayload);
+      });
 
       await waitFor(() => {
         expect(result.current.runningCount).toBe(2);
@@ -565,7 +565,7 @@ describe('useWorkerStatusWebSocket', () => {
         error: 'Connection lost',
         timestamp: '2024-01-15T10:02:00Z',
         recoverable: true,
-      } as WorkerErrorPayload);
+      });
 
       await waitFor(() => {
         expect(result.current.runningCount).toBe(1);

@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { RUM, initRUM, type RUMConfig, type WebVitalMetric, type WebVitalName } from './rum';
+import { RUM, initRUM, type RUMConfig, type WebVitalName } from './rum';
 
 describe('RUM Service', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -61,7 +61,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(0);
       rum.destroy();
     });
@@ -76,7 +76,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
     });
@@ -89,7 +89,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 50,
         id: 'v1-124',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
     });
@@ -102,7 +102,7 @@ describe('RUM Service', () => {
         rating: 'needs-improvement',
         delta: 200,
         id: 'v1-125',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
     });
@@ -115,7 +115,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 0.02,
         id: 'v1-126',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
     });
@@ -128,7 +128,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 100,
         id: 'v1-127',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
     });
@@ -141,7 +141,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 1800,
         id: 'v1-128',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
     });
@@ -164,7 +164,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       expect(rum.getQueueSize()).toBe(1);
       rum.destroy();
@@ -186,7 +186,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       await rum.flush();
 
@@ -211,7 +211,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       expect(rum.getQueueSize()).toBe(1);
       await rum.flush();
@@ -237,7 +237,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       // Should not throw
       await expect(rum.flush()).resolves.not.toThrow();
@@ -255,14 +255,14 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-1',
-      } as WebVitalMetric);
+      });
       rum.reportMetric({
         name: 'CLS',
         value: 0.05,
         rating: 'good',
         delta: 0.02,
         id: 'v1-2',
-      } as WebVitalMetric);
+      });
 
       // Wait for async flush
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -282,7 +282,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
       rum.flushWithBeacon();
 
       expect(sendBeaconMock).toHaveBeenCalled();
@@ -310,7 +310,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
       rum.flushWithBeacon();
 
       // Wait for async fetch fallback
@@ -330,7 +330,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       await rum.flush();
 
@@ -349,7 +349,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       await rum.flush();
 
@@ -377,7 +377,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-123',
-      } as WebVitalMetric);
+      });
 
       rum.destroy();
 
@@ -397,7 +397,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 2500,
         id: 'v1-1',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(1);
 
       rum.reportMetric({
@@ -406,7 +406,7 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 0.02,
         id: 'v1-2',
-      } as WebVitalMetric);
+      });
       expect(rum.getQueueSize()).toBe(2);
 
       rum.destroy();
@@ -428,28 +428,28 @@ describe('RUM Service', () => {
         rating: 'good',
         delta: 1000,
         id: 'v1-1',
-      } as WebVitalMetric);
+      });
       rum.reportMetric({
         name: 'LCP',
         value: 2000,
         rating: 'good',
         delta: 2000,
         id: 'v1-2',
-      } as WebVitalMetric);
+      });
       rum.reportMetric({
         name: 'LCP',
         value: 3000,
         rating: 'good',
         delta: 3000,
         id: 'v1-3',
-      } as WebVitalMetric);
+      });
       rum.reportMetric({
         name: 'LCP',
         value: 4000,
         rating: 'good',
         delta: 4000,
         id: 'v1-4',
-      } as WebVitalMetric); // Should drop first
+      }); // Should drop first
 
       expect(rum.getQueueSize()).toBe(3);
 
@@ -546,7 +546,7 @@ describe('PAGE_LOAD_TIME metric', () => {
       rating: 'good',
       delta: 2500,
       id: 'plt-123',
-    } as WebVitalMetric);
+    });
     expect(rum.getQueueSize()).toBe(1);
     rum.destroy();
   });
@@ -561,7 +561,7 @@ describe('PAGE_LOAD_TIME metric', () => {
       rating: 'good',
       delta: 2500,
       id: 'plt-1',
-    } as WebVitalMetric);
+    });
 
     // Wait for async flush
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -618,7 +618,7 @@ describe('SLOW_RENDER metric', () => {
       rating: 'poor',
       delta: 50,
       id: 'sr-123',
-    } as WebVitalMetric);
+    });
     expect(rum.getQueueSize()).toBe(1);
     rum.destroy();
   });
@@ -637,7 +637,7 @@ describe('SLOW_RENDER metric', () => {
         max: 75,
         count: 5,
       },
-    } as WebVitalMetric);
+    });
 
     // Wait for async flush
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -668,7 +668,7 @@ describe('SLOW_RENDER metric', () => {
       rating: 'good',
       delta: 15,
       id: 'sr-good',
-    } as WebVitalMetric);
+    });
 
     // Needs improvement: 16-50ms
     rum.reportMetric({
@@ -677,7 +677,7 @@ describe('SLOW_RENDER metric', () => {
       rating: 'needs-improvement',
       delta: 30,
       id: 'sr-ni',
-    } as WebVitalMetric);
+    });
 
     // Poor: > 50ms
     rum.reportMetric({
@@ -686,7 +686,7 @@ describe('SLOW_RENDER metric', () => {
       rating: 'poor',
       delta: 75,
       id: 'sr-poor',
-    } as WebVitalMetric);
+    });
 
     expect(rum.getQueueSize()).toBe(3);
     rum.destroy();

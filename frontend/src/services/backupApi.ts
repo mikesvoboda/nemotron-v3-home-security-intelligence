@@ -77,7 +77,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       } else if (typeof errorBody === 'string') {
         errorMessage = errorBody;
@@ -245,7 +245,7 @@ export async function deleteBackup(jobId: string): Promise<void> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       }
     } catch {

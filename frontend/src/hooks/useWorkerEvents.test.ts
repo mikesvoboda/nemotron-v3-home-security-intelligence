@@ -299,19 +299,19 @@ describe('useWorkerEvents', () => {
         worker_name: 'detection-worker-1',
         worker_type: 'detection',
         timestamp: new Date().toISOString(),
-      } as WorkerStartedPayload);
+      });
 
       simulateEvent('worker.started', {
         worker_name: 'analysis-worker-1',
         worker_type: 'analysis',
         timestamp: new Date().toISOString(),
-      } as WorkerStartedPayload);
+      });
 
       simulateEvent('worker.started', {
         worker_name: 'metrics-worker-1',
         worker_type: 'metrics',
         timestamp: new Date().toISOString(),
-      } as WorkerStartedPayload);
+      });
 
       let state = useWorkerStatusStore.getState();
       expect(state.totalCount).toBe(3);
@@ -323,7 +323,7 @@ describe('useWorkerEvents', () => {
         worker_name: 'analysis-worker-1',
         worker_type: 'analysis',
         timestamp: new Date().toISOString(),
-      } as WorkerStoppedPayload);
+      });
 
       state = useWorkerStatusStore.getState();
       expect(state.runningCount).toBe(2);
@@ -336,7 +336,7 @@ describe('useWorkerEvents', () => {
         error: 'Connection lost',
         timestamp: new Date().toISOString(),
         recoverable: true,
-      } as WorkerErrorPayload);
+      });
 
       state = useWorkerStatusStore.getState();
       expect(state.runningCount).toBe(1);

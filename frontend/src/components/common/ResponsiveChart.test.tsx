@@ -47,7 +47,7 @@ describe('ResponsiveChart', () => {
       observe = vi.fn();
       unobserve = vi.fn();
       disconnect = vi.fn();
-    } as unknown as typeof ResizeObserver;
+    };
 
     // Mock matchMedia for non-mobile
     Object.defineProperty(window, 'matchMedia', {

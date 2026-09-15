@@ -99,7 +99,7 @@ const mockPromptConfig: ModelPromptConfig = {
     max_tokens: 1024,
   },
   change_description: 'Updated temperature parameter',
-} as unknown as ModelPromptConfig;
+};
 
 const mockPromptHistoryResponse = {
   model: mockModel,

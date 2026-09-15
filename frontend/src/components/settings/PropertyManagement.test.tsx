@@ -57,17 +57,17 @@ function createMockMutation<TData, _TError, TVariables>(overrides?: {
 
 // Default mock values
 const createDefaultPropertyMutationsReturn = (): UsePropertyMutationsReturn => ({
-  createProperty: createMockMutation() as UsePropertyMutationsReturn['createProperty'],
-  updateProperty: createMockMutation() as UsePropertyMutationsReturn['updateProperty'],
-  deleteProperty: createMockMutation() as UsePropertyMutationsReturn['deleteProperty'],
+  createProperty: createMockMutation(),
+  updateProperty: createMockMutation(),
+  deleteProperty: createMockMutation(),
 });
 
 const createDefaultAreaMutationsReturn = (): UseAreaMutationsReturn => ({
-  createArea: createMockMutation() as UseAreaMutationsReturn['createArea'],
-  updateArea: createMockMutation() as UseAreaMutationsReturn['updateArea'],
-  deleteArea: createMockMutation() as UseAreaMutationsReturn['deleteArea'],
-  linkCamera: createMockMutation() as UseAreaMutationsReturn['linkCamera'],
-  unlinkCamera: createMockMutation() as UseAreaMutationsReturn['unlinkCamera'],
+  createArea: createMockMutation(),
+  updateArea: createMockMutation(),
+  deleteArea: createMockMutation(),
+  linkCamera: createMockMutation(),
+  unlinkCamera: createMockMutation(),
 });
 
 // =============================================================================
@@ -354,7 +354,7 @@ describe('PropertyManagement', () => {
       const mockCreateMutateAsync = vi.fn().mockResolvedValue(newProperty);
       mockPropertyMutations.createProperty = createMockMutation({
         mutateAsync: mockCreateMutateAsync,
-      }) as UsePropertyMutationsReturn['createProperty'];
+      });
       vi.mocked(propertyHooks.usePropertyMutations).mockReturnValue(mockPropertyMutations);
 
       render(<PropertyManagement householdId={1} />);
@@ -450,7 +450,7 @@ describe('PropertyManagement', () => {
       const mockUpdateMutateAsync = vi.fn().mockResolvedValue(updatedProperty);
       mockPropertyMutations.updateProperty = createMockMutation({
         mutateAsync: mockUpdateMutateAsync,
-      }) as UsePropertyMutationsReturn['updateProperty'];
+      });
       vi.mocked(propertyHooks.usePropertyMutations).mockReturnValue(mockPropertyMutations);
 
       render(<PropertyManagement householdId={1} />);
@@ -527,7 +527,7 @@ describe('PropertyManagement', () => {
       const mockDeleteMutateAsync = vi.fn().mockResolvedValue(undefined);
       mockPropertyMutations.deleteProperty = createMockMutation({
         mutateAsync: mockDeleteMutateAsync,
-      }) as UsePropertyMutationsReturn['deleteProperty'];
+      });
       vi.mocked(propertyHooks.usePropertyMutations).mockReturnValue(mockPropertyMutations);
 
       render(<PropertyManagement householdId={1} />);
@@ -557,7 +557,7 @@ describe('PropertyManagement', () => {
       const mockDeleteMutateAsync = vi.fn();
       mockPropertyMutations.deleteProperty = createMockMutation({
         mutateAsync: mockDeleteMutateAsync,
-      }) as UsePropertyMutationsReturn['deleteProperty'];
+      });
       vi.mocked(propertyHooks.usePropertyMutations).mockReturnValue(mockPropertyMutations);
 
       render(<PropertyManagement householdId={1} />);
@@ -666,7 +666,7 @@ describe('PropertyManagement', () => {
       const mockCreateAreaMutateAsync = vi.fn().mockResolvedValue(newArea);
       mockAreaMutations.createArea = createMockMutation({
         mutateAsync: mockCreateAreaMutateAsync,
-      }) as UseAreaMutationsReturn['createArea'];
+      });
       vi.mocked(propertyHooks.useAreaMutations).mockReturnValue(mockAreaMutations);
 
       render(<PropertyManagement householdId={1} />);
@@ -736,7 +736,7 @@ describe('PropertyManagement', () => {
       const mockDeleteAreaMutateAsync = vi.fn().mockResolvedValue(undefined);
       mockAreaMutations.deleteArea = createMockMutation({
         mutateAsync: mockDeleteAreaMutateAsync,
-      }) as UseAreaMutationsReturn['deleteArea'];
+      });
       vi.mocked(propertyHooks.useAreaMutations).mockReturnValue(mockAreaMutations);
 
       render(<PropertyManagement householdId={1} />);

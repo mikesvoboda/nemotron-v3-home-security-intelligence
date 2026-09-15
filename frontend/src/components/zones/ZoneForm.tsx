@@ -137,7 +137,7 @@ export default function ZoneForm({
     const result = zoneFormSchema.safeParse(data);
     if (result.success) {
       // Convert ZoneFormOutput to ZoneFormData for backward compatibility
-      onSubmit(result.data as ZoneFormData);
+      onSubmit(result.data);
     }
   };
 

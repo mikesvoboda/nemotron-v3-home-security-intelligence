@@ -6,9 +6,7 @@ import { useSceneChangeEvents } from './useSceneChangeEvents';
 import * as useToastModule from './useToast';
 import * as useWebSocketModule from './useWebSocket';
 
-import type { UseCamerasQueryReturn } from './useCamerasQuery';
 import type { UseToastReturn } from './useToast';
-import type { UseWebSocketReturn } from './useWebSocket';
 
 // Mock dependencies
 vi.mock('./useWebSocket', () => ({
@@ -51,7 +49,7 @@ describe('useSceneChangeEvents', () => {
         reconnectCount: 0,
         lastHeartbeat: null,
         connectionId: 'test-connection-id',
-      } as UseWebSocketReturn;
+      };
     });
 
     // Mock useCamerasQuery with some test cameras
@@ -93,7 +91,7 @@ describe('useSceneChangeEvents', () => {
       error: null,
       refetch: vi.fn(),
       isPlaceholderData: false,
-    } as UseCamerasQueryReturn);
+    });
 
     // Mock useToast
     mockToast = {

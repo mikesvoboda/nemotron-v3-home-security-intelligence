@@ -175,8 +175,8 @@ export function useToast(): UseToastReturn {
     <T>(promise: Promise<T>, messages: PromiseMessages<T>): Promise<T> => {
       toast.promise(promise, {
         loading: messages.loading,
-        success: messages.success as string | ((data: T) => string),
-        error: messages.error as string | ((error: unknown) => string),
+        success: messages.success,
+        error: messages.error,
       });
       return promise;
     },

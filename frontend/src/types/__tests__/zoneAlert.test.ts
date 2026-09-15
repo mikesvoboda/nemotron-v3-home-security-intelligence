@@ -73,7 +73,7 @@ describe('severityToPriority', () => {
   });
 
   it('defaults to INFO for unknown severity', () => {
-    expect(severityToPriority('unknown' as AnomalySeverity)).toBe(AlertPriority.INFO);
+    expect(severityToPriority('unknown')).toBe(AlertPriority.INFO);
   });
 });
 

@@ -23,7 +23,6 @@ import {
 } from './queryClient';
 import { fetchSettings } from '../hooks/useSettingsApi';
 
-import type { EventsQueryParams } from './api';
 import type { QueryClient } from '@tanstack/react-query';
 
 // ============================================================================
@@ -64,7 +63,7 @@ export const routePrefetchConfigs: Record<string, PrefetchConfig[]> = {
     // Timeline prefetches recent events
     {
       queryKey: queryKeys.events.list(),
-      queryFn: () => fetchEvents({ limit: 25 } as EventsQueryParams),
+      queryFn: () => fetchEvents({ limit: 25 }),
       staleTime: DEFAULT_STALE_TIME,
     },
   ],
@@ -72,12 +71,12 @@ export const routePrefetchConfigs: Record<string, PrefetchConfig[]> = {
     // Alerts prefetches high-risk events
     {
       queryKey: ['alerts', 'infinite', { riskLevel: 'high', limit: 25 }],
-      queryFn: () => fetchEvents({ risk_level: 'high', limit: 25 } as EventsQueryParams),
+      queryFn: () => fetchEvents({ risk_level: 'high', limit: 25 }),
       staleTime: DEFAULT_STALE_TIME,
     },
     {
       queryKey: ['alerts', 'infinite', { riskLevel: 'critical', limit: 25 }],
-      queryFn: () => fetchEvents({ risk_level: 'critical', limit: 25 } as EventsQueryParams),
+      queryFn: () => fetchEvents({ risk_level: 'critical', limit: 25 }),
       staleTime: DEFAULT_STALE_TIME,
     },
   ],

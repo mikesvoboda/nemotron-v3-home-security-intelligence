@@ -135,7 +135,7 @@ export function calculateRetryDelay(attemptIndex: number, error: unknown): numbe
     typeof error.problemDetails === 'object' &&
     'retry_after' in error.problemDetails
   ) {
-    const retryAfter = (error.problemDetails as { retry_after: unknown }).retry_after;
+    const retryAfter = error.problemDetails.retry_after;
 
     // Validate retry_after is a positive number
     if (typeof retryAfter === 'number' && retryAfter > 0) {
@@ -217,7 +217,7 @@ export function shouldRetryMutation(failureCount: number, error: unknown): boole
     typeof error.problemDetails === 'object' &&
     'error_code' in error.problemDetails
   ) {
-    const errorCode = (error.problemDetails as { error_code: unknown }).error_code;
+    const errorCode = error.problemDetails.error_code;
     if (typeof errorCode === 'string') {
       return MUTATION_SAFE_RETRY_CODES.has(errorCode);
     }

@@ -601,7 +601,7 @@ export function getEnrichmentValue<K extends keyof EnrichmentData>(
   if (!data) return undefined;
   const value = data[key];
   if (value === null || value === undefined) return undefined;
-  return value as NonNullable<EnrichmentData[K]>;
+  return value;
 }
 
 /**

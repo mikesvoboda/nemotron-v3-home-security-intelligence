@@ -40,8 +40,8 @@ describe('useIntegratedNotifications', () => {
     // Mock Notification API
     const mockNotification = vi.fn() as unknown as typeof Notification;
     Object.assign(mockNotification, {
-      permission: 'granted' as NotificationPermission,
-      requestPermission: vi.fn().mockResolvedValue('granted' as NotificationPermission),
+      permission: 'granted',
+      requestPermission: vi.fn().mockResolvedValue('granted'),
     });
     vi.stubGlobal('Notification', mockNotification);
 
@@ -68,7 +68,7 @@ describe('useIntegratedNotifications', () => {
       close = vi.fn().mockResolvedValue(undefined);
       createGain = vi.fn().mockReturnValue(mockGainNode);
       createBufferSource = vi.fn().mockReturnValue(mockSourceNode);
-      decodeAudioData = vi.fn().mockResolvedValue({ duration: 1 } as AudioBuffer);
+      decodeAudioData = vi.fn().mockResolvedValue({ duration: 1 });
       destination = {} as AudioDestinationNode;
     }
 

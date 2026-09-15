@@ -42,7 +42,7 @@ class MockRTCPeerConnection {
 
   createOffer(): Promise<RTCSessionDescriptionInit> {
     return Promise.resolve({
-      type: 'offer' as RTCSdpType,
+      type: 'offer',
       sdp: 'mock-offer-sdp',
     });
   }
@@ -91,7 +91,7 @@ describe('useRtspPreview', () => {
   describe('Connection Lifecycle', () => {
     it('should transition to connecting when startPreview is called', async () => {
       mockGo2rtcClient.createPreview.mockResolvedValue({
-        type: 'answer' as RTCSdpType,
+        type: 'answer',
         sdp: 'mock-answer-sdp',
       });
 

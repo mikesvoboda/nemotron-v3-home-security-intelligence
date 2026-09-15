@@ -21,7 +21,7 @@ import {
 } from '../../services/api';
 
 import type { Camera, EventStatsResponse, ExportQueryParams } from '../../services/api';
-import type { ExportJobCreateParams, ExportFormat as ExportFormatType } from '../../types/export';
+import type { ExportJobCreateParams } from '../../types/export';
 
 export interface ExportPanelProps {
   /** Pre-populate filters from EventTimeline */
@@ -179,7 +179,7 @@ export default function ExportPanel({
       // Use the new export job API for all formats
       const params: ExportJobCreateParams = {
         export_type: 'events',
-        export_format: format as ExportFormatType,
+        export_format: format,
         camera_id: filters.camera_id || null,
         risk_level: filters.risk_level || null,
         start_date: filters.start_date || null,

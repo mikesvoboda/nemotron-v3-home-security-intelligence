@@ -324,7 +324,7 @@ export default function NotificationHistoryPanel({
                     {/* Channel */}
                     <td className="px-3 py-3">
                       <Badge
-                        color={(channelConfig?.color as 'blue' | 'purple' | 'orange') || 'gray'}
+                        color={channelConfig?.color || 'gray'}
                         size="sm"
                         className="flex w-fit items-center gap-1"
                       >

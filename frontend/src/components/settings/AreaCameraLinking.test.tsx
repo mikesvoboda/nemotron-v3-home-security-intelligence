@@ -154,7 +154,7 @@ describe('AreaCameraLinking', () => {
       deleteArea: createMockMutation(),
       linkCamera: createMockMutation({ mutateAsync: mockLinkCameraMutateAsync }),
       unlinkCamera: createMockMutation({ mutateAsync: mockUnlinkCameraMutateAsync }),
-    } as UseAreaMutationsReturn;
+    };
 
     vi.mocked(propertyHooks.useAreaMutations).mockReturnValue(mockMutations);
   });

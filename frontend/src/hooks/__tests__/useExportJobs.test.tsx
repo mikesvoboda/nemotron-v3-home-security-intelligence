@@ -25,7 +25,7 @@ import {
   exportJobsQueryKeys,
 } from '../useExportJobs';
 
-import type { ExportJob, ExportJobStatus } from '../../types/export';
+import type { ExportJob } from '../../types/export';
 
 // ============================================================================
 // Mock useJobWebSocket
@@ -129,7 +129,7 @@ function createMockResponse(data: unknown, status = 200, ok = true): Response {
 
 const createMockExportJob = (overrides: Partial<ExportJob> = {}): ExportJob => ({
   id: 'job-123',
-  status: 'running' as ExportJobStatus,
+  status: 'running',
   export_type: 'events',
   export_format: 'csv',
   progress: {

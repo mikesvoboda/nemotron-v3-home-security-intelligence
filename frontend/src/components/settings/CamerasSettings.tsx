@@ -55,7 +55,6 @@ import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 import type { OnvifDevice } from '../../types/onvif';
-import type { PreviewConfig } from '../../types/preview';
 
 interface CameraFormData {
   name: string;
@@ -1453,13 +1452,11 @@ export default function CamerasSettings() {
 
                     {formData.rtsp_url && (
                       <RTSPPreviewPlayer
-                        config={
-                          {
-                            rtspUrl: formData.rtsp_url,
-                            username: formData.rtsp_username || undefined,
-                            password: formData.rtsp_password || undefined,
-                          } as PreviewConfig
-                        }
+                        config={{
+                          rtspUrl: formData.rtsp_url,
+                          username: formData.rtsp_username || undefined,
+                          password: formData.rtsp_password || undefined,
+                        }}
                         autoStart
                         onConnected={() => {
                           // Preview connected successfully

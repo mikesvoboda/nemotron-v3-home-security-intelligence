@@ -161,7 +161,7 @@ describe('useSeedCamerasMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockSeedCamerasResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
       wrapper: createTestWrapper(),
@@ -195,7 +195,7 @@ describe('useSeedCamerasMutation', () => {
       status: 400,
       statusText: 'Bad Request',
       json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
       wrapper: createTestWrapper(),
@@ -215,7 +215,7 @@ describe('useSeedCamerasMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockSeedCamerasResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
       wrapper: createTestWrapper(),
@@ -246,7 +246,7 @@ describe('useSeedCamerasMutation', () => {
               resolve({
                 ok: true,
                 json: () => Promise.resolve(mockSeedCamerasResponse),
-              } as Response),
+              }),
             100
           )
         )
@@ -280,7 +280,7 @@ describe('useSeedEventsMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockSeedEventsResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedEventsMutation(), {
       wrapper: createTestWrapper(),
@@ -314,7 +314,7 @@ describe('useSeedEventsMutation', () => {
       status: 422,
       statusText: 'Unprocessable Entity',
       json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedEventsMutation(), {
       wrapper: createTestWrapper(),
@@ -339,7 +339,7 @@ describe('useSeedPipelineLatencyMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockSeedPipelineLatencyResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedPipelineLatencyMutation(), {
       wrapper: createTestWrapper(),
@@ -370,7 +370,7 @@ describe('useSeedPipelineLatencyMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockSeedPipelineLatencyResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedPipelineLatencyMutation(), {
       wrapper: createTestWrapper(),
@@ -401,7 +401,7 @@ describe('useClearSeededDataMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockClearDataResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useClearSeededDataMutation(), {
       wrapper: createTestWrapper(),
@@ -434,7 +434,7 @@ describe('useClearSeededDataMutation', () => {
       status: 400,
       statusText: 'Bad Request',
       json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useClearSeededDataMutation(), {
       wrapper: createTestWrapper(),
@@ -459,7 +459,7 @@ describe('useOrphanCleanupMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockOrphanCleanupResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useOrphanCleanupMutation(), {
       wrapper: createTestWrapper(),
@@ -498,7 +498,7 @@ describe('useOrphanCleanupMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(dryRunResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useOrphanCleanupMutation(), {
       wrapper: createTestWrapper(),
@@ -524,7 +524,7 @@ describe('useClearCacheMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockClearCacheResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useClearCacheMutation(), {
       wrapper: createTestWrapper(),
@@ -549,7 +549,7 @@ describe('useClearCacheMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockClearCacheResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useClearCacheMutation(), {
       wrapper: createTestWrapper(),
@@ -581,7 +581,7 @@ describe('useFlushQueuesMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockFlushQueuesResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useFlushQueuesMutation(), {
       wrapper: createTestWrapper(),
@@ -613,7 +613,7 @@ describe('useFlushQueuesMutation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(emptyResponse),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useFlushQueuesMutation(), {
       wrapper: createTestWrapper(),
@@ -662,7 +662,7 @@ describe('useAdminMutations', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({}),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useAdminMutations(), {
       wrapper: createTestWrapper(),
@@ -678,7 +678,7 @@ describe('useAdminMutations', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockClearCacheResponse),
-    } as Response);
+    });
 
     result.current.clearCache.mutate();
 
@@ -701,7 +701,7 @@ describe('Cache Invalidation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockSeedCamerasResponse),
-    } as Response);
+    });
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -736,7 +736,7 @@ describe('Cache Invalidation', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockClearDataResponse),
-    } as Response);
+    });
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -776,7 +776,7 @@ describe('Error Handling', () => {
       status: 500,
       statusText: 'Internal Server Error',
       json: () => Promise.resolve({ detail: errorDetail }),
-    } as Response);
+    });
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
       wrapper: createTestWrapper(),
@@ -797,7 +797,7 @@ describe('Error Handling', () => {
       status: 503,
       statusText: 'Service Unavailable',
       json: () => Promise.reject(new Error('Invalid JSON')),
-    } as unknown as Response);
+    });
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
       wrapper: createTestWrapper(),

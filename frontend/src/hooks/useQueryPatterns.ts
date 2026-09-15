@@ -108,7 +108,7 @@ export function createPlaceholderGpuStats(): GPUStats {
     temperature: 0,
     power_usage: 0,
     power_limit: 0,
-  } as GPUStats;
+  };
 }
 
 /**
@@ -127,7 +127,7 @@ export function createPlaceholderEventStats(): EventStatsResponse {
       medium: 0,
     },
     events_by_camera: [],
-  } as EventStatsResponse;
+  };
 }
 
 // ============================================================================

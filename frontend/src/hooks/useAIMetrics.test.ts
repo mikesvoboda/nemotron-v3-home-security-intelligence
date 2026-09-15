@@ -54,7 +54,7 @@ describe('useAIMetrics', () => {
       analysis_queue: 3,
     },
     timestamp: '2025-12-28T10:30:00Z',
-  } as api.TelemetryResponse;
+  };
 
   const mockHealthResponse: api.HealthResponse = {
     status: 'healthy',
@@ -503,7 +503,7 @@ describe('useAIMetrics', () => {
           },
         },
         timestamp: '2025-12-28T10:30:00Z',
-      } as api.TelemetryResponse;
+      };
 
       vi.mocked(api.fetchTelemetry).mockResolvedValue(telemetryWithLatency);
 

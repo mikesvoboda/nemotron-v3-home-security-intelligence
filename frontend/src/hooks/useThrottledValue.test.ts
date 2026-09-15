@@ -268,9 +268,9 @@ describe('useThrottledValue', () => {
     });
 
     it('handles transitions from value to null', () => {
-      const { result, rerender } = renderHook(
-        ({ value }: { value: number | null }) => useThrottledValue(value, { interval: 500 }),
-        { initialProps: { value: 5 as number | null } }
+      const { result, rerender } = renderHook<number | null, { value: number | null }>(
+        ({ value }) => useThrottledValue(value, { interval: 500 }),
+        { initialProps: { value: 5 } }
       );
 
       expect(result.current).toBe(5);

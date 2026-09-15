@@ -26,12 +26,7 @@ import {
  * Container status type
  */
 export type ContainerStatus =
-  | 'running'
-  | 'starting'
-  | 'unhealthy'
-  | 'stopped'
-  | 'disabled'
-  | 'not_found';
+  'running' | 'starting' | 'unhealthy' | 'stopped' | 'disabled' | 'not_found';
 
 /**
  * Category type
@@ -415,7 +410,7 @@ export default function ContainersPanel({
     };
 
     containersWithStatus.forEach((container) => {
-      const cat = container.category as ContainerCategory;
+      const cat = container.category;
       if (groups[cat]) {
         groups[cat].push(container);
       }

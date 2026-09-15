@@ -1156,7 +1156,7 @@ function parseErrorBody(
   // Legacy format: { detail: string }
   if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
     return {
-      message: String((errorBody as { detail: unknown }).detail),
+      message: String(errorBody.detail),
       data: errorBody,
     };
   }
@@ -2410,8 +2410,7 @@ export async function updateEvent(id: number, data: EventUpdateData): Promise<Ev
       try {
         // Error data contains parsed JSON body: { detail: { message: string, current_version: number } }
         const errorData = error.data as
-          | { detail?: { current_version?: number; message?: string } }
-          | undefined;
+          { detail?: { current_version?: number; message?: string } } | undefined;
         if (errorData?.detail) {
           if (typeof errorData.detail.current_version === 'number') {
             currentVersion = errorData.detail.current_version;
@@ -3479,7 +3478,7 @@ export async function exportEventsCSV(params?: ExportQueryParams): Promise<void>
       try {
         const errorBody: unknown = await response.json();
         if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-          errorMessage = String((errorBody as { detail: unknown }).detail);
+          errorMessage = String(errorBody.detail);
         }
       } catch {
         // If response body is not JSON, use status text
@@ -3553,7 +3552,7 @@ export async function exportEventsJSON(params?: ExportQueryParams): Promise<void
       try {
         const errorBody: unknown = await response.json();
         if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-          errorMessage = String((errorBody as { detail: unknown }).detail);
+          errorMessage = String(errorBody.detail);
         }
       } catch {
         // If response body is not JSON, use status text
@@ -3696,7 +3695,7 @@ export async function downloadExportFile(jobId: string): Promise<void> {
       try {
         const errorBody: unknown = await response.json();
         if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-          errorMessage = String((errorBody as { detail: unknown }).detail);
+          errorMessage = String(errorBody.detail);
         }
       } catch {
         // If response body is not JSON, use status text

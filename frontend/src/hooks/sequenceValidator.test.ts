@@ -40,12 +40,12 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('system', {
         type: 'system_status',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
 
       expect(validator.getState('events').lastSequence).toBe(1);
       expect(validator.getState('system').lastSequence).toBe(1);
@@ -91,7 +91,7 @@ describe('SequenceValidator', () => {
           type: 'event',
           sequence: i,
           data: {},
-        } as SequencedMessage);
+        });
         expect(validator.getState('events').lastSequence).toBe(i);
       }
     });
@@ -152,17 +152,17 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 5,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('events', {
         type: 'event',
         sequence: 3,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('events', {
         type: 'event',
         sequence: 4,
         data: {},
-      } as SequencedMessage);
+      });
 
       const buffer = validator.getState('events').buffer;
       const sequences = Array.from(buffer.keys()).sort((a, b) => a - b);
@@ -297,22 +297,22 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 3,
         data: {},
-      } as SequencedMessage);
+      });
       customValidator.handleMessage('events', {
         type: 'event',
         sequence: 4,
         data: {},
-      } as SequencedMessage);
+      });
       customValidator.handleMessage('events', {
         type: 'event',
         sequence: 5,
         data: {},
-      } as SequencedMessage);
+      });
       customValidator.handleMessage('events', {
         type: 'event',
         sequence: 6,
         data: {},
-      } as SequencedMessage);
+      });
 
       const buffer = customValidator.getState('events').buffer;
       expect(buffer.size).toBeLessThanOrEqual(3);
@@ -340,12 +340,12 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('system', {
         type: 'system_status',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
 
       validator.resetAll();
 
@@ -440,7 +440,7 @@ describe('SequenceValidator', () => {
           type: 'event',
           sequence: i,
           data: {},
-        } as SequencedMessage);
+        });
       }
 
       const stats = validator.getStatistics('events');
@@ -452,17 +452,17 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('events', {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('events', {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
 
       const stats = validator.getStatistics('events');
       expect(stats.duplicateCount).toBe(2);
@@ -474,19 +474,19 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
       // Gap of 99 (sequence 100 - 1 = 99) exceeds threshold of 50
       validator.handleMessage('events', {
         type: 'event',
         sequence: 100,
         data: {},
-      } as SequencedMessage);
+      });
       // Gap of 99 (sequence 200 - 100 - buffer = ~99) exceeds threshold of 50
       validator.handleMessage('events', {
         type: 'event',
         sequence: 200,
         data: {},
-      } as SequencedMessage);
+      });
 
       const stats = validator.getStatistics('events');
       expect(stats.resyncCount).toBe(2);
@@ -497,17 +497,17 @@ describe('SequenceValidator', () => {
         type: 'event',
         sequence: 1,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('events', {
         type: 'event',
         sequence: 3,
         data: {},
-      } as SequencedMessage);
+      });
       validator.handleMessage('events', {
         type: 'event',
         sequence: 5,
         data: {},
-      } as SequencedMessage);
+      });
 
       const stats = validator.getStatistics('events');
       expect(stats.outOfOrderCount).toBe(2);

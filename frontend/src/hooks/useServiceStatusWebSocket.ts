@@ -267,7 +267,7 @@ export function useServiceStatusWebSocket(
   // Helper functions
   const getServiceStatus = useCallback(
     (serviceName: string): ServiceStatus | undefined => {
-      return services[serviceName]?.status as ServiceStatus | undefined;
+      return services[serviceName]?.status;
     },
     [services]
   );
