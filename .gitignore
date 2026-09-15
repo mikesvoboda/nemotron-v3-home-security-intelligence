@@ -141,5 +141,6 @@ config/gpu-assignments.yml
 .claude/*
 !.claude/skills/
 site/
-# staged salvage must never include full-tree snapshots (build dirs cost ~1GB; see ledger 2026-09-15)
-docs/superpowers/staged/**/build*/
+# staged salvage is branch-local working material only — de-tracked 2026-09-15
+# (build dirs alone cost ~1GB; see ledger). Evidence copy lives outside the repo.
+docs/superpowers/staged/
