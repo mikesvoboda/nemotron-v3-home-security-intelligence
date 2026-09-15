@@ -18,7 +18,10 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
+import torch
 from PIL import Image
+from transformers import XCLIPModel, XCLIPProcessor
+from transformers.models.x_clip.modeling_x_clip import XCLIPOutput
 
 from backend.services.xclip_loader import (
     ACTION_PROMPTS_V2,
@@ -45,7 +48,7 @@ def create_mock_pixel_values() -> MagicMock:
         MagicMock with .shape = (1, 16, 3, 224, 224) and proper .to()/.half() methods
         (16 frames as per NEM-3908 upgrade to xclip-base-patch16-16-frames)
     """
-    mock_pv = MagicMock()
+    mock_pv = MagicMock(spec=torch.Tensor)
     # X-CLIP video tensor shape: [batch=1, frames=16, channels=3, height=224, width=224]
     # Updated from 8 to 16 frames per NEM-3908
     mock_pv.shape = (1, 16, 3, 224, 224)
@@ -97,7 +100,7 @@ class TestLoadXclipModel:
     @pytest.mark.asyncio
     async def test_load_model_success_cpu_no_torch(self) -> None:
         """Test model loading raises RuntimeError when torch is not available."""
-        mock_transformers = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
 
         # torch=None causes RuntimeError since CUDA guard can't be evaluated
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": None}):
@@ -107,25 +110,25 @@ class TestLoadXclipModel:
     @pytest.mark.asyncio
     async def test_load_model_success_with_gpu(self) -> None:
         """Test successful model loading with GPU support."""
-        mock_processor = MagicMock()
-        mock_model = MagicMock()
-        mock_model_on_gpu = MagicMock()
+        mock_processor = MagicMock(spec=XCLIPProcessor)
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_model_on_gpu = MagicMock(spec=XCLIPModel)
         mock_model.cuda.return_value.half.return_value = mock_model_on_gpu
         mock_model_on_gpu.eval = MagicMock(return_value=None)
 
-        mock_xclip_processor_cls = MagicMock()
+        mock_xclip_processor_cls = MagicMock(spec=XCLIPProcessor)
         mock_xclip_processor_cls.from_pretrained.return_value = mock_processor
 
-        mock_xclip_model_cls = MagicMock()
+        mock_xclip_model_cls = MagicMock(spec=XCLIPModel)
         mock_xclip_model_cls.from_pretrained.return_value = mock_model
 
         # Create mock transformers module
-        mock_transformers = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
         mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
         mock_transformers.XCLIPModel = mock_xclip_model_cls
 
         # Create mock torch module
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.cuda.is_available.return_value = True
 
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": mock_torch}):
@@ -147,12 +150,12 @@ class TestLoadXclipModel:
     @pytest.mark.asyncio
     async def test_load_model_runtime_error_from_model_load(self) -> None:
         """Test model loading when model file is invalid."""
-        mock_xclip_processor_cls = MagicMock()
+        mock_xclip_processor_cls = MagicMock(spec=XCLIPProcessor)
         mock_xclip_processor_cls.from_pretrained.side_effect = OSError("Invalid model")
 
-        mock_transformers = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
         mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
-        mock_transformers.XCLIPModel = MagicMock()
+        mock_transformers.XCLIPModel = MagicMock(spec=XCLIPModel)
 
         with patch.dict(sys.modules, {"transformers": mock_transformers}):
             with pytest.raises(RuntimeError) as exc_info:
@@ -163,12 +166,12 @@ class TestLoadXclipModel:
     @pytest.mark.asyncio
     async def test_load_model_generic_exception(self) -> None:
         """Test model loading with generic exception."""
-        mock_xclip_processor_cls = MagicMock()
+        mock_xclip_processor_cls = MagicMock(spec=XCLIPProcessor)
         mock_xclip_processor_cls.from_pretrained.side_effect = ValueError("Unexpected error")
 
-        mock_transformers = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
         mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
-        mock_transformers.XCLIPModel = MagicMock()
+        mock_transformers.XCLIPModel = MagicMock(spec=XCLIPModel)
 
         with patch.dict(sys.modules, {"transformers": mock_transformers}):
             with pytest.raises(RuntimeError) as exc_info:
@@ -183,8 +186,8 @@ class TestLoadXclipModelInternal:
     @pytest.mark.asyncio
     async def test_load_model_cpu_no_cuda(self) -> None:
         """Test model loading raises RuntimeError when CUDA is not available."""
-        mock_transformers = MagicMock()
-        mock_torch = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.cuda.is_available.return_value = False
 
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": mock_torch}):
@@ -194,21 +197,21 @@ class TestLoadXclipModelInternal:
     @pytest.mark.asyncio
     async def test_load_model_with_huggingface_path(self) -> None:
         """Test model loading with HuggingFace model path."""
-        mock_processor = MagicMock()
-        mock_model = MagicMock()
+        mock_processor = MagicMock(spec=XCLIPProcessor)
+        mock_model = MagicMock(spec=XCLIPModel)
         mock_model.eval = MagicMock(return_value=None)
 
-        mock_xclip_processor_cls = MagicMock()
+        mock_xclip_processor_cls = MagicMock(spec=XCLIPProcessor)
         mock_xclip_processor_cls.from_pretrained.return_value = mock_processor
 
-        mock_xclip_model_cls = MagicMock()
+        mock_xclip_model_cls = MagicMock(spec=XCLIPModel)
         mock_xclip_model_cls.from_pretrained.return_value = mock_model
 
-        mock_transformers = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
         mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
         mock_transformers.XCLIPModel = mock_xclip_model_cls
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.cuda.is_available.return_value = True
 
         with patch.dict(sys.modules, {"transformers": mock_transformers, "torch": mock_torch}):
@@ -237,13 +240,13 @@ class TestClassifyActions:
     @pytest.fixture
     def mock_model_dict(self) -> dict[str, Any]:
         """Create mock model dictionary with proper torch mocking."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
         # Set up model parameters for device detection
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param])
 
         return {"model": mock_model, "processor": mock_processor}
@@ -272,12 +275,12 @@ class TestClassifyActions:
         valid_frame = Image.new("RGB", (224, 224), color="blue")
         frames = [None, valid_frame, None, valid_frame, None]  # type: ignore
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -285,17 +288,17 @@ class TestClassifyActions:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.75, 0.15, 0.10]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -312,25 +315,25 @@ class TestClassifyActions:
     async def test_classify_with_default_prompts(self, sample_frames: list[Image.Image]) -> None:
         """Test classification with default security prompts."""
         # Create mock model and processor
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
         # Set up model parameters
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Set up processor return value with properly shaped pixel_values
-        mock_input_ids = MagicMock()
+        mock_input_ids = MagicMock(spec=torch.Tensor)
         mock_input_ids.to.return_value = mock_input_ids
         mock_inputs = {"pixel_values": create_mock_pixel_values(), "input_ids": mock_input_ids}
         mock_processor.return_value = mock_inputs
 
         # Set up model output
-        mock_outputs = MagicMock()
-        mock_logits = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_logits = MagicMock(spec=torch.Tensor)
+        mock_probs = MagicMock(spec=torch.Tensor)
 
         # Create proper numpy array for probs
         probs_array = np.zeros(len(SECURITY_ACTION_PROMPTS))
@@ -348,7 +351,7 @@ class TestClassifyActions:
         model_dict = {"model": mock_model, "processor": mock_processor}
 
         # Mock torch
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -367,22 +370,22 @@ class TestClassifyActions:
         """Test classification with custom prompts."""
         custom_prompts = ["action 1", "action 2", "action 3"]
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        mock_input_ids = MagicMock()
+        mock_input_ids = MagicMock(spec=torch.Tensor)
         mock_input_ids.to.return_value = mock_input_ids
         mock_inputs = {"pixel_values": create_mock_pixel_values(), "input_ids": mock_input_ids}
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_logits = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_logits = MagicMock(spec=torch.Tensor)
+        mock_probs = MagicMock(spec=torch.Tensor)
 
         probs_array = np.array([0.9, 0.05, 0.05])
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = probs_array
@@ -392,7 +395,7 @@ class TestClassifyActions:
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -409,12 +412,12 @@ class TestClassifyActions:
         """Test classification with fewer than 16 frames (should duplicate)."""
         frames = [Image.new("RGB", (224, 224), color="blue") for _ in range(3)]
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -422,17 +425,17 @@ class TestClassifyActions:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.75, 0.15, 0.10]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -449,12 +452,12 @@ class TestClassifyActions:
         """Test classification with more than 16 frames (should sample)."""
         frames = [Image.new("RGB", (224, 224), color="green") for _ in range(32)]
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -462,17 +465,17 @@ class TestClassifyActions:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.65, 0.20, 0.15]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -488,12 +491,12 @@ class TestClassifyActions:
         """Test classification with exactly 16 frames (NEM-3908)."""
         # Note: sample_frames fixture still provides 8 for legacy compat, test pads internally
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -501,17 +504,17 @@ class TestClassifyActions:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.85, 0.10, 0.05]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -527,12 +530,12 @@ class TestClassifyActions:
     @pytest.mark.asyncio
     async def test_classify_top_k_parameter(self, sample_frames: list[Image.Image]) -> None:
         """Test classification with custom top_k parameter."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -540,17 +543,17 @@ class TestClassifyActions:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.6, 0.2, 0.1, 0.05, 0.05]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -569,10 +572,10 @@ class TestClassifyActions:
     @pytest.mark.asyncio
     async def test_classify_runtime_error(self, sample_frames: list[Image.Image]) -> None:
         """Test classification raises RuntimeError on failure."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
         mock_model.parameters.return_value = iter([mock_param])
 
@@ -581,7 +584,7 @@ class TestClassifyActions:
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
 
@@ -596,10 +599,10 @@ class TestClassifyActions:
     @pytest.mark.asyncio
     async def test_classify_generic_exception(self, sample_frames: list[Image.Image]) -> None:
         """Test classification wraps generic exceptions in RuntimeError."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
         mock_model.parameters.return_value = iter([mock_param])
 
@@ -608,7 +611,7 @@ class TestClassifyActions:
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
 
@@ -627,14 +630,14 @@ class TestClassifyActionsInternal:
     @pytest.mark.asyncio
     async def test_classify_handles_float16_model(self) -> None:
         """Test classification handles float16 model correctly."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cuda"
 
         # Create mock torch with float16
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.float16 = "float16_type"
         mock_param.dtype = mock_torch.float16
 
@@ -646,12 +649,12 @@ class TestClassifyActionsInternal:
         mock_processor.return_value = mock_inputs
 
         # Set up model output
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.5, 0.3, 0.2]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
@@ -674,12 +677,12 @@ class TestClassifyActionsInternal:
         """Test that error is raised when all frames fail numpy conversion (deep validation)."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         model_dict = {"model": mock_model, "processor": mock_processor}
@@ -693,7 +696,7 @@ class TestClassifyActionsInternal:
 
         frames = [mock_frame, mock_frame, mock_frame]  # type: ignore[list-item]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.float16 = "float16"
@@ -708,12 +711,12 @@ class TestClassifyActionsInternal:
         """Test frame validation handles invalid numpy array shapes."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Create a processor that validates and returns proper tensor
@@ -722,10 +725,10 @@ class TestClassifyActionsInternal:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array([0.5, 0.5])
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
@@ -733,7 +736,7 @@ class TestClassifyActionsInternal:
         # Create one valid frame
         frames = [Image.new("RGB", (224, 224))]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -750,12 +753,12 @@ class TestClassifyActionsInternal:
         """Test that RuntimeError is raised when processor returns None."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Processor returns None
@@ -764,7 +767,7 @@ class TestClassifyActionsInternal:
         model_dict = {"model": mock_model, "processor": mock_processor}
         frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.float16 = "float16"
@@ -778,12 +781,12 @@ class TestClassifyActionsInternal:
         """Test that RuntimeError is raised when processor returns None for pixel_values."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Processor returns dict with None pixel_values
@@ -792,7 +795,7 @@ class TestClassifyActionsInternal:
         model_dict = {"model": mock_model, "processor": mock_processor}
         frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.float16 = "float16"
@@ -806,23 +809,23 @@ class TestClassifyActionsInternal:
         """Test that RuntimeError is raised when pixel_values has no shape attribute."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Create pixel_values without shape attribute
-        mock_pixel_values = MagicMock()
+        mock_pixel_values = MagicMock(spec=torch.Tensor)
         del mock_pixel_values.shape  # Remove shape attribute
         mock_processor.return_value = {"pixel_values": mock_pixel_values}
 
         model_dict = {"model": mock_model, "processor": mock_processor}
         frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.float16 = "float16"
@@ -836,12 +839,12 @@ class TestClassifyActionsInternal:
         """Test that RuntimeError is raised when processor raises AttributeError."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Processor raises AttributeError (NoneType has no attribute 'shape')
@@ -850,7 +853,7 @@ class TestClassifyActionsInternal:
         model_dict = {"model": mock_model, "processor": mock_processor}
         frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.float16 = "float16"
@@ -864,12 +867,12 @@ class TestClassifyActionsInternal:
         """Test that frames are re-padded if some are lost during final validation."""
         from backend.services.xclip_loader import classify_actions
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Setup proper mocked tensors
@@ -878,12 +881,12 @@ class TestClassifyActionsInternal:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.6, 0.3, 0.1]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
@@ -891,7 +894,7 @@ class TestClassifyActionsInternal:
         # Create frames - just a few to trigger padding
         frames = [Image.new("RGB", (224, 224)) for _ in range(5)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -1136,31 +1139,31 @@ class TestXclipLoaderIntegration:
     async def test_full_workflow_mock(self) -> None:
         """Test full workflow from model loading to classification."""
         # Set up mock transformers
-        mock_processor = MagicMock()
-        mock_model = MagicMock()
+        mock_processor = MagicMock(spec=XCLIPProcessor)
+        mock_model = MagicMock(spec=XCLIPModel)
         mock_model.eval = MagicMock(return_value=None)
 
-        mock_xclip_processor_cls = MagicMock()
+        mock_xclip_processor_cls = MagicMock(spec=XCLIPProcessor)
         mock_xclip_processor_cls.from_pretrained.return_value = mock_processor
 
-        mock_xclip_model_cls = MagicMock()
+        mock_xclip_model_cls = MagicMock(spec=XCLIPModel)
         mock_xclip_model_cls.from_pretrained.return_value = mock_model
 
-        mock_transformers = MagicMock()
+        mock_transformers = MagicMock(spec=["XCLIPModel", "XCLIPProcessor"])
         mock_transformers.XCLIPProcessor = mock_xclip_processor_cls
         mock_transformers.XCLIPModel = mock_xclip_model_cls
 
         # Set up mock torch
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.cuda.is_available.return_value = True
         mock_torch.float16 = "float16"
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
 
         # Set up model parameters
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Set up processor for classification
@@ -1170,12 +1173,12 @@ class TestXclipLoaderIntegration:
         mock_processor.return_value = mock_inputs
 
         # Set up model output
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.85, 0.10, 0.05]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         mock_torch.softmax.return_value = mock_probs
@@ -1253,13 +1256,13 @@ class TestXclipLoaderEdgeCases:
     @pytest.fixture
     def mock_model_dict(self) -> dict[str, Any]:
         """Create mock model dictionary with proper torch mocking."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
         # Set up model parameters for device detection
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param])
 
         return {"model": mock_model, "processor": mock_processor}
@@ -1267,12 +1270,12 @@ class TestXclipLoaderEdgeCases:
     @pytest.mark.asyncio
     async def test_classify_single_frame(self) -> None:
         """Test classification with single frame (should pad to 16 per NEM-3908)."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -1280,16 +1283,16 @@ class TestXclipLoaderEdgeCases:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array([0.5, 0.5])
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
         frames = [Image.new("RGB", (224, 224))]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -1366,12 +1369,12 @@ class TestXclipLoaderEdgeCases:
         # Mix valid and invalid objects
         frames = ["invalid", valid_frame, 12345, valid_frame]  # type: ignore
 
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         mock_inputs = {"pixel_values": create_mock_pixel_values()}
@@ -1379,17 +1382,17 @@ class TestXclipLoaderEdgeCases:
             v.to.return_value = v
         mock_processor.return_value = mock_inputs
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.75, 0.15, 0.10]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -1563,7 +1566,7 @@ class TestNumpyConversionValidation:
         mock_img.load.return_value = None
 
         with patch("numpy.array") as mock_array:
-            invalid_arr = MagicMock()
+            invalid_arr = MagicMock(spec=np.ndarray)
             invalid_arr.shape = (100,)  # 1D, should be rejected
             mock_array.return_value = invalid_arr
 
@@ -1579,7 +1582,7 @@ class TestNumpyConversionValidation:
         mock_img.load.return_value = None
 
         with patch("numpy.array") as mock_array:
-            invalid_arr = MagicMock()
+            invalid_arr = MagicMock(spec=np.ndarray)
             invalid_arr.shape = (0, 100, 3)  # Zero height
             mock_array.return_value = invalid_arr
 
@@ -1684,11 +1687,11 @@ class TestNullFrameHandlingIntegration:
         from backend.services.xclip_loader import classify_actions
 
         # Create mock model and processor
-        mock_model = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
         mock_model.parameters.return_value = iter([MagicMock(device="cpu", dtype=MagicMock())])
 
         # Create a proper mock processor that returns valid tensors with correct shape
-        mock_input_ids = MagicMock()
+        mock_input_ids = MagicMock(spec=torch.Tensor)
         mock_input_ids.to = MagicMock(return_value=mock_input_ids)
         mock_inputs = {
             "input_ids": mock_input_ids,
@@ -1697,10 +1700,8 @@ class TestNullFrameHandlingIntegration:
 
         mock_processor = MagicMock(return_value=mock_inputs)
 
-        # Create mock outputs
-        import torch
-
-        mock_outputs = MagicMock()
+        # Create mock outputs (module-level torch import now covers this)
+        mock_outputs = MagicMock(spec=XCLIPOutput)
         mock_outputs.logits_per_video = torch.tensor([[0.5, 0.3, 0.2]])
 
         mock_model.return_value = mock_outputs
@@ -1792,12 +1793,12 @@ class TestPixelValuesNoneFix:
     @pytest.mark.asyncio
     async def test_frames_converted_to_numpy_arrays(self) -> None:
         """Test that frames are converted to numpy arrays before processor call."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Track what is passed to the processor
@@ -1810,18 +1811,18 @@ class TestPixelValuesNoneFix:
 
         mock_processor.side_effect = capture_processor_call
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.5, 0.3, 0.2]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
         frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -1848,12 +1849,12 @@ class TestPixelValuesNoneFix:
     @pytest.mark.asyncio
     async def test_rgba_images_converted_to_rgb_numpy(self) -> None:
         """Test that RGBA images are properly converted to RGB numpy arrays."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         captured_images: list[Any] = []
@@ -1865,12 +1866,12 @@ class TestPixelValuesNoneFix:
 
         mock_processor.side_effect = capture_processor_call
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.5, 0.3, 0.2]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
@@ -1878,7 +1879,7 @@ class TestPixelValuesNoneFix:
         # Create RGBA images (4 channels) - 16 frames per NEM-3908
         frames = [Image.new("RGBA", (224, 224), color=(255, 0, 0, 128)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
@@ -1897,12 +1898,12 @@ class TestPixelValuesNoneFix:
     @pytest.mark.asyncio
     async def test_grayscale_images_converted_to_rgb_numpy(self) -> None:
         """Test that grayscale images are properly converted to RGB numpy arrays."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
+        mock_model = MagicMock(spec=XCLIPModel)
+        mock_processor = MagicMock(spec=XCLIPProcessor)
 
-        mock_param = MagicMock()
+        mock_param = MagicMock(spec=torch.nn.Parameter)
         mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
+        mock_param.dtype = torch.float32
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         captured_images: list[Any] = []
@@ -1914,12 +1915,12 @@ class TestPixelValuesNoneFix:
 
         mock_processor.side_effect = capture_processor_call
 
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
+        mock_outputs = MagicMock(spec=XCLIPOutput)
+        mock_probs = MagicMock(spec=torch.Tensor)
         mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
             [0.5, 0.3, 0.2]
         )
-        mock_outputs.logits_per_video = MagicMock()
+        mock_outputs.logits_per_video = MagicMock(spec=torch.Tensor)
         mock_model.return_value = mock_outputs
 
         model_dict = {"model": mock_model, "processor": mock_processor}
@@ -1927,7 +1928,7 @@ class TestPixelValuesNoneFix:
         # Create grayscale images (mode "L") - 16 frames per NEM-3908
         frames = [Image.new("L", (224, 224)) for _ in range(16)]
 
-        mock_torch = MagicMock()
+        mock_torch = MagicMock(spec=["cuda", "float16", "softmax", "no_grad", "inference_mode"])
         mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
         mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
         mock_torch.softmax.return_value = mock_probs
