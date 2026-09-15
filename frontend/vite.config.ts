@@ -378,9 +378,17 @@ export default defineConfig(({ mode }) => {
       // Fork-based parallelization for better memory isolation (each fork is separate process)
       // Threads share memory which can cause accumulation issues during cleanup
       pool: 'forks',
-      // Run test files sequentially within each shard to prevent memory accumulation
-      // This is slower but prevents OOM by allowing cleanup between files
-      fileParallelism: false,
+      // Machine-aware parallelism (fast-confidence-loop spec SS3.3).
+      // Default is the inherited CI-safe setting: files run sequentially in
+      // each fork worker (vitest overrides maxWorkers to 1 when
+      // fileParallelism is false), so CI is byte-identical without the envs
+      // below. VITEST_PARALLEL=1 (set by validate.sh on >=64 GB boxes, and by
+      // CI only around a measured runner OOM workaround) turns on
+      // file-parallelism with a bounded worker count.
+      fileParallelism: process.env.VITEST_PARALLEL === '1',
+      // `|| 4` not `?? 4`: Number('') is 0 and 0 means UNBOUNDED in vitest, so
+      // an exported-but-empty VITEST_MAX_WORKERS must not fork-bomb a runner.
+      maxWorkers: Number(process.env.VITEST_MAX_WORKERS || 4),
       // Restart worker after each test file to prevent memory accumulation
       // This is critical for preventing OOM during long test runs
       isolate: true,

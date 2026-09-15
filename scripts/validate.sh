@@ -477,7 +477,19 @@ run_frontend_validation() {
 
     # Run tests
     print_step "Running Vitest (Tests)..."
-    if ! npm run test --prefix "$FRONTEND_DIR" -- --run; then
+    # Machine-aware test execution (fast-confidence-loop spec SS3.3): boxes with
+    # >=64 GB RAM run files in parallel with a bigger heap; small boxes and CI
+    # runners keep the inherited sequential + 8 GB settings byte-identically.
+    # /proc/meminfo is Linux-only: its absence (macOS) falls to 0 -> sequential.
+    MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
+    MEM_KB="${MEM_KB:-0}"
+    if [ "${VITEST_PARALLEL:-}" != "0" ] && [ "$MEM_KB" -ge 67108864 ]; then
+        export VITEST_PARALLEL=1
+        export VITEST_MAX_WORKERS="${VITEST_MAX_WORKERS:-8}"
+        export VITEST_HEAP_MB="${VITEST_HEAP_MB:-16384}"
+        print_step "Parallel vitest: ${VITEST_MAX_WORKERS} workers, ${VITEST_HEAP_MB} MB heap (RAM $((MEM_KB / 1048576)) GB)"
+    fi
+    if ! VITEST_HEAP_MB="${VITEST_HEAP_MB:-8192}" npm run test --prefix "$FRONTEND_DIR" -- --run; then
         print_error "Frontend tests failed"
         echo ""
         echo "Fix failing tests, then re-run validation."
