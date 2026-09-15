@@ -88,7 +88,12 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          uv run python scripts/create-docs-tasks.py drift-report.json
+          # Best-effort by design: the repo's LINEAR_API_KEY currently 401s
+          # (rotated/expired — owner-held secret). Drift detection itself
+          # worked; only backlog-task creation failed, so it must not color
+          # the whole check red. Re-tighten once the key is rotated.
+          uv run python scripts/create-docs-tasks.py drift-report.json || \
+            echo "::warning::Linear task creation failed — LINEAR_API_KEY secret needs rotation"
 
       - name: Comment on PR with drift summary
         if: github.event_name == 'pull_request' && steps.check-drift.outputs.drift_detected == 'true'
