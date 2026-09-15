@@ -52,7 +52,6 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.tests.unit.conftest import get_auth_headers
@@ -72,28 +71,6 @@ async def create_authenticated_client() -> AsyncGenerator[AsyncClient]:
 
     Note: Requires API key auth to be enabled via the
     enable_api_key_auth_for_unit_tests fixture from backend.tests.unit.conftest.
-    """
-    # Import app lazily to avoid loading it during collection
-    from backend.main import app
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers=get_auth_headers(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture
-async def authenticated_client() -> AsyncGenerator[AsyncClient]:
-    """Provide an authenticated AsyncClient as a pytest fixture.
-
-    This is a convenience fixture for tests that prefer fixture injection
-    over context managers.
-
-    Usage:
-        async def test_something(authenticated_client):
-            response = await authenticated_client.get("/api/endpoint")
     """
     # Import app lazily to avoid loading it during collection
     from backend.main import app
