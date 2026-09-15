@@ -56,7 +56,14 @@ export type VehicleType = 'car' | 'truck' | 'motorcycle' | 'suv' | 'van' | 'othe
 /**
  * Day of week for schedule.
  */
-export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type DayOfWeek =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
 
 /**
  * Weekly schedule structure - maps day names to arrays of allowed hours (0-23).
@@ -820,14 +827,11 @@ export async function linkMemberToPerson(
   memberId: number,
   knownPersonId: number | null
 ): Promise<LinkPersonResponse> {
-  const response = await fetch(
-    `${BASE_URL}/api/household/members/${memberId}/link-person`,
-    {
-      method: 'PATCH',
-      headers: buildHeaders(),
-      body: JSON.stringify({ known_person_id: knownPersonId }),
-    }
-  );
+  const response = await fetch(`${BASE_URL}/api/household/members/${memberId}/link-person`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify({ known_person_id: knownPersonId }),
+  });
   return handleResponse<LinkPersonResponse>(response);
 }
 
@@ -842,13 +846,8 @@ export function useLinkMemberToPerson() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      memberId,
-      knownPersonId,
-    }: {
-      memberId: number;
-      knownPersonId: number | null;
-    }) => linkMemberToPerson(memberId, knownPersonId),
+    mutationFn: ({ memberId, knownPersonId }: { memberId: number; knownPersonId: number | null }) =>
+      linkMemberToPerson(memberId, knownPersonId),
     onSuccess: () => {
       // Invalidate members query to refresh the list
       void queryClient.invalidateQueries({ queryKey: householdQueryKeys.members() });

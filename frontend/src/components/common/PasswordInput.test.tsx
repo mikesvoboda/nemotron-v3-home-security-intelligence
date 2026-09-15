@@ -121,9 +121,7 @@ describe('PasswordInput', () => {
     });
 
     it('accepts value with special characters', () => {
-      render(
-        <PasswordInput label="Password" value="P@ssw0rd!#$%^&*()" onChange={() => {}} />
-      );
+      render(<PasswordInput label="Password" value="P@ssw0rd!#$%^&*()" onChange={() => {}} />);
       const input = screen.getByLabelText('Password');
       expect(input).toHaveValue('P@ssw0rd!#$%^&*()');
     });
@@ -203,24 +201,14 @@ describe('PasswordInput', () => {
   describe('error state', () => {
     it('renders error message when error prop is provided', () => {
       render(
-        <PasswordInput
-          label="Password"
-          value=""
-          onChange={() => {}}
-          error="Password is required"
-        />
+        <PasswordInput label="Password" value="" onChange={() => {}} error="Password is required" />
       );
       expect(screen.getByText('Password is required')).toBeInTheDocument();
     });
 
     it('applies error styling to input when error prop is provided', () => {
       render(
-        <PasswordInput
-          label="Password"
-          value=""
-          onChange={() => {}}
-          error="Password is required"
-        />
+        <PasswordInput label="Password" value="" onChange={() => {}} error="Password is required" />
       );
       const input = screen.getByLabelText('Password');
       // Should have error border class (border-red-500 or similar)
@@ -229,12 +217,7 @@ describe('PasswordInput', () => {
 
     it('associates error message with input using aria-describedby', () => {
       render(
-        <PasswordInput
-          label="Password"
-          value=""
-          onChange={() => {}}
-          error="Password is required"
-        />
+        <PasswordInput label="Password" value="" onChange={() => {}} error="Password is required" />
       );
       const input = screen.getByLabelText('Password');
       const errorId = input.getAttribute('aria-describedby');

@@ -12,6 +12,7 @@ Related: Flaky integration test investigation
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -85,6 +86,7 @@ class TestDatabaseCleanupIsolation:
         event = Event(
             batch_id=str(uuid.uuid4()),
             camera_id=camera_id,
+            started_at=datetime.now(UTC),  # NOT NULL column (R-T9-CLEANUPISO)
             risk_score=50,
             summary="Test event for FK",
         )
@@ -160,6 +162,7 @@ class TestDatabaseCleanupIsolation:
         event = Event(
             batch_id=str(uuid.uuid4()),
             camera_id=camera_id,
+            started_at=datetime.now(UTC),  # NOT NULL column (R-T9-CLEANUPISO)
             risk_score=75,
             summary="Test multi-flush event",
         )

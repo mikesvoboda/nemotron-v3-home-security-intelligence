@@ -282,7 +282,9 @@ describe('ContainersPanel', () => {
       render(<ContainersPanel {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('container-status-badge-nemotron')).toHaveTextContent('Unhealthy');
+        expect(screen.getByTestId('container-status-badge-nemotron')).toHaveTextContent(
+          'Unhealthy'
+        );
       });
     });
 

@@ -95,11 +95,7 @@ describe('PlateReadsPage', () => {
         },
       },
     });
-    return render(
-      <QueryClientProvider client={queryClient}>
-        {ui}
-      </QueryClientProvider>
-    );
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
 
   const mockSearchResults = {
@@ -120,9 +116,7 @@ describe('PlateReadsPage', () => {
     vi.mocked(usePlateStatisticsQueryModule.usePlateStatisticsQuery).mockReturnValue(
       mockStatistics
     );
-    vi.mocked(usePlateSearchQueryModule.usePlateSearchQuery).mockReturnValue(
-      mockSearchResults
-    );
+    vi.mocked(usePlateSearchQueryModule.usePlateSearchQuery).mockReturnValue(mockSearchResults);
   });
 
   afterEach(() => {
@@ -145,9 +139,7 @@ describe('PlateReadsPage', () => {
     it('renders the page description', () => {
       renderWithProviders(<PlateReadsPage />);
 
-      expect(
-        screen.getByText('License plate recognition data and analytics')
-      ).toBeInTheDocument();
+      expect(screen.getByText('License plate recognition data and analytics')).toBeInTheDocument();
     });
 
     it('renders the Car icon in header', () => {

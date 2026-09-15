@@ -17,10 +17,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
 import { logger } from '../services/logger';
-import {
-  isHeartbeatMessage,
-  isErrorMessage,
-} from '../types/websocket';
+import { isHeartbeatMessage, isErrorMessage } from '../types/websocket';
 
 import type {
   BatchAnalysisStartedPayload,
@@ -183,7 +180,9 @@ function isBatchAnalysisStartedMessage(value: unknown): value is BatchAnalysisSt
 function isBatchAnalysisCompletedMessage(value: unknown): value is BatchAnalysisCompletedMessage {
   if (!value || typeof value !== 'object') return false;
   const msg = value as Record<string, unknown>;
-  return msg.type === 'batch.analysis_completed' && typeof msg.data === 'object' && msg.data !== null;
+  return (
+    msg.type === 'batch.analysis_completed' && typeof msg.data === 'object' && msg.data !== null
+  );
 }
 
 function isBatchAnalysisFailedMessage(value: unknown): value is BatchAnalysisFailedMessage {
@@ -341,13 +340,13 @@ export function useBatchProcessingStatus(
 
           // Trim completed/failed batches if we have too many
           const entries = Array.from(updated.entries());
-          const nonActive = entries.filter(([_, status]) =>
-            status.state === 'completed' || status.state === 'failed'
+          const nonActive = entries.filter(
+            ([_, status]) => status.state === 'completed' || status.state === 'failed'
           );
           if (nonActive.length > maxHistory) {
             // Sort by updatedAt (oldest first) and remove excess
-            nonActive.sort((a, b) =>
-              new Date(a[1].updatedAt).getTime() - new Date(b[1].updatedAt).getTime()
+            nonActive.sort(
+              (a, b) => new Date(a[1].updatedAt).getTime() - new Date(b[1].updatedAt).getTime()
             );
             const toRemove = nonActive.slice(0, nonActive.length - maxHistory);
             toRemove.forEach(([batchId]) => updated.delete(batchId));
@@ -393,13 +392,13 @@ export function useBatchProcessingStatus(
 
           // Trim completed/failed batches if we have too many
           const entries = Array.from(updated.entries());
-          const nonActive = entries.filter(([_, status]) =>
-            status.state === 'completed' || status.state === 'failed'
+          const nonActive = entries.filter(
+            ([_, status]) => status.state === 'completed' || status.state === 'failed'
           );
           if (nonActive.length > maxHistory) {
             // Sort by updatedAt (oldest first) and remove excess
-            nonActive.sort((a, b) =>
-              new Date(a[1].updatedAt).getTime() - new Date(b[1].updatedAt).getTime()
+            nonActive.sort(
+              (a, b) => new Date(a[1].updatedAt).getTime() - new Date(b[1].updatedAt).getTime()
             );
             const toRemove = nonActive.slice(0, nonActive.length - maxHistory);
             toRemove.forEach(([batchId]) => updated.delete(batchId));
@@ -489,9 +488,8 @@ export function useBatchProcessingStatus(
   }, [batchStatuses]);
 
   const activeCount = useMemo(() => {
-    return Array.from(batchStatuses.values()).filter(
-      (status) => status.state === 'analyzing'
-    ).length;
+    return Array.from(batchStatuses.values()).filter((status) => status.state === 'analyzing')
+      .length;
   }, [batchStatuses]);
 
   return {

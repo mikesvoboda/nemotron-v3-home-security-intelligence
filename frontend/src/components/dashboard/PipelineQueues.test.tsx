@@ -231,26 +231,14 @@ describe('PipelineQueues', () => {
   describe('detailed queue status (NEM-3654)', () => {
     it('displays overall health badge when queue status provided', () => {
       const queuesStatus = createMockQueuesStatus();
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.getByTestId('overall-health-badge')).toHaveTextContent('healthy');
     });
 
     it('displays per-queue health badges', () => {
       const queuesStatus = createMockQueuesStatus();
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.getByTestId('detection-health-badge')).toHaveTextContent('healthy');
       expect(screen.getByTestId('analysis-health-badge')).toHaveTextContent('healthy');
@@ -258,13 +246,7 @@ describe('PipelineQueues', () => {
 
     it('displays worker count from detailed status', () => {
       const queuesStatus = createMockQueuesStatus();
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       // Worker count should be displayed (4 workers)
       expect(screen.getAllByText('4')).toHaveLength(2); // Both queues have 4 workers
@@ -272,13 +254,7 @@ describe('PipelineQueues', () => {
 
     it('displays throughput metrics', () => {
       const queuesStatus = createMockQueuesStatus();
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       // Detection queue has 12.5 jobs/min (rounded to 13 since >= 10)
       expect(screen.getByText('13/min')).toBeInTheDocument();
@@ -288,13 +264,7 @@ describe('PipelineQueues', () => {
 
     it('displays oldest job wait time', () => {
       const queuesStatus = createMockQueuesStatus();
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       // Detection queue has 15.5s wait time
       expect(screen.getByText('15.5s')).toBeInTheDocument();
@@ -302,13 +272,7 @@ describe('PipelineQueues', () => {
 
     it('displays summary stats', () => {
       const queuesStatus = createMockQueuesStatus();
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.getByTestId('queue-summary-stats')).toBeInTheDocument();
       expect(screen.getByText('Queued')).toBeInTheDocument();
@@ -361,13 +325,7 @@ describe('PipelineQueues', () => {
         },
       });
 
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.getByTestId('overall-health-badge')).toHaveTextContent('warning');
       expect(screen.getByTestId('detection-health-badge')).toHaveTextContent('warning');
@@ -394,13 +352,7 @@ describe('PipelineQueues', () => {
         },
       });
 
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.getByTestId('overall-health-badge')).toHaveTextContent('critical');
       expect(screen.getByTestId('queue-warning-icon')).toBeInTheDocument();
@@ -438,13 +390,7 @@ describe('PipelineQueues', () => {
         },
       });
 
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.getByTestId('dlq-row')).toBeInTheDocument();
       expect(screen.getByText('Dead Letter Queue')).toBeInTheDocument();
@@ -476,13 +422,7 @@ describe('PipelineQueues', () => {
         ],
       });
 
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          queuesStatus={queuesStatus}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} queuesStatus={queuesStatus} />);
 
       expect(screen.queryByTestId('dlq-row')).not.toBeInTheDocument();
     });
@@ -490,13 +430,7 @@ describe('PipelineQueues', () => {
 
   describe('loading state', () => {
     it('shows loading indicator in badges', () => {
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          isLoading={true}
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} isLoading={true} />);
 
       expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('...');
       expect(screen.getByTestId('analysis-queue-badge')).toHaveTextContent('...');
@@ -505,13 +439,7 @@ describe('PipelineQueues', () => {
 
   describe('fallback behavior', () => {
     it('uses fallback values when queuesStatus is null', () => {
-      render(
-        <PipelineQueues
-          detectionQueue={10}
-          analysisQueue={20}
-          queuesStatus={null}
-        />
-      );
+      render(<PipelineQueues detectionQueue={10} analysisQueue={20} queuesStatus={null} />);
 
       expect(screen.getByTestId('detection-queue-badge')).toHaveTextContent('10');
       expect(screen.getByTestId('analysis-queue-badge')).toHaveTextContent('20');
@@ -520,12 +448,7 @@ describe('PipelineQueues', () => {
     });
 
     it('does not show detailed metrics when queuesStatus is undefined', () => {
-      render(
-        <PipelineQueues
-          detectionQueue={5}
-          analysisQueue={3}
-        />
-      );
+      render(<PipelineQueues detectionQueue={5} analysisQueue={3} />);
 
       expect(screen.queryByTestId('detection-health-badge')).not.toBeInTheDocument();
       expect(screen.queryByTestId('analysis-health-badge')).not.toBeInTheDocument();

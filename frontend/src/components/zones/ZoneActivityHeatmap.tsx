@@ -19,7 +19,11 @@ import { useMemo, useState, useCallback } from 'react';
 
 import { useZoneActivityHeatmap } from '../../hooks/useZoneActivityHeatmap';
 
-import type { HeatmapTimeRange, HeatmapDataPoint, HourlyActivity } from '../../hooks/useZoneActivityHeatmap';
+import type {
+  HeatmapTimeRange,
+  HeatmapDataPoint,
+  HourlyActivity,
+} from '../../hooks/useZoneActivityHeatmap';
 
 // ============================================================================
 // Types (re-exported from hook for backward compatibility)
@@ -510,4 +514,11 @@ export default function ZoneActivityHeatmap({
 // ============================================================================
 
 // Export subcomponents for testing purposes
-export { HeatmapSkeleton, HeatmapError, HeatmapEmpty, WeeklyHeatmapGrid, HourlyBarChart, HeatmapLegend };
+export {
+  HeatmapSkeleton,
+  HeatmapError,
+  HeatmapEmpty,
+  WeeklyHeatmapGrid,
+  HourlyBarChart,
+  HeatmapLegend,
+};

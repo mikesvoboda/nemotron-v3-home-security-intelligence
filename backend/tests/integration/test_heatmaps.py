@@ -155,9 +155,10 @@ class TestHeatmapsParameterValidation:
                 "end_time": "2025-01-01T00:00:00Z",
             },
         )
-        # Note: 404 for camera check happens first in the current implementation
-        # If camera existed, this would return 400
-        assert response.status_code == 404
+        # Shipped order (routes/heatmaps.py get_heatmap_history): the
+        # start>end guard raises 400 BEFORE the camera-existence check,
+        # so an invalid range is 400 regardless of the camera. (ledger R-T9-HEATAPI)
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_get_heatmap_history_requires_time_parameters(self, async_client: AsyncClient):

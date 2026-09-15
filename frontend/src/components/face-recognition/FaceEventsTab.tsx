@@ -160,11 +160,7 @@ function FaceEventsError({
 /**
  * Face thumbnail display.
  */
-function FaceThumbnail({
-  event,
-}: {
-  event: FaceDetectionEvent;
-}): React.ReactElement {
+function FaceThumbnail({ event }: { event: FaceDetectionEvent }): React.ReactElement {
   if (event.thumbnail_url) {
     return (
       <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-700">

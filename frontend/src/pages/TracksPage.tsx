@@ -246,27 +246,23 @@ function ObjectClassFilterSelect({ filter, onFilterChange }: ObjectClassFilterPr
  * Statistics panel showing track metrics.
  */
 interface StatsPanelProps {
-  stats: {
-    active_count: number;
-    total_today: number;
-    avg_duration_seconds: number;
-    by_object_type: Record<string, number>;
-  } | undefined;
+  stats:
+    | {
+        active_count: number;
+        total_today: number;
+        avg_duration_seconds: number;
+        by_object_type: Record<string, number>;
+      }
+    | undefined;
   isLoading: boolean;
 }
 
 function StatsPanel({ stats, isLoading }: StatsPanelProps) {
   if (isLoading) {
     return (
-      <div
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        data-testid="stats-panel"
-      >
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="stats-panel">
         {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="h-24 animate-pulse rounded-lg bg-gray-800"
-          />
+          <div key={i} className="h-24 animate-pulse rounded-lg bg-gray-800" />
         ))}
       </div>
     );
@@ -277,20 +273,14 @@ function StatsPanel({ stats, isLoading }: StatsPanelProps) {
   }
 
   return (
-    <div
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-      data-testid="stats-panel"
-    >
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="stats-panel">
       {/* Active Tracks */}
       <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
         <div className="flex items-center gap-2 text-gray-400">
           <Zap className="h-4 w-4" />
           <span className="text-sm">Active Now</span>
         </div>
-        <p
-          className="mt-2 text-2xl font-bold text-[#76B900]"
-          data-testid="stat-active-count"
-        >
+        <p className="mt-2 text-2xl font-bold text-[#76B900]" data-testid="stat-active-count">
           {stats.active_count}
         </p>
       </div>
@@ -301,10 +291,7 @@ function StatsPanel({ stats, isLoading }: StatsPanelProps) {
           <Route className="h-4 w-4" />
           <span className="text-sm">Total Today</span>
         </div>
-        <p
-          className="mt-2 text-2xl font-bold text-white"
-          data-testid="stat-total-today"
-        >
+        <p className="mt-2 text-2xl font-bold text-white" data-testid="stat-total-today">
           {stats.total_today}
         </p>
       </div>
@@ -315,10 +302,7 @@ function StatsPanel({ stats, isLoading }: StatsPanelProps) {
           <Timer className="h-4 w-4" />
           <span className="text-sm">Avg Duration</span>
         </div>
-        <p
-          className="mt-2 text-2xl font-bold text-white"
-          data-testid="stat-avg-duration"
-        >
+        <p className="mt-2 text-2xl font-bold text-white" data-testid="stat-avg-duration">
           {formatDuration(stats.avg_duration_seconds)}
         </p>
       </div>
@@ -329,15 +313,15 @@ function StatsPanel({ stats, isLoading }: StatsPanelProps) {
           <Filter className="h-4 w-4" />
           <span className="text-sm">By Type</span>
         </div>
-        <div
-          className="mt-2 flex flex-wrap gap-2"
-          data-testid="stat-object-types"
-        >
+        <div className="mt-2 flex flex-wrap gap-2" data-testid="stat-object-types">
           {Object.entries(stats.by_object_type).map(([type, count]) => (
             <span
               key={type}
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-              style={{ backgroundColor: `${getObjectClassColor(type)}20`, color: getObjectClassColor(type) }}
+              style={{
+                backgroundColor: `${getObjectClassColor(type)}20`,
+                color: getObjectClassColor(type),
+              }}
             >
               {type}: {count}
             </span>
@@ -387,13 +371,9 @@ function TrackCard({ track, isSelected, onSelect }: TrackCardProps) {
             style={{ backgroundColor: color }}
             aria-hidden="true"
           />
-          <span className="text-sm font-medium capitalize text-white">
-            {track.object_class}
-          </span>
+          <span className="text-sm font-medium capitalize text-white">{track.object_class}</span>
         </div>
-        <span className="text-xs text-gray-500">
-          #{track.track_id}
-        </span>
+        <span className="text-xs text-gray-500">#{track.track_id}</span>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-400">
@@ -450,10 +430,7 @@ interface PaginationProps {
 
 function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
   return (
-    <div
-      className="mt-4 flex items-center justify-center gap-4"
-      data-testid="pagination"
-    >
+    <div className="mt-4 flex items-center justify-center gap-4" data-testid="pagination">
       <Button
         variant="ghost"
         size="sm"
@@ -622,14 +599,7 @@ function TrajectoryPanel({ history, isLoading, onClose }: TrajectoryPanelProps) 
 
           {/* Intermediate points */}
           {scaledPoints.slice(1, -1).map((point, i) => (
-            <circle
-              key={i}
-              cx={point.x}
-              cy={point.y}
-              r="3"
-              fill="#76B900"
-              opacity="0.6"
-            />
+            <circle key={i} cx={point.x} cy={point.y} r="3" fill="#76B900" opacity="0.6" />
           ))}
         </svg>
       </div>
@@ -638,15 +608,11 @@ function TrajectoryPanel({ history, isLoading, onClose }: TrajectoryPanelProps) 
       <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
           <span className="text-gray-400">Distance</span>
-          <p className="font-medium text-white">
-            {history.metrics.total_distance.toFixed(1)} px
-          </p>
+          <p className="font-medium text-white">{history.metrics.total_distance.toFixed(1)} px</p>
         </div>
         <div>
           <span className="text-gray-400">Speed</span>
-          <p className="font-medium text-white">
-            {history.metrics.avg_speed.toFixed(2)} px/s
-          </p>
+          <p className="font-medium text-white">{history.metrics.avg_speed.toFixed(2)} px/s</p>
         </div>
         <div>
           <span className="text-gray-400">Direction</span>
@@ -721,17 +687,11 @@ function TracksPageComponent() {
     pageSize: PAGE_SIZE,
   });
 
-  const { data: stats, isLoading: isStatsLoading } = useCameraTracksStats(
-    selectedCameraId ?? ''
-  );
+  const { data: stats, isLoading: isStatsLoading } = useCameraTracksStats(selectedCameraId ?? '');
 
-  const { count: activeCount } = useActiveTracks(
-    selectedCameraId ?? ''
-  );
+  const { count: activeCount } = useActiveTracks(selectedCameraId ?? '');
 
-  const { data: trackHistory, isLoading: isHistoryLoading } = useTrackHistory(
-    selectedTrackId ?? 0
-  );
+  const { data: trackHistory, isLoading: isHistoryLoading } = useTrackHistory(selectedTrackId ?? 0);
 
   // Computed values
   const totalPages = Math.ceil(total / pageSize);

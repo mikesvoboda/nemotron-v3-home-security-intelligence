@@ -311,7 +311,9 @@ describe('FaceEventsTab', () => {
       renderWithQueryClient(<FaceEventsTab {...defaultProps} />);
 
       const knownCard = screen.getByTestId('face-event-card-1');
-      expect(within(knownCard).getByRole('button', { name: /view detection/i })).toBeInTheDocument();
+      expect(
+        within(knownCard).getByRole('button', { name: /view detection/i })
+      ).toBeInTheDocument();
     });
 
     it('calls onViewDetection when View Detection is clicked', async () => {

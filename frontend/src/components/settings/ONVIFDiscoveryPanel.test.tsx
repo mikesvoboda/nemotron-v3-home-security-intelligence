@@ -39,17 +39,9 @@ function createWrapper() {
   return Wrapper;
 }
 
-function renderComponent(
-  isOpen = true,
-  onClose = vi.fn(),
-  onDeviceSelect = vi.fn()
-) {
+function renderComponent(isOpen = true, onClose = vi.fn(), onDeviceSelect = vi.fn()) {
   return render(
-    <ONVIFDiscoveryPanel
-      isOpen={isOpen}
-      onClose={onClose}
-      onDeviceSelect={onDeviceSelect}
-    />,
+    <ONVIFDiscoveryPanel isOpen={isOpen} onClose={onClose} onDeviceSelect={onDeviceSelect} />,
     { wrapper: createWrapper() }
   );
 }
@@ -344,11 +336,7 @@ describe('ONVIFDiscoveryPanel', () => {
       const user = userEvent.setup();
 
       render(
-        <ONVIFDiscoveryPanel
-          isOpen={true}
-          onClose={onClose}
-          onDeviceSelect={onDeviceSelect}
-        />,
+        <ONVIFDiscoveryPanel isOpen={true} onClose={onClose} onDeviceSelect={onDeviceSelect} />,
         { wrapper: createWrapper() }
       );
 
@@ -395,14 +383,9 @@ describe('ONVIFDiscoveryPanel', () => {
       const onClose = vi.fn();
       const user = userEvent.setup();
 
-      render(
-        <ONVIFDiscoveryPanel
-          isOpen={true}
-          onClose={onClose}
-          onDeviceSelect={vi.fn()}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<ONVIFDiscoveryPanel isOpen={true} onClose={onClose} onDeviceSelect={vi.fn()} />, {
+        wrapper: createWrapper(),
+      });
 
       await user.click(screen.getByText('Cancel'));
 
@@ -413,14 +396,9 @@ describe('ONVIFDiscoveryPanel', () => {
       const onClose = vi.fn();
       const user = userEvent.setup();
 
-      render(
-        <ONVIFDiscoveryPanel
-          isOpen={true}
-          onClose={onClose}
-          onDeviceSelect={vi.fn()}
-        />,
-        { wrapper: createWrapper() }
-      );
+      render(<ONVIFDiscoveryPanel isOpen={true} onClose={onClose} onDeviceSelect={vi.fn()} />, {
+        wrapper: createWrapper(),
+      });
 
       await user.click(screen.getByLabelText('Close modal'));
 

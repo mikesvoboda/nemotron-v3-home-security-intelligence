@@ -8,10 +8,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useDetectionEnrichment,
-  detectionEnrichmentKeys,
-} from './useDetectionEnrichment';
+import { useDetectionEnrichment, detectionEnrichmentKeys } from './useDetectionEnrichment';
 import * as api from '../services/api';
 import { createQueryClient } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -101,11 +98,7 @@ describe('useDetectionEnrichment', () => {
     });
 
     it('generates correct detail key', () => {
-      expect(detectionEnrichmentKeys.detail(123)).toEqual([
-        'detectionEnrichment',
-        'detail',
-        123,
-      ]);
+      expect(detectionEnrichmentKeys.detail(123)).toEqual(['detectionEnrichment', 'detail', 123]);
     });
   });
 
@@ -381,9 +374,7 @@ describe('useDetectionEnrichment', () => {
         errors: [],
       };
 
-      (api.fetchDetectionEnrichment as ReturnType<typeof vi.fn>).mockResolvedValue(
-        emptyEnrichment
-      );
+      (api.fetchDetectionEnrichment as ReturnType<typeof vi.fn>).mockResolvedValue(emptyEnrichment);
 
       const { result } = renderHook(() => useDetectionEnrichment(123), {
         wrapper: createQueryWrapper(queryClient),
@@ -402,12 +393,9 @@ describe('useDetectionEnrichment', () => {
 
   describe('enabled option', () => {
     it('does not fetch when enabled is false', async () => {
-      const { result } = renderHook(
-        () => useDetectionEnrichment(123, { enabled: false }),
-        {
-          wrapper: createQueryWrapper(queryClient),
-        }
-      );
+      const { result } = renderHook(() => useDetectionEnrichment(123, { enabled: false }), {
+        wrapper: createQueryWrapper(queryClient),
+      });
 
       // Give it time to potentially fetch
       await new Promise((resolve) => setTimeout(resolve, 100));

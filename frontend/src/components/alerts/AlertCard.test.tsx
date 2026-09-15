@@ -281,9 +281,7 @@ describe('AlertCard', () => {
       const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
       await user.click(acknowledgeBtn);
 
-      expect(mockOnAcknowledge).toHaveBeenCalledWith(
-        expect.objectContaining({ versionId: 42 })
-      );
+      expect(mockOnAcknowledge).toHaveBeenCalledWith(expect.objectContaining({ versionId: 42 }));
     });
 
     it('includes version_id in dismiss callback params', async () => {
@@ -295,9 +293,7 @@ describe('AlertCard', () => {
       const dismissBtn = screen.getByRole('button', { name: /dismiss/i });
       await user.click(dismissBtn);
 
-      expect(mockOnDismiss).toHaveBeenCalledWith(
-        expect.objectContaining({ versionId: 99 })
-      );
+      expect(mockOnDismiss).toHaveBeenCalledWith(expect.objectContaining({ versionId: 99 }));
     });
   });
 

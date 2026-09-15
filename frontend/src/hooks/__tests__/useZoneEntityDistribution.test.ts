@@ -13,7 +13,10 @@ import {
   getEntityTypeLabel,
 } from '../useZoneEntityDistribution';
 
-import type { ZoneEntityDistribution, ZoneEntityDistributionResponse } from '../useZoneEntityDistribution';
+import type {
+  ZoneEntityDistribution,
+  ZoneEntityDistributionResponse,
+} from '../useZoneEntityDistribution';
 
 // ============================================================================
 // Test Data
@@ -86,7 +89,9 @@ describe('useZoneEntityDistribution', () => {
 
     expect(result.current.distribution).toEqual(mockZoneDistribution);
     expect(result.current.error).toBeNull();
-    expect(mockFetch).toHaveBeenCalledWith('/api/analytics-zones/polygon-zones/1/entity-distribution');
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/analytics-zones/polygon-zones/1/entity-distribution'
+    );
   });
 
   it('should not fetch when disabled', () => {
@@ -155,10 +160,9 @@ describe('useAllZonesEntityDistribution', () => {
       json: () => Promise.resolve(mockAllZonesResponse),
     });
 
-    const { result } = renderHook(
-      () => useAllZonesEntityDistribution({ cameraId: 'front_door' }),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useAllZonesEntityDistribution({ cameraId: 'front_door' }), {
+      wrapper: createQueryWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

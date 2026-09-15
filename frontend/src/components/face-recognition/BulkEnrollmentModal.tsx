@@ -87,10 +87,7 @@ function isValidFileType(file: File): boolean {
 // Component
 // ============================================================================
 
-export default function BulkEnrollmentModal({
-  isOpen,
-  onClose,
-}: BulkEnrollmentModalProps) {
+export default function BulkEnrollmentModal({ isOpen, onClose }: BulkEnrollmentModalProps) {
   // Form state
   const [mode, setMode] = useState<EnrollMode>('existing');
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
@@ -162,78 +159,84 @@ export default function BulkEnrollmentModal({
   }, [isOpen, files]);
 
   // Handle file selection
-  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = event.target.files;
-    if (!selectedFiles) return;
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = event.target.files;
+      if (!selectedFiles) return;
 
-    const newFiles: FilePreview[] = [];
-    const errors: string[] = [];
+      const newFiles: FilePreview[] = [];
+      const errors: string[] = [];
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
 
-      if (!isValidFileType(file)) {
-        errors.push(`${file.name}: Invalid file type. Only JPEG/PNG allowed.`);
-        continue;
+        if (!isValidFileType(file)) {
+          errors.push(`${file.name}: Invalid file type. Only JPEG/PNG allowed.`);
+          continue;
+        }
+
+        if (newFiles.length + files.length >= MAX_FILES) {
+          errors.push(`Maximum ${MAX_FILES} files allowed.`);
+          break;
+        }
+
+        newFiles.push({
+          file,
+          previewUrl: URL.createObjectURL(file),
+        });
       }
 
-      if (newFiles.length + files.length >= MAX_FILES) {
-        errors.push(`Maximum ${MAX_FILES} files allowed.`);
-        break;
+      if (errors.length > 0) {
+        toast.warning(errors.join(' '));
       }
 
-      newFiles.push({
-        file,
-        previewUrl: URL.createObjectURL(file),
-      });
-    }
+      setFiles((prev) => [...prev, ...newFiles]);
 
-    if (errors.length > 0) {
-      toast.warning(errors.join(' '));
-    }
-
-    setFiles((prev) => [...prev, ...newFiles]);
-
-    // Reset the input
-    event.target.value = '';
-  }, [files.length, toast]);
+      // Reset the input
+      event.target.value = '';
+    },
+    [files.length, toast]
+  );
 
   // Handle drag and drop
-  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-    const droppedFiles = event.dataTransfer.files;
-    if (!droppedFiles) return;
+      const droppedFiles = event.dataTransfer.files;
+      if (!droppedFiles) return;
 
-    const newFiles: FilePreview[] = [];
-    const errors: string[] = [];
+      const newFiles: FilePreview[] = [];
+      const errors: string[] = [];
 
-    for (let i = 0; i < droppedFiles.length; i++) {
-      const file = droppedFiles[i];
+      for (let i = 0; i < droppedFiles.length; i++) {
+        const file = droppedFiles[i];
 
-      if (!isValidFileType(file)) {
-        errors.push(`${file.name}: Invalid file type. Only JPEG/PNG allowed.`);
-        continue;
+        if (!isValidFileType(file)) {
+          errors.push(`${file.name}: Invalid file type. Only JPEG/PNG allowed.`);
+          continue;
+        }
+
+        if (newFiles.length + files.length >= MAX_FILES) {
+          errors.push(`Maximum ${MAX_FILES} files allowed.`);
+          break;
+        }
+
+        newFiles.push({
+          file,
+          previewUrl: URL.createObjectURL(file),
+        });
       }
 
-      if (newFiles.length + files.length >= MAX_FILES) {
-        errors.push(`Maximum ${MAX_FILES} files allowed.`);
-        break;
+      if (errors.length > 0) {
+        toast.warning(errors.join(' '));
       }
 
-      newFiles.push({
-        file,
-        previewUrl: URL.createObjectURL(file),
-      });
-    }
-
-    if (errors.length > 0) {
-      toast.warning(errors.join(' '));
-    }
-
-    setFiles((prev) => [...prev, ...newFiles]);
-  }, [files.length, toast]);
+      setFiles((prev) => [...prev, ...newFiles]);
+    },
+    [files.length, toast]
+  );
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -265,7 +268,7 @@ export default function BulkEnrollmentModal({
 
       const response = await bulkEnrollMutation.mutateAsync({
         images: files.map((f) => f.file),
-        person_id: mode === 'existing' ? selectedPersonId ?? undefined : undefined,
+        person_id: mode === 'existing' ? (selectedPersonId ?? undefined) : undefined,
         new_person_name: mode === 'new' ? newPersonName.trim() : undefined,
         is_household_member: mode === 'new' ? isHouseholdMember : undefined,
       });
@@ -343,9 +346,9 @@ export default function BulkEnrollmentModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-2xl transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6 flex items-center justify-between">
                   <Dialog.Title className="text-lg font-semibold text-white">
                     {enrollmentState === 'complete' ? 'Enrollment Results' : 'Bulk Face Enrollment'}
                   </Dialog.Title>
@@ -353,7 +356,7 @@ export default function BulkEnrollmentModal({
                     type="button"
                     onClick={handleClose}
                     disabled={isPending}
-                    className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                    className="p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
                     aria-label="Close modal"
                   >
                     <X className="h-5 w-5" />
@@ -364,20 +367,20 @@ export default function BulkEnrollmentModal({
                 {enrollmentState === 'processing' && (
                   <div className="space-y-6">
                     <div className="flex flex-col items-center justify-center py-12">
-                      <Loader2 className="h-12 w-12 animate-spin text-[#76B900] mb-4" />
-                      <p className="text-white text-lg font-medium">Processing images...</p>
-                      <p className="text-gray-400 text-sm mt-2">
+                      <Loader2 className="mb-4 h-12 w-12 animate-spin text-[#76B900]" />
+                      <p className="text-lg font-medium text-white">Processing images...</p>
+                      <p className="mt-2 text-sm text-gray-400">
                         Validating faces and extracting embeddings
                       </p>
                     </div>
 
                     {/* Progress Bar */}
                     <div className="w-full">
-                      <div className="flex justify-between text-sm text-gray-400 mb-2">
+                      <div className="mb-2 flex justify-between text-sm text-gray-400">
                         <span>Progress</span>
                         <span>{processingProgress}%</span>
                       </div>
-                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-2 overflow-hidden rounded-full bg-gray-700">
                         <div
                           className="h-full bg-[#76B900] transition-all duration-300"
                           style={{ width: `${processingProgress}%` }}
@@ -393,56 +396,59 @@ export default function BulkEnrollmentModal({
                   <div className="space-y-6">
                     {/* Summary Cards */}
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                      <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-5 w-5 text-green-400" />
-                          <span className="text-green-400 font-medium">Successful</span>
+                          <span className="font-medium text-green-400">Successful</span>
                         </div>
-                        <p className="text-2xl font-bold text-white mt-2" data-testid="success-count">
+                        <p
+                          className="mt-2 text-2xl font-bold text-white"
+                          data-testid="success-count"
+                        >
                           {successCount}
                         </p>
                       </div>
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
                         <div className="flex items-center gap-2">
                           <XCircle className="h-5 w-5 text-red-400" />
-                          <span className="text-red-400 font-medium">Failed</span>
+                          <span className="font-medium text-red-400">Failed</span>
                         </div>
-                        <p className="text-2xl font-bold text-white mt-2" data-testid="fail-count">
+                        <p className="mt-2 text-2xl font-bold text-white" data-testid="fail-count">
                           {failCount}
                         </p>
                       </div>
                     </div>
 
                     {/* Results List */}
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <div className="max-h-64 space-y-2 overflow-y-auto">
                       <p className="text-sm font-medium text-gray-300">Results by image:</p>
                       {results.map((result, index) => (
                         <div
                           key={index}
-                          className={`flex items-center justify-between p-3 rounded-lg ${
+                          className={`flex items-center justify-between rounded-lg p-3 ${
                             result.success
-                              ? 'bg-green-500/5 border border-green-500/20'
-                              : 'bg-red-500/5 border border-red-500/20'
+                              ? 'border border-green-500/20 bg-green-500/5'
+                              : 'border border-red-500/20 bg-red-500/5'
                           }`}
                           data-testid={`result-item-${index}`}
                         >
                           <div className="flex items-center gap-3">
                             {result.success ? (
-                              <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                              <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-400" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                              <XCircle className="h-4 w-4 flex-shrink-0 text-red-400" />
                             )}
-                            <span className="text-white text-sm truncate max-w-[200px]">
+                            <span className="max-w-[200px] truncate text-sm text-white">
                               {result.filename}
                             </span>
                           </div>
                           <div className="text-right">
                             {result.success ? (
-                              <span className="text-green-400 text-sm">
+                              <span className="text-sm text-green-400">
                                 Quality: {result.quality_score?.toFixed(2)}
                               </span>
                             ) : (
-                              <span className="text-red-400 text-sm truncate max-w-[200px]">
+                              <span className="max-w-[200px] truncate text-sm text-red-400">
                                 {result.error}
                               </span>
                             )}
@@ -456,7 +462,7 @@ export default function BulkEnrollmentModal({
                       <button
                         type="button"
                         onClick={handleClose}
-                        className="px-6 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors"
+                        className="rounded-lg bg-[#76B900] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00]"
                       >
                         Done
                       </button>
@@ -469,11 +475,11 @@ export default function BulkEnrollmentModal({
                   <>
                     {/* File Upload Area */}
                     <div className="mb-6">
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="mb-2 block text-sm font-medium text-gray-300">
                         Face Images ({files.length}/{MAX_FILES})
                       </label>
                       <div
-                        className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-[#76B900] transition-colors"
+                        className="cursor-pointer rounded-lg border-2 border-dashed border-gray-600 p-6 text-center transition-colors hover:border-[#76B900]"
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
                         onClick={() => document.getElementById('file-input')?.click()}
@@ -488,11 +494,9 @@ export default function BulkEnrollmentModal({
                         aria-label="Drop files or click to upload"
                         data-testid="drop-zone"
                       >
-                        <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                        <p className="text-gray-300">
-                          Drag & drop images here, or click to select
-                        </p>
-                        <p className="text-gray-500 text-sm mt-1">
+                        <Upload className="mx-auto mb-2 h-8 w-8 text-gray-400" />
+                        <p className="text-gray-300">Drag & drop images here, or click to select</p>
+                        <p className="mt-1 text-sm text-gray-500">
                           JPEG or PNG, max {MAX_FILES} files
                         </p>
                         <input
@@ -515,23 +519,23 @@ export default function BulkEnrollmentModal({
                           {files.map((filePreview, index) => (
                             <div
                               key={index}
-                              className="relative group"
+                              className="group relative"
                               data-testid={`file-preview-${index}`}
                             >
                               <img
                                 src={filePreview.previewUrl}
                                 alt={filePreview.file.name}
-                                className="w-full h-20 object-cover rounded-lg border border-gray-700"
+                                className="h-20 w-full rounded-lg border border-gray-700 object-cover"
                               />
                               <button
                                 type="button"
                                 onClick={() => removeFile(index)}
-                                className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
                                 aria-label={`Remove ${filePreview.file.name}`}
                               >
                                 <X className="h-3 w-3" />
                               </button>
-                              <p className="text-xs text-gray-400 truncate mt-1 text-center">
+                              <p className="mt-1 truncate text-center text-xs text-gray-400">
                                 {formatFileSize(filePreview.file.size)}
                               </p>
                             </div>
@@ -545,7 +549,7 @@ export default function BulkEnrollmentModal({
                       <legend className="sr-only">Enrollment mode</legend>
                       <div className="space-y-3">
                         {/* Existing Person */}
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-3">
                           <input
                             type="radio"
                             name="enroll-mode"
@@ -553,14 +557,14 @@ export default function BulkEnrollmentModal({
                             checked={mode === 'existing'}
                             onChange={() => setMode('existing')}
                             disabled={isPending}
-                            className="w-4 h-4 text-[#76B900] bg-[#121212] border-gray-600 focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+                            className="h-4 w-4 border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
                             aria-label="Add to existing person"
                           />
                           <span className="text-white">Add to existing person</span>
                         </label>
 
                         {/* Create New Person */}
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-3">
                           <input
                             type="radio"
                             name="enroll-mode"
@@ -568,7 +572,7 @@ export default function BulkEnrollmentModal({
                             checked={mode === 'new'}
                             onChange={() => setMode('new')}
                             disabled={isPending}
-                            className="w-4 h-4 text-[#76B900] bg-[#121212] border-gray-600 focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+                            className="h-4 w-4 border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
                             aria-label="Create new person"
                           />
                           <span className="text-white">Create new person</span>
@@ -580,11 +584,11 @@ export default function BulkEnrollmentModal({
                     {mode === 'existing' && (
                       <div className="mb-6">
                         {personsQuery.isLoading && (
-                          <div className="text-gray-400 text-sm">Loading persons...</div>
+                          <div className="text-sm text-gray-400">Loading persons...</div>
                         )}
 
                         {personsQuery.isError && (
-                          <div className="text-red-400 text-sm">
+                          <div className="text-sm text-red-400">
                             {personsQuery.error instanceof Error
                               ? personsQuery.error.message
                               : 'Failed to load persons'}
@@ -594,7 +598,7 @@ export default function BulkEnrollmentModal({
                         {!personsQuery.isLoading && !personsQuery.isError && (
                           <>
                             {(personsQuery.data?.length ?? 0) === 0 ? (
-                              <div className="text-gray-400 text-sm">
+                              <div className="text-sm text-gray-400">
                                 No known persons available. Create a new person instead.
                               </div>
                             ) : (
@@ -603,15 +607,17 @@ export default function BulkEnrollmentModal({
                                 onChange={handlePersonSelect}
                                 disabled={isPending}
                               >
-                                <Listbox.Label className="block text-sm font-medium text-gray-300 mb-1">
+                                <Listbox.Label className="mb-1 block text-sm font-medium text-gray-300">
                                   Select Person
                                 </Listbox.Label>
                                 <div className="relative">
                                   <Listbox.Button
                                     aria-label="Select Person"
-                                    className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50 text-left flex items-center justify-between"
+                                    className="flex w-full items-center justify-between rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-left text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                                   >
-                                    <span className={selectedPerson ? 'text-white' : 'text-gray-500'}>
+                                    <span
+                                      className={selectedPerson ? 'text-white' : 'text-gray-500'}
+                                    >
                                       {selectedPerson?.name ?? '-- Select a person --'}
                                     </span>
                                     <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -623,21 +629,21 @@ export default function BulkEnrollmentModal({
                                     leaveFrom="opacity-100"
                                     leaveTo="opacity-0"
                                   >
-                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-[#1A1A1A] border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-700 bg-[#1A1A1A] shadow-lg focus:outline-none">
                                       {/* Search Input */}
-                                      <div className="p-2 border-b border-gray-700">
+                                      <div className="border-b border-gray-700 p-2">
                                         <input
                                           type="text"
                                           value={searchQuery}
                                           onChange={(e) => setSearchQuery(e.target.value)}
                                           placeholder="Search persons..."
-                                          className="w-full px-2 py-1 text-sm bg-[#121212] border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+                                          className="w-full rounded border border-gray-600 bg-[#121212] px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#76B900]"
                                           onClick={(e) => e.stopPropagation()}
                                         />
                                       </div>
 
                                       {filteredPersons.length === 0 ? (
-                                        <div className="py-2 px-3 text-sm text-gray-500">
+                                        <div className="px-3 py-2 text-sm text-gray-500">
                                           No matching persons found
                                         </div>
                                       ) : (
@@ -650,9 +656,9 @@ export default function BulkEnrollmentModal({
                                               value={person}
                                               disabled={atMax}
                                               className={({ active, disabled }) =>
-                                                `cursor-pointer select-none relative py-2 pl-10 pr-4 ${
+                                                `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
                                                   disabled
-                                                    ? 'opacity-50 cursor-not-allowed text-gray-500'
+                                                    ? 'cursor-not-allowed text-gray-500 opacity-50'
                                                     : active
                                                       ? 'bg-[#76B900]/20 text-white'
                                                       : 'text-gray-300'
@@ -669,9 +675,9 @@ export default function BulkEnrollmentModal({
                                                     >
                                                       {person.name}
                                                     </span>
-                                                    <div className="flex items-center gap-2 ml-2">
+                                                    <div className="ml-2 flex items-center gap-2">
                                                       {person.is_household_member && (
-                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[#76B900]/20 text-[#76B900]">
+                                                        <span className="inline-flex items-center gap-1 rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs text-[#76B900]">
                                                           <Home className="h-3 w-3" />
                                                           Household
                                                         </span>
@@ -709,7 +715,7 @@ export default function BulkEnrollmentModal({
                         {selectedPerson && (
                           <div className="mt-2 flex items-center gap-2 text-sm">
                             {selectedAtMax ? (
-                              <span className="text-red-400 flex items-center gap-1">
+                              <span className="flex items-center gap-1 text-red-400">
                                 <AlertCircle className="h-4 w-4" />
                                 This person has reached the maximum of {MAX_EMBEDDINGS} face
                                 embeddings.
@@ -732,7 +738,7 @@ export default function BulkEnrollmentModal({
                         <div>
                           <label
                             htmlFor="person-name"
-                            className="block text-sm font-medium text-gray-300 mb-1"
+                            className="mb-1 block text-sm font-medium text-gray-300"
                           >
                             Name
                           </label>
@@ -743,29 +749,29 @@ export default function BulkEnrollmentModal({
                             onChange={(e) => setNewPersonName(e.target.value)}
                             disabled={isPending}
                             placeholder="Enter person's name"
-                            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50"
+                            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                           />
                         </div>
 
                         {/* Household Checkbox */}
-                        <label className="flex items-center gap-3 cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-3">
                           <input
                             type="checkbox"
                             checked={isHouseholdMember}
                             onChange={(e) => setIsHouseholdMember(e.target.checked)}
                             disabled={isPending}
-                            className="w-4 h-4 text-[#76B900] bg-[#121212] border-gray-600 rounded focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+                            className="h-4 w-4 rounded border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
                             aria-label="Is household member"
                           />
-                          <span className="text-white text-sm">Is household member</span>
+                          <span className="text-sm text-white">Is household member</span>
                         </label>
                       </div>
                     )}
 
                     {/* Warnings */}
                     {files.length > remainingSlots && mode === 'existing' && selectedPerson && (
-                      <div className="mb-6 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                        <p className="text-sm text-yellow-400 flex items-center gap-2">
+                      <div className="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
+                        <p className="flex items-center gap-2 text-sm text-yellow-400">
                           <AlertCircle className="h-4 w-4" />
                           Only {remainingSlots} of {files.length} images will be enrolled (limit
                           reached).
@@ -779,7 +785,7 @@ export default function BulkEnrollmentModal({
                         type="button"
                         onClick={handleClose}
                         disabled={isPending}
-                        className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -787,7 +793,7 @@ export default function BulkEnrollmentModal({
                         type="button"
                         onClick={() => void handleEnroll()}
                         disabled={!canEnroll}
-                        className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                        className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
                         data-testid="enroll-button"
                       >
                         {isPending && (

@@ -35,6 +35,23 @@ pytestmark = pytest.mark.integration
 # =============================================================================
 
 
+def _bypass_setup_guard():
+    """Bypass SetupGuardMiddleware like the shared client fixture does.
+
+    These file-local client fixtures build their own AsyncClient without
+    the shared fixture's SetupGuard bypass; with an empty users table
+    (integration_db truncates users) the real middleware returns 503 for
+    every request, making the endpoint contract unobservable. Mirrors
+    NEM-5312's convention: guard bypassed in integration tests (owner
+    ruling F3).
+    """
+
+    return patch(
+        "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+        AsyncMock(return_value=True),
+    )
+
+
 @pytest.fixture(autouse=True)
 def reset_notification_singleton():
     """Reset the notification service singleton before and after each test."""
@@ -78,6 +95,7 @@ async def notification_client(integration_db, mock_redis):
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=notification_settings),
         patch("backend.api.routes.notification.get_settings", return_value=notification_settings),
+        _bypass_setup_guard(),
     ):
         get_settings.cache_clear()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -107,6 +125,7 @@ async def notification_disabled_client(integration_db, mock_redis):
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=disabled_settings),
         patch("backend.api.routes.notification.get_settings", return_value=disabled_settings),
+        _bypass_setup_guard(),
     ):
         get_settings.cache_clear()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -143,6 +162,7 @@ async def email_only_client(integration_db, mock_redis):
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=email_only_settings),
         patch("backend.api.routes.notification.get_settings", return_value=email_only_settings),
+        _bypass_setup_guard(),
     ):
         get_settings.cache_clear()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

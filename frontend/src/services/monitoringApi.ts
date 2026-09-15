@@ -72,7 +72,9 @@ export async function fetchMonitoringHealth(): Promise<MonitoringHealthResponse>
 export async function fetchMonitoringTargets(): Promise<MonitoringTargetsResponse> {
   const response = await fetch('/api/system/monitoring/targets');
   if (!response.ok) {
-    throw new Error(`Failed to fetch monitoring targets: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch monitoring targets: ${response.status} ${response.statusText}`
+    );
   }
   return (await response.json()) as MonitoringTargetsResponse;
 }

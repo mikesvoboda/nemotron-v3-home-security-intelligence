@@ -392,9 +392,11 @@ class TestUserRelationships:
             password_hash="hash",  # pragma: allowlist secret
         )
 
-        # This may not exist if sessions are Redis-only
-        # assert hasattr(user, "sessions")
-        pass
+        # M3 T7 (audit 3.3): the assertion was commented out, leaving a
+        # construct-only test. The shipped contract is real and assertable:
+        # sessions are Redis-only, so the ORM User has no sessions
+        # relationship (backend/models/user.py defines api_keys only).
+        assert not hasattr(user, "sessions")
 
 
 # =============================================================================

@@ -42,11 +42,7 @@ import {
   useDeleteScheduledReportMutation,
   useTriggerScheduledReportMutation,
 } from '../hooks/useScheduledReports';
-import {
-  FREQUENCY_LABELS,
-  FORMAT_LABELS,
-  getScheduleDescription,
-} from '../types/scheduledReport';
+import { FREQUENCY_LABELS, FORMAT_LABELS, getScheduleDescription } from '../types/scheduledReport';
 
 import type {
   ScheduledReport,
@@ -88,11 +84,12 @@ function StatusBadge({ enabled }: { enabled: boolean }) {
  * FormatBadge displays the output format of a report.
  */
 function FormatBadge({ format }: { format: string }) {
-  const colorClass = {
-    pdf: 'border-red-500/30 bg-red-500/20 text-red-400',
-    csv: 'border-green-500/30 bg-green-500/20 text-green-400',
-    json: 'border-blue-500/30 bg-blue-500/20 text-blue-400',
-  }[format] ?? 'border-gray-500/30 bg-gray-500/20 text-gray-400';
+  const colorClass =
+    {
+      pdf: 'border-red-500/30 bg-red-500/20 text-red-400',
+      csv: 'border-green-500/30 bg-green-500/20 text-green-400',
+      json: 'border-blue-500/30 bg-blue-500/20 text-blue-400',
+    }[format] ?? 'border-gray-500/30 bg-gray-500/20 text-gray-400';
 
   return (
     <span
@@ -273,10 +270,16 @@ function ScheduledReportsPageContent() {
   });
 
   // Mutations
-  const { createReport, isLoading: isCreating, error: createError } =
-    useCreateScheduledReportMutation();
-  const { updateReport, isLoading: isUpdating, error: updateError } =
-    useUpdateScheduledReportMutation();
+  const {
+    createReport,
+    isLoading: isCreating,
+    error: createError,
+  } = useCreateScheduledReportMutation();
+  const {
+    updateReport,
+    isLoading: isUpdating,
+    error: updateError,
+  } = useUpdateScheduledReportMutation();
   const { deleteReport } = useDeleteScheduledReportMutation();
   const { triggerReport } = useTriggerScheduledReportMutation();
 
@@ -489,7 +492,7 @@ function ScheduledReportsPageContent() {
               {modalMode === 'create' ? 'Create Scheduled Report' : 'Edit Scheduled Report'}
             </h2>
             <ScheduledReportForm
-              report={modalMode === 'edit' ? selectedReport ?? undefined : undefined}
+              report={modalMode === 'edit' ? (selectedReport ?? undefined) : undefined}
               onSubmit={handleSubmit}
               onCancel={handleCloseModal}
               isSubmitting={isCreating || isUpdating}

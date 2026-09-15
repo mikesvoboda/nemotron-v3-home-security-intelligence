@@ -123,10 +123,17 @@ class TestActionEventModel:
         session.add(camera)
         await session.flush()
 
+        # Shipped Track model (models/track.py:53): column is object_class,
+        # and first_seen/last_seen are NOT NULL required fields — there is
+        # no object_type kwarg (ledger R-T9-ACTIONEVENT).
+        now = datetime.now(UTC)
         track = Track(
             camera_id=camera_id,
             track_id=42,
-            object_type="person",
+            object_class="person",
+            first_seen=now,
+            last_seen=now,
+            trajectory=[],
         )
         session.add(track)
         await session.flush()
@@ -206,6 +213,13 @@ class TestActionEventModel:
         await session.delete(camera)
         await session.flush()
 
+        # The FK ships ondelete="CASCADE" (models/action_event.py:64) so
+        # Postgres removes the child row, but the ORM never saw that DELETE —
+        # session.get would answer from the identity map with the stale row.
+        # Expire first, then get re-SELECTs (same shipped-FK/identity-map
+        # interaction as ledger R-T9-ENRICHCASCADE; wave I-4 'is None').
+        session.expire_all()
+
         # Verify action event is deleted
         deleted_event = await session.get(ActionEvent, event_id)
         assert deleted_event is None
@@ -222,10 +236,14 @@ class TestActionEventModel:
         session.add(camera)
         await session.flush()
 
+        now = datetime.now(UTC)
         track = Track(
             camera_id=camera_id,
             track_id=100,
-            object_type="person",
+            object_class="person",
+            first_seen=now,
+            last_seen=now,
+            trajectory=[],
         )
         session.add(track)
         await session.flush()

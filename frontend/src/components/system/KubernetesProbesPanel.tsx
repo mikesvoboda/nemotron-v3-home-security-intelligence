@@ -130,11 +130,7 @@ function ProbeCard({
         </div>
 
         {/* Right side: Status badge */}
-        <Badge
-          color={getStatusColor(status)}
-          size="sm"
-          data-testid={`probe-status-badge-${name}`}
-        >
+        <Badge color={getStatusColor(status)} size="sm" data-testid={`probe-status-badge-${name}`}>
           {status === 'healthy' ? 'Passing' : status === 'unhealthy' ? 'Failing' : 'Unknown'}
         </Badge>
       </div>

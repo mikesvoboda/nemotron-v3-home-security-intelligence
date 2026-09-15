@@ -145,8 +145,8 @@ function ResetConfirmDialog({
         </div>
 
         <p className="mb-6 text-sm text-gray-300">
-          All services will be assigned to GPU 0 and any VRAM budget overrides will be cleared.
-          This action cannot be undone.
+          All services will be assigned to GPU 0 and any VRAM budget overrides will be cleared. This
+          action cannot be undone.
         </p>
 
         <div className="flex justify-end gap-3">
@@ -210,7 +210,8 @@ export default function GpuBatchActions({
 
   // Check if reset would make a difference (all on GPU 0 with no overrides)
   const isAlreadyDefault = assignments.every(
-    (a) => a.gpu_index === 0 && (a.vram_budget_override === null || a.vram_budget_override === undefined)
+    (a) =>
+      a.gpu_index === 0 && (a.vram_budget_override === null || a.vram_budget_override === undefined)
   );
 
   // Check if we have multiple GPUs for auto-balance to be useful
@@ -228,9 +229,7 @@ export default function GpuBatchActions({
         </div>
         <div>
           <Title className="text-white">Quick Actions</Title>
-          <Text className="mt-1 text-sm text-gray-400">
-            Batch operations for GPU assignments
-          </Text>
+          <Text className="mt-1 text-sm text-gray-400">Batch operations for GPU assignments</Text>
         </div>
       </div>
 
@@ -280,10 +279,12 @@ export default function GpuBatchActions({
           <strong className="text-gray-400">Assign All:</strong> Move all services to a single GPU.
         </p>
         <p>
-          <strong className="text-gray-400">Reset:</strong> Assign all services to GPU 0 and clear overrides.
+          <strong className="text-gray-400">Reset:</strong> Assign all services to GPU 0 and clear
+          overrides.
         </p>
         <p>
-          <strong className="text-gray-400">Auto-Balance:</strong> Distribute services evenly across GPUs.
+          <strong className="text-gray-400">Auto-Balance:</strong> Distribute services evenly across
+          GPUs.
         </p>
       </div>
 

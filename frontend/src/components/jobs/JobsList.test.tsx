@@ -89,9 +89,7 @@ describe('JobsList', () => {
 
   describe('useDeferredList integration (NEM-3750)', () => {
     it('renders all jobs when list is below threshold', () => {
-      const jobs = Array.from({ length: 10 }, (_, i) =>
-        createMockJob({ job_id: `job-${i}` })
-      );
+      const jobs = Array.from({ length: 10 }, (_, i) => createMockJob({ job_id: `job-${i}` }));
 
       render(<JobsList {...defaultProps} jobs={jobs} />);
 
@@ -100,9 +98,7 @@ describe('JobsList', () => {
     });
 
     it('renders all jobs when list is at threshold', () => {
-      const jobs = Array.from({ length: 50 }, (_, i) =>
-        createMockJob({ job_id: `job-${i}` })
-      );
+      const jobs = Array.from({ length: 50 }, (_, i) => createMockJob({ job_id: `job-${i}` }));
 
       render(<JobsList {...defaultProps} jobs={jobs} />);
 
@@ -111,9 +107,7 @@ describe('JobsList', () => {
     });
 
     it('renders all jobs when list exceeds threshold', () => {
-      const jobs = Array.from({ length: 100 }, (_, i) =>
-        createMockJob({ job_id: `job-${i}` })
-      );
+      const jobs = Array.from({ length: 100 }, (_, i) => createMockJob({ job_id: `job-${i}` }));
 
       render(<JobsList {...defaultProps} jobs={jobs} />);
 

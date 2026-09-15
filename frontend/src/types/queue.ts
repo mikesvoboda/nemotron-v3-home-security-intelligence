@@ -67,9 +67,7 @@ export interface BatchAggregatorUIState {
  * @param response - The raw queues status response from the API
  * @returns Derived state useful for UI display
  */
-export function computeDerivedQueueState(
-  response: QueuesStatusResponse | null
-): DerivedQueueState {
+export function computeDerivedQueueState(response: QueuesStatusResponse | null): DerivedQueueState {
   if (!response) {
     return {
       criticalQueues: [],
@@ -168,9 +166,7 @@ export function isHealthyStatus(status: QueueHealthStatus): boolean {
 /**
  * Get badge color for queue health status.
  */
-export function getHealthStatusBadgeColor(
-  status: QueueHealthStatus
-): 'green' | 'yellow' | 'red' {
+export function getHealthStatusBadgeColor(status: QueueHealthStatus): 'green' | 'yellow' | 'red' {
   switch (status) {
     case 'healthy':
       return 'green';

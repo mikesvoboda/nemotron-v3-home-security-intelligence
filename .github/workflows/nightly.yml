@@ -9,46 +9,9 @@ env:
   UV_VERSION: '0.9.18'
 
 jobs:
-  extended-benchmarks:
-    name: Extended Benchmarks
-    runs-on: [self-hosted, gpu, rtx-a5500]
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Run Big-O benchmarks
-        run: |
-          uv run pytest backend/tests/benchmarks/test_bigo.py \
-            -v \
-            --tb=short
-
-      - name: Run memory profiling
-        run: |
-          uv run pytest backend/tests/benchmarks/test_memory.py \
-            --memray \
-            --memray-bin-path=memray-report.bin \
-            -v
-
-      - name: Upload memory report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: memory-profile
-          path: memray-report.bin
-
+  # NOTE 2026-09-15: extended-benchmarks (self-hosted gpu, rtx-a5500) removed
+  # while that runner is offline (queued to 60m timeout nightly). Restore from git
+  # history when the GPU box comes back online.
   complexity-trends:
     name: Complexity Trends
     runs-on: ubuntu-latest

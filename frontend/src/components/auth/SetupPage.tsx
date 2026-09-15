@@ -243,10 +243,7 @@ export default function SetupPage() {
 
           {/* Email Field */}
           <div>
-            <label
-              htmlFor={`${formId}-email`}
-              className="block text-sm font-medium text-white"
-            >
+            <label htmlFor={`${formId}-email`} className="block text-sm font-medium text-white">
               Email
             </label>
             <input
@@ -273,10 +270,7 @@ export default function SetupPage() {
 
           {/* Username Field */}
           <div>
-            <label
-              htmlFor={`${formId}-username`}
-              className="block text-sm font-medium text-white"
-            >
+            <label htmlFor={`${formId}-username`} className="block text-sm font-medium text-white">
               Username
             </label>
             <input
@@ -303,10 +297,7 @@ export default function SetupPage() {
 
           {/* Password Field */}
           <div>
-            <label
-              htmlFor={`${formId}-password`}
-              className="block text-sm font-medium text-white"
-            >
+            <label htmlFor={`${formId}-password`} className="block text-sm font-medium text-white">
               Password
             </label>
             <input
@@ -382,9 +373,7 @@ export default function SetupPage() {
         {/* Login link - shown when users already exist */}
         {setupRequired === false && (
           <div className="mt-6 rounded-lg border border-[#76B900]/20 bg-[#76B900]/5 px-4 py-4 text-center">
-            <p className="mb-3 text-sm text-gray-300">
-              An account already exists on this system.
-            </p>
+            <p className="mb-3 text-sm text-gray-300">An account already exists on this system.</p>
             <Link
               to="/login"
               className="inline-flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#8ED100] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]"

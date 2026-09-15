@@ -73,17 +73,13 @@ export function computeQualityFactorsFromScore(overallScore: number): QualityFac
     return 'poor';
   };
 
-  const getRecommendation = (
-    factor: string,
-    score: number
-  ): string | undefined => {
+  const getRecommendation = (factor: string, score: number): string | undefined => {
     if (score >= 0.8) return undefined;
     const recommendations: Record<string, string> = {
       blur: 'Hold the camera steady or improve lighting for a sharper image',
       lighting: 'Face towards a light source or move to a better-lit area',
       angle: 'Look directly at the camera with face fully visible',
-      occlusion:
-        'Remove glasses, hats, or other items covering your face',
+      occlusion: 'Remove glasses, hats, or other items covering your face',
     };
     return recommendations[factor];
   };
@@ -156,9 +152,10 @@ export function getOverallRecommendation(
   if (factors) {
     // Find the worst factor
     const factorEntries = Object.entries(factors) as [keyof QualityFactors, QualityFactor][];
-    const worstFactor = factorEntries.reduce((worst, [, factor]) =>
-      factor.score < worst.score ? factor : worst
-    , factorEntries[0][1]);
+    const worstFactor = factorEntries.reduce(
+      (worst, [, factor]) => (factor.score < worst.score ? factor : worst),
+      factorEntries[0][1]
+    );
 
     if (worstFactor.recommendation) {
       return worstFactor.recommendation;

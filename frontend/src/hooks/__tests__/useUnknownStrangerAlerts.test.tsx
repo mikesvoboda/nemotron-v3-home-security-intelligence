@@ -675,13 +675,10 @@ describe('useUnknownStrangerAlerts', () => {
 
   describe('enabled option behavior', () => {
     it('calls disconnect when enabled becomes false', () => {
-      const { rerender } = renderHook(
-        ({ enabled }) => useUnknownStrangerAlerts({ enabled }),
-        {
-          wrapper: createWrapper(),
-          initialProps: { enabled: true },
-        }
-      );
+      const { rerender } = renderHook(({ enabled }) => useUnknownStrangerAlerts({ enabled }), {
+        wrapper: createWrapper(),
+        initialProps: { enabled: true },
+      });
 
       // Disable the hook
       rerender({ enabled: false });

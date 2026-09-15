@@ -145,9 +145,11 @@ describe('PipelineLatencyPanel', () => {
   it('renders pipeline latency panel with all stages', async () => {
     render(<PipelineLatencyPanel />);
 
-    // Wait for data to load
+    // Wait for a stage bar, not the header — the header renders while the
+    // query is still in flight, so header-based waits race the sync getByText
+    // below (Vitest 13/16 class; see 'formats latency values correctly').
     await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
+      expect(screen.getByTestId('stage-bar-watch_to_detect')).toBeInTheDocument();
     });
 
     // Check all stages are displayed
@@ -294,8 +296,10 @@ describe('PipelineLatencyPanel', () => {
 
     render(<PipelineLatencyPanel />);
 
+    // Wait on a bar that IS in the payload (header renders pre-data and the
+    // negative queries below can't anchor a wait; Vitest 13/16 race class).
     await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
+      expect(screen.getByTestId('stage-bar-detect_to_batch')).toBeInTheDocument();
     });
 
     // Only detect_to_batch and total_pipeline should be present
@@ -343,8 +347,12 @@ describe('PipelineLatencyPanel', () => {
 
     render(<PipelineLatencyPanel />);
 
+    // Wait for the stage bars themselves, not the header — the header renders
+    // while the query is still in flight (Vitest 13/16 CI failure: getByTestId
+    // raced the resolved fetch and saw the loading DOM). Same convention as
+    // the tests above ('not just the header').
     await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
+      expect(screen.getByTestId('stage-bar-watch_to_detect')).toBeInTheDocument();
     });
 
     // Sub-millisecond should show as <1ms (multiple occurrences, use getAllByText)

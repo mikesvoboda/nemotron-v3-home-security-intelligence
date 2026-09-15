@@ -89,9 +89,7 @@ describe('RawSettingsPanel', () => {
 
       expect(screen.getByTestId('raw-settings-panel')).toBeInTheDocument();
       expect(screen.getByText('Raw Settings')).toBeInTheDocument();
-      expect(
-        screen.getByText(/View and edit raw system configuration/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/View and edit raw system configuration/i)).toBeInTheDocument();
     });
 
     it('renders the settings table with correct headers', () => {

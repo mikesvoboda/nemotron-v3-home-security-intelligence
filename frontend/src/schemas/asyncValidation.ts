@@ -49,10 +49,7 @@ export type FetchEntitiesFunction<T extends { id: string }> = () => Promise<T[]>
  * Cached uniqueness validation to avoid redundant API calls.
  * Key format: "entityType:field:value:excludeId?"
  */
-const validationCache = new Map<
-  string,
-  { result: UniqueCheckResult; timestamp: number }
->();
+const validationCache = new Map<string, { result: UniqueCheckResult; timestamp: number }>();
 
 /**
  * Cache TTL in milliseconds (5 seconds).
@@ -67,12 +64,7 @@ const CACHE_TTL_MS = 5000;
 /**
  * Generate a cache key for a uniqueness check.
  */
-function getCacheKey(
-  entityType: string,
-  field: string,
-  value: string,
-  excludeId?: string
-): string {
+function getCacheKey(entityType: string, field: string, value: string, excludeId?: string): string {
   return `${entityType}:${field}:${value.toLowerCase()}:${excludeId || ''}`;
 }
 
@@ -243,10 +235,7 @@ export function uniqueNameRefinement<T extends { id: string }>(
   fetchEntities: FetchEntitiesFunction<T>,
   field: keyof T & string,
   entityType: string
-): (
-  value: string,
-  ctx: z.RefinementCtx
-) => Promise<void> {
+): (value: string, ctx: z.RefinementCtx) => Promise<void> {
   const validator = createUniqueNameValidator(fetchEntities, field, entityType);
 
   return async (value: string, ctx: z.RefinementCtx) => {

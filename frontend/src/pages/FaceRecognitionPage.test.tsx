@@ -45,41 +45,91 @@ vi.mock('../hooks/useUnknownStrangerAlerts', () => ({
 
 // Mock KnownPersonsTab component to isolate page-level tests from API calls
 vi.mock('../components/face-recognition/KnownPersonsTab', () => ({
-  default: ({ onPersonClick, onAddPerson }: { onPersonClick: (person: unknown) => void; onAddPerson: () => void }) => (
+  default: ({
+    onPersonClick,
+    onAddPerson,
+  }: {
+    onPersonClick: (person: unknown) => void;
+    onAddPerson: () => void;
+  }) => (
     <div data-testid="known-persons-tab-real">
       Known Persons Tab Component
-      <button data-testid="mock-person-click" onClick={() => onPersonClick({ id: 1, name: 'Test Person', is_household_member: false, created_at: '2025-01-01T00:00:00Z' })}>Click Person</button>
-      <button data-testid="mock-add-person" onClick={() => onAddPerson()}>Add Person</button>
+      <button
+        data-testid="mock-person-click"
+        onClick={() =>
+          onPersonClick({
+            id: 1,
+            name: 'Test Person',
+            is_household_member: false,
+            created_at: '2025-01-01T00:00:00Z',
+          })
+        }
+      >
+        Click Person
+      </button>
+      <button data-testid="mock-add-person" onClick={() => onAddPerson()}>
+        Add Person
+      </button>
     </div>
   ),
 }));
 
 // Mock FaceEventsTab component to isolate page-level tests from API calls
 vi.mock('../components/face-recognition/FaceEventsTab', () => ({
-  default: ({ onIdentify: _onIdentify, onAddNewPerson: _onAddNewPerson, onViewDetection: _onViewDetection }: { onIdentify: (id: number) => void; onAddNewPerson: (id: number) => void; onViewDetection: (id: string) => void }) => (
-    <div data-testid="face-events-tab-real">Face Events Tab Component</div>
-  ),
+  default: ({
+    onIdentify: _onIdentify,
+    onAddNewPerson: _onAddNewPerson,
+    onViewDetection: _onViewDetection,
+  }: {
+    onIdentify: (id: number) => void;
+    onAddNewPerson: (id: number) => void;
+    onViewDetection: (id: string) => void;
+  }) => <div data-testid="face-events-tab-real">Face Events Tab Component</div>,
 }));
 
 // Mock PersonTrackingTab component to isolate page-level tests from API calls
 vi.mock('../components/face-recognition/PersonTrackingTab', () => ({
-  default: () => (
-    <div data-testid="person-tracking-tab-real">Person Tracking Tab Component</div>
-  ),
+  default: () => <div data-testid="person-tracking-tab-real">Person Tracking Tab Component</div>,
 }));
 
 // Mock KnownPersonDetailModal to isolate page-level tests
 vi.mock('../components/face-recognition/KnownPersonDetailModal', () => ({
-  default: ({ isOpen, personId, onClose }: { isOpen: boolean; personId: number | null; onClose: () => void }) => (
-    isOpen ? <div data-testid="known-person-detail-modal" data-person-id={personId}><button data-testid="mock-close-detail" onClick={onClose}>Close</button></div> : null
-  ),
+  default: ({
+    isOpen,
+    personId,
+    onClose,
+  }: {
+    isOpen: boolean;
+    personId: number | null;
+    onClose: () => void;
+  }) =>
+    isOpen ? (
+      <div data-testid="known-person-detail-modal" data-person-id={personId}>
+        <button data-testid="mock-close-detail" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    ) : null,
 }));
 
 // Mock AddPersonModal to isolate page-level tests
 vi.mock('../components/face-recognition/AddPersonModal', () => ({
-  default: ({ isOpen, onClose, editPerson }: { isOpen: boolean; onClose: () => void; editPerson?: unknown }) => (
-    isOpen ? <div data-testid="add-person-modal" data-edit-mode={editPerson ? 'true' : 'false'}><button data-testid="mock-close-add" onClick={onClose}>Close</button></div> : null
-  ),
+  default: ({
+    isOpen,
+    onClose,
+    editPerson,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    editPerson?: unknown;
+  }) =>
+    isOpen ? (
+      <div data-testid="add-person-modal" data-edit-mode={editPerson ? 'true' : 'false'}>
+        <button data-testid="mock-close-add" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    ) : null,
 }));
 
 // ============================================================================
@@ -88,7 +138,9 @@ vi.mock('../components/face-recognition/AddPersonModal', () => ({
 
 // Default mock return value
 const mockMarkAsRead = vi.fn();
-const defaultMockReturn: ReturnType<typeof useUnknownStrangerAlertsModule.useUnknownStrangerAlerts> = {
+const defaultMockReturn: ReturnType<
+  typeof useUnknownStrangerAlertsModule.useUnknownStrangerAlerts
+> = {
   isConnected: true,
   lastUnknownFace: null,
   unreadCount: 0,
@@ -266,7 +318,10 @@ describe('FaceRecognitionPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('known-person-detail-modal')).toBeInTheDocument();
-        expect(screen.getByTestId('known-person-detail-modal')).toHaveAttribute('data-person-id', '1');
+        expect(screen.getByTestId('known-person-detail-modal')).toHaveAttribute(
+          'data-person-id',
+          '1'
+        );
       });
     });
 

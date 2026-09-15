@@ -160,9 +160,7 @@ export async function fetchPlateStatistics(): Promise<PlateStatisticsResponse> {
  * @returns PlateReadListResponse with paginated plate reads
  * @throws PlateReadsApiError on network or API errors
  */
-export async function fetchPlateReads(
-  params?: PlateReadFilters
-): Promise<PlateReadListResponse> {
+export async function fetchPlateReads(params?: PlateReadFilters): Promise<PlateReadListResponse> {
   const queryString = params
     ? buildQueryString({
         camera_id: params.camera_id,
@@ -186,9 +184,7 @@ export async function fetchPlateReads(
  * @returns PlateReadListResponse with matching plate reads
  * @throws PlateReadsApiError on network or API errors
  */
-export async function searchPlateReads(
-  params: PlateSearchParams
-): Promise<PlateReadListResponse> {
+export async function searchPlateReads(params: PlateSearchParams): Promise<PlateReadListResponse> {
   const queryString = buildQueryString({
     text: params.text,
     exact: params.exact,

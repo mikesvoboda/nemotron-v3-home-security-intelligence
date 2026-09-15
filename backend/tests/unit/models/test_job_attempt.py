@@ -108,8 +108,10 @@ class TestJobAttemptModelInitialization:
         job_id = uuid4()
         attempt = JobAttempt(job_id=job_id)
 
-        # Note: UUID defaults apply at database level, not in-memory
-        # This would be tested in integration tests
+        # UUID defaults apply at database level, not in-memory (M3 T7,
+        # audit 3.3: documented but never asserted):
+        assert attempt.id is None
+        # The post-flush generation itself would be tested in integration tests.
 
 
 # =============================================================================

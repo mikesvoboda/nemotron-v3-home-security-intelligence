@@ -143,10 +143,7 @@ function webhookToFormState(webhook: Webhook): FormState {
 /**
  * Convert form state to create/update payload
  */
-function formStateToPayload(
-  state: FormState,
-  _isEdit: boolean
-): WebhookCreate | WebhookUpdate {
+function formStateToPayload(state: FormState, _isEdit: boolean): WebhookCreate | WebhookUpdate {
   // Build auth config
   let auth: WebhookAuthConfig | undefined;
   if (state.auth_type !== 'none') {
@@ -294,12 +291,9 @@ export default function WebhookForm({
   }, [state.url, isEdit, state.integration_type]);
 
   // Handle field change
-  const handleChange = useCallback(
-    <K extends keyof FormState>(field: K, value: FormState[K]) => {
-      setState((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleChange = useCallback(<K extends keyof FormState>(field: K, value: FormState[K]) => {
+    setState((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   // Handle event type toggle
   const toggleEventType = useCallback((eventType: WebhookEventType) => {
@@ -326,17 +320,14 @@ export default function WebhookForm({
     }));
   }, []);
 
-  const updateCustomHeader = useCallback(
-    (index: number, field: 'key' | 'value', value: string) => {
-      setState((prev) => ({
-        ...prev,
-        custom_headers: prev.custom_headers.map((h, i) =>
-          i === index ? { ...h, [field]: value } : h
-        ),
-      }));
-    },
-    []
-  );
+  const updateCustomHeader = useCallback((index: number, field: 'key' | 'value', value: string) => {
+    setState((prev) => ({
+      ...prev,
+      custom_headers: prev.custom_headers.map((h, i) =>
+        i === index ? { ...h, [field]: value } : h
+      ),
+    }));
+  }, []);
 
   // Handle form submission
   const handleSubmit = useCallback(
@@ -451,9 +442,7 @@ export default function WebhookForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-gray-500">
-            Integration type affects payload formatting
-          </p>
+          <p className="mt-1 text-xs text-gray-500">Integration type affects payload formatting</p>
         </div>
 
         {/* Enabled Toggle */}
@@ -510,9 +499,7 @@ export default function WebhookForm({
             </button>
           ))}
         </div>
-        {errors.event_types && (
-          <p className="text-sm text-red-500">{errors.event_types}</p>
-        )}
+        {errors.event_types && <p className="text-sm text-red-500">{errors.event_types}</p>}
       </div>
 
       {/* Authentication */}
@@ -542,10 +529,7 @@ export default function WebhookForm({
         {/* Bearer Token */}
         {state.auth_type === 'bearer' && (
           <div>
-            <label
-              htmlFor="webhook-auth-token"
-              className="block text-sm font-medium text-gray-300"
-            >
+            <label htmlFor="webhook-auth-token" className="block text-sm font-medium text-gray-300">
               Bearer Token <span className="text-red-500">*</span>
             </label>
             <input
@@ -562,9 +546,7 @@ export default function WebhookForm({
               placeholder="Your bearer token"
               disabled={isSubmitting}
             />
-            {errors.auth_token && (
-              <p className="mt-1 text-sm text-red-500">{errors.auth_token}</p>
-            )}
+            {errors.auth_token && <p className="mt-1 text-sm text-red-500">{errors.auth_token}</p>}
           </div>
         )}
 
@@ -749,7 +731,10 @@ export default function WebhookForm({
               id="webhook-max-retries"
               value={state.max_retries}
               onChange={(e) =>
-                handleChange('max_retries', Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))
+                handleChange(
+                  'max_retries',
+                  Math.min(10, Math.max(0, parseInt(e.target.value) || 0))
+                )
               }
               min={0}
               max={10}

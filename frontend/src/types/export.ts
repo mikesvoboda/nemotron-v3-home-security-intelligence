@@ -67,13 +67,25 @@ export interface ExportColumnDefinition {
  */
 export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
   { field: 'event_id', label: 'Event ID', description: 'Unique identifier for the event' },
-  { field: 'camera_name', label: 'Camera', description: 'Name of the camera that captured the event' },
+  {
+    field: 'camera_name',
+    label: 'Camera',
+    description: 'Name of the camera that captured the event',
+  },
   { field: 'started_at', label: 'Started At', description: 'When the event started' },
   { field: 'ended_at', label: 'Ended At', description: 'When the event ended' },
   { field: 'risk_score', label: 'Risk Score', description: 'Numeric risk score (0-100)' },
-  { field: 'risk_level', label: 'Risk Level', description: 'Risk level category (low/medium/high/critical)' },
+  {
+    field: 'risk_level',
+    label: 'Risk Level',
+    description: 'Risk level category (low/medium/high/critical)',
+  },
   { field: 'summary', label: 'Summary', description: 'AI-generated summary of the event' },
-  { field: 'detection_count', label: 'Detections', description: 'Number of detections in the event' },
+  {
+    field: 'detection_count',
+    label: 'Detections',
+    description: 'Number of detections in the event',
+  },
   { field: 'reviewed', label: 'Reviewed', description: 'Whether the event has been reviewed' },
   { field: 'object_types', label: 'Object Types', description: 'Types of objects detected' },
   { field: 'reasoning', label: 'Reasoning', description: 'AI reasoning for the risk assessment' },
@@ -364,7 +376,10 @@ export function formatFilterParams(filterParams: string | null): string[] {
 /**
  * Calculate export job duration in seconds.
  */
-export function calculateDuration(startedAt: string | null, completedAt: string | null): number | null {
+export function calculateDuration(
+  startedAt: string | null,
+  completedAt: string | null
+): number | null {
   if (!startedAt) return null;
   const endTime = completedAt ? new Date(completedAt).getTime() : Date.now();
   const startTime = new Date(startedAt).getTime();

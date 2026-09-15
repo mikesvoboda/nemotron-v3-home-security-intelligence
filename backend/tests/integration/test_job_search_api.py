@@ -185,9 +185,12 @@ async def test_search_jobs_created_after_filter(client: AsyncClient, mock_redis,
     job_request = {"format": "csv"}
     await client.post("/api/events/export", json=job_request)
 
-    # Search for jobs created in the past hour
+    # Search for jobs created in the past hour. Datetimes go through
+    # params= (not the f-string URL): a raw "+" in "+00:00" is query-decoded
+    # to a space by Starlette's parse_qsl, 422-ing the datetime param
+    # (ledger R-T7-JOBSEARCH).
     past_hour = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
-    response = await client.get(f"/api/jobs/search?created_after={past_hour}")
+    response = await client.get("/api/jobs/search", params={"created_after": past_hour})
 
     assert response.status_code == 200
     data = response.json()
@@ -204,7 +207,7 @@ async def test_search_jobs_created_before_filter(client: AsyncClient, mock_redis
 
     # Search for jobs created before now (all jobs)
     now = datetime.now(UTC).isoformat()
-    response = await client.get(f"/api/jobs/search?created_before={now}")
+    response = await client.get("/api/jobs/search", params={"created_before": now})
 
     assert response.status_code == 200
 
@@ -220,7 +223,7 @@ async def test_search_jobs_created_range_filter(client: AsyncClient, mock_redis,
     future_hour = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
 
     response = await client.get(
-        f"/api/jobs/search?created_after={past_hour}&created_before={future_hour}"
+        "/api/jobs/search", params={"created_after": past_hour, "created_before": future_hour}
     )
 
     assert response.status_code == 200
@@ -488,8 +491,17 @@ async def test_search_jobs_combined_filters(client: AsyncClient, mock_redis, int
 
     past_hour = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
 
+    # params= dict (URL-encoded), not an f-string: isoformat's "+00:00"
+    # decodes to a space in a raw query string → invalid datetime → 422.
+    # (ledger R-T9-JOBSEARCH)
     response = await client.get(
-        f"/api/jobs/search?q=export&status=pending,running&job_type=export&created_after={past_hour}"
+        "/api/jobs/search",
+        params={
+            "q": "export",
+            "status": "pending,running",
+            "job_type": "export",
+            "created_after": past_hour,
+        },
     )
 
     assert response.status_code == 200
@@ -506,20 +518,25 @@ async def test_search_jobs_all_parameters(client: AsyncClient, mock_redis, integ
     past_hour = (now - timedelta(hours=1)).isoformat()
     future_hour = (now + timedelta(hours=1)).isoformat()
 
+    # params= dict, not an f-string URL: isoformat's "+00:00" decodes to a
+    # space in a raw query string → invalid datetime → 422 (ledger
+    # R-T9-JOBSEARCH, same root cause as the combined-filters test).
     response = await client.get(
-        f"/api/jobs/search?"
-        f"q=test&"
-        f"status=pending,running,completed&"
-        f"job_type=export&"
-        f"created_after={past_hour}&"
-        f"created_before={future_hour}&"
-        f"has_error=false&"
-        f"min_duration=0&"
-        f"max_duration=3600&"
-        f"limit=10&"
-        f"offset=0&"
-        f"sort=created_at&"
-        f"order=desc"
+        "/api/jobs/search",
+        params={
+            "q": "test",
+            "status": "pending,running,completed",
+            "job_type": "export",
+            "created_after": past_hour,
+            "created_before": future_hour,
+            "has_error": "false",
+            "min_duration": 0,
+            "max_duration": 3600,
+            "limit": 10,
+            "offset": 0,
+            "sort": "created_at",
+            "order": "desc",
+        },
     )
 
     assert response.status_code == 200

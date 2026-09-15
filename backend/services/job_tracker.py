@@ -22,12 +22,12 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import Any, TypedDict
 
 from backend.core.logging import get_logger
-
-if TYPE_CHECKING:
-    from backend.core.redis import RedisClient
+from backend.core.redis import (
+    RedisClient,  # runtime import: used in annotations (pyproject TC001-003 rationale; TYPE_CHECKING-only breaks spec=/get_type_hints on 3.14)
+)
 
 logger = get_logger(__name__)
 

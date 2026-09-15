@@ -255,7 +255,8 @@ describe('AIPerformancePage', () => {
         const iframe = screen.getByTestId('grafana-iframe');
         expect(iframe).toHaveAttribute(
           'src',
-          'http://grafana.example.com/d/ai-services/ai-services?orgId=1&kiosk=1&theme=dark&refresh=30s'
+          // SSRF allowlist (62753b76): non-allowlisted host -> '/grafana' proxy base
+          '/grafana/d/ai-services/ai-services?orgId=1&kiosk=1&theme=dark&refresh=30s'
         );
       });
     });
@@ -316,7 +317,8 @@ describe('AIPerformancePage', () => {
         const externalLink = screen.getByTestId('grafana-external-link');
         expect(externalLink).toHaveAttribute(
           'href',
-          'http://grafana.example.com/d/ai-services/ai-services?orgId=1'
+          // SSRF fallback (62753b76): non-allowlisted host -> '/grafana' proxy base
+          '/grafana/d/ai-services/ai-services?orgId=1'
         );
       });
     });

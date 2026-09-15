@@ -113,9 +113,7 @@ describe('SetupPage', () => {
       render(<SetupPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/create your admin account to get started/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/create your admin account to get started/i)).toBeInTheDocument();
       });
     });
   });

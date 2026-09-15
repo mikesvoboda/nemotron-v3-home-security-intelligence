@@ -1,8 +1,25 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { FAST_TIMEOUT } from './test/setup';
+import { server } from './mocks/server';
+import { FAST_TIMEOUT, STANDARD_TIMEOUT } from './test/setup';
+
+// NEM-5322: App now gates routes through AuthProvider + ProtectedRoute.
+// AuthProvider's boot queries (/api/auth/setup-status, then /api/auth/me)
+// have NO global msw handlers; under setup.ts's onUnhandledRequest:'bypass'
+// they fall through to a real fetch that fails under jsdom, so
+// ProtectedRoute sits on its LoadingSpinner forever and no layout/page
+// markup ever mounts. Stub the authenticated path (repo idiom from
+// components/auth/ProtectedRoute.test.tsx); setup.ts's afterEach
+// resetHandlers() clears these between tests.
+const mockUser = {
+  id: 1,
+  username: 'testuser',
+  email: 'test@example.com',
+  created_at: '2024-01-01T00:00:00Z',
+};
 
 // Mock the Layout component
 vi.mock('./components/layout/Layout', () => ({
@@ -32,12 +49,22 @@ vi.mock('./components/common', async (importOriginal) => {
 });
 
 describe('App', () => {
+  beforeEach(() => {
+    server.use(
+      http.get('/api/auth/setup-status', () => HttpResponse.json({ setup_required: false })),
+      http.get('/api/auth/me', () => HttpResponse.json(mockUser))
+    );
+  });
+
   it('renders without crashing', async () => {
     render(<App />);
-    // Wait for lazy component to load (fast timeout for mocked components)
+    // Cold-start test: bears the first real /api/auth/* round-trip through
+    // msw before App's singleton queryClient caches the auth boot state
+    // (tests below then fit FAST_TIMEOUT). STANDARD_TIMEOUT is the repo's
+    // documented choice for renders gated on actual API calls.
     await waitFor(
       () => expect(screen.getByTestId('mock-layout')).toBeInTheDocument(),
-      FAST_TIMEOUT
+      STANDARD_TIMEOUT
     );
   });
 

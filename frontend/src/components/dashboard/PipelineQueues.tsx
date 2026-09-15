@@ -13,17 +13,9 @@ import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Layers, AlertTriangle, Clock, Users, Zap, Skull } from 'lucide-react';
 
-import {
-  getHealthStatusBadgeColor,
-  formatWaitTime,
-  formatThroughput,
-} from '../../types/queue';
+import { getHealthStatusBadgeColor, formatWaitTime, formatThroughput } from '../../types/queue';
 
-import type {
-  QueueStatus,
-  QueueHealthStatus,
-  QueuesStatusResponse,
-} from '../../types/queue';
+import type { QueueStatus, QueueHealthStatus, QueuesStatusResponse } from '../../types/queue';
 
 export interface PipelineQueuesProps {
   /** Number of items in detection queue (fallback when detailed data unavailable) */
@@ -273,11 +265,7 @@ function QueueRow({
         <div className="flex items-center gap-2">
           <Text className="text-sm font-medium text-gray-300">{name}</Text>
           {hasDetailedStatus && (
-            <Badge
-              color={badgeColor}
-              size="xs"
-              data-testid={`${testIdPrefix}-health-badge`}
-            >
+            <Badge color={badgeColor} size="xs" data-testid={`${testIdPrefix}-health-badge`}>
               {healthStatus}
             </Badge>
           )}
@@ -312,11 +300,7 @@ function QueueRow({
             aria-label={`${name} backing up`}
           />
         )}
-        <Badge
-          color={badgeColor}
-          size="lg"
-          data-testid={`${testIdPrefix}-queue-badge`}
-        >
+        <Badge color={badgeColor} size="lg" data-testid={`${testIdPrefix}-queue-badge`}>
           {isLoading ? '...' : depth}
         </Badge>
       </div>

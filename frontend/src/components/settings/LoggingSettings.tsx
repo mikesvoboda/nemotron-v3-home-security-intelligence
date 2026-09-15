@@ -192,7 +192,10 @@ export default function LoggingSettings({ className }: LoggingSettingsProps) {
           <Settings className="h-5 w-5 text-[#76B900]" />
           Logging Configuration
         </Title>
-        <div className="flex items-center justify-center py-8" data-testid="logging-settings-loading">
+        <div
+          className="flex items-center justify-center py-8"
+          data-testid="logging-settings-loading"
+        >
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
           <span className="ml-2 text-gray-400">Loading logging settings...</span>
         </div>
@@ -362,7 +365,10 @@ export default function LoggingSettings({ className }: LoggingSettingsProps) {
 
           <div className="mt-3 flex items-start gap-2 text-xs text-gray-500">
             <Info className="mt-0.5 h-3 w-3 flex-shrink-0" />
-            <span>File settings are configured via environment variables and cannot be changed at runtime.</span>
+            <span>
+              File settings are configured via environment variables and cannot be changed at
+              runtime.
+            </span>
           </div>
         </div>
 
@@ -386,9 +392,13 @@ export default function LoggingSettings({ className }: LoggingSettingsProps) {
               <Text className="mb-1 text-xs text-gray-500">DB Logging</Text>
               <Text className="text-sm text-gray-300">
                 {loggingConfig?.log_db_enabled ? (
-                  <Badge color="green" size="sm">Enabled</Badge>
+                  <Badge color="green" size="sm">
+                    Enabled
+                  </Badge>
                 ) : (
-                  <Badge color="gray" size="sm">Disabled</Badge>
+                  <Badge color="gray" size="sm">
+                    Disabled
+                  </Badge>
                 )}
               </Text>
             </div>
@@ -420,7 +430,9 @@ export default function LoggingSettings({ className }: LoggingSettingsProps) {
             <div className="mb-2 flex items-end justify-between">
               <div>
                 <Text className="text-sm text-gray-300">Retention Period</Text>
-                <Text className="text-xs text-gray-500">Number of days to retain application logs</Text>
+                <Text className="text-xs text-gray-500">
+                  Number of days to retain application logs
+                </Text>
               </div>
               <Text className="text-lg font-semibold text-white">{editedRetention} days</Text>
             </div>

@@ -12,14 +12,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { useWebSocket, type WebSocketOptions } from './useWebSocket';
 
-import type {
-  RecentThreat,
-  UseRecentThreatsReturn,
-  UseRecentThreatsOptions,
-} from '@/types/threat';
+import type { RecentThreat, UseRecentThreatsReturn, UseRecentThreatsOptions } from '@/types/threat';
 
 import { logger } from '@/services/logger';
-
 
 // ============================================================================
 // Constants
@@ -136,9 +131,7 @@ function sortByTimestamp(threats: RecentThreat[]): RecentThreat[] {
  * });
  * ```
  */
-export function useRecentThreats(
-  options: UseRecentThreatsOptions = {}
-): UseRecentThreatsReturn {
+export function useRecentThreats(options: UseRecentThreatsOptions = {}): UseRecentThreatsReturn {
   const { onNewThreat, maxAgeHours = DEFAULT_MAX_AGE_HOURS } = options;
 
   // State

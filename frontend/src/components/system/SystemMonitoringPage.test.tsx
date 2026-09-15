@@ -35,10 +35,10 @@ vi.mock('../../hooks/useSystemPageSections', () => ({
     sectionStates: {
       'circuit-breakers': true,
       'file-operations': true,
-      'services': true,
-      'databases': true,
+      services: true,
+      databases: true,
       'batch-statistics': true,
-      'profiling': true,
+      profiling: true,
       'recording-replay': true,
       'config-inspector': true,
       'log-level': true,
@@ -82,11 +82,51 @@ const mockSupervisorData = {
   running: true,
   worker_count: 5,
   workers: [
-    { name: 'file_watcher', status: 'running' as const, restart_count: 0, max_restarts: 3, last_started_at: '2025-01-01T12:00:00Z', last_crashed_at: null, error: null },
-    { name: 'detection_worker', status: 'running' as const, restart_count: 0, max_restarts: 3, last_started_at: '2025-01-01T12:00:00Z', last_crashed_at: null, error: null },
-    { name: 'batch_aggregator', status: 'running' as const, restart_count: 0, max_restarts: 3, last_started_at: '2025-01-01T12:00:00Z', last_crashed_at: null, error: null },
-    { name: 'analysis_worker', status: 'running' as const, restart_count: 0, max_restarts: 3, last_started_at: '2025-01-01T12:00:00Z', last_crashed_at: null, error: null },
-    { name: 'cleanup_service', status: 'running' as const, restart_count: 0, max_restarts: 3, last_started_at: '2025-01-01T12:00:00Z', last_crashed_at: null, error: null },
+    {
+      name: 'file_watcher',
+      status: 'running' as const,
+      restart_count: 0,
+      max_restarts: 3,
+      last_started_at: '2025-01-01T12:00:00Z',
+      last_crashed_at: null,
+      error: null,
+    },
+    {
+      name: 'detection_worker',
+      status: 'running' as const,
+      restart_count: 0,
+      max_restarts: 3,
+      last_started_at: '2025-01-01T12:00:00Z',
+      last_crashed_at: null,
+      error: null,
+    },
+    {
+      name: 'batch_aggregator',
+      status: 'running' as const,
+      restart_count: 0,
+      max_restarts: 3,
+      last_started_at: '2025-01-01T12:00:00Z',
+      last_crashed_at: null,
+      error: null,
+    },
+    {
+      name: 'analysis_worker',
+      status: 'running' as const,
+      restart_count: 0,
+      max_restarts: 3,
+      last_started_at: '2025-01-01T12:00:00Z',
+      last_crashed_at: null,
+      error: null,
+    },
+    {
+      name: 'cleanup_service',
+      status: 'running' as const,
+      restart_count: 0,
+      max_restarts: 3,
+      last_started_at: '2025-01-01T12:00:00Z',
+      last_crashed_at: null,
+      error: null,
+    },
   ],
   timestamp: '2025-01-01T12:00:00Z',
 };
@@ -211,17 +251,26 @@ vi.mock('./CollapsibleSection', () => ({
 // Mock BatchStatisticsDashboard
 vi.mock('../batch', () => ({
   BatchStatisticsDashboard: (props: { 'data-testid'?: string }) => (
-    <div data-testid={props['data-testid'] || 'batch-statistics-dashboard'}>BatchStatisticsDashboard</div>
+    <div data-testid={props['data-testid'] || 'batch-statistics-dashboard'}>
+      BatchStatisticsDashboard
+    </div>
   ),
 }));
 
 // Mock ErrorState component
 vi.mock('../common', () => ({
-  ErrorState: (props: { title: string; message: string; testId?: string; onRetry?: () => void }) => (
+  ErrorState: (props: {
+    title: string;
+    message: string;
+    testId?: string;
+    onRetry?: () => void;
+  }) => (
     <div data-testid={props.testId || 'error-state'}>
       <h3>{props.title}</h3>
       <p>{props.message}</p>
-      <button data-testid={`${props.testId}-retry`} onClick={props.onRetry}>Retry</button>
+      <button data-testid={`${props.testId}-retry`} onClick={props.onRetry}>
+        Retry
+      </button>
     </div>
   ),
 }));
@@ -248,7 +297,9 @@ vi.mock('../developer-tools', () => ({
 // Mock PrometheusMonitoringPanel
 vi.mock('./PrometheusMonitoringPanel', () => ({
   default: (props: { 'data-testid'?: string }) => (
-    <div data-testid={props['data-testid'] || 'prometheus-monitoring-panel'}>PrometheusMonitoringPanel</div>
+    <div data-testid={props['data-testid'] || 'prometheus-monitoring-panel'}>
+      PrometheusMonitoringPanel
+    </div>
   ),
 }));
 

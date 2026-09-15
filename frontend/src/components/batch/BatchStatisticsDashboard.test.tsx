@@ -279,9 +279,7 @@ describe('BatchStatisticsDashboard', () => {
       render(<BatchStatisticsDashboard />);
 
       expect(screen.getByTestId('batch-statistics-empty')).toBeInTheDocument();
-      expect(
-        screen.getByText(/No batch data available/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/No batch data available/i)).toBeInTheDocument();
     });
 
     it('should show counts as 0 in empty state', () => {

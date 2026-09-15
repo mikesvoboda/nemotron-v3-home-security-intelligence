@@ -69,9 +69,7 @@ vi.mock('react-router-dom', async () => {
 
 describe('AnomalyInvestigationModal', () => {
   // Helper to create mock anomaly context response
-  const createMockAnomalyContext = (
-    overrides: Partial<AnomalyContext> = {}
-  ): AnomalyContext => ({
+  const createMockAnomalyContext = (overrides: Partial<AnomalyContext> = {}): AnomalyContext => ({
     id: 'anomaly-123',
     zone_id: 1,
     zone_name: 'Front Yard',
@@ -288,8 +286,7 @@ describe('AnomalyInvestigationModal', () => {
     it('displays anomaly type', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () =>
-          Promise.resolve(createMockAnomalyContext({ anomaly_type: 'low_activity' })),
+        json: () => Promise.resolve(createMockAnomalyContext({ anomaly_type: 'low_activity' })),
       });
 
       renderWithProviders(<AnomalyInvestigationModal {...defaultProps} />);

@@ -168,14 +168,8 @@ export function useEnrichmentProgress(
   const { eventBatchMap = new Map<number, string>(), ...wsOptions } = options;
 
   // Use the base WebSocket hook
-  const {
-    activeEnrichments,
-    history,
-    completedCount,
-    failedCount,
-    isConnected,
-    clearHistory,
-  } = useEventEnrichmentWebSocket(wsOptions);
+  const { activeEnrichments, history, completedCount, failedCount, isConnected, clearHistory } =
+    useEventEnrichmentWebSocket(wsOptions);
 
   // Create lookup maps for efficient access
   const activeByBatchId = useMemo(() => {

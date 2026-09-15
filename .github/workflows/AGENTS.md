@@ -21,7 +21,6 @@ workflows/
   api-compatibility.yml       # API backward compatibility checks
   api-contract.yml            # API contract testing
   # Testing
-  gpu-tests.yml               # GPU integration tests
   load-tests.yml              # Load and performance testing
   mutation-testing.yml        # Mutation testing for test quality
   benchmarks.yml              # Performance benchmarks
@@ -38,7 +37,6 @@ workflows/
   vulnerability-management.yml # CVE tracking and management
   weekly-audit.yml            # Weekly security and code quality audits
   # Quality & Analysis
-  ai-code-review.yml          # GPT-powered code review
   bundle-size.yml             # Frontend bundle size tracking
   ci-analytics.yml            # CI metrics and analytics
   docs.yml                    # Documentation generation
@@ -258,25 +256,11 @@ docker pull ghcr.io/{owner}/{repo}/frontend:pr-123
 docker compose -f docker-compose.preview.yml up -d
 ```
 
-### ai-code-review.yml - AI-Powered Review
-
-**Trigger:** PR opened/synchronized (excludes drafts and dependabot)
-
-**Purpose:** Automated code review using GPT-4o via GitHub Models.
-
-**Process:**
-
-1. Extract PR diff (limited to 20KB for token limits)
-2. Install `gh-models` extension
-3. Run diff through GPT-4o (falls back to gpt-4o-mini)
-4. Post review as PR comment
-
-**Review Focus:**
-
-- Security vulnerabilities
-- Performance issues
-- Best practices
-- Potential bugs
+> **Removed 2026-09-15:** `ai-code-review.yml` (GitHub Models GPT review) —
+> GitHub Models was fully retired 2026-07-30 and its `gh-models` extension was
+> archived; the successor (Copilot API) bills AI credits per call, which is off
+> the free-tier budget for this repo. The prompt survives at
+> `../prompts/code-review.prompt.md` for any future no-cost reviewer.
 
 ### linear-ci-status.yml - Linear CI Status Sync
 
@@ -340,11 +324,11 @@ docker compose -f docker-compose.preview.yml up -d
 
 **Jobs:**
 
-| Job                 | Runner          | Purpose                       |
-| ------------------- | --------------- | ----------------------------- |
-| extended-benchmarks | self-hosted GPU | Big-O tests, memory profiling |
-| complexity-trends   | ubuntu-latest   | Wily code complexity reports  |
-| security-audit      | ubuntu-latest   | pip-audit, npm audit, Bandit  |
+| Job                 | Runner          | Purpose                                            |
+| ------------------- | --------------- | -------------------------------------------------- |
+| extended-benchmarks | self-hosted GPU | **skipped** — runner offline; job no-ops by design |
+| complexity-trends   | ubuntu-latest   | Wily code complexity reports                       |
+| security-audit      | ubuntu-latest   | pip-audit, npm audit, Bandit                       |
 
 **Artifacts Generated:**
 
@@ -352,24 +336,10 @@ docker compose -f docker-compose.preview.yml up -d
 - `wily-report` - HTML complexity report
 - `security-audit` - Bandit JSON report
 
-### gpu-tests.yml - GPU Integration Tests
-
-**Trigger:** Push/PR to main branch
-
-**Purpose:** Run tests requiring GPU hardware.
-
-**Requirements:**
-
-- Self-hosted runner with labels: `gpu`, `rtx-a5500`
-- Fork protection (only runs for trusted sources)
-- 30-minute timeout
-
-**Tests:**
-
-- pytest tests marked with `@pytest.mark.gpu`
-- AI inference benchmarks
-
-**Output:** GPU benchmark results as artifact.
+> **Removed 2026-09-15:** `gpu-tests.yml` queued to its 6h timeout on every
+> push to main because `rtx-a5500-runner` (labels `self-hosted, gpu,
+rtx-a5500`) is registered but offline. Restore when that runner is online
+> again — history has the last known-good version.
 
 ### sast.yml - Static Analysis Security Testing
 

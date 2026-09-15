@@ -249,7 +249,10 @@ describe('LogsPage', () => {
       await waitFor(() => {
         const iframe = screen.getByTestId('logs-iframe');
         const src = iframe.getAttribute('src');
-        expect(src).toContain('http://grafana.example.com/d/hsi-logs/hsi-system-logs');
+        // SSRF allowlist (62753b76): grafana.example.com is not localhost/RFC1918/
+        // same-origin, so resolveGrafanaUrl safely falls back to the '/grafana'
+        // nginx-proxy base — the dashboard path is preserved, origin stripped.
+        expect(src).toContain('/grafana/d/hsi-logs/hsi-system-logs');
         expect(src).toContain('orgId=1');
         expect(src).toContain('kiosk=1');
         expect(src).toContain('theme=dark');
@@ -312,7 +315,8 @@ describe('LogsPage', () => {
         const grafanaLink = screen.getByTestId('grafana-external-link');
         expect(grafanaLink).toHaveAttribute(
           'href',
-          'http://grafana.example.com/d/hsi-logs/hsi-system-logs?orgId=1&theme=dark'
+          // SSRF fallback (62753b76): non-allowlisted host -> '/grafana' proxy base
+          '/grafana/d/hsi-logs/hsi-system-logs?orgId=1&theme=dark'
         );
       });
     });
@@ -366,7 +370,8 @@ describe('LogsPage', () => {
         const exploreLink = screen.getByTestId('explore-external-link');
         expect(exploreLink).toHaveAttribute(
           'href',
-          expect.stringContaining('http://grafana.example.com/explore')
+          // SSRF fallback (62753b76): non-allowlisted host -> '/grafana' proxy base
+          expect.stringContaining('/grafana/explore')
         );
       });
     });

@@ -86,6 +86,11 @@ dependencies = [
     # ONVIF camera discovery and control (NEM-4207)
     "wsdiscovery>=2.1.2",
     "onvif-zeep>=0.2.12",
+    # Timezone data (zoneinfo): schedule code accepts legacy US/* IANA keys
+    # (alert_engine ZoneInfo lookups) which modern distros no longer symlink
+    # (Ubuntu 24.04 ships no /usr/share/zoneinfo/US); the tzdata wheel
+    # guarantees them on every platform. M1 Task 7.
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]
@@ -464,8 +469,15 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "-n 8 --dist=worksteal -v --strict-markers --tb=short -p randomly -m 'not gpu'"
 timeout = 5
-timeout_method = "thread"
-timeout_func_only = true  # Only timeout test functions, not fixture setup/teardown (prevents pytest-rerunfailures server thread from being killed)
+# M3 T5 owner ruling (2026-09-14, docs/superpowers/rulings/2026-09-14-m3-t5-timeout-config-ruling-packet.md):
+# signal fires on the MAIN thread, so it cannot kill the pytest-rerunfailures
+# server thread the old scar comment feared (mechanism disproven at design
+# review); thread's os._exit(1) is what produced the silent xdist
+# "node down: Not properly terminated" worker deaths (ledger R-T7-WORKERDOWN).
+# func_only=false so a hung fixture setup/teardown is also caught — signal's
+# handler runs there too.
+timeout_method = "signal"
+timeout_func_only = false
 # pytest-testmon is opt-in via --testmon flag for affected-only test execution
 # Usage: pytest --testmon (only runs tests affected by code changes)
 # Usage: pytest (runs all tests, default behavior)

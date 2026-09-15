@@ -138,10 +138,7 @@ function LiveActivityStats({ events }: LiveActivityStatsProps) {
 /**
  * Get announcement message for new events
  */
-function getEventAnnouncementMessage(
-  newCount: number,
-  highestRiskLevel: RiskLevel | null
-): string {
+function getEventAnnouncementMessage(newCount: number, highestRiskLevel: RiskLevel | null): string {
   if (newCount === 1) {
     if (highestRiskLevel === 'critical' || highestRiskLevel === 'high') {
       return `New ${highestRiskLevel} risk security event detected`;

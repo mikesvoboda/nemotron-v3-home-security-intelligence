@@ -227,9 +227,7 @@ Stack trace here`;
     });
 
     it('truncates long first line', () => {
-      const longError =
-        'A'.repeat(150) +
-        '\nMore details';
+      const longError = 'A'.repeat(150) + '\nMore details';
       const result = getShortErrorMessage(longError);
       expect(result).toHaveLength(103); // 100 + "..."
       expect(result?.endsWith('...')).toBe(true);

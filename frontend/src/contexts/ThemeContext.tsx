@@ -1,4 +1,3 @@
-
 /**
  * ThemeContext - React context for theme state management
  *
@@ -14,14 +13,7 @@
  * @see NEM-3609
  */
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import { useLocalStorage } from '../hooks/useLocalStorage';
 

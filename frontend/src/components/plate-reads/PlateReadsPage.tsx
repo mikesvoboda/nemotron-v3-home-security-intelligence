@@ -25,10 +25,7 @@ import PlateReadTable from './PlateReadTable';
 import PlateReadTrendsCard from './PlateReadTrendsCard';
 import PlateSearchBar from './PlateSearchBar';
 import PlateStatisticsCards from './PlateStatisticsCards';
-import {
-  usePlateSearchQuery,
-  plateSearchQueryKeys,
-} from '../../hooks/usePlateSearchQuery';
+import { usePlateSearchQuery, plateSearchQueryKeys } from '../../hooks/usePlateSearchQuery';
 import { plateStatisticsQueryKeys } from '../../hooks/usePlateStatisticsQuery';
 
 import type { PlateSearchFilters as SearchBarFilters } from './PlateSearchBar';
@@ -157,9 +154,7 @@ export function PlateReadsPage(): React.ReactElement {
           <Car className="h-8 w-8 text-[#76B900]" />
           <div>
             <h1 className="text-page-title">Plate Reads</h1>
-            <p className="text-sm text-gray-400">
-              License plate recognition data and analytics
-            </p>
+            <p className="text-sm text-gray-400">License plate recognition data and analytics</p>
           </div>
         </div>
 
@@ -220,10 +215,7 @@ export function PlateReadsPage(): React.ReactElement {
       </div>
 
       {/* Detail Modal */}
-      <PlateDetailModal
-        plateText={selectedPlateText}
-        onClose={handleModalClose}
-      />
+      <PlateDetailModal plateText={selectedPlateText} onClose={handleModalClose} />
     </div>
   );
 }

@@ -6,13 +6,46 @@ with the real application context, including Redis integration.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
+from backend.api.schemas.ai_services_health import (
+    AIServiceCircuitState,
+    AIServiceHealthDetail,
+    AIServiceStatus,
+)
+
 if TYPE_CHECKING:
     from httpx import AsyncClient
+
+
+def _detail(status: str = "healthy", error: str | None = None) -> AIServiceHealthDetail:
+    """Real schema instance — the route serializes the gathered results
+    into AIServicesHealthResponse, so an AsyncMock return_value fails
+    response validation → 500 INTERNAL_ERROR (ledger R-T9-AIHEALTH2)."""
+    return AIServiceHealthDetail(
+        status=AIServiceStatus(status),
+        circuit_state=AIServiceCircuitState.CLOSED,
+        last_health_check=datetime.now(UTC),
+        error_rate_1h=None,
+        latency_p99_ms=None,
+        url="http://localhost:8090",
+        error=error,
+    )
+
+
+@pytest.fixture
+async def async_client(client):
+    """Alias for the shared client fixture (ledger R-T9-AIHEALTH).
+
+    The tests request `async_client`, which no fixture provides — every test
+    in this class ERRORed at setup with "fixture 'async_client' not found".
+    Same ghost-name class as test_tracks.py; the shared fixture is `client`.
+    """
+    yield client
 
 
 @pytest.mark.integration
@@ -25,17 +58,10 @@ class TestAIServicesHealthIntegration:
     ) -> None:
         """Verify the endpoint returns a valid response structure."""
         # Mock the AI service health checks since actual AI services aren't running
-        with patch("backend.api.routes.health_ai_services._check_ai_service_health") as mock_check:
-            mock_check.return_value = AsyncMock(
-                status="healthy",
-                circuit_state="closed",
-                last_health_check="2026-01-20T00:00:00Z",
-                error_rate_1h=None,
-                latency_p99_ms=None,
-                url="http://localhost:8090",
-                error=None,
-            )
-
+        with patch(
+            "backend.api.routes.health_ai_services._check_ai_service_health",
+            return_value=_detail("healthy"),
+        ):
             response = await async_client.get("/api/health/ai-services")
 
             # Should return 200 or 503 depending on service health
@@ -51,17 +77,10 @@ class TestAIServicesHealthIntegration:
     @pytest.mark.asyncio
     async def test_ai_services_health_returns_queue_depths(self, async_client: AsyncClient) -> None:
         """Verify queue depth information is included in response."""
-        with patch("backend.api.routes.health_ai_services._check_ai_service_health") as mock_check:
-            mock_check.return_value = AsyncMock(
-                status="unknown",
-                circuit_state="closed",
-                last_health_check="2026-01-20T00:00:00Z",
-                error_rate_1h=None,
-                latency_p99_ms=None,
-                url=None,
-                error="Service URL not configured",
-            )
-
+        with patch(
+            "backend.api.routes.health_ai_services._check_ai_service_health",
+            return_value=_detail("unknown", error="Service URL not configured"),
+        ):
             response = await async_client.get("/api/health/ai-services")
             data = response.json()
 
@@ -81,17 +100,10 @@ class TestAIServicesHealthIntegration:
         self, async_client: AsyncClient
     ) -> None:
         """Verify all expected AI services are included in response."""
-        with patch("backend.api.routes.health_ai_services._check_ai_service_health") as mock_check:
-            mock_check.return_value = AsyncMock(
-                status="unknown",
-                circuit_state="closed",
-                last_health_check="2026-01-20T00:00:00Z",
-                error_rate_1h=None,
-                latency_p99_ms=None,
-                url=None,
-                error="Service URL not configured",
-            )
-
+        with patch(
+            "backend.api.routes.health_ai_services._check_ai_service_health",
+            return_value=_detail("unknown", error="Service URL not configured"),
+        ):
             response = await async_client.get("/api/health/ai-services")
             data = response.json()
 

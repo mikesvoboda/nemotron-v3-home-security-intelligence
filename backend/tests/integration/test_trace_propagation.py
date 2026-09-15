@@ -415,8 +415,14 @@ class TestTraceCorrelationInResponse:
 
     @pytest.mark.asyncio
     async def test_response_headers_include_correlation_info(self, client: AsyncClient) -> None:
-        """Test that response headers include correlation information."""
-        response = await client.get("/api/system/health")
+        """Test that response headers include correlation information.
+
+        Uses /health/live rather than /health: the full health endpoint
+        answers 503 whenever deps aren't green in the test env (R-T9-CORR
+        family), which is orthogonal to header propagation — the liveness
+        probe answers 200 dependency-free (routes/system.py get_liveness).
+        """
+        response = await client.get("/api/system/health/live")
 
         assert response.status_code == 200
 
@@ -521,7 +527,15 @@ class TestContextFilterIntegration:
             assert record.trace_id == "explicit-trace-id-00000000000000"  # type: ignore[attr-defined]
 
     def test_context_filter_handles_none_trace_context(self) -> None:
-        """Test that ContextFilter handles None trace context gracefully."""
+        """Test that ContextFilter handles None trace context gracefully.
+
+        Shipped contract (core/logging.py ContextFilter.filter): the filter
+        coerces absent trace context with `or ""` — a record NEVER carries a
+        None trace_id/span_id from this path; it carries the empty string so
+        formatters never print "None". The None-valued dict is what
+        get_current_trace_context itself returns (that's its own contract);
+        the filter's job is to absorb it. (ledger R-T7-TRACE)
+        """
         from backend.core.logging import ContextFilter
 
         with patch(
@@ -543,6 +557,6 @@ class TestContextFilterIntegration:
 
             assert result is True
             assert hasattr(record, "trace_id")
-            assert record.trace_id is None  # type: ignore[attr-defined]
+            assert record.trace_id == ""  # type: ignore[attr-defined]
             assert hasattr(record, "span_id")
-            assert record.span_id is None  # type: ignore[attr-defined]
+            assert record.span_id == ""  # type: ignore[attr-defined]

@@ -70,7 +70,9 @@ export interface UseSystemSettingReturn {
   /** Function to manually trigger a refetch */
   refetch: () => Promise<unknown>;
   /** Mutation to update the setting */
-  updateSetting: ReturnType<typeof useMutation<SystemSettingResponse, Error, Record<string, unknown>>>;
+  updateSetting: ReturnType<
+    typeof useMutation<SystemSettingResponse, Error, Record<string, unknown>>
+  >;
   /** Mutation to delete the setting */
   deleteSetting: ReturnType<typeof useMutation<void, Error, void>>;
 }
@@ -213,9 +215,7 @@ export interface UseSystemSettingsReturn {
  * );
  * ```
  */
-export function useSystemSettings(
-  options: UseSystemSettingsOptions = {}
-): UseSystemSettingsReturn {
+export function useSystemSettings(options: UseSystemSettingsOptions = {}): UseSystemSettingsReturn {
   const { enabled = true, staleTime = DEFAULT_STALE_TIME } = options;
 
   const query = useQuery({

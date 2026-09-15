@@ -22,10 +22,7 @@ import {
 } from './useCameraBaselineQuery';
 import * as api from '../services/api';
 
-import type {
-  BaselineSummaryResponse,
-  ActivityBaselineResponse,
-} from '../services/api';
+import type { BaselineSummaryResponse, ActivityBaselineResponse } from '../services/api';
 
 // Mock the API module
 vi.mock('../services/api', () => ({
@@ -51,11 +48,8 @@ const createTestQueryClient = () =>
  * Creates a QueryClientProvider wrapper for hook tests.
  */
 const createWrapper = (queryClient: QueryClient) => {
-
   return ({ children }: { children: React.ReactNode }) => {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 };
 
@@ -208,12 +202,9 @@ describe('useCameraBaselineQuery Integration Tests', () => {
     it('caches data correctly (no refetch on re-render)', async () => {
       const queryClient = createTestQueryClient();
 
-      const { result, rerender } = renderHook(
-        () => useCameraBaselineQuery(mockCameraId),
-        {
-          wrapper: createWrapper(queryClient),
-        }
-      );
+      const { result, rerender } = renderHook(() => useCameraBaselineQuery(mockCameraId), {
+        wrapper: createWrapper(queryClient),
+      });
 
       // Wait for initial fetch
       await waitFor(() => {
@@ -233,13 +224,10 @@ describe('useCameraBaselineQuery Integration Tests', () => {
     it('invalidates cache when camera_id changes', async () => {
       const queryClient = createTestQueryClient();
 
-      const { result, rerender } = renderHook(
-        ({ cameraId }) => useCameraBaselineQuery(cameraId),
-        {
-          wrapper: createWrapper(queryClient),
-          initialProps: { cameraId: mockCameraId },
-        }
-      );
+      const { result, rerender } = renderHook(({ cameraId }) => useCameraBaselineQuery(cameraId), {
+        wrapper: createWrapper(queryClient),
+        initialProps: { cameraId: mockCameraId },
+      });
 
       // Wait for initial fetch
       await waitFor(() => {
@@ -553,12 +541,9 @@ describe('useCameraActivityBaselineQuery Integration Tests', () => {
     it('caches data correctly (no refetch on re-render)', async () => {
       const queryClient = createTestQueryClient();
 
-      const { result, rerender } = renderHook(
-        () => useCameraActivityBaselineQuery(mockCameraId),
-        {
-          wrapper: createWrapper(queryClient),
-        }
-      );
+      const { result, rerender } = renderHook(() => useCameraActivityBaselineQuery(mockCameraId), {
+        wrapper: createWrapper(queryClient),
+      });
 
       // Wait for initial fetch
       await waitFor(() => {

@@ -102,16 +102,12 @@ describe('useEventClip', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.clipUrl).toBe(
-        'http://localhost/api/media/clips/event_123.mp4'
-      );
+      expect(result.current.clipUrl).toBe('http://localhost/api/media/clips/event_123.mp4');
       expect(result.current.isClipAvailable).toBe(true);
     });
 
     it('handles fetch error', async () => {
-      vi.mocked(api.fetchEventClipInfo).mockRejectedValue(
-        new Error('Network error')
-      );
+      vi.mocked(api.fetchEventClipInfo).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useEventClip(123));
 
@@ -124,10 +120,9 @@ describe('useEventClip', () => {
     });
 
     it('refetches when eventId changes', async () => {
-      const { result, rerender } = renderHook(
-        ({ eventId }) => useEventClip(eventId),
-        { initialProps: { eventId: 123 } }
-      );
+      const { result, rerender } = renderHook(({ eventId }) => useEventClip(eventId), {
+        initialProps: { eventId: 123 },
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -157,18 +152,14 @@ describe('useEventClip', () => {
 
       expect(api.generateEventClip).toHaveBeenCalledWith(123, undefined);
       expect(result.current.clipInfo?.clip_available).toBe(true);
-      expect(result.current.clipUrl).toBe(
-        'http://localhost/api/media/clips/event_123.mp4'
-      );
+      expect(result.current.clipUrl).toBe('http://localhost/api/media/clips/event_123.mp4');
     });
 
     it('shows generating state during clip generation', async () => {
       let resolveGenerate: (value: api.ClipGenerateResponse) => void;
-      const generatePromise = new Promise<api.ClipGenerateResponse>(
-        (resolve) => {
-          resolveGenerate = resolve;
-        }
-      );
+      const generatePromise = new Promise<api.ClipGenerateResponse>((resolve) => {
+        resolveGenerate = resolve;
+      });
       vi.mocked(api.generateEventClip).mockReturnValue(generatePromise);
 
       const { result } = renderHook(() => useEventClip(123));
@@ -215,9 +206,7 @@ describe('useEventClip', () => {
     });
 
     it('handles generation error', async () => {
-      vi.mocked(api.generateEventClip).mockRejectedValue(
-        new Error('Server error')
-      );
+      vi.mocked(api.generateEventClip).mockRejectedValue(new Error('Server error'));
 
       const { result } = renderHook(() => useEventClip(123));
 
@@ -319,11 +308,9 @@ describe('useEventClip', () => {
 
     it('canGenerateClip returns false when generating', async () => {
       let resolveGenerate: (value: api.ClipGenerateResponse) => void;
-      const generatePromise = new Promise<api.ClipGenerateResponse>(
-        (resolve) => {
-          resolveGenerate = resolve;
-        }
-      );
+      const generatePromise = new Promise<api.ClipGenerateResponse>((resolve) => {
+        resolveGenerate = resolve;
+      });
       vi.mocked(api.generateEventClip).mockReturnValue(generatePromise);
 
       const { result } = renderHook(() => useEventClip(123));

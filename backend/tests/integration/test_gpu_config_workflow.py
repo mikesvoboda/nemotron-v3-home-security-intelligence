@@ -249,8 +249,11 @@ class TestFullConfigurationWorkflow:
         # Verify assignments persisted
         db_configs = await self._get_assignments_from_db(db_session)
         assert len(db_configs) == 3
-        assert db_configs[0].service_name == "ai-llm"
-        assert db_configs[0].gpu_index == 1
+        # order_by(service_name) ASC puts 'ai-enrichment' first; assert by
+        # name (this index assertion was already wrong at the introducing
+        # merge 6d7ae425 — 'ai-llm' was never [0]).
+        llm_config = next(c for c in db_configs if c.service_name == "ai-llm")
+        assert llm_config.gpu_index == 1
 
         # Step 4: Preview auto-assignment strategy
         from backend.api.routes.gpu_config import _calculate_auto_assignments
@@ -418,11 +421,14 @@ class TestDatabaseIntegration:
         db_configs = result.scalars().all()
 
         assert len(db_configs) == 2
-        assert db_configs[0].service_name == "ai-yolo26"
-        assert db_configs[0].gpu_index == 1
-        assert db_configs[0].vram_budget_override == 2.5
-        assert db_configs[1].service_name == "ai-llm"
-        assert db_configs[1].strategy == GpuAssignmentStrategy.VRAM_BASED.value
+        # order_by(service_name) ASC: 'ai-llm' < 'ai-yolo26' after the
+        # f1e0ea9e ai-detector->ai-yolo26 rename inverted the lexicographic
+        # order this assertion relied on.
+        assert db_configs[0].service_name == "ai-llm"
+        assert db_configs[0].strategy == GpuAssignmentStrategy.VRAM_BASED.value
+        assert db_configs[1].service_name == "ai-yolo26"
+        assert db_configs[1].gpu_index == 1
+        assert db_configs[1].vram_budget_override == 2.5
 
     @pytest.mark.asyncio
     async def test_system_settings_stored_correctly(self, db_session: AsyncSession) -> None:
@@ -833,6 +839,14 @@ class TestAPIWorkflowIntegration:
                     temp_config_dir / "gpu-assignments.yml",
                 )
             )
+            # The apply route's 409 pre-check awaits get_operation_status
+            # (gpu_config.py:837) and _persist_operation_status; with the
+            # conftest's AsyncMock redis singleton, redis.get() returns a
+            # truthy child mock and the pre-check tried to await a
+            # MagicMock. Configure both awaited methods: None -> pre-check
+            # falls through, apply proceeds on the real DB.
+            mock_service.get_operation_status = AsyncMock(return_value=None)
+            mock_service._persist_operation_status = AsyncMock()
             mock_config_service_class.return_value = mock_service
 
             # Create sample files that write_config_files would create

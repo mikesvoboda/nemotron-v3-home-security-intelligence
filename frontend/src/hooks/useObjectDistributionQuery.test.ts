@@ -12,7 +12,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { useObjectDistributionQuery, objectDistributionQueryKeys } from './useObjectDistributionQuery';
+import {
+  useObjectDistributionQuery,
+  objectDistributionQueryKeys,
+} from './useObjectDistributionQuery';
 import * as api from '../services/api';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 

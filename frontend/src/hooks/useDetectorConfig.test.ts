@@ -11,11 +11,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useDetectorConfig } from './useDetectorConfig';
-import {
-  checkDetectorHealth,
-  listDetectors,
-  switchDetector,
-} from '../services/detectorApi';
+import { checkDetectorHealth, listDetectors, switchDetector } from '../services/detectorApi';
 
 import type { DetectorInfo, DetectorListResponse } from '../services/detectorApi';
 
@@ -62,9 +58,7 @@ describe('useDetectorConfig', () => {
 
   describe('Initial State', () => {
     it('starts with empty detectors array', () => {
-      const { result } = renderHook(() =>
-        useDetectorConfig({ autoFetch: false })
-      );
+      const { result } = renderHook(() => useDetectorConfig({ autoFetch: false }));
 
       expect(result.current.detectors).toEqual([]);
       expect(result.current.activeDetector).toBeNull();
@@ -75,9 +69,7 @@ describe('useDetectorConfig', () => {
 
   describe('Auto Fetch', () => {
     it('fetches detectors on mount when autoFetch is true', async () => {
-      const { result } = renderHook(() =>
-        useDetectorConfig({ autoFetch: true })
-      );
+      const { result } = renderHook(() => useDetectorConfig({ autoFetch: true }));
 
       await waitFor(() => {
         expect(listDetectors).toHaveBeenCalledTimes(1);
@@ -96,9 +88,7 @@ describe('useDetectorConfig', () => {
 
   describe('Error Handling', () => {
     it('sets error when fetch fails', async () => {
-      (listDetectors as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Network error')
-      );
+      (listDetectors as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useDetectorConfig({ autoFetch: true }));
 
@@ -223,9 +213,7 @@ describe('useDetectorConfig', () => {
       };
       (checkDetectorHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockHealth);
 
-      const { result } = renderHook(() =>
-        useDetectorConfig({ autoFetch: false })
-      );
+      const { result } = renderHook(() => useDetectorConfig({ autoFetch: false }));
 
       const health = await result.current.checkHealth('yolo26');
 
@@ -236,9 +224,7 @@ describe('useDetectorConfig', () => {
 
   describe('Refresh', () => {
     it('manually refreshes detector list', async () => {
-      const { result } = renderHook(() =>
-        useDetectorConfig({ autoFetch: false })
-      );
+      const { result } = renderHook(() => useDetectorConfig({ autoFetch: false }));
 
       await act(async () => {
         await result.current.refresh();

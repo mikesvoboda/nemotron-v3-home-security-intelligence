@@ -14,10 +14,7 @@ import { useMemo } from 'react';
 import { fetchPipelineStatus } from '../services/api';
 import { computeBatchAggregatorState } from '../types/queue';
 
-import type {
-  PipelineStatusResponse,
-  BatchAggregatorUIState,
-} from '../types/queue';
+import type { PipelineStatusResponse, BatchAggregatorUIState } from '../types/queue';
 
 /**
  * Query key for pipeline status data.
@@ -105,9 +102,7 @@ export interface UsePipelineStatusReturn {
  * }
  * ```
  */
-export function usePipelineStatus(
-  options: UsePipelineStatusOptions = {}
-): UsePipelineStatusReturn {
+export function usePipelineStatus(options: UsePipelineStatusOptions = {}): UsePipelineStatusReturn {
   const { enabled = true, refetchInterval = DEFAULT_REFETCH_INTERVAL } = options;
 
   const query = useQuery({

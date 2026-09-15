@@ -97,7 +97,10 @@ class TestCosineimilarity:
     def test_similar_vectors_have_high_similarity(self) -> None:
         """Similar vectors should have high similarity."""
         base_emb = generate_random_embedding(seed=3)
-        similar_emb = generate_similar_embedding(base_emb, noise_level=0.1)
+        # noise_level must satisfy E[sim] = 1/sqrt(1 + 512*noise^2) > 0.9
+        # → noise < 0.0214; 0.1 yields ~0.45 (deterministically failed since
+        # 491ee055 — the generator was never actually similar). 0.02 → 0.9153.
+        similar_emb = generate_similar_embedding(base_emb, noise_level=0.02)
         a = np.array(base_emb, dtype=np.float32)
         b = np.array(similar_emb, dtype=np.float32)
         similarity = cosine_similarity(a, b)
@@ -469,8 +472,11 @@ class TestFaceMatching:
             embedding=base_embedding,
         )
 
-        # Create moderately similar embedding
-        query_embedding = generate_similar_embedding(base_embedding, noise_level=0.3)
+        # Create moderately similar embedding. E[sim] = 1/sqrt(1 + 512*noise^2):
+        # noise=0.3 lands at ~0.095 (seed 900) — below BOTH thresholds, which made
+        # the low-threshold assertion unachievable. noise=0.05 → sim=0.6408
+        # (seed 900): between the two thresholds, exercising both branches.
+        query_embedding = generate_similar_embedding(base_embedding, noise_level=0.05)
 
         # With high threshold, should not match
         result_high = await service.match_face(db_session, query_embedding, threshold=0.95)
@@ -574,8 +580,11 @@ class TestFaceDetectionEventRecording:
         base_embedding = generate_random_embedding(seed=2100)
         await service.add_face_embedding(db_session, person.id, embedding=base_embedding)
 
-        # Record face detection with similar embedding
-        query_embedding = generate_similar_embedding(base_embedding, noise_level=0.05)
+        # Record face detection with similar embedding. noise_level=0.05
+        # with seed 2100 lands at sim=0.6754 — just under
+        # DEFAULT_MATCH_THRESHOLD (0.68) — so no match is found and the event
+        # records as unknown. 0.04 → 0.7510, above threshold.
+        query_embedding = generate_similar_embedding(base_embedding, noise_level=0.04)
         event = await service.record_face_detection(
             db_session,
             camera_id=test_camera,

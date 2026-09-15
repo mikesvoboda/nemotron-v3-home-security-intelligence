@@ -80,7 +80,8 @@ const ICON_PATHS: Record<IconType, string> = {
   check: 'M5 13l4 4L19 7',
   'arrow-up': 'M5 15l7-7 7 7',
   'arrow-down': 'M19 9l-7 7-7-7',
-  alert: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  alert:
+    'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
 };
 
 /**
@@ -199,10 +200,7 @@ export default function BaselineDeviationCard({
             )}
           </div>
           <div>
-            <div
-              className={`text-3xl font-bold ${colors?.text}`}
-              data-testid="deviation-score"
-            >
+            <div className={`text-3xl font-bold ${colors?.text}`} data-testid="deviation-score">
               {formatScore(deviation.score)}
             </div>
             <div className="text-sm text-gray-400">standard deviations</div>

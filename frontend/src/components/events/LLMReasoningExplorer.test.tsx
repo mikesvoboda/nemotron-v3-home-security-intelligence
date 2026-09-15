@@ -101,9 +101,7 @@ describe('LLMReasoningExplorer', () => {
   describe('Loading State', () => {
     it('displays loading spinner while fetching data', () => {
       // Create a promise that never resolves to keep loading state
-      vi.mocked(llmReasoningApi.fetchLLMReasoning).mockImplementation(
-        () => new Promise(() => {})
-      );
+      vi.mocked(llmReasoningApi.fetchLLMReasoning).mockImplementation(() => new Promise(() => {}));
 
       render(<LLMReasoningExplorer eventId={123} />);
 
@@ -424,7 +422,9 @@ describe('LLMReasoningExplorer', () => {
 
       await waitFor(() => {
         // Check for proper heading structure - the main heading is "LLM Reasoning Explorer"
-        expect(screen.getByRole('heading', { name: /llm reasoning explorer/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: /llm reasoning explorer/i })
+        ).toBeInTheDocument();
       });
     });
 

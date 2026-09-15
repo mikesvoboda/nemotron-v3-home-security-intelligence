@@ -131,11 +131,11 @@ import type {
   ObjectDistributionResponse,
   RiskHistoryQueryParams,
   RiskHistoryResponse,
-
   CameraActivityResponse,
   CameraActivityDataPoint,
   CameraActivityParams,
-  RiskLevel} from '../types/analytics';
+  RiskLevel,
+} from '../types/analytics';
 import type {
   BulkOperationResponse,
   DetectionBulkCreateItem,
@@ -1916,9 +1916,7 @@ export async function fetchCameraClassBaseline(cameraId: string): Promise<ClassB
  * @returns BaselineSummaryResponse with all baseline data
  */
 export async function fetchCameraBaseline(cameraId: string): Promise<BaselineSummaryResponse> {
-  return fetchApi<BaselineSummaryResponse>(
-    `/api/cameras/${encodeURIComponent(cameraId)}/baseline`
-  );
+  return fetchApi<BaselineSummaryResponse>(`/api/cameras/${encodeURIComponent(cameraId)}/baseline`);
 }
 
 /**
@@ -4339,7 +4337,9 @@ export async function fetchNotificationHistory(
   }
 
   const queryString = searchParams.toString();
-  const url = queryString ? `/api/notification/history?${queryString}` : '/api/notification/history';
+  const url = queryString
+    ? `/api/notification/history?${queryString}`
+    : '/api/notification/history';
 
   return fetchApi<NotificationHistoryResponse>(url);
 }
@@ -6123,9 +6123,7 @@ export async function fetchSceneChangeSummary(
   // Filter by date range if days is specified
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
-  const recentChanges = changes.filter(
-    (sc) => new Date(sc.detected_at) >= cutoffDate
-  );
+  const recentChanges = changes.filter((sc) => new Date(sc.detected_at) >= cutoffDate);
 
   // Compute summary statistics
   const totalChanges = recentChanges.length;
@@ -6157,8 +6155,7 @@ export async function fetchSceneChangeSummary(
     .sort((a, b) => b.count - a.count);
 
   // Find most common type
-  const mostCommonType: SceneChangeType | null =
-    byType.length > 0 ? byType[0].type : null;
+  const mostCommonType: SceneChangeType | null = byType.length > 0 ? byType[0].type : null;
 
   // Compute average similarity score
   let avgSimilarityScore: number | null = null;
@@ -7238,7 +7235,6 @@ export async function fetchRiskScoreTrends(
 // ============================================================================
 // Camera Activity Heatmap API (NEM-5388/5389/5390/5391)
 // ============================================================================
-
 
 // Re-export for consumers
 export type { CameraActivityResponse, CameraActivityDataPoint, CameraActivityParams, RiskLevel };
@@ -9121,7 +9117,6 @@ export async function fetchReidSimilar(
 // ============================================================================
 // Cost Analytics API (NEM-5024)
 // ============================================================================
-
 
 // Re-export cost analytics types for consumers of this module
 export type {

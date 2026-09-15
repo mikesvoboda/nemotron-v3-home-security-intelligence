@@ -12,6 +12,7 @@ when api_key_enabled is True in settings.
 """
 
 import os
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -134,6 +135,17 @@ def get_patches(
             "backend.api.routes.system._file_watcher",
             mock_services["file_watcher_for_routes"],
         ),
+        # SetupGuard bypass — the shared integration conftest client patches
+        # this (conftest.py:1452, NEM-5312); this file builds its OWN client
+        # with its own patch list and had silently diverged, so every
+        # non-whitelisted DLQ route answered 503 (no users exist in the
+        # worker DB → setup never complete). That was the 36-failure cluster:
+        # 401/422-leg tests passed because SetupGuard answers BEFORE auth.
+        # (ledger R-T9-DLQGUARD)
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
         patch("backend.core.config.get_settings", return_value=test_settings),
         patch("backend.api.routes.dlq.get_settings", return_value=test_settings),
         patch("backend.core.redis._redis_client", mock_redis),
@@ -173,7 +185,29 @@ async def dlq_client(
 
     This fixture creates an HTTP client with api_key_enabled=False.
     """
+    # SetupGuardMiddleware returns 503 for every non-whitelisted route until a
+    # user exists (setup complete). These tests target the post-setup API
+    # contract, so seed the first admin directly to reach it.
+    from sqlalchemy import func, select
+
+    from backend.core.database import get_engine
     from backend.main import app
+    from backend.models.user import User
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        count = (await conn.execute(select(func.count(User.id)))).scalar() or 0
+        if count == 0:
+            await conn.execute(
+                User.__table__.insert().values(
+                    id=f"setup_seed_user_{uuid.uuid4().hex[:12]}",
+                    username=f"setup_seed_{uuid.uuid4().hex[:8]}",
+                    email=f"setup_seed_{uuid.uuid4().hex[:8]}@example.com",
+                    password_hash="test-hash-not-a-real-password",
+                    is_active=True,
+                    is_admin=True,
+                )
+            )
 
     # Create settings with API key disabled
     test_settings = Settings(

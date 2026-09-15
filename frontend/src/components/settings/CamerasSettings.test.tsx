@@ -244,7 +244,11 @@ describe('CamerasSettings', () => {
     });
 
     mockRestoreMutationReturn = {
-      restoreMutation: createMockMutation<Camera, Error, string>() as UseRestoreCameraMutationReturn['restoreMutation'],
+      restoreMutation: createMockMutation<
+        Camera,
+        Error,
+        string
+      >() as UseRestoreCameraMutationReturn['restoreMutation'],
     };
     vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
   });
@@ -1499,7 +1503,9 @@ describe('CamerasSettings', () => {
 
       // Check for soft delete warning messages
       expect(screen.getByText('This will affect related data')).toBeInTheDocument();
-      expect(screen.getByText(/All detections from this camera will be hidden/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/All detections from this camera will be hidden/)
+      ).toBeInTheDocument();
       expect(screen.getByText(/Show deleted cameras/)).toBeInTheDocument();
     });
   });

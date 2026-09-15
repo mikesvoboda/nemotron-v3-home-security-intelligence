@@ -18,7 +18,8 @@ prompts/
 
 **Purpose:** System prompt for AI-powered code review in pull requests.
 
-**Used by:** `.github/workflows/ai-code-review.yml`
+**Used by:** none currently — `ai-code-review.yml` was removed 2026-09-15
+(GitHub Models retired 2026-07-30; see `.github/workflows/AGENTS.md`)
 
 **Review Guidelines:**
 
@@ -77,15 +78,12 @@ The prompt provides context about the project tech stack:
 
 ## Usage
 
-### AI Code Review Workflow
+### AI Code Review Workflow (removed 2026-09-15)
 
-The `ai-code-review.yml` workflow:
-
-1. Extracts PR diff
-2. Truncates to 20KB (token limits)
-3. Prepends system prompt
-4. Calls GPT-4o via GitHub Models
-5. Posts review as PR comment
+`ai-code-review.yml` extracted the PR diff, truncated it to 20KB, prepended
+this prompt, called GPT-4o via GitHub Models, and posted the result as a PR
+comment. GitHub Models was fully retired 2026-07-30, so the workflow was
+deleted; this prompt is retained for a future reviewer that costs nothing.
 
 ### Modifying the Prompt
 
@@ -120,6 +118,5 @@ The `ai-code-review.yml` workflow:
 
 ## Related Files
 
-- `../workflows/ai-code-review.yml` - Workflow using this prompt
 - `../copilot-instructions.md` - GitHub Copilot context
 - `CLAUDE.md` - Project development guidelines

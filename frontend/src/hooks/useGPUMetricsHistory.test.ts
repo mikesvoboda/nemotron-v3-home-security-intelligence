@@ -199,9 +199,7 @@ describe('useGPUMetricsHistory', () => {
     });
 
     it('should handle network errors', async () => {
-      vi.mocked(gpuHistoryApi.getGPUHistory).mockRejectedValue(
-        new Error('Network request failed')
-      );
+      vi.mocked(gpuHistoryApi.getGPUHistory).mockRejectedValue(new Error('Network request failed'));
 
       const { result } = renderHook(() => useGPUMetricsHistory());
 
@@ -214,9 +212,7 @@ describe('useGPUMetricsHistory', () => {
     });
 
     it('should handle 500 server errors', async () => {
-      vi.mocked(gpuHistoryApi.getGPUHistory).mockRejectedValue(
-        new Error('Internal server error')
-      );
+      vi.mocked(gpuHistoryApi.getGPUHistory).mockRejectedValue(new Error('Internal server error'));
 
       const { result } = renderHook(() => useGPUMetricsHistory());
 
@@ -268,10 +264,7 @@ describe('useGPUMetricsHistory', () => {
 
       // Mock a slower response for refetch
       vi.mocked(gpuHistoryApi.getGPUHistory).mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve(mockGPUHistoryResponse), 100)
-          )
+        () => new Promise((resolve) => setTimeout(() => resolve(mockGPUHistoryResponse), 100))
       );
 
       result.current.refetch();
@@ -368,12 +361,9 @@ describe('useGPUMetricsHistory', () => {
     it('should refetch when limit changes', async () => {
       vi.mocked(gpuHistoryApi.getGPUHistory).mockResolvedValue(mockGPUHistoryResponse);
 
-      const { result, rerender } = renderHook(
-        ({ limit }) => useGPUMetricsHistory({ limit }),
-        {
-          initialProps: { limit: 100 },
-        }
-      );
+      const { result, rerender } = renderHook(({ limit }) => useGPUMetricsHistory({ limit }), {
+        initialProps: { limit: 100 },
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

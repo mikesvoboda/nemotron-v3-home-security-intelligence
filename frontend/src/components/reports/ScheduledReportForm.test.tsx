@@ -44,12 +44,7 @@ describe('ScheduledReportForm', () => {
 
   describe('Create Mode', () => {
     it('should render empty form in create mode', () => {
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       expect(screen.getByTestId('scheduled-report-form')).toBeInTheDocument();
       expect(screen.getByLabelText(/report name/i)).toHaveValue('');
@@ -58,12 +53,7 @@ describe('ScheduledReportForm', () => {
 
     it('should show validation error for empty name', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       await user.click(screen.getByRole('button', { name: /create report/i }));
 
@@ -75,12 +65,7 @@ describe('ScheduledReportForm', () => {
       const user = userEvent.setup();
       mockOnSubmit.mockResolvedValue(undefined);
 
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       // Fill in name
       await user.type(screen.getByLabelText(/report name/i), 'Test Report');
@@ -98,12 +83,7 @@ describe('ScheduledReportForm', () => {
 
     it('should call onCancel when cancel button is clicked', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       await user.click(screen.getByRole('button', { name: /cancel/i }));
       expect(mockOnCancel).toHaveBeenCalled();
@@ -113,11 +93,7 @@ describe('ScheduledReportForm', () => {
   describe('Edit Mode', () => {
     it('should populate form with existing report data', () => {
       render(
-        <ScheduledReportForm
-          report={mockReport}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <ScheduledReportForm report={mockReport} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
       );
 
       expect(screen.getByLabelText(/report name/i)).toHaveValue('Weekly Security Summary');
@@ -126,11 +102,7 @@ describe('ScheduledReportForm', () => {
 
     it('should show day of week selector for weekly frequency', () => {
       render(
-        <ScheduledReportForm
-          report={mockReport}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <ScheduledReportForm report={mockReport} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
       );
 
       expect(screen.getByLabelText(/day of week/i)).toBeInTheDocument();
@@ -140,12 +112,7 @@ describe('ScheduledReportForm', () => {
   describe('Frequency Selection', () => {
     it('should show day of month selector when monthly is selected', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       // Select monthly frequency
       await user.selectOptions(screen.getByLabelText(/frequency/i), 'monthly');
@@ -156,12 +123,7 @@ describe('ScheduledReportForm', () => {
 
     it('should hide day selectors when daily is selected', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       // Select daily frequency
       await user.selectOptions(screen.getByLabelText(/frequency/i), 'daily');
@@ -174,12 +136,7 @@ describe('ScheduledReportForm', () => {
   describe('Email Recipients', () => {
     it('should add email recipient', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       const emailInput = screen.getByPlaceholderText(/email@example.com/i);
       await user.type(emailInput, 'test@example.com');
@@ -191,11 +148,7 @@ describe('ScheduledReportForm', () => {
     it('should remove email recipient', async () => {
       const user = userEvent.setup();
       render(
-        <ScheduledReportForm
-          report={mockReport}
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
+        <ScheduledReportForm report={mockReport} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />
       );
 
       // Find and click remove button for existing email
@@ -207,12 +160,7 @@ describe('ScheduledReportForm', () => {
 
     it('should add email on Enter key', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       const emailInput = screen.getByPlaceholderText(/email@example.com/i);
       await user.type(emailInput, 'test@example.com{enter}');
@@ -226,12 +174,7 @@ describe('ScheduledReportForm', () => {
       const user = userEvent.setup();
       mockOnSubmit.mockResolvedValue(undefined);
 
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       // Fill in name first
       await user.type(screen.getByLabelText(/report name/i), 'Test Report');
@@ -254,12 +197,7 @@ describe('ScheduledReportForm', () => {
   describe('Enabled Toggle', () => {
     it('should toggle enabled state', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       const toggle = screen.getByRole('switch');
       expect(toggle).toHaveAttribute('aria-checked', 'true'); // Default is enabled
@@ -272,12 +210,7 @@ describe('ScheduledReportForm', () => {
   describe('Content Options', () => {
     it('should toggle include_charts checkbox', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       const checkbox = screen.getByRole('checkbox', { name: /include charts/i });
       expect(checkbox).toBeChecked(); // Default is true
@@ -288,12 +221,7 @@ describe('ScheduledReportForm', () => {
 
     it('should toggle include_event_details checkbox', async () => {
       const user = userEvent.setup();
-      render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-        />
-      );
+      render(<ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
       const checkbox = screen.getByRole('checkbox', { name: /include event details/i });
       expect(checkbox).toBeChecked(); // Default is true
@@ -335,11 +263,7 @@ describe('ScheduledReportForm', () => {
   describe('Submitting State', () => {
     it('should disable inputs when submitting', () => {
       render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-          isSubmitting={true}
-        />
+        <ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} isSubmitting={true} />
       );
 
       expect(screen.getByLabelText(/report name/i)).toBeDisabled();
@@ -348,11 +272,7 @@ describe('ScheduledReportForm', () => {
 
     it('should show loading state on submit button', () => {
       render(
-        <ScheduledReportForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-          isSubmitting={true}
-        />
+        <ScheduledReportForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} isSubmitting={true} />
       );
 
       // The Button component shows loading state internally

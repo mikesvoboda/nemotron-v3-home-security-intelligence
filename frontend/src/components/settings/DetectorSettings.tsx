@@ -74,7 +74,7 @@ function DetectorCard({
       className={clsx(
         'border-gray-800 bg-[#1E1E1E] transition-colors',
         isActive && 'border-[#76B900] ring-1 ring-[#76B900]',
-        !isActive && detector.enabled && 'hover:border-gray-700 cursor-pointer'
+        !isActive && detector.enabled && 'cursor-pointer hover:border-gray-700'
       )}
       onClick={!isActive && detector.enabled && !isSelecting ? onSelect : undefined}
     >
@@ -138,15 +138,8 @@ function DetectorCard({
  * during switch operations.
  */
 export default function DetectorSettings({ className }: DetectorSettingsProps) {
-  const {
-    detectors,
-    activeDetector,
-    isLoading,
-    isSwitching,
-    error,
-    refresh,
-    switchTo,
-  } = useDetectorConfig({ pollingInterval: 30000 });
+  const { detectors, activeDetector, isLoading, isSwitching, error, refresh, switchTo } =
+    useDetectorConfig({ pollingInterval: 30000 });
 
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
@@ -203,12 +196,7 @@ export default function DetectorSettings({ className }: DetectorSettingsProps) {
             Select which object detection model to use for processing camera feeds.
           </Text>
         </div>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={handleRefresh}
-          disabled={isLoading}
-        >
+        <Button size="sm" variant="secondary" onClick={handleRefresh} disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -291,9 +279,9 @@ export default function DetectorSettings({ className }: DetectorSettingsProps) {
       <Card className="border-gray-800 bg-[#1A1A1A]">
         <Text className="text-sm text-gray-400">
           <strong className="text-gray-300">Note:</strong> Switching detectors will apply
-          immediately to new camera frame processing. Existing batches in progress will
-          complete with the previous detector. Health checks are performed before switching
-          to ensure the target detector is operational.
+          immediately to new camera frame processing. Existing batches in progress will complete
+          with the previous detector. Health checks are performed before switching to ensure the
+          target detector is operational.
         </Text>
       </Card>
     </div>

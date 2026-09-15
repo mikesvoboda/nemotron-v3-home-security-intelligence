@@ -260,36 +260,68 @@ class TestCacheDatabaseConsistency:
 
     @pytest.mark.asyncio
     async def test_cache_invalidation_pattern(self) -> None:
-        """Test cache invalidation pattern."""
-        # Mock Redis client
+        """CacheService.invalidate deletes the PREFIXED key (M3 T7).
+
+        The old body awaited ``mock_redis.delete(cache_key)`` and asserted
+        the mock saw its own argument — circular (audit 3.x). The shipped
+        contract worth testing is that CacheService namespaces keys under
+        ``CACHE_PREFIX`` and maps the Redis delete count to a bool, so the
+        real service now runs with only the Redis I/O boundary mocked.
+        """
+        from backend.services.cache_service import CACHE_PREFIX, CacheService
+
         mock_redis = AsyncMock(spec=RedisClient)
         mock_redis.delete = AsyncMock(return_value=1)
-        mock_redis.get = AsyncMock(return_value=None)
+        cache = CacheService(mock_redis)
 
-        # Simulate cache invalidation
-        cache_key = "camera:test_cam"
-        await mock_redis.delete(cache_key)
-        mock_redis.delete.assert_called_once_with(cache_key)
+        assert await cache.invalidate("camera:test_cam") is True
+
+        mock_redis.delete.assert_awaited_once_with(f"{CACHE_PREFIX}camera:test_cam")
+
+    @pytest.mark.asyncio
+    async def test_cache_invalidation_reports_miss(self) -> None:
+        """invalidate() returns False when Redis deleted nothing (T7 addition).
+
+        The old test class asserted only the happy self-call; the shipped
+        method's False path (deleted == 0) is the other half of its contract.
+        """
+        from backend.services.cache_service import CacheService
+
+        mock_redis = AsyncMock(spec=RedisClient)
+        mock_redis.delete = AsyncMock(return_value=0)
+
+        assert await CacheService(mock_redis).invalidate("camera:absent") is False
 
     @pytest.mark.asyncio
     async def test_write_through_cache_pattern(self, integration_db: str) -> None:
-        """Test write-through cache pattern."""
+        """Write-through: DB row lands AND cache.set writes the prefixed key.
+
+        M3 T7: previously the cache half asserted a self-called AsyncMock.
+        Now the real CacheService.set runs (JSON payload, default TTL), so
+        the DB write and the cache write are both genuinely verified.
+        """
+        import json
+
+        from backend.services.cache_service import CACHE_PREFIX, DEFAULT_TTL, CacheService
+
         # Create camera in database
         async with get_session() as session:
             camera = CameraFactory.build(id="cache_test_cam", name="Cache Test Camera")
             session.add(camera)
             await session.commit()
 
-        # Mock cache write
+        # Write-through via the SHIPPED cache service
         mock_redis = AsyncMock(spec=RedisClient)
-        mock_redis.set = AsyncMock(return_value=True)
-
-        # Simulate write-through: write to DB, then cache
-        import json
-
+        cache = CacheService(mock_redis)
         cache_data = json.dumps({"id": camera.id, "name": camera.name})
-        await mock_redis.set(f"camera:{camera.id}", cache_data)
-        mock_redis.set.assert_called_once()
+
+        assert await cache.set(f"camera:{camera.id}", cache_data) is True
+
+        mock_redis.set.assert_awaited_once()
+        stored_key, stored_value = mock_redis.set.await_args.args
+        assert stored_key == f"{CACHE_PREFIX}camera:{camera.id}"
+        assert json.loads(stored_value) == {"id": camera.id, "name": camera.name}
+        assert mock_redis.set.await_args.kwargs.get("expire") == DEFAULT_TTL
 
         # Verify database has the data
         async with get_session() as session:

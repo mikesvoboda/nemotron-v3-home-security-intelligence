@@ -107,10 +107,9 @@ function createWrapper() {
 
 describe('useZoneApproachVectors', () => {
   it('should fetch approach vectors for a zone', async () => {
-    const { result } = renderHook(
-      () => useZoneApproachVectors({ zoneId: 1 }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useZoneApproachVectors({ zoneId: 1 }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(true);
 
@@ -125,20 +124,18 @@ describe('useZoneApproachVectors', () => {
   });
 
   it('should not fetch when disabled', () => {
-    const { result } = renderHook(
-      () => useZoneApproachVectors({ zoneId: 1, enabled: false }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useZoneApproachVectors({ zoneId: 1, enabled: false }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeUndefined();
   });
 
   it('should not fetch when zoneId is undefined', () => {
-    const { result } = renderHook(
-      () => useZoneApproachVectors({ zoneId: undefined }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useZoneApproachVectors({ zoneId: undefined }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeUndefined();
@@ -151,10 +148,9 @@ describe('useZoneApproachVectors', () => {
       })
     );
 
-    const { result } = renderHook(
-      () => useZoneApproachVectors({ zoneId: 1 }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useZoneApproachVectors({ zoneId: 1 }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -166,10 +162,9 @@ describe('useZoneApproachVectors', () => {
 
 describe('useCameraApproachVectors', () => {
   it('should fetch approach vectors for all zones on a camera', async () => {
-    const { result } = renderHook(
-      () => useCameraApproachVectors({ cameraId: 'front_door' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraApproachVectors({ cameraId: 'front_door' }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(true);
 
@@ -195,10 +190,9 @@ describe('useCameraApproachVectors', () => {
   });
 
   it('should not fetch when cameraId is empty', () => {
-    const { result } = renderHook(
-      () => useCameraApproachVectors({ cameraId: '' }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraApproachVectors({ cameraId: '' }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeUndefined();

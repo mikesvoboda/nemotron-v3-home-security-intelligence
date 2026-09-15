@@ -32,6 +32,76 @@ vi.mock('../../../hooks', () => ({
   useRestoreCameraMutation: vi.fn(),
 }));
 
+// CamerasSettings consumes these hooks via direct imports (not the barrel), so
+// the barrel mock above does not cover them; the real implementations call
+// react-query and throw "No QueryClient set" without a provider. Same mocks as
+// the sibling CamerasSettings.test.tsx.
+vi.mock('../../../hooks/useRtspTest', () => ({
+  useRtspTest: () => ({
+    testConnection: {
+      mutate: vi.fn(),
+      reset: vi.fn(),
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      data: null,
+    },
+  }),
+}));
+
+vi.mock('../../../hooks/useOnvifDiscovery', () => ({
+  useOnvifDiscovery: () => ({
+    discoverDevices: {
+      mutate: vi.fn(),
+      reset: vi.fn(),
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      isIdle: true,
+      data: null,
+      error: null,
+    },
+  }),
+}));
+
+vi.mock('../../../hooks/useSettingsApi', () => ({
+  useSettingsQuery: () => ({
+    settings: {
+      detection: { confidence_threshold: 0.5, fast_path_threshold: 0.9 },
+      batch: { window_seconds: 90, idle_timeout_seconds: 30 },
+      severity: { low_max: 29, medium_max: 59, high_max: 84 },
+      features: {
+        vision_extraction_enabled: true,
+        reid_enabled: true,
+        scene_change_enabled: true,
+        clip_generation_enabled: true,
+        image_quality_enabled: true,
+        background_eval_enabled: true,
+      },
+      rate_limiting: { enabled: true, requests_per_minute: 60, burst_size: 10 },
+      queue: { max_size: 10000, backpressure_threshold: 0.8 },
+      retention: { days: 30, log_days: 7 },
+      camera: { snapshot_cache_ttl: 3600 },
+    } as import('../../../hooks/useSettingsApi').SettingsResponse,
+    isLoading: false,
+    isFetching: false,
+    error: null,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  }),
+  useUpdateSettings: () => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    data: undefined,
+    reset: vi.fn(),
+  }),
+}));
+
 // Helper to create mock mutation object
 function createMockMutation<TData, _TError, TVariables>(overrides?: {
   isPending?: boolean;
@@ -77,7 +147,11 @@ const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
       };
     }
   >() as UseCameraMutationReturn['updateMutation'],
-  deleteMutation: createMockMutation<void, Error, string>() as UseCameraMutationReturn['deleteMutation'],
+  deleteMutation: createMockMutation<
+    void,
+    Error,
+    string
+  >() as UseCameraMutationReturn['deleteMutation'],
 });
 
 describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
@@ -88,6 +162,9 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
     status: 'online',
     created_at: '2025-01-01T00:00:00Z',
     last_seen_at: '2025-01-10T12:00:00Z',
+    // rtsp_url required: cameraFormSchema rejects empty rtsp_url when
+    // ingestion_mode is 'rtsp' (edit-modal validation reads camera.rtsp_url)
+    rtsp_url: 'rtsp://192.168.1.100/stream',
     ingestion_mode: 'rtsp',
     motion_sensitivity: 0.5,
   };
@@ -191,7 +268,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      const slider = screen.getByTestId('motion-sensitivity-slider') ;
+      const slider = screen.getByTestId('motion-sensitivity-slider');
       expect(slider).toHaveAttribute('type', 'range');
       expect(slider).toHaveAttribute('min', '0');
       expect(slider).toHaveAttribute('max', '1');
@@ -357,7 +434,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
         expect(screen.getByTestId('motion-sensitivity-slider')).toBeInTheDocument();
       });
 
-      const slider = screen.getByTestId('motion-sensitivity-slider') ;
+      const slider = screen.getByTestId('motion-sensitivity-slider');
       // Change slider value using fireEvent (range inputs don't support clear/type)
       fireEvent.change(slider, { target: { value: '0.6' } });
 
@@ -404,7 +481,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      const slider = screen.getByTestId('motion-sensitivity-slider') ;
+      const slider = screen.getByTestId('motion-sensitivity-slider');
       // Change slider value using fireEvent (range inputs don't support clear/type)
       fireEvent.change(slider, { target: { value: '0.8' } });
 

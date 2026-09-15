@@ -264,9 +264,7 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    expect(screen.getByTestId('worker-restart-count-detection_worker')).toHaveTextContent(
-      '3/5'
-    );
+    expect(screen.getByTestId('worker-restart-count-detection_worker')).toHaveTextContent('3/5');
   });
 
   it('shows last crash time if available', () => {
@@ -294,9 +292,7 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    expect(
-      screen.getByTestId('worker-last-crash-detection_worker')
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('worker-last-crash-detection_worker')).toBeInTheDocument();
   });
 
   it('shows error message if worker has error', () => {
@@ -487,12 +483,8 @@ describe('WorkerManagementPanel', () => {
 
     render(<WorkerManagementPanel />);
 
-    expect(
-      screen.queryByTestId('worker-reset-button-running_worker')
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByTestId('worker-reset-button-failed_worker')
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId('worker-reset-button-running_worker')).not.toBeInTheDocument();
+    expect(screen.getByTestId('worker-reset-button-failed_worker')).toBeInTheDocument();
   });
 
   it('confirmation dialog appears before dangerous actions', async () => {

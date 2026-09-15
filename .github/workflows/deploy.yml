@@ -514,7 +514,7 @@ jobs:
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
-          retention-days: 90
+          retention-days: 30
 
       - name: Sign container image
         run: |

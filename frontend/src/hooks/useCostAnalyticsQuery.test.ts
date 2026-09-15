@@ -236,12 +236,9 @@ describe('useCostAnalyticsQuery', () => {
     });
 
     it('should not fetch with invalid params', () => {
-      const { result } = renderHook(
-        () => useCostTrendsQuery({ start_date: '', end_date: '' }),
-        {
-          wrapper: createQueryWrapper(),
-        }
-      );
+      const { result } = renderHook(() => useCostTrendsQuery({ start_date: '', end_date: '' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(api.fetchCostTrends).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);

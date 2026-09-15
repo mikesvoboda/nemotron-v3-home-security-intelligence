@@ -205,13 +205,10 @@ describe('usePresets - fetching presets', () => {
       })
     );
 
-    const { result, rerender } = renderHook(
-      ({ enabled }) => usePresets(TEST_CAMERA_ID, enabled),
-      {
-        wrapper: createQueryWrapper(queryClient),
-        initialProps: { enabled: false },
-      }
-    );
+    const { result, rerender } = renderHook(({ enabled }) => usePresets(TEST_CAMERA_ID, enabled), {
+      wrapper: createQueryWrapper(queryClient),
+      initialProps: { enabled: false },
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.presets).toBeUndefined();
@@ -462,10 +459,7 @@ describe('usePresets - refetchPresets', () => {
 
     // Update mock data
     presetsData = {
-      presets: [
-        ...mockPresetsResponse.presets,
-        { token: 'preset_4', name: 'Garage' },
-      ],
+      presets: [...mockPresetsResponse.presets, { token: 'preset_4', name: 'Garage' }],
     };
 
     // Trigger refetch

@@ -2790,6 +2790,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List backups
+         * @description List available backup files.
+         */
+        get: operations["backup_list_backups"];
+        put?: never;
+        /**
+         * Create backup job
+         * @description Create a new backup job that runs in the background. Use GET /api/backup/{job_id} to track progress.
+         */
+        post: operations["backup_create_backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backup/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start restore
+         * @description Start a restore operation from an uploaded backup file. Use GET /api/backup/restore/{job_id} to track progress.
+         */
+        post: operations["backup_start_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backup/restore/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get restore status
+         * @description Get the current status and progress of a restore job.
+         */
+        get: operations["backup_get_restore_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backup/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get backup status
+         * @description Get the current status and progress of a backup job.
+         */
+        get: operations["backup_get_backup_status"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete backup
+         * @description Delete a backup file and its job record.
+         */
+        delete: operations["backup_delete_backup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backup/{job_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download backup file
+         * @description Download the completed backup file.
+         */
+        get: operations["backup_download_backup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/calibration": {
         parameters: {
             query?: never;
@@ -16614,6 +16722,234 @@ export interface components {
             similarity_threshold: number;
         };
         /**
+         * BackupContentInfo
+         * @description Information about a single backup content type.
+         *
+         *     Stored inside the backup manifest to track what data is included
+         *     and verify integrity via checksum.
+         */
+        BackupContentInfo: {
+            /**
+             * Checksum
+             * @description SHA256 checksum of the JSON file
+             */
+            checksum: string;
+            /**
+             * Count
+             * @description Number of records
+             */
+            count: number;
+        };
+        /**
+         * BackupJobCreate
+         * @description Schema for creating a backup job (no parameters needed for full backup).
+         *
+         *     Full system backups export all data without filters. Simply POST
+         *     to the endpoint to create a new backup job.
+         * @example {}
+         */
+        BackupJobCreate: Record<string, never>;
+        /**
+         * BackupJobProgress
+         * @description Progress information for a backup job.
+         *
+         *     Tracks how many tables have been exported and the overall
+         *     progress percentage.
+         */
+        BackupJobProgress: {
+            /**
+             * Completed Tables
+             * @description Tables exported so far
+             * @default 0
+             */
+            completed_tables: number;
+            /**
+             * Current Step
+             * @description Current step description
+             */
+            current_step?: string | null;
+            /**
+             * Progress Percent
+             * @description Progress percentage
+             * @default 0
+             */
+            progress_percent: number;
+            /**
+             * Total Tables
+             * @description Total tables to export
+             * @default 8
+             */
+            total_tables: number;
+        };
+        /**
+         * BackupJobResponse
+         * @description Full status response for a backup job.
+         *
+         *     Complete status information for a backup job, including progress,
+         *     timing, result, and any error information.
+         */
+        BackupJobResponse: {
+            /**
+             * Completed At
+             * @description Job completion timestamp
+             */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Job creation timestamp
+             */
+            created_at: string;
+            /**
+             * Error Message
+             * @description Error message if failed
+             */
+            error_message?: string | null;
+            /**
+             * File Path
+             * @description Download path for backup file
+             */
+            file_path?: string | null;
+            /**
+             * File Size Bytes
+             * @description Backup file size
+             */
+            file_size_bytes?: number | null;
+            /**
+             * Id
+             * @description Unique backup job identifier
+             */
+            id: string;
+            /** @description Backup manifest */
+            manifest?: components["schemas"]["BackupManifest"] | null;
+            progress?: components["schemas"]["BackupJobProgress"];
+            /**
+             * Started At
+             * @description Job start timestamp
+             */
+            started_at?: string | null;
+            /** @description Current job status */
+            status: components["schemas"]["BackupJobStatus"];
+        };
+        /**
+         * BackupJobStartResponse
+         * @description Response when creating a backup job.
+         *
+         *     Returns the job ID that can be used to track progress via
+         *     GET /api/backup/{job_id}.
+         * @example {
+         *       "job_id": "019478a1-b2c3-7def-8901-234567890abc",
+         *       "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
+         *       "status": "pending"
+         *     }
+         */
+        BackupJobStartResponse: {
+            /**
+             * Job Id
+             * @description Unique job identifier
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Human-readable message
+             */
+            message: string;
+            /**
+             * @description Initial status
+             * @default pending
+             */
+            status: components["schemas"]["BackupJobStatus"];
+        };
+        /**
+         * BackupJobStatus
+         * @description Backup job status values.
+         * @enum {string}
+         */
+        BackupJobStatus: "pending" | "running" | "completed" | "failed";
+        /**
+         * BackupListItem
+         * @description Summary item for backup list.
+         *
+         *     Lightweight representation of a backup for list views.
+         */
+        BackupListItem: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Download Url
+             * @description Download URL if completed
+             */
+            download_url?: string | null;
+            /**
+             * File Size Bytes
+             * @description File size in bytes
+             */
+            file_size_bytes: number;
+            /**
+             * Id
+             * @description Backup ID
+             */
+            id: string;
+            /** @description Job status */
+            status: components["schemas"]["BackupJobStatus"];
+        };
+        /**
+         * BackupListResponse
+         * @description Response for listing available backups.
+         */
+        BackupListResponse: {
+            /** Backups */
+            backups?: components["schemas"]["BackupListItem"][];
+            /**
+             * Total
+             * @description Total number of backups
+             * @default 0
+             */
+            total: number;
+        };
+        /**
+         * BackupManifest
+         * @description Manifest file stored inside backup ZIP.
+         *
+         *     The manifest is written as manifest.json at the root of the backup
+         *     archive. It contains metadata about the backup and checksums for
+         *     all included data files.
+         */
+        BackupManifest: {
+            /**
+             * App Version
+             * @description Application version
+             */
+            app_version?: string | null;
+            /**
+             * Backup Id
+             * @description Unique backup identifier
+             */
+            backup_id: string;
+            /**
+             * Contents
+             * @description Map of content type to info (events, alerts, cameras, etc.)
+             */
+            contents?: {
+                [key: string]: components["schemas"]["BackupContentInfo"];
+            };
+            /**
+             * Created At
+             * Format: date-time
+             * @description Backup creation timestamp
+             */
+            created_at: string;
+            /**
+             * Version
+             * @description Backup format version (e.g., '1.0')
+             */
+            version: string;
+        };
+        /**
          * BaselineConfigResponse
          * @description Response schema for baseline configuration.
          *
@@ -17260,6 +17596,15 @@ export interface components {
              * @description Time window in seconds for batch processing detections (max 600)
              */
             window_seconds?: number | null;
+        };
+        /** Body_backup_start_restore */
+        Body_backup_start_restore: {
+            /**
+             * File
+             * Format: binary
+             * @description Backup ZIP file
+             */
+            file: string;
         };
         /** Body_face-recognition_bulk_enroll_faces */
         "Body_face-recognition_bulk_enroll_faces": {
@@ -37646,6 +37991,120 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
         };
         /**
+         * RestoreJobProgress
+         * @description Progress information for a restore job.
+         *
+         *     Tracks how many tables have been restored and the overall
+         *     progress percentage.
+         */
+        RestoreJobProgress: {
+            /**
+             * Completed Tables
+             * @description Tables restored so far
+             * @default 0
+             */
+            completed_tables: number;
+            /**
+             * Current Step
+             * @description Current step description
+             */
+            current_step?: string | null;
+            /**
+             * Progress Percent
+             * @description Progress percentage
+             * @default 0
+             */
+            progress_percent: number;
+            /**
+             * Total Tables
+             * @description Total tables to restore
+             * @default 8
+             */
+            total_tables: number;
+        };
+        /**
+         * RestoreJobResponse
+         * @description Full status response for a restore job.
+         *
+         *     Complete status information for a restore job, including progress,
+         *     source backup info, timing, result, and any error information.
+         */
+        RestoreJobResponse: {
+            /**
+             * Backup Created At
+             * @description When source backup was created
+             */
+            backup_created_at?: string | null;
+            /**
+             * Backup Id
+             * @description Source backup ID from manifest
+             */
+            backup_id?: string | null;
+            /**
+             * Completed At
+             * @description Job completion timestamp
+             */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Job creation timestamp
+             */
+            created_at: string;
+            /**
+             * Error Message
+             * @description Error message if failed
+             */
+            error_message?: string | null;
+            /**
+             * Id
+             * @description Unique restore job identifier
+             */
+            id: string;
+            /**
+             * Items Restored
+             * @description Count of restored items per table
+             */
+            items_restored?: {
+                [key: string]: number;
+            } | null;
+            progress?: components["schemas"]["RestoreJobProgress"];
+            /**
+             * Started At
+             * @description Job start timestamp
+             */
+            started_at?: string | null;
+            /** @description Current job status */
+            status: components["schemas"]["RestoreJobStatus"];
+        };
+        /**
+         * RestoreJobStartResponse
+         * @description Response when starting a restore job.
+         *
+         *     Returns the job ID that can be used to track progress via
+         *     GET /api/backup/restore/{job_id}.
+         */
+        RestoreJobStartResponse: {
+            /**
+             * Job Id
+             * @description Unique restore job identifier
+             */
+            job_id: string;
+            /**
+             * Message
+             * @description Human-readable message
+             */
+            message: string;
+            /** @default pending */
+            status: components["schemas"]["RestoreJobStatus"];
+        };
+        /**
+         * RestoreJobStatus
+         * @description Restore job status values.
+         * @enum {string}
+         */
+        RestoreJobStatus: "pending" | "validating" | "restoring" | "completed" | "failed";
+        /**
          * RetentionSettings
          * @description Data retention settings for events and logs.
          *
@@ -48090,6 +48549,260 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AutoEnrollmentSettingsResponse"];
+                };
+            };
+        };
+    };
+    backup_list_backups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupListResponse"];
+                };
+            };
+        };
+    };
+    backup_create_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupJobCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupJobStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backup_start_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_backup_start_restore"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreJobStartResponse"];
+                };
+            };
+            /** @description Invalid backup file */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backup_get_restore_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreJobResponse"];
+                };
+            };
+            /** @description Restore job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backup_get_backup_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupJobResponse"];
+                };
+            };
+            /** @description Backup job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backup_delete_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Backup job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backup_download_backup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Backup not yet complete */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Backup job or file not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

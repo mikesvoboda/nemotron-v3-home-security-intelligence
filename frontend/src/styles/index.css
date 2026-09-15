@@ -378,7 +378,11 @@
   /* Enhanced slider/range input styles for dark theme visibility */
   .nvidia-slider {
     @apply h-3 w-full cursor-pointer appearance-none rounded-lg;
-    background: linear-gradient(to right, theme('colors.gray.700') 0%, theme('colors.gray.700') 100%);
+    background: linear-gradient(
+      to right,
+      theme('colors.gray.700') 0%,
+      theme('colors.gray.700') 100%
+    );
   }
 
   .nvidia-slider::-webkit-slider-track {
@@ -398,7 +402,11 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, theme('colors.primary.500') 0%, theme('colors.primary.700') 100%);
+    background: linear-gradient(
+      135deg,
+      theme('colors.primary.500') 0%,
+      theme('colors.primary.700') 100%
+    );
     border: 2px solid theme('colors.white');
     box-shadow:
       0 2px 6px rgba(0, 0, 0, 0.4),
@@ -411,7 +419,11 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, theme('colors.primary.500') 0%, theme('colors.primary.700') 100%);
+    background: linear-gradient(
+      135deg,
+      theme('colors.primary.500') 0%,
+      theme('colors.primary.700') 100%
+    );
     border: 2px solid theme('colors.white');
     box-shadow:
       0 2px 6px rgba(0, 0, 0, 0.4),
@@ -421,7 +433,11 @@
   }
 
   .nvidia-slider::-webkit-slider-thumb:hover {
-    background: linear-gradient(135deg, theme('colors.primary.400') 0%, theme('colors.primary.500') 100%);
+    background: linear-gradient(
+      135deg,
+      theme('colors.primary.400') 0%,
+      theme('colors.primary.500') 100%
+    );
     box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.5),
       0 0 12px rgba(118, 185, 0, 0.6);
@@ -429,7 +445,11 @@
   }
 
   .nvidia-slider::-moz-range-thumb:hover {
-    background: linear-gradient(135deg, theme('colors.primary.400') 0%, theme('colors.primary.500') 100%);
+    background: linear-gradient(
+      135deg,
+      theme('colors.primary.400') 0%,
+      theme('colors.primary.500') 100%
+    );
     box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.5),
       0 0 12px rgba(118, 185, 0, 0.6);

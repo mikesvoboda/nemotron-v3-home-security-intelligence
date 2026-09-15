@@ -266,12 +266,13 @@ function ApproachVectorIndicatorComponent({
       {/* Text Content */}
       <span className={clsx('flex items-center gap-1.5', getUrgencyTextClass(urgency))}>
         <span className="font-medium">
-          Approaching <span className="truncate max-w-[120px] inline-block align-bottom">{zoneName}</span>
+          Approaching{' '}
+          <span className="inline-block max-w-[120px] truncate align-bottom">{zoneName}</span>
         </span>
         {etaText && (
           <>
             <span className="text-gray-500">-</span>
-            <span className="font-semibold whitespace-nowrap">ETA: {etaText}</span>
+            <span className="whitespace-nowrap font-semibold">ETA: {etaText}</span>
           </>
         )}
       </span>

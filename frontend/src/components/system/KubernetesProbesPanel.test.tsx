@@ -129,7 +129,9 @@ describe('KubernetesProbesPanel', () => {
     expect(screen.getByTestId('readiness-workers-badge')).toHaveTextContent('Workers: 2/3');
 
     // Check supervisor unhealthy badge
-    expect(screen.getByTestId('readiness-supervisor-badge')).toHaveTextContent('Supervisor Unhealthy');
+    expect(screen.getByTestId('readiness-supervisor-badge')).toHaveTextContent(
+      'Supervisor Unhealthy'
+    );
   });
 
   it('renders error state when both fetches fail', async () => {
@@ -184,8 +186,12 @@ describe('KubernetesProbesPanel', () => {
     });
 
     // Check info text
-    expect(screen.getByText(/Used by Kubernetes to determine if the container needs to be/)).toBeInTheDocument();
-    expect(screen.getByText(/Used by Kubernetes to determine if the container can receive/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Used by Kubernetes to determine if the container needs to be/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Used by Kubernetes to determine if the container can receive/)
+    ).toBeInTheDocument();
   });
 
   it('handles partial fetch failure gracefully', async () => {

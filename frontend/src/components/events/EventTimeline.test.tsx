@@ -1938,14 +1938,12 @@ describe('EventTimeline', () => {
   describe('GroupBy Selector (NEM-3620)', () => {
     beforeEach(() => {
       // Reset to return 'grid' for view mode and 'time' for groupBy
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['time', vi.fn()];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['time', vi.fn()];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
     });
 
     it('renders GroupBy selector in grid view', async () => {
@@ -1978,14 +1976,12 @@ describe('EventTimeline', () => {
 
       // Setup mock to track groupBy changes
       const setGroupBy = vi.fn();
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['time', setGroupBy];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['time', setGroupBy];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -2004,14 +2000,12 @@ describe('EventTimeline', () => {
       const user = userEvent.setup();
 
       const setGroupBy = vi.fn();
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['time', setGroupBy];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['time', setGroupBy];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -2028,14 +2022,12 @@ describe('EventTimeline', () => {
 
     it('shows group headers when grouped by camera', async () => {
       // Mock groupBy as 'camera'
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['camera', vi.fn()];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['camera', vi.fn()];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -2048,14 +2040,12 @@ describe('EventTimeline', () => {
 
     it('shows group headers when grouped by risk level', async () => {
       // Mock groupBy as 'risk'
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['risk', vi.fn()];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['risk', vi.fn()];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -2069,14 +2059,12 @@ describe('EventTimeline', () => {
 
     it('does not show GroupBy selector in list view', async () => {
       // Mock list view mode
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['list', vi.fn()];
-          if (key === 'timeline-group-by') return ['time', vi.fn()];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['list', vi.fn()];
+        if (key === 'timeline-group-by') return ['time', vi.fn()];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -2087,14 +2075,12 @@ describe('EventTimeline', () => {
 
     it('hides clustering toggle when groupBy is camera or risk', async () => {
       // Mock groupBy as 'camera'
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['camera', vi.fn()];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['camera', vi.fn()];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 
@@ -2106,14 +2092,12 @@ describe('EventTimeline', () => {
 
     it('shows clustering toggle when groupBy is time or cluster', async () => {
       // Mock groupBy as 'time'
-      useLocalStorageMock.mockImplementation(
-        (key: string, defaultValue: unknown) => {
-          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
-          if (key === 'timeline-group-by') return ['time', vi.fn()];
-          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
-          return [defaultValue, vi.fn()];
-        }
-      );
+      useLocalStorageMock.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+        if (key === 'timeline-group-by') return ['time', vi.fn()];
+        if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+        return [defaultValue, vi.fn()];
+      });
 
       renderWithProviders(<EventTimeline />);
 

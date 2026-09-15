@@ -634,9 +634,7 @@ describe('AlertRuleForm', () => {
     });
 
     it('should show initial threshold value', () => {
-      render(
-        <AlertRuleForm {...defaultProps} initialData={{ risk_threshold: 75 }} />
-      );
+      render(<AlertRuleForm {...defaultProps} initialData={{ risk_threshold: 75 }} />);
 
       const numericInput = screen.getByTestId<HTMLInputElement>(
         'alert-rule-risk-threshold-numeric-input'
@@ -647,11 +645,7 @@ describe('AlertRuleForm', () => {
     it('should submit with threshold value from slider', async () => {
       const onSubmit = vi.fn();
       render(
-        <AlertRuleForm
-          {...defaultProps}
-          onSubmit={onSubmit}
-          initialData={{ risk_threshold: 60 }}
-        />
+        <AlertRuleForm {...defaultProps} onSubmit={onSubmit} initialData={{ risk_threshold: 60 }} />
       );
 
       const nameInput = screen.getByTestId('alert-rule-name-input');
@@ -661,9 +655,7 @@ describe('AlertRuleForm', () => {
       await userEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ risk_threshold: 60 })
-        );
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ risk_threshold: 60 }));
       });
     });
 
@@ -676,9 +668,7 @@ describe('AlertRuleForm', () => {
     it('should show "save rule" message when no ruleId provided', () => {
       render(<AlertRuleForm {...defaultProps} />);
 
-      expect(
-        screen.getByText('Save rule to see threshold preview')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Save rule to see threshold preview')).toBeInTheDocument();
     });
   });
 });

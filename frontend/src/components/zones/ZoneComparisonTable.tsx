@@ -126,7 +126,11 @@ interface TrendIndicatorProps {
 
 function TrendIndicator({ value }: TrendIndicatorProps) {
   if (value === null) {
-    return <span className="text-gray-500" data-testid="trend-no-data">-</span>;
+    return (
+      <span className="text-gray-500" data-testid="trend-no-data">
+        -
+      </span>
+    );
   }
 
   const isPositive = value > 0;
@@ -146,7 +150,10 @@ function TrendIndicator({ value }: TrendIndicatorProps) {
       {isPositive && <ArrowUp className="h-4 w-4" aria-hidden="true" />}
       {isNegative && <ArrowDown className="h-4 w-4" aria-hidden="true" />}
       {isNeutral && <Minus className="h-4 w-4" aria-hidden="true" />}
-      <span>{isPositive ? '+' : ''}{value.toFixed(1)}%</span>
+      <span>
+        {isPositive ? '+' : ''}
+        {value.toFixed(1)}%
+      </span>
     </div>
   );
 }
@@ -177,7 +184,7 @@ function SortableHeader({
     <th
       className={clsx(
         'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400',
-        'cursor-pointer select-none hover:text-gray-200 transition-colors',
+        'cursor-pointer select-none transition-colors hover:text-gray-200',
         align === 'right' && 'text-right'
       )}
       onClick={() => onSort(column)}
@@ -293,7 +300,10 @@ function ZoneComparisonTableComponent({
   if (isLoading) {
     return (
       <div
-        className={clsx('overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50', className)}
+        className={clsx(
+          'overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50',
+          className
+        )}
         data-testid="zone-comparison-table-loading"
       >
         <table className="w-full">
@@ -337,7 +347,10 @@ function ZoneComparisonTableComponent({
 
   return (
     <div
-      className={clsx('overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50', className)}
+      className={clsx(
+        'overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50',
+        className
+      )}
       data-testid="zone-comparison-table"
     >
       <table className="w-full">
@@ -393,7 +406,10 @@ function ZoneComparisonTableComponent({
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className="font-medium text-white" data-testid={`zone-value-${zone.zone_id}`}>
+                  <span
+                    className="font-medium text-white"
+                    data-testid={`zone-value-${zone.zone_id}`}
+                  >
                     {formatMetricValue(zone.value, metric)}
                   </span>
                 </td>

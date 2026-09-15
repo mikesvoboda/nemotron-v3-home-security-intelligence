@@ -413,9 +413,7 @@ const EventCard = memo(function EventCard({
             {(started_at || ended_at !== undefined) && (
               <div className="flex items-center gap-1.5 text-sm text-gray-400">
                 <Timer className="h-3.5 w-3.5" />
-                <span>
-                  {formatDuration(started_at || timestamp, ended_at ?? null)}
-                </span>
+                <span>{formatDuration(started_at || timestamp, ended_at ?? null)}</span>
               </div>
             )}
             {/* Snooze Badge (NEM-3640) */}

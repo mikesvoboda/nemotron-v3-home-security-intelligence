@@ -91,8 +91,12 @@ export const RISK_SCORE_CONSTRAINTS = {
 export const riskScore = z
   .number()
   .int({ error: 'Risk score must be a whole number' })
-  .min(RISK_SCORE_CONSTRAINTS.min, { error: `Risk score must be at least ${RISK_SCORE_CONSTRAINTS.min}` })
-  .max(RISK_SCORE_CONSTRAINTS.max, { error: `Risk score must be at most ${RISK_SCORE_CONSTRAINTS.max}` });
+  .min(RISK_SCORE_CONSTRAINTS.min, {
+    error: `Risk score must be at least ${RISK_SCORE_CONSTRAINTS.min}`,
+  })
+  .max(RISK_SCORE_CONSTRAINTS.max, {
+    error: `Risk score must be at most ${RISK_SCORE_CONSTRAINTS.max}`,
+  });
 
 /**
  * Optional risk score - for fields that may not have a score yet.
@@ -139,8 +143,12 @@ export const CONFIDENCE_CONSTRAINTS = {
  */
 export const confidence = z
   .number()
-  .min(CONFIDENCE_CONSTRAINTS.min, { error: `Confidence must be at least ${CONFIDENCE_CONSTRAINTS.min}` })
-  .max(CONFIDENCE_CONSTRAINTS.max, { error: `Confidence must be at most ${CONFIDENCE_CONSTRAINTS.max}` });
+  .min(CONFIDENCE_CONSTRAINTS.min, {
+    error: `Confidence must be at least ${CONFIDENCE_CONSTRAINTS.min}`,
+  })
+  .max(CONFIDENCE_CONSTRAINTS.max, {
+    error: `Confidence must be at most ${CONFIDENCE_CONSTRAINTS.max}`,
+  });
 
 /**
  * Optional confidence - for fields that may not have confidence yet.
@@ -303,7 +311,10 @@ export function stringWithLength(
 
   if (constraints.minLength !== undefined && constraints.minLength > 0) {
     schema = schema.min(constraints.minLength, {
-      error: constraints.minLength === 1 ? `${fieldName} is required` : `${fieldName} must be at least ${constraints.minLength} characters`,
+      error:
+        constraints.minLength === 1
+          ? `${fieldName} is required`
+          : `${fieldName} must be at least ${constraints.minLength} characters`,
     });
   }
 
@@ -352,7 +363,11 @@ export const pageNumber = z.number().int().min(1, { error: 'Page number must be 
 /**
  * Pagination page size.
  */
-export const pageSize = z.number().int().min(1).max(100, { error: 'Page size must be between 1 and 100' });
+export const pageSize = z
+  .number()
+  .int()
+  .min(1)
+  .max(100, { error: 'Page size must be between 1 and 100' });
 
 /**
  * Total count for pagination.
@@ -407,17 +422,15 @@ function validateTimeFormat(timeStr: string): string | true {
 /**
  * Time string schema - validates HH:MM format.
  */
-export const timeString = z
-  .string()
-  .superRefine((val, ctx) => {
-    const result = validateTimeFormat(val);
-    if (result !== true) {
-      ctx.addIssue({
-        code: 'custom',
-        message: result,
-      });
-    }
-  });
+export const timeString = z.string().superRefine((val, ctx) => {
+  const result = validateTimeFormat(val);
+  if (result !== true) {
+    ctx.addIssue({
+      code: 'custom',
+      message: result,
+    });
+  }
+});
 
 /**
  * Optional time string.

@@ -147,10 +147,9 @@ describe('useCameraPathValidationQuery', () => {
   });
 
   it('does not fetch when disabled', () => {
-    const { result } = renderHook(
-      () => useCameraPathValidationQuery({ enabled: false }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraPathValidationQuery({ enabled: false }), {
+      wrapper: createWrapper(),
+    });
 
     // Should not be loading when disabled
     expect(result.current.isLoading).toBe(false);

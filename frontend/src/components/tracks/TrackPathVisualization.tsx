@@ -90,7 +90,7 @@ export function TrackPathVisualization({
     <svg
       width={width}
       height={height}
-      className="absolute inset-0 pointer-events-none"
+      className="pointer-events-none absolute inset-0"
       style={{ overflow: 'visible' }}
       data-testid="track-path-visualization"
       role="img"

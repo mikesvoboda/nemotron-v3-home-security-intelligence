@@ -20,7 +20,17 @@ import { shallow, useShallow } from 'zustand/shallow';
 // Re-exports for convenience
 // ============================================================================
 
-export { castDraft, current, devtools, isDraft, original, produce, shallow, subscribeWithSelector, useShallow };
+export {
+  castDraft,
+  current,
+  devtools,
+  isDraft,
+  original,
+  produce,
+  shallow,
+  subscribeWithSelector,
+  useShallow,
+};
 export type { Draft };
 
 // ============================================================================
@@ -213,9 +223,7 @@ export function createImmerSelectorStore<T extends object>(
   }
 
   // Without devtools config, use subscribeWithSelector only
-  return create<T>()(
-    subscribeWithSelector((set, get, store) => createImmerState(set, get, store))
-  );
+  return create<T>()(subscribeWithSelector((set, get, store) => createImmerState(set, get, store)));
 }
 
 // ============================================================================
@@ -514,8 +522,7 @@ export function createImmerDevtoolsStore<T extends object>(
 ): UseBoundStore<StoreApi<T>> {
   const {
     name = 'immer-store',
-    devtools: enableDevtools = typeof import.meta !== 'undefined' &&
-      import.meta.env?.DEV === true,
+    devtools: enableDevtools = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true,
     withSelector = false,
   } = options;
 
@@ -550,10 +557,7 @@ export function createImmerDevtoolsStore<T extends object>(
 
   if (withSelector && enableDevtools) {
     return create<T>()(
-      devtools(
-        subscribeWithSelector(immerCreator),
-        { name, enabled: enableDevtools }
-      )
+      devtools(subscribeWithSelector(immerCreator), { name, enabled: enableDevtools })
     );
   } else if (withSelector) {
     return create<T>()(subscribeWithSelector(immerCreator));
@@ -581,10 +585,7 @@ export function createImmerDevtoolsStore<T extends object>(
  * @param updater - Immer draft updater function
  * @returns New state with updates applied immutably
  */
-export function applyImmerUpdate<T>(
-  state: T,
-  updater: (draft: Draft<T>) => void
-): T {
+export function applyImmerUpdate<T>(state: T, updater: (draft: Draft<T>) => void): T {
   return produce(state, updater);
 }
 
@@ -689,9 +690,7 @@ export function safeReadOriginal<T>(draft: T): T | undefined {
  * @param selector - Selector function
  * @returns Memoized selector function
  */
-export function createComputedSelector<T, R>(
-  selector: (state: T) => R
-): (state: T) => R {
+export function createComputedSelector<T, R>(selector: (state: T) => R): (state: T) => R {
   let lastState: T | undefined;
   let lastResult: R | undefined;
 

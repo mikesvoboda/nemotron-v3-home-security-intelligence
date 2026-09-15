@@ -61,21 +61,24 @@ const server = setupServer(
   }),
 
   // POST link detection (success)
-  http.post('/api/household/members/:memberId/detections/:detectionId', async ({ params, request }) => {
-    const body = (await request.json()) as { notes?: string; confidence?: number };
-    return HttpResponse.json(
-      {
-        id: 1,
-        member_id: Number(params.memberId),
-        detection_id: Number(params.detectionId),
-        linked_at: new Date().toISOString(),
-        linked_by: 'user',
-        notes: body.notes || null,
-        confidence: body.confidence || 1.0,
-      },
-      { status: 201 }
-    );
-  })
+  http.post(
+    '/api/household/members/:memberId/detections/:detectionId',
+    async ({ params, request }) => {
+      const body = (await request.json()) as { notes?: string; confidence?: number };
+      return HttpResponse.json(
+        {
+          id: 1,
+          member_id: Number(params.memberId),
+          detection_id: Number(params.detectionId),
+          linked_at: new Date().toISOString(),
+          linked_by: 'user',
+          notes: body.notes || null,
+          confidence: body.confidence || 1.0,
+        },
+        { status: 201 }
+      );
+    }
+  )
 );
 
 beforeAll(() => server.listen());
@@ -196,10 +199,7 @@ describe.skip('LinkPersonModal - Full User Flows', () => {
     // Mock API error
     server.use(
       http.post('/api/household/members/:memberId/detections/:detectionId', () => {
-        return HttpResponse.json(
-          { detail: 'Failed to link detection' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Failed to link detection' }, { status: 500 });
       })
     );
 
@@ -382,10 +382,7 @@ describe.skip('LinkPersonModal - API Integration', () => {
 
     server.use(
       http.post('/api/household/members/:memberId/detections/:detectionId', () => {
-        return HttpResponse.json(
-          { detail: 'Member not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Member not found' }, { status: 404 });
       })
     );
 

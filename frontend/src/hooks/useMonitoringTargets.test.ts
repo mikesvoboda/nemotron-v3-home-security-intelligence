@@ -6,7 +6,6 @@ import * as monitoringApi from '../services/monitoringApi';
 
 import type { MonitoringTargetsResponse } from '../services/monitoringApi';
 
-
 // Mock the monitoring API
 vi.mock('../services/monitoringApi');
 
@@ -245,9 +244,14 @@ describe('useMonitoringTargets', () => {
     expect(initialCallCount).toBeGreaterThanOrEqual(1);
 
     // Wait for at least one polling cycle
-    await waitFor(() => {
-      expect(vi.mocked(monitoringApi.fetchMonitoringTargets).mock.calls.length).toBeGreaterThan(initialCallCount);
-    }, { timeout: 500 });
+    await waitFor(
+      () => {
+        expect(vi.mocked(monitoringApi.fetchMonitoringTargets).mock.calls.length).toBeGreaterThan(
+          initialCallCount
+        );
+      },
+      { timeout: 500 }
+    );
   });
 
   // Skip: Polling tests are flaky with real timers due to timing variations in test environments.
@@ -269,9 +273,12 @@ describe('useMonitoringTargets', () => {
     vi.mocked(monitoringApi.fetchMonitoringTargets).mockResolvedValue(mockMixedHealthResponse);
 
     // Wait for the poll to update data
-    await waitFor(() => {
-      expect(result.current.data).toEqual(mockMixedHealthResponse);
-    }, { timeout: 500 });
+    await waitFor(
+      () => {
+        expect(result.current.data).toEqual(mockMixedHealthResponse);
+      },
+      { timeout: 500 }
+    );
 
     expect(result.current.data?.up).toBe(1);
     expect(result.current.data?.down).toBe(2);

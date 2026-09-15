@@ -419,7 +419,9 @@ export default function TrashPage() {
                 <span className="font-medium">Action failed</span>
               </div>
               <p className="mt-2 text-sm text-red-300">
-                {bulkError || restoreMutation.error?.message || permanentDeleteMutation.error?.message}
+                {bulkError ||
+                  restoreMutation.error?.message ||
+                  permanentDeleteMutation.error?.message}
               </p>
             </div>
           )}

@@ -81,15 +81,13 @@ function FlagItem({ flag }: { flag: RiskFlag }) {
         config.borderColor
       )}
     >
-      <div className={clsx('flex-shrink-0 mt-0.5', config.color)}>
+      <div className={clsx('mt-0.5 flex-shrink-0', config.color)}>
         {getSeverityIcon(flag.severity)}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h5 className={clsx('text-sm font-medium', config.color)}>
-            {formatFlagType(flag.type)}
-          </h5>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
+          <h5 className={clsx('text-sm font-medium', config.color)}>{formatFlagType(flag.type)}</h5>
           <span
             className={clsx(
               'inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium',
@@ -112,10 +110,7 @@ function FlagItem({ flag }: { flag: RiskFlag }) {
  * Renders a list of risk flags from analysis, sorted by severity.
  * Returns null if no flags are provided.
  */
-export default function RiskFlagsPanel({
-  flags,
-  className,
-}: RiskFlagsPanelProps) {
+export default function RiskFlagsPanel({ flags, className }: RiskFlagsPanelProps) {
   // Don't render if no flags
   if (!flags || flags.length === 0) {
     return null;
@@ -125,23 +120,20 @@ export default function RiskFlagsPanel({
   const hasCritical = flags.some((f) => f.severity === 'critical');
 
   return (
-    <div
-      data-testid="risk-flags-panel"
-      className={clsx('space-y-3', className)}
-    >
+    <div data-testid="risk-flags-panel" className={clsx('space-y-3', className)}>
       <div className="flex items-center gap-2">
-        <h4 className={clsx(
-          'text-sm font-semibold uppercase tracking-wide',
-          hasCritical ? 'text-red-400' : 'text-gray-400'
-        )}>
+        <h4
+          className={clsx(
+            'text-sm font-semibold uppercase tracking-wide',
+            hasCritical ? 'text-red-400' : 'text-gray-400'
+          )}
+        >
           Risk Flags
         </h4>
         <span
           className={clsx(
             'inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold',
-            hasCritical
-              ? 'bg-red-500 text-white'
-              : 'bg-gray-600 text-gray-200'
+            hasCritical ? 'bg-red-500 text-white' : 'bg-gray-600 text-gray-200'
           )}
         >
           {flags.length}

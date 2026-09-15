@@ -130,11 +130,7 @@ export async function acknowledgeAlert(alertId: string): Promise<AlertResponse> 
       throw error;
     }
     // Wrap network errors
-    throw new AlertsApiError(
-      error instanceof Error ? error.message : 'Network error',
-      0,
-      false
-    );
+    throw new AlertsApiError(error instanceof Error ? error.message : 'Network error', 0, false);
   }
 }
 
@@ -179,11 +175,7 @@ export async function dismissAlert(alertId: string): Promise<AlertResponse> {
       throw error;
     }
     // Wrap network errors
-    throw new AlertsApiError(
-      error instanceof Error ? error.message : 'Network error',
-      0,
-      false
-    );
+    throw new AlertsApiError(error instanceof Error ? error.message : 'Network error', 0, false);
   }
 }
 

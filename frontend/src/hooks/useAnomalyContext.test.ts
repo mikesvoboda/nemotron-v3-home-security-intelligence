@@ -103,12 +103,9 @@ describe('useAnomalyContext', () => {
     it('starts with isLoading false when enabled is false', () => {
       mockFetch.mockReturnValue(new Promise(() => {})); // Never resolving
 
-      const { result } = renderHook(
-        () => useAnomalyContext('anomaly-123', { enabled: false }),
-        {
-          wrapper: createQueryWrapper(),
-        }
-      );
+      const { result } = renderHook(() => useAnomalyContext('anomaly-123', { enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.data).toBeUndefined();

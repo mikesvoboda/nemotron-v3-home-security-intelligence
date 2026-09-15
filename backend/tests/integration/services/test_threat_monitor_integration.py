@@ -18,6 +18,7 @@ Test Categories:
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -37,10 +38,10 @@ from backend.models.enrichment import ThreatDetection
 async def test_camera(db_session: AsyncSession) -> Camera:
     """Create a test camera for the integration tests."""
     camera = Camera(
-        camera_id="integration_test_cam_01",
-        display_name="Integration Test Camera",
+        id="integration_test_cam_01",
+        name="Integration Test Camera",
+        folder_path="/export/foscam/integration_test_cam_01",
         rtsp_url="rtsp://localhost:8554/test_stream",
-        enabled=True,
         created_at=datetime.now(UTC),
     )
     db_session.add(camera)
@@ -53,15 +54,15 @@ async def test_camera(db_session: AsyncSession) -> Camera:
 async def test_detection(db_session: AsyncSession, test_camera: Camera) -> Detection:
     """Create a test detection associated with the test camera."""
     detection = Detection(
-        camera_id=test_camera.camera_id,
+        camera_id=test_camera.id,
         object_type="person",
         confidence=0.92,
-        bbox_x1=100,
-        bbox_y1=200,
-        bbox_x2=200,
-        bbox_y2=400,
+        bbox_x=100,
+        bbox_y=200,
+        bbox_width=100,
+        bbox_height=200,
         file_path="/export/foscam/integration_test_cam_01/frame_001.jpg",
-        created_at=datetime.now(UTC),
+        detected_at=datetime.now(UTC),
     )
     db_session.add(detection)
     await db_session.commit()
@@ -73,10 +74,10 @@ async def test_detection(db_session: AsyncSession, test_camera: Camera) -> Detec
 async def test_event(db_session: AsyncSession, test_camera: Camera) -> Event:
     """Create a test event associated with the test camera."""
     event = Event(
-        camera_id=test_camera.camera_id,
+        camera_id=test_camera.id,
+        batch_id=f"batch_{uuid.uuid4().hex[:12]}",
         risk_score=75,
         started_at=datetime.now(UTC),
-        created_at=datetime.now(UTC),
     )
     db_session.add(event)
     await db_session.commit()
@@ -446,7 +447,7 @@ class TestBatchAggregatorThreatBypassIntegration:
             mock_fast_path.return_value = None
 
             batch_id = await aggregator.add_detection(
-                camera_id=test_camera.camera_id,
+                camera_id=test_camera.id,
                 detection_id=test_detection.id,
                 _file_path=test_detection.file_path,
                 confidence=0.90,
@@ -501,7 +502,7 @@ class TestBatchAggregatorThreatBypassIntegration:
             mock_gen.return_value = "batch-normal123"
 
             batch_id = await aggregator.add_detection(
-                camera_id=test_camera.camera_id,
+                camera_id=test_camera.id,
                 detection_id=test_detection.id,
                 _file_path=test_detection.file_path,
                 confidence=0.90,

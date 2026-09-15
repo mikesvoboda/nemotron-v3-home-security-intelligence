@@ -12,16 +12,7 @@
 
 import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
-import {
-  AlertCircle,
-  Camera,
-  Check,
-  Loader2,
-  Network,
-  Search,
-  Video,
-  X,
-} from 'lucide-react';
+import { AlertCircle, Camera, Check, Loader2, Network, Search, Video, X } from 'lucide-react';
 import { Fragment, useState } from 'react';
 
 import { useOnvifDiscovery } from '../../hooks/useOnvifDiscovery';
@@ -152,7 +143,7 @@ export default function ONVIFDiscoveryPanel({
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
+                <div className="space-y-4 p-4">
                   {/* Subnet and Timeout Inputs */}
                   <div className="flex flex-col gap-4 sm:flex-row">
                     {/* Subnet Input */}
@@ -177,9 +168,7 @@ export default function ONVIFDiscoveryPanel({
                             : 'border-gray-800 focus:border-primary focus:ring-primary'
                         )}
                       />
-                      {subnetError && (
-                        <p className="mt-1 text-sm text-red-500">{subnetError}</p>
-                      )}
+                      {subnetError && <p className="mt-1 text-sm text-red-500">{subnetError}</p>}
                     </div>
 
                     {/* Timeout Slider */}
@@ -199,9 +188,9 @@ export default function ONVIFDiscoveryPanel({
                         step={5}
                         value={timeout}
                         onChange={(e) => setTimeout(parseInt(e.target.value, 10))}
-                        className="mt-3 w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                        className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-primary"
                       />
-                      <div className="flex justify-between text-xs text-text-secondary mt-1">
+                      <div className="mt-1 flex justify-between text-xs text-text-secondary">
                         <span>5s</span>
                         <span>60s</span>
                       </div>
@@ -213,7 +202,7 @@ export default function ONVIFDiscoveryPanel({
                     onClick={handleScan}
                     disabled={discoverDevices.isPending || !subnet}
                     data-testid="onvif-scan-button"
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-gray-900 transition-all hover:bg-primary-400 hover:shadow-nvidia-glow focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-gray-900 transition-all hover:bg-primary-400 hover:shadow-nvidia-glow focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {discoverDevices.isPending ? (
                       <>
@@ -270,7 +259,7 @@ export default function ONVIFDiscoveryPanel({
                           </p>
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                        <div className="max-h-80 space-y-2 overflow-y-auto">
                           {discoverDevices.data.devices.map((device, index) => (
                             <DeviceCard
                               key={`${device.ip}-${index}`}
@@ -318,18 +307,22 @@ function DeviceCard({ device, onClick }: DeviceCardProps) {
       className="w-full rounded-lg border border-gray-800 bg-card p-4 text-left transition-all hover:border-primary/50 hover:bg-[#76B900]/5 focus:outline-none focus:ring-2 focus:ring-primary"
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-medium text-text-primary">{device.manufacturer}</span>
             <span className="text-text-secondary">{device.model}</span>
           </div>
           <div className="mt-1 text-sm text-text-secondary">
-            <span className="font-mono">{device.ip}:{device.port}</span>
+            <span className="font-mono">
+              {device.ip}:{device.port}
+            </span>
           </div>
           {hasRtspUrls && (
             <div className="mt-2 flex items-center gap-1.5 text-xs text-green-500">
               <Video className="h-3.5 w-3.5" />
-              <span>{device.rtsp_urls.length} stream{device.rtsp_urls.length > 1 ? 's' : ''} available</span>
+              <span>
+                {device.rtsp_urls.length} stream{device.rtsp_urls.length > 1 ? 's' : ''} available
+              </span>
             </div>
           )}
         </div>
@@ -344,13 +337,13 @@ function DeviceCard({ device, onClick }: DeviceCardProps) {
 
       {/* RTSP URLs Preview */}
       {hasRtspUrls && (
-        <div className="mt-3 pt-3 border-t border-gray-800">
-          <p className="text-xs text-text-secondary mb-1.5">RTSP Streams:</p>
+        <div className="mt-3 border-t border-gray-800 pt-3">
+          <p className="mb-1.5 text-xs text-text-secondary">RTSP Streams:</p>
           <div className="space-y-1">
             {device.rtsp_urls.slice(0, 2).map((rtsp, idx) => (
               <div key={idx} className="flex items-center gap-2 text-xs">
                 <span className="text-text-secondary">{rtsp.profile}:</span>
-                <span className="font-mono text-text-primary truncate">{rtsp.url}</span>
+                <span className="truncate font-mono text-text-primary">{rtsp.url}</span>
               </div>
             ))}
             {device.rtsp_urls.length > 2 && (
@@ -375,16 +368,10 @@ function CapabilityBadge({ label, enabled }: CapabilityBadgeProps) {
     <span
       className={clsx(
         'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs',
-        enabled
-          ? 'bg-green-500/20 text-green-400'
-          : 'bg-gray-800 text-gray-500'
+        enabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-500'
       )}
     >
-      {enabled ? (
-        <Check className="h-3 w-3" />
-      ) : (
-        <X className="h-3 w-3" />
-      )}
+      {enabled ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
       {label}
     </span>
   );

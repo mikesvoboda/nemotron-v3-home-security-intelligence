@@ -293,17 +293,10 @@ function ModelCostBreakdownChart({ data }: ModelCostBreakdownChartProps) {
  * CostAnalyticsDashboard displays comprehensive cost analytics.
  */
 export default function CostAnalyticsDashboard() {
-  const {
-    data,
-    isLoading,
-    error,
-    todayCost,
-    dailyBudget,
-    monthlyBudget,
-    costHistory,
-  } = useCostAnalyticsQuery({
-    refetchInterval: 60000, // Refresh every minute
-  });
+  const { data, isLoading, error, todayCost, dailyBudget, monthlyBudget, costHistory } =
+    useCostAnalyticsQuery({
+      refetchInterval: 60000, // Refresh every minute
+    });
 
   // Loading state
   if (isLoading) {
@@ -355,7 +348,9 @@ export default function CostAnalyticsDashboard() {
           <div className="flex flex-col items-center justify-center py-12 text-gray-400">
             <DollarSign className="mb-4 h-12 w-12" />
             <Title>No Cost Data Available</Title>
-            <Text className="mt-2">Cost tracking will appear once inference requests are made.</Text>
+            <Text className="mt-2">
+              Cost tracking will appear once inference requests are made.
+            </Text>
           </div>
         </Card>
       </div>

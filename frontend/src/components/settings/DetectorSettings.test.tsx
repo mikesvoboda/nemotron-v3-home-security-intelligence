@@ -13,10 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DetectorSettings from './DetectorSettings';
-import {
-  listDetectors,
-  switchDetector,
-} from '../../services/detectorApi';
+import { listDetectors, switchDetector } from '../../services/detectorApi';
 
 import type { DetectorInfo, DetectorListResponse } from '../../services/detectorApi';
 
@@ -134,9 +131,7 @@ describe('DetectorSettings', () => {
           resolve(mockListResponse);
         }, 100);
       });
-      (listDetectors as ReturnType<typeof vi.fn>).mockReturnValue(
-        delayedPromise
-      );
+      (listDetectors as ReturnType<typeof vi.fn>).mockReturnValue(delayedPromise);
 
       render(<DetectorSettings />);
 
@@ -147,9 +142,7 @@ describe('DetectorSettings', () => {
 
   describe('Error Handling', () => {
     it('displays error message when API fails', async () => {
-      (listDetectors as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Network error')
-      );
+      (listDetectors as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
       render(<DetectorSettings />);
 

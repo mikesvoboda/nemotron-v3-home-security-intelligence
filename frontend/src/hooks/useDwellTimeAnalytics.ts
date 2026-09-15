@@ -143,9 +143,12 @@ async function fetchPolygonZones(cameraId: string): Promise<PolygonZone[]> {
 
 export const dwellTimeAnalyticsQueryKeys = {
   all: ['dwell-time'] as const,
-  polygonZones: (cameraId: string) => [...dwellTimeAnalyticsQueryKeys.all, 'polygon-zones', cameraId] as const,
-  statistics: (zoneId: number) => [...dwellTimeAnalyticsQueryKeys.all, 'statistics', zoneId] as const,
-  activeDwellers: (zoneId: number) => [...dwellTimeAnalyticsQueryKeys.all, 'dwellers', zoneId] as const,
+  polygonZones: (cameraId: string) =>
+    [...dwellTimeAnalyticsQueryKeys.all, 'polygon-zones', cameraId] as const,
+  statistics: (zoneId: number) =>
+    [...dwellTimeAnalyticsQueryKeys.all, 'statistics', zoneId] as const,
+  activeDwellers: (zoneId: number) =>
+    [...dwellTimeAnalyticsQueryKeys.all, 'dwellers', zoneId] as const,
 };
 
 // ============================================================================
@@ -247,9 +250,7 @@ export interface UseActiveDwellersReturn {
  * });
  * ```
  */
-export function usePolygonZones(
-  options: UsePolygonZonesOptions = {}
-): UsePolygonZonesReturn {
+export function usePolygonZones(options: UsePolygonZonesOptions = {}): UsePolygonZonesReturn {
   const { cameraId, enabled = true } = options;
 
   const query = useQuery({
@@ -326,9 +327,7 @@ export function useDwellStatistics(
  * });
  * ```
  */
-export function useActiveDwellers(
-  options: UseActiveDwellersOptions = {}
-): UseActiveDwellersReturn {
+export function useActiveDwellers(options: UseActiveDwellersOptions = {}): UseActiveDwellersReturn {
   const { zoneId, enabled = true, enablePolling = false } = options;
 
   const query = useQuery({

@@ -76,15 +76,9 @@ export default function GPUHistoryPanel({
   // Loading state
   if (isLoading && !data) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
+      <Card className={className} data-testid={testId}>
         <Title className="mb-4 text-white">GPU History</Title>
-        <div
-          className="flex h-48 items-center justify-center"
-          data-testid={`${testId}-loading`}
-        >
+        <div className="flex h-48 items-center justify-center" data-testid={`${testId}-loading`}>
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
       </Card>
@@ -94,10 +88,7 @@ export default function GPUHistoryPanel({
   // Error state
   if (error) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
+      <Card className={className} data-testid={testId}>
         <Title className="mb-4 text-white">GPU History</Title>
         <div
           className="flex h-48 flex-col items-center justify-center text-red-400"
@@ -107,7 +98,7 @@ export default function GPUHistoryPanel({
           <Text className="mb-2">Failed to load GPU history</Text>
           <button
             onClick={refetch}
-            className="flex items-center gap-2 rounded-md bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition-colors"
+            className="flex items-center gap-2 rounded-md bg-red-500/10 px-4 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/20"
             data-testid={`${testId}-retry`}
           >
             <RefreshCw className="h-4 w-4" />
@@ -121,10 +112,7 @@ export default function GPUHistoryPanel({
   // Empty state
   if (transformedData.length === 0) {
     return (
-      <Card
-        className={className}
-        data-testid={testId}
-      >
+      <Card className={className} data-testid={testId}>
         <Title className="mb-4 text-white">GPU History</Title>
         <div
           className="flex h-48 flex-col items-center justify-center text-gray-400"
@@ -140,18 +128,13 @@ export default function GPUHistoryPanel({
   const gpuName = data?.items[0]?.gpu_name ?? 'GPU';
 
   return (
-    <Card
-      className={className}
-      data-testid={testId}
-    >
-      <div className="flex items-center justify-between mb-4">
+    <Card className={className} data-testid={testId}>
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <Title className="text-white">GPU History</Title>
-          <Text className="text-gray-400 text-xs">{gpuName}</Text>
+          <Text className="text-xs text-gray-400">{gpuName}</Text>
         </div>
-        {isLoading && (
-          <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-        )}
+        {isLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
       </div>
 
       <AreaChart

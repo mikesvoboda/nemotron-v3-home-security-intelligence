@@ -342,9 +342,23 @@ async def test_rtsp_test_endpoint_concurrent_requests(client: AsyncClient) -> No
 
 @pytest.mark.asyncio
 async def test_rtsp_test_endpoint_long_url(client: AsyncClient) -> None:
-    """Test RTSP connection with very long URL path."""
-    long_path = "/".join([f"segment{i}" for i in range(50)])
-    url = f"rtsp://192.168.1.100:554/{long_path}"
+    """Test RTSP connection with a long-but-valid URL path.
+
+    The shipped request schema caps rtsp_url at max_length=500
+    (api/schemas/camera.py:566-570). The old fixture built a 50-segment
+    (~725 char) URL and expected 200 — pydantic rejected it with 422 first
+    (wave I-10 'assert 422 == 200'). "Long" now means near-cap: built just
+    under the shipped limit. (ledger R-T9-RTSPLEN)
+    """
+    path_parts: list[str] = []
+    url = "rtsp://192.168.1.100:554/stream1"
+    for i in range(100):
+        candidate = "rtsp://192.168.1.100:554/" + "/".join([*path_parts, f"segment{i}"])
+        if len(candidate) > 500:
+            break
+        path_parts.append(f"segment{i}")
+        url = candidate
+    assert 400 < len(url) <= 500  # genuinely long, within the shipped cap
 
     mock_result = RTSPTestResult(
         success=True,

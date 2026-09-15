@@ -61,9 +61,7 @@ describe('PolygonZoneEditor', () => {
     it('displays drawing instructions when in drawing mode', () => {
       render(<PolygonZoneEditor {...defaultProps} />);
 
-      expect(
-        screen.getByText(/click to add points/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/click to add points/i)).toBeInTheDocument();
     });
 
     it('shows zone type indicator', () => {
@@ -80,9 +78,7 @@ describe('PolygonZoneEditor', () => {
     });
 
     it('renders with different zone types', () => {
-      const { rerender } = render(
-        <PolygonZoneEditor {...defaultProps} zoneType="entry_point" />
-      );
+      const { rerender } = render(<PolygonZoneEditor {...defaultProps} zoneType="entry_point" />);
       expect(screen.getByText(/entry point/i)).toBeInTheDocument();
 
       rerender(<PolygonZoneEditor {...defaultProps} zoneType="driveway" />);
@@ -331,18 +327,19 @@ describe('PolygonZoneEditor', () => {
       const existingZones = [
         {
           id: 'zone-1',
-          coordinates: [[0.1, 0.2], [0.5, 0.2], [0.5, 0.6], [0.1, 0.6]] as Point[],
+          coordinates: [
+            [0.1, 0.2],
+            [0.5, 0.2],
+            [0.5, 0.6],
+            [0.1, 0.6],
+          ] as Point[],
           color: '#3B82F6',
           name: 'Zone 1',
         },
       ];
 
       render(
-        <PolygonZoneEditor
-          {...defaultProps}
-          isDrawing={false}
-          existingZones={existingZones}
-        />
+        <PolygonZoneEditor {...defaultProps} isDrawing={false} existingZones={existingZones} />
       );
 
       // Simulate image load
@@ -360,18 +357,19 @@ describe('PolygonZoneEditor', () => {
       const existingZones = [
         {
           id: 'zone-1',
-          coordinates: [[0.1, 0.2], [0.5, 0.2], [0.5, 0.6], [0.1, 0.6]] as Point[],
+          coordinates: [
+            [0.1, 0.2],
+            [0.5, 0.2],
+            [0.5, 0.6],
+            [0.1, 0.6],
+          ] as Point[],
           color: '#3B82F6',
           name: 'Zone 1',
         },
       ];
 
       const { container } = render(
-        <PolygonZoneEditor
-          {...defaultProps}
-          isDrawing={false}
-          existingZones={existingZones}
-        />
+        <PolygonZoneEditor {...defaultProps} isDrawing={false} existingZones={existingZones} />
       );
 
       // Component should render without errors with existingZones
@@ -382,7 +380,12 @@ describe('PolygonZoneEditor', () => {
       const existingZones = [
         {
           id: 'zone-1',
-          coordinates: [[0.1, 0.2], [0.5, 0.2], [0.5, 0.6], [0.1, 0.6]] as Point[],
+          coordinates: [
+            [0.1, 0.2],
+            [0.5, 0.2],
+            [0.5, 0.6],
+            [0.1, 0.6],
+          ] as Point[],
           color: '#3B82F6',
           name: 'Zone 1',
         },
@@ -405,7 +408,12 @@ describe('PolygonZoneEditor', () => {
       const existingZones = [
         {
           id: 'zone-1',
-          coordinates: [[0.1, 0.2], [0.5, 0.2], [0.5, 0.6], [0.1, 0.6]] as Point[],
+          coordinates: [
+            [0.1, 0.2],
+            [0.5, 0.2],
+            [0.5, 0.6],
+            [0.1, 0.6],
+          ] as Point[],
           color: '#3B82F6',
           name: 'Zone 1',
         },
@@ -428,9 +436,7 @@ describe('PolygonZoneEditor', () => {
 
   describe('Zone Type Styling', () => {
     it('uses different colors for different zone types', () => {
-      const { rerender } = render(
-        <PolygonZoneEditor {...defaultProps} zoneType="entry_point" />
-      );
+      const { rerender } = render(<PolygonZoneEditor {...defaultProps} zoneType="entry_point" />);
 
       let indicator = screen.getByTestId('zone-type-indicator');
       expect(indicator).toHaveClass('bg-red-500');
@@ -468,10 +474,7 @@ describe('PolygonZoneEditor', () => {
       render(<PolygonZoneEditor {...defaultProps} />);
 
       const container = screen.getByRole('application');
-      expect(container).toHaveAttribute(
-        'aria-label',
-        expect.stringMatching(/polygon/i)
-      );
+      expect(container).toHaveAttribute('aria-label', expect.stringMatching(/polygon/i));
     });
 
     it('keyboard navigation works for completing polygon', async () => {

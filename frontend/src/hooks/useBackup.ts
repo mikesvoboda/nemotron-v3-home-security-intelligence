@@ -236,10 +236,7 @@ export interface UseBackupJobReturn {
  * }
  * ```
  */
-export function useBackupJob(
-  jobId: string,
-  options: UseBackupJobOptions = {}
-): UseBackupJobReturn {
+export function useBackupJob(jobId: string, options: UseBackupJobOptions = {}): UseBackupJobReturn {
   const { enabled = true, refetchInterval = 2000 } = options;
 
   const query = useQuery({

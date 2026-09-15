@@ -84,11 +84,7 @@ function StatCard({ label, value, color, testId }: StatCardProps) {
  * />
  * ```
  */
-export default function EventStatsPanel({
-  stats,
-  isLoading,
-  className,
-}: EventStatsPanelProps) {
+export default function EventStatsPanel({ stats, isLoading, className }: EventStatsPanelProps) {
   // Show skeleton while loading
   if (isLoading) {
     return <EventStatsPanelSkeleton className={className} />;
@@ -103,22 +99,12 @@ export default function EventStatsPanel({
 
   return (
     <div
-      className={clsx(
-        'rounded-lg border border-gray-800 bg-[#1F1F1F] p-4',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-800 bg-[#1F1F1F] p-4', className)}
       data-testid="event-stats-panel"
     >
-      <div
-        className="grid grid-cols-2 gap-4 md:grid-cols-5"
-        data-testid="stats-grid"
-      >
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5" data-testid="stats-grid">
         {/* Total Events */}
-        <StatCard
-          label="Total Events"
-          value={total_events}
-          testId="stat-total"
-        />
+        <StatCard label="Total Events" value={total_events} testId="stat-total" />
 
         {/* Critical */}
         <StatCard
@@ -154,10 +140,7 @@ export default function EventStatsPanel({
       </div>
 
       {/* Risk Distribution Mini Chart */}
-      <RiskDistributionMini
-        distribution={risk_distribution}
-        className="mt-4"
-      />
+      <RiskDistributionMini distribution={risk_distribution} className="mt-4" />
     </div>
   );
 }
@@ -173,10 +156,7 @@ export interface EventStatsPanelSkeletonProps {
 export function EventStatsPanelSkeleton({ className }: EventStatsPanelSkeletonProps) {
   return (
     <div
-      className={clsx(
-        'rounded-lg border border-gray-800 bg-[#1F1F1F] p-4',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-800 bg-[#1F1F1F] p-4', className)}
       data-testid="event-stats-panel-skeleton"
       aria-hidden="true"
       role="presentation"
@@ -189,30 +169,15 @@ export function EventStatsPanelSkeleton({ className }: EventStatsPanelSkeletonPr
             className="flex flex-col items-center justify-center gap-2 p-2"
             data-testid="stats-card-skeleton"
           >
-            <Skeleton
-              variant="text"
-              width={60}
-              height={32}
-              animation="shimmer"
-            />
-            <Skeleton
-              variant="text"
-              width={80}
-              height={16}
-              animation="shimmer"
-            />
+            <Skeleton variant="text" width={60} height={32} animation="shimmer" />
+            <Skeleton variant="text" width={80} height={16} animation="shimmer" />
           </div>
         ))}
       </div>
 
       {/* Skeleton for distribution chart */}
       <div className="mt-4">
-        <Skeleton
-          variant="rectangular"
-          width="100%"
-          height={24}
-          animation="shimmer"
-        />
+        <Skeleton variant="rectangular" width="100%" height={24} animation="shimmer" />
       </div>
     </div>
   );

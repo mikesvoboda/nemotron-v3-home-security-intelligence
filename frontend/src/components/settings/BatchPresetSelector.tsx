@@ -13,7 +13,11 @@ import { Text } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Zap, Scale, Gauge } from 'lucide-react';
 
-import { BATCH_PRESETS, detectCurrentPreset, type BatchPreset } from '../../utils/batchSettingsValidation';
+import {
+  BATCH_PRESETS,
+  detectCurrentPreset,
+  type BatchPreset,
+} from '../../utils/batchSettingsValidation';
 
 export interface BatchPresetSelectorProps {
   /** Callback when a preset is selected */
@@ -58,15 +62,13 @@ export default function BatchPresetSelector({
   className,
 }: BatchPresetSelectorProps) {
   // Detect which preset (if any) matches current values
-  const currentPresetId = currentWindowSeconds !== undefined && currentIdleTimeoutSeconds !== undefined
-    ? detectCurrentPreset(currentWindowSeconds, currentIdleTimeoutSeconds)
-    : null;
+  const currentPresetId =
+    currentWindowSeconds !== undefined && currentIdleTimeoutSeconds !== undefined
+      ? detectCurrentPreset(currentWindowSeconds, currentIdleTimeoutSeconds)
+      : null;
 
   return (
-    <div
-      data-testid="batch-preset-selector"
-      className={clsx('space-y-2', className)}
-    >
+    <div data-testid="batch-preset-selector" className={clsx('space-y-2', className)}>
       <Text className="text-xs font-medium uppercase tracking-wider text-gray-400">
         Quick Presets
       </Text>
@@ -95,28 +97,18 @@ export default function BatchPresetSelector({
               <div className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Icon
-                    className={clsx(
-                      'h-4 w-4',
-                      isSelected ? 'text-[#76B900]' : 'text-gray-400'
-                    )}
+                    className={clsx('h-4 w-4', isSelected ? 'text-[#76B900]' : 'text-gray-400')}
                   />
                   <Text
-                    className={clsx(
-                      'font-medium',
-                      isSelected ? 'text-[#76B900]' : 'text-white'
-                    )}
+                    className={clsx('font-medium', isSelected ? 'text-[#76B900]' : 'text-white')}
                   >
                     {preset.name}
                   </Text>
                 </div>
-                {isSelected && (
-                  <span className="text-xs text-[#76B900]">Active</span>
-                )}
+                {isSelected && <span className="text-xs text-[#76B900]">Active</span>}
               </div>
 
-              <Text className="mt-2 line-clamp-2 text-xs text-gray-400">
-                {preset.description}
-              </Text>
+              <Text className="mt-2 line-clamp-2 text-xs text-gray-400">{preset.description}</Text>
 
               <Text className="mt-2 text-xs text-gray-500">
                 {preset.windowSeconds}s window / {preset.idleTimeoutSeconds}s idle

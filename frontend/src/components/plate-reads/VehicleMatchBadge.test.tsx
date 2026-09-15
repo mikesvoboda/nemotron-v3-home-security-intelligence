@@ -15,7 +15,6 @@ import { VehicleMatchBadge } from './VehicleMatchBadge';
 import { server } from '../../mocks/server';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 
-
 import type { RegisteredVehicle, HouseholdMember } from '../../hooks/useHouseholdApi';
 
 // Base URL from environment

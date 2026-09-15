@@ -56,9 +56,7 @@ describe('CameraAnalyticsSelector', () => {
     });
 
     it('displays specific camera when selected', () => {
-      render(
-        <CameraAnalyticsSelector {...defaultProps} selectedCameraId="front-door" />
-      );
+      render(<CameraAnalyticsSelector {...defaultProps} selectedCameraId="front-door" />);
 
       // The Tremor Select renders both a hidden option and a visible span
       // Check that the select shows "Front Door" as the selected value
@@ -99,9 +97,7 @@ describe('CameraAnalyticsSelector', () => {
     it('passes onCameraChange callback to Select', () => {
       const onCameraChange = vi.fn();
 
-      render(
-        <CameraAnalyticsSelector {...defaultProps} onCameraChange={onCameraChange} />
-      );
+      render(<CameraAnalyticsSelector {...defaultProps} onCameraChange={onCameraChange} />);
 
       // Verify the select is rendered (onValueChange is wired up internally)
       expect(screen.getByRole('combobox')).toBeInTheDocument();
@@ -136,9 +132,7 @@ describe('CameraAnalyticsSelector', () => {
     it('only shows "All Cameras" when cameras array has only that option', () => {
       const camerasWithOnlyAll: CameraOption[] = [{ id: '', name: 'All Cameras' }];
 
-      render(
-        <CameraAnalyticsSelector {...defaultProps} cameras={camerasWithOnlyAll} />
-      );
+      render(<CameraAnalyticsSelector {...defaultProps} cameras={camerasWithOnlyAll} />);
 
       const selector = screen.getByTestId('camera-analytics-selector');
       expect(within(selector).getByText('All Cameras')).toBeInTheDocument();

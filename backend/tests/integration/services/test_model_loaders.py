@@ -30,11 +30,19 @@ from backend.services.violence_loader import load_violence_model
 
 @pytest.fixture
 def mock_transformers(monkeypatch):
-    """Mock transformers library for model loading tests."""
+    """Mock transformers library for model loading tests.
+
+    cuda.is_available must return True: production loaders (clip_loader,
+    violence_loader, pet_classifier_loader, gender_classifier_loader,
+    age_classifier_loader) fail fast with "requires a CUDA GPU" when it is
+    False (3396d3ef), which short-circuits every load path these tests
+    exercise. The CPU-only host is legitimate; simulating a GPU host is the
+    established pattern (test_clip_loader_unload does the same).
+    """
     import sys
 
     mock_torch = MagicMock()
-    mock_torch.cuda.is_available.return_value = False
+    mock_torch.cuda.is_available.return_value = True
     mock_torch.cuda.empty_cache = MagicMock()
 
     mock_processor = MagicMock()
@@ -47,6 +55,11 @@ def mock_transformers(monkeypatch):
     mock_transformers_lib.CLIPModel.from_pretrained.return_value = mock_model
     mock_transformers_lib.AutoProcessor.from_pretrained.return_value = mock_processor
     mock_transformers_lib.AutoModelForVision2Seq.from_pretrained.return_value = mock_model
+    # Production CLIP loader imports AutoModel/AutoProcessor (clip_loader.py);
+    # alias them to the same mocks so side_effects and call-asserts land on
+    # what production actually uses.
+    mock_transformers_lib.AutoModel = mock_transformers_lib.CLIPModel
+    mock_transformers_lib.AutoProcessor = mock_transformers_lib.CLIPProcessor
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
     monkeypatch.setitem(sys.modules, "transformers", mock_transformers_lib)
@@ -118,7 +131,10 @@ class TestCLIPLoaderIntegration:
         loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
 
         assert loader.model_name == "siglip2-base-patch16-224"
-        assert loader.vram_mb == 800
+        # SigLIP 2 Base FP16 uses ~200MB (vs CLIP ViT-L 800MB) — clip_loader
+        # comment; the 800 figure is the old model, drifted when the loader
+        # switched models (3396d3ef).
+        assert loader.vram_mb == 200
         assert isinstance(loader.vram_mb, int)
 
     @pytest.mark.asyncio
@@ -130,7 +146,7 @@ class TestCLIPLoaderIntegration:
 
         loader = CLIPLoader("/nonexistent/path")
 
-        with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
+        with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
             await loader.load()
 
     @pytest.mark.asyncio
@@ -298,6 +314,12 @@ class TestModelZooIntegration:
                 "segmentation",
                 "action-recognition",
                 "quality-assessment",
+                # zero-dce-plus-plus (models.yml: category preprocessing)
+                # and fast-alpr (models.yml:523 category alpr) — categories
+                # flow verbatim from models.yml into ModelConfig (3396d3ef
+                # unified registry).
+                "preprocessing",
+                "alpr",
             ]
             assert callable(config.load_fn)
             assert isinstance(config.enabled, bool)
@@ -382,7 +404,7 @@ class TestModelManagerIntegration:
 
         async with manager.load("siglip2-base-patch16-224"):
             status = manager.get_status()
-            assert status["total_loaded_vram_mb"] == 800  # CLIP VRAM
+            assert status["total_loaded_vram_mb"] == 200  # SigLIP 2 VRAM
 
     @pytest.mark.asyncio
     async def test_model_manager_concurrent_loads_different_models(self, mock_transformers):
@@ -413,7 +435,7 @@ class TestModelManagerIntegration:
                 assert "siglip2-base-patch16-224" in status["loaded_models"]
                 assert "pet-classifier" in status["loaded_models"]
                 # Total VRAM should be sum of both
-                assert status["total_loaded_vram_mb"] == 800 + 200
+                assert status["total_loaded_vram_mb"] == 200 + 200
 
     @pytest.mark.asyncio
     async def test_model_manager_handles_load_error(self, mock_transformers):
@@ -427,7 +449,7 @@ class TestModelManagerIntegration:
             "Model not found"
         )
 
-        with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
+        with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
             async with manager.load("siglip2-base-patch16-224"):
                 pass
 
@@ -508,7 +530,7 @@ class TestModelLoaderErrorHandling:
             "Invalid model path"
         )
 
-        with pytest.raises(RuntimeError, match="Failed to load CLIP model"):
+        with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
             await load_clip_model("")
 
 

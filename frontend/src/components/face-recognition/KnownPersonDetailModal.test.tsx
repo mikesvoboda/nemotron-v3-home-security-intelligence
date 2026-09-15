@@ -333,7 +333,9 @@ describe('KnownPersonDetailModal', () => {
       const deleteButtons = within(gallery).getAllByRole('button', { name: /Delete embedding/i });
       await user.click(deleteButtons[0]);
 
-      expect(screen.getByText(/Are you sure you want to delete this face embedding/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Are you sure you want to delete this face embedding/i)
+      ).toBeInTheDocument();
     });
 
     it('calls deleteEmbedding when confirmed', async () => {
@@ -366,7 +368,9 @@ describe('KnownPersonDetailModal', () => {
       expect(mockDeleteEmbedding).not.toHaveBeenCalled();
       // Wait for the dialog to close
       await waitFor(() => {
-        expect(screen.queryByText(/Are you sure you want to delete this face embedding/i)).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(/Are you sure you want to delete this face embedding/i)
+        ).not.toBeInTheDocument();
       });
     });
 

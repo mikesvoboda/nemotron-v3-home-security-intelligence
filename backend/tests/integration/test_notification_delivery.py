@@ -25,7 +25,6 @@ Related Files:
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -107,7 +106,6 @@ async def test_event(isolated_db_session, test_camera):
         started_at=_utcnow(),
         risk_score=85,
         risk_level="high",
-        detection_ids=None,
     )
     isolated_db_session.add(event)
     await isolated_db_session.flush()
@@ -391,7 +389,7 @@ class TestWebhookDelivery:
         delivery = await service.send_webhook(test_alert)
 
         assert delivery.success is False
-        assert "not configured" in delivery.error.lower()
+        assert "no webhook url" in delivery.error.lower()
 
     @pytest.mark.asyncio
     async def test_webhook_ssrf_protection(self, mock_settings, test_alert):
@@ -819,7 +817,6 @@ class TestNotificationPipeline:
             started_at=_utcnow(),
             risk_score=70,
             risk_level="high",
-            detection_ids=json.dumps([detection.id]),
         )
         isolated_db_session.add(event)
         await isolated_db_session.flush()

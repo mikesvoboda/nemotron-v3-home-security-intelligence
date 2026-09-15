@@ -14,8 +14,10 @@ import OfflineIndicator, { type OfflineIndicatorProps } from './OfflineIndicator
 import { useCachedEvents } from '../../hooks/useCachedEvents';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
-export interface OfflineStatusIndicatorProps
-  extends Omit<OfflineIndicatorProps, 'isOffline' | 'cachedEventsCount' | 'lastOnlineAt'> {
+export interface OfflineStatusIndicatorProps extends Omit<
+  OfflineIndicatorProps,
+  'isOffline' | 'cachedEventsCount' | 'lastOnlineAt'
+> {
   reloadOnRetry?: boolean;
 }
 

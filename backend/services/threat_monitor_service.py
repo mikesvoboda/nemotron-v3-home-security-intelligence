@@ -432,13 +432,17 @@ class ThreatMonitorService:
         Returns:
             Existing Alert if in cooldown, None otherwise
         """
+        # Keep the cutoff timezone-aware: Alert.created_at is a timestamptz
+        # column, and asyncpg encodes naive datetimes as LOCAL time when
+        # comparing against timestamptz — on a non-UTC host the naive cutoff
+        # lands hours in the future and cooldown never matches (owner ruling
+        # F2, M1 Task 7; repro: throwaway test + raw SQL on EDT host).
         cutoff_time = datetime.now(UTC) - timedelta(seconds=cooldown_seconds)
-        cutoff_time_naive = cutoff_time.replace(tzinfo=None)
 
         stmt = (
             select(Alert)
             .where(Alert.dedup_key == dedup_key)
-            .where(Alert.created_at >= cutoff_time_naive)
+            .where(Alert.created_at >= cutoff_time)
             .limit(1)
         )
 

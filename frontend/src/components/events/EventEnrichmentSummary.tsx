@@ -122,11 +122,11 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     const plateCheck = enrichment.license_plate as { detected?: boolean } | null | undefined;
     const violenceCheck = enrichment.violence as { detected?: boolean } | null | undefined;
     const hasMeaningfulData = !!(
-      (faceCheck?.detected) ||
+      faceCheck?.detected ||
       enrichment.vehicle ||
-      (plateCheck?.detected) ||
+      plateCheck?.detected ||
       enrichment.pet ||
-      (violenceCheck?.detected) ||
+      violenceCheck?.detected ||
       enrichment.clothing ||
       enrichment.pose ||
       enrichment.image_quality
@@ -140,21 +140,27 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Vehicle classification
-    const vehicle = enrichment.vehicle as {
-      type?: string;
-      color?: string;
-      confidence?: number;
-    } | null | undefined;
+    const vehicle = enrichment.vehicle as
+      | {
+          type?: string;
+          color?: string;
+          confidence?: number;
+        }
+      | null
+      | undefined;
     if (vehicle) {
       result.hasVehicle = true;
       result.vehicleDetails.push(vehicle);
     }
 
     // License plate
-    const plate = enrichment.license_plate as {
-      detected?: boolean;
-      text?: string;
-    } | null | undefined;
+    const plate = enrichment.license_plate as
+      | {
+          detected?: boolean;
+          text?: string;
+        }
+      | null
+      | undefined;
     if (plate?.detected && plate.text) {
       result.hasLicensePlate = true;
       if (!result.licensePlateTexts.includes(plate.text)) {
@@ -163,10 +169,13 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Pet detection
-    const pet = enrichment.pet as {
-      detected?: boolean;
-      type?: string;
-    } | null | undefined;
+    const pet = enrichment.pet as
+      | {
+          detected?: boolean;
+          type?: string;
+        }
+      | null
+      | undefined;
     if (pet?.detected && pet.type) {
       result.hasPet = true;
       if (!result.petTypes.includes(pet.type)) {
@@ -175,10 +184,13 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Violence detection
-    const violence = enrichment.violence as {
-      detected?: boolean;
-      score?: number;
-    } | null | undefined;
+    const violence = enrichment.violence as
+      | {
+          detected?: boolean;
+          score?: number;
+        }
+      | null
+      | undefined;
     if (violence?.detected) {
       result.hasViolence = true;
       if (violence.score && violence.score > result.violenceMaxScore) {
@@ -187,13 +199,16 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Clothing analysis
-    const clothing = enrichment.clothing as {
-      upper?: string;
-      lower?: string;
-      is_suspicious?: boolean;
-      is_service_uniform?: boolean;
-      has_face_covered?: boolean;
-    } | null | undefined;
+    const clothing = enrichment.clothing as
+      | {
+          upper?: string;
+          lower?: string;
+          is_suspicious?: boolean;
+          is_service_uniform?: boolean;
+          has_face_covered?: boolean;
+        }
+      | null
+      | undefined;
     if (clothing) {
       result.hasClothing = true;
       result.clothingItems.push({
@@ -206,11 +221,14 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Pose analysis
-    const pose = enrichment.pose as {
-      posture?: string;
-      alerts?: string[];
-      security_alerts?: string[];
-    } | null | undefined;
+    const pose = enrichment.pose as
+      | {
+          posture?: string;
+          alerts?: string[];
+          security_alerts?: string[];
+        }
+      | null
+      | undefined;
     if (pose) {
       result.hasPose = true;
       const alerts = pose.alerts ?? pose.security_alerts ?? [];
@@ -222,10 +240,13 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Image quality
-    const iq = enrichment.image_quality as {
-      score?: number;
-      quality_issues?: string[];
-    } | null | undefined;
+    const iq = enrichment.image_quality as
+      | {
+          score?: number;
+          quality_issues?: string[];
+        }
+      | null
+      | undefined;
     if (iq) {
       result.hasImageQuality = true;
       if (iq.score !== undefined) {
@@ -286,9 +307,7 @@ function SummaryBadge({
       {icon}
       <div className="flex flex-col">
         <span className="text-xs font-medium">{label}</span>
-        {value !== undefined && (
-          <span className="text-sm font-semibold text-white">{value}</span>
-        )}
+        {value !== undefined && <span className="text-sm font-semibold text-white">{value}</span>}
       </div>
     </div>
   );
@@ -354,7 +373,10 @@ export default function EventEnrichmentSummary({
 
       <div className="p-4">
         {/* Threat Indicators - High Priority */}
-        {(aggregated.hasViolence || aggregated.poseAlerts.length > 0 || hasSuspiciousClothing || hasFaceCovered) && (
+        {(aggregated.hasViolence ||
+          aggregated.poseAlerts.length > 0 ||
+          hasSuspiciousClothing ||
+          hasFaceCovered) && (
           <div className="mb-4" data-testid="threat-indicators">
             <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-red-400">
               <Shield className="h-3.5 w-3.5" />
@@ -410,10 +432,12 @@ export default function EventEnrichmentSummary({
             <SummaryBadge
               icon={<Car className="h-4 w-4" />}
               label="Vehicle"
-              value={aggregated.vehicleDetails
-                .map((v) => [v.color, v.type].filter(Boolean).join(' '))
-                .filter(Boolean)
-                .join(', ') || 'Detected'}
+              value={
+                aggregated.vehicleDetails
+                  .map((v) => [v.color, v.type].filter(Boolean).join(' '))
+                  .filter(Boolean)
+                  .join(', ') || 'Detected'
+              }
               variant="info"
             />
           )}

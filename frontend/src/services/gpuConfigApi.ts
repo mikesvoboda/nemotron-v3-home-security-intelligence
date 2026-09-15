@@ -842,12 +842,15 @@ export async function downloadGpuConfig(
     for (const assignment of exportData.assignments) {
       yamlLines.push(`  - service: "${assignment.service}"`);
       yamlLines.push(`    gpu_index: ${assignment.gpu_index ?? 'null'}`);
-      if (assignment.vram_budget_override !== null && assignment.vram_budget_override !== undefined) {
+      if (
+        assignment.vram_budget_override !== null &&
+        assignment.vram_budget_override !== undefined
+      ) {
         yamlLines.push(`    vram_budget_override: ${assignment.vram_budget_override}`);
       }
     }
 
-    content = yamlLines.filter(line => line !== '').join('\n');
+    content = yamlLines.filter((line) => line !== '').join('\n');
     mimeType = 'text/yaml';
     extension = 'yaml';
   } else {

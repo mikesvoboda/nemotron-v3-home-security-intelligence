@@ -17,7 +17,9 @@ vi.mock('../../hooks/useBatchAggregatorStatus', () => ({
   useBatchAggregatorStatus: vi.fn(),
 }));
 
-const mockUseBatchAggregatorStatus = vi.mocked(useBatchAggregatorStatusModule.useBatchAggregatorStatus);
+const mockUseBatchAggregatorStatus = vi.mocked(
+  useBatchAggregatorStatusModule.useBatchAggregatorStatus
+);
 
 describe('BatchStatusMonitor', () => {
   const defaultMockReturn = {

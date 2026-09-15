@@ -1172,9 +1172,7 @@ describe('faceRecognitionQueryKeys', () => {
       'appearances',
       undefined,
     ]);
-    expect(
-      faceRecognitionQueryKeys.personAppearances(1, { start_date: '2024-01-01' })
-    ).toEqual([
+    expect(faceRecognitionQueryKeys.personAppearances(1, { start_date: '2024-01-01' })).toEqual([
       'face-recognition',
       'known-persons',
       1,

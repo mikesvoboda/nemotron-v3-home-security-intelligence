@@ -306,9 +306,8 @@ export const selectAlertsByName = (
 ): StoredPrometheusAlert[] => {
   let selector = alertsByNameSelectors.get(alertname);
   if (!selector) {
-    selector = createComputedSelector(
-      (s: PrometheusAlertState): StoredPrometheusAlert[] =>
-        Object.values(s.alerts).filter((a) => a.alertname === alertname)
+    selector = createComputedSelector((s: PrometheusAlertState): StoredPrometheusAlert[] =>
+      Object.values(s.alerts).filter((a) => a.alertname === alertname)
     );
     alertsByNameSelectors.set(alertname, selector);
   }

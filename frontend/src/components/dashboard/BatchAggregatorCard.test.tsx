@@ -283,9 +283,7 @@ describe('BatchAggregatorCard', () => {
   });
 
   it('should apply custom className', () => {
-    render(
-      <BatchAggregatorCard batchState={createBatchState()} className="custom-class" />
-    );
+    render(<BatchAggregatorCard batchState={createBatchState()} className="custom-class" />);
 
     expect(screen.getByTestId('batch-aggregator-card')).toHaveClass('custom-class');
   });
@@ -300,14 +298,10 @@ describe('BatchAggregatorCard', () => {
     expect(screen.getByTestId('active-batch-count-badge')).toHaveTextContent('0');
 
     // Test with higher counts
-    rerender(
-      <BatchAggregatorCard batchState={createBatchState({ activeBatchCount: 5 })} />
-    );
+    rerender(<BatchAggregatorCard batchState={createBatchState({ activeBatchCount: 5 })} />);
     expect(screen.getByTestId('active-batch-count-badge')).toHaveTextContent('5');
 
-    rerender(
-      <BatchAggregatorCard batchState={createBatchState({ activeBatchCount: 10 })} />
-    );
+    rerender(<BatchAggregatorCard batchState={createBatchState({ activeBatchCount: 10 })} />);
     expect(screen.getByTestId('active-batch-count-badge')).toHaveTextContent('10');
   });
 });

@@ -232,7 +232,8 @@ export default function HourlyPatternChart({
 
       {/* Screen reader description */}
       <div className="sr-only">
-        Chart shows activity levels by hour of day. Most active time is {formatHour(chartData.peakHour)}.
+        Chart shows activity levels by hour of day. Most active time is{' '}
+        {formatHour(chartData.peakHour)}.
       </div>
 
       {/* Chart SVG */}
@@ -240,17 +241,18 @@ export default function HourlyPatternChart({
         <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="min-w-[600px]">
           {/* Confidence band area */}
           <path
-            d={chartData.data
-              .filter((d) => d.hasData)
-              .map((d, i) => {
-                const x = getX(d.hour);
-                const yUpper = getY(d.pattern.avg_detections + d.pattern.std_dev);
-                if (i === 0) {
-                  return `M ${x} ${yUpper}`;
-                }
-                return `L ${x} ${yUpper}`;
-              })
-              .join(' ') +
+            d={
+              chartData.data
+                .filter((d) => d.hasData)
+                .map((d, i) => {
+                  const x = getX(d.hour);
+                  const yUpper = getY(d.pattern.avg_detections + d.pattern.std_dev);
+                  if (i === 0) {
+                    return `M ${x} ${yUpper}`;
+                  }
+                  return `L ${x} ${yUpper}`;
+                })
+                .join(' ') +
               ' ' +
               chartData.data
                 .filter((d) => d.hasData)
@@ -261,7 +263,8 @@ export default function HourlyPatternChart({
                   return `L ${x} ${yLower}`;
                 })
                 .join(' ') +
-              ' Z'}
+              ' Z'
+            }
             fill="#76B900"
             fillOpacity={0.15}
           />
@@ -328,8 +331,10 @@ export default function HourlyPatternChart({
             return (
               <div
                 key={hour}
-                className={`absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 focus:scale-125 focus:outline-none focus:ring-2 focus:ring-[#76B900] ${
-                  isPeak ? 'peak-hour border-orange-500 bg-orange-400' : 'border-[#76B900] bg-[#76B900]'
+                className={`absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-2 transition-transform hover:scale-125 focus:scale-125 focus:outline-none focus:ring-2 focus:ring-[#76B900] ${
+                  isPeak
+                    ? 'peak-hour border-orange-500 bg-orange-400'
+                    : 'border-[#76B900] bg-[#76B900]'
                 } ${hasData ? '' : 'border-dashed border-gray-500 bg-transparent'}`}
                 style={{
                   left: x,
@@ -419,18 +424,20 @@ export default function HourlyPatternChart({
             {tooltip.hasData && tooltip.pattern ? (
               <div className="space-y-0.5 text-gray-300">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Average: {tooltip.pattern.avg_detections.toFixed(1)}</span>
+                  <span className="text-gray-400">
+                    Average: {tooltip.pattern.avg_detections.toFixed(1)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Std Dev: {tooltip.pattern.std_dev.toFixed(1)}</span>
+                  <span className="text-gray-400">
+                    Std Dev: {tooltip.pattern.std_dev.toFixed(1)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-gray-400">Samples: {tooltip.pattern.sample_count}</span>
                 </div>
                 {tooltip.pattern.sample_count < LOW_CONFIDENCE_SAMPLES && (
-                  <div className="mt-1 text-xs text-yellow-400">
-                    Low confidence
-                  </div>
+                  <div className="mt-1 text-xs text-yellow-400">Low confidence</div>
                 )}
               </div>
             ) : (

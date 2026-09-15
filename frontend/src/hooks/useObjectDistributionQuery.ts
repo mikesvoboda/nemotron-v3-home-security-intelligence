@@ -19,10 +19,7 @@ import { useMemo } from 'react';
 import { fetchObjectDistribution, type ObjectDistributionParams } from '../services/api';
 import { queryKeys, DEFAULT_STALE_TIME } from '../services/queryClient';
 
-import type {
-  ObjectDistributionResponse,
-  ObjectDistributionDataPoint,
-} from '../types/analytics';
+import type { ObjectDistributionResponse, ObjectDistributionDataPoint } from '../types/analytics';
 
 // ============================================================================
 // Query Keys
@@ -147,10 +144,7 @@ export function useObjectDistributionQuery(
   });
 
   // Derive objectTypes array, defaulting to empty array
-  const objectTypes = useMemo(
-    () => query.data?.object_types ?? [],
-    [query.data?.object_types]
-  );
+  const objectTypes = useMemo(() => query.data?.object_types ?? [], [query.data?.object_types]);
 
   // Derive total detections, defaulting to 0
   const totalDetections = useMemo(

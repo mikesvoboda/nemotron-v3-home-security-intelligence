@@ -141,10 +141,7 @@ export function useCameraAnomaliesQuery(
   });
 
   // Provide empty array as default to avoid null checks
-  const anomalies = useMemo<CameraAnomalyEvent[]>(
-    () => query.data?.anomalies ?? [],
-    [query.data]
-  );
+  const anomalies = useMemo<CameraAnomalyEvent[]>(() => query.data?.anomalies ?? [], [query.data]);
 
   const count = useMemo(() => query.data?.count ?? 0, [query.data]);
   const periodDays = useMemo(() => query.data?.period_days ?? days, [query.data, days]);

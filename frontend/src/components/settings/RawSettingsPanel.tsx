@@ -13,16 +13,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { Card, Text, Button, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  AlertTriangle,
-  Database,
-  Edit2,
-  Loader2,
-  RefreshCw,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, Database, Edit2, Loader2, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { Fragment, useCallback, useState } from 'react';
 
 import { useSystemSettings, useSystemSetting } from '../../hooks/useSystemSetting';
@@ -73,10 +64,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
   // Get the setting hook for the currently editing key
-  const {
-    updateSetting,
-    deleteSetting,
-  } = useSystemSetting({
+  const { updateSetting, deleteSetting } = useSystemSetting({
     key: editingKey || deletingKey || '',
     enabled: Boolean(editingKey || deletingKey),
   });
@@ -156,10 +144,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
   }, [refetch]);
 
   return (
-    <div
-      className={clsx('space-y-4', className)}
-      data-testid="raw-settings-panel"
-    >
+    <div className={clsx('space-y-4', className)} data-testid="raw-settings-panel">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -183,19 +168,14 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
             data-testid="raw-settings-refresh"
             aria-label="Refresh settings"
           >
-            <RefreshCw
-              className={clsx('h-4 w-4', isFetching && 'animate-spin')}
-            />
+            <RefreshCw className={clsx('h-4 w-4', isFetching && 'animate-spin')} />
           </Button>
         </div>
       </div>
 
       {/* Loading state */}
       {isLoading && (
-        <Card
-          className="border-gray-800 bg-[#1A1A1A]"
-          data-testid="raw-settings-loading"
-        >
+        <Card className="border-gray-800 bg-[#1A1A1A]" data-testid="raw-settings-loading">
           <div className="flex items-center justify-center gap-2 py-8">
             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
             <Text className="text-gray-400">Loading settings...</Text>
@@ -205,21 +185,11 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
 
       {/* Error state */}
       {error && !isLoading && (
-        <Card
-          className="border-red-500/30 bg-red-500/5"
-          data-testid="raw-settings-error"
-        >
+        <Card className="border-red-500/30 bg-red-500/5" data-testid="raw-settings-error">
           <div className="flex items-center gap-3 py-4">
             <AlertTriangle className="h-5 w-5 text-red-400" />
-            <Text className="text-red-400">
-              {error.message || 'Failed to fetch settings'}
-            </Text>
-            <Button
-              size="xs"
-              variant="secondary"
-              onClick={handleRefresh}
-              className="ml-auto"
-            >
+            <Text className="text-red-400">{error.message || 'Failed to fetch settings'}</Text>
+            <Button size="xs" variant="secondary" onClick={handleRefresh} className="ml-auto">
               Retry
             </Button>
           </div>
@@ -228,10 +198,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
 
       {/* Empty state */}
       {!isLoading && !error && settings.length === 0 && (
-        <Card
-          className="border-gray-800 bg-[#1A1A1A]"
-          data-testid="raw-settings-empty"
-        >
+        <Card className="border-gray-800 bg-[#1A1A1A]" data-testid="raw-settings-empty">
           <div className="flex flex-col items-center justify-center gap-2 py-8">
             <Database className="h-8 w-8 text-gray-600" />
             <Text className="text-gray-400">No settings found</Text>
@@ -277,14 +244,9 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {settings.map((setting) => (
-                  <tr
-                    key={setting.key}
-                    className="hover:bg-[#1F1F1F]"
-                  >
+                  <tr key={setting.key} className="hover:bg-[#1F1F1F]">
                     <td className="whitespace-nowrap px-4 py-3">
-                      <Text className="font-mono text-sm text-white">
-                        {setting.key}
-                      </Text>
+                      <Text className="font-mono text-sm text-white">{setting.key}</Text>
                     </td>
                     <td className="px-4 py-3">
                       <Text className="font-mono text-xs text-gray-400">
@@ -328,11 +290,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
 
       {/* Edit Modal */}
       <Transition appear show={editingKey !== null} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-50"
-          onClose={handleCancelEdit}
-        >
+        <Dialog as="div" className="relative z-50" onClose={handleCancelEdit}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -360,7 +318,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
                   className="w-full max-w-lg transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all"
                   data-testid="edit-setting-modal"
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="mb-4 flex items-center justify-between">
                     <Dialog.Title className="text-lg font-semibold text-white">
                       Edit Setting
                     </Dialog.Title>
@@ -376,19 +334,17 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
                   <div className="space-y-4">
                     {/* Key display (read-only, so using span instead of label) */}
                     <div>
-                      <span className="block text-xs font-medium uppercase text-gray-400 mb-1">
+                      <span className="mb-1 block text-xs font-medium uppercase text-gray-400">
                         Key
                       </span>
-                      <Text className="font-mono text-sm text-white">
-                        {editingKey}
-                      </Text>
+                      <Text className="font-mono text-sm text-white">{editingKey}</Text>
                     </div>
 
                     {/* Value editor */}
                     <div>
                       <label
                         htmlFor="edit-setting-value-input"
-                        className="block text-xs font-medium uppercase text-gray-400 mb-1"
+                        className="mb-1 block text-xs font-medium uppercase text-gray-400"
                       >
                         Value (JSON)
                       </label>
@@ -419,7 +375,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+                    <div className="flex justify-end gap-3 border-t border-gray-700 pt-4">
                       <Button
                         variant="secondary"
                         onClick={handleCancelEdit}
@@ -456,11 +412,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
 
       {/* Delete Confirmation Dialog */}
       <Transition appear show={deletingKey !== null} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-50"
-          onClose={handleCancelDelete}
-        >
+        <Dialog as="div" className="relative z-50" onClose={handleCancelDelete}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -488,7 +440,7 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
                   className="w-full max-w-md transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all"
                   data-testid="delete-setting-dialog"
                 >
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="mb-4 flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
                       <Trash2 className="h-5 w-5 text-red-400" />
                     </div>
@@ -497,10 +449,10 @@ export default function RawSettingsPanel({ className }: RawSettingsPanelProps) {
                     </Dialog.Title>
                   </div>
 
-                  <Text className="text-gray-400 mb-4">
+                  <Text className="mb-4 text-gray-400">
                     Are you sure you want to delete the setting{' '}
-                    <span className="font-mono text-white">{deletingKey}</span>?
-                    This action cannot be undone.
+                    <span className="font-mono text-white">{deletingKey}</span>? This action cannot
+                    be undone.
                   </Text>
 
                   <div className="flex justify-end gap-3">

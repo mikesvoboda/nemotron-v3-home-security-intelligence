@@ -255,9 +255,7 @@ describe('ReIDDashboard', () => {
       });
 
       expect(screen.getByText('Re-Identification Dashboard')).toBeInTheDocument();
-      expect(
-        screen.getByText(/Track entity movements across cameras/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Track entity movements across cameras/)).toBeInTheDocument();
     });
 
     it('displays loading state initially', () => {

@@ -85,7 +85,9 @@ function StatusBadge({ status, isRunning, isComplete, isFailed }: StatusBadgePro
         config.className
       )}
     >
-      <Icon className={clsx('h-3.5 w-3.5', isRunning && !isComplete && !isFailed && 'animate-spin')} />
+      <Icon
+        className={clsx('h-3.5 w-3.5', isRunning && !isComplete && !isFailed && 'animate-spin')}
+      />
       {config.label}
     </span>
   );
@@ -170,7 +172,9 @@ export default function BackupProgress({
           isComplete={isComplete}
           isFailed={isFailed}
         />
-        <span className={clsx('font-medium', size === 'sm' ? 'text-sm' : 'text-base', 'text-white')}>
+        <span
+          className={clsx('font-medium', size === 'sm' ? 'text-sm' : 'text-base', 'text-white')}
+        >
           {progress.progress_percent}%
         </span>
       </div>

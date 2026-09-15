@@ -8,12 +8,7 @@
  * @see NEM-3593
  */
 
-import type {
-  JobResponse,
-  JobDetailResponse,
-  JobStatusEnum,
-  components,
-} from './generated';
+import type { JobResponse, JobDetailResponse, JobStatusEnum, components } from './generated';
 
 // Re-export generated types for convenience
 export type { JobResponse, JobDetailResponse, JobStatusEnum };
@@ -123,7 +118,9 @@ export function jobDetailToDisplayData(job: JobDetailResponse): JobDisplayData {
  * Type guard to check if a job is a JobDetailResponse.
  */
 export function isJobDetailResponse(job: Job): job is JobDetailResponse {
-  return 'timing' in job && 'retry_info' in job && 'progress' in job && typeof job.progress === 'object';
+  return (
+    'timing' in job && 'retry_info' in job && 'progress' in job && typeof job.progress === 'object'
+  );
 }
 
 /**
@@ -155,9 +152,7 @@ export function hasRetryInfo(job: Job): boolean {
  */
 export function canRetry(job: Job): boolean {
   if (!isJobDetailResponse(job)) return false;
-  return (
-    job.status === 'failed' && job.retry_info.attempt_number < job.retry_info.max_attempts
-  );
+  return job.status === 'failed' && job.retry_info.attempt_number < job.retry_info.max_attempts;
 }
 
 /**

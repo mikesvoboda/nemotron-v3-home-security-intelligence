@@ -339,9 +339,7 @@ describe('CameraBaselinePanel Integration Tests', () => {
     });
 
     it('handles API error for activity baseline only', async () => {
-      vi.mocked(api.fetchCameraActivityBaseline).mockRejectedValue(
-        new Error('Activity API error')
-      );
+      vi.mocked(api.fetchCameraActivityBaseline).mockRejectedValue(new Error('Activity API error'));
 
       renderWithProviders(
         <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />

@@ -252,12 +252,7 @@ export default function JobDetailPanel({
       {/* Scrollable Logs Section */}
       {showLogs && (
         <div className="min-h-0 flex-1 p-6 pt-4">
-          <JobLogsViewer
-            jobId={jobId}
-            enabled={isJobActive}
-            maxHeight={400}
-            className="h-full"
-          />
+          <JobLogsViewer jobId={jobId} enabled={isJobActive} maxHeight={400} className="h-full" />
         </div>
       )}
 

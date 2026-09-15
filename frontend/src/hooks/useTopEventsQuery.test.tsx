@@ -133,9 +133,7 @@ describe('useTopEventsQuery', () => {
       renderHook(() => useTopEventsQuery({ limit: 5 }), { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(mockFetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 5 })
-        );
+        expect(mockFetchEvents).toHaveBeenCalledWith(expect.objectContaining({ limit: 5 }));
       });
     });
 

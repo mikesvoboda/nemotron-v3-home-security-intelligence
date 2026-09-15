@@ -123,10 +123,7 @@ async function fetchBackupApi<T>(endpoint: string, options?: RequestInit): Promi
     if (error instanceof BackupApiError) {
       throw error;
     }
-    throw new BackupApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new BackupApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 
@@ -306,10 +303,7 @@ export async function startRestore(file: File): Promise<RestoreJobStartResponse>
     if (error instanceof BackupApiError) {
       throw error;
     }
-    throw new BackupApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new BackupApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 

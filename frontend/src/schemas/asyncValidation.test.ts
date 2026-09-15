@@ -198,7 +198,9 @@ describe('Validation Cache', () => {
 
 describe('uniqueNameRefinement', () => {
   it('should work with Zod superRefine', async () => {
-    const schema = z.string().superRefine(uniqueNameRefinement(mockFetchEntities, 'name', 'Camera'));
+    const schema = z
+      .string()
+      .superRefine(uniqueNameRefinement(mockFetchEntities, 'name', 'Camera'));
 
     // Valid unique name
     const result1 = await schema.safeParseAsync('New Camera');

@@ -360,18 +360,10 @@ function ComparisonTabComponent({ zones, isLoadingZones = false, className }: Co
       {selectedZoneIds.length > 0 && !error && (
         <div className="space-y-6">
           {/* Table View */}
-          <ZoneComparisonTable
-            zones={data?.zones ?? []}
-            metric={metric}
-            isLoading={isLoading}
-          />
+          <ZoneComparisonTable zones={data?.zones ?? []} metric={metric} isLoading={isLoading} />
 
           {/* Chart View */}
-          <ZoneComparisonChart
-            zones={data?.zones ?? []}
-            metric={metric}
-            isLoading={isLoading}
-          />
+          <ZoneComparisonChart zones={data?.zones ?? []} metric={metric} isLoading={isLoading} />
 
           {/* Time Range Info */}
           {data && (

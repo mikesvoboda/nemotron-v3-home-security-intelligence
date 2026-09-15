@@ -9,13 +9,7 @@
  */
 
 import { clsx } from 'clsx';
-import {
-  AlertTriangle,
-  CheckCircle,
-  Upload,
-  X,
-  XCircle,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle, Upload, X, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import BackupProgress from './BackupProgress';
@@ -60,12 +54,15 @@ function FileDropzone({ onFileSelect, disabled, error }: FileDropzoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (!disabled) {
-      setIsDragOver(true);
-    }
-  }, [disabled]);
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!disabled) {
+        setIsDragOver(true);
+      }
+    },
+    [disabled]
+  );
 
   const handleDragLeave = useCallback(() => {
     setIsDragOver(false);
@@ -236,7 +233,8 @@ function RestoringState({ job }: RestoringStateProps) {
       {job.backup_id && (
         <p className="text-xs text-gray-400">
           Restoring from backup: {job.backup_id.slice(0, 8)}...
-          {job.backup_created_at && ` (created ${new Date(job.backup_created_at).toLocaleDateString()})`}
+          {job.backup_created_at &&
+            ` (created ${new Date(job.backup_created_at).toLocaleDateString()})`}
         </p>
       )}
     </div>
@@ -263,9 +261,7 @@ function CompleteState({ job, onClose }: CompleteStateProps) {
           <CheckCircle className="h-8 w-8 text-green-400" />
         </div>
         <h3 className="text-lg font-semibold text-white">Restore Complete</h3>
-        <p className="mt-1 text-sm text-gray-400">
-          Successfully restored {totalItems} items
-        </p>
+        <p className="mt-1 text-sm text-gray-400">Successfully restored {totalItems} items</p>
       </div>
 
       {/* Items Restored Details */}
@@ -346,11 +342,7 @@ function ErrorState({ message, onRetry, onClose }: ErrorStateProps) {
  * />
  * ```
  */
-export default function RestoreModal({
-  isOpen,
-  onClose,
-  onRestoreComplete,
-}: RestoreModalProps) {
+export default function RestoreModal({ isOpen, onClose, onRestoreComplete }: RestoreModalProps) {
   const [modalState, setModalState] = useState<ModalState>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -408,7 +400,10 @@ export default function RestoreModal({
   // Reset state when modal closes
   const handleClose = useCallback(() => {
     // Only allow closing if not in the middle of an operation
-    if (modalState === 'uploading' || (modalState === 'restoring' && restoreJob && isRestoreJobInProgress(restoreJob))) {
+    if (
+      modalState === 'uploading' ||
+      (modalState === 'restoring' && restoreJob && isRestoreJobInProgress(restoreJob))
+    ) {
       return;
     }
     setModalState('upload');
@@ -429,7 +424,8 @@ export default function RestoreModal({
   }, []);
 
   // Determine if close button should be shown
-  const showCloseButton = modalState !== 'uploading' &&
+  const showCloseButton =
+    modalState !== 'uploading' &&
     !(modalState === 'restoring' && restoreJob && isRestoreJobInProgress(restoreJob));
 
   return (
@@ -468,20 +464,14 @@ export default function RestoreModal({
           <UploadingState fileName={selectedFile.name} />
         )}
 
-        {modalState === 'restoring' && restoreJob && (
-          <RestoringState job={restoreJob} />
-        )}
+        {modalState === 'restoring' && restoreJob && <RestoringState job={restoreJob} />}
 
         {modalState === 'complete' && restoreJob && (
           <CompleteState job={restoreJob} onClose={handleClose} />
         )}
 
         {modalState === 'error' && (
-          <ErrorState
-            message={errorMessage}
-            onRetry={handleRetry}
-            onClose={handleClose}
-          />
+          <ErrorState message={errorMessage} onRetry={handleRetry} onClose={handleClose} />
         )}
 
         {/* Footer buttons for upload state */}

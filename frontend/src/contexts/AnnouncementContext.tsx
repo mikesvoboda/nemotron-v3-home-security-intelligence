@@ -1,4 +1,3 @@
-
 /**
  * AnnouncementContext - Global ARIA live region announcements for React.
  *

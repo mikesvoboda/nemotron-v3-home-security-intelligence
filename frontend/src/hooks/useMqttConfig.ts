@@ -104,8 +104,7 @@ export function useUpdateMqttConfig() {
  */
 export function useTestMqttConnection() {
   return useMutation({
-    mutationFn: (broker?: Partial<MqttBrokerConfig>) =>
-      testMqttConnection(broker),
+    mutationFn: (broker?: Partial<MqttBrokerConfig>) => testMqttConnection(broker),
   });
 }
 

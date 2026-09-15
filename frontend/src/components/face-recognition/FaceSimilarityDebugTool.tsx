@@ -168,9 +168,7 @@ const ImageUploadArea = memo(function ImageUploadArea({
         ) : (
           <>
             <Upload className="mb-2 h-8 w-8 text-gray-500" />
-            <span className="text-center text-xs text-gray-500">
-              Drop image or click to upload
-            </span>
+            <span className="text-center text-xs text-gray-500">Drop image or click to upload</span>
           </>
         )}
       </div>
@@ -255,7 +253,10 @@ const ComparisonResult = memo(function ComparisonResult({ result }: ComparisonRe
         <div className="mb-1 flex justify-between text-sm">
           <span className="text-gray-400">Similarity Score</span>
           <span
-            className={clsx('font-mono font-medium', result.is_match ? 'text-green-400' : 'text-yellow-400')}
+            className={clsx(
+              'font-mono font-medium',
+              result.is_match ? 'text-green-400' : 'text-yellow-400'
+            )}
           >
             {similarityPercent}%
           </span>
@@ -310,29 +311,35 @@ export const FaceSimilarityDebugTool = memo(function FaceSimilarityDebugTool({
 
   const { mutate: compare, data: result, isPending, reset } = useCompareFaceSimilarity();
 
-  const handleImage1Change = useCallback((file: File | null) => {
-    if (image1.previewUrl) {
-      URL.revokeObjectURL(image1.previewUrl);
-    }
-    setImage1({
-      file,
-      previewUrl: file ? URL.createObjectURL(file) : null,
-    });
-    // Reset result when images change
-    reset();
-  }, [image1.previewUrl, reset]);
+  const handleImage1Change = useCallback(
+    (file: File | null) => {
+      if (image1.previewUrl) {
+        URL.revokeObjectURL(image1.previewUrl);
+      }
+      setImage1({
+        file,
+        previewUrl: file ? URL.createObjectURL(file) : null,
+      });
+      // Reset result when images change
+      reset();
+    },
+    [image1.previewUrl, reset]
+  );
 
-  const handleImage2Change = useCallback((file: File | null) => {
-    if (image2.previewUrl) {
-      URL.revokeObjectURL(image2.previewUrl);
-    }
-    setImage2({
-      file,
-      previewUrl: file ? URL.createObjectURL(file) : null,
-    });
-    // Reset result when images change
-    reset();
-  }, [image2.previewUrl, reset]);
+  const handleImage2Change = useCallback(
+    (file: File | null) => {
+      if (image2.previewUrl) {
+        URL.revokeObjectURL(image2.previewUrl);
+      }
+      setImage2({
+        file,
+        previewUrl: file ? URL.createObjectURL(file) : null,
+      });
+      // Reset result when images change
+      reset();
+    },
+    [image2.previewUrl, reset]
+  );
 
   const handleCompare = useCallback(() => {
     if (image1.file && image2.file) {

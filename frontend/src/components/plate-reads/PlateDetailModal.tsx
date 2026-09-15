@@ -27,11 +27,7 @@ import { Fragment, useCallback, useMemo, useState } from 'react';
 import { VehicleMatchBadge } from './VehicleMatchBadge';
 import { useVehicleMatchQuery } from '../../hooks/useVehicleMatchQuery';
 import { searchPlateReads } from '../../services/plateReadsApi';
-import {
-  formatConfidence,
-  getConfidenceLevel,
-  getQualityLabel,
-} from '../../types/plateRead';
+import { formatConfidence, getConfidenceLevel, getQualityLabel } from '../../types/plateRead';
 import ConfidenceBadge from '../common/ConfidenceBadge';
 import EmptyState from '../common/EmptyState';
 import IconButton from '../common/IconButton';
@@ -142,12 +138,8 @@ function PlateReadItem({ read }: PlateReadItemProps) {
     >
       {/* Timestamp Column */}
       <div className="flex flex-col">
-        <span className="text-sm font-medium text-white">
-          {formatTimestamp(read.timestamp)}
-        </span>
-        <span className="text-xs text-gray-500">
-          {formatRelativeTime(read.timestamp)}
-        </span>
+        <span className="text-sm font-medium text-white">{formatTimestamp(read.timestamp)}</span>
+        <span className="text-xs text-gray-500">{formatRelativeTime(read.timestamp)}</span>
       </div>
 
       {/* Camera */}
@@ -262,12 +254,7 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
   const { match: vehicleMatch } = useVehicleMatchQuery(plateText);
 
   // Fetch plate history
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-  } = useQuery<PlateReadListResponse, Error>({
+  const { data, isLoading, isError, error } = useQuery<PlateReadListResponse, Error>({
     queryKey: ['plate-detail', plateText, page],
     queryFn: () =>
       searchPlateReads({
@@ -390,9 +377,7 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
                         />
                       )}
                     </Dialog.Title>
-                    <p className="mt-2 text-sm text-gray-400">
-                      License plate detection history
-                    </p>
+                    <p className="mt-2 text-sm text-gray-400">License plate detection history</p>
                     {/* Vehicle Info Section - shown when plate matches a registered vehicle */}
                     {vehicleMatch && (
                       <div
@@ -407,7 +392,9 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
                             <span>Color: {vehicleMatch.vehicle.color}</span>
                           )}
                           {vehicleMatch.owner && (
-                            <span>Owner: {vehicleMatch.owner.name} ({vehicleMatch.owner.role})</span>
+                            <span>
+                              Owner: {vehicleMatch.owner.name} ({vehicleMatch.owner.role})
+                            </span>
                           )}
                           <span>
                             Trust: {vehicleMatch.vehicle.trusted ? 'Trusted' : 'Untrusted'}
@@ -498,13 +485,8 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
                             <Clock className="h-4 w-4" />
                             First seen
                           </div>
-                          <p
-                            className="mt-1 text-sm text-white"
-                            data-testid="first-seen"
-                          >
-                            {summary.firstSeen
-                              ? formatTimestamp(summary.firstSeen)
-                              : 'N/A'}
+                          <p className="mt-1 text-sm text-white" data-testid="first-seen">
+                            {summary.firstSeen ? formatTimestamp(summary.firstSeen) : 'N/A'}
                           </p>
                         </div>
 
@@ -514,21 +496,14 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
                             <Clock className="h-4 w-4" />
                             Last seen
                           </div>
-                          <p
-                            className="mt-1 text-sm text-white"
-                            data-testid="last-seen"
-                          >
-                            {summary.lastSeen
-                              ? formatTimestamp(summary.lastSeen)
-                              : 'N/A'}
+                          <p className="mt-1 text-sm text-white" data-testid="last-seen">
+                            {summary.lastSeen ? formatTimestamp(summary.lastSeen) : 'N/A'}
                           </p>
                         </div>
 
                         {/* Total Count */}
                         <div className="rounded-lg border border-gray-800 bg-black/30 p-3">
-                          <div className="text-sm font-medium text-gray-400">
-                            Total Detections
-                          </div>
+                          <div className="text-sm font-medium text-gray-400">Total Detections</div>
                           <p
                             className="mt-1 text-2xl font-bold text-white"
                             data-testid="total-count"
@@ -539,9 +514,7 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
 
                         {/* Average Confidence */}
                         <div className="rounded-lg border border-gray-800 bg-black/30 p-3">
-                          <div className="text-sm font-medium text-gray-400">
-                            Avg Confidence
-                          </div>
+                          <div className="text-sm font-medium text-gray-400">Avg Confidence</div>
                           <div className="mt-1" data-testid="avg-confidence">
                             <span
                               className={clsx(
@@ -564,16 +537,13 @@ export function PlateDetailModal({ plateText, onClose }: PlateDetailModalProps) 
                           Detection Timeline
                         </h3>
                         <span className="text-sm text-gray-500">
-                          {(page - 1) * pageSize + 1}-
-                          {Math.min(page * pageSize, totalCount)} of {totalCount}
+                          {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, totalCount)} of{' '}
+                          {totalCount}
                         </span>
                       </div>
 
                       {/* Timeline List */}
-                      <div
-                        className="space-y-3"
-                        data-testid="plate-reads-timeline"
-                      >
+                      <div className="space-y-3" data-testid="plate-reads-timeline">
                         {plateReads.map((read) => (
                           <PlateReadItem key={read.id} read={read} />
                         ))}

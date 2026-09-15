@@ -7,10 +7,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useDetectionLabelsQuery,
-  detectionLabelsKeys,
-} from './useDetectionLabelsQuery';
+import { useDetectionLabelsQuery, detectionLabelsKeys } from './useDetectionLabelsQuery';
 import * as api from '../services/api';
 import { createQueryClient, queryKeys } from '../services/queryClient';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
@@ -42,9 +39,7 @@ describe('useDetectionLabelsQuery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient = createQueryClient();
-    (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockLabelsResponse
-    );
+    (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockResolvedValue(mockLabelsResponse);
   });
 
   afterEach(() => {
@@ -64,9 +59,7 @@ describe('useDetectionLabelsQuery', () => {
 
   describe('initialization', () => {
     it('starts with isLoading true', () => {
-      (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useDetectionLabelsQuery(), {
         wrapper: createQueryWrapper(queryClient),
@@ -76,9 +69,7 @@ describe('useDetectionLabelsQuery', () => {
     });
 
     it('starts with undefined data', () => {
-      (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useDetectionLabelsQuery(), {
         wrapper: createQueryWrapper(queryClient),
@@ -88,9 +79,7 @@ describe('useDetectionLabelsQuery', () => {
     });
 
     it('starts with empty labels array', () => {
-      (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchDetectionLabels as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useDetectionLabelsQuery(), {
         wrapper: createQueryWrapper(queryClient),
@@ -301,12 +290,9 @@ describe('useDetectionLabelsQuery', () => {
 
   describe('refetchInterval option', () => {
     it('accepts refetchInterval option', () => {
-      const { result } = renderHook(
-        () => useDetectionLabelsQuery({ refetchInterval: 60000 }),
-        {
-          wrapper: createQueryWrapper(queryClient),
-        }
-      );
+      const { result } = renderHook(() => useDetectionLabelsQuery({ refetchInterval: 60000 }), {
+        wrapper: createQueryWrapper(queryClient),
+      });
 
       expect(result.current.isLoading).toBe(true);
     });
@@ -314,12 +300,9 @@ describe('useDetectionLabelsQuery', () => {
 
   describe('staleTime option', () => {
     it('accepts custom staleTime option', async () => {
-      const { result } = renderHook(
-        () => useDetectionLabelsQuery({ staleTime: 1000 }),
-        {
-          wrapper: createQueryWrapper(queryClient),
-        }
-      );
+      const { result } = renderHook(() => useDetectionLabelsQuery({ staleTime: 1000 }), {
+        wrapper: createQueryWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

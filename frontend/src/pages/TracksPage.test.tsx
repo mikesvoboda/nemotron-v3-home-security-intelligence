@@ -23,11 +23,7 @@ import * as useCamerasQueryModule from '../hooks/useCamerasQuery';
 import * as useTracksModule from '../hooks/useTracks';
 import { renderWithProviders } from '../test/utils';
 
-import type {
-  Track,
-  TrackHistory,
-  CameraTrackStats,
-} from '../hooks/useTracks';
+import type { Track, TrackHistory, CameraTrackStats } from '../hooks/useTracks';
 import type { Camera } from '../services/api';
 
 // ============================================================================

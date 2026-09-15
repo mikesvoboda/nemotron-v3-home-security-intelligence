@@ -125,7 +125,7 @@ jobs:
             backend-integration-report.json
             .coverage
             coverage/
-          retention-days: 90
+          retention-days: 30
 
       - name: Generate job summary
         if: always()

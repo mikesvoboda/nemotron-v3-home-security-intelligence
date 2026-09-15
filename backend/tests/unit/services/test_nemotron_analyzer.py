@@ -10,11 +10,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from sqlalchemy.engine import Result, ScalarResult
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.config.prompt_ab_rollout import ABRolloutManager
+from backend.core.config import Settings
 from backend.core.exceptions import AnalyzerUnavailableError
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.services.enrichment_pipeline import EnrichmentPipeline
+from backend.services.event_broadcaster import EventBroadcaster
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.prompt_auto_tuner import PromptAutoTuner
+from backend.services.token_counter import TokenCounter, TokenValidationResult
 from backend.tests.async_utils import (
     create_async_session_mock,
     create_mock_db_context,
@@ -99,11 +107,21 @@ def analyzer(mock_redis_client, mock_settings):
     # and inference_semaphore (for facade's get_inference_semaphore call)
     # Note: backend.core.config.get_settings handles enrichment_pipeline's import from that module
     with (
-        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-        patch("backend.services.severity.get_settings", return_value=mock_settings),
-        patch("backend.services.token_counter.get_settings", return_value=mock_settings),
-        patch("backend.core.config.get_settings", return_value=mock_settings),
-        patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch("backend.services.severity.get_settings", return_value=mock_settings, autospec=True),
+        patch(
+            "backend.services.token_counter.get_settings", return_value=mock_settings, autospec=True
+        ),
+        patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
+        patch(
+            "backend.services.inference_semaphore.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
     ):
         # Also clear the singletons to ensure fresh service with mocked settings
         from backend.services.analyzer_facade import reset_analyzer_facade
@@ -586,7 +604,7 @@ async def test_broadcast_event(analyzer, mock_redis_client):
     )
 
     # Mock the EventBroadcaster.broadcast_event method
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     with patch(
@@ -652,7 +670,7 @@ async def test_broadcast_event_soft_deleted_skipped(analyzer, mock_redis_client)
     )
 
     # Mock the EventBroadcaster.broadcast_event method
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     with patch(
@@ -751,22 +769,22 @@ async def test_analyze_batch_success(
     detection_ids = [1, 2]
 
     # Mock database session
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     # Mock camera query result
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     # Mock detections query result
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
     # Configure mock session to return appropriate results based on query
     # NEM-1998: ON CONFLICT DO NOTHING adds 2 extra execute calls for event_detections
     call_count = 0
-    mock_insert_result = MagicMock()
+    mock_insert_result = MagicMock(spec=Result)
 
     async def mock_execute(query):
         nonlocal call_count
@@ -786,7 +804,7 @@ async def test_analyze_batch_success(
     mock_session.refresh = AsyncMock()
 
     # Mock the event broadcaster
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     # Mock LLM call
@@ -794,7 +812,7 @@ async def test_analyze_batch_success(
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
@@ -802,7 +820,7 @@ async def test_analyze_batch_success(
         ),
     ):
         # Create async context manager mock
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -842,15 +860,15 @@ async def test_analyze_batch_llm_failure_fallback(
     detection_ids = [1, 2]
 
     # Mock database session
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     # Mock camera query result
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     # Mock detections query result
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -871,7 +889,7 @@ async def test_analyze_batch_llm_failure_fallback(
     mock_session.refresh = AsyncMock()
 
     # Mock the event broadcaster
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     # Mock LLM call to fail
@@ -879,14 +897,14 @@ async def test_analyze_batch_llm_failure_fallback(
         raise httpx.ConnectError("LLM service unavailable")
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -910,15 +928,15 @@ async def test_analyze_batch_no_detections_in_db(analyzer, mock_redis_client, mo
     detection_ids = [99, 100]  # IDs that don't exist
 
     # Mock database session
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     # Mock camera query result
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     # Mock detections query - return empty
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = []
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -934,8 +952,8 @@ async def test_analyze_batch_no_detections_in_db(analyzer, mock_redis_client, mo
 
     mock_session.execute = mock_execute
 
-    with patch("backend.services.nemotron_analyzer.get_session") as mock_get_session:
-        mock_context = AsyncMock()
+    with patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session:
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -954,10 +972,10 @@ async def test_analyze_batch_invalid_detection_ids(analyzer, mock_redis_client, 
     detection_ids = ["abc", "def"]  # Invalid non-numeric IDs
 
     # Mock database session
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     # Mock camera query result
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     call_count = 0
@@ -969,8 +987,8 @@ async def test_analyze_batch_invalid_detection_ids(analyzer, mock_redis_client, 
 
     mock_session.execute = mock_execute
 
-    with patch("backend.services.nemotron_analyzer.get_session") as mock_get_session:
-        mock_context = AsyncMock()
+    with patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session:
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -990,13 +1008,13 @@ async def test_analyze_batch_broadcast_failure_continues(
     camera_id = "front_door"
     detection_ids = [1, 2]
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -1017,21 +1035,21 @@ async def test_analyze_batch_broadcast_failure_continues(
     mock_session.refresh = AsyncMock()
 
     # Mock broadcaster to fail
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock(side_effect=Exception("Broadcast failed"))
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1062,7 +1080,7 @@ async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
     mock_redis_client.get.side_effect = mock_redis_get
 
     # Mock database session
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     from backend.models.camera import Camera
     from backend.models.detection import Detection
@@ -1086,11 +1104,11 @@ async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
         ),
     ]
 
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -1110,7 +1128,7 @@ async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
     mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     mock_llm_response = {
@@ -1124,14 +1142,14 @@ async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1168,14 +1186,14 @@ async def test_analyze_detection_fast_path_success(
         confidence=0.98,
     )
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     # Mock camera query result
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     # Mock detection query result
-    mock_detection_result = MagicMock()
+    mock_detection_result = MagicMock(spec=Result)
     mock_detection_result.scalar_one_or_none.return_value = mock_detection
 
     call_count = 0
@@ -1194,21 +1212,21 @@ async def test_analyze_detection_fast_path_success(
     mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1232,13 +1250,13 @@ async def test_analyze_detection_fast_path_detection_not_found(
     camera_id = "front_door"
     detection_id = 999  # Non-existent detection
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     # Detection not found
-    mock_detection_result = MagicMock()
+    mock_detection_result = MagicMock(spec=Result)
     mock_detection_result.scalar_one_or_none.return_value = None
 
     call_count = 0
@@ -1253,8 +1271,8 @@ async def test_analyze_detection_fast_path_detection_not_found(
 
     mock_session.execute = mock_execute
 
-    with patch("backend.services.nemotron_analyzer.get_session") as mock_get_session:
-        mock_context = AsyncMock()
+    with patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session:
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1284,12 +1302,12 @@ async def test_analyze_detection_fast_path_llm_failure_fallback(
         confidence=0.98,
     )
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detection_result = MagicMock()
+    mock_detection_result = MagicMock(spec=Result)
     mock_detection_result.scalar_one_or_none.return_value = mock_detection
 
     call_count = 0
@@ -1308,21 +1326,21 @@ async def test_analyze_detection_fast_path_llm_failure_fallback(
     mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm_fail(*args, **kwargs):
         raise httpx.TimeoutException("LLM timeout")
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1357,12 +1375,12 @@ async def test_analyze_detection_fast_path_broadcast_failure_continues(
         confidence=0.98,
     )
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detection_result = MagicMock()
+    mock_detection_result = MagicMock(spec=Result)
     mock_detection_result.scalar_one_or_none.return_value = mock_detection
 
     call_count = 0
@@ -1382,21 +1400,21 @@ async def test_analyze_detection_fast_path_broadcast_failure_continues(
     mock_session.refresh = AsyncMock()
 
     # Mock broadcaster to fail
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock(side_effect=Exception("Broadcast failed"))
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1429,12 +1447,12 @@ async def test_analyze_detection_fast_path_string_detection_id(
         confidence=0.98,
     )
 
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detection_result = MagicMock()
+    mock_detection_result = MagicMock(spec=Result)
     mock_detection_result.scalar_one_or_none.return_value = mock_detection
 
     call_count = 0
@@ -1453,21 +1471,21 @@ async def test_analyze_detection_fast_path_string_detection_id(
     mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -1687,7 +1705,7 @@ async def test_run_enrichment_pipeline_sets_shared_image(analyzer):
     # Mock the enrichment pipeline with enrich_batch_with_tracking (NEM-1672)
     from backend.services.enrichment_pipeline import EnrichmentStatus, EnrichmentTrackingResult
 
-    mock_pipeline = MagicMock()
+    mock_pipeline = MagicMock(spec=EnrichmentPipeline)
     mock_result = EnrichmentResult()
     mock_tracking_result = EnrichmentTrackingResult(
         status=EnrichmentStatus.FULL,
@@ -1763,7 +1781,7 @@ async def test_run_enrichment_pipeline_passes_camera_id(analyzer):
         ),
     ]
 
-    mock_pipeline = MagicMock()
+    mock_pipeline = MagicMock(spec=EnrichmentPipeline)
     mock_result = EnrichmentResult()
     mock_tracking_result = EnrichmentTrackingResult(
         status=EnrichmentStatus.FULL,
@@ -1856,7 +1874,7 @@ async def test_run_enrichment_pipeline_no_file_path_for_shared_image(analyzer):
         ),
     ]
 
-    mock_pipeline = MagicMock()
+    mock_pipeline = MagicMock(spec=EnrichmentPipeline)
     mock_result = EnrichmentResult()
     mock_tracking_result = EnrichmentTrackingResult(
         status=EnrichmentStatus.FULL,
@@ -1972,11 +1990,11 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
     }
 
     # Mock auto-tuner to return empty context (NEM-3015)
-    mock_auto_tuner = MagicMock()
+    mock_auto_tuner = MagicMock(spec=PromptAutoTuner)
     mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch("httpx.AsyncClient.post") as mock_post,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
         patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
@@ -1984,27 +2002,28 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
+            autospec=True,
         ),
     ):
         # Mock database session
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
         mock_get_session.return_value = mock_session
 
         # Mock camera query
-        mock_camera_result = MagicMock()
+        mock_camera_result = MagicMock(spec=Result)
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
         # Mock detections query
-        mock_det_result = MagicMock()
-        mock_det_scalars = MagicMock()
+        mock_det_result = MagicMock(spec=Result)
+        mock_det_scalars = MagicMock(spec=ScalarResult)
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
         # Setup execute to return camera first, then detections, then ON CONFLICT inserts
         # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
-        mock_insert_result = MagicMock()  # Result from ON CONFLICT INSERT
+        mock_insert_result = MagicMock(spec=Result)  # Result from ON CONFLICT INSERT
         mock_session.execute = AsyncMock(
             side_effect=[
                 mock_camera_result,
@@ -2019,7 +2038,7 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         mock_session.refresh = AsyncMock()
 
         # Mock LLM response
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_llm_response
         mock_resp.raise_for_status = MagicMock()
@@ -2113,11 +2132,11 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
     }
 
     # Mock auto-tuner to return empty context (NEM-3015)
-    mock_auto_tuner = MagicMock()
+    mock_auto_tuner = MagicMock(spec=PromptAutoTuner)
     mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch("httpx.AsyncClient.post") as mock_post,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
         patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
@@ -2125,23 +2144,24 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
+            autospec=True,
         ),
     ):
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
         mock_get_session.return_value = mock_session
 
-        mock_camera_result = MagicMock()
+        mock_camera_result = MagicMock(spec=Result)
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-        mock_det_result = MagicMock()
-        mock_det_scalars = MagicMock()
+        mock_det_result = MagicMock(spec=Result)
+        mock_det_scalars = MagicMock(spec=ScalarResult)
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
         # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
-        mock_insert_result = MagicMock()
+        mock_insert_result = MagicMock(spec=Result)
         mock_session.execute = AsyncMock(
             side_effect=[
                 mock_camera_result,
@@ -2155,7 +2175,7 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
         mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
         mock_session.refresh = AsyncMock()
 
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_llm_response
         mock_resp.raise_for_status = MagicMock()
@@ -2185,8 +2205,12 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
 
     # Create analyzer with enrichment disabled
     with (
-        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-        patch("backend.services.severity.get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch("backend.services.severity.get_settings", return_value=mock_settings, autospec=True),
     ):
         from backend.services.severity import reset_severity_service
 
@@ -2243,11 +2267,11 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
     }
 
     # Mock auto-tuner to return empty context (NEM-3015)
-    mock_auto_tuner = MagicMock()
+    mock_auto_tuner = MagicMock(spec=PromptAutoTuner)
     mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch("httpx.AsyncClient.post") as mock_post,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
         patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
@@ -2255,23 +2279,24 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
+            autospec=True,
         ),
     ):
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
         mock_get_session.return_value = mock_session
 
-        mock_camera_result = MagicMock()
+        mock_camera_result = MagicMock(spec=Result)
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-        mock_det_result = MagicMock()
-        mock_det_scalars = MagicMock()
+        mock_det_result = MagicMock(spec=Result)
+        mock_det_scalars = MagicMock(spec=ScalarResult)
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
         # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
-        mock_insert_result = MagicMock()
+        mock_insert_result = MagicMock(spec=Result)
         mock_session.execute = AsyncMock(
             side_effect=[
                 mock_camera_result,
@@ -2285,7 +2310,7 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
         mock_session.flush = AsyncMock()  # NEM-2574: Batched commits use flush
         mock_session.refresh = AsyncMock()
 
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_llm_response
         mock_resp.raise_for_status = MagicMock()
@@ -2457,11 +2482,11 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
     analyzer._get_enrichment_result_from_data = AsyncMock(return_value=mock_enrichment_tracking)
 
     # Mock auto-tuner to return empty context (NEM-3015)
-    mock_auto_tuner = MagicMock()
+    mock_auto_tuner = MagicMock(spec=PromptAutoTuner)
     mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
         patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
         patch.object(analyzer, "_get_household_context", return_value=""),  # NEM-3024
@@ -2469,23 +2494,24 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
+            autospec=True,
         ),
     ):
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
         mock_get_session.return_value = mock_session
 
-        mock_camera_result = MagicMock()
+        mock_camera_result = MagicMock(spec=Result)
         mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-        mock_det_result = MagicMock()
-        mock_det_scalars = MagicMock()
+        mock_det_result = MagicMock(spec=Result)
+        mock_det_scalars = MagicMock(spec=ScalarResult)
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
         # NEM-1998 added ON CONFLICT DO NOTHING for event_detections, which adds 2 execute calls
-        mock_insert_result = MagicMock()
+        mock_insert_result = MagicMock(spec=Result)
         mock_session.execute = AsyncMock(
             side_effect=[
                 mock_camera_result,
@@ -2577,10 +2603,12 @@ class TestNemotronAnalyzerImprovedPatterns:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_class,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_class,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -2643,11 +2671,11 @@ class TestNemotronAnalyzerImprovedPatterns:
         ]
 
         # Setup mock results
-        mock_camera_result = MagicMock()
+        mock_camera_result = MagicMock(spec=Result)
         mock_camera_result.scalar_one_or_none.return_value = camera
 
-        mock_det_result = MagicMock()
-        mock_det_scalars = MagicMock()
+        mock_det_result = MagicMock(spec=Result)
+        mock_det_scalars = MagicMock(spec=ScalarResult)
         mock_det_scalars.all.return_value = detections
         mock_det_result.scalars.return_value = mock_det_scalars
 
@@ -2671,13 +2699,14 @@ class TestNemotronAnalyzerImprovedPatterns:
         async def mock_call_llm(*args, **kwargs):
             return mock_llm_response
 
-        mock_broadcaster = MagicMock()
+        mock_broadcaster = MagicMock(spec=EventBroadcaster)
         mock_broadcaster.broadcast_event = AsyncMock()
 
         with (
             patch(
                 "backend.services.nemotron_analyzer.get_session",
                 return_value=mock_context,
+                autospec=True,
             ),
             patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
             patch(
@@ -2806,10 +2835,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -2836,10 +2867,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -2869,10 +2902,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -2910,10 +2945,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -2946,18 +2983,19 @@ class TestIdempotencyHandling:
             )
 
             # Mock database session for event lookup
-            mock_session = AsyncMock()
-            mock_event_result = MagicMock()
+            mock_session = AsyncMock(spec=AsyncSession)
+            mock_event_result = MagicMock(spec=Result)
             mock_event_result.scalar_one_or_none.return_value = existing_event
             mock_session.execute = AsyncMock(return_value=mock_event_result)
 
-            mock_context = AsyncMock()
+            mock_context = AsyncMock(spec=AsyncSession)
             mock_context.__aenter__ = AsyncMock(return_value=mock_session)
             mock_context.__aexit__ = AsyncMock(return_value=None)
 
             with patch(
                 "backend.services.nemotron_analyzer.get_session",
                 return_value=mock_context,
+                autospec=True,
             ):
                 # Call analyze_batch - should return existing event, not create new
                 event = await analyzer.analyze_batch(
@@ -2992,10 +3030,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -3035,13 +3075,13 @@ class TestIdempotencyHandling:
             ]
 
             # Mock database session
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
 
-            mock_camera_result = MagicMock()
+            mock_camera_result = MagicMock(spec=Result)
             mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-            mock_det_result = MagicMock()
-            mock_det_scalars = MagicMock()
+            mock_det_result = MagicMock(spec=Result)
+            mock_det_scalars = MagicMock(spec=ScalarResult)
             mock_det_scalars.all.return_value = mock_detections
             mock_det_result.scalars.return_value = mock_det_scalars
 
@@ -3076,11 +3116,11 @@ class TestIdempotencyHandling:
 
             mock_session.refresh = mock_refresh
 
-            mock_context = AsyncMock()
+            mock_context = AsyncMock(spec=AsyncSession)
             mock_context.__aenter__ = AsyncMock(return_value=mock_session)
             mock_context.__aexit__ = AsyncMock(return_value=None)
 
-            mock_broadcaster = MagicMock()
+            mock_broadcaster = MagicMock(spec=EventBroadcaster)
             mock_broadcaster.broadcast_event = AsyncMock()
 
             mock_llm_response = {
@@ -3097,6 +3137,7 @@ class TestIdempotencyHandling:
                 patch(
                     "backend.services.nemotron_analyzer.get_session",
                     return_value=mock_context,
+                    autospec=True,
                 ),
                 patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
                 patch.object(analyzer, "_get_enriched_context", return_value=None),
@@ -3136,10 +3177,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -3172,10 +3215,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -3207,10 +3252,12 @@ class TestIdempotencyHandling:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_idempotency,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -3244,18 +3291,19 @@ class TestIdempotencyHandling:
             )
 
             # Mock database session
-            mock_session = AsyncMock()
-            mock_event_result = MagicMock()
+            mock_session = AsyncMock(spec=AsyncSession)
+            mock_event_result = MagicMock(spec=Result)
             mock_event_result.scalar_one_or_none.return_value = existing_event
             mock_session.execute = AsyncMock(return_value=mock_event_result)
 
-            mock_context = AsyncMock()
+            mock_context = AsyncMock(spec=AsyncSession)
             mock_context.__aenter__ = AsyncMock(return_value=mock_session)
             mock_context.__aexit__ = AsyncMock(return_value=None)
 
             with patch(
                 "backend.services.nemotron_analyzer.get_session",
                 return_value=mock_context,
+                autospec=True,
             ):
                 event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
 
@@ -3333,18 +3381,22 @@ class TestLLMTokenMetrics:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_for_token_tests,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_for_token_tests,
+                autospec=True,
             ),
             patch(
                 "backend.services.inference_semaphore.get_settings",
                 return_value=mock_settings_for_token_tests,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings_for_token_tests,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -3379,7 +3431,9 @@ class TestLLMTokenMetrics:
 
         with (
             patch("httpx.AsyncClient.post") as mock_post,
-            patch("backend.services.nemotron_analyzer.record_nemotron_tokens") as mock_record,
+            patch(
+                "backend.services.nemotron_analyzer.record_nemotron_tokens", autospec=True
+            ) as mock_record,
         ):
             mock_resp = MagicMock(spec=httpx.Response)
             mock_resp.status_code = 200
@@ -3417,7 +3471,9 @@ class TestLLMTokenMetrics:
 
         with (
             patch("httpx.AsyncClient.post") as mock_post,
-            patch("backend.services.nemotron_analyzer.record_nemotron_tokens") as mock_record,
+            patch(
+                "backend.services.nemotron_analyzer.record_nemotron_tokens", autospec=True
+            ) as mock_record,
         ):
             mock_resp = MagicMock(spec=httpx.Response)
             mock_resp.status_code = 200
@@ -3458,7 +3514,9 @@ class TestLLMTokenMetrics:
 
         with (
             patch("httpx.AsyncClient.post") as mock_post,
-            patch("backend.services.nemotron_analyzer.record_nemotron_tokens") as mock_record,
+            patch(
+                "backend.services.nemotron_analyzer.record_nemotron_tokens", autospec=True
+            ) as mock_record,
         ):
             mock_resp = MagicMock(spec=httpx.Response)
             mock_resp.status_code = 200
@@ -3536,14 +3594,17 @@ class TestTokenCountingIntegration:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings_with_token_limits,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings_with_token_limits,
+                autospec=True,
             ),
             patch(
                 "backend.services.inference_semaphore.get_settings",
                 return_value=mock_settings_with_token_limits,
+                autospec=True,
             ),
         ):
             from backend.services.analyzer_facade import reset_analyzer_facade
@@ -3571,13 +3632,13 @@ class TestTokenCountingIntegration:
         }
 
         # Mock token counter with validation result
-        mock_validation = MagicMock()
+        mock_validation = MagicMock(spec=TokenValidationResult)
         mock_validation.is_valid = True
         mock_validation.prompt_tokens = 500
         mock_validation.available_tokens = 2560
         mock_validation.utilization = 0.2
 
-        mock_counter = MagicMock()
+        mock_counter = MagicMock(spec=TokenCounter)
         mock_counter.validate_prompt.return_value = mock_validation
 
         with (
@@ -3585,6 +3646,7 @@ class TestTokenCountingIntegration:
             patch(
                 "backend.services.token_counter.get_token_counter",
                 return_value=mock_counter,
+                autospec=True,
             ),
         ):
             mock_resp = MagicMock(spec=httpx.Response)
@@ -3864,7 +3926,9 @@ def test_get_context_enricher_creates_singleton(analyzer):
     reset_analyzer_facade()
 
     # Patch the module-level function that the facade imports
-    with patch("backend.services.context_enricher.get_context_enricher") as mock_get_enricher:
+    with patch(
+        "backend.services.context_enricher.get_context_enricher", autospec=True
+    ) as mock_get_enricher:
         from backend.services.context_enricher import ContextEnricher
 
         mock_enricher = MagicMock(spec=ContextEnricher)
@@ -3897,7 +3961,9 @@ def test_get_enrichment_pipeline_creates_singleton(analyzer):
     reset_analyzer_facade()
 
     # Patch the module-level function that the facade imports
-    with patch("backend.services.enrichment_pipeline.get_enrichment_pipeline") as mock_get_pipeline:
+    with patch(
+        "backend.services.enrichment_pipeline.get_enrichment_pipeline", autospec=True
+    ) as mock_get_pipeline:
         from backend.services.enrichment_pipeline import EnrichmentPipeline
 
         mock_pipeline = MagicMock(spec=EnrichmentPipeline)
@@ -3919,6 +3985,7 @@ def test_get_auth_headers_no_api_key(analyzer):
     with patch(
         "backend.services.nemotron_analyzer.get_correlation_headers",
         return_value={"X-Correlation-ID": "test-123"},
+        autospec=True,
     ):
         headers = analyzer._get_auth_headers()
 
@@ -3934,6 +4001,7 @@ def test_get_auth_headers_with_api_key(analyzer):
     with patch(
         "backend.services.nemotron_analyzer.get_correlation_headers",
         return_value={"X-Correlation-ID": "test-123"},
+        autospec=True,
     ):
         headers = analyzer._get_auth_headers()
 
@@ -3962,8 +4030,10 @@ def test_validate_and_truncate_prompt_valid(analyzer):
         warning=None,
     )
 
-    with patch("backend.services.token_counter.get_token_counter") as mock_get_counter:
-        mock_counter = MagicMock()
+    with patch(
+        "backend.services.token_counter.get_token_counter", autospec=True
+    ) as mock_get_counter:
+        mock_counter = MagicMock(spec=TokenCounter)
         mock_counter.validate_prompt.return_value = mock_validation
         mock_get_counter.return_value = mock_counter
 
@@ -3998,8 +4068,10 @@ def test_validate_and_truncate_prompt_exceeds_with_truncation_enabled(analyzer):
         sections_removed=["enrichment_context"],
     )
 
-    with patch("backend.services.token_counter.get_token_counter") as mock_get_counter:
-        mock_counter = MagicMock()
+    with patch(
+        "backend.services.token_counter.get_token_counter", autospec=True
+    ) as mock_get_counter:
+        mock_counter = MagicMock(spec=TokenCounter)
         mock_counter.validate_prompt.return_value = mock_validation
         mock_counter.truncate_enrichment_data.return_value = mock_truncation
         mock_get_counter.return_value = mock_counter
@@ -4020,10 +4092,16 @@ def test_validate_and_truncate_prompt_exceeds_with_truncation_disabled(
     mock_settings.context_truncation_enabled = False
 
     with (
-        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-        patch("backend.services.severity.get_settings", return_value=mock_settings),
-        patch("backend.services.token_counter.get_settings", return_value=mock_settings),
-        patch("backend.core.config.get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch("backend.services.severity.get_settings", return_value=mock_settings, autospec=True),
+        patch(
+            "backend.services.token_counter.get_settings", return_value=mock_settings, autospec=True
+        ),
+        patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
     ):
         from backend.services.severity import reset_severity_service
         from backend.services.token_counter import reset_token_counter
@@ -4045,8 +4123,10 @@ def test_validate_and_truncate_prompt_exceeds_with_truncation_disabled(
             warning="Prompt exceeds context window",
         )
 
-        with patch("backend.services.token_counter.get_token_counter") as mock_get_counter:
-            mock_counter = MagicMock()
+        with patch(
+            "backend.services.token_counter.get_token_counter", autospec=True
+        ) as mock_get_counter:
+            mock_counter = MagicMock(spec=TokenCounter)
             mock_counter.validate_prompt.return_value = mock_validation
             mock_get_counter.return_value = mock_counter
 
@@ -4074,10 +4154,11 @@ async def test_enqueue_for_evaluation_success(analyzer, mock_redis_client):
         patch(
             "backend.services.evaluation_queue.get_evaluation_queue",
             return_value=mock_queue,
+            autospec=True,
         ),
         patch("backend.core.config.get_settings") as mock_get_settings,
     ):
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=Settings)
         mock_settings.background_evaluation_enabled = True
         mock_get_settings.return_value = mock_settings
 
@@ -4090,7 +4171,7 @@ async def test_enqueue_for_evaluation_success(analyzer, mock_redis_client):
 async def test_enqueue_for_evaluation_disabled(analyzer, mock_redis_client):
     """Test _enqueue_for_evaluation skips when background evaluation disabled."""
     with patch("backend.core.config.get_settings") as mock_get_settings:
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=Settings)
         mock_settings.background_evaluation_enabled = False
         mock_get_settings.return_value = mock_settings
 
@@ -4110,10 +4191,11 @@ async def test_enqueue_for_evaluation_handles_failure(analyzer, mock_redis_clien
         patch(
             "backend.services.evaluation_queue.get_evaluation_queue",
             return_value=mock_queue,
+            autospec=True,
         ),
         patch("backend.core.config.get_settings") as mock_get_settings,
     ):
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=Settings)
         mock_settings.background_evaluation_enabled = True
         mock_get_settings.return_value = mock_settings
 
@@ -4301,6 +4383,7 @@ async def test_analyze_batch_streaming_delegates_to_streaming_module(analyzer, m
     with patch(
         "backend.services.nemotron_streaming.analyze_batch_streaming",
         return_value=mock_streaming_generator(),
+        autospec=True,
     ) as mock_streaming:
         updates = []
         async for update in analyzer.analyze_batch_streaming(
@@ -4671,10 +4754,10 @@ async def test_check_guided_json_support_http_4xx_error(analyzer):
     analyzer._supports_guided_json = None
 
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 400
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Bad request", request=MagicMock(), response=mock_resp
+            "Bad request", request=MagicMock(spec=httpx.Request), response=mock_resp
         )
         mock_post.return_value = mock_resp
 
@@ -4690,10 +4773,10 @@ async def test_check_guided_json_support_http_5xx_error_max_retries(analyzer):
     analyzer._supports_guided_json = None
 
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Server error", request=MagicMock(), response=mock_resp
+            "Server error", request=MagicMock(spec=httpx.Request), response=mock_resp
         )
         mock_post.return_value = mock_resp
 
@@ -4772,11 +4855,21 @@ async def test_is_guided_json_fallback_enabled(mock_settings, mock_redis_client)
     mock_settings.nemotron_guided_json_fallback = True
 
     with (
-        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-        patch("backend.services.severity.get_settings", return_value=mock_settings),
-        patch("backend.services.token_counter.get_settings", return_value=mock_settings),
-        patch("backend.core.config.get_settings", return_value=mock_settings),
-        patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.nemotron_analyzer.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch("backend.services.severity.get_settings", return_value=mock_settings, autospec=True),
+        patch(
+            "backend.services.token_counter.get_settings", return_value=mock_settings, autospec=True
+        ),
+        patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
+        patch(
+            "backend.services.inference_semaphore.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
     ):
         from backend.services.severity import reset_severity_service
         from backend.services.token_counter import reset_token_counter
@@ -4803,13 +4896,13 @@ async def test_record_rollout_feedback_no_rollout_manager(analyzer):
 @pytest.mark.asyncio
 async def test_record_rollout_feedback_control_group(analyzer):
     """Test record_rollout_feedback for control group."""
-    mock_rollout = MagicMock()
+    mock_rollout = MagicMock(spec=ABRolloutManager)
     mock_rollout.get_group_for_camera.return_value = MagicMock()
     mock_rollout.get_group_for_camera.return_value.__eq__ = (
         lambda self, other: True  # noqa: ARG005
     )  # Equals CONTROL
 
-    with patch("backend.config.prompt_ab_rollout.ExperimentGroup") as mock_exp_group:
+    with patch("backend.config.prompt_ab_rollout.ExperimentGroup", autospec=True) as mock_exp_group:
         mock_exp_group.CONTROL = MagicMock()
         mock_rollout.get_group_for_camera.return_value = mock_exp_group.CONTROL
 
@@ -4989,20 +5082,20 @@ Analyzing security event...
     }
 
     # Mock database session
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     # Mock camera query result
-    mock_camera_result = MagicMock()
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
     # Mock detections query result
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
     call_count = 0
-    mock_insert_result = MagicMock()
+    mock_insert_result = MagicMock(spec=Result)
 
     async def mock_execute(query):
         nonlocal call_count
@@ -5021,21 +5114,21 @@ Analyzing security event...
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -5080,12 +5173,12 @@ async def test_analyze_batch_llm_interaction_enrichment_snapshot(
         "raw_response": '{"risk_score": 50}',
     }
 
-    mock_session = AsyncMock()
-    mock_camera_result = MagicMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -5098,7 +5191,7 @@ async def test_analyze_batch_llm_interaction_enrichment_snapshot(
             return mock_camera_result
         elif call_count == 2:
             return mock_detections_result
-        return MagicMock()
+        return MagicMock(spec=Result)
 
     mock_session.execute = mock_execute
     added_objects = []
@@ -5107,21 +5200,21 @@ async def test_analyze_batch_llm_interaction_enrichment_snapshot(
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -5163,12 +5256,12 @@ async def test_analyze_batch_llm_interaction_context_sources(
         "raw_response": '{"risk_score": 50}',
     }
 
-    mock_session = AsyncMock()
-    mock_camera_result = MagicMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -5181,7 +5274,7 @@ async def test_analyze_batch_llm_interaction_context_sources(
             return mock_camera_result
         elif call_count == 2:
             return mock_detections_result
-        return MagicMock()
+        return MagicMock(spec=Result)
 
     mock_session.execute = mock_execute
     added_objects = []
@@ -5190,21 +5283,21 @@ async def test_analyze_batch_llm_interaction_context_sources(
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -5245,12 +5338,12 @@ async def test_analyze_batch_llm_interaction_household_matches(
         "raw_response": '{"risk_score": 10}',
     }
 
-    mock_session = AsyncMock()
-    mock_camera_result = MagicMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -5263,7 +5356,7 @@ async def test_analyze_batch_llm_interaction_household_matches(
             return mock_camera_result
         elif call_count == 2:
             return mock_detections_result
-        return MagicMock()
+        return MagicMock(spec=Result)
 
     mock_session.execute = mock_execute
     added_objects = []
@@ -5272,7 +5365,7 @@ async def test_analyze_batch_llm_interaction_household_matches(
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     # Mock enrichment result with household matches
@@ -5301,7 +5394,7 @@ async def test_analyze_batch_llm_interaction_household_matches(
         return mock_tracking
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_get_enrichment),
         patch(
@@ -5309,7 +5402,7 @@ async def test_analyze_batch_llm_interaction_household_matches(
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -5352,12 +5445,12 @@ async def test_analyze_batch_llm_interaction_graceful_failure(
         "raw_response": '{"risk_score": 50}',
     }
 
-    mock_session = AsyncMock()
-    mock_camera_result = MagicMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -5370,7 +5463,7 @@ async def test_analyze_batch_llm_interaction_graceful_failure(
             return mock_camera_result
         elif call_count == 2:
             return mock_detections_result
-        return MagicMock()
+        return MagicMock(spec=Result)
 
     mock_session.execute = mock_execute
     added_objects = []
@@ -5386,21 +5479,21 @@ async def test_analyze_batch_llm_interaction_graceful_failure(
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -5440,12 +5533,12 @@ async def test_analyze_batch_llm_interaction_partial_enrichment(
         "raw_response": '{"risk_score": 50}',
     }
 
-    mock_session = AsyncMock()
-    mock_camera_result = MagicMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detections_result = MagicMock()
-    mock_detections_scalars = MagicMock()
+    mock_detections_result = MagicMock(spec=Result)
+    mock_detections_scalars = MagicMock(spec=ScalarResult)
     mock_detections_scalars.all.return_value = mock_detections_for_batch
     mock_detections_result.scalars.return_value = mock_detections_scalars
 
@@ -5458,7 +5551,7 @@ async def test_analyze_batch_llm_interaction_partial_enrichment(
             return mock_camera_result
         elif call_count == 2:
             return mock_detections_result
-        return MagicMock()
+        return MagicMock(spec=Result)
 
     mock_session.execute = mock_execute
     added_objects = []
@@ -5467,7 +5560,7 @@ async def test_analyze_batch_llm_interaction_partial_enrichment(
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
@@ -5478,7 +5571,7 @@ async def test_analyze_batch_llm_interaction_partial_enrichment(
         return None
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_get_enrichment),
         patch(
@@ -5486,7 +5579,7 @@ async def test_analyze_batch_llm_interaction_partial_enrichment(
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context
@@ -5539,11 +5632,11 @@ async def test_analyze_detection_fast_path_creates_llm_interaction(
         "raw_response": raw_response,
     }
 
-    mock_session = AsyncMock()
-    mock_camera_result = MagicMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_camera_result = MagicMock(spec=Result)
     mock_camera_result.scalar_one_or_none.return_value = mock_camera
 
-    mock_detection_result = MagicMock()
+    mock_detection_result = MagicMock(spec=Result)
     mock_detection_result.scalar_one_or_none.return_value = mock_detection
 
     call_count = 0
@@ -5555,7 +5648,7 @@ async def test_analyze_detection_fast_path_creates_llm_interaction(
             return mock_camera_result
         elif call_count == 2:
             return mock_detection_result
-        return MagicMock()
+        return MagicMock(spec=Result)
 
     mock_session.execute = mock_execute
     added_objects = []
@@ -5564,21 +5657,21 @@ async def test_analyze_detection_fast_path_creates_llm_interaction(
     mock_session.flush = AsyncMock()
     mock_session.refresh = AsyncMock()
 
-    mock_broadcaster = MagicMock()
+    mock_broadcaster = MagicMock(spec=EventBroadcaster)
     mock_broadcaster.broadcast_event = AsyncMock()
 
     async def mock_call_llm(*args, **kwargs):
         return mock_llm_response
 
     with (
-        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
         patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
-        mock_context = AsyncMock()
+        mock_context = AsyncMock(spec=AsyncSession)
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
         mock_get_session.return_value = mock_context

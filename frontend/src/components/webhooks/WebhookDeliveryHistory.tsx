@@ -190,7 +190,7 @@ function HttpStatusBadge({ code }: { code: number | null }) {
         : 'text-gray-400 bg-gray-500/10';
 
   return (
-    <span className={clsx('rounded px-2 py-0.5 text-xs font-mono font-medium', colorClass)}>
+    <span className={clsx('rounded px-2 py-0.5 font-mono text-xs font-medium', colorClass)}>
       {code}
     </span>
   );

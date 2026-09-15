@@ -273,9 +273,7 @@ export function EnrichmentProgressBar({
     >
       {/* Header with stage and step info */}
       <div className="mb-1.5 flex items-center justify-between text-xs">
-        <span className="font-medium text-gray-300">
-          {stage ?? 'Processing...'}
-        </span>
+        <span className="font-medium text-gray-300">{stage ?? 'Processing...'}</span>
         <div className="flex items-center gap-2 text-gray-400">
           {totalSteps !== undefined && currentStep !== undefined && (
             <span>

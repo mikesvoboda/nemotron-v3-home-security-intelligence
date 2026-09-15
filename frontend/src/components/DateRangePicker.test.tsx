@@ -56,18 +56,14 @@ describe('DateRangePicker', () => {
     });
 
     it('renders custom labels', () => {
-      render(
-        <DateRangePicker {...defaultProps} labels={{ start: 'From', end: 'To' }} />
-      );
+      render(<DateRangePicker {...defaultProps} labels={{ start: 'From', end: 'To' }} />);
 
       expect(screen.getByLabelText(/from/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/to/i)).toBeInTheDocument();
     });
 
     it('applies custom className', () => {
-      const { container } = render(
-        <DateRangePicker {...defaultProps} className="custom-class" />
-      );
+      const { container } = render(<DateRangePicker {...defaultProps} className="custom-class" />);
 
       expect(container.firstChild).toHaveClass('custom-class');
     });
@@ -210,9 +206,7 @@ describe('DateRangePicker', () => {
       const mockOnPresetSelect = vi.fn();
       const user = userEvent.setup();
 
-      render(
-        <DateRangePicker {...defaultProps} onPresetSelect={mockOnPresetSelect} />
-      );
+      render(<DateRangePicker {...defaultProps} onPresetSelect={mockOnPresetSelect} />);
 
       await user.click(screen.getByRole('button', { name: 'Today' }));
 
@@ -228,9 +222,7 @@ describe('DateRangePicker', () => {
     });
 
     it('hides clear button when no dates are set', () => {
-      render(
-        <DateRangePicker {...defaultProps} value={{ startDate: '', endDate: '' }} />
-      );
+      render(<DateRangePicker {...defaultProps} value={{ startDate: '', endDate: '' }} />);
 
       expect(screen.queryByRole('button', { name: /clear date range/i })).not.toBeInTheDocument();
     });
@@ -308,9 +300,7 @@ describe('DateRangePicker', () => {
     });
 
     it('does not set max/min when dates are empty', () => {
-      render(
-        <DateRangePicker {...defaultProps} value={{ startDate: '', endDate: '' }} />
-      );
+      render(<DateRangePicker {...defaultProps} value={{ startDate: '', endDate: '' }} />);
 
       const startInput = screen.getByLabelText(/start date/i);
       const endInput = screen.getByLabelText(/end date/i);
@@ -352,9 +342,7 @@ describe('DateRangePicker', () => {
 
   describe('Edge cases', () => {
     it('handles empty date range', () => {
-      render(
-        <DateRangePicker {...defaultProps} value={{ startDate: '', endDate: '' }} />
-      );
+      render(<DateRangePicker {...defaultProps} value={{ startDate: '', endDate: '' }} />);
 
       expect(screen.getByLabelText(/start date/i)).toHaveValue('');
       expect(screen.getByLabelText(/end date/i)).toHaveValue('');

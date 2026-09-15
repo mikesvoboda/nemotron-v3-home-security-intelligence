@@ -73,7 +73,9 @@ describe('OfflineIndicator', () => {
 
     it('hides on dismiss', () => {
       const onDismiss = vi.fn();
-      render(<OfflineIndicator isOffline={true} variant="banner" dismissible onDismiss={onDismiss} />);
+      render(
+        <OfflineIndicator isOffline={true} variant="banner" dismissible onDismiss={onDismiss} />
+      );
       const dismissButton = screen.getByRole('button', { name: /dismiss/i });
       fireEvent.click(dismissButton);
       expect(onDismiss).toHaveBeenCalledTimes(1);
@@ -127,7 +129,9 @@ describe('OfflineIndicator', () => {
 
     it('shows minutes for < 1 hour', () => {
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-      render(<OfflineIndicator isOffline={true} variant="banner" lastOnlineAt={thirtyMinutesAgo} />);
+      render(
+        <OfflineIndicator isOffline={true} variant="banner" lastOnlineAt={thirtyMinutesAgo} />
+      );
       expect(screen.getByText(/30 minutes ago/)).toBeInTheDocument();
     });
 

@@ -18,10 +18,7 @@ import { useMemo } from 'react';
 
 import { fetchSeverityMetadata } from '../services/api';
 import { queryKeys, STATIC_STALE_TIME } from '../services/queryClient';
-import {
-  DEFAULT_SEVERITY_DEFINITIONS,
-  DEFAULT_SEVERITY_THRESHOLDS,
-} from '../types/severity';
+import { DEFAULT_SEVERITY_DEFINITIONS, DEFAULT_SEVERITY_THRESHOLDS } from '../types/severity';
 
 import type {
   SeverityDefinition,
@@ -123,9 +120,7 @@ export interface UseSeverityConfigReturn {
  * );
  * ```
  */
-export function useSeverityConfig(
-  options: UseSeverityConfigOptions = {}
-): UseSeverityConfigReturn {
+export function useSeverityConfig(options: UseSeverityConfigOptions = {}): UseSeverityConfigReturn {
   const { enabled = true, refetchInterval = false, staleTime = STATIC_STALE_TIME } = options;
 
   const query = useQuery({

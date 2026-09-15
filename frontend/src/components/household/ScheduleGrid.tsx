@@ -124,11 +124,7 @@ export function createBusinessHoursSchedule(): WeeklySchedule {
 // Component
 // ============================================================================
 
-export default function ScheduleGrid({
-  schedule,
-  onChange,
-  disabled = false,
-}: ScheduleGridProps) {
+export default function ScheduleGrid({ schedule, onChange, disabled = false }: ScheduleGridProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragValue, setDragValue] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -238,16 +234,16 @@ export default function ScheduleGrid({
       {/* Header row with hour labels */}
       <div className="flex">
         {/* Empty corner cell */}
-        <div className="w-12 h-6 flex-shrink-0" />
+        <div className="h-6 w-12 flex-shrink-0" />
         {/* Hour headers */}
-        <div className="flex-1 flex">
+        <div className="flex flex-1">
           {HOURS.map((hour) => (
             <button
               key={hour}
               type="button"
               onClick={() => toggleHour(hour)}
               disabled={disabled}
-              className="flex-1 h-6 text-[9px] text-gray-400 hover:text-white hover:bg-[#76B900]/20 transition-colors disabled:hover:bg-transparent disabled:text-gray-600"
+              className="h-6 flex-1 text-[9px] text-gray-400 transition-colors hover:bg-[#76B900]/20 hover:text-white disabled:text-gray-600 disabled:hover:bg-transparent"
               title={`Toggle ${formatHour(hour)} for all days`}
             >
               {hour % 3 === 0 ? formatHour(hour) : ''}
@@ -264,13 +260,13 @@ export default function ScheduleGrid({
             type="button"
             onClick={() => toggleDay(day)}
             disabled={disabled}
-            className="w-12 h-6 text-xs text-gray-400 hover:text-white hover:bg-[#76B900]/20 transition-colors text-left pl-1 disabled:hover:bg-transparent disabled:text-gray-600"
+            className="h-6 w-12 pl-1 text-left text-xs text-gray-400 transition-colors hover:bg-[#76B900]/20 hover:text-white disabled:text-gray-600 disabled:hover:bg-transparent"
             title={`Toggle all hours for ${DAY_LABELS[day]}`}
           >
             {DAY_LABELS[day]}
           </button>
           {/* Hour cells */}
-          <div className="flex-1 flex">
+          <div className="flex flex-1">
             {HOURS.map((hour) => {
               const allowed = isHourAllowed(schedule, day, hour);
               return (
@@ -280,10 +276,8 @@ export default function ScheduleGrid({
                   onMouseDown={() => handleMouseDown(day, hour)}
                   onMouseEnter={() => handleMouseEnter(day, hour)}
                   disabled={disabled}
-                  className={`flex-1 h-6 border border-gray-800 transition-colors ${
-                    allowed
-                      ? 'bg-[#76B900] hover:bg-[#5a8f00]'
-                      : 'bg-[#1A1A1A] hover:bg-gray-700'
+                  className={`h-6 flex-1 border border-gray-800 transition-colors ${
+                    allowed ? 'bg-[#76B900] hover:bg-[#5a8f00]' : 'bg-[#1A1A1A] hover:bg-gray-700'
                   } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                   title={`${DAY_LABELS[day]} ${formatHour(hour)}: ${allowed ? 'Allowed' : 'Not allowed'}`}
                   aria-label={`${DAY_LABELS[day]} ${formatHour(hour)}`}
@@ -299,11 +293,11 @@ export default function ScheduleGrid({
       <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-[#76B900] rounded" />
+            <div className="h-3 w-3 rounded bg-[#76B900]" />
             <span>Allowed</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-[#1A1A1A] border border-gray-700 rounded" />
+            <div className="h-3 w-3 rounded border border-gray-700 bg-[#1A1A1A]" />
             <span>Not allowed</span>
           </div>
         </div>
@@ -312,7 +306,7 @@ export default function ScheduleGrid({
             type="button"
             onClick={() => onChange(createEmptySchedule())}
             disabled={disabled}
-            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+            className="rounded px-2 py-1 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
           >
             Clear All
           </button>
@@ -320,7 +314,7 @@ export default function ScheduleGrid({
             type="button"
             onClick={() => onChange(createFullSchedule())}
             disabled={disabled}
-            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+            className="rounded px-2 py-1 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
           >
             Allow All
           </button>
@@ -328,7 +322,7 @@ export default function ScheduleGrid({
             type="button"
             onClick={() => onChange(createBusinessHoursSchedule())}
             disabled={disabled}
-            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+            className="rounded px-2 py-1 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
           >
             Business Hours
           </button>

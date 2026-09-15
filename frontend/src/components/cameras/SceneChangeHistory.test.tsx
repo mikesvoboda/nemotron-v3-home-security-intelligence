@@ -156,7 +156,11 @@ describe('SceneChangeHistory', () => {
       const onEventClick = vi.fn();
       const onDismiss = vi.fn();
       render(
-        <SceneChangeHistory events={[mockEvents[0]]} onEventClick={onEventClick} onDismiss={onDismiss} />
+        <SceneChangeHistory
+          events={[mockEvents[0]]}
+          onEventClick={onEventClick}
+          onDismiss={onDismiss}
+        />
       );
 
       const dismissButton = screen.getByRole('button', { name: /dismiss/i });

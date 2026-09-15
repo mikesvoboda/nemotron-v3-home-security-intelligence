@@ -30,7 +30,10 @@ const defaultMockHookReturn: UseZoneActivityHeatmapReturn = {
     { hour: 12, dayOfWeek: 2, value: 15 },
     { hour: 18, dayOfWeek: 3, value: 8 },
   ],
-  hourlyData: Array.from({ length: 24 }, (_, i) => ({ hour: i, count: Math.floor(Math.random() * 10) })),
+  hourlyData: Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    count: Math.floor(Math.random() * 10),
+  })),
   zoneName: 'Test Zone',
   totalActivity: 42,
   startTime: '2026-01-25T00:00:00Z',
@@ -201,7 +204,9 @@ describe('ZoneActivityHeatmap', () => {
       render(<ZoneActivityHeatmap {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText('No activity data available for this time range')).toBeInTheDocument();
+        expect(
+          screen.getByText('No activity data available for this time range')
+        ).toBeInTheDocument();
       });
     });
   });

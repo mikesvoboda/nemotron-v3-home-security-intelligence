@@ -281,7 +281,9 @@ export function getEntityTypeLabel(entityType: string): string {
     animal: 'Animal',
   };
 
-  return labelMap[entityType.toLowerCase()] ?? entityType.charAt(0).toUpperCase() + entityType.slice(1);
+  return (
+    labelMap[entityType.toLowerCase()] ?? entityType.charAt(0).toUpperCase() + entityType.slice(1)
+  );
 }
 
 export default useZoneEntityDistribution;

@@ -15,7 +15,6 @@ import { clsx } from 'clsx';
 import { Cpu, Thermometer, Timer, HardDrive } from 'lucide-react';
 import { useMemo } from 'react';
 
-
 import {
   usePerformanceMetrics,
   type PerformanceUpdate,

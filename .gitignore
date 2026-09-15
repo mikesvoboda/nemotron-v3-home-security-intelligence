@@ -45,13 +45,15 @@ docs-output/
 *.db
 *.sqlite
 *.mp4
-!data/synthetic/**/*.mp4
 backend/data/thumbnails/*
 !backend/data/thumbnails/.gitkeep
 backend/data/security.db
 
-# Synthetic test data — media files tracked via Git LFS (.gitattributes)
-# JSON metadata and scenario specs committed directly
+# Synthetic test data — JSON metadata and scenario specs committed directly;
+# media de-tracked 2026-09-15 (LFS retired from repo; local copies stay:
+# regenerate via scripts/synthetic/media_generator.py, or restore from the
+# owner backup). Ignore so local media never re-enters git even un-LFS'd.
+data/synthetic/**/media/
 data/synthetic/cosmos/screenshots/
 
 # External datasets (downloaded, not committed)
@@ -141,3 +143,6 @@ config/gpu-assignments.yml
 .claude/*
 !.claude/skills/
 site/
+# staged salvage is branch-local working material only — de-tracked 2026-09-15
+# (build dirs alone cost ~1GB; see ledger). Evidence copy lives outside the repo.
+docs/superpowers/staged/

@@ -162,11 +162,7 @@ export const detectionLabelsKeys = {
 export function useDetectionLabelsQuery(
   options: UseDetectionLabelsQueryOptions = {}
 ): UseDetectionLabelsQueryReturn {
-  const {
-    enabled = true,
-    staleTime = LABELS_STALE_TIME,
-    refetchInterval = false,
-  } = options;
+  const { enabled = true, staleTime = LABELS_STALE_TIME, refetchInterval = false } = options;
 
   const query = useQuery({
     queryKey: queryKeys.detections.labels,

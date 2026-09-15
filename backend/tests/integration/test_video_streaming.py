@@ -208,8 +208,18 @@ class TestVideoStreamingFullContent:
         assert response.status_code == 200
 
     async def test_full_video_content_length(self, async_client, video_detection_with_file):
-        """Test full video has correct Content-Length header."""
-        response = await async_client.get(f"/api/detections/{video_detection_with_file.id}/video")
+        """Test full video has correct Content-Length header.
+
+        The app ships GZipMiddleware (main.py:1429): the compressible
+        synthetic payload arrives content-encoding: gzip chunked with NO
+        content-length, so the header assert needs Accept-Encoding:
+        identity (ledger R-T9-VIDSTREAM). Sibling tests pass because they
+        never touch content-length.
+        """
+        response = await async_client.get(
+            f"/api/detections/{video_detection_with_file.id}/video",
+            headers={"Accept-Encoding": "identity"},
+        )
         assert response.status_code == 200
         assert "content-length" in response.headers
         assert int(response.headers["content-length"]) == 10000
@@ -270,10 +280,15 @@ class TestVideoStreamingPartialContent:
         assert content_range == "bytes 0-999/10000"
 
     async def test_range_content_length_header(self, async_client, video_detection_with_file):
-        """Test Content-Length header is correct for Range request."""
+        """Test Content-Length header is correct for Range request.
+
+        Same GZipMiddleware interaction as test_full_video_content_length
+        (ledger R-T9-VIDSTREAM) — request identity encoding to see the
+        byte-exact header.
+        """
         response = await async_client.get(
             f"/api/detections/{video_detection_with_file.id}/video",
-            headers={"Range": "bytes=0-999"},
+            headers={"Range": "bytes=0-999", "Accept-Encoding": "identity"},
         )
         assert response.status_code == 206
         assert int(response.headers.get("content-length", 0)) == 1000

@@ -112,7 +112,7 @@ export default function AccessViolationBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ${sizeClasses[size]}`}
+      className={`inline-flex items-center gap-1 rounded border border-yellow-500/30 bg-yellow-500/20 text-yellow-400 ${sizeClasses[size]}`}
       title={tooltipText}
       role="status"
       aria-label="Schedule violation"
@@ -141,7 +141,7 @@ export function AccessViolationIcon({
 
   return (
     <span
-      className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500/20 text-yellow-400"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400"
       title={`Schedule violation: Detected ${formatViolationTime(detectedAt)}`}
       role="status"
       aria-label="Schedule violation"

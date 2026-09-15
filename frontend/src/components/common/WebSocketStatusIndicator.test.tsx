@@ -6,7 +6,9 @@ import WebSocketStatusIndicator from './WebSocketStatusIndicator';
 import type { WebSocketEndpointStatus } from './WebSocketStatusIndicator';
 
 describe('WebSocketStatusIndicator', () => {
-  const createMockEndpoint = (overrides: Partial<WebSocketEndpointStatus> = {}): WebSocketEndpointStatus => ({
+  const createMockEndpoint = (
+    overrides: Partial<WebSocketEndpointStatus> = {}
+  ): WebSocketEndpointStatus => ({
     name: 'Events',
     state: 'connected',
     reconnectAttempts: 0,
@@ -26,11 +28,7 @@ describe('WebSocketStatusIndicator', () => {
 
   describe('rendering', () => {
     it('renders without crashing', () => {
-      render(
-        <WebSocketStatusIndicator
-          endpoints={[createMockEndpoint({ name: 'Events' })]}
-        />
-      );
+      render(<WebSocketStatusIndicator endpoints={[createMockEndpoint({ name: 'Events' })]} />);
       expect(screen.getByTestId('websocket-status-indicator')).toBeInTheDocument();
     });
 

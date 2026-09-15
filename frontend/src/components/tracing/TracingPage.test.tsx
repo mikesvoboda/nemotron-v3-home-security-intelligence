@@ -249,7 +249,8 @@ describe('TracingPage', () => {
       await waitFor(() => {
         const iframe = screen.getByTestId('tracing-iframe');
         const src = iframe.getAttribute('src');
-        expect(src).toContain('http://grafana.example.com/d/hsi-tracing/hsi-distributed-tracing');
+        // SSRF allowlist (62753b76): non-allowlisted host -> '/grafana' proxy base
+        expect(src).toContain('/grafana/d/hsi-tracing/hsi-distributed-tracing');
         expect(src).toContain('orgId=1');
         expect(src).toContain('kiosk=1');
         expect(src).toContain('theme=dark');
@@ -312,7 +313,8 @@ describe('TracingPage', () => {
         const grafanaLink = screen.getByTestId('grafana-external-link');
         expect(grafanaLink).toHaveAttribute(
           'href',
-          'http://grafana.example.com/d/hsi-tracing/hsi-distributed-tracing?orgId=1&theme=dark'
+          // SSRF fallback (62753b76): non-allowlisted host -> '/grafana' proxy base
+          '/grafana/d/hsi-tracing/hsi-distributed-tracing?orgId=1&theme=dark'
         );
       });
     });

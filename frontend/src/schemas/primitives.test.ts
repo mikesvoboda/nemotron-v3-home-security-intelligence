@@ -350,10 +350,7 @@ describe('Schema Primitives', () => {
     describe('isoDateString', () => {
       it('should accept valid ISO date strings with Z suffix', () => {
         // Zod's datetime() is strict about format - requires timezone
-        const validStrings = [
-          '2024-01-15T10:30:00Z',
-          '2024-01-15T10:30:00.000Z',
-        ];
+        const validStrings = ['2024-01-15T10:30:00Z', '2024-01-15T10:30:00.000Z'];
         for (const str of validStrings) {
           const result = isoDateString.safeParse(str);
           expect(result.success).toBe(true);

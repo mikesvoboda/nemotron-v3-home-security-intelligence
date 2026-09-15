@@ -123,38 +123,15 @@ async def test_create_feedback_with_notes_schema_snapshot(
     assert schema == snapshot
 
 
-# === GET /api/feedback/{id} Snapshots ===
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_get_feedback_by_id_response_schema_snapshot(
-    client,
-    snapshot: SnapshotAssertion,
-):
-    """Test GET /api/feedback/{id} response schema with snapshot."""
-    _, event = await create_test_camera_and_event(client)
-
-    # Create feedback
-    create_response = await client.post(
-        "/api/feedback",
-        json={
-            "event_id": event["id"],
-            "feedback_type": "false_positive",
-            "notes": "Test notes",
-        },
-    )
-    feedback_id = create_response.json()["id"]
-
-    # Get feedback by ID
-    response = await client.get(f"/api/feedback/{feedback_id}")
-    assert response.status_code == 200
-
-    schema = extract_schema(response.json())
-    assert schema == snapshot
-
-
 # === GET /api/feedback/event/{id} Snapshots ===
+#
+# Removed (ledger R-T9-FEEDBACK): GET /api/feedback/{id} and the three
+# GET /api/feedback list tests. The shipped router (api/routes/feedback.py)
+# registers exactly POST /api/feedback, GET /api/feedback/event/{event_id},
+# and GET /api/feedback/stats — there is no list endpoint (GET hit the POST
+# route → 405) and no by-id route (→ 404). Testing a 405/404 shape adds no
+# contract coverage, so the ghost-endpoint snapshots were dropped rather
+# than rewritten.
 
 
 @pytest.mark.integration
@@ -186,71 +163,8 @@ async def test_get_feedback_by_event_id_response_schema_snapshot(
 # === GET /api/feedback Snapshots ===
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_list_feedback_response_schema_snapshot(
-    client,
-    snapshot: SnapshotAssertion,
-):
-    """Test GET /api/feedback list response schema with snapshot."""
-    _, event1 = await create_test_camera_and_event(client)
-    _, event2 = await create_test_camera_and_event(client)
-
-    await client.post(
-        "/api/feedback",
-        json={"event_id": event1["id"], "feedback_type": "false_positive"},
-    )
-    await client.post(
-        "/api/feedback",
-        json={"event_id": event2["id"], "feedback_type": "missed_threat"},
-    )
-
-    response = await client.get("/api/feedback")
-    assert response.status_code == 200
-
-    schema = extract_schema(response.json())
-    assert schema == snapshot
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_list_feedback_pagination_schema_snapshot(
-    client,
-    snapshot: SnapshotAssertion,
-):
-    """Test feedback list pagination structure with snapshot."""
-    # Create feedback items
-    for _ in range(3):
-        _, event = await create_test_camera_and_event(client)
-        await client.post(
-            "/api/feedback",
-            json={"event_id": event["id"], "feedback_type": "false_positive"},
-        )
-
-    # Get with pagination
-    response = await client.get("/api/feedback?limit=2&offset=0")
-    assert response.status_code == 200
-
-    data = response.json()
-
-    # Extract pagination metadata schema
-    pagination_schema = extract_schema(data.get("pagination", {}))
-    assert pagination_schema == snapshot
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_list_feedback_empty_response_schema_snapshot(
-    client,
-    snapshot: SnapshotAssertion,
-):
-    """Test empty feedback list maintains schema structure."""
-    response = await client.get("/api/feedback")
-    assert response.status_code == 200
-
-    schema = extract_schema(response.json())
-    assert schema == snapshot
-
+# (list / pagination / empty-list snapshots removed — see R-T9-FEEDBACK note
+# above: GET /api/feedback is not a shipped endpoint.)
 
 # === GET /api/feedback/stats Snapshots ===
 
@@ -278,7 +192,13 @@ async def test_get_feedback_stats_response_schema_snapshot(
     response = await client.get("/api/feedback/stats")
     assert response.status_code == 200
 
-    schema = extract_schema(response.json())
+    data = response.json()
+    # by_camera is keyed by dynamic test camera ids (unique_id()); collapse it
+    # to one representative entry so the snapshot stays key-stable across runs.
+    if isinstance(data.get("by_camera"), dict) and data["by_camera"]:
+        first = next(iter(data["by_camera"]))
+        data["by_camera"] = {"<camera_id>": data["by_camera"][first]}
+    schema = extract_schema(data)
     assert schema == snapshot
 
 
@@ -372,18 +292,12 @@ async def test_feedback_schema_consistency_across_endpoints(
     )
     create_schema = extract_schema(create_response.json())
 
-    feedback_id = create_response.json()["id"]
-
-    # Get by ID
-    get_id_response = await client.get(f"/api/feedback/{feedback_id}")
-    get_id_schema = extract_schema(get_id_response.json())
-
-    # Get by event ID
+    # Get by event ID (the shipped read path — there is no GET /api/feedback/{id})
     get_event_response = await client.get(f"/api/feedback/event/{event['id']}")
     get_event_schema = extract_schema(get_event_response.json())
 
-    # All should have identical schema
-    assert create_schema == get_id_schema == get_event_schema
+    # Both should have identical schema
+    assert create_schema == get_event_schema
 
     # Snapshot the common schema
     assert create_schema == snapshot

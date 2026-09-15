@@ -42,9 +42,7 @@ describe('ZoneComparisonTable', () => {
     });
 
     it('displays metric values correctly', () => {
-      const zones = [
-        createMockZone({ zone_id: 1, zone_name: 'Zone A', value: 1234 }),
-      ];
+      const zones = [createMockZone({ zone_id: 1, zone_name: 'Zone A', value: 1234 })];
 
       render(<ZoneComparisonTable zones={zones} metric="crossings" />);
 
@@ -80,9 +78,7 @@ describe('ZoneComparisonTable', () => {
 
   describe('trend indicators', () => {
     it('shows positive trend with green color and up arrow', () => {
-      const zones = [
-        createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: 15.5 }),
-      ];
+      const zones = [createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: 15.5 })];
 
       render(<ZoneComparisonTable zones={zones} metric="crossings" />);
 
@@ -93,9 +89,7 @@ describe('ZoneComparisonTable', () => {
     });
 
     it('shows negative trend with red color and down arrow', () => {
-      const zones = [
-        createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: -8.2 }),
-      ];
+      const zones = [createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: -8.2 })];
 
       render(<ZoneComparisonTable zones={zones} metric="crossings" />);
 
@@ -106,9 +100,7 @@ describe('ZoneComparisonTable', () => {
     });
 
     it('shows neutral trend for zero change', () => {
-      const zones = [
-        createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: 0 }),
-      ];
+      const zones = [createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: 0 })];
 
       render(<ZoneComparisonTable zones={zones} metric="crossings" />);
 
@@ -119,9 +111,7 @@ describe('ZoneComparisonTable', () => {
     });
 
     it('shows dash for null trend', () => {
-      const zones = [
-        createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: null }),
-      ];
+      const zones = [createMockZone({ zone_id: 1, zone_name: 'Zone A', trend_percent: null })];
 
       render(<ZoneComparisonTable zones={zones} metric="crossings" />);
 

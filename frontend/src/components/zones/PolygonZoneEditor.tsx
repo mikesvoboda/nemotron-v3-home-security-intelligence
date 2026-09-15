@@ -78,10 +78,7 @@ export interface PolygonZoneEditorProps {
 const MIN_POINTS = 3;
 
 /** Zone type configuration for styling */
-const ZONE_TYPE_CONFIG: Record<
-  ZoneType,
-  { label: string; bgColor: string; textColor: string }
-> = {
+const ZONE_TYPE_CONFIG: Record<ZoneType, { label: string; bgColor: string; textColor: string }> = {
   entry_point: {
     label: 'Entry Point',
     bgColor: 'bg-red-500',

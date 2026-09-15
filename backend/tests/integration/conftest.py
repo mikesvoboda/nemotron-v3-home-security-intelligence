@@ -161,6 +161,15 @@ def _topological_sort(tables: set[str], dependencies: dict[str, set[str]]) -> li
     return sorted_tables
 
 
+# Per-worker-session memo (M3 Task 4c, audit 2.2). Safe because the worker
+# DB schema is immutable after _ensure_worker_schema (Task 4a): reflection
+# after the first call is pure waste (27 per-table FK queries per sweep).
+# Tests that create their own tables (test_partition_manager etc.) own and
+# drop those tables themselves — cleanup only ever needs the Base schema.
+# Only a successful reflection is cached; fallbacks re-attempt next call.
+_TABLE_DELETION_ORDER_CACHE: list[str] | None = None
+
+
 async def get_table_deletion_order(engine) -> list[str]:
     """Get tables in FK-safe deletion order using topological sort.
 
@@ -169,6 +178,9 @@ async def get_table_deletion_order(engine) -> list[str]:
     the safe deletion order. Tables that reference other tables (via FK) must
     be deleted first.
 
+    Memoized per worker process (audit 2.2): the schema is fixed for the
+    life of a worker database since Task 4a moved all DDL to session scope.
+
     Args:
         engine: SQLAlchemy async engine
 
@@ -176,6 +188,9 @@ async def get_table_deletion_order(engine) -> list[str]:
         List of table names in safe deletion order (dependent tables first,
         parent tables last).
     """
+    global _TABLE_DELETION_ORDER_CACHE  # noqa: PLW0603
+    if _TABLE_DELETION_ORDER_CACHE is not None:
+        return _TABLE_DELETION_ORDER_CACHE
 
     def _inspect_tables(sync_conn):
         """Synchronous function to inspect tables - called via run_sync."""
@@ -208,6 +223,7 @@ async def get_table_deletion_order(engine) -> list[str]:
             return HARDCODED_TABLE_DELETION_ORDER
 
         logger.debug(f"Computed table deletion order: {sorted_tables}")
+        _TABLE_DELETION_ORDER_CACHE = sorted_tables
         return sorted_tables
 
     except Exception as e:
@@ -708,6 +724,151 @@ def worker_redis_url(
 
 
 # =============================================================================
+# Session-Scoped Schema Fixture (M3 Task 4a, audit Part 2.1)
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def _ensure_worker_schema(worker_db_url: str) -> str:
+    """Create the worker database schema ONCE per xdist worker session.
+
+    M3 Task 4 / audit Part 2.1: the schema DDL (create_all + legacy ALTERs +
+    dedup DELETEs + unique indexes) used to run inside the function-scoped
+    ``integration_db`` fixture on EVERY test (~3,386 of 4,222 integration
+    tests transitively). Every statement is IF-NOT-EXISTS-idempotent and the
+    per-test TRUNCATE in ``clean_tables`` prevents duplicate rows
+    reaccumulating, so the whole block now runs once per worker database.
+    Per-worker DBs already exist (``worker_db_url`` is session-scoped), so
+    cross-worker isolation is unchanged; within a worker the schema is
+    immutable across tests (verified: no test mutates Base tables —
+    schema-touching tests own their own ``test_*`` tables).
+
+    Sync psycopg2/sqlalchemy-engine by design: session-scoped fixtures cannot
+    bind to pytest-asyncio 1.3's per-test event loops (same precedent as
+    ``_create_worker_database``, which also uses psycopg2 sync mode).
+
+    The advisory lock is kept with its historical namespace so any external
+    tooling keys remain valid and co-located worker DBs stay serialized.
+    """
+    import hashlib
+    import time
+
+    import sqlalchemy
+    from sqlalchemy import text as sa_text
+
+    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
+    from backend.models.camera import Base as ModelsBase
+
+    sync_url = worker_db_url.replace("postgresql+asyncpg://", "postgresql://")
+
+    # Same lock key derivation as the pre-Task-4 integration_db block.
+    _lock_namespace = "home_security_intelligence.integration_test_schema"
+    _lock_key = int(hashlib.sha256(_lock_namespace.encode()).hexdigest()[:15], 16)
+
+    engine = sqlalchemy.create_engine(sync_url, pool_pre_ping=True)
+    try:
+        with engine.begin() as conn:
+            conn.execute(sa_text("SET statement_timeout = '120s'"))
+
+            lock_acquired = False
+            # Once-per-session, so a generous wait is affordable: 240 x 0.5s.
+            for _attempt in range(240):
+                result = conn.execute(
+                    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    sa_text(f"SELECT pg_try_advisory_lock({_lock_key})")
+                )
+                lock_acquired = bool(result.scalar())
+                if lock_acquired:
+                    break
+                time.sleep(0.5)
+
+            try:
+                ModelsBase.metadata.create_all(conn)
+
+                # Add any missing columns (using IF NOT EXISTS for idempotency)
+                conn.execute(sa_text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+                conn.execute(
+                    sa_text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+                )
+                # NEM-1652: soft delete columns
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at "
+                        "TIMESTAMP WITH TIME ZONE"
+                    )
+                )
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at "
+                        "TIMESTAMP WITH TIME ZONE"
+                    )
+                )
+
+                # Clean up duplicate cameras before unique index creation. Rows
+                # can only exist here if a crashed prior session left the
+                # worker DB behind — clean_tables TRUNCATEs between tests.
+                conn.execute(
+                    sa_text(
+                        """
+                        DELETE FROM cameras
+                        WHERE id IN (
+                            SELECT id FROM (
+                                SELECT id,
+                                       ROW_NUMBER() OVER (
+                                           PARTITION BY name
+                                           ORDER BY created_at ASC, id ASC
+                                       ) as rn
+                                FROM cameras
+                            ) ranked
+                            WHERE rn > 1
+                        )
+                        """
+                    )
+                )
+                conn.execute(
+                    sa_text(
+                        """
+                        DELETE FROM cameras
+                        WHERE id IN (
+                            SELECT id FROM (
+                                SELECT id,
+                                       ROW_NUMBER() OVER (
+                                           PARTITION BY folder_path
+                                           ORDER BY created_at ASC, id ASC
+                                       ) as rn
+                                FROM cameras
+                            ) ranked
+                            WHERE rn > 1
+                        )
+                        """
+                    )
+                )
+
+                # Unique indexes (IF NOT EXISTS for idempotency)
+                conn.execute(
+                    sa_text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique "
+                        "ON cameras (name)"
+                    )
+                )
+                conn.execute(
+                    sa_text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique "
+                        "ON cameras (folder_path)"
+                    )
+                )
+            finally:
+                if lock_acquired:
+                    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
+                    conn.execute(sa_text(f"SELECT pg_advisory_unlock({_lock_key})"))
+    finally:
+        engine.dispose()
+
+    logger.info("Worker schema ensured (session-scoped, M3 Task 4a)")
+    return worker_db_url
+
+
+# =============================================================================
 # Environment and Database Fixtures
 # =============================================================================
 
@@ -767,6 +928,32 @@ def integration_env(
 
     get_settings.cache_clear()
 
+    # Cross-test rate-limit hygiene (gate run 8): the shipped RateLimiter
+    # counts per (tier, client-IP) in THIS worker's redis DB over a 60s
+    # sliding window (BULK tier = 10/min + burst 2, shared by the events
+    # and detections bulk routes). Legitimate bulk-tier traffic from one
+    # test file therefore leaks into the next whenever the scheduler
+    # lands two bulk-heavy files on one worker inside a window — victims
+    # then see 429 where they assert 207 (test_events_cache_invalidation
+    # + test_cache_invalidation_mutations joint run reproduces it at -n0).
+    # No integration test requires limiter counters to survive a test
+    # boundary: the tests that VERIFY rate limiting drive it per-test
+    # (dependency_overrides counting limiter in test_prompt_management_api,
+    # or accept 200-or-429 in test_auth_integration). Clearing at test
+    # start keeps the shipped in-test behavior byte-identical.
+    try:
+        import redis as redis_sync
+
+        _rl = redis_sync.Redis.from_url(worker_redis_url, socket_connect_timeout=2)
+        try:
+            _keys = list(_rl.scan_iter(match="rate_limit:*", count=500))
+            if _keys:
+                _rl.delete(*_keys)
+        finally:
+            _rl.close()
+    except Exception as _e:  # pragma: no cover - hygiene, never fatal
+        logger.debug("rate-limit hygiene skip: %s", _e)
+
     try:
         yield worker_db_url
     finally:
@@ -805,170 +992,73 @@ def integration_env(
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+# Fixtures that run a full data sweep in their own teardown (which executes
+# BEFORE integration_db's, since they depend on it -> finalize first). A test
+# whose fixture stack contains one of these does not need integration_db's
+# sweep. File-local client-like wrappers (e.g. client_with_cache variants)
+# deliberately NOT listed: conservative — unknown wrappers keep the sweep.
+_SWEEP_OWNERS = frozenset({"client", "clean_tables", "db_session", "isolated_db_session"})
+
+
+def _closer_fixture_sweeps(request: pytest.FixtureRequest) -> bool:
+    """True if the test's (transitive) fixture stack already sweeps data."""
+    return bool(_SWEEP_OWNERS.intersection(request.fixturenames))
+
+
 @pytest.fixture
-async def integration_db(integration_env: str) -> AsyncGenerator[str]:
-    """Initialize a PostgreSQL test database for integration tests.
+async def integration_db(
+    request: pytest.FixtureRequest,
+    integration_env: str,
+    _ensure_worker_schema: str,
+) -> AsyncGenerator[str]:
+    """Wire a per-test engine against the worker's already-migrated schema.
 
-    This fixture:
-    - Depends on integration_env for environment setup
-    - Initializes the database with fresh schema
-    - Yields the database URL
-    - Cleans up after the test
+    M3 Task 4b: the schema DDL moved to ``_ensure_worker_schema`` (session
+    scope, audit Part 2.1). What remains here is ONLY what must be per-test:
 
-    Note: This is function-scoped because pytest-asyncio doesn't support
-    module-scoped async fixtures well. When local services are used
-    (development), tests share the database but use unique IDs to avoid
-    conflicts. When testcontainers are used (CI), each module gets isolated
-    containers.
+    - settings cache clear so ``integration_env``'s env writes are picked up
+    - engine create/dispose — pytest-asyncio 1.3 runs each test on its own
+      event loop and SQLAlchemy engines cannot cross loops, so the engine
+      itself is inherently per-test (unlike the schema, which is not)
+    - teardown: a data sweep ONLY when the test has no closer fixture that
+      already sweeps (see _SWEEP_OWNERS below) — plus guarded ``close_db()``
 
-    Uses a PostgreSQL advisory lock to prevent deadlocks when multiple
-    pytest-xdist workers attempt to modify schema concurrently.
+    The historical docstring claimed module scope was impossible "because
+    pytest-asyncio doesn't support module-scoped async fixtures well" — that
+    was a stale limitation. Schema IS now session-scoped; this fixture stays
+    function-scoped only for the engine/loop coupling above.
+
+    Do NOT hoist ``client`` (mock call-count bleed) and do NOT hoist
+    ``integration_env`` (CI pool-size env must apply before every init_db).
     """
-    import hashlib
-
-    from sqlalchemy import text
-
     from backend.core.config import get_settings
-    from backend.core.database import close_db, get_engine, init_db
+    from backend.core.database import close_db, init_db
 
-    # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
-    from backend.models.camera import Base as ModelsBase
-
-    # Ensure clean state
+    # Ensure clean settings + fresh engine on THIS test's event loop
     get_settings.cache_clear()
     await close_db()
-
-    # Initialize database (creates engine)
     await init_db()
-
-    # Advisory lock key for integration test schema initialization
-    # This prevents concurrent DDL operations that could cause deadlocks
-    _INTEGRATION_SCHEMA_LOCK_NAMESPACE = "home_security_intelligence.integration_test_schema"
-    _INTEGRATION_SCHEMA_LOCK_KEY = int(
-        hashlib.sha256(_INTEGRATION_SCHEMA_LOCK_NAMESPACE.encode()).hexdigest()[:15], 16
-    )
-
-    # Create all tables with advisory lock to prevent deadlock on concurrent DDL
-    engine = get_engine()
-    async with engine.begin() as conn:
-        # Acquire advisory lock to serialize DDL operations across pytest-xdist workers
-        # Using pg_try_advisory_lock with retry to prevent hanging if lock is held by dead worker
-        # Set a statement timeout to prevent indefinite blocking
-        await conn.execute(text("SET statement_timeout = '20s'"))
-
-        lock_acquired = False
-        # NEM-4921: Reduce lock wait time from 30s to 10s to prevent CI timeouts
-        # With 30s test timeout + 30s lock wait, there's no time left for test execution
-        # 10 attempts * 0.5s = 5s max wait (leaves 25s for test execution with 30s timeout)
-        max_attempts = 10
-        for attempt in range(max_attempts):
-            result = await conn.execute(
-                text(f"SELECT pg_try_advisory_lock({_INTEGRATION_SCHEMA_LOCK_KEY})")  # nosemgrep
-            )
-            lock_acquired = result.scalar()
-            if lock_acquired:
-                break
-            # Wait before retry (use asyncio.sleep for async context)
-            # Shorter sleep (0.5s) for faster retry cycle
-            await asyncio.sleep(0.5)
-
-        if not lock_acquired:
-            logger.warning(
-                f"Failed to acquire advisory lock after {max_attempts} attempts (waited {max_attempts * 0.5}s), proceeding anyway"
-            )
-
-        try:
-            # Create all tables
-            await conn.run_sync(ModelsBase.metadata.create_all)
-
-            # Add any missing columns (using IF NOT EXISTS for idempotency)
-            await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
-            await conn.execute(
-                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
-            )
-            # NEM-1652: Add soft delete columns
-            await conn.execute(
-                text(
-                    "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
-                )
-            )
-            await conn.execute(
-                text(
-                    "ALTER TABLE events ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
-                )
-            )
-
-            # Add unique indexes for cameras table (migration adds these for production)
-            # First, clean up any duplicate cameras that might prevent index creation
-
-            # Delete duplicate cameras by name (keep oldest)
-            await conn.execute(
-                text(
-                    """
-                    DELETE FROM cameras
-                    WHERE id IN (
-                        SELECT id FROM (
-                            SELECT id,
-                                   ROW_NUMBER() OVER (
-                                       PARTITION BY name
-                                       ORDER BY created_at ASC, id ASC
-                                   ) as rn
-                            FROM cameras
-                        ) ranked
-                        WHERE rn > 1
-                    )
-                    """
-                )
-            )
-
-            # Delete duplicate cameras by folder_path (keep oldest)
-            await conn.execute(
-                text(
-                    """
-                    DELETE FROM cameras
-                    WHERE id IN (
-                        SELECT id FROM (
-                            SELECT id,
-                                   ROW_NUMBER() OVER (
-                                       PARTITION BY folder_path
-                                       ORDER BY created_at ASC, id ASC
-                                   ) as rn
-                            FROM cameras
-                        ) ranked
-                        WHERE rn > 1
-                    )
-                    """
-                )
-            )
-
-            # Now create unique indexes (using IF NOT EXISTS for idempotency)
-            await conn.execute(
-                text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
-            )
-            await conn.execute(
-                text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
-                )
-            )
-        finally:
-            # Release the advisory lock only if we acquired it
-            if lock_acquired:
-                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
-                unlock_sql = text(f"SELECT pg_advisory_unlock({_INTEGRATION_SCHEMA_LOCK_KEY})")
-                await conn.execute(unlock_sql)
-            # Reset statement timeout
-            await conn.execute(text("RESET statement_timeout"))
 
     try:
         yield integration_env
     finally:
-        # Clean up test cameras before closing the database
-        # Add timeout protection to prevent hanging during teardown
-        try:
-            await asyncio.wait_for(_cleanup_test_cameras(), timeout=10.0)
-        except TimeoutError:
-            logger.warning("Test data cleanup timed out after 10s during integration_db teardown")
+        # Data sweep, CONDITIONALLY skipped (M3 Task 4c). Rationale: this was
+        # a redundant third sweep for every `client`/`db_session` test (the
+        # client fixture sweeps pre+post; clean_tables sweeps post) — audit
+        # 2.2 / plan "drop the redundant third cleanup pass". BUT the
+        # unconditional drop REGRESSED (verification run 2026-09-14, 25 fails
+        # in test_event_search on a reused dirty DB): tests that consume
+        # integration_db DIRECTLY (no client, no clean_tables — e.g. via thin
+        # file-local wrappers like test_event_search._fts_db) rely on THIS
+        # sweep as their only cleanup. So: skip only when a closer sweeping
+        # fixture is in this test's fixture stack.
+        if not _closer_fixture_sweeps(request):
+            try:
+                await asyncio.wait_for(_cleanup_test_data(), timeout=10.0)
+            except TimeoutError:
+                logger.warning(
+                    "Test data cleanup timed out after 10s during integration_db teardown"
+                )
 
         # Close database with timeout protection
         try:
@@ -1041,14 +1131,19 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
                 # Disable FK checks temporarily for faster truncation
                 await session.execute(text("SET session_replication_role = replica"))
 
-                # Truncate tables in order (CASCADE handles any remaining FK issues)
+                # Delete in FK-safe order (deletion_order + replica role above)
                 for table_name in deletion_order:
                     try:
                         # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
-                        # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                        await session.execute(
-                            text(f"TRUNCATE TABLE {table_name} CASCADE")
-                        )  # nosemgrep
+                        # DELETE, not TRUNCATE: TRUNCATE allocates a NEW relfilenode
+                        # (new inode) per call and defers unlinking the old one to the
+                        # next checkpoint — ~815 tables x every test x 18 worker DBs
+                        # exhausted the 655K-inode /dev/vdd between checkpoints
+                        # (ledger R-T7-ENOSPC-RECUR). These are near-empty test
+                        # tables, so DELETE's row scan is free while TRUNCATE's inode
+                        # churn is not. FK checks are already off via
+                        # session_replication_role=replica, so CASCADE is unneeded.
+                        await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
                     except Exception as e:
                         # Skip tables that don't exist - they may not be migrated yet
                         logger.debug(f"Skipping table {table_name}: {e}")

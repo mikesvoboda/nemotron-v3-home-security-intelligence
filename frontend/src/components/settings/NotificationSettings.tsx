@@ -66,10 +66,7 @@ const RISK_LEVELS = [
  * Tailwind's JIT compiler because it scans for complete class names at build time.
  * Using explicit mappings ensures all classes are included in the production bundle.
  */
-const RISK_LEVEL_CLASSES: Record<
-  string,
-  { selected: string; default: string }
-> = {
+const RISK_LEVEL_CLASSES: Record<string, { selected: string; default: string }> = {
   red: {
     selected: 'bg-red-500/20 text-red-400 border border-red-500/50',
     default: 'border border-gray-700 bg-gray-800 text-gray-500',
@@ -138,7 +135,9 @@ function detectThresholdConflict(
   // This means the camera threshold setting would allow alerts that global filter blocks
   if (cameraThreshold < minEnabledScore) {
     const blockedLevels = Object.entries(RISK_LEVEL_RANGES)
-      .filter(([level, range]) => !globalRiskFilters.includes(level) && range.max >= cameraThreshold)
+      .filter(
+        ([level, range]) => !globalRiskFilters.includes(level) && range.max >= cameraThreshold
+      )
       .map(([level]) => level);
 
     if (blockedLevels.length > 0) {
@@ -636,7 +635,11 @@ export default function NotificationSettings({ className }: NotificationSettings
                   }
                   size="sm"
                 >
-                  {desktopHasPermission ? 'Enabled' : desktopPermission === 'denied' ? 'Denied' : 'Not Set'}
+                  {desktopHasPermission
+                    ? 'Enabled'
+                    : desktopPermission === 'denied'
+                      ? 'Denied'
+                      : 'Not Set'}
                 </Badge>
                 {desktopSupported && !desktopHasPermission && desktopPermission !== 'denied' && (
                   <Button
@@ -679,12 +682,14 @@ export default function NotificationSettings({ className }: NotificationSettings
               </div>
               <div className="flex items-center gap-2">
                 <Badge
-                  color={
-                    pushHasPermission ? 'green' : pushPermission === 'denied' ? 'red' : 'gray'
-                  }
+                  color={pushHasPermission ? 'green' : pushPermission === 'denied' ? 'red' : 'gray'}
                   size="sm"
                 >
-                  {pushHasPermission ? 'Enabled' : pushPermission === 'denied' ? 'Denied' : 'Not Set'}
+                  {pushHasPermission
+                    ? 'Enabled'
+                    : pushPermission === 'denied'
+                      ? 'Denied'
+                      : 'Not Set'}
                 </Badge>
                 {pushSupported && !pushHasPermission && pushPermission !== 'denied' && (
                   <Button
@@ -720,9 +725,7 @@ export default function NotificationSettings({ className }: NotificationSettings
                 <Volume2 className="h-4 w-4 text-gray-400" />
                 <div>
                   <Text className="font-medium text-gray-300">Volume Level</Text>
-                  <Text className="text-xs text-gray-500">
-                    Adjust audio notification volume
-                  </Text>
+                  <Text className="text-xs text-gray-500">Adjust audio notification volume</Text>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -748,9 +751,7 @@ export default function NotificationSettings({ className }: NotificationSettings
                 <Bell className="h-4 w-4 text-gray-400" />
                 <div>
                   <Text className="font-medium text-gray-300">Test Audio</Text>
-                  <Text className="text-xs text-gray-500">
-                    Play a test sound at current volume
-                  </Text>
+                  <Text className="text-xs text-gray-500">Play a test sound at current volume</Text>
                 </div>
               </div>
               <Button
@@ -773,7 +774,8 @@ export default function NotificationSettings({ className }: NotificationSettings
             {preferences?.sound === 'none' && (
               <div className="mt-4 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
                 <Text className="text-xs text-gray-400">
-                  Audio notifications are disabled. Change the sound setting above to enable audio alerts.
+                  Audio notifications are disabled. Change the sound setting above to enable audio
+                  alerts.
                 </Text>
               </div>
             )}

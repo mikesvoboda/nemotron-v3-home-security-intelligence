@@ -82,10 +82,9 @@ describe('useEventStats', () => {
 
   describe('filter parameters', () => {
     it('passes startDate to API', async () => {
-      const { result } = renderHook(
-        () => useEventStats({ startDate: '2025-01-01' }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventStats({ startDate: '2025-01-01' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -98,10 +97,9 @@ describe('useEventStats', () => {
     });
 
     it('passes endDate to API', async () => {
-      const { result } = renderHook(
-        () => useEventStats({ endDate: '2025-01-31' }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventStats({ endDate: '2025-01-31' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -114,10 +112,9 @@ describe('useEventStats', () => {
     });
 
     it('passes cameraId to API', async () => {
-      const { result } = renderHook(
-        () => useEventStats({ cameraId: 'front_door' }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useEventStats({ cameraId: 'front_door' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

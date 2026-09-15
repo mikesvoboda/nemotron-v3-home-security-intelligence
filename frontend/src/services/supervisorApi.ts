@@ -12,13 +12,9 @@
 
 import { fetchApi } from './api';
 
-import type {
-  RestartHistoryResponse,
-  UseRestartHistoryOptions,
-} from '../hooks/useRestartHistory';
+import type { RestartHistoryResponse, UseRestartHistoryOptions } from '../hooks/useRestartHistory';
 import type { SupervisorStatus } from '../hooks/useSupervisorStatus';
 import type { WorkerControlResponse } from '../hooks/useWorkerActions';
-
 
 /**
  * Fetch the current supervisor status including all worker statuses.
@@ -53,10 +49,9 @@ export async function fetchSupervisorStatus(): Promise<SupervisorStatus> {
  * ```
  */
 export async function startWorker(name: string): Promise<WorkerControlResponse> {
-  return fetchApi<WorkerControlResponse>(
-    `/api/system/supervisor/workers/${name}/start`,
-    { method: 'POST' }
-  );
+  return fetchApi<WorkerControlResponse>(`/api/system/supervisor/workers/${name}/start`, {
+    method: 'POST',
+  });
 }
 
 /**
@@ -75,10 +70,9 @@ export async function startWorker(name: string): Promise<WorkerControlResponse> 
  * ```
  */
 export async function stopWorker(name: string): Promise<WorkerControlResponse> {
-  return fetchApi<WorkerControlResponse>(
-    `/api/system/supervisor/workers/${name}/stop`,
-    { method: 'POST' }
-  );
+  return fetchApi<WorkerControlResponse>(`/api/system/supervisor/workers/${name}/stop`, {
+    method: 'POST',
+  });
 }
 
 /**
@@ -96,13 +90,10 @@ export async function stopWorker(name: string): Promise<WorkerControlResponse> {
  * }
  * ```
  */
-export async function restartWorker(
-  name: string
-): Promise<WorkerControlResponse> {
-  return fetchApi<WorkerControlResponse>(
-    `/api/system/supervisor/workers/${name}/restart`,
-    { method: 'POST' }
-  );
+export async function restartWorker(name: string): Promise<WorkerControlResponse> {
+  return fetchApi<WorkerControlResponse>(`/api/system/supervisor/workers/${name}/restart`, {
+    method: 'POST',
+  });
 }
 
 /**
@@ -123,13 +114,10 @@ export async function restartWorker(
  * }
  * ```
  */
-export async function resetWorkerRestartCount(
-  name: string
-): Promise<WorkerControlResponse> {
-  return fetchApi<WorkerControlResponse>(
-    `/api/system/supervisor/reset/${name}`,
-    { method: 'POST' }
-  );
+export async function resetWorkerRestartCount(name: string): Promise<WorkerControlResponse> {
+  return fetchApi<WorkerControlResponse>(`/api/system/supervisor/reset/${name}`, {
+    method: 'POST',
+  });
 }
 
 /**

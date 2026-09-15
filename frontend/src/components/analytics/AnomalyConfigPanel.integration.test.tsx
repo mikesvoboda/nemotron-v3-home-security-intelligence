@@ -83,7 +83,9 @@ describe('AnomalyConfigPanel Integration Tests', () => {
       vi.mocked(api.updateAnomalyConfig).mockResolvedValue(updatedConfig);
 
       const onConfigUpdated = vi.fn();
-      renderWithProviders(<AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />);
+      renderWithProviders(
+        <AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />
+      );
 
       // Act: Change threshold value
       const slider = screen.getByTestId('threshold-slider');
@@ -125,7 +127,9 @@ describe('AnomalyConfigPanel Integration Tests', () => {
       vi.mocked(api.updateAnomalyConfig).mockResolvedValue(updatedConfig);
 
       const onConfigUpdated = vi.fn();
-      renderWithProviders(<AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />);
+      renderWithProviders(
+        <AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />
+      );
 
       // Act: Change both values
       const slider = screen.getByTestId('threshold-slider');
@@ -181,7 +185,10 @@ describe('AnomalyConfigPanel Integration Tests', () => {
     it('disables save button during API request', async () => {
       // Arrange: Mock API with delay
       vi.mocked(api.updateAnomalyConfig).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ ...mockConfig, threshold_stdev: 2.5 }), 100))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ ...mockConfig, threshold_stdev: 2.5 }), 100)
+          )
       );
 
       renderWithProviders(<AnomalyConfigPanel config={mockConfig} />);
@@ -452,8 +459,7 @@ describe('AnomalyConfigPanel Integration Tests', () => {
       renderWithProviders(<AnomalyConfigPanel config={mockConfig} />);
 
       // Assert: No input fields for decay_factor or window_days
-      const allInputs = screen.getAllByRole('slider')
-        .concat(screen.getAllByRole('spinbutton'));
+      const allInputs = screen.getAllByRole('slider').concat(screen.getAllByRole('spinbutton'));
 
       // Should only have threshold slider and min_samples input
       expect(allInputs).toHaveLength(2);
@@ -484,13 +490,19 @@ describe('AnomalyConfigPanel Integration Tests', () => {
       const slider = screen.getByTestId('threshold-slider');
 
       // Initial state
-      expect(slider).toHaveAttribute('aria-valuetext', expect.stringContaining('2.0 standard deviations'));
+      expect(slider).toHaveAttribute(
+        'aria-valuetext',
+        expect.stringContaining('2.0 standard deviations')
+      );
       expect(slider).toHaveAttribute('aria-valuetext', expect.stringContaining('High sensitivity'));
 
       // Change value
       fireEvent.change(slider, { target: { value: '3.0' } });
 
-      expect(slider).toHaveAttribute('aria-valuetext', expect.stringContaining('3.0 standard deviations'));
+      expect(slider).toHaveAttribute(
+        'aria-valuetext',
+        expect.stringContaining('3.0 standard deviations')
+      );
       expect(slider).toHaveAttribute('aria-valuetext', expect.stringContaining('Low sensitivity'));
     });
   });
@@ -504,7 +516,9 @@ describe('AnomalyConfigPanel Integration Tests', () => {
       vi.mocked(api.updateAnomalyConfig).mockResolvedValue(updatedConfig);
 
       const onConfigUpdated = vi.fn();
-      renderWithProviders(<AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />);
+      renderWithProviders(
+        <AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />
+      );
 
       // Act: Change and save
       const slider = screen.getByTestId('threshold-slider');
@@ -524,7 +538,9 @@ describe('AnomalyConfigPanel Integration Tests', () => {
       vi.mocked(api.updateAnomalyConfig).mockRejectedValue(new Error('Save failed'));
 
       const onConfigUpdated = vi.fn();
-      renderWithProviders(<AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />);
+      renderWithProviders(
+        <AnomalyConfigPanel config={mockConfig} onConfigUpdated={onConfigUpdated} />
+      );
 
       // Act: Change and save (will fail)
       const slider = screen.getByTestId('threshold-slider');

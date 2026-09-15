@@ -341,7 +341,12 @@ export default function AuditTable({
                 </th>
               </tr>
             </thead>
-            <tbody className={clsx('divide-y divide-gray-800', isStale && 'opacity-70 transition-opacity')}>
+            <tbody
+              className={clsx(
+                'divide-y divide-gray-800',
+                isStale && 'opacity-70 transition-opacity'
+              )}
+            >
               {deferredLogs.map((log, index) => (
                 <tr
                   key={log.id}

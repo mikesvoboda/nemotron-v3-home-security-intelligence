@@ -117,9 +117,7 @@ export const topEventsQueryKeys = {
  * });
  * ```
  */
-export function useTopEventsQuery(
-  options: UseTopEventsQueryOptions = {}
-): UseTopEventsQueryReturn {
+export function useTopEventsQuery(options: UseTopEventsQueryOptions = {}): UseTopEventsQueryReturn {
   const {
     limit = 10,
     enabled = true,

@@ -15,10 +15,7 @@ import {
   formatThroughput,
 } from './queue';
 
-import type {
-  QueuesStatusResponse,
-  BatchAggregatorStatusResponse,
-} from './queue';
+import type { QueuesStatusResponse, BatchAggregatorStatusResponse } from './queue';
 
 describe('computeDerivedQueueState', () => {
   it('should return empty state for null input', () => {

@@ -80,6 +80,18 @@ jobs:
             echo "**Skipping tests** (docs-only changes)" >> $GITHUB_STEP_SUMMARY
           fi
 
+  collection-sanity:
+    name: Collection Sanity (zero-byte / zero-test tracked files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Check tracked test files collect real tests
+        run: uv run --no-project python scripts/check-test-collection.py backend frontend
+      - name: Flake allowlist hygiene
+        run: uv run --no-project python scripts/check-flake-allowlist.py
+
   # Backend Jobs
 
   # Shared backend dependencies - built once, used by all backend jobs
@@ -346,7 +358,7 @@ jobs:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [detect-changes, unit-tests]
+    needs: [detect-changes, unit-tests, collection-sanity]
     if: always()
     steps:
       - name: Check unit test shard results
@@ -433,40 +445,39 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run API integration tests with retry
+      - name: Run API integration tests
         # API tests: test_*_api.py files
         # -n auto enables parallel execution with database-per-worker isolation
         # Each pytest-xdist worker gets its own database copy via template_database fixture
-        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
+          set -euo pipefail
           START_TIME=$(date +%s)
-          for attempt in 1 2 3; do
-            echo "Attempt $attempt of 3"
-            echo "::group::Test Execution (Attempt $attempt)"
-            if uv run pytest backend/tests/integration/ \
-              -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
-              -n auto \
-              --timeout=30 \
-              --cov=backend \
-              --cov-fail-under=0 \
-              --cov-report=xml:coverage-integration-api.xml \
-              --cov-report=term-missing \
-              --junit-xml=test-results-integration-api.xml \
-              --durations=20 \
-              -v 2>&1 | tee test-output.log; then
-              echo "::endgroup::"
-              END_TIME=$(date +%s)
-              DURATION=$((END_TIME - START_TIME))
-              WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
-              echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
-              exit 0
-            fi
-            echo "::endgroup::"
-            if [ $attempt -lt 3 ]; then
-              echo "Test failed, retrying in 10s..."
-              sleep 10
-            fi
-          done
+          RERUNS=""
+          if [ -f .github/flake-allowlist.yml ]; then
+            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+          fi
+          if [ -n "$RERUNS" ]; then
+            echo "Rerunning registered flakes: $RERUNS"
+            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+              --reruns 2 --reruns-delay 5 || true
+          fi
+          if uv run pytest backend/tests/integration/ \
+            -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
+            -n auto \
+            --timeout=30 \
+            --cov=backend \
+            --cov-fail-under=0 \
+            --cov-report=xml:coverage-integration-api.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-api.xml \
+            --durations=20 \
+            -v 2>&1 | tee test-output.log; then
+            END_TIME=$(date +%s)
+            DURATION=$((END_TIME - START_TIME))
+            WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
+            echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
+            exit 0
+          fi
           exit 1
 
       - name: Upload test results
@@ -552,32 +563,31 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run WebSocket integration tests with retry
+      - name: Run WebSocket integration tests
         # WebSocket tests: test_websocket*.py, test_broadcast*.py, test_pubsub*.py
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
-        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          for attempt in 1 2 3; do
-            echo "Attempt $attempt of 3"
-            if uv run pytest backend/tests/integration/ \
-              -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
-              -n0 \
-              --timeout=30 \
-              --cov=backend \
-              --cov-fail-under=0 \
-              --cov-report=xml:coverage-integration-websocket.xml \
-              --cov-report=term-missing \
-              --junit-xml=test-results-integration-websocket.xml \
-              --durations=20 \
-              -v; then
-              exit 0
-            fi
-            if [ $attempt -lt 3 ]; then
-              echo "Test failed, retrying in 10s..."
-              sleep 10
-            fi
-          done
-          exit 1
+          set -euo pipefail
+          RERUNS=""
+          if [ -f .github/flake-allowlist.yml ]; then
+            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+          fi
+          if [ -n "$RERUNS" ]; then
+            echo "Rerunning registered flakes: $RERUNS"
+            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+              --reruns 2 --reruns-delay 5 || true
+          fi
+          uv run pytest backend/tests/integration/ \
+            -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
+            -n0 \
+            --timeout=30 \
+            --cov=backend \
+            --cov-fail-under=0 \
+            --cov-report=xml:coverage-integration-websocket.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-websocket.xml \
+            --durations=20 \
+            -v
 
       - name: Upload test results
         if: always()
@@ -668,33 +678,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Run Services integration tests with retry
+      - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
         # Also includes: test_backup_restore, test_data_corruption for database operations
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
-        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          for attempt in 1 2 3; do
-            echo "Attempt $attempt of 3"
-            if uv run pytest backend/tests/integration/ \
-              -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption" \
-              -n0 \
-              --timeout=30 \
-              --cov=backend \
-              --cov-fail-under=0 \
-              --cov-report=xml:coverage-integration-services.xml \
-              --cov-report=term-missing \
-              --junit-xml=test-results-integration-services.xml \
-              --durations=20 \
-              -v; then
-              exit 0
-            fi
-            if [ $attempt -lt 3 ]; then
-              echo "Test failed, retrying in 10s..."
-              sleep 10
-            fi
-          done
-          exit 1
+          set -euo pipefail
+          RERUNS=""
+          if [ -f .github/flake-allowlist.yml ]; then
+            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+          fi
+          if [ -n "$RERUNS" ]; then
+            echo "Rerunning registered flakes: $RERUNS"
+            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+              --reruns 2 --reruns-delay 5 || true
+          fi
+          uv run pytest backend/tests/integration/ \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption" \
+            -n0 \
+            --timeout=30 \
+            --cov=backend \
+            --cov-fail-under=0 \
+            --cov-report=xml:coverage-integration-services.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-services.xml \
+            --durations=20 \
+            -v
 
       - name: Upload test results
         if: always()
@@ -778,32 +787,31 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run Models integration tests with retry
+      - name: Run Models integration tests
         # Model tests: test_models*.py, test_database*.py, test_baseline*.py, test_alert_*.py, test_enrichment*.py, test_cache*.py
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
-        # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
-          for attempt in 1 2 3; do
-            echo "Attempt $attempt of 3"
-            if uv run pytest backend/tests/integration/ \
-              -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
-              -n0 \
-              --timeout=30 \
-              --cov=backend \
-              --cov-fail-under=0 \
-              --cov-report=xml:coverage-integration-models.xml \
-              --cov-report=term-missing \
-              --junit-xml=test-results-integration-models.xml \
-              --durations=20 \
-              -v; then
-              exit 0
-            fi
-            if [ $attempt -lt 3 ]; then
-              echo "Test failed, retrying in 10s..."
-              sleep 10
-            fi
-          done
-          exit 1
+          set -euo pipefail
+          RERUNS=""
+          if [ -f .github/flake-allowlist.yml ]; then
+            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+          fi
+          if [ -n "$RERUNS" ]; then
+            echo "Rerunning registered flakes: $RERUNS"
+            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+              --reruns 2 --reruns-delay 5 || true
+          fi
+          uv run pytest backend/tests/integration/ \
+            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
+            -n0 \
+            --timeout=30 \
+            --cov=backend \
+            --cov-fail-under=0 \
+            --cov-report=xml:coverage-integration-models.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-models.xml \
+            --durations=20 \
+            -v
 
       - name: Upload test results
         if: always()
@@ -868,6 +876,7 @@ jobs:
       [
         detect-changes,
         lint,
+        collection-sanity,
         integration-tests-api,
         integration-tests-websocket,
         integration-tests-services,
@@ -1241,6 +1250,10 @@ jobs:
       NODE_VERSION: '20'
       # 6GB heap with GC exposure - needed for Vitest itself
       # GitHub Actions runner has 7GB RAM
+      # Deliberately NOT raised by the spec SS5.1 honesty change: the CI heap cap
+      # moves only alongside a *measured* runner-OOM issue (spec SS3.3 follow-up /
+      # SS5.1 measured-exception path). --expose-gc stays because
+      # frontend/src/test/setup.ts calls global.gc() when it is available.
       NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
     steps:
       - name: Checkout
@@ -1281,43 +1294,63 @@ jobs:
           echo "ERROR: Failed to install npm dependencies after 3 attempts"
           exit 1
 
+      - name: Detect registered frontend flakes
+        # T2's apply-flake-reruns convention, ported to vitest (spec SS5.2).
+        # flake-k-filter.py prints allowlisted ids " or "-joined (pytest -k
+        # syntax); vitest --testNamePattern is a JS regex, so the separators
+        # become |. stdlib-only script, so bare python3 (this job has no uv
+        # setup step). An empty allowlist (flakes: [] today) leaves the
+        # pattern empty and the rerun step below is skipped entirely.
+        run: |
+          RERUNS=$(python3 scripts/flake-k-filter.py 2>/dev/null || true)
+          echo "RERUN_PATTERN=${RERUNS// or /|}" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Run registered flakes first (allowlist only; never masks verdict)
+        if: env.RERUN_PATTERN != ''
+        # Mirrors the pytest jobs' rerun block (ci.yml:455-463 et al.): runs
+        # BEFORE the strict run, --retry 2 ~ --reruns 2, "|| true" ~ their
+        # "|| true". Skipped while the allowlist is empty.
+        run: |
+          set -uo pipefail
+          cd frontend
+          npx vitest run --shard=${{ matrix.shard }}/16 \
+            --testNamePattern="$RERUN_PATTERN" --passWithNoTests --retry 2 \
+            --reporter=default --teardownTimeout=1000 2>&1 \
+            | tee /tmp/vitest-rerun-${{ matrix.shard }}.log || true
+        shell: bash
+
       - name: Run tests (shard ${{ matrix.shard }}/16)
+        # Real exit code (fast-confidence-loop spec SS5.1). The previous step
+        # grepped for the first 'passed' summary line, SIGKILLed vitest and
+        # exit 0'd 5s later - an OOM workaround that also hid every failing
+        # frontend test (the R-T7-VITEST class: 62 deterministic test-drift
+        # failures invisible to CI, now quarantined in vite.config.ts).
+        # Memory stays bounded exactly as before: sequential files within the
+        # shard (fileParallelism default-off, spec SS3.3 - CI does NOT set
+        # VITEST_PARALLEL unless a measured runner OOM is referenced, per
+        # SS5.1's measured-exception path), pool=forks + isolate + the
+        # 6144 MB job-level NODE_OPTIONS.
         # Shard tests across 16 runners for better memory distribution
         # Coverage collected per-shard and merged in frontend-coverage-merge job
         # NOTE: Do NOT add --coverage here - it triggers per-shard threshold checks
         # that fail because each shard only has ~6% of total coverage (with 16 shards)
-        # Tests complete in ~20s but cleanup takes 5+ minutes and OOMs.
-        # We use a fifo to monitor output and kill after test summary is printed.
+        # If a runner OOM recurs with the real exit code, that is evidence for a
+        # runner-size conversation (spec SS5.5), not for restoring the hack.
+        env:
+          # --teardownTimeout still travels here as a CLI flag; the npm-script
+          # VITEST_HEAP_MB wrapper is bypassed on purpose - this step calls
+          # npx directly, and NODE_OPTIONS (job env) is the heap lever in CI.
+          VITEST_PARALLEL: '0'
         run: |
+          set -euo pipefail
           cd frontend
-
-          # Create a temp file for output
-          tmpfile=$(mktemp)
-          trap "rm -f $tmpfile" EXIT
-
-          # Start vitest in background
-          npx vitest run --shard=${{ matrix.shard }}/16 --reporter=verbose --teardownTimeout=1000 2>&1 | tee "$tmpfile" &
-          vitest_pid=$!
-
-          # Monitor for test completion (look for "passed" in output)
-          # Kill the process 5 seconds after tests complete to avoid OOM in cleanup
-          while kill -0 $vitest_pid 2>/dev/null; do
-            if grep -qE "passed.*\([0-9]+\)" "$tmpfile" 2>/dev/null; then
-              echo ""
-              echo "Tests completed, waiting 5 seconds then killing cleanup..."
-              sleep 5
-              # Force kill vitest and all child processes
-              pkill -9 -P $vitest_pid 2>/dev/null || true
-              kill -9 $vitest_pid 2>/dev/null || true
-              echo "Cleanup killed to prevent OOM"
-              exit 0
-            fi
-            sleep 1
-          done
-
-          # If we get here, vitest exited on its own
-          wait $vitest_pid
-          exit $?
+          # tee's exit status is masked by the pipe - pipefail makes vitest's
+          # status the step's verdict instead (the acceptance property).
+          npx vitest run --shard=${{ matrix.shard }}/16 \
+            --reporter=default --teardownTimeout=1000 2>&1 \
+            | tee /tmp/vitest-shard-${{ matrix.shard }}.log
+        shell: bash
 
       - name: Upload coverage artifact
         if: always()
@@ -1364,7 +1397,7 @@ jobs:
     name: Frontend Tests (Vitest)
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [detect-changes, frontend-tests]
+    needs: [detect-changes, frontend-tests, collection-sanity]
     if: always()
     steps:
       - name: Check shard results

@@ -134,9 +134,7 @@ export function useCameraAnalytics(): UseCameraAnalyticsReturn {
     isLoading: isLoadingStats,
     error: statsError,
     refetch: refetchStats,
-  } = useDetectionStatsQuery(
-    selectedCameraId ? { camera_id: selectedCameraId } : {}
-  );
+  } = useDetectionStatsQuery(selectedCameraId ? { camera_id: selectedCameraId } : {});
 
   // Set selected camera (updates URL)
   const setSelectedCameraId = useCallback(

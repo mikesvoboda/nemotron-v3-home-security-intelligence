@@ -86,9 +86,7 @@ describe('useWorkerActions', () => {
     await result.current.resetWorker('detection_worker');
 
     await waitFor(() => {
-      expect(supervisorApi.resetWorkerRestartCount).toHaveBeenCalledWith(
-        'detection_worker'
-      );
+      expect(supervisorApi.resetWorkerRestartCount).toHaveBeenCalledWith('detection_worker');
       expect(supervisorApi.resetWorkerRestartCount).toHaveBeenCalledTimes(1);
     });
   });
@@ -127,9 +125,7 @@ describe('useWorkerActions', () => {
 
   it('returns error state on failure', async () => {
     const errorMessage = 'Failed to start worker';
-    vi.mocked(supervisorApi.startWorker).mockRejectedValue(
-      new Error(errorMessage)
-    );
+    vi.mocked(supervisorApi.startWorker).mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useWorkerActions());
 
@@ -172,9 +168,7 @@ describe('useWorkerActions', () => {
 
   it('handles stopWorker errors', async () => {
     const errorMessage = 'Worker not found';
-    vi.mocked(supervisorApi.stopWorker).mockRejectedValue(
-      new Error(errorMessage)
-    );
+    vi.mocked(supervisorApi.stopWorker).mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useWorkerActions());
 
@@ -188,9 +182,7 @@ describe('useWorkerActions', () => {
 
   it('handles restartWorker errors', async () => {
     const errorMessage = 'Worker is not running';
-    vi.mocked(supervisorApi.restartWorker).mockRejectedValue(
-      new Error(errorMessage)
-    );
+    vi.mocked(supervisorApi.restartWorker).mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useWorkerActions());
 
@@ -204,9 +196,7 @@ describe('useWorkerActions', () => {
 
   it('handles resetWorker errors', async () => {
     const errorMessage = 'Cannot reset running worker';
-    vi.mocked(supervisorApi.resetWorkerRestartCount).mockRejectedValue(
-      new Error(errorMessage)
-    );
+    vi.mocked(supervisorApi.resetWorkerRestartCount).mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useWorkerActions());
 
@@ -248,7 +238,11 @@ describe('useWorkerActions', () => {
 
   it('tracks loading state correctly for multiple operations', async () => {
     let startResolver: (value: { success: boolean; message: string; worker_name: string }) => void;
-    let restartResolver: (value: { success: boolean; message: string; worker_name: string }) => void;
+    let restartResolver: (value: {
+      success: boolean;
+      message: string;
+      worker_name: string;
+    }) => void;
 
     vi.mocked(supervisorApi.startWorker).mockImplementation(
       () =>
@@ -326,21 +320,24 @@ describe('useWorkerActions', () => {
   });
 
   it('handles API errors with detailed messages', async () => {
-    const detailedError = {
-      message: 'Worker operation failed',
+    // Ship contract: useWorkerActions stores the rejection as-is when it is
+    // an Error and wraps it in `new Error(String(err))` otherwise
+    // (useWorkerActions.ts:79-81) — a plain-object rejection lands in state
+    // as `Error: [object Object]`, losing details. Real API clients reject
+    // with Errors, so model that: an Error carrying `details`.
+    const detailedError = Object.assign(new Error('Worker operation failed'), {
       details: 'Worker is in failed state and cannot be started',
-    };
+    });
 
     vi.mocked(supervisorApi.startWorker).mockRejectedValue(detailedError);
 
     const { result } = renderHook(() => useWorkerActions());
 
-    await expect(result.current.startWorker('failed_worker')).rejects.toEqual(
-      detailedError
-    );
+    await expect(result.current.startWorker('failed_worker')).rejects.toBe(detailedError);
 
     await waitFor(() => {
-      expect(result.current.error).toEqual(detailedError);
+      expect(result.current.error).toBe(detailedError);
+      expect(result.current.error?.message).toBe('Worker operation failed');
     });
   });
 });

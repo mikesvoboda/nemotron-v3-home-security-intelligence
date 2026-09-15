@@ -71,7 +71,6 @@ import {
   createTypedSubscription,
 } from './webSocketManager';
 
-
 import type {
   CameraConfigUpdatedPayload,
   CameraDisabledPayload,

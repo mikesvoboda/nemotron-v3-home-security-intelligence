@@ -12,10 +12,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useDetectionStatsQuery,
-  detectionStatsQueryKeys,
-} from './useDetectionStatsQuery';
+import { useDetectionStatsQuery, detectionStatsQueryKeys } from './useDetectionStatsQuery';
 import * as api from '../services/api';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
@@ -56,11 +53,7 @@ describe('useDetectionStatsQuery', () => {
     });
 
     it('generates key without camera filter', () => {
-      expect(detectionStatsQueryKeys.byParams({})).toEqual([
-        'detections',
-        'stats',
-        {},
-      ]);
+      expect(detectionStatsQueryKeys.byParams({})).toEqual(['detections', 'stats', {}]);
     });
 
     it('generates key with camera filter', () => {
@@ -93,10 +86,9 @@ describe('useDetectionStatsQuery', () => {
     });
 
     it('fetches stats filtered by camera ID', async () => {
-      const { result } = renderHook(
-        () => useDetectionStatsQuery({ camera_id: 'front-door' }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionStatsQuery({ camera_id: 'front-door' }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -166,10 +158,9 @@ describe('useDetectionStatsQuery', () => {
       const mockError = new Error('Network error');
       vi.mocked(api.fetchDetectionStats).mockRejectedValue(mockError);
 
-      const { result } = renderHook(
-        () => useDetectionStatsQuery({}, { retry: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionStatsQuery({}, { retry: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -228,10 +219,9 @@ describe('useDetectionStatsQuery', () => {
 
   describe('enabled option', () => {
     it('does not fetch when enabled is false', async () => {
-      const { result } = renderHook(
-        () => useDetectionStatsQuery({}, { enabled: false }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useDetectionStatsQuery({}, { enabled: false }), {
+        wrapper: createQueryWrapper(),
+      });
 
       // Wait a bit to ensure no fetch happens
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -243,8 +233,7 @@ describe('useDetectionStatsQuery', () => {
 
     it('fetches when enabled changes from false to true', async () => {
       const { result, rerender } = renderHook(
-        ({ enabled }: { enabled: boolean }) =>
-          useDetectionStatsQuery({}, { enabled }),
+        ({ enabled }: { enabled: boolean }) => useDetectionStatsQuery({}, { enabled }),
         {
           wrapper: createQueryWrapper(),
           initialProps: { enabled: false },

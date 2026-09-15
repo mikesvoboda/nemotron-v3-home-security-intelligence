@@ -29,7 +29,8 @@ the API implementation is complete.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from contextlib import contextmanager
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -116,6 +117,27 @@ def create_unload_response(model_name: str, freed_vram_mb: int = 500) -> dict:
 # =============================================================================
 # Fixtures
 # =============================================================================
+
+
+@contextmanager
+def override_http_client(mock_http):
+    """Override the get_http_client dependency for the current request(s).
+
+    FastAPI captures get_http_client at route-declaration time
+    (model_management.py:347 etc.); unittest.mock.patch on the module
+    attribute is a no-op (probe-verified, same DI trap as R-T7-SERVICES).
+    dependency_overrides IS consulted at request time. Zero-arg override:
+    an unannotated request param resolves as a query param and 422s.
+    """
+    from backend.api.routes.model_management import get_http_client
+    from backend.main import app
+
+    original = app.dependency_overrides.copy()
+    app.dependency_overrides[get_http_client] = lambda: mock_http
+    try:
+        yield
+    finally:
+        app.dependency_overrides = original
 
 
 @pytest.fixture
@@ -208,7 +230,7 @@ class TestListModelsIntegration:
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
         mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -256,7 +278,7 @@ class TestListModelsIntegration:
         mock_http = AsyncMock()
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -291,7 +313,7 @@ class TestLoadModelIntegration:
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
         mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.post("/api/system/models/threat-detection-yolov8n/load")
 
         assert response.status_code == 200
@@ -330,7 +352,7 @@ class TestUnloadModelIntegration:
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
         mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.post("/api/system/models/fashion-clip/unload")
 
         assert response.status_code == 200
@@ -364,7 +386,7 @@ class TestVRAMSummaryIntegration:
         mock_http = AsyncMock()
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.get("/api/system/models/vram-summary")
 
         assert response.status_code == 200
@@ -514,7 +536,7 @@ class TestServiceUnavailableErrors:
         mock_http = AsyncMock()
         mock_http.get = AsyncMock(side_effect=mock_get_fail)
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.get("/api/system/models")
 
         # Should still return 200 with degraded data
@@ -558,7 +580,7 @@ class TestServiceUnavailableErrors:
         mock_http = AsyncMock()
         mock_http.post = AsyncMock(side_effect=mock_post_fail)
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.post("/api/system/models/threat-detection-yolov8n/load")
 
         assert response.status_code == 503
@@ -599,7 +621,7 @@ class TestServiceUnavailableErrors:
         mock_http = AsyncMock()
         mock_http.get = AsyncMock(side_effect=mock_get_partial)
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.get("/api/system/models/vram-summary")
 
         assert response.status_code == 200
@@ -638,7 +660,7 @@ class TestModelStatusEndpoint:
         mock_http = AsyncMock()
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.get("/api/system/models/fashion-clip/status")
 
         assert response.status_code == 200
@@ -680,7 +702,7 @@ class TestReloadModelEndpoint:
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
         mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.post("/api/system/models/fashion-clip/reload")
 
         assert response.status_code == 200
@@ -713,7 +735,7 @@ class TestUnloadAllEndpoint:
         mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
         mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
 
-        with patch("backend.api.routes.model_management.get_http_client", return_value=mock_http):
+        with override_http_client(mock_http):
             response = await client.post("/api/system/models/unload-all")
 
         assert response.status_code == 200

@@ -34,6 +34,24 @@ def send_callback() -> AsyncMock:
     return AsyncMock()
 
 
+async def _wait_until(predicate, *, deadline_s: float = 2.0, tick_s: float = 0.01) -> bool:
+    """Poll ``predicate`` on the real event loop until it holds or deadline passes.
+
+    Interval-flush tests must not couple a hard assert to one fixed sleep: under
+    full-tier load the worker's event loop can be descheduled past a 2x-sleep
+    margin (gate-20 attempt-5 flake, gw2). The shipped contract is "flushes on an
+    interval tick", so we wait for the tick to actually happen. Deadline stays far
+    below the global 5s pytest timeout.
+    """
+    loop = asyncio.get_running_loop()
+    end = loop.time() + deadline_s
+    while not predicate():
+        if loop.time() >= end:
+            return False
+        await asyncio.sleep(tick_s)
+    return True
+
+
 class TestBatchedMessage:
     """Tests for the BatchedMessage dataclass."""
 
@@ -307,10 +325,10 @@ class TestMessageBatcherIntervalFlush:
             await batcher.queue_message("detections", {"id": 1}, send_callback)
             assert batcher.get_pending_count("detections") == 1
 
-            # Wait for interval flush (50ms + buffer)
-            await asyncio.sleep(0.1)
+            # Wait for the interval flush (bounded poll, not a fixed sleep)
+            flushed = await _wait_until(lambda: send_callback.call_count >= 1)
 
-            # Message should have been flushed
+            assert flushed, "interval flush did not fire within deadline"
             send_callback.assert_called_once()
             assert batcher.get_pending_count("detections") == 0
         finally:
@@ -328,9 +346,10 @@ class TestMessageBatcherIntervalFlush:
         await batcher.start()
         try:
             await batcher.queue_message("detections", {"id": 1}, send_callback)
-            await asyncio.sleep(0.08)  # Wait for flush
+            # Bounded poll — same race class as the send-callback test above.
+            flushed = await _wait_until(lambda: batcher.metrics.interval_flushes >= 1)
 
-            assert batcher.metrics.interval_flushes >= 1
+            assert flushed, "interval flush counter did not advance within deadline"
         finally:
             await batcher.stop()
 

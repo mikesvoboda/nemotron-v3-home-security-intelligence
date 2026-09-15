@@ -214,12 +214,14 @@ const defaultUseUnloadModelReturn: {
 // Setup Helper
 // ============================================================================
 
-function setupMocks(overrides: {
-  useModels?: Partial<typeof defaultUseModelsReturn>;
-  useVRAMSummary?: Partial<typeof defaultUseVRAMSummaryReturn>;
-  useLoadModel?: Partial<typeof defaultUseLoadModelReturn>;
-  useUnloadModel?: Partial<typeof defaultUseUnloadModelReturn>;
-} = {}) {
+function setupMocks(
+  overrides: {
+    useModels?: Partial<typeof defaultUseModelsReturn>;
+    useVRAMSummary?: Partial<typeof defaultUseVRAMSummaryReturn>;
+    useLoadModel?: Partial<typeof defaultUseLoadModelReturn>;
+    useUnloadModel?: Partial<typeof defaultUseUnloadModelReturn>;
+  } = {}
+) {
   (useModelZooModule.useModels as Mock).mockReturnValue({
     ...defaultUseModelsReturn,
     ...overrides.useModels,

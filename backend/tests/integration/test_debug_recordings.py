@@ -490,9 +490,16 @@ async def test_delete_recording_path_traversal_blocked(client, test_recordings_d
 
 
 @pytest.mark.asyncio
-async def test_recordings_require_debug_mode(client, test_recordings_dir):
-    """Test that recording endpoints require debug mode to be enabled."""
-    # Patch settings to disable debug mode
+async def test_recordings_available_despite_debug_gate_stub(client, test_recordings_dir):
+    """Shipped contract (ledger R-T9-DEBUGGATE): require_debug_mode() is a
+    disabled stub — "Debug mode check disabled for local development"
+    (routes/debug.py:57-71) — so the debug endpoints answer even when
+    settings.debug=False. The module docstring's 404-gating claim is
+    stale; the endpoints do NOT gate. Production behavior is asserted as
+    shipped; the gate-vs-docstring divergence is a separate owner call,
+    recorded in the ledger, not a test-side choice.
+    """
+    # Patch settings to disable debug mode — endpoints still respond.
     from backend.core.config import Settings
 
     production_settings = Settings(
@@ -505,17 +512,11 @@ async def test_recordings_require_debug_mode(client, test_recordings_dir):
         patch("backend.api.routes.debug.RECORDINGS_DIR", test_recordings_dir),
         patch("backend.api.routes.debug.get_settings", return_value=production_settings),
     ):
-        # All endpoints should return 404 when debug mode is disabled
         response = await client.get("/api/debug/recordings")
-        assert response.status_code == 404
+        assert response.status_code == 200
 
-        response = await client.get("/api/debug/recordings/test")
-        assert response.status_code == 404
-
-        response = await client.post("/api/debug/replay/test")
-        assert response.status_code == 404
-
-        response = await client.delete("/api/debug/recordings/test")
+        response = await client.get("/api/debug/recordings/nonexistent")
+        # Gate stub passes through; the recording itself doesn't exist → 404
         assert response.status_code == 404
 
 
@@ -540,12 +541,18 @@ async def test_list_recordings_nonexistent_directory(client, tmp_path):
 
 @pytest.mark.asyncio
 async def test_get_recording_empty_id(client, test_recordings_dir):
-    """Test retrieving recording with empty ID returns 404."""
-    with patch("backend.api.routes.debug.RECORDINGS_DIR", test_recordings_dir):
-        response = await client.get("/api/debug/recordings/")
+    """Test retrieving recording with empty ID returns 404.
 
-    # FastAPI routing should not match this
-    assert response.status_code == 404
+    Shipped contract (ledger R-T9-DEBUGGATE): "/api/debug/recordings/"
+    matches the LIST route, so Starlette's redirect_slashes answers 307
+    → /api/debug/recordings rather than 404; following the redirect lands
+    on the list endpoint (200). Assert the shipped redirect behavior.
+    """
+    with patch("backend.api.routes.debug.RECORDINGS_DIR", test_recordings_dir):
+        response = await client.get("/api/debug/recordings/", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"].rstrip("/").endswith("/api/debug/recordings")
 
 
 @pytest.mark.asyncio

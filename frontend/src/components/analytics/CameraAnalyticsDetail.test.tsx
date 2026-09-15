@@ -111,11 +111,7 @@ describe('CameraAnalyticsDetail', () => {
   describe('empty state', () => {
     it('shows empty state when total detections is 0', () => {
       render(
-        <CameraAnalyticsDetail
-          {...defaultProps}
-          totalDetections={0}
-          detectionsByClass={{}}
-        />
+        <CameraAnalyticsDetail {...defaultProps} totalDetections={0} detectionsByClass={{}} />
       );
 
       expect(screen.getByTestId('camera-analytics-empty')).toBeInTheDocument();

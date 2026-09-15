@@ -74,9 +74,7 @@ describe('useSnoozeEvent', () => {
   // Create a wrapper component for the hook
   function createWrapper() {
     return function Wrapper({ children }: { children: ReactNode }) {
-      return (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-      );
+      return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
     };
   }
 
@@ -178,10 +176,9 @@ describe('useSnoozeEvent', () => {
       (api.snoozeEvent as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockEvent);
 
       const onSuccess = vi.fn();
-      const { result } = renderHook(
-        () => useSnoozeEvent({ onSuccess }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSnoozeEvent({ onSuccess }), {
+        wrapper: createWrapper(),
+      });
 
       await act(async () => {
         await result.current.snooze(123, 3600);
@@ -195,10 +192,9 @@ describe('useSnoozeEvent', () => {
       (api.snoozeEvent as ReturnType<typeof vi.fn>).mockRejectedValueOnce(error);
 
       const onError = vi.fn();
-      const { result } = renderHook(
-        () => useSnoozeEvent({ onError }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSnoozeEvent({ onError }), {
+        wrapper: createWrapper(),
+      });
 
       await act(async () => {
         try {
@@ -234,10 +230,9 @@ describe('useSnoozeEvent', () => {
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
-      const { result } = renderHook(
-        () => useSnoozeEvent({ invalidateQueries: false }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSnoozeEvent({ invalidateQueries: false }), {
+        wrapper: createWrapper(),
+      });
 
       await act(async () => {
         await result.current.snooze(123, 3600);
@@ -287,10 +282,9 @@ describe('useSnoozeEvent', () => {
       (api.clearSnooze as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockEvent);
 
       const onSuccess = vi.fn();
-      const { result } = renderHook(
-        () => useSnoozeEvent({ onSuccess }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSnoozeEvent({ onSuccess }), {
+        wrapper: createWrapper(),
+      });
 
       await act(async () => {
         await result.current.unsnooze(123);
@@ -365,17 +359,15 @@ describe('useSnoozeEvent', () => {
         // Verify optimistic update was applied BEFORE API resolves
         // Use waitFor to handle the async onMutate callback
         await waitFor(() => {
-          const optimisticData = testQueryClient.getQueryData<
-            InfiniteData<EventListResponse, string | null>
-          >(eventsKey);
+          const optimisticData =
+            testQueryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
           const updatedEvent = optimisticData?.pages[0].items.find((e) => e.id === 123);
           expect(updatedEvent?.snooze_until).not.toBeNull();
         });
 
         // Verify the optimistic snooze_until value
-        const optimisticData = testQueryClient.getQueryData<
-          InfiniteData<EventListResponse, string | null>
-        >(eventsKey);
+        const optimisticData =
+          testQueryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
         const updatedEvent = optimisticData?.pages[0].items.find((e) => e.id === 123);
 
         // The optimistic snooze_until should be set (approximately 1 hour from now)
@@ -412,10 +404,9 @@ describe('useSnoozeEvent', () => {
         queryClient.setQueryData(eventsKey, createMockInfiniteEventsData(mockEvents));
 
         const onError = vi.fn();
-        const { result } = renderHook(
-          () => useSnoozeEvent({ onError, invalidateQueries: false }),
-          { wrapper: createWrapper() }
-        );
+        const { result } = renderHook(() => useSnoozeEvent({ onError, invalidateQueries: false }), {
+          wrapper: createWrapper(),
+        });
 
         // Attempt to snooze (will fail)
         await act(async () => {
@@ -427,9 +418,8 @@ describe('useSnoozeEvent', () => {
         });
 
         // Verify rollback occurred - snooze_until should be null again
-        const rolledBackData = queryClient.getQueryData<
-          InfiniteData<EventListResponse, string | null>
-        >(eventsKey);
+        const rolledBackData =
+          queryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
         const rolledBackEvent = rolledBackData?.pages[0].items.find((e) => e.id === 123);
 
         expect(rolledBackEvent?.snooze_until).toBeNull();
@@ -445,19 +435,17 @@ describe('useSnoozeEvent', () => {
         const eventsKey = eventsQueryKeys.infinite(undefined, 25);
         queryClient.setQueryData(eventsKey, createMockInfiniteEventsData(mockEvents));
 
-        const { result } = renderHook(
-          () => useSnoozeEvent({ invalidateQueries: false }),
-          { wrapper: createWrapper() }
-        );
+        const { result } = renderHook(() => useSnoozeEvent({ invalidateQueries: false }), {
+          wrapper: createWrapper(),
+        });
 
         await act(async () => {
           await result.current.snooze(123, 3600);
         });
 
         // Verify cache was updated with server response
-        const updatedData = queryClient.getQueryData<
-          InfiniteData<EventListResponse, string | null>
-        >(eventsKey);
+        const updatedData =
+          queryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
         const updatedEvent = updatedData?.pages[0].items.find((e) => e.id === 123);
 
         expect(updatedEvent?.snooze_until).toBe(serverSnoozeUntil);
@@ -534,9 +522,8 @@ describe('useSnoozeEvent', () => {
 
         // Verify optimistic update was applied (use waitFor for async onMutate)
         await waitFor(() => {
-          const optimisticData = testQueryClient.getQueryData<
-            InfiniteData<EventListResponse, string | null>
-          >(eventsKey);
+          const optimisticData =
+            testQueryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
           const updatedEvent = optimisticData?.pages[0].items.find((e) => e.id === 123);
           expect(updatedEvent?.snooze_until).toBeNull();
         });
@@ -571,10 +558,9 @@ describe('useSnoozeEvent', () => {
         queryClient.setQueryData(eventsKey, createMockInfiniteEventsData(snoozedEvents));
 
         const onError = vi.fn();
-        const { result } = renderHook(
-          () => useSnoozeEvent({ onError, invalidateQueries: false }),
-          { wrapper: createWrapper() }
-        );
+        const { result } = renderHook(() => useSnoozeEvent({ onError, invalidateQueries: false }), {
+          wrapper: createWrapper(),
+        });
 
         await act(async () => {
           try {
@@ -585,9 +571,8 @@ describe('useSnoozeEvent', () => {
         });
 
         // Verify rollback - snooze_until should be restored
-        const rolledBackData = queryClient.getQueryData<
-          InfiniteData<EventListResponse, string | null>
-        >(eventsKey);
+        const rolledBackData =
+          queryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
         const rolledBackEvent = rolledBackData?.pages[0].items.find((e) => e.id === 123);
 
         expect(rolledBackEvent?.snooze_until).toBe('2024-01-15T14:00:00Z');
@@ -611,9 +596,8 @@ describe('useSnoozeEvent', () => {
         );
 
         // Capture the cache state before the mutation
-        const beforeData = queryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(
-          eventsKey
-        );
+        const beforeData =
+          queryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
         const beforeEvent = beforeData?.pages[0].items.find((e) => e.id === 123);
         expect(beforeEvent?.snooze_until).toBeNull();
 
@@ -658,19 +642,17 @@ describe('useSnoozeEvent', () => {
         const eventsKey = eventsQueryKeys.infinite(undefined, 25);
         queryClient.setQueryData(eventsKey, multiPageData);
 
-        const { result } = renderHook(
-          () => useSnoozeEvent({ invalidateQueries: false }),
-          { wrapper: createWrapper() }
-        );
+        const { result } = renderHook(() => useSnoozeEvent({ invalidateQueries: false }), {
+          wrapper: createWrapper(),
+        });
 
         await act(async () => {
           await result.current.snooze(123, 3600);
         });
 
         // Verify the event on page 2 was updated
-        const updatedData = queryClient.getQueryData<
-          InfiniteData<EventListResponse, string | null>
-        >(eventsKey);
+        const updatedData =
+          queryClient.getQueryData<InfiniteData<EventListResponse, string | null>>(eventsKey);
 
         // Page 1 events should be unchanged
         expect(updatedData?.pages[0].items[0].snooze_until).toBeNull();

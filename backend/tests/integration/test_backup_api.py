@@ -50,18 +50,35 @@ pytestmark = pytest.mark.integration
 def create_valid_backup_zip() -> bytes:
     """Create a valid backup ZIP file for testing.
 
+    Checksums are REAL sha256 digests of the exact bytes written into the zip —
+    the previous hardcoded "abc123"/"def456" made RestoreService
+    _verify_checksums fail every "valid" backup (routes correctly marked the job
+    failed; R-T7-BACKUP-MOUNT ledger).
+
     Returns:
         ZIP file contents as bytes.
     """
+    import hashlib
+
     backup_id = str(uuid4())
+    payloads = {
+        "cameras.json": json.dumps([{"id": "cam1"}, {"id": "cam2"}]),
+        "events.json": json.dumps([{"id": f"evt{i}"} for i in range(5)]),
+    }
     manifest = {
         "backup_id": backup_id,
         "version": "1.0",
         "created_at": datetime.now(UTC).isoformat(),
         "app_version": "1.0.0",
         "contents": {
-            "cameras": {"count": 2, "checksum": "abc123"},
-            "events": {"count": 5, "checksum": "def456"},
+            "cameras": {
+                "count": 2,
+                "checksum": hashlib.sha256(payloads["cameras.json"].encode()).hexdigest(),
+            },
+            "events": {
+                "count": 5,
+                "checksum": hashlib.sha256(payloads["events.json"].encode()).hexdigest(),
+            },
         },
     }
 
@@ -69,8 +86,8 @@ def create_valid_backup_zip() -> bytes:
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest))
-        zf.writestr("cameras.json", json.dumps([{"id": "cam1"}, {"id": "cam2"}]))
-        zf.writestr("events.json", json.dumps([{"id": f"evt{i}"} for i in range(5)]))
+        zf.writestr("cameras.json", payloads["cameras.json"])
+        zf.writestr("events.json", payloads["events.json"])
 
     return zip_buffer.getvalue()
 
@@ -114,11 +131,14 @@ async def test_create_backup_creates_database_record(
 
     job_id = response.json()["job_id"]
 
-    # Verify database record exists
+    # Verify database record exists. Status is NOT asserted here: the background
+    # runner can complete before this assert lands (empty test DB = instant
+    # backup), and asserting membership in the whole enum would be vacuous.
+    # State progression itself is covered by
+    # test_create_backup_job_progresses_to_completion (R-T7-BACKUP-MOUNT).
     job = await db_session.get(BackupJob, job_id)
     assert job is not None
     assert job.id == job_id
-    assert job.status == BackupJobStatusModel.PENDING
 
 
 @pytest.mark.asyncio
@@ -324,8 +344,13 @@ async def test_list_backups_excludes_pending_and_failed(
 
 @pytest.mark.asyncio
 async def test_get_backup_status_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test get backup status returns 404 for non-existent job."""
-    response = await client.get("/api/backup/nonexistent-job-id")
+    """Test get backup status returns 404 for non-existent job.
+
+    Uses a valid-format UUID: the id column is UUID-typed, so a malformed id
+    fails driver-side parameter encoding (503) before the lookup. 404 is about
+    the job not existing, which a well-formed unknown UUID exercises.
+    """
+    response = await client.get(f"/api/backup/{uuid4()}")
 
     assert response.status_code == 404
     data = response.json()
@@ -408,8 +433,9 @@ async def test_get_backup_status_with_manifest(
 
 @pytest.mark.asyncio
 async def test_download_backup_not_found(client: AsyncClient, mock_redis, integration_db):
-    """Test downloading non-existent backup returns 404."""
-    response = await client.get("/api/backup/nonexistent-job-id/download")
+    """Test downloading non-existent backup returns 404 (valid-format unknown id; see
+    test_get_backup_status_not_found for why a malformed id cannot reach the lookup)."""
+    response = await client.get(f"/api/backup/{uuid4()}/download")
 
     assert response.status_code == 404
     data = response.json()
@@ -510,7 +536,7 @@ async def test_download_completed_backup_returns_zip(
 @pytest.mark.asyncio
 async def test_delete_backup_not_found(client: AsyncClient, mock_redis, integration_db):
     """Test deleting non-existent backup returns 404."""
-    response = await client.delete("/api/backup/nonexistent-job-id")
+    response = await client.delete(f"/api/backup/{uuid4()}")
 
     assert response.status_code == 404
     data = response.json()
@@ -540,8 +566,9 @@ async def test_delete_backup_removes_record(
     data = response.json()
     assert data["deleted"] is True
 
-    # Verify record is deleted
-    await db_session.expire_all()
+    # Verify record is deleted (expire_all is sync on the ORM session — awaiting None
+    # was a test bug)
+    db_session.expire_all()
     deleted_job = await db_session.get(BackupJob, backup_id)
     assert deleted_job is None
 
@@ -638,11 +665,14 @@ async def test_start_restore_creates_database_record(
     assert response.status_code == 202
     job_id = response.json()["job_id"]
 
-    # Verify database record exists
+    # Verify database record exists. Status NOT asserted: the ASGI client runs
+    # BackgroundTasks before the response resolves, so PENDING is never
+    # observable at fetch time (the job has already reached its terminal state
+    # — R-T7-BACKUP-MOUNT). Record creation + id linkage is this test's claim;
+    # restore-pipeline behavior is covered service-side.
     job = await db_session.get(RestoreJob, job_id)
     assert job is not None
     assert job.id == job_id
-    assert job.status == RestoreJobStatusModel.PENDING
 
 
 @pytest.mark.asyncio
@@ -708,7 +738,7 @@ async def test_restore_job_progress_tracking(client: AsyncClient, mock_redis, in
 @pytest.mark.asyncio
 async def test_get_restore_status_not_found(client: AsyncClient, mock_redis, integration_db):
     """Test get restore status returns 404 for non-existent job."""
-    response = await client.get("/api/backup/restore/nonexistent-job-id")
+    response = await client.get(f"/api/backup/restore/{uuid4()}")
 
     assert response.status_code == 404
     data = response.json()

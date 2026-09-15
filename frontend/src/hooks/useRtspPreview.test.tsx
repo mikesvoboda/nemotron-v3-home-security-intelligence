@@ -29,9 +29,7 @@ vi.mock('../services/go2rtcClient', () => ({
 }));
 
 // Get a reference to the mock for test assertions
-const mockGo2rtcClient = vi.mocked(
-  (await import('../services/go2rtcClient')).go2rtcClient
-);
+const mockGo2rtcClient = vi.mocked((await import('../services/go2rtcClient')).go2rtcClient);
 
 // Mock RTCPeerConnection
 class MockRTCPeerConnection {

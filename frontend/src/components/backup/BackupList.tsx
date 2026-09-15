@@ -170,7 +170,9 @@ function BackupRow({ backup, onDelete, isDeleting }: BackupRowProps) {
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
           <span>Created: {formatDate(backup.created_at)}</span>
-          {backup.file_size_bytes > 0 && <span>Size: {formatFileSize(backup.file_size_bytes)}</span>}
+          {backup.file_size_bytes > 0 && (
+            <span>Size: {formatFileSize(backup.file_size_bytes)}</span>
+          )}
         </div>
       </div>
 

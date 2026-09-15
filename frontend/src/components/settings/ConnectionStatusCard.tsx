@@ -21,10 +21,7 @@ export default function ConnectionStatusCard({ result }: ConnectionStatusCardPro
     return (
       <div className="rounded-lg border border-gray-800 bg-card p-4">
         <div className="flex items-center gap-3">
-          <Loader2
-            data-testid="loading-spinner"
-            className="h-5 w-5 animate-spin text-primary"
-          />
+          <Loader2 data-testid="loading-spinner" className="h-5 w-5 animate-spin text-primary" />
           <span className="text-text-secondary">Testing connection...</span>
         </div>
       </div>
@@ -39,10 +36,7 @@ export default function ConnectionStatusCard({ result }: ConnectionStatusCardPro
         role="alert"
       >
         <div className="flex items-start gap-3">
-          <AlertCircle
-            data-testid="error-icon"
-            className="h-5 w-5 flex-shrink-0 text-red-500"
-          />
+          <AlertCircle data-testid="error-icon" className="h-5 w-5 flex-shrink-0 text-red-500" />
           <div>
             <p className="font-medium text-red-500">Connection Failed</p>
             {result.error_message && (
@@ -57,13 +51,10 @@ export default function ConnectionStatusCard({ result }: ConnectionStatusCardPro
   const { capabilities, latency_ms } = result;
 
   return (
-    <div className="rounded-lg border border-gray-800 bg-card p-4 space-y-4">
+    <div className="space-y-4 rounded-lg border border-gray-800 bg-card p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Check
-            data-testid="success-indicator"
-            className="h-5 w-5 text-green-500"
-          />
+          <Check data-testid="success-indicator" className="h-5 w-5 text-green-500" />
           <span className="font-medium text-green-500">Connection Successful</span>
         </div>
         {latency_ms !== null && (
@@ -84,28 +75,18 @@ export default function ConnectionStatusCard({ result }: ConnectionStatusCardPro
               supported={capabilities.audio}
               testId="capability-audio"
             />
-            <CapabilityIndicator
-              name="PTZ"
-              supported={capabilities.ptz}
-              testId="capability-ptz"
-            />
+            <CapabilityIndicator name="PTZ" supported={capabilities.ptz} testId="capability-ptz" />
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
             {capabilities.resolution && (
-              <span className="rounded bg-gray-800 px-2 py-1">
-                {capabilities.resolution}
-              </span>
+              <span className="rounded bg-gray-800 px-2 py-1">{capabilities.resolution}</span>
             )}
             {capabilities.codec && (
-              <span className="rounded bg-gray-800 px-2 py-1">
-                {capabilities.codec}
-              </span>
+              <span className="rounded bg-gray-800 px-2 py-1">{capabilities.codec}</span>
             )}
             {capabilities.fps !== null && (
-              <span className="rounded bg-gray-800 px-2 py-1">
-                {capabilities.fps} fps
-              </span>
+              <span className="rounded bg-gray-800 px-2 py-1">{capabilities.fps} fps</span>
             )}
           </div>
         </div>
@@ -126,15 +107,10 @@ function CapabilityIndicator({ name, supported, testId }: CapabilityIndicatorPro
       className="flex items-center gap-1.5"
       aria-label={`${name} ${supported ? 'supported' : 'not supported'}`}
     >
-      <span
-        data-testid={testId}
-        className={supported ? 'text-green-500' : 'text-gray-500'}
-      >
+      <span data-testid={testId} className={supported ? 'text-green-500' : 'text-gray-500'}>
         {supported ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
       </span>
-      <span className={supported ? 'text-text-primary' : 'text-text-secondary'}>
-        {name}
-      </span>
+      <span className={supported ? 'text-text-primary' : 'text-text-secondary'}>{name}</span>
     </div>
   );
 }

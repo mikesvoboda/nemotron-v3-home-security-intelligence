@@ -86,9 +86,7 @@ async function fetchHeatmapData(
     output_width: '640',
     output_height: '480',
   });
-  return fetchApi<HeatmapResponse>(
-    `/api/heatmaps/camera/${cameraId}?${params.toString()}`
-  );
+  return fetchApi<HeatmapResponse>(`/api/heatmaps/camera/${cameraId}?${params.toString()}`);
 }
 
 /**
@@ -153,9 +151,7 @@ async function fetchMergedHeatmapData(
   if (resolution) {
     params.set('resolution', resolution);
   }
-  return fetchApi<HeatmapResponse>(
-    `/api/heatmaps/camera/${cameraId}/merged?${params.toString()}`
-  );
+  return fetchApi<HeatmapResponse>(`/api/heatmaps/camera/${cameraId}/merged?${params.toString()}`);
 }
 
 // ============================================================================

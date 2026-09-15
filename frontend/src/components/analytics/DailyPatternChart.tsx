@@ -136,7 +136,9 @@ export default function DailyPatternChart({
     maxDetections = Math.max(maxDetections, 1);
 
     // Check for low confidence (any day with less than 168 samples = 1 week)
-    const hasLowConfidence = Object.values(patterns).some((p) => p.total_samples < HIGH_CONFIDENCE_SAMPLES);
+    const hasLowConfidence = Object.values(patterns).some(
+      (p) => p.total_samples < HIGH_CONFIDENCE_SAMPLES
+    );
 
     return {
       hasAnyData,
@@ -237,7 +239,7 @@ export default function DailyPatternChart({
       </p>
 
       {/* Bar chart */}
-      <div className="flex items-end justify-between gap-2 h-48">
+      <div className="flex h-48 items-end justify-between gap-2">
         {DAYS_ORDER.map((day) => {
           const pattern = patterns[day];
           const hasData = !!pattern;
@@ -254,13 +256,10 @@ export default function DailyPatternChart({
           const enableAnimation = shouldAnimateChart(dataPointCount);
 
           return (
-            <div
-              key={day}
-              className="flex flex-1 flex-col items-center"
-            >
+            <div key={day} className="flex flex-1 flex-col items-center">
               {/* Bar container */}
               <div
-                className={`relative w-full flex flex-col justify-end h-40 rounded-t cursor-pointer hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-[#76B900] ${enableAnimation ? 'transition-transform' : ''} ${
+                className={`relative flex h-40 w-full cursor-pointer flex-col justify-end rounded-t hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-[#76B900] ${enableAnimation ? 'transition-transform' : ''} ${
                   hasData ? colorClass.opacity : 'no-data'
                 } ${isWeekend ? 'weekend' : ''} ${hasData ? colorClass.bg : ''}`}
                 data-testid={`daily-bar-${day}`}
@@ -282,14 +281,14 @@ export default function DailyPatternChart({
                   className={`w-full rounded-t ${enableAnimation ? 'transition-all' : ''} ${
                     hasData
                       ? `${colorClass.bg} ${isWeekend ? 'bg-opacity-80' : ''}`
-                      : 'bg-gray-700/30 border border-dashed border-gray-600'
+                      : 'border border-dashed border-gray-600 bg-gray-700/30'
                   }`}
                   style={{ height: hasData ? `${heightPercent}%` : '10%' }}
                 >
                   {/* Peak hour indicator */}
                   {hasData && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-orange-500 shadow-lg"
+                      className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-orange-500 shadow-lg"
                       data-testid={`peak-indicator-${day}`}
                       data-peak-hour={pattern.peak_hour}
                       style={{
@@ -362,17 +361,24 @@ export default function DailyPatternChart({
             {tooltip.hasData && tooltip.pattern ? (
               <div className="space-y-0.5 text-gray-300">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Average: {tooltip.pattern.avg_detections.toFixed(1)} detections</span>
+                  <span className="text-gray-400">
+                    Average: {tooltip.pattern.avg_detections.toFixed(1)} detections
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Peak Hour: {formatHour(tooltip.pattern.peak_hour)}</span>
+                  <span className="text-gray-400">
+                    Peak Hour: {formatHour(tooltip.pattern.peak_hour)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Total Samples: {tooltip.pattern.total_samples}</span>
+                  <span className="text-gray-400">
+                    Total Samples: {tooltip.pattern.total_samples}
+                  </span>
                 </div>
                 {tooltip.weeksOfData > 0 && (
                   <div className="mt-1 text-xs text-gray-400">
-                    Based on {tooltip.weeksOfData} week{tooltip.weeksOfData !== 1 ? 's' : ''} of data
+                    Based on {tooltip.weeksOfData} week{tooltip.weeksOfData !== 1 ? 's' : ''} of
+                    data
                   </div>
                 )}
               </div>

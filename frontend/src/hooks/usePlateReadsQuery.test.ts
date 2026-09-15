@@ -378,13 +378,10 @@ describe('usePlateReadsQuery', () => {
     });
 
     it('refetches when filters change', async () => {
-      const { rerender } = renderHook(
-        ({ filters }) => usePlateReadsQuery(filters),
-        {
-          wrapper: createQueryWrapper(),
-          initialProps: { filters: undefined as PlateReadFilters | undefined },
-        }
-      );
+      const { rerender } = renderHook(({ filters }) => usePlateReadsQuery(filters), {
+        wrapper: createQueryWrapper(),
+        initialProps: { filters: undefined as PlateReadFilters | undefined },
+      });
 
       await waitFor(() => {
         expect(plateReadsApi.fetchPlateReads).toHaveBeenCalledTimes(1);

@@ -223,10 +223,7 @@ export default function LoginPage() {
 
           {/* Username Field */}
           <div>
-            <label
-              htmlFor={`${formId}-username`}
-              className="block text-sm font-medium text-white"
-            >
+            <label htmlFor={`${formId}-username`} className="block text-sm font-medium text-white">
               Username
             </label>
             <input
@@ -254,10 +251,7 @@ export default function LoginPage() {
 
           {/* Password Field */}
           <div>
-            <label
-              htmlFor={`${formId}-password`}
-              className="block text-sm font-medium text-white"
-            >
+            <label htmlFor={`${formId}-password`} className="block text-sm font-medium text-white">
               Password
             </label>
             <input

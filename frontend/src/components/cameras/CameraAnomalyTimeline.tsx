@@ -185,7 +185,9 @@ function AnomalyItem({ anomaly, index }: AnomalyItemProps) {
           <span>Expected: {formatFrequency(anomaly.expected_frequency)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className={colors.text}>Observed: {formatFrequency(anomaly.observed_frequency)}</span>
+          <span className={colors.text}>
+            Observed: {formatFrequency(anomaly.observed_frequency)}
+          </span>
         </div>
       </div>
     </div>
@@ -212,10 +214,7 @@ export default function CameraAnomalyTimeline({
   showHeader = true,
   className = '',
 }: CameraAnomalyTimelineProps) {
-  const queryOptions: UseCameraAnomaliesQueryOptions = useMemo(
-    () => ({ days }),
-    [days]
-  );
+  const queryOptions: UseCameraAnomaliesQueryOptions = useMemo(() => ({ days }), [days]);
 
   const { anomalies, isLoading, error, count, periodDays } = useCameraAnomaliesQuery(
     cameraId,

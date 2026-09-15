@@ -9,11 +9,12 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
 
 import httpx
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
+from sqlalchemy.engine import Result, ScalarResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 from starlette.testclient import TestClient
@@ -33,7 +34,15 @@ from backend.api.schemas.system import (
     TelemetryResponse,
     WorkerStatus,
 )
+from backend.core.config import Settings, get_settings
 from backend.core.redis import RedisClient
+from backend.models.gpu_stats import GPUStats
+from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
+from backend.services.cleanup_service import CleanupService, CleanupStats
+from backend.services.file_watcher import FileWatcher
+from backend.services.gpu_monitor import GPUMonitor
+from backend.services.pipeline_workers import PipelineWorkerManager
+from backend.services.system_broadcaster import SystemBroadcaster
 
 
 @pytest.fixture(autouse=True)
@@ -54,7 +63,7 @@ def mock_ai_health_settings():
     has ENVIRONMENT=production with weak passwords. This fixture mocks
     get_settings() to return valid settings without environment validation.
     """
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -153,7 +162,7 @@ async def test_get_readiness_all_healthy() -> None:
 
     try:
         # Mock pipeline manager with running workers (required for ready status)
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -163,13 +172,13 @@ async def test_get_readiness_all_healthy() -> None:
         }
         system_routes._pipeline_manager = mock_manager
 
-        db = AsyncMock()
+        db = AsyncMock(spec=AsyncSession)
         # Mock successful database query
-        mock_result = MagicMock()
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
@@ -190,10 +199,10 @@ async def test_get_readiness_database_unhealthy() -> None:
     """Test readiness endpoint when database is unhealthy."""
     mock_response = Response()
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = AsyncMock(side_effect=RuntimeError("db connection failed"))
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
     response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
@@ -211,12 +220,12 @@ async def test_get_readiness_redis_unhealthy() -> None:
     """Test readiness endpoint when Redis is unhealthy."""
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(
         return_value={"status": "unhealthy", "error": "connection refused"}
     )
@@ -236,12 +245,12 @@ async def test_get_readiness_redis_exception() -> None:
     """Test readiness endpoint when Redis health check raises exception."""
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(side_effect=ConnectionError("redis down"))
 
     response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
@@ -261,8 +270,8 @@ async def test_get_readiness_redis_none() -> None:
     """
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -283,10 +292,10 @@ async def test_get_readiness_both_unhealthy() -> None:
     """Test readiness endpoint when both database and Redis are unhealthy."""
     mock_response = Response()
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "redis error"})
 
     response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
@@ -314,10 +323,10 @@ def test_register_workers_sets_global_references() -> None:
 
     try:
         # Create mock workers
-        mock_gpu = MagicMock()
-        mock_cleanup = MagicMock()
-        mock_broadcaster = MagicMock()
-        mock_watcher = MagicMock()
+        mock_gpu = MagicMock(spec=GPUMonitor)
+        mock_cleanup = MagicMock(spec=CleanupService)
+        mock_broadcaster = MagicMock(spec=SystemBroadcaster)
+        mock_watcher = MagicMock(spec=FileWatcher)
 
         # Register workers
         system_routes.register_workers(
@@ -381,16 +390,16 @@ def test_get_worker_statuses_with_running_workers() -> None:
 
     try:
         # Create running mock workers
-        mock_gpu = MagicMock()
+        mock_gpu = MagicMock(spec=GPUMonitor)
         mock_gpu.running = True
 
-        mock_cleanup = MagicMock()
+        mock_cleanup = MagicMock(spec=CleanupService)
         mock_cleanup.running = True
 
-        mock_broadcaster = MagicMock()
+        mock_broadcaster = MagicMock(spec=SystemBroadcaster)
         mock_broadcaster._running = True
 
-        mock_watcher = MagicMock()
+        mock_watcher = MagicMock(spec=FileWatcher)
         mock_watcher.running = True
 
         system_routes._gpu_monitor = mock_gpu
@@ -426,10 +435,10 @@ def test_get_worker_statuses_with_stopped_workers() -> None:
 
     try:
         # Create stopped mock workers
-        mock_gpu = MagicMock()
+        mock_gpu = MagicMock(spec=GPUMonitor)
         mock_gpu.running = False
 
-        mock_cleanup = MagicMock()
+        mock_cleanup = MagicMock(spec=CleanupService)
         mock_cleanup.running = False
 
         system_routes._gpu_monitor = mock_gpu
@@ -463,10 +472,10 @@ def test_get_worker_statuses_mixed_status() -> None:
     original_pipeline = system_routes._pipeline_manager
 
     try:
-        mock_gpu = MagicMock()
+        mock_gpu = MagicMock(spec=GPUMonitor)
         mock_gpu.running = True
 
-        mock_cleanup = MagicMock()
+        mock_cleanup = MagicMock(spec=CleanupService)
         mock_cleanup.running = False
 
         system_routes._gpu_monitor = mock_gpu
@@ -513,7 +522,7 @@ def test_get_worker_statuses_includes_pipeline_workers() -> None:
         system_routes._file_watcher = None
 
         # Mock pipeline manager with running workers
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -571,7 +580,7 @@ def test_get_worker_statuses_pipeline_workers_stopped() -> None:
         system_routes._file_watcher = None
 
         # Mock pipeline manager with stopped workers
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": False,
             "workers": {
@@ -603,7 +612,7 @@ def test_are_critical_pipeline_workers_healthy_all_running() -> None:
     original_pipeline_manager = system_routes._pipeline_manager
 
     try:
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -624,7 +633,7 @@ def test_are_critical_pipeline_workers_healthy_detection_stopped() -> None:
     original_pipeline_manager = system_routes._pipeline_manager
 
     try:
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -645,7 +654,7 @@ def test_are_critical_pipeline_workers_healthy_analysis_stopped() -> None:
     original_pipeline_manager = system_routes._pipeline_manager
 
     try:
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -666,7 +675,7 @@ def test_are_critical_pipeline_workers_healthy_manager_not_running() -> None:
     original_pipeline_manager = system_routes._pipeline_manager
 
     try:
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": False,
             "workers": {
@@ -709,7 +718,7 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
 
     try:
         # Mock pipeline manager with stopped workers
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -719,12 +728,12 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
         }
         system_routes._pipeline_manager = mock_manager
 
-        db = AsyncMock()
-        mock_result = MagicMock()
+        db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
@@ -756,7 +765,7 @@ async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
 
     try:
         # Mock pipeline manager with running workers
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -766,12 +775,12 @@ async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
         }
         system_routes._pipeline_manager = mock_manager
 
-        db = AsyncMock()
-        mock_result = MagicMock()
+        db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
@@ -806,7 +815,7 @@ async def test_get_readiness_includes_pipeline_worker_status() -> None:
         system_routes._file_watcher = None
 
         # Mock pipeline manager with running workers
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -818,12 +827,12 @@ async def test_get_readiness_includes_pipeline_worker_status() -> None:
 
         mock_response = Response()
 
-        db = AsyncMock()
-        mock_result = MagicMock()
+        db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
@@ -858,16 +867,16 @@ async def test_get_readiness_includes_worker_status() -> None:
     mock_response = Response()
 
     try:
-        mock_gpu = MagicMock()
+        mock_gpu = MagicMock(spec=GPUMonitor)
         mock_gpu.running = True
         system_routes._gpu_monitor = mock_gpu
 
-        db = AsyncMock()
-        mock_result = MagicMock()
+        db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
@@ -901,12 +910,12 @@ async def test_get_readiness_not_ready_when_pipeline_manager_is_none() -> None:
         system_routes._system_broadcaster = None
         system_routes._file_watcher = None
 
-        db = AsyncMock()
-        mock_result = MagicMock()
+        db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         # Mock AI services health check to avoid calling get_settings() which requires env vars
@@ -946,10 +955,10 @@ async def test_get_readiness_database_timeout() -> None:
         """Simulate a slow database query that will timeout."""
         await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = slow_db_execute
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
     # Use a short timeout for testing (patch DB-specific constant used by _check_db_health_with_timeout)
@@ -969,8 +978,8 @@ async def test_get_readiness_redis_timeout() -> None:
     """Test readiness endpoint when Redis health check times out."""
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -978,7 +987,7 @@ async def test_get_readiness_redis_timeout() -> None:
         """Simulate a slow Redis health check that will timeout."""
         await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = slow_redis_health_check
 
     # Use a short timeout for testing (patch Redis-specific constant used by _check_redis_health_with_timeout)
@@ -1002,7 +1011,7 @@ async def test_get_readiness_ai_services_timeout() -> None:
 
     try:
         # Mock pipeline manager with running workers (required for ready status)
-        mock_manager = MagicMock()
+        mock_manager = MagicMock(spec=PipelineWorkerManager)
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
@@ -1012,12 +1021,12 @@ async def test_get_readiness_ai_services_timeout() -> None:
         }
         system_routes._pipeline_manager = mock_manager
 
-        db = AsyncMock()
-        mock_result = MagicMock()
+        db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock(spec=Result)
         mock_result.scalar_one.return_value = 5
         db.execute = AsyncMock(return_value=mock_result)
 
-        redis = AsyncMock()
+        redis = AsyncMock(spec=RedisClient)
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
         async def slow_ai_health_check():
@@ -1066,10 +1075,10 @@ async def test_get_readiness_all_services_timeout() -> None:
         """Simulate a slow AI services health check that will timeout."""
         await asyncio.sleep(0.5)  # Longer than 0.1s timeout, but not excessive
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = slow_db_execute
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = slow_redis_health_check
 
     # Patch all component timeouts so each check times out
@@ -1110,8 +1119,8 @@ async def test_health_check_timeout_constant_is_reasonable() -> None:
 @pytest.mark.asyncio
 async def test_get_latest_gpu_stats_returns_data() -> None:
     """Test get_latest_gpu_stats returns stats from database."""
-    db = AsyncMock()
-    mock_gpu_stat = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_gpu_stat = MagicMock(spec=GPUStats)
     mock_gpu_stat.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
     mock_gpu_stat.gpu_utilization = 75.5
     mock_gpu_stat.memory_used = 12000
@@ -1119,7 +1128,7 @@ async def test_get_latest_gpu_stats_returns_data() -> None:
     mock_gpu_stat.temperature = 65.0
     mock_gpu_stat.inference_fps = 30.5
 
-    mock_result = MagicMock()
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = mock_gpu_stat
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -1137,8 +1146,8 @@ async def test_get_latest_gpu_stats_returns_data() -> None:
 @pytest.mark.asyncio
 async def test_get_latest_gpu_stats_returns_none_when_no_data() -> None:
     """Test get_latest_gpu_stats returns None when no GPU stats exist."""
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = None
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -1150,8 +1159,8 @@ async def test_get_latest_gpu_stats_returns_none_when_no_data() -> None:
 @pytest.mark.asyncio
 async def test_get_gpu_stats_with_data() -> None:
     """Test get_gpu_stats returns GPU stats when data available."""
-    db = AsyncMock()
-    mock_gpu_stat = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_gpu_stat = MagicMock(spec=GPUStats)
     mock_gpu_stat.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
     mock_gpu_stat.gpu_name = "NVIDIA RTX A5500"
     mock_gpu_stat.gpu_utilization = 75.5
@@ -1161,7 +1170,7 @@ async def test_get_gpu_stats_with_data() -> None:
     mock_gpu_stat.power_usage = 150.0
     mock_gpu_stat.inference_fps = 30.5
 
-    mock_result = MagicMock()
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = mock_gpu_stat
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -1180,8 +1189,8 @@ async def test_get_gpu_stats_with_data() -> None:
 @pytest.mark.asyncio
 async def test_get_gpu_stats_no_data_returns_nulls() -> None:
     """Test get_gpu_stats returns null values when no GPU data available."""
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = None
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -1203,10 +1212,10 @@ async def test_get_gpu_stats_no_data_returns_nulls() -> None:
 @pytest.mark.asyncio
 async def test_get_gpu_stats_history_returns_samples() -> None:
     """Test get_gpu_stats_history returns time-series samples."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Create mock GPU stat rows
-    mock_stat1 = MagicMock()
+    mock_stat1 = MagicMock(spec=GPUStats)
     mock_stat1.recorded_at = datetime(2025, 12, 27, 9, 0, 0)
     mock_stat1.gpu_name = "NVIDIA RTX A5500"
     mock_stat1.gpu_utilization = 50.0
@@ -1216,7 +1225,7 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     mock_stat1.power_usage = 120.0
     mock_stat1.inference_fps = 25.0
 
-    mock_stat2 = MagicMock()
+    mock_stat2 = MagicMock(spec=GPUStats)
     mock_stat2.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
     mock_stat2.gpu_name = "NVIDIA RTX A5500"
     mock_stat2.gpu_utilization = 75.0
@@ -1227,12 +1236,12 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     mock_stat2.inference_fps = 30.0
 
     # Mock for count query
-    mock_count_result = MagicMock()
+    mock_count_result = MagicMock(spec=Result)
     mock_count_result.scalar.return_value = 2
 
     # Mock for data query
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
+    mock_result = MagicMock(spec=Result)
+    mock_scalars = MagicMock(spec=ScalarResult)
     # Return in descending order (newest first) - will be reversed
     mock_scalars.all.return_value = [mock_stat2, mock_stat1]
     mock_result.scalars.return_value = mock_scalars
@@ -1254,9 +1263,9 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
 @pytest.mark.asyncio
 async def test_get_gpu_stats_history_with_since_filter() -> None:
     """Test get_gpu_stats_history filters by since parameter."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
-    mock_stat = MagicMock()
+    mock_stat = MagicMock(spec=GPUStats)
     mock_stat.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
     mock_stat.gpu_name = "NVIDIA RTX A5500"
     mock_stat.gpu_utilization = 75.0
@@ -1267,12 +1276,12 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
     mock_stat.inference_fps = 30.0
 
     # Mock for count query
-    mock_count_result = MagicMock()
+    mock_count_result = MagicMock(spec=Result)
     mock_count_result.scalar.return_value = 1
 
     # Mock for data query
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
+    mock_result = MagicMock(spec=Result)
+    mock_scalars = MagicMock(spec=ScalarResult)
     mock_scalars.all.return_value = [mock_stat]
     mock_result.scalars.return_value = mock_scalars
 
@@ -1288,15 +1297,15 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
 @pytest.mark.asyncio
 async def test_get_gpu_stats_history_limit_clamping() -> None:
     """Test get_gpu_stats_history clamps limit to valid range."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     def create_mock_db() -> AsyncMock:
         """Create a fresh mock db for each test."""
-        mock_db = AsyncMock()
-        mock_count_result = MagicMock()
+        mock_db = AsyncMock(spec=AsyncSession)
+        mock_count_result = MagicMock(spec=Result)
         mock_count_result.scalar.return_value = 0
-        mock_result = MagicMock()
-        mock_scalars = MagicMock()
+        mock_result = MagicMock(spec=Result)
+        mock_scalars = MagicMock(spec=ScalarResult)
         mock_scalars.all.return_value = []
         mock_result.scalars.return_value = mock_scalars
         mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_result])
@@ -1318,15 +1327,15 @@ async def test_get_gpu_stats_history_limit_clamping() -> None:
 @pytest.mark.asyncio
 async def test_get_gpu_stats_history_empty_result() -> None:
     """Test get_gpu_stats_history with no samples."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock for count query
-    mock_count_result = MagicMock()
+    mock_count_result = MagicMock(spec=Result)
     mock_count_result.scalar.return_value = 0
 
     # Mock for data query
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
+    mock_result = MagicMock(spec=Result)
+    mock_scalars = MagicMock(spec=ScalarResult)
     mock_scalars.all.return_value = []
     mock_result.scalars.return_value = mock_scalars
 
@@ -1351,16 +1360,16 @@ async def test_get_health_all_healthy() -> None:
     system_routes.clear_health_cache()
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -1396,18 +1405,18 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
     system_routes.clear_health_cache()
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(
         return_value={"status": "unhealthy", "error": "connection refused"}
     )
 
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -1441,14 +1450,14 @@ async def test_get_health_unhealthy_when_database_down() -> None:
     system_routes.clear_health_cache()
     mock_response = Response()
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -1481,14 +1490,14 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
     system_routes.clear_health_cache()
     mock_response = Response()
 
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "redis error"})
 
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -1522,13 +1531,13 @@ async def test_get_health_redis_none() -> None:
     system_routes.clear_health_cache()
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -1564,7 +1573,7 @@ async def test_get_health_redis_none() -> None:
 @pytest.mark.asyncio
 async def test_get_config_returns_settings() -> None:
     """Test get_config returns application settings."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 30
@@ -1598,7 +1607,7 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
     runtime_env = tmp_path / "runtime.env"
     monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 7
@@ -1610,15 +1619,15 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
-    mock_get_settings = MagicMock(return_value=mock_settings)
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
 
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(retention_days=7)
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     mock_response = Response()
-    mock_db = AsyncMock()
+    mock_db = AsyncMock(spec=AsyncSession)
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
@@ -1640,7 +1649,7 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
     runtime_env = tmp_path / "runtime.env"
     monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 30
@@ -1652,15 +1661,15 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
-    mock_get_settings = MagicMock(return_value=mock_settings)
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
 
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(batch_window_seconds=120)
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     mock_response = Response()
-    mock_db = AsyncMock()
+    mock_db = AsyncMock(spec=AsyncSession)
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
@@ -1681,7 +1690,7 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
     runtime_env = tmp_path / "runtime.env"
     monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 30
@@ -1693,15 +1702,15 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
-    mock_get_settings = MagicMock(return_value=mock_settings)
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
 
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(batch_idle_timeout_seconds=45)
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     mock_response = Response()
-    mock_db = AsyncMock()
+    mock_db = AsyncMock(spec=AsyncSession)
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
@@ -1722,7 +1731,7 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
     runtime_env = tmp_path / "runtime.env"
     monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 30
@@ -1734,15 +1743,15 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
-    mock_get_settings = MagicMock(return_value=mock_settings)
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
 
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(detection_confidence_threshold=0.75)
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     mock_response = Response()
-    mock_db = AsyncMock()
+    mock_db = AsyncMock(spec=AsyncSession)
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
@@ -1763,7 +1772,7 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
     runtime_env = tmp_path / "runtime.env"
     monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 30
@@ -1775,16 +1784,16 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
-    mock_get_settings = MagicMock(return_value=mock_settings)
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
 
     from backend.api.schemas.system import ConfigUpdateRequest
 
     # Empty update - no fields set
     update = ConfigUpdateRequest()
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     mock_response = Response()
-    mock_db = AsyncMock()
+    mock_db = AsyncMock(spec=AsyncSession)
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
@@ -1806,7 +1815,7 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
     runtime_env = tmp_path / "runtime.env"
     monkeypatch.setenv("HSI_RUNTIME_ENV_PATH", str(runtime_env))
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.app_name = "Home Security Intelligence"
     mock_settings.app_version = "1.0.0"
     mock_settings.retention_days = 14
@@ -1818,7 +1827,7 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
-    mock_get_settings = MagicMock(return_value=mock_settings)
+    mock_get_settings = create_autospec(get_settings, return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
 
     from backend.api.schemas.system import ConfigUpdateRequest
@@ -1829,9 +1838,9 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
         batch_idle_timeout_seconds=20,
         detection_confidence_threshold=0.8,
     )
-    mock_request = MagicMock()
+    mock_request = MagicMock(spec=Request)
     mock_response = Response()
-    mock_db = AsyncMock()
+    mock_db = AsyncMock(spec=AsyncSession)
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
@@ -1864,18 +1873,18 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_get_stats_returns_counts() -> None:
     """Test get_stats returns camera, event, and detection counts."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
     # Mock camera count
-    camera_mock_result = MagicMock()
+    camera_mock_result = MagicMock(spec=Result)
     camera_mock_result.scalar_one.return_value = 4
 
     # Mock event count
-    event_mock_result = MagicMock()
+    event_mock_result = MagicMock(spec=Result)
     event_mock_result.scalar_one.return_value = 156
 
     # Mock detection count
-    detection_mock_result = MagicMock()
+    detection_mock_result = MagicMock(spec=Result)
     detection_mock_result.scalar_one.return_value = 892
 
     db.execute = AsyncMock(
@@ -1894,9 +1903,9 @@ async def test_get_stats_returns_counts() -> None:
 @pytest.mark.asyncio
 async def test_get_stats_zero_counts() -> None:
     """Test get_stats with zero counts."""
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
 
-    mock_result = MagicMock()
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 0
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -1924,7 +1933,7 @@ async def test_record_stage_latency_valid_stage() -> None:
     """
     from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock()
 
@@ -1947,7 +1956,7 @@ async def test_record_stage_latency_valid_stage() -> None:
 @pytest.mark.asyncio
 async def test_record_stage_latency_invalid_stage() -> None:
     """Test record_stage_latency with invalid pipeline stage logs warning."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock()
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
@@ -1961,7 +1970,7 @@ async def test_record_stage_latency_invalid_stage() -> None:
 @pytest.mark.asyncio
 async def test_record_stage_latency_exception_handling() -> None:
     """Test record_stage_latency handles Redis exceptions gracefully."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(side_effect=ConnectionError("redis error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
@@ -2064,7 +2073,7 @@ def test_calculate_stage_latency_unsorted_samples() -> None:
 @pytest.mark.asyncio
 async def test_get_latency_stats_with_data() -> None:
     """Test get_latency_stats returns latency statistics for all stages."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.peek_queue = AsyncMock(
         side_effect=[
             # watch stage
@@ -2098,7 +2107,7 @@ async def test_get_latency_stats_empty_queues() -> None:
     Empty queues should return StageLatency objects with zero values
     to ensure consistent JSON structure for metrics exporters.
     """
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.peek_queue = AsyncMock(return_value=[])
 
     result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
@@ -2119,7 +2128,7 @@ async def test_get_latency_stats_empty_queues() -> None:
 @pytest.mark.asyncio
 async def test_get_latency_stats_invalid_values_filtered() -> None:
     """Test get_latency_stats filters out invalid sample values."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.peek_queue = AsyncMock(
         side_effect=[
             # watch stage with some invalid values
@@ -2142,7 +2151,7 @@ async def test_get_latency_stats_invalid_values_filtered() -> None:
 @pytest.mark.asyncio
 async def test_get_latency_stats_exception_handling() -> None:
     """Test get_latency_stats returns None on exception."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.peek_queue = AsyncMock(side_effect=ConnectionError("redis error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
@@ -2156,7 +2165,7 @@ async def test_get_latency_stats_exception_handling() -> None:
 @pytest.mark.asyncio
 async def test_get_telemetry_returns_queue_depths_and_latencies() -> None:
     """Test get_telemetry returns queue depths and latency statistics."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.get_queue_length = AsyncMock(side_effect=[5, 2])
     redis.peek_queue = AsyncMock(
         side_effect=[
@@ -2179,7 +2188,7 @@ async def test_get_telemetry_returns_queue_depths_and_latencies() -> None:
 @pytest.mark.asyncio
 async def test_get_telemetry_queue_depth_exception() -> None:
     """Test get_telemetry handles queue depth errors gracefully."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.get_queue_length = AsyncMock(side_effect=ConnectionError("redis error"))
     redis.peek_queue = AsyncMock(return_value=[])
 
@@ -2202,8 +2211,8 @@ async def test_check_database_health_healthy() -> None:
     """Test check_database_health returns healthy on success with pool status."""
     from unittest.mock import patch
 
-    db = AsyncMock()
-    mock_result = MagicMock()
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
@@ -2233,7 +2242,7 @@ async def test_check_database_health_healthy() -> None:
 @pytest.mark.asyncio
 async def test_check_redis_health_healthy() -> None:
     """Test check_redis_health returns healthy with version details."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.2.0"})
 
     status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
@@ -2246,7 +2255,7 @@ async def test_check_redis_health_healthy() -> None:
 @pytest.mark.asyncio
 async def test_check_redis_health_exception() -> None:
     """Test check_redis_health returns unhealthy on exception."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(side_effect=ConnectionError("connection refused"))
 
     status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
@@ -2318,7 +2327,7 @@ def test_latency_constants() -> None:
 @pytest.mark.asyncio
 async def test_get_latency_stats_string_conversion() -> None:
     """Test get_latency_stats correctly converts string values to floats."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     # Return string values that should be converted to floats
     redis.peek_queue = AsyncMock(
         side_effect=[
@@ -2342,7 +2351,7 @@ async def test_get_latency_stats_string_conversion() -> None:
 @pytest.mark.asyncio
 async def test_get_latency_stats_mixed_valid_invalid() -> None:
     """Test get_latency_stats handles mix of valid and invalid values."""
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.peek_queue = AsyncMock(
         side_effect=[
             # Mix of valid floats, valid strings, and invalid values
@@ -2373,7 +2382,7 @@ async def test_record_stage_latency_sets_ttl() -> None:
     The TTL should be refreshed on each write to ensure active stages
     don't expire while inactive stages eventually do.
     """
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.expire = AsyncMock(return_value=True)
 
     await system_routes.record_stage_latency(redis, "detect", 100.0)  # type: ignore[arg-type]
@@ -2394,7 +2403,7 @@ async def test_record_stage_latency_uses_max_samples() -> None:
     """
     from backend.core.redis import QueueAddResult
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock()
 
@@ -2411,7 +2420,7 @@ async def test_record_stage_latency_all_stages_use_correct_keys() -> None:
     """Test record_stage_latency uses correct Redis keys for all stages."""
     from backend.core.redis import QueueAddResult
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock()
 
@@ -2433,7 +2442,7 @@ async def test_record_stage_latency_expire_failure_logs_warning() -> None:
     """Test record_stage_latency logs warning if expire fails."""
     from backend.core.redis import QueueAddResult
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock(side_effect=ConnectionError("redis expire error"))
 
@@ -2453,7 +2462,7 @@ async def test_record_stage_latency_ttl_refreshes_on_each_write() -> None:
     """
     from backend.core.redis import QueueAddResult
 
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock(return_value=True)
 
@@ -2495,7 +2504,7 @@ def test_latency_ttl_is_reasonable() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_success() -> None:
     """Test trigger_cleanup successfully runs cleanup and returns stats."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 10
     mock_stats.detections_deleted = 50
     mock_stats.gpu_stats_deleted = 100
@@ -2504,10 +2513,10 @@ async def test_trigger_cleanup_success() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 1024000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -2534,7 +2543,7 @@ async def test_trigger_cleanup_success() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_uses_retention_from_settings() -> None:
     """Test trigger_cleanup uses retention_days from current settings."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 0
     mock_stats.detections_deleted = 0
     mock_stats.gpu_stats_deleted = 0
@@ -2543,10 +2552,10 @@ async def test_trigger_cleanup_uses_retention_from_settings() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 0
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 7  # Custom retention
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -2570,7 +2579,7 @@ async def test_trigger_cleanup_uses_retention_from_settings() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_zero_deletions() -> None:
     """Test trigger_cleanup when nothing needs to be cleaned up."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 0
     mock_stats.detections_deleted = 0
     mock_stats.gpu_stats_deleted = 0
@@ -2579,10 +2588,10 @@ async def test_trigger_cleanup_zero_deletions() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 0
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -2605,10 +2614,10 @@ async def test_trigger_cleanup_zero_deletions() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_exception_propagates() -> None:
     """Test trigger_cleanup propagates exception from CleanupService."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(
         side_effect=RuntimeError("Database connection failed")
     )
@@ -2627,7 +2636,7 @@ async def test_trigger_cleanup_exception_propagates() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_does_not_delete_images_by_default() -> None:
     """Test trigger_cleanup does not delete original images by default."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 5
     mock_stats.detections_deleted = 20
     mock_stats.gpu_stats_deleted = 50
@@ -2636,10 +2645,10 @@ async def test_trigger_cleanup_does_not_delete_images_by_default() -> None:
     mock_stats.images_deleted = 0  # Should be 0 when delete_images=False
     mock_stats.space_reclaimed = 512000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -2661,7 +2670,7 @@ async def test_trigger_cleanup_does_not_delete_images_by_default() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_logs_operation() -> None:
     """Test trigger_cleanup logs the cleanup operation."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 10
     mock_stats.detections_deleted = 50
     mock_stats.gpu_stats_deleted = 100
@@ -2670,10 +2679,10 @@ async def test_trigger_cleanup_logs_operation() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 1024000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -2701,7 +2710,7 @@ async def test_trigger_cleanup_logs_operation() -> None:
 async def test_check_yolo26_health_success() -> None:
     """Test YOLO26 health check returns healthy when service responds."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
@@ -2738,7 +2747,7 @@ async def test_check_yolo26_health_timeout() -> None:
 async def test_check_yolo26_health_http_error() -> None:
     """Test YOLO26 health check handles HTTP error status."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Internal Server Error", request=MagicMock(), response=mock_response
@@ -2767,7 +2776,7 @@ async def test_check_yolo26_health_unexpected_error() -> None:
 async def test_check_nemotron_health_success() -> None:
     """Test Nemotron health check returns healthy when service responds."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
@@ -2804,7 +2813,7 @@ async def test_check_nemotron_health_timeout() -> None:
 async def test_check_nemotron_health_http_error() -> None:
     """Test Nemotron health check handles HTTP error status."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 503
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Service Unavailable", request=MagicMock(), response=mock_response
@@ -2833,7 +2842,7 @@ async def test_check_nemotron_health_unexpected_error() -> None:
 async def test_check_ai_services_health_both_healthy() -> None:
     """Test AI services health check when both services are healthy."""
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -2863,7 +2872,7 @@ async def test_check_ai_services_health_both_healthy() -> None:
 async def test_check_ai_services_health_yolo26_down() -> None:
     """Test AI services health check when YOLO26 is down but Nemotron is up."""
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -2896,7 +2905,7 @@ async def test_check_ai_services_health_yolo26_down() -> None:
 async def test_check_ai_services_health_nemotron_down() -> None:
     """Test AI services health check when Nemotron is down but YOLO26 is up."""
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -2929,7 +2938,7 @@ async def test_check_ai_services_health_nemotron_down() -> None:
 async def test_check_ai_services_health_both_down() -> None:
     """Test AI services health check when both services are down."""
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -2968,7 +2977,7 @@ async def test_ai_health_check_timeout_constant_is_reasonable() -> None:
 async def test_check_ai_services_health_returns_details() -> None:
     """Test that AI services health check always returns details dict."""
     # Mock settings to avoid environment validation issues
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
@@ -3201,7 +3210,7 @@ async def test_circuit_breaker_records_success_on_health_check_success() -> None
 @pytest.mark.asyncio
 async def test_verify_api_key_skips_when_disabled() -> None:
     """Test that API key verification is skipped when api_key_enabled is False."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.api_key_enabled = False
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
@@ -3212,7 +3221,7 @@ async def test_verify_api_key_skips_when_disabled() -> None:
 @pytest.mark.asyncio
 async def test_verify_api_key_returns_401_when_missing() -> None:
     """Test that API key verification returns 401 when key is missing but required."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.api_key_enabled = True
 
     with (
@@ -3228,7 +3237,7 @@ async def test_verify_api_key_returns_401_when_missing() -> None:
 @pytest.mark.asyncio
 async def test_verify_api_key_returns_401_for_invalid_key() -> None:
     """Test that API key verification returns 401 for invalid key."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.api_key_enabled = True
     mock_settings.api_keys = ["valid-api-key-123"]
 
@@ -3245,7 +3254,7 @@ async def test_verify_api_key_returns_401_for_invalid_key() -> None:
 @pytest.mark.asyncio
 async def test_verify_api_key_accepts_valid_key() -> None:
     """Test that API key verification accepts valid key."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.api_key_enabled = True
     mock_settings.api_keys = ["valid-api-key-123", "another-valid-key"]
 
@@ -3259,7 +3268,7 @@ async def test_verify_api_key_accepts_valid_key() -> None:
 @pytest.mark.asyncio
 async def test_verify_api_key_accepts_any_valid_key_from_list() -> None:
     """Test that API key verification accepts any valid key from the list."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.api_key_enabled = True
     mock_settings.api_keys = ["key-one", "key-two", "key-three"]
 
@@ -3366,7 +3375,7 @@ async def test_cleanup_endpoint_has_same_auth_as_patch_config() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_dry_run_returns_stats_without_deleting() -> None:
     """Test trigger_cleanup with dry_run=True returns stats without deleting."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 15
     mock_stats.detections_deleted = 75
     mock_stats.gpu_stats_deleted = 200
@@ -3375,10 +3384,10 @@ async def test_trigger_cleanup_dry_run_returns_stats_without_deleting() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 2048000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -3410,7 +3419,7 @@ async def test_trigger_cleanup_dry_run_returns_stats_without_deleting() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_dry_run_false_performs_actual_deletion() -> None:
     """Test trigger_cleanup with dry_run=False performs actual deletion."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 10
     mock_stats.detections_deleted = 50
     mock_stats.gpu_stats_deleted = 100
@@ -3419,10 +3428,10 @@ async def test_trigger_cleanup_dry_run_false_performs_actual_deletion() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 1024000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -3445,7 +3454,7 @@ async def test_trigger_cleanup_dry_run_false_performs_actual_deletion() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_default_dry_run_is_false() -> None:
     """Test trigger_cleanup defaults dry_run to False."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 5
     mock_stats.detections_deleted = 20
     mock_stats.gpu_stats_deleted = 50
@@ -3454,10 +3463,10 @@ async def test_trigger_cleanup_default_dry_run_is_false() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 512000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -3478,10 +3487,10 @@ async def test_trigger_cleanup_default_dry_run_is_false() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_dry_run_exception_propagates() -> None:
     """Test trigger_cleanup dry_run propagates exception from CleanupService."""
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.dry_run_cleanup = AsyncMock(
         side_effect=RuntimeError("Database query failed")
     )
@@ -3500,7 +3509,7 @@ async def test_trigger_cleanup_dry_run_exception_propagates() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_dry_run_logs_operation() -> None:
     """Test trigger_cleanup dry_run logs the operation."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 10
     mock_stats.detections_deleted = 50
     mock_stats.gpu_stats_deleted = 100
@@ -3509,10 +3518,10 @@ async def test_trigger_cleanup_dry_run_logs_operation() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 1024000
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -3534,7 +3543,7 @@ async def test_trigger_cleanup_dry_run_logs_operation() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_dry_run_uses_retention_from_settings() -> None:
     """Test trigger_cleanup dry_run uses retention_days from settings."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 0
     mock_stats.detections_deleted = 0
     mock_stats.gpu_stats_deleted = 0
@@ -3543,10 +3552,10 @@ async def test_trigger_cleanup_dry_run_uses_retention_from_settings() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 0
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 14  # Custom retention
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -3571,7 +3580,7 @@ async def test_trigger_cleanup_dry_run_uses_retention_from_settings() -> None:
 @pytest.mark.asyncio
 async def test_trigger_cleanup_dry_run_zero_counts() -> None:
     """Test trigger_cleanup dry_run when nothing would be deleted."""
-    mock_stats = MagicMock()
+    mock_stats = MagicMock(spec=CleanupStats())
     mock_stats.events_deleted = 0
     mock_stats.detections_deleted = 0
     mock_stats.gpu_stats_deleted = 0
@@ -3580,10 +3589,10 @@ async def test_trigger_cleanup_dry_run_zero_counts() -> None:
     mock_stats.images_deleted = 0
     mock_stats.space_reclaimed = 0
 
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.retention_days = 30
 
-    mock_cleanup_service = MagicMock()
+    mock_cleanup_service = MagicMock(spec=CleanupService)
     mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
 
     with (
@@ -3614,10 +3623,14 @@ async def test_trigger_cleanup_dry_run_zero_counts() -> None:
 @pytest.mark.asyncio
 async def test_get_circuit_breakers_empty_registry() -> None:
     """Test get_circuit_breakers when no circuit breakers are registered."""
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.get_all_status.return_value = {}
 
-    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+    with patch(
+        "backend.services.circuit_breaker._get_registry",
+        return_value=mock_registry,
+        autospec=True,
+    ):
         response = await system_routes.get_circuit_breakers()
 
     assert response.total_count == 0
@@ -3629,7 +3642,7 @@ async def test_get_circuit_breakers_empty_registry() -> None:
 @pytest.mark.asyncio
 async def test_get_circuit_breakers_with_closed_breakers() -> None:
     """Test get_circuit_breakers with circuit breakers in closed state."""
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.get_all_status.return_value = {
         "yolo26": {
             "state": "closed",
@@ -3663,7 +3676,11 @@ async def test_get_circuit_breakers_with_closed_breakers() -> None:
         },
     }
 
-    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+    with patch(
+        "backend.services.circuit_breaker._get_registry",
+        return_value=mock_registry,
+        autospec=True,
+    ):
         response = await system_routes.get_circuit_breakers()
 
     assert response.total_count == 2
@@ -3677,7 +3694,7 @@ async def test_get_circuit_breakers_with_closed_breakers() -> None:
 @pytest.mark.asyncio
 async def test_get_circuit_breakers_with_open_breaker() -> None:
     """Test get_circuit_breakers when a circuit breaker is open."""
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.get_all_status.return_value = {
         "yolo26": {
             "state": "open",
@@ -3696,7 +3713,11 @@ async def test_get_circuit_breakers_with_open_breaker() -> None:
         },
     }
 
-    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+    with patch(
+        "backend.services.circuit_breaker._get_registry",
+        return_value=mock_registry,
+        autospec=True,
+    ):
         response = await system_routes.get_circuit_breakers()
 
     assert response.total_count == 1
@@ -3708,7 +3729,7 @@ async def test_get_circuit_breakers_with_open_breaker() -> None:
 @pytest.mark.asyncio
 async def test_get_circuit_breakers_with_half_open_breaker() -> None:
     """Test get_circuit_breakers when a circuit breaker is in half-open state."""
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.get_all_status.return_value = {
         "yolo26": {
             "state": "half_open",
@@ -3727,7 +3748,11 @@ async def test_get_circuit_breakers_with_half_open_breaker() -> None:
         },
     }
 
-    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+    with patch(
+        "backend.services.circuit_breaker._get_registry",
+        return_value=mock_registry,
+        autospec=True,
+    ):
         response = await system_routes.get_circuit_breakers()
 
     assert response.total_count == 1
@@ -3739,10 +3764,10 @@ async def test_get_circuit_breakers_with_half_open_breaker() -> None:
 @pytest.mark.asyncio
 async def test_reset_circuit_breaker_success() -> None:
     """Test resetting a circuit breaker successfully."""
-    mock_breaker = MagicMock()
+    mock_breaker = MagicMock(spec=CircuitBreaker)
     mock_breaker.state.value = "open"
 
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.get.return_value = mock_breaker
     mock_registry.list_names.return_value = ["yolo26", "nemotron"]
 
@@ -3752,7 +3777,11 @@ async def test_reset_circuit_breaker_success() -> None:
 
     mock_breaker.reset.side_effect = reset_side_effect
 
-    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+    with patch(
+        "backend.services.circuit_breaker._get_registry",
+        return_value=mock_registry,
+        autospec=True,
+    ):
         response = await system_routes.reset_circuit_breaker("yolo26")
 
     assert response.name == "yolo26"
@@ -3765,11 +3794,15 @@ async def test_reset_circuit_breaker_success() -> None:
 @pytest.mark.asyncio
 async def test_reset_circuit_breaker_not_found() -> None:
     """Test resetting a circuit breaker that doesn't exist."""
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.list_names.return_value = ["yolo26", "nemotron"]
 
     with (
-        patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
+        patch(
+            "backend.services.circuit_breaker._get_registry",
+            return_value=mock_registry,
+            autospec=True,
+        ),
         pytest.raises(HTTPException) as exc_info,
     ):
         await system_routes.reset_circuit_breaker("nonexistent")
@@ -3824,10 +3857,10 @@ async def test_reset_circuit_breaker_invalid_characters() -> None:
 @pytest.mark.asyncio
 async def test_reset_circuit_breaker_valid_name_formats() -> None:
     """Test that valid name formats are accepted."""
-    mock_breaker = MagicMock()
+    mock_breaker = MagicMock(spec=CircuitBreaker)
     mock_breaker.state.value = "closed"
 
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.get.return_value = mock_breaker
 
     valid_names = [
@@ -3844,7 +3877,11 @@ async def test_reset_circuit_breaker_valid_name_formats() -> None:
         mock_registry.list_names.return_value = [name]
         mock_breaker.reset.reset_mock()
 
-        with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+        with patch(
+            "backend.services.circuit_breaker._get_registry",
+            return_value=mock_registry,
+            autospec=True,
+        ):
             response = await system_routes.reset_circuit_breaker(name)
 
         assert response.name == name
@@ -3854,11 +3891,15 @@ async def test_reset_circuit_breaker_valid_name_formats() -> None:
 @pytest.mark.asyncio
 async def test_reset_circuit_breaker_no_registered_breakers() -> None:
     """Test resetting when no circuit breakers are registered."""
-    mock_registry = MagicMock()
+    mock_registry = MagicMock(spec=CircuitBreakerRegistry)
     mock_registry.list_names.return_value = []
 
     with (
-        patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
+        patch(
+            "backend.services.circuit_breaker._get_registry",
+            return_value=mock_registry,
+            autospec=True,
+        ),
         pytest.raises(HTTPException) as exc_info,
     ):
         await system_routes.reset_circuit_breaker("yolo26")
@@ -3878,7 +3919,7 @@ async def test_get_cleanup_status_with_running_service() -> None:
     original_cleanup_service = system_routes._cleanup_service
 
     try:
-        mock_cleanup_service = MagicMock()
+        mock_cleanup_service = MagicMock(spec=CleanupService)
         mock_cleanup_service.get_cleanup_stats.return_value = {
             "running": True,
             "retention_days": 30,
@@ -3907,7 +3948,7 @@ async def test_get_cleanup_status_with_stopped_service() -> None:
     original_cleanup_service = system_routes._cleanup_service
 
     try:
-        mock_cleanup_service = MagicMock()
+        mock_cleanup_service = MagicMock(spec=CleanupService)
         mock_cleanup_service.get_cleanup_stats.return_value = {
             "running": False,
             "retention_days": 14,
@@ -3937,7 +3978,7 @@ async def test_get_cleanup_status_without_service() -> None:
     try:
         system_routes._cleanup_service = None
 
-        mock_settings = MagicMock()
+        mock_settings = create_autospec(Settings, instance=True)
         mock_settings.retention_days = 30
 
         with patch.object(system_routes, "get_settings", return_value=mock_settings):
@@ -4017,7 +4058,7 @@ async def test_bounded_health_check_returns_result() -> None:
 async def test_check_ai_services_health_uses_bounded_checks() -> None:
     """Test that check_ai_services_health uses bounded health checks."""
     # Verify the semaphore is being used by checking that both checks complete
-    mock_settings = MagicMock()
+    mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8090"
     mock_settings.nemotron_url = "http://localhost:8091"
 
@@ -4184,7 +4225,9 @@ async def test_get_pipeline_latency_history_empty() -> None:
     # Create a fresh tracker with no data
     tracker = PipelineLatencyTracker()
 
-    with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+    with patch(
+        "backend.core.metrics.get_pipeline_latency_tracker", autospec=True, return_value=tracker
+    ):
         # Pass explicit values since Query defaults don't resolve when calling directly
         response = await system_routes.get_pipeline_latency_history(since=60, bucket_seconds=60)
 
@@ -4215,7 +4258,9 @@ async def test_get_pipeline_latency_history_with_data() -> None:
         tracker.record_stage_latency("watch_to_detect", 150.0)
         tracker.record_stage_latency("detect_to_batch", 200.0)
 
-        with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+        with patch(
+            "backend.core.metrics.get_pipeline_latency_tracker", autospec=True, return_value=tracker
+        ):
             response = await system_routes.get_pipeline_latency_history(
                 since=60,
                 bucket_seconds=60,
@@ -4235,7 +4280,9 @@ async def test_get_pipeline_latency_history_custom_params() -> None:
 
     tracker = PipelineLatencyTracker()
 
-    with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+    with patch(
+        "backend.core.metrics.get_pipeline_latency_tracker", autospec=True, return_value=tracker
+    ):
         response = await system_routes.get_pipeline_latency_history(
             since=30,
             bucket_seconds=120,
@@ -4267,7 +4314,9 @@ async def test_get_pipeline_latency_history_stage_stats_format() -> None:
         for latency in [100.0, 110.0, 120.0, 130.0, 140.0]:
             tracker.record_stage_latency("watch_to_detect", latency)
 
-        with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+        with patch(
+            "backend.core.metrics.get_pipeline_latency_tracker", autospec=True, return_value=tracker
+        ):
             response = await system_routes.get_pipeline_latency_history(
                 since=60,
                 bucket_seconds=60,
@@ -4293,7 +4342,13 @@ async def test_get_pipeline_latency_history_stage_stats_format() -> None:
 
 
 class TestPipelineLatencyHistoryParameterValidation:
-    """Tests for parameter validation bounds on pipeline-latency-history endpoint."""
+    """Tests for parameter validation bounds on pipeline-latency-history endpoint.
+
+    M3 T8 (audit Part 4): all 18 methods shared one AST shape differing only
+    in (query string, expected status) — the guard tool reported 18 merge-safe
+    members / 1 distinct body. The whole family is now one table; every pair
+    preserved as a param.
+    """
 
     @pytest.fixture
     def client(self) -> TestClient:
@@ -4303,98 +4358,53 @@ class TestPipelineLatencyHistoryParameterValidation:
 
         return TestClient(app, headers={"X-API-Key": UNIT_TEST_API_KEY})
 
-    # === since parameter validation ===
-
-    def test_since_below_minimum_returns_422(self, client: TestClient) -> None:
-        """Test that since=0 returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?since=0")
-        assert response.status_code == 422  # Validation error
-
-    def test_since_negative_returns_422(self, client: TestClient) -> None:
-        """Test that since=-1 returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?since=-1")
-        assert response.status_code == 422  # Validation error
-
-    def test_since_above_maximum_returns_422(self, client: TestClient) -> None:
-        """Test that since=1441 (above 1440 max) returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?since=1441")
-        assert response.status_code == 422  # Validation error
-
-    def test_since_way_above_maximum_returns_422(self, client: TestClient) -> None:
-        """Test that extremely large since value returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?since=999999999")
-        assert response.status_code == 422  # Validation error
-
-    def test_since_at_minimum_boundary_returns_200(self, client: TestClient) -> None:
-        """Test that since=1 (minimum valid) returns 200."""
-        response = client.get("/api/system/pipeline-latency/history?since=1")
-        assert response.status_code == 200
-
-    def test_since_at_maximum_boundary_returns_200(self, client: TestClient) -> None:
-        """Test that since=1440 (maximum valid) returns 200."""
-        response = client.get("/api/system/pipeline-latency/history?since=1440")
-        assert response.status_code == 200
-
-    def test_since_default_returns_200(self, client: TestClient) -> None:
-        """Test that default since parameter returns 200."""
-        response = client.get("/api/system/pipeline-latency/history")
-        assert response.status_code == 200
-
-    # === bucket_seconds parameter validation ===
-
-    def test_bucket_seconds_below_minimum_returns_422(self, client: TestClient) -> None:
-        """Test that bucket_seconds=9 (below 10 min) returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=9")
-        assert response.status_code == 422  # Validation error
-
-    def test_bucket_seconds_at_one_returns_422(self, client: TestClient) -> None:
-        """Test that bucket_seconds=1 returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=1")
-        assert response.status_code == 422  # Validation error
-
-    def test_bucket_seconds_negative_returns_422(self, client: TestClient) -> None:
-        """Test that bucket_seconds=-1 returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=-1")
-        assert response.status_code == 422  # Validation error
-
-    def test_bucket_seconds_above_maximum_returns_422(self, client: TestClient) -> None:
-        """Test that bucket_seconds=3601 (above 3600 max) returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=3601")
-        assert response.status_code == 422  # Validation error
-
-    def test_bucket_seconds_way_above_maximum_returns_422(self, client: TestClient) -> None:
-        """Test that extremely large bucket_seconds value returns 422 validation error."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=999999999")
-        assert response.status_code == 422  # Validation error
-
-    def test_bucket_seconds_at_minimum_boundary_returns_200(self, client: TestClient) -> None:
-        """Test that bucket_seconds=10 (minimum valid) returns 200."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=10")
-        assert response.status_code == 200
-
-    def test_bucket_seconds_at_maximum_boundary_returns_200(self, client: TestClient) -> None:
-        """Test that bucket_seconds=3600 (maximum valid) returns 200."""
-        response = client.get("/api/system/pipeline-latency/history?bucket_seconds=3600")
-        assert response.status_code == 200
-
-    # === Combined parameter validation ===
-
-    def test_both_parameters_invalid_returns_422(self, client: TestClient) -> None:
-        """Test that both invalid since and bucket_seconds returns 422."""
-        response = client.get("/api/system/pipeline-latency/history?since=0&bucket_seconds=1")
-        assert response.status_code == 422  # Validation error
-
-    def test_both_parameters_valid_returns_200(self, client: TestClient) -> None:
-        """Test that valid since and bucket_seconds returns 200."""
-        response = client.get("/api/system/pipeline-latency/history?since=60&bucket_seconds=60")
-        assert response.status_code == 200
-
-    def test_valid_since_invalid_bucket_seconds_returns_422(self, client: TestClient) -> None:
-        """Test that valid since with invalid bucket_seconds returns 422."""
-        response = client.get("/api/system/pipeline-latency/history?since=60&bucket_seconds=1")
-        assert response.status_code == 422  # Validation error
-
-    def test_invalid_since_valid_bucket_seconds_returns_422(self, client: TestClient) -> None:
-        """Test that invalid since with valid bucket_seconds returns 422."""
-        response = client.get("/api/system/pipeline-latency/history?since=0&bucket_seconds=60")
-        assert response.status_code == 422  # Validation error
+    @pytest.mark.parametrize(
+        ("query", "expected_status"),
+        [
+            # === since parameter validation ===
+            ("?since=0", 422),  # below minimum
+            ("?since=-1", 422),  # negative
+            ("?since=1441", 422),  # above 1440 max
+            ("?since=999999999", 422),  # way above maximum
+            ("?since=1", 200),  # minimum boundary
+            ("?since=1440", 200),  # maximum boundary
+            ("", 200),  # default parameter
+            # === bucket_seconds parameter validation ===
+            ("?bucket_seconds=9", 422),  # below 10 min
+            ("?bucket_seconds=1", 422),
+            ("?bucket_seconds=-1", 422),
+            ("?bucket_seconds=3601", 422),  # above 3600 max
+            ("?bucket_seconds=999999999", 422),  # way above maximum
+            ("?bucket_seconds=10", 200),  # minimum boundary
+            ("?bucket_seconds=3600", 200),  # maximum boundary
+            # === Combined parameter validation ===
+            ("?since=0&bucket_seconds=1", 422),  # both invalid
+            ("?since=60&bucket_seconds=60", 200),  # both valid
+            ("?since=60&bucket_seconds=1", 422),  # valid since, invalid bucket
+            ("?since=0&bucket_seconds=60", 422),  # invalid since, valid bucket
+        ],
+        ids=[
+            "since_below_minimum",
+            "since_negative",
+            "since_above_maximum",
+            "since_way_above_maximum",
+            "since_at_minimum_boundary",
+            "since_at_maximum_boundary",
+            "since_default",
+            "bucket_seconds_below_minimum",
+            "bucket_seconds_at_one",
+            "bucket_seconds_negative",
+            "bucket_seconds_above_maximum",
+            "bucket_seconds_way_above_maximum",
+            "bucket_seconds_at_minimum_boundary",
+            "bucket_seconds_at_maximum_boundary",
+            "both_parameters_invalid",
+            "both_parameters_valid",
+            "valid_since_invalid_bucket_seconds",
+            "invalid_since_valid_bucket_seconds",
+        ],
+    )
+    def test_parameter_bounds(self, client: TestClient, query: str, expected_status: int) -> None:
+        """The endpoint enforces since/bucket_seconds bounds as documented."""
+        response = client.get(f"/api/system/pipeline-latency/history{query}")
+        assert response.status_code == expected_status

@@ -120,10 +120,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   );
 
   // State for groupBy option - persisted in localStorage
-  const [groupBy, setGroupBy] = useLocalStorage<GroupByOption>(
-    'timeline-group-by',
-    'time'
-  );
+  const [groupBy, setGroupBy] = useLocalStorage<GroupByOption>('timeline-group-by', 'time');
 
   // State for list view sorting (separate from the main sortOption which is dropdown-based)
   const [listSortField, setListSortField] = useState<SortField>('time');
@@ -721,41 +718,56 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   }, []);
 
   // Stable generate clip handler wrapper
-  const handleGenerateClipWrapper = useCallback((eventId: string) => {
-    void handleGenerateClip(eventId);
-  }, [handleGenerateClip]);
+  const handleGenerateClipWrapper = useCallback(
+    (eventId: string) => {
+      void handleGenerateClip(eventId);
+    },
+    [handleGenerateClip]
+  );
 
   // Convert Event to EventCard props
-  const getEventCardProps = useCallback((event: Event) => {
-    // Use memoized camera name map for efficient lookup
-    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
+  const getEventCardProps = useCallback(
+    (event: Event) => {
+      // Use memoized camera name map for efficient lookup
+      const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
-    // Convert detections (not available in list view, would need separate API call)
-    const detections: Detection[] = [];
+      // Convert detections (not available in list view, would need separate API call)
+      const detections: Detection[] = [];
 
-    return {
-      id: String(event.id),
-      timestamp: event.started_at,
-      camera_name,
-      risk_score: event.risk_score || 0,
-      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
-      summary: event.summary || 'No summary available',
-      thumbnail_url: event.thumbnail_url || undefined,
-      detections,
-      started_at: event.started_at,
-      ended_at: event.ended_at,
-      onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
-      onClick: handleEventCardClick,
-      // Snooze functionality (NEM-3592)
-      onSnooze: handleSnooze,
-      snoozedUntil: event.snooze_until || undefined,
-      // Clip generation functionality (NEM-3870)
-      onGenerateClip: handleGenerateClipWrapper,
-      onDownloadClip: handleDownloadClip,
-      isGeneratingClip: clipGeneratingIds.has(event.id),
-      clipUrl: clipUrls.get(event.id) ?? undefined,
-    };
-  }, [cameraNameMap, onViewEventDetails, handleEventCardClick, handleSnooze, handleGenerateClipWrapper, handleDownloadClip, clipGeneratingIds, clipUrls]);
+      return {
+        id: String(event.id),
+        timestamp: event.started_at,
+        camera_name,
+        risk_score: event.risk_score || 0,
+        risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+        summary: event.summary || 'No summary available',
+        thumbnail_url: event.thumbnail_url || undefined,
+        detections,
+        started_at: event.started_at,
+        ended_at: event.ended_at,
+        onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
+        onClick: handleEventCardClick,
+        // Snooze functionality (NEM-3592)
+        onSnooze: handleSnooze,
+        snoozedUntil: event.snooze_until || undefined,
+        // Clip generation functionality (NEM-3870)
+        onGenerateClip: handleGenerateClipWrapper,
+        onDownloadClip: handleDownloadClip,
+        isGeneratingClip: clipGeneratingIds.has(event.id),
+        clipUrl: clipUrls.get(event.id) ?? undefined,
+      };
+    },
+    [
+      cameraNameMap,
+      onViewEventDetails,
+      handleEventCardClick,
+      handleSnooze,
+      handleGenerateClipWrapper,
+      handleDownloadClip,
+      clipGeneratingIds,
+      clipUrls,
+    ]
+  );
 
   // Handle modal close
   const handleModalClose = useCallback(() => {
@@ -763,140 +775,167 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   }, []);
 
   // Handle mark as reviewed from modal with optimistic locking (NEM-3625)
-  const handleMarkReviewed = useCallback(async (eventId: string) => {
-    const id = parseInt(eventId, 10);
-    const event = filteredEvents.find((e) => e.id === id);
-    try {
-      // Include version for optimistic locking if available
-      await updateEvent(id, {
-        reviewed: true,
-        version: event?.version,
-      });
-      // Refetch events to reflect changes
-      void refetch();
-    } catch (err) {
-      if (err instanceof EventVersionConflictError) {
-        // Event was modified by another request - refetch and show message
-        console.warn(`Event ${id} was modified concurrently (current version: ${err.currentVersion})`);
-        void refetch(); // Refresh to get latest version
-        // TODO: Consider adding toast notification for user feedback
-      } else {
-        console.error('Failed to mark event as reviewed:', err);
+  const handleMarkReviewed = useCallback(
+    async (eventId: string) => {
+      const id = parseInt(eventId, 10);
+      const event = filteredEvents.find((e) => e.id === id);
+      try {
+        // Include version for optimistic locking if available
+        await updateEvent(id, {
+          reviewed: true,
+          version: event?.version,
+        });
+        // Refetch events to reflect changes
+        void refetch();
+      } catch (err) {
+        if (err instanceof EventVersionConflictError) {
+          // Event was modified by another request - refetch and show message
+          console.warn(
+            `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
+          );
+          void refetch(); // Refresh to get latest version
+          // TODO: Consider adding toast notification for user feedback
+        } else {
+          console.error('Failed to mark event as reviewed:', err);
+        }
       }
-    }
-  }, [filteredEvents, refetch]);
+    },
+    [filteredEvents, refetch]
+  );
 
   // Handle mark as reviewed from list view (takes number instead of string) with optimistic locking
-  const handleListMarkReviewed = useCallback(async (eventId: number) => {
-    const event = filteredEvents.find((e) => e.id === eventId);
-    try {
-      // Include version for optimistic locking if available
-      await updateEvent(eventId, {
-        reviewed: true,
-        version: event?.version,
-      });
-      // Refetch events to reflect changes
-      void refetch();
-    } catch (err) {
-      if (err instanceof EventVersionConflictError) {
-        // Event was modified by another request - refetch
-        console.warn(
-          `Event ${eventId} was modified concurrently (current version: ${err.currentVersion})`
-        );
-        void refetch(); // Refresh to get latest version
-      } else {
-        console.error('Failed to mark event as reviewed:', err);
+  const handleListMarkReviewed = useCallback(
+    async (eventId: number) => {
+      const event = filteredEvents.find((e) => e.id === eventId);
+      try {
+        // Include version for optimistic locking if available
+        await updateEvent(eventId, {
+          reviewed: true,
+          version: event?.version,
+        });
+        // Refetch events to reflect changes
+        void refetch();
+      } catch (err) {
+        if (err instanceof EventVersionConflictError) {
+          // Event was modified by another request - refetch
+          console.warn(
+            `Event ${eventId} was modified concurrently (current version: ${err.currentVersion})`
+          );
+          void refetch(); // Refresh to get latest version
+        } else {
+          console.error('Failed to mark event as reviewed:', err);
+        }
       }
-    }
-  }, [filteredEvents, refetch]);
+    },
+    [filteredEvents, refetch]
+  );
 
   // Handle flag event from modal (NEM-3839)
-  const handleFlagEvent = useCallback(async (eventId: string, flagged: boolean) => {
-    const id = parseInt(eventId, 10);
-    const event = filteredEvents.find((e) => e.id === id);
-    try {
-      // Include version for optimistic locking if available
-      await updateEvent(id, {
-        flagged,
-        version: event?.version,
-      });
-      // Refetch events to reflect changes
-      void refetch();
-      toastSuccess(flagged ? 'Event flagged for follow-up' : 'Event unflagged');
-    } catch (err) {
-      if (err instanceof EventVersionConflictError) {
-        console.warn(`Event ${id} was modified concurrently (current version: ${err.currentVersion})`);
+  const handleFlagEvent = useCallback(
+    async (eventId: string, flagged: boolean) => {
+      const id = parseInt(eventId, 10);
+      const event = filteredEvents.find((e) => e.id === id);
+      try {
+        // Include version for optimistic locking if available
+        await updateEvent(id, {
+          flagged,
+          version: event?.version,
+        });
+        // Refetch events to reflect changes
         void refetch();
-        toastError('Event was modified by another user. Please try again.');
-      } else {
-        console.error('Failed to flag event:', err);
-        toastError('Failed to flag event');
+        toastSuccess(flagged ? 'Event flagged for follow-up' : 'Event unflagged');
+      } catch (err) {
+        if (err instanceof EventVersionConflictError) {
+          console.warn(
+            `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
+          );
+          void refetch();
+          toastError('Event was modified by another user. Please try again.');
+        } else {
+          console.error('Failed to flag event:', err);
+          toastError('Failed to flag event');
+        }
+        throw err; // Re-throw to update modal loading state
       }
-      throw err; // Re-throw to update modal loading state
-    }
-  }, [filteredEvents, refetch, toastSuccess, toastError]);
+    },
+    [filteredEvents, refetch, toastSuccess, toastError]
+  );
 
   // Handle download media from modal (NEM-3839)
-  const handleDownloadMedia = useCallback(async (eventId: string) => {
-    const id = parseInt(eventId, 10);
-    try {
-      await downloadEventMedia(id);
-      toastSuccess('Media download started');
-    } catch (err) {
-      console.error('Failed to download media:', err);
-      toastError(err instanceof Error ? err.message : 'Failed to download media');
-      throw err; // Re-throw to update modal loading state
-    }
-  }, [toastSuccess, toastError]);
+  const handleDownloadMedia = useCallback(
+    async (eventId: string) => {
+      const id = parseInt(eventId, 10);
+      try {
+        await downloadEventMedia(id);
+        toastSuccess('Media download started');
+      } catch (err) {
+        console.error('Failed to download media:', err);
+        toastError(err instanceof Error ? err.message : 'Failed to download media');
+        throw err; // Re-throw to update modal loading state
+      }
+    },
+    [toastSuccess, toastError]
+  );
 
   // Handle save notes from modal (NEM-3839)
-  const handleSaveNotes = useCallback(async (eventId: string, notes: string) => {
-    const id = parseInt(eventId, 10);
-    const event = filteredEvents.find((e) => e.id === id);
-    try {
-      await updateEvent(id, {
-        notes,
-        version: event?.version,
-      });
-      void refetch();
-      toastSuccess('Notes saved');
-    } catch (err) {
-      if (err instanceof EventVersionConflictError) {
-        console.warn(`Event ${id} was modified concurrently (current version: ${err.currentVersion})`);
+  const handleSaveNotes = useCallback(
+    async (eventId: string, notes: string) => {
+      const id = parseInt(eventId, 10);
+      const event = filteredEvents.find((e) => e.id === id);
+      try {
+        await updateEvent(id, {
+          notes,
+          version: event?.version,
+        });
         void refetch();
-        toastError('Event was modified by another user. Please try again.');
-      } else {
-        console.error('Failed to save notes:', err);
-        toastError('Failed to save notes');
+        toastSuccess('Notes saved');
+      } catch (err) {
+        if (err instanceof EventVersionConflictError) {
+          console.warn(
+            `Event ${id} was modified concurrently (current version: ${err.currentVersion})`
+          );
+          void refetch();
+          toastError('Event was modified by another user. Please try again.');
+        } else {
+          console.error('Failed to save notes:', err);
+          toastError('Failed to save notes');
+        }
+        throw err;
       }
-      throw err;
-    }
-  }, [filteredEvents, refetch, toastSuccess, toastError]);
+    },
+    [filteredEvents, refetch, toastSuccess, toastError]
+  );
 
   // Handle list view column sort
-  const handleListSort = useCallback((field: SortField) => {
-    if (field === listSortField) {
-      // Toggle direction if same field
-      setListSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      // New field, default to descending
-      setListSortField(field);
-      setListSortDirection('desc');
-    }
-  }, [listSortField]);
+  const handleListSort = useCallback(
+    (field: SortField) => {
+      if (field === listSortField) {
+        // Toggle direction if same field
+        setListSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      } else {
+        // New field, default to descending
+        setListSortField(field);
+        setListSortDirection('desc');
+      }
+    },
+    [listSortField]
+  );
 
   // Handle navigation between events in modal
-  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
-    if (selectedEventForModal === null) return;
+  const handleNavigate = useCallback(
+    (direction: 'prev' | 'next') => {
+      if (selectedEventForModal === null) return;
 
-    const currentIndex = filteredEvents.findIndex((e) => e.id === selectedEventForModal);
-    if (currentIndex === -1) return;
+      const currentIndex = filteredEvents.findIndex((e) => e.id === selectedEventForModal);
+      if (currentIndex === -1) return;
 
-    const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex >= 0 && newIndex < filteredEvents.length) {
-      setSelectedEventForModal(filteredEvents[newIndex].id);
-    }
-  }, [selectedEventForModal, filteredEvents]);
+      const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+      if (newIndex >= 0 && newIndex < filteredEvents.length) {
+        setSelectedEventForModal(filteredEvents[newIndex].id);
+      }
+    },
+    [selectedEventForModal, filteredEvents]
+  );
 
   // Handle pull-to-refresh (NEM-2970)
   // Note: refetch returns void, so we wrap it in a Promise for PullToRefresh
@@ -934,35 +973,44 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   );
 
   // Stable swipe left handler wrapper
-  const handleSwipeLeftWrapper = useCallback((id: string) => {
-    void handleSwipeLeft(id);
-  }, [handleSwipeLeft]);
+  const handleSwipeLeftWrapper = useCallback(
+    (id: string) => {
+      void handleSwipeLeft(id);
+    },
+    [handleSwipeLeft]
+  );
 
   // Stable swipe right handler wrapper
-  const handleSwipeRightWrapper = useCallback((id: string) => {
-    void handleSwipeRight(id);
-  }, [handleSwipeRight]);
+  const handleSwipeRightWrapper = useCallback(
+    (id: string) => {
+      void handleSwipeRight(id);
+    },
+    [handleSwipeRight]
+  );
 
   // Convert API Event to MobileEventCard props (NEM-3070)
-  const getMobileEventCardProps = useCallback((event: Event) => {
-    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
+  const getMobileEventCardProps = useCallback(
+    (event: Event) => {
+      const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
-    return {
-      id: String(event.id),
-      timestamp: event.started_at,
-      camera_name,
-      risk_score: event.risk_score || 0,
-      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
-      summary: event.summary || 'No summary available',
-      thumbnail_url: event.thumbnail_url || undefined,
-      detections: [], // Detections not available in list view
-      started_at: event.started_at,
-      ended_at: event.ended_at,
-      onSwipeLeft: handleSwipeLeftWrapper,
-      onSwipeRight: handleSwipeRightWrapper,
-      onClick: handleEventCardClick,
-    };
-  }, [cameraNameMap, handleSwipeLeftWrapper, handleSwipeRightWrapper, handleEventCardClick]);
+      return {
+        id: String(event.id),
+        timestamp: event.started_at,
+        camera_name,
+        risk_score: event.risk_score || 0,
+        risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+        summary: event.summary || 'No summary available',
+        thumbnail_url: event.thumbnail_url || undefined,
+        detections: [], // Detections not available in list view
+        started_at: event.started_at,
+        ended_at: event.ended_at,
+        onSwipeLeft: handleSwipeLeftWrapper,
+        onSwipeRight: handleSwipeRightWrapper,
+        onClick: handleEventCardClick,
+      };
+    },
+    [cameraNameMap, handleSwipeLeftWrapper, handleSwipeRightWrapper, handleEventCardClick]
+  );
 
   // Convert API Event to ModalEvent format
   const getModalEvent = useCallback((): ModalEvent | null => {
@@ -1055,11 +1103,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
       {/* Event Statistics Panel (NEM-3587) - Server-side accurate stats */}
       {!isSearchMode && (
-        <EventStatsPanel
-          stats={eventStats}
-          isLoading={statsLoading}
-          className="mb-6"
-        />
+        <EventStatsPanel stats={eventStats} isLoading={statsLoading} className="mb-6" />
       )}
 
       {/* Full-Text Search Bar */}
@@ -1641,14 +1685,17 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             ) : (
               <>
                 {/* Grid View with GroupBy support - Responsive columns optimized for tablet (NEM-3610) */}
-                {(groupBy === 'camera' || groupBy === 'risk') && groupedEventsByOption.length > 0 ? (
+                {(groupBy === 'camera' || groupBy === 'risk') &&
+                groupedEventsByOption.length > 0 ? (
                   /* Grouped display by camera or risk level */
                   <div className="space-y-8">
                     {groupedEventsByOption.map((group) => (
                       <div key={group.key} data-testid={`group-${group.key}`}>
                         {/* Group Header */}
                         <div className="mb-4 flex items-center gap-3">
-                          {groupBy === 'camera' && <CameraIcon className="h-5 w-5 text-[#76B900]" />}
+                          {groupBy === 'camera' && (
+                            <CameraIcon className="h-5 w-5 text-[#76B900]" />
+                          )}
                           {groupBy === 'risk' && <ShieldAlert className="h-5 w-5 text-[#76B900]" />}
                           <h3 className="text-lg font-semibold text-white">{group.label}</h3>
                           <span className="rounded-full bg-gray-800 px-2 py-0.5 text-sm text-gray-400">
@@ -1660,7 +1707,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                           {group.events.map((event) => {
                             // Mobile: Use MobileEventCard with swipe gestures
                             if (isMobile) {
-                              return <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />;
+                              return (
+                                <MobileEventCard
+                                  key={event.id}
+                                  {...getMobileEventCardProps(event)}
+                                />
+                              );
                             }
                             // Desktop: Use EventCard with selection checkbox
                             return (
@@ -1725,7 +1777,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
                       // Mobile: Use MobileEventCard with swipe gestures (NEM-3070)
                       if (isMobile) {
-                        return <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />;
+                        return (
+                          <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />
+                        );
                       }
 
                       // Desktop: Use EventCard with selection checkbox

@@ -15,7 +15,17 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, LargeBinary, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -180,7 +190,13 @@ class FaceDetectionEvent(Base):
         ForeignKey("cameras.id", ondelete="CASCADE"),
         nullable=False,
     )
-    timestamp: Mapped[datetime] = mapped_column(nullable=False)
+    # timezone=True: callers pass aware datetimes (datetime.now(UTC)) and
+    # asyncpg refuses naive/aware mixing against the column type — a naive
+    # TIMESTAMP column raised "can't subtract offset-naive and offset-aware
+    # datetimes" on every record_face_detection call. Aligns with the
+    # Event.started_at / Alert.created_at convention (owner ruling F2 bug
+    # class, M1 Task 7 sibling sweep).
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     bbox: Mapped[dict] = mapped_column(JSONB, nullable=False)
     embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     matched_person_id: Mapped[int | None] = mapped_column(

@@ -387,7 +387,7 @@ export default function FilterChips({
             label="Include Deleted"
             isActive={filters.include_deleted === true}
             onClick={handleIncludeDeletedClick}
-            className={filters.include_deleted ? 'bg-red-900/20 border-red-600 text-red-400' : ''}
+            className={filters.include_deleted ? 'border-red-600 bg-red-900/20 text-red-400' : ''}
           />
           {filters.include_deleted && <Trash2 className="h-4 w-4 text-red-400" />}
         </div>

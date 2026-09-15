@@ -17,19 +17,47 @@ from backend.models.entity import Entity
 
 
 @pytest.fixture
+async def async_client(client):
+    """Alias for the shared client fixture (ledger R-T9-AIHEALTH family).
+
+    Every test here ERRORed in run-9: fixture 'async_client' not found —
+    the shared integration fixture is `client`.
+    """
+    yield client
+
+
+@pytest.fixture
 async def legacy_entity_without_cameras_seen(db_session):
     """Create a legacy entity without cameras_seen in metadata.
 
     This simulates entities created before NEM-2453 which don't have
     the cameras_seen field in entity_metadata.
     """
+    # Detection.camera_id FKs cameras.id — seed the camera first.
+    from backend.models.camera import Camera
+
+    camera = Camera(
+        id="front_door",
+        name="Front Door",
+        folder_path="/export/foscam/front_door",
+    )
+    db_session.add(camera)
+    await db_session.flush()
+
     # Create a detection first
+    # Shipped Detection model (models/detection.py): file_path is required
+    # and bbox lives in bbox_x/bbox_y/bbox_width/bbox_height columns —
+    # there is no bounding_box kwarg (ledger R-T9-NEM3262).
     detection = Detection(
         camera_id="front_door",
+        file_path="/test/front_door/det_001.jpg",
         object_type="person",
         detected_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
         confidence=0.95,
-        bounding_box={"x": 100, "y": 100, "width": 200, "height": 300},
+        bbox_x=100,
+        bbox_y=100,
+        bbox_width=200,
+        bbox_height=300,
     )
     db_session.add(detection)
     await db_session.flush()
