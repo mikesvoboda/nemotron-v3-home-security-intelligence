@@ -73,6 +73,7 @@ def load_workflow(path: Path) -> dict[str, Any]:
     Note: YAML 1.1 parses 'on' as boolean True. We need to handle this
     by checking for both 'on' and True as keys.
     """
+    # nosemgrep: path-traversal-open -- path from globbing the repo's own .github/workflows dir
     with open(path) as f:
         data = yaml.safe_load(f)
 
@@ -407,9 +408,10 @@ class TestWorkflowInventory:
         """Verify ci.yml exists."""
         assert (workflows_dir / "ci.yml").exists(), "ci.yml should exist"
 
-    def test_gpu_tests_workflow_exists(self, workflows_dir: Path) -> None:
-        """Verify gpu-tests.yml exists."""
-        assert (workflows_dir / "gpu-tests.yml").exists(), "gpu-tests.yml should exist"
+    # gpu-tests.yml existence test removed 2026-09-15 alongside the workflow
+    # itself (GPU runner costs money; see d21fb418). The gpu-tests property
+    # tests above already skip when the file is absent, so they stay valid if
+    # an owner ever reintroduces a GPU workflow.
 
     def test_deploy_workflow_exists(self, workflows_dir: Path) -> None:
         """Verify deploy.yml exists."""

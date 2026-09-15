@@ -2817,3 +2817,19 @@ could bill). Findings + actions (d21fb418, 549935c4):
    current free tier is 10 GiB storage + 10 GiB bandwidth/mo (older 1 GiB
    figures are stale), so this was ruling-driven cleanliness, not quota
    urgency. History blobs remain until any filter-repo ruling.
+
+## CI fix: stale workflow-inventory test (2026-09-15, owner-directed "correct any failures blocking merge")
+
+Integration Tests (Services) failed on 9ee4ebb9; reproduced locally in one run
+against the gate containers: TestWorkflowInventory::test_gpu_tests_workflow_exists
+asserts gpu-tests.yml exists — a file d21fb418 deleted by owner ruling (GPU
+runner costs money). The sibling gpu-tests property tests already skip when the
+file is absent, so only the existence assert was removed; the inventory class
+keeps asserting the workflows that remain. Verified: test_github_workflows.py
+21 passed / 2 skipped; full Services integration slice re-verified after fix.
+
+Context from the same triage: unit shards 1/4 + 4/4 and Vitest 9/16 did NOT
+reproduce locally at their exact CI invocations (6,793 / 6,867 unit tests and
+1,318 vitest tests, all green), so those CI exit-1s are runner-environment
+suspects, not test-content regressions — authoritative CI logs still withheld
+until the old-head run closes; will confirm from them.
