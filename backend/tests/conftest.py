@@ -44,12 +44,6 @@ Domain-Specific Fixtures (in subdirectories):
         - session: Override of root session for worker isolation
         - client: FastAPI test client with full app lifecycle
 
-    Chaos Tests (backend/tests/chaos/conftest.py):
-        - fault_injector: Core fault injection framework
-        - yolo26_*, redis_*, database_*, nemotron_*: Service-specific fault fixtures
-        - high_latency, packet_loss: Network condition simulation
-        - all_ai_services_down, cache_and_ai_down: Compound fault scenarios
-
     Contract Tests (backend/tests/contracts/conftest.py):
         - test_app: FastAPI app with mocked dependencies
         - async_client: HTTP client for contract testing
