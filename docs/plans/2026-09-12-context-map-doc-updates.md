@@ -2785,3 +2785,35 @@ as branch-local material. Commit b648430b (pre-commit green; 101 files, +3/−43
 three 0-byte "R100 renames" vs main resolved as benign: main-side test files were 0-byte
 placeholders (audit 1.1/1.2, deleted by ruling at e4ebb1a7) paired with content-identical
 0-byte salvage redirect files.
+
+## PR hygiene: free-tier settings audit + LFS removal (2026-09-15, owner-ruled)
+
+First PR in months prompted a settings/workflow audit against free-tier
+boundaries (public repo, personal Free plan; owner constraint: nothing that
+could bill). Findings + actions (d21fb418, 549935c4):
+
+1. **docs-drift.yml was structurally dead since Feb** — `secrets` is not a
+   valid step-`if` context, so Actions rejected the workflow at parse time
+   (failing run, 0 jobs, no log) on every push, main included. Guard removed;
+   the script itself fails clearly when the key is unset.
+2. **ai-code-review.yml removed** — GitHub Models fully retired 2026-07-30
+   (changelog), gh-models extension archived 2026-09-04, the openai/\* IDs it
+   chained are 400s; the `|| REVIEW=…` fallback turned every PR into a green
+   run that posted "Unable to generate AI review" as the review. Successor is
+   Copilot's metered API (AI credits per review) — off the free budget.
+   Prompt kept at .github/prompts/code-review.prompt.md.
+3. **gpu-tests.yml + nightly extended-benchmarks removed** — rtx-a5500-runner
+   registered but offline; jobs queued to timeout on every push-to-main (6h)
+   and nightly (60m). Restore notes in both AGENTS.md files.
+4. **Artifact retention 90d→30d** across 7 workflows (public-repo artifact
+   storage accounting is underspecified in GitHub's docs; conservative).
+5. **Git LFS removed from the repo** — the only LFS content was 323 synthetic
+   media pointers (571 MB real) under data/synthetic/\*\*/media/; de-tracked
+   head-only, all 21 filter=lfs rules deleted, media path gitignored so local
+   copies can't sneak back as inline binaries. JSON scenario metadata stays
+   (33 prompt-eval tests pass with media present; loader tolerates absence).
+   Real media materialized + backed up at /home/agent/data-synthetic-backup-
+   2026-09-15/ (571 MB, 1601 files). Correcting my earlier audit framing:
+   current free tier is 10 GiB storage + 10 GiB bandwidth/mo (older 1 GiB
+   figures are stale), so this was ruling-driven cleanliness, not quota
+   urgency. History blobs remain until any filter-repo ruling.
