@@ -2850,3 +2850,39 @@ assertion strength preserved). 7 more sites carry the same pattern
 useStorageStatsQuery, useOrphanCleanup, useRetry, useSettingsApi,
 useProfilingMutations) — none has a CI failure record yet; queued for
 post-merge sweep rather than expanded scope here.
+
+## CI fix: TYPE_CHECKING annotation hazard (3.14 lazy **annotate**) + header-race tests
+
+(2026-09-15, owner-directed "correct any failures blocking merge")
+
+efaa6366 run: Backend Unit 1/4 failed with a 20-test NameError cascade in
+test_system_routes.py (RedisClient undefined inside CleanupService.**init**'s
+annotation) AND Vitest 13/16 failed with PipelineLatencyPanel 'formats
+latency values correctly' (getByTestId raced the resolved query).
+
+Root cause 1 (unit): repo runs Python 3.14 (CI's 3.11 label is fiction — uv
+honors requires-python>=3.14; the CI traceback proves 3.14.2). 3.14 stores
+annotations lazily via **annotate**; they evaluate only when forced —
+MagicMock(spec=)/get_type_hints force it. cleanup_service.py imported the
+annotation types under TYPE_CHECKING, so forced evaluation NameErrors. Which
+shard/worker hits it depends on test order -> the "flaky" 1/4 & 4/4 pattern
+across 9ee4ebb9 + efaa6366 (all three failures: same file). Proven locally:
+get_type_hints(CleanupService.**init**) reproduces the exact CI NameError;
+normal runs never trigger it (lazy path), which is why it looked
+unreproducible. pyproject ignores ruff TC001/2/3 with the comment "TYPE_CHECKING
+imports break mocking in tests - keep imports at runtime" — cleanup_service
+violated its own repo policy. Fix: runtime imports in the five classes
+test_system_routes.py specs that were failing the forced-evaluation probe
+(cleanup_service, job_tracker, job_status, system_broadcaster,
+worker_supervisor; cycle-checked, mypy clean, 429 focused + full unit suite
+green). AST scan found 172 more files carry the latent pattern repo-wide —
+only classes introspected via spec=/get_type_hints actually bite; sweeping
+them is a post-merge item (candidate: ruff preview rule or targeted scan vs
+test usage).
+
+Root cause 2 (vitest 13/16): three PipelineLatencyPanel tests waited on the
+header, which renders pre-data — their subsequent sync getBy\*Text/getByTestId
+raced the query. CI lost; idle local box never does. Fixed the data-dependent
+two (stage-label test, null-handling test — anchored on bars per the file's
+own convention/comment); left the three API-call-count waits (fire with
+isLoading flip, DOM-independent) alone.

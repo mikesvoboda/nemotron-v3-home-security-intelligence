@@ -25,34 +25,36 @@ import threading
 from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 from fastapi import WebSocket
+from redis.asyncio.client import PubSub
 from sqlalchemy import func, select
+
+# Runtime imports: PubSub/AsyncSession/RedisClient/PerformanceCollector all
+# appear in evaluated annotations (pyproject TC001-003 rationale —
+# TYPE_CHECKING-only imports NameError when MagicMock(spec=)/get_type_hints
+# force Python 3.14's lazy __annotate__ to run).
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.performance import PerformanceUpdate, TimeRange
 from backend.core import get_session
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
+from backend.core.redis import RedisClient
 from backend.core.websocket_circuit_breaker import (
     WebSocketCircuitBreaker,
     WebSocketCircuitState,
 )
 from backend.models import Camera, CameraStatus, GPUStats
+from backend.services.performance_collector import PerformanceCollector
 
 # Timeout for AI service health checks in seconds
 # Keep this short to avoid blocking the broadcast loop
 # Note: This is now configurable via settings.ai_broadcast_health_timeout (NEM-2519)
 AI_HEALTH_CHECK_TIMEOUT = 1.0  # Default, use settings.ai_broadcast_health_timeout
-
-if TYPE_CHECKING:
-    from redis.asyncio.client import PubSub
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from backend.core.redis import RedisClient
-    from backend.services.performance_collector import PerformanceCollector
 
 logger = get_logger(__name__)
 
