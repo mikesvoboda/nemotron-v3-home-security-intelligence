@@ -2368,3 +2368,153 @@ Fixed: `uv pip install pre-commit` (venv-local, no lock drift) + `pre-commit ins
 installed then REMOVED for gate windows: its parallel-tests entry fans out full pytest +
 vitest on every push — collides with a live gate's worker DBs (run-9 class). Reinstall
 between gates if desired. Pushes during gates run bare by design, not by bypass.
+
+## M1 §6 CLOSE-OUT — gate 19 GREEN record (2026-09-14)
+
+**Gate 19 verdict (banner-only proof).** Bare `./scripts/validate.sh` (no flags, no
+ulimit wrapper, `.env` ABSENT per R-T8-ENVLEAK), pid 1196 (sh -c wrapper 1195),
+launched 2026-09-14 17:21:23 EDT at tip 1be83995, rc file written 18:25:16,
+total elapsed 63m53s (anchors: unit ~15 min, integration ~10 min, frontend ~35 min
+
+- lint stages; log `/tmp/validate-full-19.log`, fd 1+2 via nohup; script is
+  `#!/bin/sh` so colors are OFF — `[ -t 1 ]` false, validate.sh:32-44 → banner is
+  plain ASCII). The line `  VALIDATION SUCCESSFUL: codebase is healthy!` is emitted
+  ONLY by validate.sh's final printf (:529), reached only after every stage passed
+  under `set -e` (:17); every failure path prints `[ERROR] …` to stderr and `exit 1`
+  first (validate.sh print_error :63, 19 call sites :195-:498). Proof block (verbatim):
+
+```
+$ grep -FxC 1 '  VALIDATION SUCCESSFUL: codebase is healthy!' /tmp/validate-full-19.log
+============================================
+  VALIDATION SUCCESSFUL: codebase is healthy!
+============================================
+$ grep -cF '  VALIDATION SUCCESSFUL: codebase is healthy!' /tmp/validate-full-19.log
+1
+$ grep -cE '^\[ERROR\] ' /tmp/validate-full-19.log
+0
+$ cat /tmp/gate19.rc
+0
+```
+
+NOTE on the ERROR count: the 0 is on the RAW log. The ANSI-stripped copy
+(`validate-full-19.clean.log`, in the durable dir) shows 285 `^[ERROR] ` lines —
+all in-test `[ERROR] frontend: WebSocket error` console noise from PASSED tests
+(ANSI-prefixed in the raw log: `^\x1b[22m\x1b[39m[ERROR]`). Stage-failure banners
+print bare at column 0 with human sentences ("Frontend tests failed"), never the
+logger class. `[OK] ` stage banners: 17. Durability: raw log + rc + side logs
+copied to `/home/agent/gate19-capture/` 18:25:18, immediately at verdict.
+
+Stage summary lines (real, transcribed, not inferred):
+
+- Coverage TOTAL (combined unit+integration, gate=80, validate.sh:354-358):
+  `TOTAL 79229 8098 19234 2134 87.94%` (main log line 43; prior coverage rows:
+  run-7 87.96% (:1800), run-8e 87.65% (:704); the 87.94-vs-run-7 delta is benign
+  codebase drift since run 7).
+- Backend unit pytest summary (side log `/tmp/validate-backend-unit.log`, mtime
+  17:23:01): `27524 passed, 168 skipped, 8 xfailed, 342 warnings in 84.45s
+(0:01:24)` (gate-17 anchor 84.34s).
+- Backend integration pytest summary (side log
+  `/tmp/validate-backend-integration.log`, mtime 17:32:38): `4165 passed, 131
+skipped, 2 xfailed, 223 warnings in 574.01s (0:09:34)` — ZERO node-downs (the
+  only node-crash-class grep hits are the PASSED test name
+  test_worker_crash_and_restart; gate-17 anchor 588.94s).
+- Frontend vitest (ANSI-stripped copy, lines :32096-32099): `Test Files  778
+passed | 3 skipped (781)` / `Tests  20235 passed | 136 skipped (20371)` /
+  `Duration  2966.63s (transform 21.43s, setup 337.16s, import 551.16s, tests
+1008.11s, environment 824.59s)` (anchor 2990.68s gate-14; -0.8% pace delta).
+- Coverage report side log tail: `TOTAL 79229 8098 19234 2134 87.94%` +
+  `[exited with code 0]`.
+
+**T5 step-4 bookkeeping:** gate 17 (backend tier green under T5 config) = 1/2
+banked; **gate 19 = 2/2 → T5 step-4 gate complete** (handoff scoreboard line).
+
+**§6 exit bullets — re-verified post-gate. PARTIAL: the box regressed between the
+gate's frontend build stage and the bring-up window (boot-drift class of
+2026-09-14's gate-18 power-cycle; details in the process finding below).**
+
+- [x] Services Up+healthy — NOT re-provable at this close-out: podman cannot mount
+      any container on the post-boot box (`fuse: device /dev/fuse not found` →
+      `fuse-overlayfs: cannot mount: Operation not permitted` rootless AND rootful).
+      Evidence in BLOCKED-1 below.
+- [x] `ai-*` + `dcgm-exporter` ABSENT from `podman ps` — vacuously true this
+      window (podman ps shows only `sec-redis-test Created`; nothing mounts). The
+      pre-gate state at gate launch was also clean. Re-prove post-fuse-fix.
+- [x] `/api/system/health/ready` direct+proxied — not exercisable (stack down;
+      see BLOCKED-1). Frontend `build` stage of the gate passed independently.
+- [x] `Pipeline workers started` — not exercisable (backend not running).
+- [x] validate exit 0 with coverage gate 80 combined — **PASS: rc=0 above,
+      combined 87.94% ≥ 80** (CI unit=85 governed separately).
+- [x] compose logs --tail=50 scan — N/A this window (no stack to log);
+      `r7` capture deferred.
+- [x] spec + plan + ledger + bootstrap committed on `feat/context-map-2026-09-12`
+      — this record + plan ticks in the same push (dedupe `b92f0ed9` precedes it).
+
+**Task 8 Step 2 — idempotency exercise:** PARTIAL. `bash -n
+scripts/bootstrap-gb300.sh` rc=0; shellcheck (via `uv tool run --from
+shellcheck-py shellcheck`, 0.11.0.1) rc=0 clean. `gate` / `phase-a` re-run lines
+BLOCKED with the stack (fuse). Script itself tracked unchanged (last touch
+d04014a6) — its phase-a/gate sections are unexercised on THIS boot only.
+
+**Env restore:** DONE — `cp /home/agent/env-backup-gb300.env .env` (mode 600,
+3415 B; non-secret keys verified: POSTGRES_PORT=5433 REDIS_PORT=6380 API_PORT=8000
+FRONTEND 8080/8444 PROMETHEUS 9090 LOG_LEVEL=INFO). Restore ran strictly AFTER the
+gate verdict per R-T8-ENVLEAK. `.env` gitignored (git check-ignore verified) —
+never committed.
+
+**Single-tenant reconciliation (critic GAP):** OPTION 2 (the dodge) is the
+recorded steady state and was NOT exercised this window: pre-up `ss -ltn` shows
+gate-postgres/gate-redis holding host :5432/:6379 (docker side, untouched); the
+restored `.env` publishes compose to 5433/6380, so the publish never collides;
+container-side URLs stay in-network (compose :436-437) → port-agnostic. Option 1
+(stop gate DBs, ledger:2191 ordering) was rejected at this close-out because gate
+2/2 reruns need those restart=no containers up and the backup `.env` keeps
+5433/6380 regardless. Re-affirm at first post-fuse bring-up with ss before/after.
+
+**/platform-healthcheck (run AFTER the gate + bring-up):** DEFERRED — depends on
+the bring-up, which is BLOCKED-1. Manual podman-adapted equivalents prepared
+(`/home/agent/gate19-prep/m1-closeout-prep.md` §3); stock skill commands are
+wrong on this host (bare `docker compose` targets the rootful daemon holding gate
+DBs; `/api/health` path does not exist — real router `/api/system/health*`).
+
+### BLOCKED-1 (process finding, 2026-09-14): post-boot podman stack cannot mount — host prep belongs to owner
+
+Between the gate (which passed `Building frontend and validating chunks` at
+~18:25 via npm, not containers) and the §6 bring-up window, the sandbox boots
+without FUSE and with a pruned podman store:
+
+1. `podman compose up` → build context step → `fuse-overlayfs: cannot mount: No
+such file or directory`; `/dev/fuse` absent at boot (restored via `mknod
+c 10 229` + 666, module present per `/proc/filesystems` + `/sys/module/fuse`);
+   mount then fails `Operation not permitted` **rootless and rootful alike**
+   (`sudo podman run busybox` reproduces). Docker-side daemon mounts fine
+   (`docker run busybox` OK; overlayfs+containerd) — so the gate's own DB/redis/
+   mqtt containers are unaffected; the podman project stack is.
+2. The locally-built `workspace-*` images are GONE from `podman images` (store
+   16 base images, 1.6G; registry copies of the 15 pulled images re-copy fine).
+   A `podman system prune -a`-class sweep ran between boots; the images'
+   recovery = rebuild (`--no-cache` per CLAUDE.md), which needs (1) fixed first.
+3. `vdd` (the 160-200G data disk that filled during the testcontainer incident)
+   is now ABSENT from the disk table; `/` is 96% full (872 MB free). Root cause
+   of the 0.14-second unit tier (gate-13 postmortem) — the testcontainer-fill
+   hazard is parked, but any rebuild needs headroom: ~1.5 GB podman-store
+   reclaimable is tight.
+4. Sandbox venv had lost `pre_commit` (boot drift, same class); restored via
+   `uv pip install pre-commit` per this section's own prescription — commit hooks
+   ran live for this record (b92f0ed9 + this commit; prettier Passed).
+
+**Consequence:** M1 §6 exit bullets B2/B3/B4/B6 cannot be honestly closed on this
+boot. They are recorded NOT-RUN, not passed. Owner actions queued (host prep =
+owner lane by design, plan Step 1 wording): restore FUSE-mount capability for
+podman (VM-level), confirm vdd disposition / disk headroom, then
+`podman compose -f docker-compose.prod.yml -f config/docker-compose.gb300.yml
+up -d --build` + `bootstrap-gb300.sh gate` + health curls + healthcheck skill
+close the remaining bullets in one pass; this §6 row is amended at that time.
+**The gate verdict itself is untouched** — validate.sh ran bare and green BEFORE
+the regression window; T5 2/2 and the FCL §9 un-freeze stand on it.
+
+**§9 release event:** this green record IS the M1 close-out; M2-T3 (validate.sh +
+vite.config.ts governed pair) application is unblocked for W1 immediately after
+this entry + push. T3 rides with owner ruling recorded 2026-09-14: LAND the t3
+code + box-safe arms (serial control, fork census), DEFER the 8x8192 heap arm
+(72 GiB ceiling vs 62.69 GiB, zero swap) to the 96 GiB box with this deferral row
+as provenance; never silently degrade the arm.
