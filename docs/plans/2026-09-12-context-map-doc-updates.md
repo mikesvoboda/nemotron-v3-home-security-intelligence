@@ -2753,3 +2753,16 @@ commits are backend/tests/, scripts/, docs — gate-20/21 diff audit); final gat
 zero node-downs (gates 20+21); 134 dupes gone; integration_db no longer per-test-rebuilds
 (T4b/c); every audit [ESTIMATE] above replaced by a measured number.
 **T11 CLOSED.**
+
+### Goal closeout-96gib-2026-09-15 — S5 disposition (owner-ruled: done-minus-push)
+
+S1–S4 complete as recorded above (final gates ×2 green on the final tip, zero node-downs, T11
+rows in L, W3 draft promoted). S5's two legs hit sandbox-credential walls, verified not
+workaroundable: `git push` fails on the proxy's placeholder `GH_TOKEN` (no GitHub token set as
+a sandbox secret — host fix: `sbx secret set github --sandbox agent-nemo2 -t "$(gh auth
+token)"`, 25 commits queued); Linear has no key in this sandbox and the milestone→NEM mapping
+was owner-deferred by M1's own record. Owner ruled this goal CLOSED as done-minus-push:
+push + Linear remain owner-held actions; the ready-to-run close kit lives at
+/home/agent/gate20-evidence/ (ENDGAME-STATUS-2026-09-15.md, linear_close.py with the evidence
+comment text, every gate/durations log). This ledger is the ground truth through tip of this
+commit; nothing further is executed in-sandbox for this goal.
