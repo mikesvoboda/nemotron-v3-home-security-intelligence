@@ -582,15 +582,23 @@ class TestJobTrackerBroadcastCallback:
     def test_async_broadcast_callback_no_running_loop(self) -> None:
         """Should handle async callback when no event loop is running."""
 
-        # Create a coroutine function that returns a coroutine
-        async def async_broadcast(event_type: str, data: dict) -> None:
-            pass
-
+        # An AsyncMock call returns a coroutine, so the shipped _broadcast
+        # takes its no-running-loop branch: asyncio.run(result)
+        # (job_tracker.py _broadcast, RuntimeError fallback).
+        async_broadcast = AsyncMock()
         tracker = JobTracker(broadcast_callback=async_broadcast)
 
         # This should not raise even without a running loop
         job_id = tracker.create_job("export")
         tracker.complete_job(job_id)
+
+        # M3 T7 (audit 3.3): "not raise" was the whole test. create_job
+        # does not broadcast; complete_job broadcasts exactly once — and
+        # the coroutine must actually have been awaited, not orphaned:
+        async_broadcast.assert_awaited_once()
+        events = [call.args[0] for call in async_broadcast.call_args_list]
+        assert events == [JobEventType.JOB_COMPLETED]
+        assert async_broadcast.call_args.args[1]["data"]["job_id"] == job_id
 
     def test_broadcast_exception_handling(self) -> None:
         """Should handle exceptions in broadcast callback gracefully."""
@@ -659,6 +667,14 @@ class TestJobTrackerRedisIntegration:
 
         # Should not raise
         await tracker._persist_job_async(job_id)
+
+        # M3 T7 (audit 3.3): graceful means the Redis call was attempted
+        # AND the failure was swallowed — the ship point of this branch.
+        # (>= 1, not once: create_job above runs inside a live loop, so
+        # _schedule_persist may ALSO have scheduled a fire-and-forget
+        # persist; asserting an exact count here would be timing-dependent.)
+        assert mock_redis_client.set.await_count >= 1
+        assert tracker.get_job(job_id) is not None  # job state survives
 
     @pytest.mark.asyncio
     async def test_persist_job_async_nonexistent_job(self, mock_redis_client: AsyncMock) -> None:
@@ -743,8 +759,14 @@ class TestJobTrackerRedisIntegration:
         tracker = JobTracker()
         job_id = tracker.create_job("export")
 
-        # Should not raise
-        tracker._schedule_persist(job_id)
+        with patch.object(tracker, "_persist_job_async") as mock_persist:
+            # Should not raise
+            tracker._schedule_persist(job_id)
+
+        # M3 T7 (audit 3.3): "does nothing" was asserted nowhere. Shipped
+        # contract (_schedule_persist, job_tracker.py): without a redis
+        # client the persist is not even scheduled:
+        mock_persist.assert_not_called()
 
     def test_schedule_persist_with_event_loop(self, mock_redis_client: AsyncMock) -> None:
         """Should schedule persistence when event loop is available."""
