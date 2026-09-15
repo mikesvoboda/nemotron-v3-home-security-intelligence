@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.routes.events import _bulk_rate_limiter, router
 from backend.core.database import get_db, get_read_db
+from backend.core.redis import get_redis
 from backend.models.detection import Detection
 from backend.models.event import Event
 
@@ -88,6 +89,20 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
     async def override_rate_limiter() -> None:
         yield None
 
+    # M3 Task 3: export_events builds a NEW RateLimiter(EXPORT) inline
+    # (backend/api/routes/events.py:1179), which no _bulk_rate_limiter override
+    # catches — it resolves get_redis. Mock it (allow-all), mirroring the shape
+    # integration/conftest.py's mock_redis uses for the limiter scripts.
+    mock_redis_client = AsyncMock()
+    mock_redis_internal = MagicMock()
+    mock_redis_internal.script_load = AsyncMock(return_value="mock-sha")
+    mock_redis_internal.evalsha = AsyncMock(return_value=[1, 1])
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_redis_internal)
+
+    async def override_get_redis():
+        yield mock_redis_client
+
+    app.dependency_overrides[get_redis] = override_get_redis
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_read_db] = override_get_read_db
     app.dependency_overrides[get_cache_service_dep] = override_get_cache_service
@@ -1051,8 +1066,13 @@ class TestListEventsFieldValidation:
         assert "invalid" in response.json()["detail"].lower()
 
 
-@pytest.mark.integration  # Requires Redis connection
 class TestExportEventsFilters:
+    # M3 Task 3 (audit 1.3): dropped the stray class-level @pytest.mark.integration.
+    # Every dependency of these three tests is file-local mocks (local TestClient
+    # with overridden get_db/get_read_db/cache/`_bulk_rate_limiter`); the only real
+    # service the route touches is the inline RateLimiter(tier=EXPORT) (events.py:1179)
+    # via the get_redis dependency — overridden with a mock below (shape mirrors
+    # integration/conftest.py mock_redis: evalsha -> [1, 1] = allowed).
     """Tests for export_events with various filters."""
 
     def test_export_events_with_all_filters(self, client: TestClient, mock_db_session: AsyncMock):

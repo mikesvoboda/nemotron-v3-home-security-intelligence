@@ -65,8 +65,6 @@ Domain-Specific Fixtures (in subdirectories):
     Unit Tests (backend/tests/unit/conftest.py):
         - mock_transformers_for_speed: Speed optimization for transformers import
 
-    Unit Model Tests (backend/tests/unit/models/conftest.py):
-        - _soft_delete_serial_lock: Cross-process lock for soft delete tests
 
 CONSOLIDATION (NEM-3152):
 ==========================
@@ -410,8 +408,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     2. Integration tests (/integration/ directory):
        - Applies 'integration' marker
        - Repository tests (/integration/repositories/) get xdist_group + serial markers
-    3. Soft delete tests (test_soft_delete.py in /unit/models/):
-       - Gets xdist_group marker to force serial execution (prevents DB deadlocks)
 
     Timeout hierarchy (highest priority first; M3 T5 — CLI now governs):
     1. CLI --timeout=0 disables all timeouts (for CI)
@@ -431,13 +427,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     skip_integration = pytest.mark.skip(
         reason="Integration test requires database - skipped in unit test run"
     )
-    xdist_soft_delete = pytest.mark.xdist_group(name="soft_delete_serial")
     xdist_repository = pytest.mark.xdist_group(name="repository_tests_serial")
     serial_marker = pytest.mark.serial
 
     for item in items:
         fspath_str = str(item.fspath)
-        nodeid = item.nodeid
         is_unit = "/unit/" in fspath_str
         is_integration = "/integration/" in fspath_str
 
@@ -451,11 +445,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             # (They require a real database connection)
             if "integration" in item.keywords:
                 item.add_marker(skip_integration)
-
-            # Soft delete tests need xdist_group for serial execution
-            # to avoid database deadlocks when modifying schema
-            if "test_soft_delete.py" in nodeid and not item.get_closest_marker("xdist_group"):
-                item.add_marker(xdist_soft_delete)
 
         # === INTEGRATION TEST HANDLING ===
         elif is_integration:
@@ -1942,42 +1931,6 @@ async def isolated_db() -> AsyncGenerator[None]:
 
     # Clear cache one more time to ensure clean state
     get_settings.cache_clear()
-
-
-@pytest.fixture
-async def session(isolated_db: None) -> AsyncGenerator[None]:
-    """Create an isolated database session with transaction rollback for each test.
-
-    This fixture provides true isolation in parallel test execution by:
-    1. Starting a savepoint before each test
-    2. Rolling back to the savepoint after each test
-
-    All data created during the test is automatically rolled back, ensuring
-    parallel tests don't see each other's data.
-
-    Usage:
-        @pytest.mark.asyncio
-        async def test_something(session):
-            camera = Camera(id="test", name="Test")
-            session.add(camera)
-            await session.flush()
-            # Test assertions...
-            # Data is automatically rolled back after test
-    """
-    from sqlalchemy import text
-
-    from backend.core.database import get_session
-
-    async with get_session() as sess:
-        # Start a savepoint that we'll roll back to after the test
-        # This ensures test isolation without needing TRUNCATE
-        await sess.execute(text("SAVEPOINT test_savepoint"))
-
-        try:
-            yield sess
-        finally:
-            # Roll back to savepoint to undo all changes from this test
-            await sess.execute(text("ROLLBACK TO SAVEPOINT test_savepoint"))
 
 
 @pytest.fixture(autouse=True)
