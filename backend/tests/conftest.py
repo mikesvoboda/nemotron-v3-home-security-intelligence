@@ -691,6 +691,8 @@ def _create_worker_database(base_url: str, db_name: str) -> str:
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
                 try:
+                    # Use sql.Identifier for safe escaping (NEM-4452)
+                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
                     cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
                 except psycopg2.errors.DuplicateDatabase:
                     pass  # lost the race to a sibling worker: the DB exists, that is all we wanted
@@ -739,6 +741,7 @@ def _drop_worker_database(base_url: str, db_name: str, max_retries: int = 3) -> 
                     "WHERE datname = %s AND pid <> pg_backend_pid()",
                     (db_name,),
                 )
+                # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
                 cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name)))
                 cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
             return
