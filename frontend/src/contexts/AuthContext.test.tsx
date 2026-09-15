@@ -280,15 +280,30 @@ describe('AuthContext', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      await expect(
-        act(async () => {
+      // Capture the rejection INSIDE act. The previous shape —
+      // `await expect(act(async () => { await login() })).rejects.toThrow()` —
+      // lets the rejected promise escape act's scope, which is React's
+      // documented act-misuse: the leaked act error poisons the next
+      // renderHook/act in the file. On CI that victim was the next test
+      // ('provides logout function'), whose renderHook silently returned a
+      // null result (Vitest 9/16, runs on 9ee4ebb9 + f5a9664a; never
+      // reproduces locally where the 401 rejects faster than the leak
+      // window). Catching in-handler keeps every promise settled inside act
+      // while preserving the same assertions.
+      let loginError: unknown = null;
+      await act(async () => {
+        try {
           await result.current.login({
             username: 'testuser',
             password: 'wrong',
           });
-        })
-      ).rejects.toThrow();
+        } catch (e) {
+          loginError = e;
+        }
+      });
 
+      expect(loginError).toBeInstanceOf(Error);
+      expect((loginError as Error).message).toBe('Invalid credentials');
       expect(result.current.user).toBeNull();
     });
   });

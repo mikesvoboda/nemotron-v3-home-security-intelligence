@@ -2833,3 +2833,20 @@ reproduce locally at their exact CI invocations (6,793 / 6,867 unit tests and
 1,318 vitest tests, all green), so those CI exit-1s are runner-environment
 suspects, not test-content regressions — authoritative CI logs still withheld
 until the old-head run closes; will confirm from them.
+
+## CI fix: AuthContext act-rejection leak (2026-09-15, Vitest 9/16 gate failure)
+
+f5a9664a run: every gate job green except Vitest 9/16 (1/18 fails: 'provides
+logout function', result.current null). Per-test repro invisible locally
+(5x file runs green) — CI-only. Root cause: 'throws error on login failure'
+ran `await expect(act(async () => { await login() })).rejects.toThrow()` —
+the rejected promise escapes act's scope (React's documented act-misuse);
+the leaked act error poisons the NEXT renderHook in the file, whose result
+comes back null. Victim = innocent neighbor (same topology as the CleanupRow
+leaked-timer precedent). Fix: capture the rejection inside act's handler,
+assert on the captured error ('Invalid credentials' 401 body survives —
+assertion strength preserved). 7 more sites carry the same pattern
+(useScheduledReports, useOptimisticLocking, useLineZoneAnalytics,
+useStorageStatsQuery, useOrphanCleanup, useRetry, useSettingsApi,
+useProfilingMutations) — none has a CI failure record yet; queued for
+post-merge sweep rather than expanded scope here.
