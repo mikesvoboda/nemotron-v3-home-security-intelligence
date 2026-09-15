@@ -2772,3 +2772,16 @@ commit; nothing further is executed in-sandbox for this goal.
 injection still inert — a one-shot credential helper over GH_TOKEN did it, nothing persisted
 to config). Verified `git rev-parse HEAD` == `origin/...`. Linear close-out remains owner-held
 (needs a LINEAR_API_KEY; kit at /home/agent/gate20-evidence/linear_close.py).
+
+## PR hygiene: staged/ de-track (2026-09-15, owner-ruled "drop the staged changes")
+
+Branch-vs-main review found docs/superpowers/staged still contributing ~43.5k added lines
+(≈63% of the branch's insertions, 100 files) even after the build3/ snapshot removal at
+68ea8df8. With M1–M3 closed and every number recorded in this ledger, the owner ruled the
+drafts out of the PR: `git rm --cached` for all 100 paths (head-only again; history keeps
+the blobs), the whole tree now gitignored, and a durable evidence copy taken to
+/home/agent/staged-salvage-2026-09-15/ (100 files, 2.2M) since the on-disk copies stay only
+as branch-local material. Commit b648430b (pre-commit green; 101 files, +3/−43,484). The
+three 0-byte "R100 renames" vs main resolved as benign: main-side test files were 0-byte
+placeholders (audit 1.1/1.2, deleted by ruling at e4ebb1a7) paired with content-identical
+0-byte salvage redirect files.
