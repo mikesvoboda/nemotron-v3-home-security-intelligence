@@ -21,7 +21,6 @@ Test Coverage:
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 import httpx
@@ -258,9 +257,6 @@ class TestSetupFlow:
         user_data = register_response.json()
         assert user_data["is_admin"] is True
 
-        # Step 4: Wait for cache to refresh
-        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
-
         # Step 5: Verify setup complete (shipped field: setup_required)
         status_after = await client.get("/api/auth/setup-status")
         assert status_after.status_code == 200
@@ -346,8 +342,6 @@ class TestPostSetupAuthentication:
             },
         )
 
-        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
-
         # Access endpoints with NO auth headers beyond the fixture default
         endpoints = [
             "/api/cameras",
@@ -418,8 +412,6 @@ class TestPostSetupAuthentication:
             assert login_response.status_code == 200
             assert "set-cookie" in login_response.headers
 
-            await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
-
             # SESSION_COOKIE_SECURE=True means httpx (http://test base_url)
             # correctly refuses to auto-store the cookie; a real browser over
             # HTTPS would send it. Extract and send it explicitly.
@@ -465,8 +457,6 @@ class TestPostSetupAuthentication:
                 "password": "SecurePassword123!",  # pragma: allowlist secret
             },
         )
-
-        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Try with an invalid session cookie
         with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
@@ -525,8 +515,6 @@ class TestApiKeyAuthentication:
             )
             assert login_response.status_code == 200
 
-            await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
-
             # SESSION_COOKIE_SECURE=True: httpx (http base_url) does not auto-store
             # the login cookie; a real browser over HTTPS would. Send it explicitly.
             explicit_cookie = {
@@ -574,8 +562,6 @@ class TestApiKeyAuthentication:
                 "password": "SecurePassword123!",  # pragma: allowlist secret
             },
         )
-
-        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Try with invalid API key on a route that has per-route auth
         # protection (verify_api_key/get_current_admin_user) — the global
@@ -625,8 +611,6 @@ class TestSessionCookieAuthentication:
         )
         assert "set-cookie" in login_response.headers
 
-        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
-
         # Subsequent requests should work with cookies
         # (AsyncClient automatically handles cookies)
         response = await client.get("/api/cameras")
@@ -668,8 +652,6 @@ class TestSessionCookieAuthentication:
                 },
             )
             assert login_response.status_code == 200
-
-            await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
             # SESSION_COOKIE_SECURE=True: httpx (http base_url) does not auto-store
             # the login cookie; send it explicitly (owner ruling F3)
@@ -733,8 +715,6 @@ class TestMultiUserFlow:
             )
             assert login_response.status_code == 200
 
-            await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
-
             # SESSION_COOKIE_SECURE=True: send the login cookie explicitly
             admin_cookie = {
                 SESSION_COOKIE_NAME: login_response.cookies.get(SESSION_COOKIE_NAME, "")
@@ -791,8 +771,6 @@ class TestMultiUserFlow:
                 },
             )
             assert login_response.status_code == 200
-
-            await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
             # SESSION_COOKIE_SECURE=True: send the login cookie explicitly
             admin_cookie = {
