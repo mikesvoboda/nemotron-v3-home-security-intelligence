@@ -106,127 +106,72 @@ class TestMQTTPublisherSettings:
 
 
 class TestTopicMapping:
-    """Tests for event type to MQTT topic mapping."""
+    """Tests for event type to MQTT topic mapping.
 
-    def test_alert_created_topic(self) -> None:
-        """Test alert.created maps to alerts topic."""
-        topic = get_topic_for_event("alert.created", {"severity": "high"})
-        assert topic == "alerts/high"
+    M3 T8 (audit Part 4): the class's 18 per-event tests were parametrize
+    duplicates differing only in (event, payload, expected topic) — the
+    guard tool bucketed them as three AST-shape variants (single-line vs
+    multi-line call formatting) that are semantically one table; the table
+    is now the single source, every pair preserved as a param.
+    """
 
-    def test_alert_updated_topic(self) -> None:
-        """Test alert.updated maps to alerts topic."""
-        topic = get_topic_for_event("alert.updated", {"severity": "medium"})
-        assert topic == "alerts/medium"
-
-    def test_camera_online_topic(self) -> None:
-        """Test camera.online maps to health/cameras topic."""
-        topic = get_topic_for_event("camera.online", {"camera_id": "front_door"})
-        assert topic == "health/cameras/front_door"
-
-    def test_camera_offline_topic(self) -> None:
-        """Test camera.offline maps to health/cameras topic."""
-        topic = get_topic_for_event("camera.offline", {"camera_id": "backyard"})
-        assert topic == "health/cameras/backyard"
-
-    def test_detection_new_topic(self) -> None:
-        """Test detection.new maps to detections topic with camera and object type."""
-        topic = get_topic_for_event(
-            "detection.new",
-            {"camera_id": "garage", "object_type": "person"},
-        )
-        assert topic == "detections/garage/person"
-
-    def test_detection_batch_topic(self) -> None:
-        """Test detection.batch maps to detections/batch topic."""
-        topic = get_topic_for_event(
-            "detection.batch",
-            {"camera_id": "driveway"},
-        )
-        assert topic == "detections/driveway/batch"
-
-    def test_zone_crossing_topic(self) -> None:
-        """Test zone.crossing maps to zones/{zone_id}/crossing."""
-        topic = get_topic_for_event(
-            "zone.crossing",
-            {"zone_id": "perimeter_1"},
-        )
-        assert topic == "zones/perimeter_1/crossing"
-
-    def test_zone_dwell_started_topic(self) -> None:
-        """Test zone.dwell_started maps to zones/{zone_id}/dwell."""
-        topic = get_topic_for_event(
-            "zone.dwell_started",
-            {"zone_id": "entrance"},
-        )
-        assert topic == "zones/entrance/dwell"
-
-    def test_zone_dwell_alert_topic(self) -> None:
-        """Test zone.dwell_alert maps to zones/{zone_id}/dwell."""
-        topic = get_topic_for_event(
-            "zone.dwell_alert",
-            {"zone_id": "lobby"},
-        )
-        assert topic == "zones/lobby/dwell"
-
-    def test_entity_matched_topic(self) -> None:
-        """Test entity.matched maps to entities topic."""
-        topic = get_topic_for_event(
-            "entity.matched",
-            {"entity_type": "person"},
-        )
-        assert topic == "entities/person"
-
-    def test_entity_track_updated_topic(self) -> None:
-        """Test entity.track_updated maps to entities topic."""
-        topic = get_topic_for_event(
-            "entity.track_updated",
-            {"entity_type": "vehicle"},
-        )
-        assert topic == "entities/vehicle"
-
-    def test_system_health_topic(self) -> None:
-        """Test system.health_changed maps to health/system."""
-        topic = get_topic_for_event("system.health_changed", {})
-        assert topic == "health/system"
-
-    def test_ai_threat_detected_topic(self) -> None:
-        """Test ai.threat_detected maps to ai/threats."""
-        topic = get_topic_for_event(
-            "ai.threat_detected",
-            {"camera_id": "entrance"},
-        )
-        assert topic == "ai/threats/entrance"
-
-    def test_ai_action_recognized_topic(self) -> None:
-        """Test ai.action_recognized maps to ai/actions."""
-        topic = get_topic_for_event(
-            "ai.action_recognized",
-            {"camera_id": "parking", "action": "loitering"},
-        )
-        assert topic == "ai/actions/parking"
-
-    def test_generic_event_topic(self) -> None:
-        """Test generic events map to events topic."""
-        topic = get_topic_for_event(
-            "event.created",
-            {"camera_id": "unknown"},
-        )
-        assert topic == "events/unknown"
-
-    def test_unknown_event_type_fallback(self) -> None:
-        """Test unknown event types use fallback topic."""
-        topic = get_topic_for_event("unknown.event.type", {"camera_id": "test"})
-        assert topic == "events/test"
-
-    def test_missing_camera_id_uses_default(self) -> None:
-        """Test missing camera_id uses 'unknown' as default."""
-        topic = get_topic_for_event("detection.new", {"object_type": "car"})
-        assert topic == "detections/unknown/car"
-
-    def test_missing_zone_id_uses_default(self) -> None:
-        """Test missing zone_id uses 'unknown' as default."""
-        topic = get_topic_for_event("zone.crossing", {})
-        assert topic == "zones/unknown/crossing"
+    @pytest.mark.parametrize(
+        ("event_type", "payload", "expected_topic"),
+        [
+            ("alert.created", {"severity": "high"}, "alerts/high"),
+            ("alert.updated", {"severity": "medium"}, "alerts/medium"),
+            ("camera.online", {"camera_id": "front_door"}, "health/cameras/front_door"),
+            ("camera.offline", {"camera_id": "backyard"}, "health/cameras/backyard"),
+            (
+                "detection.new",
+                {"camera_id": "garage", "object_type": "person"},
+                "detections/garage/person",
+            ),
+            ("detection.batch", {"camera_id": "driveway"}, "detections/driveway/batch"),
+            ("zone.crossing", {"zone_id": "perimeter_1"}, "zones/perimeter_1/crossing"),
+            ("zone.dwell_started", {"zone_id": "entrance"}, "zones/entrance/dwell"),
+            ("zone.dwell_alert", {"zone_id": "lobby"}, "zones/lobby/dwell"),
+            ("entity.matched", {"entity_type": "person"}, "entities/person"),
+            ("entity.track_updated", {"entity_type": "vehicle"}, "entities/vehicle"),
+            ("system.health_changed", {}, "health/system"),
+            ("ai.threat_detected", {"camera_id": "entrance"}, "ai/threats/entrance"),
+            (
+                "ai.action_recognized",
+                {"camera_id": "parking", "action": "loitering"},
+                "ai/actions/parking",
+            ),
+            ("event.created", {"camera_id": "unknown"}, "events/unknown"),
+            ("unknown.event.type", {"camera_id": "test"}, "events/test"),
+            ("detection.new", {"object_type": "car"}, "detections/unknown/car"),
+            ("zone.crossing", {}, "zones/unknown/crossing"),
+        ],
+        ids=[
+            "alert_created",
+            "alert_updated",
+            "camera_online",
+            "camera_offline",
+            "detection_new",
+            "detection_batch",
+            "zone_crossing",
+            "zone_dwell_started",
+            "zone_dwell_alert",
+            "entity_matched",
+            "entity_track_updated",
+            "system_health",
+            "ai_threat_detected",
+            "ai_action_recognized",
+            "generic_event",
+            "unknown_event_type_fallback",
+            "missing_camera_id_uses_default",
+            "missing_zone_id_uses_default",
+        ],
+    )
+    def test_event_type_maps_to_topic(
+        self, event_type: str, payload: dict, expected_topic: str
+    ) -> None:
+        """Each event type maps to its documented MQTT topic."""
+        topic = get_topic_for_event(event_type, payload)
+        assert topic == expected_topic
 
 
 # =============================================================================
