@@ -1,0 +1,1305 @@
+== backend/tests/unit/services/test_alert_dedup.py::TestValidateDedupKey  methods=39 merge-safe=34 distinct-bodies=9 guards={"'cannot be empty'": 2, "'cannot be whitespace-only'": 1, "'leading or trailing whitespace'": 2, "'invalid characters'": 28}
+   x26 match=["'invalid characters'"]: test_sql_injection_single_quote_rejected, test_sql_injection_double_quote_rejected, test_command_injection_semicolon_rejected, test_path_traversal_rejected, test_newline_injection_rejected, test_carriage_return_injection_rejected…
+   x4 match=-: test_valid_alphanumeric_key, test_valid_key_with_underscores, test_valid_key_with_hyphens, test_valid_key_with_colons
+   x2 match=["'cannot be empty'"]: test_empty_string_raises_error, test_none_raises_error
+   x2 match=["'leading or trailing whitespace'"]: test_leading_whitespace_raises_error, test_trailing_whitespace_raises_error
+== backend/tests/unit/services/test_vision_extractor.py::TestYOLOFlorenceSemanticEquivalence  methods=22 merge-safe=22 distinct-bodies=2 guards=-
+   x20 match=-: test_semantic_equivalence_car_sedan, test_semantic_equivalence_car_coupe, test_semantic_equivalence_car_hatchback, test_semantic_equivalence_car_suv, test_semantic_equivalence_car_crossover, test_semantic_equivalence_bus_police_car_mismatch…
+   x2 match=-: test_semantic_equivalence_case_insensitive, test_semantic_equivalence_partial_match
+== backend/tests/unit/services/test_xclip_loader.py::TestGetActionRiskWeight  methods=23 merge-safe=22 distinct-bodies=2 guards=-
+   x22 match=-: test_breaking_in_high_risk, test_vandalizing_high_risk, test_trying_door_handle_high_risk, test_hiding_high_risk, test_loitering_medium_risk, test_suspiciously_medium_risk…
+== backend/tests/unit/services/test_reasoning_extraction.py::TestExtractReasoningAndResponse  methods=28 merge-safe=21 distinct-bodies=12 guards=-
+   x9 match=-: test_extract_valid_think_block_with_json, test_json_only_response, test_empty_string_input, test_whitespace_only_input, test_plain_text_without_json, test_empty_think_block…
+   x4 match=-: test_unopened_think_tag, test_mismatched_case_tags, test_extra_whitespace_in_tags, test_reversed_tags
+   x4 match=-: test_nested_angle_brackets_in_reasoning, test_json_like_content_in_reasoning, test_think_block_with_nested_xml_like_tags, test_double_think_open_tags
+   x2 match=-: test_extract_reasoning_with_unicode, test_reasoning_with_html_entities
+   x2 match=-: test_no_think_block_returns_empty_reasoning, test_unclosed_think_tag_returns_original
+== backend/tests/unit/routes/test_system_routes.py::TestPipelineLatencyHistoryParameterValidation  methods=18 merge-safe=18 distinct-bodies=1 guards=-
+   x18 match=-: test_since_below_minimum_returns_422, test_since_negative_returns_422, test_since_above_maximum_returns_422, test_since_way_above_maximum_returns_422, test_since_at_minimum_boundary_returns_200, test_since_at_maximum_boundary_returns_200…
+== backend/tests/unit/services/test_mqtt_publisher.py::TestTopicMapping  methods=18 merge-safe=18 distinct-bodies=3 guards=-
+   x14 match=-: test_alert_created_topic, test_alert_updated_topic, test_camera_online_topic, test_camera_offline_topic, test_detection_batch_topic, test_zone_crossing_topic…
+   x2 match=-: test_detection_new_topic, test_ai_action_recognized_topic
+   x2 match=-: test_system_health_topic, test_missing_zone_id_uses_default
+== backend/tests/unit/services/test_xclip_loader.py::TestIsSuspiciousAction  methods=17 merge-safe=17 distinct-bodies=2 guards=-
+   x15 match=-: test_loitering_is_suspicious, test_suspicious_behavior_detected, test_running_away_is_suspicious, test_trying_door_is_suspicious, test_hiding_is_suspicious, test_vandalizing_is_suspicious…
+   x2 match=-: test_case_insensitive_detection, test_partial_match
+== backend/tests/unit/models/test_user_calibration.py::TestUserCalibrationColumnDefinitions  methods=23 merge-safe=16 distinct-bodies=9 guards=-
+   x10 match=-: test_calibration_has_id_column, test_calibration_has_user_id_column, test_calibration_has_low_threshold_column, test_calibration_has_medium_threshold_column, test_calibration_has_high_threshold_column, test_calibration_has_decay_factor_column…
+   x6 match=-: test_calibration_low_threshold_has_default, test_calibration_medium_threshold_has_default, test_calibration_high_threshold_has_default, test_calibration_decay_factor_has_default, test_calibration_false_positive_count_has_default, test_calibration_missed_threat_count_has_default
+== backend/tests/unit/services/test_prompts.py::TestFormatTemporalActionContext  methods=25 merge-safe=16 distinct-bodies=12 guards=-
+   x8 match=-: test_exactly_50_percent_confidence_included, test_action_alias_normalization_loitering, test_action_alias_normalization_approaching_door, test_action_alias_normalization_running_away, test_action_alias_normalization_suspicious, test_action_alias_normalization_door_handle…
+   x6 match=-: test_approaching_door_action, test_running_away_action, test_checking_car_doors_action, test_suspicious_behavior_action, test_breaking_in_action, test_vandalism_action
+   x2 match=-: test_missing_detected_action_returns_empty_string, test_missing_confidence_defaults_to_zero
+== backend/tests/unit/api/schemas/test_camera_validation.py::TestCameraCreateFolderPathValidation  methods=18 merge-safe=15 distinct-bodies=5 guards=-
+   x9 match=-: test_folder_path_traversal_encoded_rejected, test_folder_path_with_angle_brackets_rejected, test_folder_path_with_pipe_rejected, test_folder_path_with_question_mark_rejected, test_folder_path_with_asterisk_rejected, test_folder_path_with_colon_rejected…
+   x6 match=-: test_valid_folder_path_absolute, test_valid_folder_path_with_underscores, test_valid_folder_path_with_hyphens, test_folder_path_relative_warning, test_folder_path_single_dot_allowed, test_folder_path_dot_in_name_allowed
+== backend/tests/unit/api/test_exception_handlers.py::TestProblemDetailsExceptionHandler  methods=17 merge-safe=13 distinct-bodies=6 guards=-
+   x10 match=-: test_401_unauthorized, test_403_forbidden, test_404_not_found, test_409_conflict, test_422_unprocessable_content, test_429_too_many_requests…
+   x3 match=-: test_missing_detail_uses_status_phrase, test_empty_detail_uses_status_phrase, test_type_is_about_blank
+== backend/tests/unit/services/test_notification_webhook_ssrf.py::TestSendNotificationRequestWebhookSSRF  methods=14 merge-safe=13 distinct-bodies=5 guards=-
+   x4 match=-: test_valid_https_webhook_url, test_valid_https_webhook_with_path, test_localhost_http_allowed_in_dev, test_localhost_127_http_allowed
+   x4 match=-: test_external_http_blocked, test_metadata_hostname_blocked, test_embedded_credentials_blocked, test_ftp_scheme_blocked
+   x3 match=-: test_private_ip_10_blocked, test_private_ip_172_blocked, test_private_ip_192_blocked
+   x2 match=-: test_null_webhook_url_allowed, test_empty_webhook_url_becomes_none
+== backend/tests/unit/services/test_performance_collector.py::TestThresholds  methods=14 merge-safe=13 distinct-bodies=2 guards=-
+   x13 match=-: test_gpu_temperature_thresholds, test_gpu_utilization_thresholds, test_gpu_vram_thresholds, test_gpu_power_thresholds, test_host_cpu_thresholds, test_host_ram_thresholds…
+== backend/tests/unit/services/test_yolo_world_loader.py::TestPackageDetectionPrompts  methods=20 merge-safe=13 distinct-bodies=9 guards=-
+   x11 match=-: test_packages_prompts_include_cardboard_delivery_package, test_packages_prompts_include_amazon_shipping_box, test_packages_prompts_include_fedex_package, test_packages_prompts_include_ups_package, test_packages_prompts_include_mail_envelope, test_packages_prompts_include_food_delivery_bag…
+   x2 match=-: test_packages_threshold_is_035, test_packages_priority_is_medium
+== backend/tests/unit/api/routes/test_events.py::TestSanitizeCsvValueEdgeCases  methods=13 merge-safe=12 distinct-bodies=2 guards=-
+   x12 match=-: test_sanitize_csv_value_equals_only, test_sanitize_csv_value_plus_only, test_sanitize_csv_value_minus_only, test_sanitize_csv_value_at_only, test_sanitize_csv_value_tab_only, test_sanitize_csv_value_carriage_return_only…
+== backend/tests/unit/api/schemas/test_alerts.py::TestValidateTimeFormat  methods=16 merge-safe=12 distinct-bodies=8 guards={'"Invalid hours \'24\'.*Hours must be 00-23"': 1, '"Invalid hours \'99\'.*Hours must be 00-23"': 1, '"Invalid minutes \'60\'.*Minutes must be 00-59"': 1, '"Invalid minutes \'99\'.*Minutes must be 00-59"': 1, "'Invalid time format.*Expected HH:MM'": 3, "'Hours and minutes must be numeric'": 2, "'Invalid time format'": 2}
+   x5 match=-: test_valid_time_format_midnight, test_valid_time_format_end_of_day, test_valid_time_format_noon, test_valid_time_format_morning, test_valid_time_format_evening
+   x3 match=["'Invalid time format.*Expected HH:MM'"]: test_invalid_format_no_colon, test_invalid_format_single_digit_hours, test_invalid_format_single_digit_minutes
+   x2 match=["'Hours and minutes must be numeric'"]: test_invalid_format_non_numeric_hours, test_invalid_format_non_numeric_minutes
+   x2 match=["'Invalid time format'"]: test_invalid_format_empty_string, test_invalid_format_too_long
+== backend/tests/unit/api/schemas/test_llm.py::TestLLMRiskResponse  methods=37 merge-safe=12 distinct-bodies=30 guards=-
+   x3 match=-: test_summary_coercion_none_to_default, test_summary_coercion_empty_string_to_default, test_summary_coercion_strips_whitespace
+   x3 match=-: test_reasoning_coercion_none_to_default, test_reasoning_coercion_empty_string_to_default, test_reasoning_coercion_strips_whitespace
+   x2 match=-: test_risk_score_coercion_from_float, test_risk_score_coercion_from_string
+   x2 match=-: test_risk_score_none_raises_error, test_risk_score_invalid_string_raises_error
+   x2 match=-: test_ensure_consistency_medium_range, test_ensure_consistency_boundary_30
+== backend/tests/unit/api/schemas/test_llm.py::TestInferRiskLevelFromScore  methods=13 merge-safe=12 distinct-bodies=5 guards=-
+   x3 match=-: test_infer_low_boundary_0, test_infer_low_boundary_29, test_infer_low_mid_range
+   x3 match=-: test_infer_medium_boundary_30, test_infer_medium_boundary_59, test_infer_medium_mid_range
+   x3 match=-: test_infer_high_boundary_60, test_infer_high_boundary_84, test_infer_high_mid_range
+   x3 match=-: test_infer_critical_boundary_85, test_infer_critical_boundary_100, test_infer_critical_mid_range
+== backend/tests/unit/core/test_database.py::TestEscapeIlikePattern  methods=12 merge-safe=12 distinct-bodies=1 guards=-
+   x12 match=-: test_escape_percent_sign, test_escape_underscore, test_escape_backslash, test_escape_multiple_special_chars, test_no_special_chars, test_empty_string…
+== backend/tests/unit/core/test_sanitization.py::TestContainerNameSanitization  methods=19 merge-safe=12 distinct-bodies=11 guards={"'cannot be empty'": 2, "'Only alphanumeric'": 7, "'Must start with alphanumeric'": 2, "'exceeds maximum length'": 1}
+   x6 match=["'Only alphanumeric'"]: test_command_injection_semicolon, test_command_injection_backticks, test_command_injection_dollar_parens, test_command_injection_pipe, test_command_injection_ampersand, test_command_injection_newline
+   x2 match=-: test_valid_complex_name, test_valid_numeric_suffix
+   x2 match=["'cannot be empty'"]: test_empty_name_raises, test_whitespace_only_raises
+   x2 match=["'Must start with alphanumeric'"]: test_name_starting_with_hyphen_rejected, test_name_starting_with_underscore_rejected
+== backend/tests/unit/models/test_camera.py::TestNormalizeCameraId  methods=14 merge-safe=12 distinct-bodies=3 guards=-
+   x12 match=-: test_normalize_simple_name, test_normalize_hyphenated_name, test_normalize_mixed_case, test_normalize_multiple_spaces, test_normalize_multiple_hyphens, test_normalize_mixed_separators…
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentResult  methods=43 merge-safe=12 distinct-bodies=37 guards=-
+   x2 match=-: test_has_scene_change_no_change, test_has_scene_change_detected
+   x2 match=-: test_has_violence_not_violent, test_has_violence_is_violent
+   x2 match=-: test_has_suspicious_clothing_none, test_has_suspicious_clothing_detected
+   x2 match=-: test_has_commercial_vehicles_none, test_has_commercial_vehicles_detected
+   x2 match=-: test_has_high_security_damage_none, test_has_high_security_damage_detected
+   x2 match=-: test_has_confirmed_pets_low_confidence, test_has_confirmed_pets_high_confidence
+== backend/tests/unit/services/test_export_service.py::TestParseAcceptHeader  methods=15 merge-safe=12 distinct-bodies=7 guards=-
+   x6 match=-: test_csv_text_csv, test_csv_application_csv, test_none_defaults_to_csv, test_empty_defaults_to_csv, test_wildcard_defaults_to_csv, test_text_wildcard_defaults_to_csv
+   x2 match=-: test_excel_openxml, test_accept_header_excel_first
+   x2 match=-: test_excel_ms_excel, test_excel_xlsx
+   x2 match=-: test_accept_header_with_quality_values, test_accept_header_multiple_types_prefers_first_match
+== backend/tests/unit/services/test_threat_monitor_service.py::TestGetThreatSeverity  methods=13 merge-safe=12 distinct-bodies=4 guards=-
+   x5 match=-: test_gun_maps_to_critical, test_pistol_maps_to_critical, test_rifle_maps_to_critical, test_firearm_maps_to_critical, test_handgun_maps_to_critical
+   x4 match=-: test_knife_maps_to_high, test_machete_maps_to_high, test_sword_maps_to_high, test_unknown_threat_defaults_to_high
+   x3 match=-: test_bat_maps_to_medium, test_baseball_bat_maps_to_medium, test_crowbar_maps_to_medium
+== backend/tests/unit/services/test_vision_extractor.py::TestCleanVqaOutput  methods=14 merge-safe=12 distinct-bodies=6 guards=-
+   x4 match=-: test_clean_vqa_output_removes_loc_tokens, test_clean_vqa_output_removes_duplicated_words, test_clean_vqa_output_handles_whitespace, test_clean_vqa_output_real_world_examples
+   x3 match=-: test_clean_vqa_output_removes_vqa_prefix, test_clean_vqa_output_case_insensitive_duplicates, test_clean_vqa_output_combined_artifacts
+   x3 match=-: test_clean_vqa_output_only_loc_tokens, test_clean_vqa_output_loc_with_various_numbers, test_clean_vqa_output_preserves_non_loc_angle_brackets
+   x2 match=-: test_clean_vqa_output_empty_string, test_clean_vqa_output_none_like_empty
+== backend/tests/unit/api/test_validators.py::TestValidateRiskScoreRange  methods=14 merge-safe=11 distinct-bodies=6 guards=-
+   x6 match=-: test_valid_risk_score_zero, test_valid_risk_score_max, test_valid_risk_score_middle, test_valid_risk_score_low_threshold, test_valid_risk_score_medium_threshold, test_valid_risk_score_high_threshold
+   x3 match=-: test_risk_score_none_raises_error, test_risk_score_string_raises_error, test_risk_score_float_raises_error
+   x2 match=-: test_invalid_risk_score_above_max, test_invalid_risk_score_way_above_max
+== backend/tests/unit/core/test_metrics.py::TestMetricHelpers  methods=24 merge-safe=11 distinct-bodies=18 guards=-
+   x3 match=-: test_set_queue_depth_detection, test_set_queue_depth_analysis, test_set_queue_depth_invalid_queue
+   x2 match=-: test_set_dlq_depth_detection_queue, test_set_dlq_depth_analysis_queue
+   x2 match=-: test_observe_ai_request_duration_yolo26, test_observe_ai_request_duration_nemotron
+   x2 match=-: test_observe_risk_score, test_observe_risk_score_boundary_values
+   x2 match=-: test_observe_detection_confidence, test_observe_detection_confidence_boundary_values
+== backend/tests/unit/routes/test_media_routes.py::TestValidateAndResolvePath  methods=18 merge-safe=11 distinct-bodies=9 guards=-
+   x8 match=-: test_accepts_valid_jpg_file, test_accepts_valid_jpeg_file, test_accepts_valid_png_file, test_accepts_valid_gif_file, test_accepts_valid_mp4_file, test_accepts_valid_avi_file…
+   x3 match=-: test_rejects_path_with_double_dots, test_rejects_path_starting_with_slash, test_rejects_nonexistent_file
+== backend/tests/unit/services/test_batch_aggregator.py::TestShouldBypassBatchForThreats  methods=11 merge-safe=11 distinct-bodies=1 guards=-
+   x11 match=-: test_should_bypass_batch_returns_true_for_gun, test_should_bypass_batch_returns_true_for_pistol, test_should_bypass_batch_returns_true_for_rifle, test_should_bypass_batch_returns_true_for_knife, test_should_bypass_batch_returns_true_for_machete, test_should_bypass_batch_returns_false_for_low_confidence_gun…
+== backend/tests/unit/test_business_metrics.py::TestBusinessMetricHelpers  methods=13 merge-safe=11 distinct-bodies=5 guards=-
+   x5 match=-: test_record_enrichment_model_call_brisque, test_record_enrichment_model_call_violence, test_record_enrichment_model_call_clothing, test_record_enrichment_model_call_vehicle, test_record_enrichment_model_call_pet
+   x4 match=-: test_record_florence_task_caption, test_record_florence_task_ocr, test_record_florence_task_detect, test_record_florence_task_dense_caption
+   x2 match=-: test_record_event_by_camera, test_record_event_by_camera_unknown_name
+== backend/tests/unit/api/middleware/test_accept_header.py::TestParseAcceptHeader  methods=13 merge-safe=10 distinct-bodies=5 guards=-
+   x8 match=-: test_parse_simple_accept_header, test_parse_accept_header_with_quality, test_parse_accept_header_with_space_around_quality, test_parse_wildcard_media_type, test_parse_type_wildcard, test_parse_invalid_quality_defaults_to_one…
+   x2 match=-: test_parse_empty_accept_header, test_parse_none_accept_header
+== backend/tests/unit/api/schemas/test_camera_validation.py::TestCameraCreateNameValidation  methods=13 merge-safe=10 distinct-bodies=5 guards=-
+   x5 match=-: test_valid_name_simple, test_valid_name_with_numbers, test_valid_name_with_special_chars, test_valid_name_unicode, test_name_leading_trailing_whitespace_stripped
+   x5 match=-: test_name_whitespace_only_rejected, test_name_with_null_byte_rejected, test_name_with_control_chars_rejected, test_name_with_newline_rejected, test_name_with_tab_rejected
+== backend/tests/unit/api/schemas/test_scheduled_report.py::TestScheduledReportCreate  methods=27 merge-safe=10 distinct-bodies=22 guards=-
+   x2 match=-: test_day_of_week_validation_min, test_day_of_week_validation_max
+   x2 match=-: test_day_of_month_validation_min, test_day_of_month_validation_max
+   x2 match=-: test_day_of_month_validation_invalid_zero, test_day_of_month_validation_invalid_over_31
+   x2 match=-: test_hour_validation_min, test_hour_validation_max
+   x2 match=-: test_minute_validation_min, test_minute_validation_max
+== backend/tests/unit/core/test_config_redis_memory.py::TestRedisMemoryPolicyValidation  methods=12 merge-safe=10 distinct-bodies=3 guards=-
+   x10 match=-: test_valid_volatile_lru, test_valid_allkeys_lru, test_valid_volatile_ttl, test_valid_volatile_random, test_valid_allkeys_random, test_valid_noeviction…
+== backend/tests/unit/core/test_logging.py::TestRedactSensitiveValue  methods=16 merge-safe=10 distinct-bodies=7 guards=-
+   x10 match=-: test_api_key_fully_redacted, test_password_field_fully_redacted, test_non_sensitive_field_unchanged, test_partial_field_name_matching, test_token_field_redacted, test_secret_field_redacted…
+== backend/tests/unit/core/test_url_validation.py::TestValidateWebhookUrl  methods=22 merge-safe=10 distinct-bodies=15 guards=-
+   x4 match=-: test_valid_https_url, test_valid_https_url_with_port, test_valid_https_url_with_path, test_valid_https_url_with_query_params
+   x4 match=-: test_ftp_scheme_blocked, test_metadata_hostname_blocked, test_empty_url_blocked, test_embedded_credentials_blocked
+   x2 match=-: test_aws_ecs_metadata_blocked, test_url_without_hostname_blocked
+== backend/tests/unit/models/test_event_feedback.py::TestEventFeedbackEnhancedColumnDefinitions  methods=10 merge-safe=10 distinct-bodies=2 guards=-
+   x5 match=-: test_feedback_has_actual_threat_level_column, test_feedback_has_suggested_score_column, test_feedback_has_actual_identity_column, test_feedback_has_what_was_wrong_column, test_feedback_has_model_failures_column
+   x5 match=-: test_actual_threat_level_is_nullable, test_suggested_score_is_nullable, test_actual_identity_is_nullable, test_what_was_wrong_is_nullable, test_model_failures_is_nullable
+== backend/tests/unit/services/test_prompt_storage.py::TestValidateConfig  methods=17 merge-safe=10 distinct-bodies=10 guards=-
+   x4 match=-: test_validate_nemotron_missing_system_prompt, test_validate_florence2_missing_queries, test_validate_xclip_missing_action_classes, test_validate_fashion_clip_missing_categories
+   x3 match=-: test_validate_nemotron_system_prompt_not_string, test_validate_florence2_queries_not_list, test_validate_yolo_world_missing_classes
+   x3 match=-: test_validate_florence2_valid_config, test_validate_xclip_valid_config, test_validate_fashion_clip_valid_config
+== backend/tests/unit/services/test_queue_status_service.py::TestCalculateHealth  methods=11 merge-safe=10 distinct-bodies=4 guards=-
+   x5 match=-: test_critical_at_depth_critical_threshold, test_critical_above_depth_critical_threshold, test_critical_at_max_wait_time, test_critical_above_max_wait_time, test_depth_critical_takes_precedence
+   x3 match=-: test_warning_at_depth_warning_threshold, test_warning_above_depth_warning_threshold, test_warning_at_half_max_wait_time
+   x2 match=-: test_healthy_when_empty, test_healthy_below_warning_threshold
+== backend/tests/unit/services/test_severity.py::TestRiskScoreToSeverity  methods=12 merge-safe=10 distinct-bodies=7 guards=-
+   x2 match=-: test_score_at_medium_start, test_score_at_medium_max
+   x2 match=-: test_score_at_high_start, test_score_at_high_max
+   x2 match=-: test_score_at_critical_start, test_score_at_100
+   x2 match=-: test_score_negative_raises_error, test_score_large_negative_raises_error
+   x2 match=-: test_score_over_100_raises_error, test_score_large_positive_raises_error
+== backend/tests/unit/services/test_zone_service.py::TestPointInZone  methods=17 merge-safe=10 distinct-bodies=10 guards=-
+   x5 match=-: test_point_inside_rectangle, test_point_outside_rectangle, test_point_at_origin, test_point_at_max_coordinates, test_coordinates_beyond_normalized_range
+   x3 match=-: test_point_on_boundary_horizontal_edge, test_point_on_boundary_vertical_edge, test_point_on_vertex
+   x2 match=-: test_point_inside_triangle, test_point_outside_triangle
+== backend/tests/unit/services/test_zone_service.py::TestBboxCenter  methods=15 merge-safe=10 distinct-bodies=9 guards={"'Image dimensions must be positive'": 3, "'Bounding box coordinates must be non-negative'": 2, "'Bounding box dimensions must be positive'": 3}
+   x3 match=-: test_standard_bbox_center, test_bbox_at_image_edge, test_single_pixel_bbox
+   x3 match=-: test_bbox_at_origin, test_bbox_partially_outside_image, test_small_image_dimensions
+   x2 match=["'Image dimensions must be positive'"]: test_zero_image_width_raises, test_zero_image_height_raises
+   x2 match=["'Bounding box dimensions must be positive'"]: test_zero_bbox_width_raises, test_zero_bbox_height_raises
+== backend/tests/integration/test_media_api.py::TestCameraFileServing  methods=11 merge-safe=9 distinct-bodies=5 guards=-
+   x4 match=-: test_serve_valid_image, test_serve_valid_png, test_serve_valid_video, test_serve_nested_file
+   x3 match=-: test_nonexistent_camera_returns_404, test_path_traversal_with_encoded_chars_blocked, test_absolute_path_blocked
+   x2 match=-: test_disallowed_file_type_exe, test_disallowed_file_type_sh
+== backend/tests/integration/test_websocket.py::TestWebSocketAuthentication  methods=10 merge-safe=9 distinct-bodies=4 guards=-
+   x4 match=-: test_events_websocket_without_api_key_rejected, test_system_websocket_without_api_key_rejected, test_events_websocket_with_invalid_api_key_rejected, test_system_websocket_with_invalid_api_key_rejected
+   x3 match=-: test_events_websocket_with_valid_api_key_query_param, test_system_websocket_with_valid_api_key_query_param, test_events_websocket_with_protocol_header_api_key
+   x2 match=-: test_events_websocket_without_auth_enabled_allows_connection, test_system_websocket_without_auth_enabled_allows_connection
+== backend/tests/unit/api/helpers/test_enrichment_transformers.py::TestActionExtractor  methods=17 merge-safe=9 distinct-bodies=11 guards=-
+   x5 match=-: test_extract_climbing_is_suspicious, test_extract_walking_normally_not_suspicious, test_fallback_pose_crouching_is_suspicious, test_fallback_pose_running_is_suspicious, test_fallback_pose_walking_maps_correctly
+   x2 match=-: test_extract_breaking_is_suspicious, test_extract_running_away_is_suspicious
+   x2 match=-: test_is_suspicious_case_insensitive, test_is_suspicious_partial_match
+== backend/tests/unit/api/schemas/test_alerts.py::TestAlertRuleScheduleTimeValidation  methods=12 merge-safe=9 distinct-bodies=6 guards=-
+   x4 match=-: test_invalid_start_time_hours, test_invalid_end_time_hours, test_invalid_start_time_minutes, test_invalid_end_time_minutes
+   x3 match=-: test_valid_daytime_schedule, test_valid_overnight_schedule, test_valid_all_day_schedule
+   x2 match=-: test_invalid_start_time_format, test_invalid_end_time_format
+== backend/tests/unit/core/test_database_utils.py::TestEscapeIlikePattern  methods=10 merge-safe=9 distinct-bodies=5 guards=-
+   x3 match=-: test_escape_percent, test_escape_underscore, test_real_world_injection_attempts
+   x2 match=-: test_empty_string, test_escape_order_matters
+   x2 match=-: test_escape_backslash, test_preserves_spaces_and_punctuation
+   x2 match=-: test_mixed_special_characters, test_unicode_characters
+== backend/tests/unit/core/test_logging.py::TestRedactUrl  methods=11 merge-safe=9 distinct-bodies=6 guards=-
+   x3 match=-: test_redact_postgres_url_with_password, test_redact_redis_url_with_password, test_redact_rediss_url_with_password
+   x2 match=-: test_url_without_password_unchanged, test_url_with_username_only_unchanged
+   x2 match=-: test_empty_url_returns_empty, test_none_url_returns_none
+   x2 match=-: test_preserves_query_params, test_complex_password_characters
+== backend/tests/unit/core/test_logging.py::TestSanitizeLogValue  methods=16 merge-safe=9 distinct-bodies=9 guards=-
+   x6 match=-: test_sanitize_normal_string, test_sanitize_handles_none, test_sanitize_handles_numbers, test_sanitize_handles_floats, test_sanitize_handles_empty_string, test_sanitize_handles_unicode
+   x3 match=-: test_sanitize_removes_newlines, test_sanitize_removes_carriage_returns, test_sanitize_removes_null_bytes
+== backend/tests/unit/core/test_redis_retry.py::TestCalculateBackoffDelay  methods=12 merge-safe=9 distinct-bodies=4 guards=-
+   x9 match=-: test_backoff_delay_attempt_1, test_backoff_delay_attempt_2, test_backoff_delay_attempt_3, test_backoff_delay_attempt_4, test_backoff_delay_capped_at_max, test_backoff_delay_very_high_attempt_still_capped…
+== backend/tests/unit/models/test_camera_calibration.py::TestCameraCalibrationColumnDefinitions  methods=12 merge-safe=9 distinct-bodies=4 guards=-
+   x9 match=-: test_calibration_has_id_column, test_calibration_has_camera_id_column, test_calibration_has_total_feedback_count_column, test_calibration_has_false_positive_count_column, test_calibration_has_false_positive_rate_column, test_calibration_has_risk_offset_column…
+== backend/tests/unit/services/test_alert_engine.py::TestCheckSchedule  methods=12 merge-safe=9 distinct-bodies=6 guards=-
+   x5 match=-: test_time_range_within_normal_hours, test_time_range_outside_normal_hours, test_overnight_time_range_before_midnight, test_overnight_time_range_after_midnight, test_overnight_time_range_fails_during_day
+   x2 match=-: test_day_matching_succeeds, test_day_matching_fails
+   x2 match=-: test_timezone_conversion, test_invalid_timezone_defaults_to_utc
+== backend/tests/unit/services/test_guided_constraints.py::TestRegexPatterns  methods=10 merge-safe=9 distinct-bodies=4 guards=-
+   x4 match=-: test_risk_score_regex_matches_single_digits, test_threat_level_score_regex_matches_0_to_4, test_intent_score_regex_matches_0_to_3, test_time_context_score_regex_matches_0_to_2
+   x3 match=-: test_threat_level_score_regex_rejects_5, test_intent_score_regex_rejects_4, test_time_context_score_regex_rejects_3
+   x2 match=-: test_risk_score_regex_matches_0, test_risk_score_regex_matches_100
+== backend/tests/unit/services/test_message_buffer.py::TestRequiresAck  methods=10 merge-safe=9 distinct-bodies=3 guards=-
+   x7 match=-: test_service_status_does_not_require_ack, test_low_risk_event_does_not_require_ack, test_high_risk_score_requires_ack, test_very_high_risk_score_requires_ack, test_critical_risk_level_requires_ack, test_critical_with_high_score_requires_ack…
+   x2 match=-: test_non_event_message_does_not_require_ack, test_event_without_data_does_not_require_ack
+== backend/tests/unit/services/test_notification_filter.py::TestNotificationFilterService  methods=17 merge-safe=9 distinct-bodies=12 guards=-
+   x3 match=-: test_should_notify_with_camera_disabled, test_should_notify_below_camera_threshold, test_should_notify_above_camera_threshold
+   x2 match=-: test_should_notify_when_risk_not_in_filters, test_should_notify_when_risk_in_filters
+   x2 match=-: test_should_notify_during_quiet_hours, test_should_notify_outside_quiet_hours
+   x2 match=-: test_is_quiet_period_active, test_is_quiet_period_inactive
+== backend/tests/unit/services/test_prompts.py::TestResolvePoseSceneConflict  methods=10 merge-safe=9 distinct-bodies=3 guards=-
+   x5 match=-: test_no_conflict_when_poses_match, test_no_conflict_when_scene_does_not_contain_conflicting_pose, test_case_insensitive_scene_matching, test_unknown_pose_returns_no_conflict, test_empty_scene_description
+   x4 match=-: test_running_vs_sitting_prefers_scene, test_running_vs_standing_with_motion_blur_prefers_pose, test_running_vs_standing_without_motion_blur_prefers_scene, test_crouching_vs_walking_prefers_pose
+== backend/tests/unit/services/test_vision_extractor.py::TestIsValidVQAOutput  methods=10 merge-safe=9 distinct-bodies=4 guards=-
+   x4 match=-: test_valid_simple_answer, test_rejects_location_tokens, test_rejects_vqa_prefix_artifact, test_accepts_valid_after_cleaning
+   x3 match=-: test_rejects_pad_tokens, test_rejects_empty_and_whitespace, test_rejects_combined_garbage_patterns
+   x2 match=-: test_rejects_poly_tokens, test_accepts_angle_brackets_in_normal_text
+== backend/tests/integration/test_api_errors.py::TestAlerts422  methods=10 merge-safe=8 distinct-bodies=5 guards=-
+   x3 match=-: test_create_alert_rule_invalid_severity, test_create_alert_rule_risk_threshold_too_high, test_create_alert_rule_min_confidence_too_high
+   x3 match=-: test_create_alert_rule_risk_threshold_negative, test_create_alert_rule_min_confidence_negative, test_create_alert_rule_cooldown_negative
+   x2 match=-: test_create_alert_rule_missing_name, test_create_alert_rule_empty_name
+== backend/tests/integration/test_heatmaps.py::TestHeatmapsParameterValidation  methods=9 merge-safe=8 distinct-bodies=4 guards=-
+   x4 match=-: test_get_current_heatmap_accepts_resolution_parameter, test_get_current_heatmap_accepts_colormap_parameter, test_get_current_heatmap_invalid_output_width, test_get_current_heatmap_invalid_output_height
+   x2 match=-: test_get_current_heatmap_accepts_output_size_parameters, test_get_heatmap_history_validates_date_range
+   x2 match=-: test_get_heatmap_history_requires_time_parameters, test_get_merged_heatmap_requires_time_parameters
+== backend/tests/unit/api/middleware/test_exception_handler.py::TestCreateSafeErrorMessage  methods=27 merge-safe=8 distinct-bodies=23 guards=-
+   x2 match=-: test_error_with_file_path, test_path_traversal_attempt
+   x2 match=-: test_error_with_api_key, test_bearer_token_redaction
+   x2 match=-: test_context_with_special_characters, test_context_with_punctuation
+   x2 match=-: test_whitespace_in_error_message, test_newlines_in_error_message
+== backend/tests/unit/api/middleware/test_idempotency.py::TestValidateIdempotencyKey  methods=10 merge-safe=8 distinct-bodies=4 guards=-
+   x4 match=-: test_valid_key_alphanumeric, test_valid_key_uuid_format, test_valid_key_with_underscores, test_valid_key_with_hyphens
+   x4 match=-: test_invalid_key_empty, test_invalid_key_special_characters, test_invalid_key_spaces, test_invalid_key_unicode
+== backend/tests/unit/api/routes/test_system.py::TestWorkerStatus  methods=12 merge-safe=8 distinct-bodies=5 guards=-
+   x8 match=-: test_are_critical_pipeline_workers_healthy_detection_stopped, test_are_critical_pipeline_workers_healthy_analysis_stopped, test_are_critical_pipeline_workers_healthy_all_running, test_are_critical_pipeline_workers_healthy_detection_error_state, test_are_critical_pipeline_workers_healthy_analysis_error_state, test_are_critical_pipeline_workers_healthy_both_error_state…
+== backend/tests/unit/api/test_pagination.py::TestCursorSecurityValidation  methods=20 merge-safe=8 distinct-bodies=15 guards={"'exceeds maximum length'": 1, "'Invalid cursor'": 9, "'datetime before'": 1, "'datetime after'": 1, "'unexpected data format'": 2}
+   x4 match=["'Invalid cursor'"]: test_zero_id_rejected, test_string_id_rejected, test_float_id_rejected, test_sql_injection_in_created_at_rejected
+   x2 match=-: test_valid_datetime_at_minimum_bound_accepted, test_valid_datetime_near_maximum_bound_accepted
+   x2 match=-: test_valid_forward_direction_accepted, test_valid_backward_direction_accepted
+== backend/tests/unit/api/test_validators.py::TestValidateCameraIdFormat  methods=16 merge-safe=8 distinct-bodies=10 guards=-
+   x5 match=-: test_valid_camera_id_simple, test_valid_camera_id_with_hyphens, test_valid_camera_id_with_underscores, test_valid_camera_id_with_numbers, test_valid_camera_id_mixed
+   x3 match=-: test_invalid_camera_id_with_spaces, test_invalid_camera_id_path_traversal, test_invalid_camera_id_with_dots
+== backend/tests/unit/core/test_logging_sanitization.py::TestRedactSensitiveValueFieldNamePatterns  methods=10 merge-safe=8 distinct-bodies=3 guards=-
+   x8 match=-: test_exact_match_password, test_partial_match_password_prefix, test_partial_match_password_suffix, test_partial_match_password_infix, test_secret_field_pattern, test_token_field_pattern…
+== backend/tests/unit/core/test_sanitization.py::TestPathSanitization  methods=9 merge-safe=8 distinct-bodies=2 guards=-
+   x8 match=-: test_simple_filename, test_unix_path_extracts_filename, test_nested_unix_path, test_windows_path_extracts_filename, test_empty_path_returns_unknown, test_none_like_empty…
+== backend/tests/unit/models/test_baseline.py::TestActivityBaselineBoundaries  methods=8 merge-safe=8 distinct-bodies=4 guards=-
+   x2 match=-: test_hour_zero, test_hour_twenty_three
+   x2 match=-: test_day_of_week_zero, test_day_of_week_six
+   x2 match=-: test_sample_count_zero, test_sample_count_large_value
+   x2 match=-: test_avg_count_zero, test_avg_count_large_value
+== backend/tests/unit/services/test_alert_engine.py::TestBuildDedupKey  methods=12 merge-safe=8 distinct-bodies=7 guards=-
+   x4 match=-: test_default_template, test_invalid_template_variable_falls_back, test_none_template_uses_default, test_zone_id_empty_when_no_dwell_match
+   x2 match=-: test_object_type_unknown_when_no_detections, test_track_id_empty_when_no_dwell_match
+   x2 match=-: test_track_id_template_with_dwell_match, test_zone_and_track_id_template_combined
+== backend/tests/unit/services/test_export_service.py::TestSanitizeExportValue  methods=10 merge-safe=8 distinct-bodies=4 guards=-
+   x6 match=-: test_equals_sign_sanitized, test_plus_sign_sanitized, test_minus_sign_sanitized, test_at_sign_sanitized, test_tab_sanitized, test_carriage_return_sanitized
+   x2 match=-: test_empty_string_unchanged, test_none_returns_empty_string
+== backend/tests/unit/services/test_guided_constraints.py::TestValidateRecommendedAction  methods=9 merge-safe=8 distinct-bodies=3 guards=-
+   x6 match=-: test_accepts_none, test_accepts_review_later, test_accepts_review_soon, test_accepts_alert_homeowner, test_accepts_immediate_response, test_rejects_empty_string
+   x2 match=-: test_rejects_invalid_action, test_rejects_similar_but_incorrect
+== backend/tests/unit/services/test_lifecycle_manager.py::TestCalculateBackoff  methods=9 merge-safe=8 distinct-bodies=2 guards=-
+   x8 match=-: test_backoff_zero_failures, test_backoff_one_failure, test_backoff_two_failures, test_backoff_capped_at_max, test_backoff_large_failure_count_stays_capped, test_backoff_infrastructure_defaults…
+== backend/tests/unit/services/test_notification_ssrf.py::TestWebhookSSRFProtection  methods=10 merge-safe=8 distinct-bodies=5 guards=-
+   x4 match=-: test_private_ip_172_blocked, test_private_ip_192_blocked, test_loopback_blocked_in_production, test_http_blocked_for_external_in_production
+   x2 match=-: test_aws_metadata_ip_blocked, test_aws_ecs_metadata_blocked
+   x2 match=-: test_metadata_hostname_blocked, test_embedded_credentials_blocked
+== backend/tests/unit/services/test_performance_collector.py::TestAlertGenerationEdgeCases  methods=12 merge-safe=8 distinct-bodies=8 guards=-
+   x2 match=-: test_check_gpu_alerts_vram_warning, test_check_gpu_alerts_vram_critical
+   x2 match=-: test_check_host_alerts_ram_critical, test_check_host_alerts_disk_critical
+   x2 match=-: test_check_postgresql_alerts_connections_critical, test_check_postgresql_alerts_cache_hit_critical
+   x2 match=-: test_check_redis_alerts_memory_critical, test_check_redis_alerts_hit_ratio_critical
+== backend/tests/unit/services/test_severity.py::TestSeverityServiceInit  methods=11 merge-safe=8 distinct-bodies=5 guards=-
+   x5 match=-: test_init_invalid_ordering_low_equals_medium, test_init_invalid_ordering_low_greater_than_medium, test_init_invalid_ordering_medium_equals_high, test_init_invalid_ordering_medium_greater_than_high, test_init_invalid_high_max_over_100
+   x3 match=-: test_init_custom_values, test_init_boundary_values, test_init_max_boundary_values
+== backend/tests/unit/services/test_weather_loader.py::TestIsNighttimeFunction  methods=8 merge-safe=8 distinct-bodies=1 guards=-
+   x8 match=-: test_is_nighttime_midnight, test_is_nighttime_2am, test_is_nighttime_4am, test_is_nighttime_midday, test_is_nighttime_3pm, test_is_nighttime_10pm…
+== backend/tests/unit/setup_lib/test_image_pull.py::TestPromptAndPullImages  methods=16 merge-safe=8 distinct-bodies=11 guards=-
+   x3 match=-: test_user_selects_skip, test_invalid_selection_not_a_number, test_invalid_selection_out_of_range
+   x3 match=-: test_empty_input_defaults_to_first, test_empty_confirmation_defaults_to_yes, test_yes_confirmation_accepted
+   x2 match=-: test_pull_failure_message, test_docker_compose_v2_commands_shown
+== backend/tests/integration/test_materialized_views_migration.py::TestJSONExtractionFunctions  methods=9 merge-safe=7 distinct-bodies=4 guards=-
+   x5 match=-: test_get_license_plate_detections_function_exists, test_get_face_detections_function_exists, test_get_enrichment_vehicle_data_function_exists, test_get_detection_enrichment_summary_function_exists, test_get_enrichment_statistics_function_exists
+   x2 match=-: test_get_license_plate_detections_returns_data, test_get_face_detections_returns_data
+== backend/tests/unit/api/middleware/test_file_validator.py::TestValidateFileMagicSync  methods=12 merge-safe=7 distinct-bodies=8 guards=-
+   x3 match=-: test_valid_jpeg, test_mismatch_jpeg_as_png, test_content_type_with_parameters
+   x2 match=-: test_valid_png, test_mismatch_png_as_jpeg
+   x2 match=-: test_empty_content, test_unknown_format
+== backend/tests/unit/api/routes/test_rum.py::TestRUMIngestAllMetricTypes  methods=8 merge-safe=7 distinct-bodies=2 guards=-
+   x7 match=-: test_ingest_lcp_metric, test_ingest_fid_metric, test_ingest_inp_metric, test_ingest_cls_metric, test_ingest_ttfb_metric, test_ingest_fcp_metric…
+== backend/tests/unit/api/routes/test_settings_api.py::TestPatchSettingsEndpoint  methods=14 merge-safe=7 distinct-bodies=10 guards=-
+   x3 match=-: test_patch_boolean_feature_toggle, test_patch_retention_days_range, test_patch_queue_settings
+   x2 match=-: test_patch_invalid_confidence_threshold_validation, test_patch_retention_days_exceeds_max
+   x2 match=-: test_patch_severity_valid_ordering, test_patch_rate_limiting_settings
+== backend/tests/unit/api/schemas/test_errors.py::TestCommonErrorResponses  methods=10 merge-safe=7 distinct-bodies=5 guards=-
+   x5 match=-: test_401_response_defined, test_403_response_defined, test_404_response_defined, test_409_response_defined, test_500_response_defined
+   x2 match=-: test_502_response_defined, test_503_response_defined
+== backend/tests/unit/api/schemas/test_llm_response.py::TestLLMRiskResponse  methods=19 merge-safe=7 distinct-bodies=15 guards=-
+   x3 match=-: test_risk_score_above_hundred_fails, test_invalid_risk_level_fails, test_risk_score_invalid_string_fails
+   x2 match=-: test_risk_score_boundary_zero, test_risk_score_boundary_hundred
+   x2 match=-: test_risk_score_float_converted_to_int, test_risk_score_string_number_converted
+== backend/tests/unit/api/schemas/test_websocket_alert_schemas.py::TestWebSocketAlertData  methods=13 merge-safe=7 distinct-bodies=8 guards=-
+   x5 match=-: test_missing_id_fails, test_missing_event_id_fails, test_missing_severity_fails, test_missing_status_fails, test_missing_dedup_key_fails
+   x2 match=-: test_invalid_severity_fails, test_invalid_status_fails
+== backend/tests/unit/api/test_pagination.py::TestCursorMaliciousInputs  methods=10 merge-safe=7 distinct-bodies=5 guards={"'Invalid cursor'": 9}
+   x5 match=["'Invalid cursor'"]: test_exponential_notation_id_rejected, test_boolean_id_rejected, test_null_id_rejected, test_empty_string_id_rejected, test_special_characters_in_datetime_rejected
+   x2 match=["'Invalid cursor'"]: test_unicode_injection_in_id_rejected, test_infinity_value_rejected
+== backend/tests/unit/core/test_logging_sanitization.py::TestRedactUrlDifferentSchemes  methods=9 merge-safe=7 distinct-bodies=3 guards=-
+   x7 match=-: test_redis_url, test_rediss_tls_url, test_mysql_url, test_mongodb_url, test_amqp_url, test_http_basic_auth_url…
+== backend/tests/unit/core/test_rate_limit.py::TestGetClientIP  methods=12 merge-safe=7 distinct-bodies=6 guards=-
+   x7 match=-: test_x_forwarded_for_from_trusted_proxy, test_x_forwarded_for_from_untrusted_proxy_ignored, test_x_forwarded_for_chain_from_trusted_proxy, test_x_real_ip_from_trusted_proxy, test_x_real_ip_from_untrusted_proxy_ignored, test_trusted_ipv6_localhost…
+== backend/tests/unit/core/test_sanitization.py::TestGrafanaURLValidation  methods=14 merge-safe=7 distinct-bodies=9 guards={"'cannot be empty'": 1, "'Invalid URL scheme'": 2, "'must have a hostname'": 1, "'metadata'": 1, "'Link-local'": 1, "'blocked for security'": 1}
+   x5 match=-: test_valid_http_localhost, test_valid_http_127, test_valid_https_url, test_valid_docker_internal, test_trailing_slash_removed
+   x2 match=["'Invalid URL scheme'"]: test_invalid_scheme_raises, test_file_scheme_raises
+== backend/tests/unit/core/test_security.py::TestValidatePreloadModelsEnv  methods=9 merge-safe=7 distinct-bodies=5 guards={"'Invalid preload models'": 2}
+   x3 match=-: test_multiple_valid_models, test_models_with_whitespace, test_light_service_models
+   x2 match=-: test_empty_string_returns_empty_list, test_whitespace_only_returns_empty_list
+   x2 match=["'Invalid preload models'"]: test_invalid_model_rejected, test_mixed_valid_invalid_rejected
+== backend/tests/unit/evaluation/test_ab_experiment_runner.py::TestSelectVariant  methods=8 merge-safe=7 distinct-bodies=4 guards=-
+   x3 match=-: test_select_variant_returns_control_when_random_above_split, test_select_variant_returns_variant_when_random_below_split, test_select_variant_boundary_at_split
+   x2 match=-: test_select_variant_fifty_fifty_below, test_select_variant_fifty_fifty_above
+   x2 match=-: test_select_variant_zero_split_always_control, test_select_variant_full_split_always_variant
+== backend/tests/unit/models/test_detection.py::TestDetectionTableArgs  methods=13 merge-safe=7 distinct-bodies=7 guards=-
+   x7 match=-: test_detection_has_camera_id_index, test_detection_has_detected_at_index, test_detection_has_camera_time_composite_index, test_detection_has_camera_object_type_composite_index, test_detection_has_enrichment_data_gin_index, test_detection_has_detected_at_brin_index…
+== backend/tests/unit/routes/test_media_routes.py::TestEdgeCasesAndSecurity  methods=10 merge-safe=7 distinct-bodies=5 guards=-
+   x4 match=-: test_handles_unicode_filename, test_handles_spaces_in_filename, test_handles_special_characters_in_filename, test_hidden_file_allowed_if_correct_extension
+   x3 match=-: test_rejects_url_encoded_traversal, test_empty_filename_rejected, test_dot_only_filename_rejected
+== backend/tests/unit/services/test_alert_dedup.py::TestBuildDedupKey  methods=9 merge-safe=7 distinct-bodies=3 guards=-
+   x7 match=-: test_all_components_present, test_camera_and_zone_no_object_type, test_empty_string_object_type_treated_as_falsy, test_empty_string_zone_treated_as_falsy, test_special_characters_preserved, test_colon_in_component_creates_ambiguous_key…
+== backend/tests/unit/services/test_bbox_validation.py::TestClampBboxToImage  methods=10 merge-safe=7 distinct-bodies=6 guards=-
+   x3 match=-: test_clamp_negative_coordinates, test_clamp_both_sides, test_clamp_preserves_float_type
+   x2 match=-: test_clamp_bbox_within_bounds, test_clamp_exceeding_coordinates
+   x2 match=-: test_clamp_too_small_returns_none, test_clamp_with_custom_min_size
+== backend/tests/unit/services/test_clip_client_gateway.py::TestCLIPClientGatewayRouting  methods=9 merge-safe=7 distinct-bodies=4 guards=-
+   x5 match=-: test_gateway_enabled_routes_through_gateway, test_gateway_enabled_strips_trailing_slash, test_gateway_disabled_uses_individual_url, test_gateway_url_none_uses_individual_url, test_gateway_url_with_path_prefix
+   x2 match=-: test_explicit_base_url_overrides_gateway, test_explicit_base_url_overrides_individual_url
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentResultPoseAndAction  methods=14 merge-safe=7 distinct-bodies=9 guards=-
+   x5 match=-: test_has_suspicious_poses_standing, test_has_suspicious_poses_crouching, test_has_suspicious_poses_running, test_has_suspicious_poses_lying, test_has_suspicious_poses_low_confidence
+   x2 match=-: test_has_suspicious_action_benign, test_has_suspicious_action_breaking_in
+== backend/tests/unit/services/test_florence_client_gateway.py::TestFlorenceClientGatewayRouting  methods=9 merge-safe=7 distinct-bodies=4 guards=-
+   x5 match=-: test_gateway_enabled_routes_through_gateway, test_gateway_enabled_strips_trailing_slash, test_gateway_disabled_uses_individual_url, test_gateway_url_none_uses_individual_url, test_gateway_url_with_path_prefix
+   x2 match=-: test_explicit_base_url_overrides_gateway, test_explicit_base_url_overrides_individual_url
+== backend/tests/unit/services/test_guided_constraints.py::TestValidateRiskLevel  methods=8 merge-safe=7 distinct-bodies=3 guards=-
+   x5 match=-: test_accepts_low, test_accepts_medium, test_accepts_high, test_accepts_critical, test_rejects_empty_string
+   x2 match=-: test_rejects_invalid_level, test_rejects_uppercase
+== backend/tests/unit/services/test_prompt_parser.py::TestGenerateInsertionText  methods=8 merge-safe=7 distinct-bodies=2 guards=-
+   x7 match=-: test_generates_curly_brace_with_colon, test_generates_angle_bracket_with_colon, test_generates_dollar_with_colon, test_generates_curly_brace_with_equals, test_respects_indentation, test_defaults_to_curly_when_format_none…
+== backend/tests/unit/services/test_prompts.py::TestFormatEnhancedClothingContext  methods=10 merge-safe=7 distinct-bodies=5 guards=-
+   x5 match=-: test_clothing_with_suspicious_attire, test_clothing_with_suspicious_dict_format, test_clothing_with_delivery_uniform, test_clothing_with_utility_worker, test_clothing_with_carrying_items
+   x2 match=-: test_clothing_with_casual_attire, test_clothing_with_casual_dict_format
+== backend/tests/unit/services/test_search.py::TestBuildSearchQuery  methods=8 merge-safe=7 distinct-bodies=3 guards=-
+   x4 match=-: test_build_with_or_operator, test_build_with_not_operator, test_build_with_proximity_operator, test_build_without_operators_uses_websearch
+   x3 match=-: test_build_with_operators, test_build_empty_tsquery, test_build_query_escapes_ilike_special_chars
+== backend/tests/unit/services/test_violence_loader.py::TestViolenceConfidenceTiers  methods=9 merge-safe=7 distinct-bodies=3 guards=-
+   x7 match=-: test_confidence_tier_definitive, test_confidence_tier_suspected, test_confidence_tier_marginal, test_boundary_70_percent_is_definitive, test_boundary_below_70_percent_is_suspected, test_boundary_55_percent_is_suspected…
+== backend/tests/unit/test_auth_routes.py::TestUserRegisterRequestSchema  methods=8 merge-safe=7 distinct-bodies=2 guards=-
+   x7 match=-: test_username_too_short, test_username_invalid_characters, test_invalid_email_format, test_password_too_short, test_password_no_uppercase, test_password_no_lowercase…
+== backend/tests/integration/test_api_errors.py::TestZones422  methods=12 merge-safe=6 distinct-bodies=9 guards=-
+   x2 match=-: test_create_zone_empty_name, test_create_zone_coordinates_out_of_range
+   x2 match=-: test_create_zone_invalid_color, test_create_zone_priority_out_of_range
+   x2 match=-: test_create_zone_invalid_type, test_create_zone_invalid_shape
+== backend/tests/unit/api/middleware/test_accept_header.py::TestSelectBestMediaType  methods=8 merge-safe=6 distinct-bodies=4 guards=-
+   x4 match=-: test_select_exact_match, test_select_problem_json_exact_match, test_select_wildcard_returns_default, test_select_application_wildcard_returns_json
+   x2 match=-: test_select_highest_quality_match, test_select_respects_quality_order
+== backend/tests/unit/api/routes/test_detections.py::TestSanitizeErrors  methods=9 merge-safe=6 distinct-bodies=4 guards=-
+   x6 match=-: test_sanitize_license_plate_error, test_sanitize_face_detection_error, test_sanitize_violence_detection_error, test_sanitize_unknown_error_category, test_sanitize_clothing_classification_error, test_sanitize_pet_classification_error
+== backend/tests/unit/api/routes/test_events_export.py::TestCSVInjectionProtection  methods=14 merge-safe=6 distinct-bodies=9 guards=-
+   x6 match=-: test_summary_with_equals_formula_is_sanitized, test_summary_with_plus_formula_is_sanitized, test_summary_with_minus_formula_is_sanitized, test_summary_with_at_formula_is_sanitized, test_summary_with_tab_injection_is_sanitized, test_summary_with_carriage_return_injection_is_sanitized
+== backend/tests/unit/api/schemas/test_llm_response.py::TestLLMResponseValidation  methods=11 merge-safe=6 distinct-bodies=7 guards=-
+   x4 match=-: test_risk_level_boundary_inference_low, test_risk_level_boundary_inference_medium, test_risk_level_boundary_inference_high, test_risk_level_boundary_inference_critical
+   x2 match=-: test_to_validated_response_normalizes_risk_level, test_to_validated_response_infers_risk_level
+== backend/tests/unit/api/schemas/test_queue_strict_schemas.py::TestDetectionQueuePayloadStrict  methods=9 merge-safe=6 distinct-bodies=5 guards=-
+   x4 match=-: test_strict_inherits_path_traversal_validation, test_strict_inherits_absolute_path_validation, test_strict_inherits_timestamp_validation, test_strict_inherits_camera_id_pattern_validation
+   x2 match=-: test_strict_rejects_coercible_int_for_string, test_strict_rejects_float_for_string
+== backend/tests/unit/api/schemas/test_websocket_summary_schemas.py::TestWebSocketSummaryData  methods=9 merge-safe=6 distinct-bodies=4 guards=-
+   x6 match=-: test_missing_id_fails, test_missing_content_fails, test_missing_event_count_fails, test_missing_window_start_fails, test_missing_window_end_fails, test_missing_generated_at_fails
+== backend/tests/unit/api/test_pagination.py::TestValidateCursorFormat  methods=15 merge-safe=6 distinct-bodies=11 guards={"'invalid characters'": 2, "'maximum length'": 2}
+   x4 match=-: test_validates_none_cursor, test_validates_empty_string_cursor, test_validates_cursor_with_underscores, test_validates_cursor_with_hyphens
+   x2 match=-: test_validates_alphanumeric_cursor, test_validates_cursor_with_equals_padding
+== backend/tests/unit/core/test_ab_rollout_metrics.py::TestABRolloutMetricHelpers  methods=9 merge-safe=6 distinct-bodies=6 guards=-
+   x2 match=-: test_record_ab_rollout_analysis_control, test_record_ab_rollout_analysis_treatment
+   x2 match=-: test_update_ab_rollout_fp_rate_control, test_update_ab_rollout_fp_rate_treatment
+   x2 match=-: test_record_ab_rollout_feedback_false_positive, test_record_ab_rollout_feedback_correct
+== backend/tests/unit/core/test_exceptions.py::TestValidateBoundingBox  methods=15 merge-safe=6 distinct-bodies=12 guards=-
+   x2 match=-: test_valid_bbox_passes, test_valid_bbox_with_floats_passes
+   x2 match=-: test_zero_width_raises, test_zero_height_raises
+   x2 match=-: test_negative_width_raises, test_negative_height_raises
+== backend/tests/unit/core/test_exceptions.py::TestValidateImageSize  methods=13 merge-safe=6 distinct-bodies=10 guards=-
+   x2 match=-: test_valid_image_size_passes, test_large_image_size_passes
+   x2 match=-: test_none_image_size_raises, test_non_tuple_raises
+   x2 match=-: test_zero_width_raises, test_zero_height_raises
+== backend/tests/unit/core/test_logging_sanitization.py::TestSanitizeError  methods=9 merge-safe=6 distinct-bodies=4 guards=-
+   x6 match=-: test_sanitize_password_in_error, test_sanitize_secret_in_error, test_sanitize_token_in_error, test_sanitize_api_key_in_error, test_sanitize_bearer_token_in_error, test_sanitize_file_paths
+== backend/tests/unit/core/test_metrics.py::TestReIDMetricHelpers  methods=11 merge-safe=6 distinct-bodies=8 guards=-
+   x2 match=-: test_record_reid_match, test_record_reid_match_multiple_calls
+   x2 match=-: test_record_reid_attempt, test_record_reid_attempt_multiple_calls
+   x2 match=-: test_observe_reid_match_duration, test_observe_reid_match_duration_boundary_values
+== backend/tests/unit/core/test_redis_sentinel.py::TestSentinelClientParsing  methods=8 merge-safe=6 distinct-bodies=5 guards={"'Invalid Sentinel host format'": 2, "'No valid Sentinel hosts'": 2}
+   x2 match=-: test_parse_sentinel_hosts_valid, test_parse_sentinel_hosts_with_spaces
+   x2 match=["'Invalid Sentinel host format'"]: test_parse_sentinel_hosts_invalid_format, test_parse_sentinel_hosts_invalid_port
+   x2 match=["'No valid Sentinel hosts'"]: test_parse_sentinel_hosts_empty_string, test_parse_sentinel_hosts_only_whitespace
+== backend/tests/unit/core/test_security.py::TestValidateModelPath  methods=14 merge-safe=6 distinct-bodies=10 guards={"'Path traversal detected'": 2, "'Null byte detected'": 1, "'not within allowed directories'": 2, "'Invalid file extension'": 1, "'does not exist'": 1}
+   x4 match=-: test_allowed_extensions_pt, test_allowed_extensions_pth, test_allowed_extensions_onnx, test_allowed_extensions_engine
+   x2 match=["'Path traversal detected'"]: test_path_traversal_rejected, test_path_traversal_middle_rejected
+== backend/tests/unit/core/test_worker_metrics.py::TestRestartReasonCategorization  methods=9 merge-safe=6 distinct-bodies=5 guards=-
+   x4 match=-: test_categorize_timeout_errors, test_categorize_memory_errors, test_categorize_dependency_errors, test_categorize_exception_errors
+   x2 match=-: test_categorize_unknown_errors, test_categorize_case_insensitive
+== backend/tests/unit/evaluation/test_prompt_evaluator.py::TestEvaluatePrediction  methods=10 merge-safe=6 distinct-bodies=7 guards=-
+   x2 match=-: test_score_at_minimum, test_score_at_maximum
+   x2 match=-: test_score_below_range, test_score_above_range
+   x2 match=-: test_level_match_case_insensitive, test_level_match_with_whitespace
+== backend/tests/unit/models/test_face_identity.py::TestFaceDetectionEventTableArgs  methods=9 merge-safe=6 distinct-bodies=4 guards=-
+   x6 match=-: test_face_detection_event_has_camera_id_index, test_face_detection_event_has_timestamp_index, test_face_detection_event_has_is_unknown_index, test_face_detection_event_has_matched_person_id_index, test_face_detection_event_has_camera_timestamp_composite_index, test_face_detection_event_has_timestamp_brin_index
+== backend/tests/unit/models/test_track.py::TestTrackTableArgs  methods=9 merge-safe=6 distinct-bodies=5 guards=-
+   x4 match=-: test_track_has_camera_track_composite_index, test_track_has_first_seen_index, test_track_has_object_class_index, test_track_has_camera_first_seen_composite_index
+   x2 match=-: test_track_camera_track_index_columns, test_track_camera_first_seen_index_columns
+== backend/tests/unit/routes/test_cameras_routes.py::TestCreateCamera  methods=12 merge-safe=6 distinct-bodies=9 guards=-
+   x2 match=-: test_create_camera_default_status, test_create_camera_generates_normalized_id
+   x2 match=-: test_create_camera_missing_name, test_create_camera_missing_folder_path
+   x2 match=-: test_create_camera_empty_name, test_create_camera_empty_folder_path
+== backend/tests/unit/scripts/test_comparison_engine.py::TestCheckCaptionKeywordsWithSynonyms  methods=12 merge-safe=6 distinct-bodies=8 guards=-
+   x3 match=-: test_exact_match_succeeds, test_synonym_match_succeeds, test_case_insensitive_matching
+   x3 match=-: test_vehicle_synonyms, test_porch_and_house_synonyms, test_walking_and_running_synonyms
+== backend/tests/unit/services/test_bbox_validation_integration.py::TestEstimateObjectDistanceBboxValidation  methods=9 merge-safe=6 distinct-bodies=5 guards=-
+   x4 match=-: test_zero_width_bbox_returns_none, test_zero_height_bbox_returns_none, test_inverted_bbox_returns_none, test_completely_outside_bbox_returns_none
+   x2 match=-: test_nan_bbox_returns_none, test_infinite_bbox_returns_none
+== backend/tests/unit/services/test_florence_client.py::TestExtract  methods=12 merge-safe=6 distinct-bodies=8 guards={"'Failed to connect'": 1, "'timed out'": 1, "'server error'": 3, "'Unexpected error'": 1}
+   x3 match=["'server error'"]: test_extract_server_error_5xx, test_extract_server_error_502, test_extract_server_error_503
+   x3 match=-: test_extract_client_error_4xx, test_extract_client_error_404, test_extract_client_error_422
+== backend/tests/unit/services/test_prompts.py::TestNonRiskFactors  methods=8 merge-safe=6 distinct-bodies=4 guards=-
+   x4 match=-: test_non_risk_factors_includes_trees, test_non_risk_factors_includes_timestamps, test_non_risk_factors_includes_shadows, test_non_risk_factors_includes_weather
+   x2 match=-: test_non_risk_factors_includes_presence, test_non_risk_factors_includes_vegetation
+== backend/tests/unit/services/test_prompts.py::TestFormatCameraHealthContext  methods=16 merge-safe=6 distinct-bodies=13 guards=-
+   x2 match=-: test_view_blocked_format, test_tampered_format
+   x2 match=-: test_unknown_change_type_format, test_view_blocked_includes_risk_modifier
+   x2 match=-: test_angle_changed_does_not_include_high_risk_modifier, test_unknown_change_type_minimal_risk_guidance
+== backend/tests/unit/services/test_prompts.py::TestCheckMemberSchedule  methods=13 merge-safe=6 distinct-bodies=9 guards=-
+   x3 match=-: test_weekday_schedule_within_hours, test_weekday_schedule_outside_hours, test_weekend_all_day_schedule
+   x3 match=-: test_daily_schedule_within_hours, test_daily_schedule_outside_hours, test_invalid_schedule_format_returns_none
+== backend/tests/unit/services/test_reid_service.py::TestCleanVqaOutput  methods=11 merge-safe=6 distinct-bodies=7 guards=-
+   x3 match=-: test_clean_vqa_output_with_none_returns_none, test_clean_vqa_output_with_empty_string_returns_none, test_clean_vqa_output_with_whitespace_only_returns_none
+   x3 match=-: test_clean_vqa_output_removes_multiple_location_tokens, test_clean_vqa_output_normalizes_whitespace, test_clean_vqa_output_complex_example
+== backend/tests/unit/services/test_risk_rubrics.py::TestRubricScoresModel  methods=9 merge-safe=6 distinct-bodies=5 guards=-
+   x3 match=-: test_valid_rubric_scores_creation, test_minimum_valid_values, test_maximum_valid_values
+   x3 match=-: test_threat_level_above_maximum_raises_error, test_apparent_intent_above_maximum_raises_error, test_time_context_above_maximum_raises_error
+== backend/tests/unit/services/test_scenario_classifier.py::TestApplyHysteresis  methods=8 merge-safe=6 distinct-bodies=3 guards=-
+   x6 match=-: test_no_change_without_previous_score, test_no_change_outside_buffer_zone, test_prevents_upward_oscillation_at_low_medium, test_prevents_downward_oscillation_at_low_medium, test_prevents_oscillation_at_medium_high, test_prevents_oscillation_at_high_critical
+== backend/tests/unit/services/test_search.py::TestQueryOperatorEdgeCases  methods=8 merge-safe=6 distinct-bodies=4 guards=-
+   x4 match=-: test_trailing_operator, test_leading_operator, test_not_without_target, test_multiple_phrases
+   x2 match=-: test_consecutive_operators, test_mixed_phrase_and_words
+== backend/tests/unit/services/test_video_support.py::TestVideoExtensionDetection  methods=9 merge-safe=6 distinct-bodies=5 guards=-
+   x4 match=-: test_is_video_file_mp4, test_is_video_file_mkv, test_is_video_file_avi, test_is_video_file_mov
+   x2 match=-: test_is_supported_media_file_images, test_is_supported_media_file_unsupported
+== backend/tests/unit/test_benchmarks.py::TestGenerateDetections  methods=10 merge-safe=6 distinct-bodies=7 guards=-
+   x2 match=-: test_generates_correct_count_one, test_generates_correct_count_large
+   x2 match=-: test_detection_has_camera_id, test_detection_has_timestamp
+   x2 match=-: test_detection_has_class_name, test_detection_has_confidence
+== backend/tests/unit/api/middleware/test_exception_handler.py::TestSecurityEdgeCases  methods=8 merge-safe=5 distinct-bodies=5 guards=-
+   x3 match=-: test_xss_attempt_in_error, test_null_byte_injection, test_unicode_in_error_messages
+   x2 match=-: test_error_with_newlines, test_error_with_tabs_and_special_whitespace
+== backend/tests/unit/api/routes/test_detections.py::TestParseRangeHeader  methods=8 merge-safe=5 distinct-bodies=4 guards={"'Invalid range header format'": 1, "'Invalid range specification'": 1, "'Invalid range: start > end'": 1}
+   x5 match=-: test_parse_explicit_range, test_parse_open_ended_range, test_parse_suffix_range, test_parse_suffix_range_larger_than_file, test_parse_range_clamped_to_file_size
+== backend/tests/unit/api/routes/test_events_coverage.py::TestListEventsFilters  methods=9 merge-safe=5 distinct-bodies=5 guards=-
+   x5 match=-: test_list_events_with_camera_id_filter, test_list_events_with_risk_level_filter, test_list_events_with_start_date_filter, test_list_events_with_end_date_filter, test_list_events_with_reviewed_filter
+== backend/tests/unit/api/routes/test_notification.py::TestUpdateNotificationConfig  methods=10 merge-safe=5 distinct-bodies=7 guards=-
+   x3 match=-: test_update_config_validates_smtp_port, test_update_config_validates_email_format, test_update_config_validates_webhook_url_ssrf
+   x2 match=-: test_update_smtp_enabled, test_update_webhook_enabled
+== backend/tests/unit/core/test_mime_types.py::TestNormalizeFileType  methods=8 merge-safe=5 distinct-bodies=5 guards=-
+   x3 match=-: test_already_valid_mime_type, test_extension_with_dot, test_extension_without_dot
+   x2 match=-: test_fallback_to_file_path, test_none_file_type_with_file_path
+== backend/tests/unit/core/test_rate_limit.py::TestIsIPTrusted  methods=13 merge-safe=5 distinct-bodies=10 guards=-
+   x3 match=-: test_exact_ip_match, test_ipv6_support, test_invalid_client_ip
+   x2 match=-: test_cidr_range_matching, test_ipv6_cidr_support
+== backend/tests/unit/core/test_url_validation.py::TestSSRFLogging  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_blocked_local_domain_is_logged, test_blocked_private_ip_is_logged, test_blocked_metadata_hostname_is_logged, test_blocked_scheme_is_logged, test_embedded_credentials_is_logged
+== backend/tests/unit/evaluation/test_ab_experiment_runner.py::TestSummarizeResults  methods=12 merge-safe=5 distinct-bodies=9 guards=-
+   x3 match=-: test_summary_contains_variant_stats, test_summary_indicates_variant_better, test_summary_interpretation_for_significant
+   x2 match=-: test_summary_contains_not_significant_header, test_summary_interpretation_for_not_significant
+== backend/tests/unit/models/test_event_feedback.py::TestEventFeedbackColumnDefinitions  methods=13 merge-safe=5 distinct-bodies=9 guards=-
+   x5 match=-: test_feedback_has_id_column, test_feedback_has_event_id_column, test_feedback_has_feedback_type_column, test_feedback_has_notes_column, test_feedback_has_created_at_column
+== backend/tests/unit/models/test_gpu_config.py::TestGpuConfigurationFields  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_gpu_configuration_has_id_field, test_gpu_configuration_has_strategy_field, test_gpu_configuration_has_enabled_field, test_gpu_configuration_has_created_at_field, test_gpu_configuration_has_updated_at_field
+== backend/tests/unit/routes/test_zones_routes.py::TestGeometricHelperFunctions  methods=13 merge-safe=5 distinct-bodies=10 guards={"'self-intersecting'": 1, "'zero'": 1, "'normalized'": 1}
+   x3 match=-: test_has_duplicate_consecutive_points_true, test_has_duplicate_consecutive_points_false, test_has_duplicate_consecutive_points_wrap_around
+   x2 match=-: test_is_self_intersecting_simple_polygon, test_is_self_intersecting_bowtie
+== backend/tests/unit/services/orchestrator/test_enums.py::TestContainerServiceStatusEnum  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_has_running_value, test_has_stopped_value, test_has_unhealthy_value, test_has_disabled_value, test_has_not_found_value
+== backend/tests/unit/services/test_approach_vector_service.py::TestApproachVectorServiceHelpers  methods=12 merge-safe=5 distinct-bodies=9 guards=-
+   x3 match=-: test_point_to_segment_distance_perpendicular, test_point_to_segment_distance_endpoint, test_point_to_segment_distance_degenerate
+   x2 match=-: test_point_in_polygon_inside, test_point_in_polygon_outside
+== backend/tests/unit/services/test_credential_service.py::TestCredentialService  methods=14 merge-safe=5 distinct-bodies=11 guards={"'Fernet key must be'": 1}
+   x3 match=-: test_encrypt_unicode_characters, test_encrypt_special_characters, test_encrypt_whitespace
+   x2 match=-: test_decrypt_empty_string, test_decrypt_invalid_ciphertext
+== backend/tests/unit/services/test_enrichment_client_errors.py::TestHttpErrorCodes  methods=9 merge-safe=5 distinct-bodies=6 guards=-
+   x3 match=-: test_vehicle_classify_http_500_internal_error, test_vehicle_classify_http_502_bad_gateway, test_vehicle_classify_http_504_gateway_timeout
+   x2 match=-: test_pet_classify_http_400_bad_request, test_pet_classify_http_404_not_found
+== backend/tests/unit/services/test_enrichment_data_consistency.py::TestHouseholdMatchToDict  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_household_match_to_dict_includes_member_id, test_household_match_to_dict_includes_member_name, test_household_match_to_dict_includes_similarity, test_household_match_to_dict_includes_match_type, test_household_match_to_dict_includes_member_role
+== backend/tests/unit/services/test_guided_constraints.py::TestRecommendedActionChoices  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_recommended_action_choices_contains_none, test_recommended_action_choices_contains_review_later, test_recommended_action_choices_contains_review_soon, test_recommended_action_choices_contains_alert_homeowner, test_recommended_action_choices_contains_immediate_response
+== backend/tests/unit/services/test_prompts.py::TestFormatActionRecognitionContext  methods=10 merge-safe=5 distinct-bodies=6 guards=-
+   x5 match=-: test_high_risk_checking_car_doors, test_high_risk_breaking_in, test_high_risk_climbing, test_suspicious_loitering, test_suspicious_pacing
+== backend/tests/unit/services/test_prompts.py::TestFormatClassAnomalyContext  methods=14 merge-safe=5 distinct-bodies=11 guards=-
+   x3 match=-: test_insufficient_samples_returns_empty, test_normal_volume_not_flagged, test_exactly_3x_not_flagged
+   x2 match=-: test_rare_class_vehicle_high_severity, test_rare_class_dog_medium_severity
+== backend/tests/unit/services/test_queue_status_service.py::TestQueueThresholds  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_ai_analysis_thresholds, test_detection_thresholds, test_dlq_thresholds, test_export_thresholds, test_cleanup_thresholds
+== backend/tests/unit/services/test_risk_rubrics.py::TestCalculateRiskScore  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_all_zeros_returns_zero, test_max_values_return_100, test_formula_combined_low_risk, test_formula_combined_medium_risk, test_formula_combined_high_risk
+== backend/tests/unit/services/test_search.py::TestQueryParsing  methods=8 merge-safe=5 distinct-bodies=4 guards=-
+   x5 match=-: test_multiple_words_implicit_and, test_explicit_and, test_or_operator, test_phrase_search, test_complex_query
+== backend/tests/unit/services/test_summary_parser.py::TestParseSummaryContent  methods=23 merge-safe=5 distinct-bodies=20 guards=-
+   x3 match=-: test_extract_loitering_pattern, test_extract_obscured_face_pattern, test_extract_rapid_movement_pattern
+   x2 match=-: test_extract_nighttime_condition, test_extract_rainy_condition
+== backend/tests/unit/services/test_summary_parser.py::TestEdgeCases  methods=10 merge-safe=5 distinct-bodies=7 guards=-
+   x3 match=-: test_events_with_none_risk_score, test_events_with_non_numeric_risk_scores, test_events_with_float_risk_scores
+   x2 match=-: test_content_with_special_characters, test_unicode_content
+== backend/tests/unit/services/test_vision_extractor.py::TestVisionExtractorExtraction  methods=18 merge-safe=5 distinct-bodies=15 guards=-
+   x3 match=-: test_extract_environment_context_dawn, test_extract_environment_context_evening, test_extract_environment_context_day_default
+   x2 match=-: test_extract_vehicle_internal_commercial_text_none_response, test_extract_vehicle_internal_commercial_text_garbage_vqa
+== backend/tests/unit/setup_lib/test_image_pull.py::TestGetImageList  methods=9 merge-safe=5 distinct-bodies=6 guards=-
+   x3 match=-: test_handles_missing_services_key, test_empty_services_section, test_no_services_section
+   x2 match=-: test_invalid_path_returns_empty, test_path_traversal_returns_empty
+== backend/tests/unit/setup_lib/test_nvidia_toolkit.py::TestGetToolkitVersion  methods=8 merge-safe=5 distinct-bodies=5 guards=-
+   x3 match=-: test_get_version_success, test_get_version_alternate_format, test_get_version_two_part
+   x2 match=-: test_get_version_command_fails, test_get_version_malformed_output
+== backend/tests/integration/test_alert_engine.py::TestScheduleCondition  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_schedule_overnight_range, test_schedule_overnight_early_morning
+   x2 match=-: test_schedule_day_filter, test_schedule_wrong_day
+== backend/tests/unit/api/middleware/test_accept_header.py::TestAcceptHeaderMiddleware  methods=8 merge-safe=4 distinct-bodies=5 guards=-
+   x4 match=-: test_no_accept_header_returns_json_default, test_accept_wildcard_returns_json, test_accept_application_wildcard_returns_json, test_accept_with_quality_respects_preference
+== backend/tests/unit/api/middleware/test_deprecation.py::TestDeprecationMiddleware  methods=11 merge-safe=4 distinct-bodies=9 guards=-
+   x2 match=-: test_deprecation_header_added_for_deprecated_endpoint, test_sunset_header_added_for_deprecated_endpoint
+   x2 match=-: test_no_headers_for_non_deprecated_endpoint, test_no_headers_for_health_endpoint
+== backend/tests/unit/api/middleware/test_exception_handler.py::TestErrorDataMinimization  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_api_keys_are_redacted, test_bearer_tokens_are_redacted
+   x2 match=-: test_stack_traces_are_not_exposed, test_ip_addresses_are_redacted
+== backend/tests/unit/api/middleware/test_rate_limit.py::TestGetClientIp  methods=8 merge-safe=4 distinct-bodies=5 guards=-
+   x4 match=-: test_get_ip_from_x_forwarded_for_when_trusted, test_ignore_x_forwarded_for_when_untrusted, test_get_ip_from_x_real_ip_when_trusted, test_cidr_trusted_proxy
+== backend/tests/unit/api/routes/test_calibration.py::TestUpdateCalibration  methods=11 merge-safe=4 distinct-bodies=9 guards=-
+   x2 match=-: test_put_validation_low_equals_medium_returns_422, test_put_validation_medium_equals_high_returns_422
+   x2 match=-: test_put_validation_low_greater_than_medium_returns_422, test_put_validation_medium_greater_than_high_returns_422
+== backend/tests/unit/api/routes/test_event_clips.py::TestClipGenerateRequestOffsetValidation  methods=14 merge-safe=4 distinct-bodies=12 guards=-
+   x2 match=-: test_offset_rejects_below_minus_30, test_offset_rejects_above_3600
+   x2 match=-: test_error_message_for_invalid_start_offset_is_helpful, test_error_message_for_invalid_end_offset_is_helpful
+== backend/tests/unit/api/routes/test_exports.py::TestDownloadExport  methods=9 merge-safe=4 distinct-bodies=6 guards=-
+   x4 match=-: test_download_export_success_json, test_download_export_success_zip, test_download_export_success_excel, test_download_export_unknown_format
+== backend/tests/unit/api/routes/test_logs.py::TestListLogs  methods=10 merge-safe=4 distinct-bodies=7 guards=-
+   x4 match=-: test_list_logs_with_level_filter, test_list_logs_with_component_filter, test_list_logs_with_source_filter, test_list_logs_with_date_range_filter
+== backend/tests/unit/api/routes/test_rum.py::TestRUMIngestEndpoint  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_ingest_with_session_id, test_ingest_with_user_agent
+   x2 match=-: test_ingest_with_path, test_ingest_with_navigation_type
+== backend/tests/unit/api/schemas/test_calibration.py::TestUserCalibrationUpdate  methods=12 merge-safe=4 distinct-bodies=9 guards=-
+   x4 match=-: test_update_thresholds_equal_invalid, test_update_low_greater_than_medium_invalid, test_update_medium_greater_than_high_invalid, test_update_low_greater_than_high_invalid
+== backend/tests/unit/api/schemas/test_computed_fields.py::TestEventResponseComputedRiskLevel  methods=12 merge-safe=4 distinct-bodies=9 guards=-
+   x4 match=-: test_risk_level_computed_from_low_score, test_risk_level_computed_from_medium_score, test_risk_level_computed_from_high_score, test_risk_level_computed_from_critical_score
+== backend/tests/unit/api/schemas/test_notification.py::TestNotificationConfigUpdate  methods=17 merge-safe=4 distinct-bodies=15 guards=-
+   x2 match=-: test_invalid_smtp_port_too_high, test_invalid_smtp_port_zero
+   x2 match=-: test_invalid_smtp_from_address_no_at, test_invalid_smtp_from_address_no_domain
+== backend/tests/unit/api/schemas/test_pagination.py::TestPaginatedResponse  methods=9 merge-safe=4 distinct-bodies=7 guards=-
+   x2 match=-: test_create_paginated_response_middle_page, test_create_paginated_response_last_page
+   x2 match=-: test_create_paginated_response_single_page, test_paginated_response_exact_page_boundary
+== backend/tests/unit/api/schemas/test_prompt_config_validation.py::TestNemotronConfigValidation  methods=10 merge-safe=4 distinct-bodies=8 guards=-
+   x2 match=-: test_empty_system_prompt_raises_error, test_whitespace_only_system_prompt_raises_error
+   x2 match=-: test_max_tokens_below_one_raises_error, test_max_tokens_above_limit_raises_error
+== backend/tests/unit/api/schemas/test_settings_api.py::TestBatchSettingsUpdate  methods=10 merge-safe=4 distinct-bodies=8 guards=-
+   x2 match=-: test_valid_update_both_fields, test_cross_field_validation_valid_relationship
+   x2 match=-: test_cross_field_validation_idle_greater_than_window, test_cross_field_validation_idle_equal_window
+== backend/tests/unit/api/schemas/test_stream_config.py::TestResolution  methods=8 merge-safe=4 distinct-bodies=6 guards={"'width'": 3, "'height'": 3}
+   x2 match=["'width'"]: test_resolution_rejects_zero_width, test_resolution_rejects_excessive_width
+   x2 match=["'height'"]: test_resolution_rejects_zero_height, test_resolution_rejects_excessive_height
+== backend/tests/unit/api/schemas/test_stream_config.py::TestEncoderSettings  methods=13 merge-safe=4 distinct-bodies=11 guards={"'codec'": 1, "'bitrate'": 3, "'fps'": 3, "'gop'": 1}
+   x2 match=["'bitrate'"]: test_encoder_settings_rejects_zero_bitrate, test_encoder_settings_rejects_excessive_bitrate
+   x2 match=["'fps'"]: test_encoder_settings_rejects_zero_fps, test_encoder_settings_rejects_excessive_fps
+== backend/tests/unit/api/test_dependencies.py::TestValidateUuid  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_accepts_uuid_with_uppercase_letters, test_accepts_uuid_without_dashes
+   x2 match=-: test_raises_400_for_empty_string, test_raises_400_for_too_short_uuid
+== backend/tests/unit/api/test_pagination.py::TestCursorDecoding  methods=8 merge-safe=4 distinct-bodies=6 guards={"'invalid characters'": 1, "'Invalid cursor'": 4}
+   x2 match=["'Invalid cursor'"]: test_decode_cursor_missing_id, test_decode_cursor_missing_created_at
+   x2 match=-: test_decode_cursor_none, test_decode_cursor_empty_string
+== backend/tests/unit/core/test_ai_service_resource_limits.py::TestAIServiceResourceLimits  methods=9 merge-safe=4 distinct-bodies=7 guards=-
+   x2 match=-: test_compose_parses_valid_yaml, test_docker_compose_yaml_syntax_valid
+   x2 match=-: test_ai_gateway_has_resource_limits, test_ai_llm_has_resource_limits
+== backend/tests/unit/core/test_config.py::TestViolenceThresholdConfiguration  methods=9 merge-safe=4 distinct-bodies=7 guards=-
+   x2 match=-: test_violence_threshold_validation_bounds_low, test_violence_threshold_validation_bounds_high
+   x2 match=-: test_violence_threshold_validation_definitive_gt_suspected, test_violence_threshold_validation_allows_equal
+== backend/tests/unit/core/test_config_gateway.py::TestValidateAiGatewayUrl  methods=8 merge-safe=4 distinct-bodies=6 guards={"'Invalid AI Gateway URL'": 2}
+   x2 match=-: test_valid_https_url, test_url_with_path
+   x2 match=["'Invalid AI Gateway URL'"]: test_invalid_url_raises_error, test_ftp_url_raises_error
+== backend/tests/unit/core/test_json_utils.py::TestExtractJsonEdgeCases  methods=9 merge-safe=4 distinct-bodies=7 guards={"'Empty LLM response'": 2, "'No JSON found'": 1}
+   x2 match=["'Empty LLM response'"]: test_empty_string, test_whitespace_only
+   x2 match=-: test_json_with_escaped_quotes, test_json_with_unicode
+== backend/tests/unit/core/test_json_utils.py::TestSafeJsonLoadsEdgeCases  methods=9 merge-safe=4 distinct-bodies=7 guards=-
+   x2 match=-: test_json_with_leading_whitespace, test_json_with_trailing_whitespace
+   x2 match=-: test_numeric_json_value, test_string_json_value
+== backend/tests/unit/core/test_logging_sanitization.py::TestRedactUrlEdgeCases  methods=10 merge-safe=4 distinct-bodies=8 guards=-
+   x2 match=-: test_url_without_credentials, test_url_with_username_only
+   x2 match=-: test_ipv4_host_preserved, test_database_path_preserved
+== backend/tests/unit/core/test_redis_lua_scripts.py::TestRedisLuaScripts  methods=20 merge-safe=4 distinct-bodies=18 guards=-
+   x2 match=-: test_conditional_increment_success, test_conditional_increment_at_max
+   x2 match=-: test_get_with_lock_acquired, test_get_with_lock_not_acquired
+== backend/tests/unit/core/test_sanitization.py::TestErrorSanitization  methods=9 merge-safe=4 distinct-bodies=6 guards=-
+   x4 match=-: test_password_in_error_redacted, test_bearer_token_redacted, test_api_key_redacted, test_ip_address_redacted
+== backend/tests/unit/core/test_sanitization.py::TestMetricLabelSanitization  methods=16 merge-safe=4 distinct-bodies=14 guards=-
+   x2 match=-: test_unknown_object_class_returns_other, test_object_class_case_insensitive
+   x2 match=-: test_camera_id_sanitization, test_camera_id_special_chars_replaced
+== backend/tests/unit/core/test_security_headers.py::TestSecurityHeadersMiddleware  methods=16 merge-safe=4 distinct-bodies=13 guards=-
+   x4 match=-: test_x_content_type_options_header, test_x_frame_options_header, test_x_xss_protection_header, test_referrer_policy_header
+== backend/tests/unit/models/test_camera_zone.py::TestCameraZoneModel  methods=14 merge-safe=4 distinct-bodies=11 guards=-
+   x4 match=-: test_camera_zone_has_camera_relationship, test_camera_zone_has_household_config_relationship, test_camera_zone_has_activity_baseline_relationship, test_camera_zone_has_anomalies_relationship
+== backend/tests/unit/models/test_event_audit.py::TestEventAuditPromptMetrics  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_prompt_length_zero, test_prompt_length_large
+   x2 match=-: test_enrichment_utilization_zero, test_enrichment_utilization_one
+== backend/tests/unit/models/test_event_audit.py::TestEventAuditConsistencyCheck  methods=9 merge-safe=4 distinct-bodies=7 guards=-
+   x2 match=-: test_consistency_risk_score_boundary_zero, test_consistency_risk_score_boundary_hundred
+   x2 match=-: test_consistency_diff_positive, test_consistency_diff_zero
+== backend/tests/unit/models/test_event_feedback.py::TestEventFeedbackSuggestedScore  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_suggested_score_low_value, test_suggested_score_min_value
+   x2 match=-: test_suggested_score_high_value, test_suggested_score_max_value
+== backend/tests/unit/models/test_log_model.py::TestLogRepr  methods=8 merge-safe=4 distinct-bodies=5 guards=-
+   x4 match=-: test_repr_contains_class_name, test_repr_contains_id, test_repr_contains_level, test_repr_contains_component
+== backend/tests/unit/models/test_prompt_version.py::TestPromptVersionFields  methods=11 merge-safe=4 distinct-bodies=9 guards=-
+   x2 match=-: test_version_accepts_positive_integers, test_version_accepts_one
+   x2 match=-: test_row_version_accepts_positive_integers, test_row_version_accepts_one
+== backend/tests/unit/models/test_scene_change.py::TestSceneChangeEdgeCases  methods=12 merge-safe=4 distinct-bodies=9 guards=-
+   x4 match=-: test_similarity_score_boundary_zero, test_similarity_score_boundary_one, test_similarity_score_very_small, test_similarity_score_almost_one
+== backend/tests/unit/routes/test_cameras_routes.py::TestUpdateCamera  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_update_camera_status, test_update_camera_folder_path
+   x2 match=-: test_update_camera_invalid_empty_name, test_update_camera_invalid_empty_folder_path
+== backend/tests/unit/routes/test_cameras_routes.py::TestFolderPathValidation  methods=10 merge-safe=4 distinct-bodies=8 guards=-
+   x2 match=-: test_folder_path_path_traversal_rejected, test_folder_path_path_traversal_middle_rejected
+   x2 match=-: test_folder_path_single_dot_allowed, test_folder_path_dots_in_filename_allowed
+== backend/tests/unit/routes/test_media_routes.py::TestServeMediaCompat  methods=10 merge-safe=4 distinct-bodies=7 guards=-
+   x4 match=-: test_returns_404_for_unsupported_path, test_returns_404_for_empty_path, test_returns_404_for_cameras_without_filename, test_returns_404_for_random_prefix
+== backend/tests/unit/services/test_audit.py::TestGetActorFromRequest  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_returns_masked_api_key_from_header, test_returns_short_api_key_masked
+   x2 match=-: test_returns_forwarded_ip_when_proxy_present, test_api_key_takes_precedence_over_ip
+== backend/tests/unit/services/test_bbox_validation.py::TestIsValidBbox  methods=10 merge-safe=4 distinct-bodies=7 guards=-
+   x4 match=-: test_zero_width_returns_false, test_zero_height_returns_false, test_negative_width_returns_false, test_negative_height_returns_false
+== backend/tests/unit/services/test_bbox_validation.py::TestValidateBbox  methods=11 merge-safe=4 distinct-bodies=9 guards=-
+   x2 match=-: test_zero_height_raises_invalid_error, test_negative_width_raises_invalid_error
+   x2 match=-: test_nan_values_raise_invalid_error, test_infinite_values_raise_invalid_error
+== backend/tests/unit/services/test_clip_client.py::TestAnomalyScore  methods=10 merge-safe=4 distinct-bodies=8 guards=-
+   x2 match=-: test_anomaly_score_missing_anomaly_score_field, test_anomaly_score_missing_similarity_field
+   x2 match=-: test_anomaly_score_server_error, test_anomaly_score_client_error
+== backend/tests/unit/services/test_enrichment_client.py::TestPoseAnalysisResult  methods=9 merge-safe=4 distinct-bodies=6 guards=-
+   x4 match=-: test_to_context_string_crouching_alert, test_to_context_string_lying_down_alert, test_to_context_string_hands_raised_alert, test_to_context_string_fighting_stance_alert
+== backend/tests/unit/services/test_enrichment_client_gateway.py::TestEnrichmentClientGatewayRouting  methods=11 merge-safe=4 distinct-bodies=8 guards=-
+   x4 match=-: test_gateway_enabled_strips_trailing_slash, test_gateway_disabled_uses_individual_urls, test_gateway_url_none_uses_individual_urls, test_gateway_url_with_path_prefix
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentPipelineVideoHandling  methods=12 merge-safe=4 distinct-bodies=9 guards=-
+   x4 match=-: test_load_image_detects_video_extension_mkv, test_load_image_detects_video_extension_avi, test_load_image_detects_video_extension_mov, test_load_image_handles_uppercase_video_extension
+== backend/tests/unit/services/test_event_broadcaster_alert.py::TestBroadcastAlert  methods=13 merge-safe=4 distinct-bodies=11 guards=-
+   x2 match=-: test_broadcast_alert_invalid_severity_raises_error, test_broadcast_alert_invalid_status_raises_error
+   x2 match=-: test_broadcast_alert_returns_subscriber_count, test_broadcast_alert_zero_subscribers
+== backend/tests/unit/services/test_prompts.py::TestValidateClothingItems  methods=15 merge-safe=4 distinct-bodies=13 guards=-
+   x2 match=-: test_mutual_exclusion_dress_wins, test_leggings_in_lower_body_exclusion
+   x2 match=-: test_shorts_in_lower_body_exclusion, test_jeans_in_lower_body_exclusion
+== backend/tests/unit/services/test_prompts.py::TestFormatHouseholdContext  methods=16 merge-safe=4 distinct-bodies=14 guards=-
+   x2 match=-: test_vehicle_match_by_license_plate, test_vehicle_alone_has_risk_10
+   x2 match=-: test_person_match_within_schedule_risk_5, test_person_match_outside_schedule_risk_20
+== backend/tests/unit/services/test_prompts.py::TestFormatPersonDemographicsContext  methods=10 merge-safe=4 distinct-bodies=7 guards=-
+   x4 match=-: test_combined_age_and_gender, test_low_confidence_age_adds_note, test_low_confidence_gender_adds_note, test_both_low_confidence_adds_combined_note
+== backend/tests/unit/services/test_redis_streams_timestamp.py::TestDetectionStreamMessageTimestampParsing  methods=8 merge-safe=4 distinct-bodies=6 guards=-
+   x2 match=-: test_parse_invalid_timestamp_falls_back_to_current_time, test_parse_empty_string_timestamp
+   x2 match=-: test_parse_timestamp_with_microseconds, test_parse_timestamp_naive_datetime
+== backend/tests/unit/services/test_rtsp_test_service.py::TestRTSPTestService  methods=13 merge-safe=4 distinct-bodies=10 guards=-
+   x4 match=-: test_connection_with_port, test_connection_with_path, test_rtsps_secure_connection, test_credentials_in_url
+== backend/tests/unit/services/test_scene_baseline.py::TestSceneBaselineService  methods=25 merge-safe=4 distinct-bodies=23 guards={"'decay_factor must be between'": 3, "'No baseline found'": 1, "'768 dimensions'": 2, "'CLIP client not configured'": 2}
+   x2 match=["'decay_factor must be between'"]: test_initialization_invalid_decay_factor_zero, test_initialization_invalid_decay_factor_too_large
+   x2 match=-: test_get_baseline_info_exists, test_get_baseline_info_not_reliable
+== backend/tests/unit/services/test_severity.py::TestSeverityFromString  methods=10 merge-safe=4 distinct-bodies=8 guards=-
+   x2 match=-: test_lowercase_values, test_uppercase_values
+   x2 match=-: test_empty_string_raises_error, test_whitespace_only_raises_error
+== backend/tests/unit/services/test_track_service.py::TestCalculateMetrics  methods=11 merge-safe=4 distinct-bodies=8 guards=-
+   x4 match=-: test_calculates_direction_right, test_calculates_direction_down, test_calculates_direction_left, test_calculates_direction_up
+== backend/tests/unit/services/test_video_processor.py::TestSecurityValidation  methods=20 merge-safe=4 distinct-bodies=18 guards={"'Video file not found'": 2, "'Path is not a file'": 1, "'Timestamp must be a number'": 1, "'Timestamp must be between 0 and 86400'": 2, "'Size must be a tuple'": 2, "'Size dimensions must be integers'": 1, "'Size dimensions must be between'": 1, "'Interval must be a number'": 1, "'Interval must be between 0\\\\.1 and 3600'": 2, "'max_frames must be an integer'": 1, "'max_frames must be between 1 and 1000'": 1}
+   x2 match=["'Video file not found'"]: test_validate_video_path_rejects_nonexistent, test_validate_video_path_rejects_dash_prefix
+   x2 match=["'Interval must be between 0\\\\.1 and 3600'"]: test_validate_interval_seconds_rejects_too_small, test_validate_interval_seconds_rejects_too_large
+== backend/tests/unit/setup_lib/test_model_downloader.py::TestPromptAndDownloadModels  methods=13 merge-safe=4 distinct-bodies=11 guards=-
+   x2 match=-: test_downloads_all_missing_models, test_downloads_all_missing_models_without_input
+   x2 match=-: test_downloads_all_phases_including_phase1, test_downloads_all_phases_including_phase2_and_phase3
+== backend/tests/unit/test_extract_schema.py::TestExtractSchema  methods=16 merge-safe=4 distinct-bodies=14 guards=-
+   x2 match=-: test_extract_schema_simple_dict, test_extract_schema_error_response
+   x2 match=-: test_extract_schema_list_of_primitives, test_extract_schema_mixed_list
+== backend/tests/unit/api/middleware/test_exception_handler.py::TestSanitizeErrorForResponseExtended  methods=11 merge-safe=3 distinct-bodies=9 guards=-
+   x3 match=-: test_connection_string_password_redacted, test_password_in_json_redacted, test_url_with_auth_redacted
+== backend/tests/unit/api/middleware/test_request_recorder.py::TestRedaction  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_redacts_password_field, test_redacts_api_key_field, test_redacts_token_field
+== backend/tests/unit/api/routes/test_exports.py::TestGetDownloadInfo  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_get_download_info_ready_zip, test_get_download_info_ready_excel, test_get_download_info_ready_unknown_format
+== backend/tests/unit/api/routes/test_media.py::TestValidateAndResolvePath  methods=11 merge-safe=3 distinct-bodies=9 guards=-
+   x3 match=-: test_path_traversal_with_dots_returns_403, test_path_starting_with_slash_returns_403, test_file_not_found_returns_404
+== backend/tests/unit/api/routes/test_media.py::TestServeMediaCompat  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_compat_cameras_path_missing_camera_returns_404, test_compat_detections_invalid_id_returns_404, test_compat_unsupported_path_returns_404
+== backend/tests/unit/api/schemas/test_onvif.py::TestPTZCommand  methods=11 merge-safe=3 distinct-bodies=9 guards={"'command'": 1, "'value'": 2, "'speed'": 2}
+   x3 match=-: test_valid_ptz_pan_command, test_valid_ptz_zoom_command, test_valid_ptz_stop_command
+== backend/tests/unit/api/test_exception_handlers.py::TestHttpExceptionHandler  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_handles_401_unauthorized, test_handles_503_service_unavailable, test_handles_unknown_status_code
+== backend/tests/unit/core/test_logging_sanitization.py::TestRedactUrlPasswordFormats  methods=11 merge-safe=3 distinct-bodies=9 guards=-
+   x3 match=-: test_password_with_plus_sign, test_password_with_slashes, test_password_looks_like_url
+== backend/tests/unit/core/test_logging_sanitization.py::TestRedactSensitiveValueNested  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_simple_sensitive_field, test_non_sensitive_field_unchanged, test_non_sensitive_integer_unchanged
+== backend/tests/unit/core/test_middleware.py::TestValidateWebsocketApiKey  methods=11 merge-safe=3 distinct-bodies=9 guards=-
+   x3 match=-: test_rejects_invalid_api_key_from_protocol_header, test_protocol_header_without_api_key_prefix, test_empty_protocol_header
+== backend/tests/unit/core/test_sampling.py::TestPriorityBasedSampler  methods=13 merge-safe=3 distinct-bodies=11 guards=-
+   x3 match=-: test_path_extraction_from_attributes, test_path_extraction_from_url_path, test_query_string_removal
+== backend/tests/unit/core/test_template_strings.py::TestSqlTemplateProcessing  methods=10 merge-safe=3 distinct-bodies=8 guards=-
+   x3 match=-: test_simple_select_query, test_delete_query, test_none_value
+== backend/tests/unit/core/test_template_strings.py::TestHtmlTemplateProcessing  methods=10 merge-safe=3 distinct-bodies=8 guards=-
+   x3 match=-: test_ampersand_escaped, test_quotes_escaped, test_single_quotes_escaped
+== backend/tests/unit/core/test_url_validation.py::TestInternalHelperFunctions  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_validate_ip_address_returns_true_for_ip, test_validate_ip_address_returns_false_for_hostname, test_validate_ip_address_allows_localhost_in_dev
+== backend/tests/unit/models/test_event.py::TestEventComputedRiskLevel  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_computed_risk_level_medium, test_computed_risk_level_high, test_computed_risk_level_critical
+== backend/tests/unit/models/test_prompt_version.py::TestPromptVersionConfigProperty  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_config_property_handles_invalid_json, test_config_property_handles_malformed_json, test_config_property_handles_empty_string
+== backend/tests/unit/routes/test_cameras_routes.py::TestCameraStatusValidation  methods=15 merge-safe=3 distinct-bodies=13 guards=-
+   x3 match=-: test_camera_create_invalid_status_nonexistent, test_camera_create_invalid_status_empty, test_camera_create_invalid_status_case_sensitive
+== backend/tests/unit/routes/test_zones_routes.py::TestGeometricValidation  methods=18 merge-safe=3 distinct-bodies=16 guards=-
+   x3 match=-: test_self_intersecting_bowtie_rejected, test_self_intersecting_figure_eight_rejected, test_coordinates_out_of_range_rejected
+== backend/tests/unit/services/test_alert_dedup.py::TestCheckDuplicate  methods=8 merge-safe=3 distinct-bodies=6 guards={"'cannot be empty'": 1}
+   x3 match=-: test_cooldown_expired_alert_not_found, test_zero_cooldown_seconds, test_large_cooldown_value
+== backend/tests/unit/services/test_audit_logger.py::TestSerializeValue  methods=11 merge-safe=3 distinct-bodies=9 guards=-
+   x3 match=-: test_serialize_string, test_serialize_int, test_serialize_float
+== backend/tests/unit/services/test_bbox_validation.py::TestScaleBboxToImage  methods=10 merge-safe=3 distinct-bodies=8 guards=-
+   x3 match=-: test_downscale_2x, test_upscale_2x, test_non_uniform_scaling
+== backend/tests/unit/services/test_enrichment_client.py::TestEnrichmentClientHealthCheck  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_is_healthy_true_healthy, test_is_healthy_true_degraded, test_is_healthy_false_unavailable
+== backend/tests/unit/services/test_osnet_loader.py::TestFormatPersonReidContext  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_format_person_reid_context_high_confidence_match, test_format_person_reid_context_medium_confidence_match, test_format_person_reid_context_low_confidence_match
+== backend/tests/unit/services/test_prompt_parser.py::TestDetectVariableStyle  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_detects_curly_brace_format, test_detects_colon_label_style, test_no_indentation_when_not_present
+== backend/tests/unit/services/test_prompts.py::TestRiskAnalysisPromptTemplate  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_template_has_chatml_format, test_template_has_json_output_format, test_template_has_risk_level_guidance
+== backend/tests/unit/services/test_prompts.py::TestFormatEnhancedReidContext  methods=11 merge-safe=3 distinct-bodies=9 guards=-
+   x3 match=-: test_frequent_visitor_minimum_threshold, test_returning_visitor_minimum_threshold, test_high_detection_count_but_short_time_period
+== backend/tests/unit/services/test_prompts.py::TestFormatPersonReidContext  methods=10 merge-safe=3 distinct-bodies=8 guards=-
+   x3 match=-: test_high_confidence_match, test_likely_match, test_possible_match
+== backend/tests/unit/services/test_reid_service.py::TestCosineSimilarity  methods=10 merge-safe=3 distinct-bodies=8 guards=-
+   x3 match=-: test_zero_vector_first, test_zero_vector_second, test_both_zero_vectors
+== backend/tests/unit/services/test_risk_rubrics.py::TestRubricEnhancedPrompt  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_prompt_contains_threat_level_rubric, test_prompt_contains_intent_rubric, test_prompt_contains_time_context_rubric
+== backend/tests/unit/services/test_scene_change_detector.py::TestSceneChangeDetectorInit  methods=9 merge-safe=3 distinct-bodies=7 guards={"'between 0 and 1'": 3, "'resize_width must be positive'": 1}
+   x3 match=-: test_custom_threshold, test_boundary_threshold_zero, test_boundary_threshold_one
+== backend/tests/unit/services/test_scene_ocr_service.py::TestSceneOCRService  methods=16 merge-safe=3 distinct-bodies=14 guards=-
+   x3 match=-: test_determine_region_chest, test_determine_region_top, test_determine_region_bottom
+== backend/tests/unit/services/test_xclip_loader.py::TestPilImageValidation  methods=8 merge-safe=3 distinct-bodies=6 guards=-
+   x3 match=-: test_none_returns_false, test_string_returns_false, test_integer_returns_false
+== backend/tests/unit/test_setup_guard_middleware.py::TestSetupGuardWhitelist  methods=9 merge-safe=3 distinct-bodies=7 guards=-
+   x3 match=-: test_health_endpoint_allowed_when_no_users, test_ready_endpoint_allowed_when_no_users, test_system_health_allowed_when_no_users
+== backend/tests/integration/test_entities_api.py::TestListEntities  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_list_entities_invalid_limit, test_list_entities_invalid_offset
+== backend/tests/integration/test_websocket.py::TestWebSocketEventChannel  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_events_websocket_connection, test_events_websocket_connection_and_disconnect
+== backend/tests/integration/test_websocket.py::TestWebSocketSystemChannel  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_system_websocket_connection, test_system_websocket_connection_and_disconnect
+== backend/tests/unit/api/middleware/test_error_handler.py::TestEdgeCases  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_empty_message_uses_default, test_none_message_uses_default
+== backend/tests/unit/api/middleware/test_idempotency.py::TestIdempotencyMiddlewareDispatch  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_supports_put_method, test_supports_patch_method
+== backend/tests/unit/api/routes/test_debug.py::TestRecordingEndpoints  methods=14 merge-safe=2 distinct-bodies=13 guards=-
+   x2 match=-: test_get_recording_not_found, test_get_recording_path_traversal_prevention
+== backend/tests/unit/api/routes/test_dlq.py::TestVerifyApiKey  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_verify_api_key_enabled_requires_key, test_verify_api_key_invalid_key_raises_401
+== backend/tests/unit/api/routes/test_dlq_api.py::TestAPIKeyAuthentication  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_requeue_without_api_key_when_auth_enabled, test_requeue_all_without_api_key_when_auth_enabled
+== backend/tests/unit/api/routes/test_events_api.py::TestEventUpdateSchema  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_event_update_valid, test_event_update_false
+== backend/tests/unit/api/routes/test_onvif_routes.py::TestExecutePTZCommand  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_execute_ptz_zoom_command, test_execute_ptz_stop_command
+== backend/tests/unit/api/routes/test_prompt_management.py::TestGetPromptHistoryEndpoint  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_get_history_invalid_offset, test_get_history_invalid_model
+== backend/tests/unit/api/routes/test_websocket.py::TestHandleValidatedMessage  methods=14 merge-safe=2 distinct-bodies=13 guards=-
+   x2 match=-: test_subscribe_with_channels_backwards_compat, test_subscribe_with_exact_match
+== backend/tests/unit/api/routes/test_zone_comparison.py::TestCompareZones  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_compare_zones_invalid_metric, test_compare_zones_invalid_period
+== backend/tests/unit/api/schemas/test_alerts.py::TestAlertRuleScheduleDaysValidation  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_valid_weekend, test_mixed_case_days
+== backend/tests/unit/api/schemas/test_llm_response.py::TestRiskAnalysisJsonSchema  methods=25 merge-safe=2 distinct-bodies=24 guards=-
+   x2 match=-: test_schema_rejects_invalid_entity_type_enum, test_schema_rejects_invalid_entity_threat_level_enum
+== backend/tests/unit/api/schemas/test_problem_details.py::TestProblemDetailSchema  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_status_code_validation_minimum, test_status_code_validation_maximum
+== backend/tests/unit/api/schemas/test_prompt_config_validation.py::TestValidateConfigForModel  methods=16 merge-safe=2 distinct-bodies=15 guards=-
+   x2 match=-: test_nemotron_valid_config, test_config_with_version_field
+== backend/tests/unit/api/schemas/test_queue_strict_schemas.py::TestAnalysisQueuePayloadStrict  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_strict_inherits_batch_id_validation, test_strict_inherits_batch_id_newline_validation
+== backend/tests/unit/api/schemas/test_websocket_camera_status.py::TestWebSocketCameraStatusData  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_camera_status_data_validates_event_type, test_camera_status_data_validates_status
+== backend/tests/unit/api/test_pagination_limits.py::TestValidatePaginationLimit  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_returns_valid_limit_when_within_max, test_returns_limit_at_exactly_max
+== backend/tests/unit/config/test_prompt_ab_config.py::TestPromptExperimentValidation  methods=9 merge-safe=2 distinct-bodies=8 guards={"'Experiment name cannot be empty'": 1, "'Experiment description cannot be empty'": 1, "'Control prompt key cannot be empty'": 1, "'Variant prompt key cannot be empty'": 1, "'Control and variant prompt keys must be different'": 1, "'traffic_split must be between 0.0 and 1.0'": 2}
+   x2 match=-: test_traffic_split_boundary_zero_valid, test_traffic_split_boundary_one_valid
+== backend/tests/unit/core/test_database_utils.py::TestEscapeIlikePatternNoneAndNonString  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_integer_converted_to_string, test_float_converted_to_string
+== backend/tests/unit/core/test_message_buffer.py::TestMessageBuffer  methods=16 merge-safe=2 distinct-bodies=15 guards=-
+   x2 match=-: test_get_since_returns_empty_when_no_messages_after, test_get_since_returns_all_when_last_seq_is_zero
+== backend/tests/unit/core/test_metrics.py::TestMetricsServiceCostTracking  methods=13 merge-safe=2 distinct-bodies=12 guards=-
+   x2 match=-: test_record_event_analysis_cost, test_record_event_analysis_cost_zero
+== backend/tests/unit/core/test_middleware.py::TestAuthHashFunctions  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_hash_key_special_characters, test_hash_key_unicode
+== backend/tests/unit/core/test_rate_limit.py::TestWebSocketRateLimiting  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_websocket_rate_limit_allowed, test_websocket_rate_limit_denied
+== backend/tests/unit/core/test_redis_cluster.py::TestRedisClusterClient  methods=15 merge-safe=2 distinct-bodies=14 guards={"'Invalid cluster node format'": 1, "'Redis Cluster not connected'": 1}
+   x2 match=-: test_parse_cluster_nodes, test_parse_cluster_nodes_with_spaces
+== backend/tests/unit/core/test_scene_ocr_metrics.py::TestSceneOCRHelperFunctions  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_record_scene_ocr_request_full_frame, test_record_scene_ocr_request_crop
+== backend/tests/unit/core/test_websocket_circuit_breaker.py::TestRedisPersistence  methods=14 merge-safe=2 distinct-bodies=13 guards=-
+   x2 match=-: test_restore_state_no_data_in_redis, test_restore_state_handles_invalid_json
+== backend/tests/unit/evaluation/test_harness.py::TestPromptEvaluator  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_parse_llm_response_with_think_blocks, test_parse_llm_response_invalid_json
+== backend/tests/unit/evaluation/test_prompt_eval_dataset.py::TestPromptEvalSample  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_media_type_image, test_media_type_video
+== backend/tests/unit/evaluation/test_prompt_eval_dataset.py::TestLoadSyntheticEvalDataset  methods=13 merge-safe=2 distinct-bodies=12 guards=-
+   x2 match=-: test_skips_directories_without_labels, test_handles_invalid_json
+== backend/tests/unit/models/test_event_audit.py::TestEventAuditContributionFlags  methods=14 merge-safe=2 distinct-bodies=13 guards=-
+   x2 match=-: test_yolo26_flag_true, test_yolo26_flag_false
+== backend/tests/unit/models/test_event_audit.py::TestEventAuditSelfEvaluationScores  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_context_usage_score_min, test_context_usage_score_max
+== backend/tests/unit/models/test_package_event.py::TestPackageEventFields  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_delivery_timestamp_is_nullable, test_removal_timestamp_is_nullable
+== backend/tests/unit/models/test_zone_anomaly.py::TestZoneAnomalyModel  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_anomaly_has_zone_relationship, test_anomaly_has_detection_relationship
+== backend/tests/unit/scripts/test_comparison_engine.py::TestComparisonEngineFlorenceCaption  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_must_contain_with_synonym_match, test_must_not_contain_with_no_matches
+== backend/tests/unit/services/test_baseline.py::TestBaselineServiceInit  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_init_invalid_decay_factor_zero, test_init_invalid_decay_factor_too_high
+== backend/tests/unit/services/test_bbox_validation.py::TestBboxValidationProperties  methods=30 merge-safe=2 distinct-bodies=29 guards=-
+   x2 match=-: test_nan_in_any_position_is_invalid, test_infinity_in_any_position_is_invalid
+== backend/tests/unit/services/test_clip_client.py::TestEmbed  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_embed_server_error_5xx, test_embed_client_error_4xx
+== backend/tests/unit/services/test_clip_client.py::TestClassify  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_classify_server_error, test_classify_client_error
+== backend/tests/unit/services/test_clip_client.py::TestSimilarity  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_similarity_server_error, test_similarity_client_error
+== backend/tests/unit/services/test_clip_client.py::TestBatchSimilarity  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_batch_similarity_server_error, test_batch_similarity_client_error
+== backend/tests/unit/services/test_clip_generator.py::TestSecurityValidation  methods=14 merge-safe=2 distinct-bodies=13 guards={"'Video file not found'": 2, "'Path is not a file'": 1, "'pre_seconds must be an integer'": 1, "'pre_seconds must be between 0 and 300'": 1, "'post_seconds must be between 0 and 300'": 1, "'Output format must be one of'": 1, "'fps must be an integer'": 1, "'fps must be between 1 and 60'": 1}
+   x2 match=["'Video file not found'"]: test_validate_video_path_rejects_nonexistent, test_validate_video_path_rejects_dash_prefix
+== backend/tests/unit/services/test_clip_generator.py::TestEdgeCasesAndErrorHandling  methods=15 merge-safe=2 distinct-bodies=14 guards={"'Video file not found'": 1, "'Permission denied'": 1, "'Disk full'": 1, "'Unexpected error'": 1}
+   x2 match=-: test_generate_clip_from_video_duration_too_long, test_generate_clip_from_video_duration_negative
+== backend/tests/unit/services/test_compose_parser.py::TestComposeParser  methods=15 merge-safe=2 distinct-bodies=14 guards=-
+   x2 match=-: test_labels_override_inferred_category, test_labels_list_format_supported
+== backend/tests/unit/services/test_enrichment_client.py::TestEnrichmentClientRetryLogic  methods=14 merge-safe=2 distinct-bodies=13 guards=-
+   x2 match=-: test_is_retryable_error_5xx, test_is_retryable_error_4xx_not_retryable
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentResultWeatherRiskModifiers  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_risk_modifiers_weather_low_visibility_foggy, test_risk_modifiers_weather_low_visibility_snowy
+== backend/tests/unit/services/test_export_service.py::TestExportServiceWithProgress  methods=10 merge-safe=2 distinct-bodies=9 guards={"'Database session required'": 1, "'Unsupported export format'": 1}
+   x2 match=-: test_export_with_progress_json_format, test_export_with_progress_zip_format
+== backend/tests/unit/services/test_fashion_clip_loader.py::TestModuleConstants  methods=15 merge-safe=2 distinct-bodies=14 guards=-
+   x2 match=-: test_security_clothing_prompts_contain_service, test_security_clothing_prompts_has_general_categories
+== backend/tests/unit/services/test_fashion_clip_loader.py::TestFormatClothingContext  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_format_high_confidence_no_alternative, test_format_exact_threshold_boundary
+== backend/tests/unit/services/test_florence_extractor.py::TestFlorenceExtractorHelpers  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_crop_bbox, test_crop_bbox_with_padding
+== backend/tests/unit/services/test_gpu_config_service.py::TestGenerateOverrideContent  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_vram_budget_environment_variable, test_zero_vram_budget_includes_environment
+== backend/tests/unit/services/test_job_progress_reporter.py::TestProgressReporting  methods=8 merge-safe=2 distinct-bodies=7 guards={"'has not been started'": 1, "'has already completed'": 1}
+   x2 match=-: test_report_progress_10_percent_jump_triggers_emit, test_report_progress_9_percent_jump_throttled
+== backend/tests/unit/services/test_materialized_views.py::TestMaterializedViewService  methods=27 merge-safe=2 distinct-bodies=26 guards=-
+   x2 match=-: test_check_view_exists_true, test_check_view_exists_false
+== backend/tests/unit/services/test_model_warmup.py::TestDetectorClientWarmup  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_is_cold_after_threshold_exceeded, test_is_warm_within_threshold
+== backend/tests/unit/services/test_model_zoo.py::TestModelZoo  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_get_total_vram_if_loaded, test_get_total_vram_with_unknown_model
+== backend/tests/unit/services/test_mqtt_publisher.py::TestMQTTPublisher  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_publish_status_uses_retain_flag, test_publish_event_no_retain_for_events
+== backend/tests/unit/services/test_nemotron_guided_json.py::TestGuidedJsonSupportDetection  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_check_support_returns_true_on_success, test_check_support_returns_false_on_4xx
+== backend/tests/unit/services/test_partition_manager.py::TestPartitionManager  methods=18 merge-safe=2 distinct-bodies=17 guards=-
+   x2 match=-: test_check_partition_exists_when_exists, test_check_partition_exists_when_not_exists
+== backend/tests/unit/services/test_pose_analysis_service.py::TestClassifyPoseEdgeCases  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_only_left_side_keypoints, test_only_right_side_keypoints
+== backend/tests/unit/services/test_process_memory_service.py::TestProcessMemoryService  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_is_memory_critical_above_threshold, test_is_memory_critical_below_threshold
+== backend/tests/unit/services/test_prompt_auto_tuner.py::TestGetTuningContext  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_handles_only_missing_context, test_handles_only_format_suggestions
+== backend/tests/unit/services/test_prompt_parser.py::TestGenerateInsertionTextProperties  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_curly_format_produces_braces, test_angle_format_produces_brackets
+== backend/tests/unit/services/test_prompt_storage.py::TestDefaultConfigs  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_fashion_clip_default_has_clothing_categories, test_fashion_clip_default_has_suspicious_indicators
+== backend/tests/unit/services/test_prompt_storage.py::TestValidationHelpers  methods=12 merge-safe=2 distinct-bodies=11 guards=-
+   x2 match=-: test_validate_number_range_above_max, test_validate_number_range_wrong_type
+== backend/tests/unit/services/test_prompts.py::TestFormatPoseAnalysisContext  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_crawling_pose_suspicious, test_running_pose
+== backend/tests/unit/services/test_prompts.py::TestFormatVehicleDamageContext  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_glass_shatter_high_security, test_lamp_broken_high_security
+== backend/tests/unit/services/test_prompts.py::TestFormatDetectionsWithAllEnrichment  methods=18 merge-safe=2 distinct-bodies=17 guards=-
+   x2 match=-: test_detection_with_alternate_id_field, test_detection_with_alternate_object_type_field
+== backend/tests/unit/services/test_prompts.py::TestBuildEnrichmentSections  methods=22 merge-safe=2 distinct-bodies=21 guards=-
+   x2 match=-: test_clothing_included_when_meaningful, test_suspicious_clothing_included
+== backend/tests/unit/services/test_prompts.py::TestVQAOutputValidation  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_validate_and_clean_vqa_output_returns_none_for_garbage, test_validate_and_clean_vqa_output_handles_empty
+== backend/tests/unit/services/test_prompts.py::TestFormatThreatDetectionContext  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_threat_with_time_context_night, test_threat_with_time_context_late_night
+== backend/tests/unit/services/test_prompts.py::TestBuildPersonAnalysisSection  methods=19 merge-safe=2 distinct-bodies=18 guards=-
+   x2 match=-: test_demographics_with_dict_age_range, test_demographics_with_dict_age_group
+== backend/tests/unit/services/test_prompts.py::TestFormatSceneContext  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_format_scene_context_empty_string, test_format_scene_context_none_returns_empty
+== backend/tests/unit/services/test_read_through_cache.py::TestReadThroughCacheErrorHandling  methods=8 merge-safe=2 distinct-bodies=7 guards={"'Loader failed'": 1}
+   x2 match=-: test_get_uses_custom_ttl, test_get_uses_default_ttl_when_none
+== backend/tests/unit/services/test_restore_service.py::TestValidateManifest  methods=10 merge-safe=2 distinct-bodies=9 guards={"'Missing required manifest field: backup_id'": 1, "'Missing required manifest field: version'": 1, "'Missing required manifest field: created_at'": 1, "'Unsupported backup version: 2.0'": 1, "'Invalid manifest contents structure'": 1, "'Invalid content info for table cameras'": 1, "'Missing count or checksum for table cameras'": 2}
+   x2 match=["'Missing count or checksum for table cameras'"]: test_validate_manifest_missing_count, test_validate_manifest_missing_checksum
+== backend/tests/unit/services/test_scenario_classifier.py::TestClassifyScenario  methods=10 merge-safe=2 distinct-bodies=9 guards=-
+   x2 match=-: test_classify_graffiti_from_summary, test_classify_case_insensitive
+== backend/tests/unit/services/test_search.py::TestBuildFilterConditions  methods=9 merge-safe=2 distinct-bodies=8 guards=-
+   x2 match=-: test_reviewed_true_filter, test_reviewed_false_filter
+== backend/tests/unit/services/test_service_status_events.py::TestCreateServiceStatusEvent  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_event_type_is_service_status, test_event_message_is_included
+== backend/tests/unit/services/test_transcoding_service.py::TestNVENCHardwareAcceleration  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_get_video_encoder_args_disabled, test_get_video_encoder_args_force_software
+== backend/tests/unit/setup_lib/test_nvidia_toolkit.py::TestPromptAndInstallToolkit  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_user_accepts_success, test_user_accepts_failure
+== backend/tests/unit/setup_lib/test_podman_install.py::TestPromptAndInstallPodman  methods=11 merge-safe=2 distinct-bodies=10 guards=-
+   x2 match=-: test_user_declines_install, test_empty_input_defaults_to_no
+== backend/tests/unit/setup_lib/test_ssl_certs.py::TestPromptAndGenerateCertificates  methods=18 merge-safe=2 distinct-bodies=17 guards=-
+   x2 match=-: test_uses_custom_hostname_when_provided, test_uses_default_hostname_when_empty
+== backend/tests/unit/test_benchmarks.py::TestGenerateFilePaths  methods=8 merge-safe=2 distinct-bodies=7 guards=-
+   x2 match=-: test_generates_correct_count_one, test_generates_correct_count_large
+== backend/tests/unit/test_job_progress_reporter.py::TestProgressReporting  methods=10 merge-safe=2 distinct-bodies=9 guards={"'has not been started'": 1, "'has already completed'": 1}
+   x2 match=-: test_report_progress_calculates_percentage, test_report_progress_caps_at_100
+== backend/tests/unit/test_websocket_event_schemas.py::TestEnumStringCoercion  methods=13 merge-safe=2 distinct-bodies=12 guards=-
+   x2 match=-: test_severity_with_invalid_type_raises, test_status_with_invalid_type_raises
+== backend/tests/benchmarks/test_bigo.py::TestComplexityHelperFunctions  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/contracts/test_api_contracts.py::TestWebSocketMessageContracts  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/contracts/test_websocket_contracts.py::TestWebSocketMessageSchemas  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/integration/api/test_cursor_pagination.py::TestEventsCursorPagination  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/integration/repositories/test_alert_repository.py::TestAlertRepositorySpecificMethods  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/repositories/test_alert_repository.py::TestAlertRuleRepositorySpecificMethods  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/repositories/test_base.py::TestRepositoryBasicOperations  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/repositories/test_camera_repository.py::TestCameraRepositoryBasicCRUD  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/repositories/test_camera_repository.py::TestCameraRepositorySpecificMethods  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/repositories/test_detection_repository.py::TestDetectionRepositorySpecificMethods  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/repositories/test_entity_repository.py::TestEntityRepositoryBasicCRUD  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/repositories/test_entity_repository.py::TestEntityRepositorySpecificMethods  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/integration/repositories/test_event_repository.py::TestEventRepositorySpecificMethods  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/repositories/test_zone_repository.py::TestZoneRepositorySpecificMethods  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/integration/test_action_recognition_service.py::TestActionEventModel  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/test_action_recognition_service.py::TestActionRecognitionService  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/integration/test_alert_dedup.py::TestAlertDeduplicationService  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/integration/test_alert_models.py::TestAlertModel  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/test_audit_api.py::TestAuditAPI  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/integration/test_auth_flow.py::TestAPIKeyAuthentication  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_data_corruption.py::TestOrphanedRecordDetection  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_data_corruption.py::TestDataConsistency  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/test_dlq_api.py::TestGetDLQJobs  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_events.py::TestListEvents  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/test_events.py::TestUpdateEvent  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/test_events.py::TestGetEventStats  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_events.py::TestGetEventEnrichments  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_events_api.py::TestListEvents  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/test_events_api.py::TestUpdateEvent  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/test_events_api.py::TestGetEventStats  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_events_api.py::TestGetEventEnrichments  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_face_recognition_service.py::TestKnownPersonManagement  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_fixture_quality.py::TestFactoryConsistency  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/integration/test_frigate_integration.py::TestFrigateEventProcessing  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/integration/test_job_timeout.py::TestJobTimeoutServiceIntegration  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/test_prompt_management_api.py::TestPromptManagementEdgeCases  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/integration/test_webhook_service.py::TestWebhookServiceCRUD  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/helpers/test_enrichment_transformers.py::TestEnrichmentTransformer  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/middleware/test_accept_header.py::TestAcceptHeaderMiddlewareOptimization  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/middleware/test_content_type_validator.py::TestContentTypeValidationMiddleware  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/api/middleware/test_deprecation.py::TestDeprecationConfig  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/middleware/test_error_handler.py::TestAppException  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/middleware/test_error_handler.py::TestReExportedExceptions  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/unit/api/middleware/test_error_handler.py::TestReExportedUtilities  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/middleware/test_file_validator.py::TestDetectMimeType  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/api/middleware/test_file_validator.py::TestValidatedUploadFile  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/api/middleware/test_idempotency.py::TestIdempotencyMiddlewareChunking  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/middleware/test_prometheus.py::TestPrometheusMiddleware  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/api/middleware/test_rate_limit.py::TestRedisStressTests  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/middleware/test_request_logging.py::TestRequestLoggingMiddleware  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/api/middleware/test_request_recorder.py::TestRequestRecorderMiddleware  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/api/routes/test_ai_audit.py::TestAuditSchemas  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/api/routes/test_ai_audit.py::TestBatchAuditJobBackgroundTask  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_alertmanager.py::TestReceiveAlertmanagerWebhook  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/api/routes/test_analytics_camera_activity.py::TestCameraActivity  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/routes/test_analytics_zones_trends.py::TestGetCrossingTrends  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_audit.py::TestGetAuditStatsOptimized  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_cameras_baseline.py::TestBaselineSchemas  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_detections.py::TestListDetections  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_detections.py::TestGetDetectionImage  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/routes/test_detections.py::TestGetDetectionThumbnail  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/routes/test_detections.py::TestFileReadSpecificExceptions  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/routes/test_dlq_api.py::TestEnrichedErrorContext  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_enrichment.py::TestEnrichmentSchemas  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/api/routes/test_enrichment.py::TestErrorSanitization  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/routes/test_events_api.py::TestEventResponseSchema  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/routes/test_events_clusters.py::TestGetEventClustersEndpoint  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/unit/api/routes/test_events_coverage.py::TestBulkOperationsErrorPaths  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_face_recognition.py::TestGetPersonAppearances  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_face_recognition.py::TestEnrollFromDetection  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_health_ai_services.py::TestAIServiceHealthCheck  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/routes/test_health_ai_services.py::TestOverallStatusCalculation  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_household.py::TestAddEmbedding  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_media.py::TestServeDetectionImage  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_notification.py::TestTestNotification  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/api/routes/test_notification.py::TestHelperFunctions  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_prompt_management.py::TestPromptManagementSchemas  methods=19 merge-safe=0 distinct-bodies=19 guards={"'cannot be empty'": 3}
+== backend/tests/unit/api/routes/test_settings_api.py::TestGetSettingsEndpoint  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/routes/test_system.py::TestCircuitBreaker  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_system.py::TestMonitoringHealthHelpers  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/api/routes/test_webhooks.py::TestReceiveAlertmanagerWebhook  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/routes/test_websocket.py::TestValidateWebSocketMessage  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/routes/test_websocket.py::TestModelValidateJsonOptimization  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_calibration.py::TestUserCalibrationCreate  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/schemas/test_calibration.py::TestCalibrationAdjustRequest  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/api/schemas/test_camera_validation.py::TestCameraUpdateRTSPFields  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/schemas/test_detections.py::TestEnrichmentDataSchema  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/api/schemas/test_detections.py::TestValidateEnrichmentData  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/schemas/test_embeddings_data.py::TestEmbeddingsDataSchema  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_errors.py::TestErrorCode  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/api/schemas/test_errors.py::TestRaiseHttpError  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/api/schemas/test_feedback.py::TestEventFeedbackCreate  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/schemas/test_feedback.py::TestEventFeedbackCreateEnhanced  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/api/schemas/test_health.py::TestCheckResult  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_health.py::TestReadinessResponse  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_health.py::TestHealthEventResponse  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_llm.py::TestLLMEntity  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/api/schemas/test_llm.py::TestLLMFlag  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/api/schemas/test_llm.py::TestLLMConfidenceFactors  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/schemas/test_prompt_config_validation.py::TestYoloWorldConfigValidation  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_rum.py::TestWebVitalMetric  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/unit/api/schemas/test_serialization_modes.py::TestEventResponseSerializationModes  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/schemas/test_serialization_modes.py::TestDetectionResponseSerializationModes  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/api/schemas/test_trusted.py::TestFromDbRecord  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_websocket_discriminated_union.py::TestIncomingMessageDiscriminatedUnion  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/schemas/test_websocket_discriminated_union.py::TestOutgoingMessageDiscriminatedUnion  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/unit/api/schemas/test_websocket_sequence.py::TestWebSocketSequencedMessage  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/test_date_filter_validation.py::TestValidateDateRange  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/api/test_pagination.py::TestCursorValidationModel  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/api/utils/test_field_filter.py::TestFilterFields  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/config/test_shadow_mode_deployment.py::TestShadowModeStatsTracker  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_async_context.py::TestCreateTaskWithContext  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/core/test_async_context.py::TestCopyContextToTaskDecorator  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_async_context.py::TestCreateTrackedTask  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_config.py::TestSettingsDefaults  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/test_config_repr_redaction.py::TestSettingsReprRedaction  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/core/test_config_validation.py::TestValidateConfig  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_connection_health.py::TestConnectionHealthTracker  methods=17 merge-safe=0 distinct-bodies=17 guards=-
+== backend/tests/unit/core/test_database.py::TestEventLoopMismatch  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_database.py::TestSlowQueryLogging  methods=19 merge-safe=0 distinct-bodies=19 guards=-
+== backend/tests/unit/core/test_database.py::TestDatabaseErrorLogging  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/core/test_docker_client.py::TestDockerClientContainerLifecycle  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/core/test_dockerfile_config.py::TestDockerfileConfig  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/test_json_utils.py::TestPropertyBasedJsonParsing  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_json_utils.py::TestSafeJsonLoadsHappyPath  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_load_only_optimization.py::TestEventColumns  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/core/test_logging_context.py::TestLogContext  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/core/test_logging_context.py::TestLogError  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/core/test_metrics.py::TestMetricsDefinitions  methods=18 merge-safe=0 distinct-bodies=18 guards=-
+== backend/tests/unit/core/test_metrics.py::TestPipelineLatencyTracker  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/core/test_metrics.py::TestMetricsServiceBusiness  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_metrics.py::TestModelLatencyTracker  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/core/test_metrics.py::TestShadowModeRiskDistributionMetrics  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_metrics.py::TestExemplarSupport  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_middleware.py::TestRequestIDMiddleware  methods=10 merge-safe=0 distinct-bodies=10 guards={"'Test exception'": 1}
+== backend/tests/unit/core/test_middleware.py::TestAuthMiddlewareExtended  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/test_msgpack_serialization.py::TestMessagePackEncoder  methods=9 merge-safe=0 distinct-bodies=9 guards={"'MessagePack decoding failed'": 1, "'Expected dict'": 1}
+== backend/tests/unit/core/test_otel_metrics.py::TestAIModelLatencyBuckets  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_prepared_statements.py::TestPreparedStatementCache  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/core/test_rate_limit.py::TestRateLimiter  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/test_redis_lua_scripts.py::TestLuaScriptDefinitions  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/core/test_redis_retry.py::TestWithRetry  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/core/test_sampling.py::TestSamplingConfig  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_security_headers.py::TestHSTSHeaders  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/core/test_template_strings.py::TestSafeLogProcessing  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_websocket.py::TestEventBroadcaster  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/test_websocket.py::TestSystemBroadcaster  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/test_websocket_validation.py::TestWebSocketEventData  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/test_websocket_validation.py::TestWebSocketServiceStatusData  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/core/websocket/test_enrichment_queue_events.py::TestEnrichmentEventTypes  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/core/websocket/test_enrichment_queue_events.py::TestQueueMetricsEventTypes  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/core/websocket/test_new_event_types.py::TestNewZoneEventTypes  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/core/websocket/test_new_event_types.py::TestNewEventTypeMetadata  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/evaluation/test_ab_experiment_runner.py::TestAnalyzeExperiment  methods=12 merge-safe=0 distinct-bodies=12 guards={"'control_scores must have at least 2 values'": 2, "'variant_scores must have at least 2 values'": 2}
+== backend/tests/unit/integration/test_helpers_unit.py::TestGetErrorMessage  methods=8 merge-safe=0 distinct-bodies=8 guards={"'No error message found'": 2}
+== backend/tests/unit/models/test_alert.py::TestAlertToDict  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/models/test_area.py::TestAreaFields  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_area.py::TestAreaFactory  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/models/test_audit_log.py::TestAuditActionEnum  methods=19 merge-safe=0 distinct-bodies=19 guards=-
+== backend/tests/unit/models/test_audit_log.py::TestAuditLogDetailsField  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/models/test_audit_log.py::TestAuditLogColumnConstraints  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_audit_log.py::TestAuditLogProperties  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_camera.py::TestCameraRTSPFieldsNullability  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_enrichment.py::TestPoseResultModel  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_enrichment.py::TestThreatDetectionModel  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_enrichment.py::TestDemographicsResultModel  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/models/test_enrichment.py::TestReIDEmbeddingModel  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_enrichment.py::TestActionResultModel  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_enums.py::TestSeverityLookup  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/models/test_event.py::TestEventSnooze  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/models/test_event.py::TestEventAdvancedRiskFields  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/models/test_event_audit.py::TestEventAuditProperties  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_event_audit.py::TestEventAuditEdgeCases  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_event_feedback.py::TestFeedbackTypeEnum  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/models/test_event_feedback.py::TestEventFeedbackModelInitialization  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_export_job.py::TestComplianceFields  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_export_job.py::TestExportJobProperties  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_gpu_config.py::TestGpuAssignmentStrategyLookup  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_gpu_stats.py::TestGPUStatsProperties  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_household.py::TestVehicleTypeEnum  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_job.py::TestJobStateTransitions  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_job.py::TestJobProperties  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/models/test_log_model.py::TestLogExtraField  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/models/test_log_model.py::TestLogColumnConstraints  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/models/test_log_model.py::TestLogEdgeCases  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/models/test_prompt_version.py::TestAIModelEnum  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_prompt_version.py::TestPromptVersionModelInitialization  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/models/test_prompt_version.py::TestPromptVersionEdgeCases  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_property.py::TestPropertyFactory  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_scene_change.py::TestSceneChangeTypeEnum  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_scheduled_report.py::TestScheduledReportModelInitialization  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_user_model.py::TestUserModelFields  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_uuid7.py::TestUUID7Ordering  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/models/test_zone_baseline.py::TestZoneActivityBaselineModel  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/repositories/test_base_repository.py::TestRepositoryPaginationLimits  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/repositories/test_entity_repository.py::TestEntityRepositorySpecificMethods  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/routes/test_cameras_routes.py::TestGetCameraSnapshot  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/routes/test_system_routes.py::TestCircuitBreaker  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/routes/test_websocket_job_logs.py::TestWebSocketJobLogsEndpoint  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/routes/test_websocket_routes.py::TestWebSocketEventsEndpoint  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/routes/test_websocket_routes.py::TestWebSocketSystemEndpoint  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/routes/test_websocket_routes.py::TestWebSocketRateLimiting  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/orchestrator/test_models.py::TestManagedService  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/services/orchestrator/test_registry.py::TestServiceRegistry  methods=22 merge-safe=0 distinct-bodies=22 guards=-
+== backend/tests/unit/services/test_action_recognition_service.py::TestActionDetectionsCounter  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/services/test_action_recognition_service.py::TestActionCorrectionsCounter  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_ai_fallback.py::TestRiskScoreCache  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_ai_fallback.py::TestHealthChecks  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_ai_services.py::TestYOLOWorldService  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_alert_dedup.py::TestGetRecentAlertsForKey  methods=8 merge-safe=0 distinct-bodies=8 guards={"'cannot be empty'": 1, "'whitespace-only'": 1}
+== backend/tests/unit/services/test_alert_engine.py::TestEvaluateRule  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/services/test_alert_engine.py::TestDwellTimeCondition  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_alert_engine.py::TestAlertEngineProperties  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_analyzer_facade.py::TestAnalyzerServiceFacade  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_audit.py::TestAuditService  methods=17 merge-safe=0 distinct-bodies=17 guards=-
+== backend/tests/unit/services/test_audit_logger.py::TestSecurityAuditLogger  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/services/test_audit_logger.py::TestAuditFailureDoesNotBlockOperations  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_auto_enrollment_service.py::TestAutoEnrollmentService  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/services/test_background_evaluator.py::TestProcessingLoop  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_batch_aggregator.py::TestBatchAggregatorProperties  methods=17 merge-safe=0 distinct-bodies=17 guards={"'Detection IDs must be numeric'": 1}
+== backend/tests/unit/services/test_batch_fetch.py::TestBatchFetchDetections  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_bbox_validation.py::TestPrepareBboxForCrop  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_broadcast_retry.py::TestBroadcastWithRetry  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Persistent failure'": 1, "'Fail'": 1}
+== backend/tests/unit/services/test_bulk_detection_service.py::TestBulkDetectionService  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/unit/services/test_cache_warming.py::TestCacheWarmer  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_calibration_service.py::TestCalculateAdjustment  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_calibration_service.py::TestApplyAdjustment  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_circuit_breaker.py::TestGetMetrics  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_circuit_breaker.py::TestCircuitBreakerRegistry  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_clip_client.py::TestCircuitBreakerIntegration  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_container_discovery.py::TestContainerDiscoveryService  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/services/test_container_discovery.py::TestCategoryPriorityOrdering  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_container_orchestrator.py::TestContainerOrchestratorStart  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_container_orchestrator.py::TestEventStructure  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_context_enricher.py::TestGetBaselineContext  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_dedupe.py::TestComputeFileHash  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_dedupe.py::TestHashResult  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_dedupe.py::TestCleanupOrphanedKeys  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_dedupe.py::TestDedupeProperties  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/services/test_degradation_manager.py::TestDegradationManager  methods=22 merge-safe=0 distinct-bodies=22 guards=-
+== backend/tests/unit/services/test_degradation_manager.py::TestFallbackQueue  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_detector_registry.py::TestDetectorRegistry  methods=9 merge-safe=0 distinct-bodies=9 guards={"'Unknown detector type'": 2, "'not enabled'": 1, "'No active detector'": 1}
+== backend/tests/unit/services/test_enrichment_client.py::TestEnrichmentClientAnalyzePose  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_client.py::TestEnrichmentClientClassifyAction  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_client.py::TestEnrichmentClientEnrichDetection  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_client_errors.py::TestInvalidResponseStructure  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_error_handling.py::TestEnrichmentErrorFromException  methods=17 merge-safe=0 distinct-bodies=17 guards=-
+== backend/tests/unit/services/test_enrichment_error_handling.py::TestEnrichmentResultErrorMethods  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestBoundingBox  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentPipelineEnrichBatch  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentResultToContextStringExtended  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentTrackingResult  methods=18 merge-safe=0 distinct-bodies=18 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentPipelineAsyncMethods  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentPipelineEnrichBatchMainLogic  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentPipelineHelperMethodsCoverage  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline.py::TestEnrichmentResultCLIPEmbeddingCaching  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_enrichment_pipeline_extended.py::TestEnrichmentServiceRouting  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_enrichment_queries.py::TestEnrichmentQueryService  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/services/test_entity_recognition_service.py::TestEntityRecognitionService  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_evaluation_queue.py::TestQueueManagement  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_event_broadcaster_summary.py::TestBroadcastSummaryUpdate  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_export_service.py::TestEventsToExcel  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_export_service.py::TestExportService  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_florence_client.py::TestOCRWithRegions  methods=9 merge-safe=0 distinct-bodies=9 guards={"'Failed to connect'": 1, "'timed out'": 1, "'server error'": 1, "'Unexpected error'": 1}
+== backend/tests/unit/services/test_florence_client.py::TestDetect  methods=9 merge-safe=0 distinct-bodies=9 guards={"'Failed to connect'": 1, "'timed out'": 1, "'server error'": 1, "'Unexpected error'": 1}
+== backend/tests/unit/services/test_florence_client.py::TestDenseCaption  methods=9 merge-safe=0 distinct-bodies=9 guards={"'Failed to connect'": 1, "'timed out'": 1, "'server error'": 1, "'Unexpected error'": 1}
+== backend/tests/unit/services/test_florence_client.py::TestMetricsRecording  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_florence_client.py::TestCircuitBreakerIntegration  methods=8 merge-safe=0 distinct-bodies=8 guards={"'[Cc]ircuit'": 2, "'[Cc]onnect'": 1}
+== backend/tests/unit/services/test_florence_client.py::TestDescribeRegions  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Failed to connect'": 1, "'timed out'": 1, "'server error'": 1}
+== backend/tests/unit/services/test_florence_client.py::TestPhraseGrounding  methods=11 merge-safe=0 distinct-bodies=11 guards={"'Failed to connect'": 1, "'timed out'": 1, "'server error'": 1}
+== backend/tests/unit/services/test_frame_buffer.py::TestFrameBufferHelpers  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_frame_buffer_pipeline_integration.py::TestDetectorClientFrameBufferIntegration  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_gpu_config_restart.py::TestDiffAssignments  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_gpu_config_service.py::TestGenerateAssignmentsContent  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_gpu_config_service.py::TestWriteConfigFiles  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_health_service_registry.py::TestHealthServiceRegistry  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/services/test_household_matcher.py::TestHouseholdMatcherCachedEmbeddings  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_job_cancellation.py::TestAbortJob  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Job not found'": 1}
+== backend/tests/unit/services/test_job_progress_reporter.py::TestJobLifecycle  methods=11 merge-safe=0 distinct-bodies=11 guards={"'has already been started'": 1, "'has not been started'": 2, "'has already completed'": 2}
+== backend/tests/unit/services/test_job_state_service.py::TestJobStateServiceTransitions  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_job_status.py::TestJobStatusServiceCleanup  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_job_timeout_service.py::TestTimeoutConfig  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_job_tracker.py::TestJobTrackerRedisIntegration  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_job_tracker.py::TestJobTrackerCancellationMethods  methods=15 merge-safe=0 distinct-bodies=15 guards={"'Job not found'": 3}
+== backend/tests/unit/services/test_lifecycle_manager.py::TestServiceRegistry  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_managed_service.py::TestManagedService  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_managed_service.py::TestServiceRegistry  methods=18 merge-safe=0 distinct-bodies=18 guards=-
+== backend/tests/unit/services/test_managed_service.py::TestServiceRegistryPersistence  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_materialized_view_scheduler.py::TestMaterializedViewScheduler  methods=17 merge-safe=0 distinct-bodies=17 guards=-
+== backend/tests/unit/services/test_memory_pressure.py::TestCheckMemoryPressure  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_message_buffer.py::TestEventBroadcasterBuffer  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_model_warmup.py::TestNemotronAnalyzerWarmup  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_model_zoo.py::TestModelManager  methods=20 merge-safe=0 distinct-bodies=20 guards={"'Unknown model'": 1, "'disabled'": 1, "'Model loading failed!'": 1}
+== backend/tests/unit/services/test_model_zoo.py::TestModelManagerMetrics  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Invalid restart reason'": 1}
+== backend/tests/unit/services/test_model_zoo.py::TestEnrichmentResult  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_model_zoo.py::TestDepthHelperFunctions  methods=20 merge-safe=0 distinct-bodies=20 guards={"'Unknown depth sampling method'": 1, "'Detection and depth value counts must match'": 1}
+== backend/tests/unit/services/test_nemotron_analyzer.py::TestIdempotencyHandling  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_nemotron_latency_optimizer.py::TestNemotronLatencyOptimizer  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/services/test_nemotron_streaming.py::TestAnalyzeBatchStreaming  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/services/test_onvif_service.py::TestDiscoverDevices  methods=10 merge-safe=0 distinct-bodies=10 guards={"'Discovery failed'": 1}
+== backend/tests/unit/services/test_osnet_loader.py::TestLoadOSNetModel  methods=8 merge-safe=0 distinct-bodies=8 guards={"'OSNet requires torch and torchvision'": 1, "'Failed to load OSNet model'": 1, "'OSNet requires either torchreid package or TorchScript'": 1}
+== backend/tests/unit/services/test_pg_notify_listener.py::TestPgNotifyListenerHandlers  methods=16 merge-safe=0 distinct-bodies=16 guards=-
+== backend/tests/unit/services/test_pipeline_quality_audit_service.py::TestComputeQualityCorrelations  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_pipeline_worker.py::TestErrorHandling  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Redis connection error'": 1}
+== backend/tests/unit/services/test_pipeline_workers.py::TestCategorizeException  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_privacy_masking_service.py::TestMaskApplication  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_prompt_formatters.py::TestFormattersErrorHandling  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_prompt_formatters.py::TestBuildPersonAnalysisSection  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_prompt_parser.py::TestValidatePromptSyntax  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_prompt_service.py::TestPromptService  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_prompt_service.py::TestPromptTestFunction  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_prompt_storage.py::TestUpdateConfig  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_prompt_storage.py::TestGetHistory  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_prompt_storage.py::TestPrivateHelpers  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_prompts.py::TestCalibrationGuidelines  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_prompts.py::TestSummaryPromptTemplates  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_prompts.py::TestBuildSummaryPrompt  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_prompts.py::TestFormatHouseholdContextByDetection  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_prompts.py::TestFormatCrossCameraPersonTracking  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_queue_status_service.py::TestQueueStatusService  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_read_through_cache.py::TestReadThroughCache  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_read_through_cache.py::TestPreConfiguredCachesExtended  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_redis_json.py::TestBatchMetadataServiceErrorHandling  methods=22 merge-safe=0 distinct-bodies=22 guards={"'Redis client not connected'": 7}
+== backend/tests/unit/services/test_redis_streams.py::TestDetectionStreamServiceErrorHandling  methods=26 merge-safe=0 distinct-bodies=26 guards={"'Redis client not connected'": 8, "'Stream read error'": 1, "'Claim failed'": 1, "'Pending info error'": 1, "'Other error'": 3}
+== backend/tests/unit/services/test_reid_matcher.py::TestCosineSimilarity  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_reid_matcher.py::TestFindMatches  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_reid_service.py::TestBatchCosineSimilarity  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_reid_service.py::TestStoreEmbedding  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_reid_service.py::TestFindMatchingEntities  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_reid_service.py::TestGetEntityHistory  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_reid_service.py::TestReIDServiceMetrics  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_restore_service.py::TestRestoreTable  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Backup file not found'": 1, "'Invalid JSON'": 1, "'Expected list of records'": 1}
+== backend/tests/unit/services/test_restore_service.py::TestRestoreFromBackup  methods=11 merge-safe=0 distinct-bodies=11 guards={"'Invalid backup file'": 1, "'Backup manifest not found'": 1, "'Invalid manifest JSON'": 1, "'Restore failed'": 1, "'Checksum mismatch'": 1, "'Invalid manifest path'": 1}
+== backend/tests/unit/services/test_retry_handler.py::TestRetryHandler  methods=30 merge-safe=0 distinct-bodies=30 guards=-
+== backend/tests/unit/services/test_retry_handler.py::TestDLQCircuitBreaker  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_retry_handler.py::TestJobFailureErrorContext  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_retry_handler.py::TestRetryHandlerErrorContextCapture  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_scenario_classifier.py::TestAdjustRiskScore  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_search.py::TestSearchQueryParsingProperties  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_service_registry.py::TestServiceRegistryRetrieval  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_service_registry.py::TestServiceRegistryStateUpdates  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+== backend/tests/unit/services/test_service_status_events.py::TestContainerOrchestratorServiceActions  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_severity.py::TestGetSeverityDefinitions  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_severity.py::TestSeverityProperties  methods=24 merge-safe=0 distinct-bodies=24 guards=-
+== backend/tests/unit/services/test_stream_config_service.py::TestStreamConfigServiceSetConfig  methods=10 merge-safe=0 distinct-bodies=10 guards={"'bitrate.*exceeds camera maximum'": 1, "'resolution.*not supported'": 1, "'codec.*not supported'": 1, "'fps.*exceeds camera maximum'": 1, "'Camera does not support stream configuration updates'": 1, "'ONVIF SetVideoEncoderConfiguration failed'": 1, "'Invalid profile token'": 1}
+== backend/tests/unit/services/test_summary_parser.py::TestSeverityDetermination  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_threat_categories.py::TestThreatCategoryEnumValues  methods=13 merge-safe=0 distinct-bodies=13 guards=-
+== backend/tests/unit/services/test_threat_categories.py::TestThreatCategoryDescriptions  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_threat_categories.py::TestGetCategoryPromptSection  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_threat_detection_loader.py::TestThreatDetectionResult  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_threat_detection_loader.py::TestDetectThreats  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Threat detection failed'": 1}
+== backend/tests/unit/services/test_transcoding.py::TestGetVideoInfo  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_transcoding.py::TestTranscodeToMp4  methods=13 merge-safe=0 distinct-bodies=13 guards={"'Input video file not found'": 1, "'Invalid quality preset'": 1, "'cannot contain path separators'": 1, "'FFmpeg is not available'": 1, "'FFmpeg transcoding failed'": 1, "'timed out'": 1, "'was not created'": 1, "'FFmpeg executable not found'": 1, "'Unexpected error'": 1}
+== backend/tests/unit/services/test_video_processor.py::TestExtractThumbnail  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_video_processor.py::TestExtractFramesForDetection  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_video_support.py::TestVideoProcessor  methods=8 merge-safe=0 distinct-bodies=8 guards={"'Video file not found'": 1}
+== backend/tests/unit/services/test_vision_extractor.py::TestVisionExtractorHelpers  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_vision_extractor.py::TestFormatBatchExtractionResult  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_worker_supervisor.py::TestManualWorkerControl  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_worker_supervisor.py::TestHeartbeatMonitoring  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_xclip_loader.py::TestClassifyActions  methods=11 merge-safe=0 distinct-bodies=11 guards=-
+== backend/tests/unit/services/test_xclip_loader.py::TestClassifyActionsInternal  methods=8 merge-safe=0 distinct-bodies=8 guards={"'all frames failed numpy conversion'": 1, "'X-CLIP processor returned None'": 1, "'returned None for pixel_values'": 1, "'has no shape attribute'": 1, "'processor failed'": 1}
+== backend/tests/unit/services/test_xclip_loader.py::TestSampleFramesFromBatch  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_xclip_loader.py::TestXclipLoaderEdgeCases  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_xclip_loader.py::TestNumpyConversionValidation  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/services/test_zone_anomaly_service.py::TestAdditionalCoverage  methods=9 merge-safe=0 distinct-bodies=9 guards={"'session is required'": 1}
+== backend/tests/unit/services/test_zone_crossing_service.py::TestAdditionalCoverage  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/services/test_zone_crossing_service.py::TestZoneCrossingMetrics  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/services/test_zone_household_service.py::TestZoneHouseholdServiceTrustLevel  methods=8 merge-safe=0 distinct-bodies=8 guards=-
+== backend/tests/unit/services/test_zone_service.py::TestCalculateApproachVector  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/setup_lib/test_linux_optimizer.py::TestPromptAndRunOptimizations  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/setup_lib/test_model_downloader.py::TestModelSpecConstants  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/setup_lib/test_ssl_certs.py::TestGenerateSelfSignedCert  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/test_calibration_monitor.py::TestCalibrationMonitor  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/test_health_event_emitter.py::TestHealthEventEmitter  methods=14 merge-safe=0 distinct-bodies=14 guards=-
+== backend/tests/unit/test_redis_prefix_isolation.py::TestPrefixedRedisUnit  methods=15 merge-safe=0 distinct-bodies=15 guards=-
+== backend/tests/unit/test_redis_prefix_isolation.py::TestPrefixedRedisIntegration  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/test_shutdown_cleanup.py::TestQueueDraining  methods=10 merge-safe=0 distinct-bodies=10 guards=-
+== backend/tests/unit/test_subscription_manager.py::TestSubscriptionManager  methods=33 merge-safe=0 distinct-bodies=33 guards=-
+== backend/tests/unit/test_websocket_emitter.py::TestEmitMethod  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/test_websocket_event_schemas.py::TestAlertPayloadSchemas  methods=9 merge-safe=0 distinct-bodies=9 guards=-
+== backend/tests/unit/test_websocket_event_types.py::TestWebSocketEventType  methods=12 merge-safe=0 distinct-bodies=12 guards=-
+TOTAL merge-safe members across 721 classes: 1861
