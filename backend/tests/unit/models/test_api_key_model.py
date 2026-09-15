@@ -354,8 +354,12 @@ class TestAPIKeyExpiration:
             expires_at=None,
         )
 
-        # These assertions may depend on is_expired property implementation
-        # Leaving as documentation of expected behavior
+        # M3 T7 (audit 3.3): the objects above were built and never asserted
+        # on ("leaving as documentation"). The shipped is_expired
+        # (backend/models/api_key.py) defines exactly this contract:
+        assert expired_key.is_expired is True
+        assert active_key.is_expired is False
+        assert permanent_key.is_expired is False
 
 
 # =============================================================================
