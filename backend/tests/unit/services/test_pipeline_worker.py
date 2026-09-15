@@ -482,12 +482,36 @@ class TestGracefulShutdown:
         assert queue_read_cancelled
 
     @pytest.mark.asyncio
-    async def test_shutdown_cleans_up_resources(self, mock_redis_client):
-        """Test shutdown properly cleans up Redis connections."""
-        # Simulate shutdown sequence
-        await mock_redis_client.disconnect()
+    async def test_shutdown_cleans_up_resources(self):
+        """Shutdown actually closes the shipped RedisClient's internals.
 
-        mock_redis_client.disconnect.assert_called_once()
+        M3 T7 (audit 3.x circular-mock fix): the old body awaited
+        ``mock_redis_client.disconnect()`` — an AsyncMock stand-in — and
+        asserted the mock had been called. That exercised nothing but the
+        mock's own bookkeeping. Now the REAL ``RedisClient.disconnect()``
+        (backend/core/redis.py) runs against a connected-shaped client whose
+        _pubsub/_client/_pool are the true I/O boundary, and the assertions
+        verify what the shipped method guarantees: each handle is closed AND
+        cleared to None (so a later connect() rebuilds cleanly).
+        """
+        from backend.core.redis import RedisClient
+
+        client = RedisClient(redis_url="redis://localhost:6379/0")
+        pubsub = AsyncMock()
+        raw_client = AsyncMock()
+        pool = AsyncMock()
+        client._pubsub = pubsub
+        client._client = raw_client
+        client._pool = pool
+
+        await client.disconnect()
+
+        pubsub.aclose.assert_awaited_once()
+        raw_client.aclose.assert_awaited_once()
+        pool.disconnect.assert_awaited_once()
+        assert client._pubsub is None
+        assert client._client is None
+        assert client._pool is None
 
 
 # =============================================================================
