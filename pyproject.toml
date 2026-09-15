@@ -64,7 +64,7 @@ dependencies = [
     "opentelemetry-resourcedetector-docker>=0.4.0",
     # NEM-3792: OpenTelemetry Logs SDK for unified telemetry (logs-traces correlation)
     "opentelemetry-instrumentation-logging>=0.44b0",
-    "urllib3==2.6.3",
+    "urllib3>=2.7.0",  # minimum for PYSEC-2026-141/142 (header leak on cross-origin redirect, streaming decompression bomb); was accidental exact pin ==2.6.3 from #2038
     "openpyxl>=3.1.5",
     # Continuous profiling (NEM-3102)
     "pyroscope-io>=0.8.7",
@@ -146,7 +146,12 @@ dev = [
 # NeMo Data Designer for synthetic test data generation
 # Usage: `uv sync --extra nemo` or `uv sync --group nemo`
 nemo = [
-    "data-designer>=0.1.0",
+    # Lower bound raised to 0.7: data-designer <=0.6 backtracks the *global*
+    # resolution (its engine pins sqlfluff/cryptography/click eras) and those
+    # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
+    # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
+    # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
+    "data-designer>=0.7.0",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",
@@ -263,7 +268,12 @@ quality = [
 # Usage: uv sync --group nemo
 # Requires NVIDIA_API_KEY environment variable
 nemo = [
-    "data-designer>=0.1.0",
+    # Lower bound raised to 0.7: data-designer <=0.6 backtracks the *global*
+    # resolution (its engine pins sqlfluff/cryptography/click eras) and those
+    # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
+    # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
+    # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
+    "data-designer>=0.7.0",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",
@@ -342,6 +352,9 @@ ignore = [
     "ASYNC109",# timeout parameter in async function (standard in Redis blpop)
     "ASYNC110",# asyncio.sleep in while loop (valid for shutdown monitoring)
     "ASYNC230",# open in async function (acceptable for small file I/O)
+    "ASYNC240",# blocking pathlib ops in async fns - same accepted tradeoff as ASYNC230 (small local FS ops); revisit with a scoped async-fs audit
+    "PLR0917",# too-many-positional (ruff 0.16 rule; converting 136 production signatures to keyword-only is churn, matches accepted PLR0913 stance)
+    "UP042",  # str-enum -> StrEnum: changes str()/f-string formatting of members; needs a dedicated migration PR with behavior tests
     "SIM105",  # contextlib.suppress not suitable for async CancelledError patterns
     "RUF006",  # asyncio.create_task without storing (valid in signal handlers)
     "PTH110", # os.path.exists() - acceptable pattern
@@ -369,6 +382,8 @@ ignore = [
     "S110",   # try-except-pass ok in test cleanup blocks
     "B017",   # assert Exception is ok when testing generic error handling
     "T201",   # print() ok in tests for debugging output
+    "RUF059", # unused unpacked vars ok in tests (same rationale as F841 above)
+    "PLW0108",# lambda wrappers ok in tests (explicit mock/patch adapters)
 ]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
@@ -426,8 +441,9 @@ ignore = [
     "T201",   # print() ok in setup script for CLI output
 ]
 "setup_lib/**/*.py" = [
-    "T201",   # print() ok in setup library for CLI output
-    "S603",   # subprocess call ok for Docker commands
+    "T201",    # print() ok in setup library for CLI output
+    "S603",    # subprocess call ok for Docker commands
+    "PLR0911",# many returns ok in setup model-existence dispatchers
 ]
 "setup_lib/tests/**/*.py" = [
     "S101",   # assert is fine in tests

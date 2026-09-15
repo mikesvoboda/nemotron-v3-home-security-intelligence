@@ -12,6 +12,7 @@ from backend.tests.hypothesis_strategies import (
     valid_risk_score,
 )
 
+
 @given(camera_id=valid_camera_id(), risk_score=valid_risk_score())
 def test_event_creation(camera_id, risk_score):
     """Test event creation with generated valid data."""
@@ -26,15 +27,15 @@ def test_event_creation(camera_id, risk_score):
 
 ```python
 from backend.tests.hypothesis_strategies import (
-    valid_camera_id,          # Camera IDs: "front_door", "driveway_cam"
-    valid_camera_name,        # Display names: "Front Door", "Driveway (Main)"
-    valid_camera_folder_path, # Folder paths: "/export/foscam/Front Door"
-    valid_uuid4,              # Standard UUID4 strings
-    valid_uuid_hex,           # UUID hex (for batch IDs)
-    valid_risk_score,         # Risk scores: 0-100
-    valid_confidence,         # Confidence: 0.0-1.0
-    valid_detection_label,    # Object types: "person", "vehicle", etc.
-    valid_timezone,           # IANA timezones: "UTC", "America/New_York"
+    valid_camera_id,  # Camera IDs: "front_door", "driveway_cam"
+    valid_camera_name,  # Display names: "Front Door", "Driveway (Main)"
+    valid_camera_folder_path,  # Folder paths: "/export/foscam/Front Door"
+    valid_uuid4,  # Standard UUID4 strings
+    valid_uuid_hex,  # UUID hex (for batch IDs)
+    valid_risk_score,  # Risk scores: 0-100
+    valid_confidence,  # Confidence: 0.0-1.0
+    valid_detection_label,  # Object types: "person", "vehicle", etc.
+    valid_timezone,  # IANA timezones: "UTC", "America/New_York"
 )
 ```
 
@@ -42,9 +43,10 @@ from backend.tests.hypothesis_strategies import (
 
 ```python
 from backend.tests.hypothesis_strategies import (
-    valid_detection_bbox,    # Pixel coordinates {x, y, width, height}
-    valid_normalized_bbox,   # Normalized [0-1] coordinates
+    valid_detection_bbox,  # Pixel coordinates {x, y, width, height}
+    valid_normalized_bbox,  # Normalized [0-1] coordinates
 )
+
 
 @given(bbox=valid_detection_bbox())
 def test_bbox_validation(bbox):
@@ -62,6 +64,7 @@ from backend.tests.hypothesis_strategies import (
     valid_utc_timestamp,
     valid_timestamp_range,
 )
+
 
 @given(timestamp_range=valid_timestamp_range())
 def test_event_duration(timestamp_range):
@@ -84,12 +87,14 @@ from backend.tests.hypothesis_strategies import (
     zone_dict_strategy,
 )
 
+
 @given(camera_data=camera_dict_strategy())
 def test_camera_creation(camera_data):
     """Test camera creation with all fields."""
     camera = Camera(**camera_data)
     assert camera.id == camera_data["id"]
     assert camera.status in ["online", "offline", "error", "unknown"]
+
 
 @given(detection_data=detection_dict_strategy())
 def test_detection_bbox_consistency(detection_data):
@@ -107,11 +112,12 @@ Test boundary conditions and extreme values:
 
 ```python
 from backend.tests.hypothesis_strategies import (
-    edge_case_risk_scores,    # Severity boundaries: 0, 25, 50, 75, 100
-    edge_case_confidence,     # Confidence boundaries: 0.0, 0.5, 1.0
-    edge_case_bbox,           # Frame edges, minimum size
-    edge_case_timestamp,      # Year boundaries: 2000, 2024, 2038
+    edge_case_risk_scores,  # Severity boundaries: 0, 25, 50, 75, 100
+    edge_case_confidence,  # Confidence boundaries: 0.0, 0.5, 1.0
+    edge_case_bbox,  # Frame edges, minimum size
+    edge_case_timestamp,  # Year boundaries: 2000, 2024, 2038
 )
+
 
 @given(risk_score=edge_case_risk_scores())
 def test_severity_boundaries(risk_score):
@@ -134,10 +140,11 @@ Generate realistic examples for common scenarios:
 
 ```python
 from backend.tests.hypothesis_strategies import (
-    example_person_detection,    # Realistic person detection
-    example_vehicle_detection,   # Realistic vehicle detection
-    example_high_risk_event,     # Critical severity event
+    example_person_detection,  # Realistic person detection
+    example_vehicle_detection,  # Realistic vehicle detection
+    example_high_risk_event,  # Critical severity event
 )
+
 
 @given(detection=example_person_detection())
 def test_person_detection_confidence(detection):
@@ -177,13 +184,10 @@ from backend.tests.hypothesis_strategies import (
     detection_dict_strategy,
 )
 
+
 @given(
     camera_id=valid_camera_id(),
-    detections=st.lists(
-        detection_dict_strategy(),
-        min_size=1,
-        max_size=10
-    )
+    detections=st.lists(detection_dict_strategy(), min_size=1, max_size=10),
 )
 def test_event_from_detections(camera_id, detections):
     """Test event creation from multiple detections."""
@@ -201,6 +205,7 @@ def test_event_from_detections(camera_id, detections):
 ```python
 from hypothesis import given, assume
 from backend.tests.hypothesis_strategies import valid_risk_score
+
 
 @given(risk_score=valid_risk_score())
 def test_high_risk_only(risk_score):
@@ -223,6 +228,7 @@ from backend.tests.hypothesis_strategies import (
     valid_utc_timestamp,
 )
 
+
 @st.composite
 def camera_with_recent_activity(draw):
     """Generate camera with recent detection activity."""
@@ -237,6 +243,7 @@ def camera_with_recent_activity(draw):
         "status": "online",
         "last_seen_at": last_seen,
     }
+
 
 @given(camera_data=camera_with_recent_activity())
 def test_active_camera(camera_data):
@@ -272,9 +279,10 @@ def test_active_camera(camera_data):
    ```python
    from hypothesis import given, example
 
+
    @given(risk_score=valid_risk_score())
-   @example(risk_score=0)   # Always test edge case
-   @example(risk_score=100) # Always test edge case
+   @example(risk_score=0)  # Always test edge case
+   @example(risk_score=100)  # Always test edge case
    def test_risk_score(risk_score):
        assert 0 <= risk_score <= 100
    ```
@@ -311,7 +319,7 @@ def test_event_constraints(event_data):
 ```python
 @given(
     detections=st.lists(detection_dict_strategy(), min_size=1, max_size=5),
-    camera_id=valid_camera_id()
+    camera_id=valid_camera_id(),
 )
 def test_batch_aggregation(detections, camera_id):
     """Test batch aggregator groups detections correctly."""

@@ -143,9 +143,7 @@ async_session = async_sessionmaker(engine, class_=AsyncSession)
 async with async_session() as session:
     # Create a camera
     camera = Camera(
-        id="front_door",
-        name="Front Door Camera",
-        folder_path="/export/foscam/front_door"
+        id="front_door", name="Front Door Camera", folder_path="/export/foscam/front_door"
     )
     session.add(camera)
     await session.commit()

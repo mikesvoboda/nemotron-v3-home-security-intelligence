@@ -817,7 +817,7 @@ class TestFormattersErrorHandling:
             result = format_clothing_analysis_context(clothing, None)
             # Should handle None gracefully or skip the entry
             assert result is not None
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             # These errors are acceptable for None values
             pass
 
@@ -921,7 +921,7 @@ class TestFormattersErrorHandling:
         try:
             result = format_detections_with_all_enrichment(detections)
             assert result is not None
-        except (TypeError, AttributeError):
+        except TypeError, AttributeError:
             # These errors are acceptable for None in list
             pass
 

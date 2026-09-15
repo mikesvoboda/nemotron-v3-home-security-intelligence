@@ -137,7 +137,7 @@ async def test_quiet_hours_period_allows_midnight_spanning(session):
     period = QuietHoursPeriod(
         label="Night Sleep",
         start_time=time(22, 0),  # 10 PM
-        end_time=time(6, 0),     # 6 AM next day
+        end_time=time(6, 0),  # 6 AM next day
     )
     session.add(period)
     await session.commit()

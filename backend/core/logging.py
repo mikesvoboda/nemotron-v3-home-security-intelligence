@@ -105,7 +105,7 @@ def get_container_id() -> str | None:
     except FileNotFoundError:
         # Not running in a Linux container
         pass
-    except (OSError, PermissionError):
+    except OSError, PermissionError:
         # Cannot read cgroup file
         pass
     return None
@@ -131,7 +131,7 @@ def get_app_version() -> str:
             return version
     except FileNotFoundError:
         return "unknown"
-    except (OSError, tomllib.TOMLDecodeError):
+    except OSError, tomllib.TOMLDecodeError:
         return "unknown"
 
 
@@ -249,7 +249,7 @@ def get_current_trace_context() -> dict[str, str | None]:
         result["trace_id"] = format(span_context.trace_id, "032x")
         result["span_id"] = format(span_context.span_id, "016x")
 
-    except (ImportError, AttributeError, TypeError):
+    except ImportError, AttributeError, TypeError:
         # OpenTelemetry not installed or span context not valid
         pass
     except Exception:  # noqa: S110 - Intentionally silent to not break logging

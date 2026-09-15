@@ -6315,8 +6315,8 @@
       "Body_backup_start_restore": {
         "properties": {
           "file": {
+            "contentMediaType": "application/octet-stream",
             "description": "Backup ZIP file",
-            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -6332,7 +6332,7 @@
           "images": {
             "description": "Face images to enroll (JPEG/PNG)",
             "items": {
-              "format": "binary",
+              "contentMediaType": "application/octet-stream",
               "type": "string"
             },
             "title": "Images",
@@ -6378,14 +6378,14 @@
       "Body_face-recognition_compare_faces": {
         "properties": {
           "image1": {
+            "contentMediaType": "application/octet-stream",
             "description": "First face image (JPEG/PNG)",
-            "format": "binary",
             "title": "Image1",
             "type": "string"
           },
           "image2": {
+            "contentMediaType": "application/octet-stream",
             "description": "Second face image (JPEG/PNG)",
-            "format": "binary",
             "title": "Image2",
             "type": "string"
           },
@@ -40957,6 +40957,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [

@@ -1510,7 +1510,7 @@ class TestNumpyConversionValidation:
             result = _convert_to_numpy_safe(None)  # type: ignore[arg-type]
             # If it doesn't raise, it should return None
             assert result is None
-        except (AttributeError, TypeError):
+        except AttributeError, TypeError:
             # Also acceptable if it raises due to None.load()
             pass
 

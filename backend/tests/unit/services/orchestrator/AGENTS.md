@@ -80,6 +80,7 @@ def test_model_status_values():
     assert ModelStatus.READY.value == "ready"
     assert ModelStatus.ERROR.value == "error"
 
+
 def test_model_status_from_string():
     status = ModelStatus("ready")
     assert status == ModelStatus.READY
@@ -90,19 +91,17 @@ def test_model_status_from_string():
 ```python
 def test_model_config_validation():
     config = ModelConfig(
-        name="yolo26",
-        model_type="detection",
-        priority=ModelPriority.CRITICAL,
-        memory_mb=4096
+        name="yolo26", model_type="detection", priority=ModelPriority.CRITICAL, memory_mb=4096
     )
     assert config.is_valid()
     assert config.requires_gpu
+
 
 def test_model_config_rejects_invalid():
     with pytest.raises(ValidationError):
         ModelConfig(
             name="",  # Invalid: empty name
-            model_type="detection"
+            model_type="detection",
         )
 ```
 
@@ -114,14 +113,13 @@ async def test_register_service():
     registry = ServiceRegistry()
 
     await registry.register(
-        name="yolo26-1",
-        service_type="detection",
-        endpoint="http://localhost:8095"
+        name="yolo26-1", service_type="detection", endpoint="http://localhost:8095"
     )
 
     services = await registry.find_by_type("detection")
     assert len(services) == 1
     assert services[0].name == "yolo26-1"
+
 
 @pytest.mark.asyncio
 async def test_load_balancing():

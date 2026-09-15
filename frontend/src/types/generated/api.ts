@@ -17601,7 +17601,6 @@ export interface components {
         Body_backup_start_restore: {
             /**
              * File
-             * Format: binary
              * @description Backup ZIP file
              */
             file: string;
@@ -17634,13 +17633,11 @@ export interface components {
         "Body_face-recognition_compare_faces": {
             /**
              * Image1
-             * Format: binary
              * @description First face image (JPEG/PNG)
              */
             image1: string;
             /**
              * Image2
-             * Format: binary
              * @description Second face image (JPEG/PNG)
              */
             image2: string;
@@ -42392,6 +42389,10 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */

@@ -3075,7 +3075,7 @@ class Settings(BaseSettings):
                 auth_part = self.database_url.split("://")[1].split("@")[0]
                 if ":" in auth_part:
                     db_password = auth_part.split(":", 1)[1]
-            except (IndexError, AttributeError):
+            except IndexError, AttributeError:
                 pass  # Can't parse, skip validation
 
         # Check database password in URL

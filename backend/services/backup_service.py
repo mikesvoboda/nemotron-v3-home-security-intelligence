@@ -396,7 +396,7 @@ class BackupService:
                     data = tomllib.load(f)
                     version: str | None = data.get("project", {}).get("version")
                     return version
-        except (ImportError, OSError, ValueError):
+        except ImportError, OSError, ValueError:
             pass
         return None
 

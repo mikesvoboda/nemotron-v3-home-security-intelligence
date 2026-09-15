@@ -1068,13 +1068,11 @@ provides clear, actionable error messages.
 ```python
 from backend.api.schemas.errors import ErrorResponse, COMMON_ERROR_RESPONSES
 
+
 @router.get("/{id}", responses=COMMON_ERROR_RESPONSES)
 async def get_item(id: int) -> Item:
     if not item:
-        raise HTTPException(
-            status_code=404,
-            detail="Item not found"
-        )
+        raise HTTPException(status_code=404, detail="Item not found")
     return item
 ```
 
@@ -1756,8 +1754,8 @@ Pydantic provides automatic validation:
 
 ```python
 name: str = Field(..., min_length=1, max_length=255)  # String length
-utilization: float = Field(None, ge=0, le=100)        # Numeric range
-status: str | None = Field(None)                       # Optional field
+utilization: float = Field(None, ge=0, le=100)  # Numeric range
+status: str | None = Field(None)  # Optional field
 ```
 
 ### Configuration
@@ -1767,9 +1765,9 @@ All schemas use `model_config` for:
 ```python
 model_config = ConfigDict(
     from_attributes=True,  # Enable ORM mode for SQLAlchemy
-    json_schema_extra={    # Example data for OpenAPI docs
+    json_schema_extra={  # Example data for OpenAPI docs
         "example": {...}
-    }
+    },
 )
 ```
 

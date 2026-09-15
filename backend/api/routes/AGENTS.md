@@ -1257,10 +1257,12 @@ All routes use async SQLAlchemy sessions with Annotated dependency injection (NE
 ```python
 from backend.api.dependencies import DbSession
 
+
 # Modern pattern (preferred)
 async def list_items(db: DbSession):
     result = await db.execute(select(Model).where(...))
     item = result.scalar_one_or_none()
+
 
 # Legacy pattern (still supported)
 async def list_items(db: AsyncSession = Depends(get_db)):
@@ -1295,9 +1297,9 @@ Routes use FastAPI Annotated dependencies (NEM-3742):
 ```python
 from backend.api.dependencies import DbSession, RedisDep, CacheDep
 
+
 @router.get("/items")
-async def list_items(db: DbSession, redis: RedisDep):
-    ...
+async def list_items(db: DbSession, redis: RedisDep): ...
 ```
 
 **Available Type Aliases:**

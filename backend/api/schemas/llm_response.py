@@ -610,7 +610,7 @@ class LLMRawResponse(BaseModel):
         else:
             try:
                 score = int(self.risk_score)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 score = 50  # Default on conversion failure
 
         # Clamp to valid range

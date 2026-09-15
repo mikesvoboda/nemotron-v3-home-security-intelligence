@@ -96,11 +96,7 @@ async def test_detects_orphaned_detections(mock_session, cleanup_job):
 @pytest.mark.asyncio
 async def test_cancels_timed_out_job(mock_session, timeout_checker):
     # Create job that started 2 hours ago
-    stale_job = Job(
-        id="stale",
-        status="running",
-        started_at=datetime.utcnow() - timedelta(hours=2)
-    )
+    stale_job = Job(id="stale", status="running", started_at=datetime.utcnow() - timedelta(hours=2))
     mock_session.execute.return_value.scalars.return_value.all.return_value = [stale_job]
 
     await timeout_checker.check_and_cancel_timeouts()

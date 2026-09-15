@@ -56,9 +56,28 @@ jobs:
           #   - Impact: ecdsa is transitive dep (used by jose for JWT signing)
           #   - Status: Upstream considers side-channel attacks out of scope, no fix planned
           #   - Review date: 2026-02-03
+          # PYSEC-2026-1325: python-ecdsa Minerva timing attack on P-256
+          #   - The current registry advisory ID for the same out-of-scope class
+          #     as CVE-2024-23342 above (advisory text itself states "no planned
+          #     fix"); ecdsa 0.19.2 is the newest release.
+          #   - Review date: 2026-09-15
+          # PYSEC-2026-3552/3553/3554 + GHSA-537c-gmf6-5ccf: cryptography 46.0.7
+          #   - Fixes land in 49.0/50.0/48.0.1, but the nemo extra's
+          #     data-designer 0.7.0 engine caps cryptography <47 at the global
+          #     resolver, so 46.0.7 is the newest reachable. pkcs7_* (3552) and
+          #     PKCS#7 chain-duplicate (3553/3554) APIs are unused by this
+          #     project; GHSA (OpenSSL-in-wheel) needs upstream wheel rebuild.
+          #   - Action: revisit when data-designer supports otel 1.44 (0.9.x
+          #     line blocked today by otel sdk/instrumentor version pairing)
+          #   - Review date: 2026-09-15
           pip-audit -r requirements-audit-filtered.txt --desc \
             --ignore-vuln CVE-2026-0994 \
-            --ignore-vuln CVE-2024-23342
+            --ignore-vuln CVE-2024-23342 \
+            --ignore-vuln PYSEC-2026-1325 \
+            --ignore-vuln PYSEC-2026-3552 \
+            --ignore-vuln PYSEC-2026-3553 \
+            --ignore-vuln PYSEC-2026-3554 \
+            --ignore-vuln GHSA-537c-gmf6-5ccf
         continue-on-error: false
 
   npm-audit:

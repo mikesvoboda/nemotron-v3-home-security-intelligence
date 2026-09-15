@@ -73,10 +73,10 @@ class TestFrameExtractorInit:
         mock_redis = Mock()
 
         # Test values outside valid range
-        with pytest.raises(ValueError, match="motion_sensitivity must be between 0.0 and 1.0"):
+        with pytest.raises(ValueError, match=r"motion_sensitivity must be between 0\.0 and 1\.0"):
             FrameExtractor(redis_client=mock_redis, motion_sensitivity=-0.1)
 
-        with pytest.raises(ValueError, match="motion_sensitivity must be between 0.0 and 1.0"):
+        with pytest.raises(ValueError, match=r"motion_sensitivity must be between 0\.0 and 1\.0"):
             FrameExtractor(redis_client=mock_redis, motion_sensitivity=1.1)
 
     def test_init_accepts_frame_save_dir(self) -> None:

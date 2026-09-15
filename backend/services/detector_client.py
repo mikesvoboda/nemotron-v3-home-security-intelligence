@@ -820,7 +820,7 @@ class DetectorClient:
                             try:
                                 error_response = e.response.json()
                                 error_detail = error_response.get("detail", str(e))
-                            except (json.JSONDecodeError, ValueError, AttributeError):
+                            except json.JSONDecodeError, ValueError, AttributeError:
                                 # JSON parsing failures - fall back to raw text
                                 error_detail = e.response.text[:500] if e.response.text else str(e)
 

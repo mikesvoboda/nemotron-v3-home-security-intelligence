@@ -651,5 +651,5 @@ def get_health_registry_optional() -> HealthServiceRegistry | None:
             instance: HealthServiceRegistry = registration.instance
             return instance
         return None
-    except (ServiceNotFoundError, KeyError):
+    except ServiceNotFoundError, KeyError:
         return None

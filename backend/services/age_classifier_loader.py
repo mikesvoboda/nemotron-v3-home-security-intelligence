@@ -417,7 +417,7 @@ def _normalize_age_label(raw_label: str) -> str:  # noqa: PLR0911
                 return "middle_aged"
             else:
                 return "senior"
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             pass
 
     # Check for keyword matches

@@ -160,7 +160,7 @@ class JobService:
             # Handle various ISO formats
             timestamp_str = timestamp_str.replace("Z", "+00:00")
             return datetime.fromisoformat(timestamp_str)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             logger.warning(
                 "Failed to parse timestamp",
                 extra={"timestamp": timestamp_str},

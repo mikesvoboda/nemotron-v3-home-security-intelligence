@@ -50,6 +50,7 @@ from backend.core.metrics import get_metrics_service
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
+    from redis.typing import EncodableT, FieldT
 
 
 logger = logging.getLogger(__name__)
@@ -580,7 +581,7 @@ class CostTracker:
             async with self._lock:
                 for usage_date, usage in self._daily_usage.items():
                     key = f"{self._redis_prefix}:daily:{usage_date.isoformat()}"
-                    data = {
+                    data: dict[FieldT, EncodableT] = {
                         "date": usage_date.isoformat(),
                         "total_input_tokens": usage.total_input_tokens,
                         "total_output_tokens": usage.total_output_tokens,
@@ -590,7 +591,7 @@ class CostTracker:
                         "total_estimated_cost_usd": usage.total_estimated_cost_usd,
                         "event_count": usage.event_count,
                     }
-                    await self._redis.hset(key, mapping=data)  # type: ignore[misc]
+                    await self._redis.hset(key, mapping=data)
                     # Set TTL for 90 days
                     await self._redis.expire(key, 90 * 24 * 60 * 60)  # type: ignore[misc]
 

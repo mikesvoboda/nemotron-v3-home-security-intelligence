@@ -223,7 +223,7 @@ worker_id = xdist.get_xdist_worker_id(request)  # 'gw0', 'gw1', or 'master'
 db_name = f"security_test_{worker_id}"  # security_test_gw0, etc.
 
 # Redis database selection
-redis_db = int(worker_id.replace('gw', ''))  # 0, 1, 2, etc.
+redis_db = int(worker_id.replace("gw", ""))  # 0, 1, 2, etc.
 ```
 
 ### Fixture Chain for Parallel Execution
@@ -266,6 +266,7 @@ async def test_api_endpoint(client):
     assert response.status_code == 201
     # Data is automatically cleaned up after test
 
+
 # For API tests with direct DB access
 @pytest.mark.asyncio
 async def test_with_db(client, db_session):
@@ -274,6 +275,7 @@ async def test_with_db(client, db_session):
     # Query via db_session
     result = await db_session.execute(select(Camera))
     # client fixture handles cleanup
+
 
 # For standalone DB tests (no client)
 @pytest.mark.asyncio

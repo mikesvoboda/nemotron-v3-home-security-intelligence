@@ -202,7 +202,7 @@ class CalibrationMonitor:
                 try:
                     parts = member.rsplit(":", 1)
                     scores.append(float(parts[1]))
-                except (IndexError, ValueError):
+                except IndexError, ValueError:
                     logger.warning(f"Invalid calibration score member: {member}")
             return scores
         except Exception:

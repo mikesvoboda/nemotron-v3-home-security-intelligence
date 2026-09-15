@@ -1026,7 +1026,7 @@ class SystemBroadcaster:
                 async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
                     response = await client.get(f"{settings.yolo26_url}/health")
                     return bool(response.status_code == 200)
-            except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError):
+            except httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError:
                 # Network errors, timeouts, HTTP errors, and OS-level socket errors
                 return False
 
@@ -1035,7 +1035,7 @@ class SystemBroadcaster:
                 async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
                     response = await client.get(f"{settings.nemotron_url}/health")
                     return bool(response.status_code == 200)
-            except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError):
+            except httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError:
                 # Network errors, timeouts, HTTP errors, and OS-level socket errors
                 return False
 

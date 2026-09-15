@@ -91,7 +91,7 @@ class ContentTypeValidationMiddleware(BaseHTTPMiddleware):
             return ""
 
         # Split on semicolon to remove parameters
-        base_type = content_type_header.split(";")[0].strip().lower()
+        base_type = content_type_header.split(";", maxsplit=1)[0].strip().lower()
         return base_type
 
     def _has_body(self, request: Request) -> bool:

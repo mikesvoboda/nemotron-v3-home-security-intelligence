@@ -187,7 +187,7 @@ def _parse_timestamps(track_points: list[dict[str, Any]]) -> list[datetime]:
         elif isinstance(ts, str):
             try:
                 timestamps.append(datetime.fromisoformat(ts))
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 logger.debug(f"Failed to parse trajectory timestamp: {ts}")
                 continue
     return timestamps

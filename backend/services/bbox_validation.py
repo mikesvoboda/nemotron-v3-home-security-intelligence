@@ -153,7 +153,7 @@ def is_valid_bbox(
         # Check for non-negative coordinates if required
         # Return True if allow_negative or all coords non-negative
         return allow_negative or not any(v < 0 for v in (x1, y1, x2, y2))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return False
 
 

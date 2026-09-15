@@ -1483,7 +1483,7 @@ def _after_cursor_execute(
         # Record slow query metric
         try:
             record_slow_query()
-        except (ImportError, NameError):
+        except ImportError, NameError:
             # Metrics not available - slow query logging continues without metric recording.
             # See: NEM-2540 for rationale
             pass

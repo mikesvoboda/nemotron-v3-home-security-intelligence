@@ -374,7 +374,7 @@ class FeedbackProcessor:
             The found or created HouseholdMember
         """
         # Extract the base name (before any parenthetical notes)
-        base_name = identity_name.split("(")[0].strip()
+        base_name = identity_name.split("(", maxsplit=1)[0].strip()
 
         # Search for existing member with case-insensitive match
         stmt = select(HouseholdMember).where(

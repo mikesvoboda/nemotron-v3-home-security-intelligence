@@ -160,6 +160,7 @@ async def test_with_db(mock_db_session):
     await service.do_something(mock_db_session)
     mock_db_session.commit.assert_called_once()
 
+
 # HTTP client mock
 @pytest.mark.asyncio
 async def test_api_call(mock_http_client, mock_http_response):
@@ -168,12 +169,14 @@ async def test_api_call(mock_http_client, mock_http_response):
     with patch("httpx.AsyncClient", return_value=mock_http_client):
         result = await detector.detect(image_path)
 
+
 # Database context manager mock
 @pytest.mark.asyncio
 async def test_with_context(mock_db_session, mock_db_session_context):
     with patch("backend.core.database.get_session", return_value=mock_db_session_context):
         await my_function()  # Uses async with get_session() as session:
         mock_db_session.commit.assert_called()
+
 
 # Redis mock
 @pytest.mark.asyncio
@@ -248,9 +251,7 @@ from backend.tests.factories import (
 
 # Create camera with multiple associated events
 camera, events = create_camera_with_events(
-    camera_kwargs={"name": "Front Door"},
-    num_events=5,
-    event_kwargs={"risk_score": 75}
+    camera_kwargs={"name": "Front Door"}, num_events=5, event_kwargs={"risk_score": 75}
 )
 
 # Create multiple detections for a camera
@@ -329,12 +330,15 @@ Choosing the right testing approach ensures maintainability and comprehensive co
 **Example:**
 
 ```python
-@pytest.mark.parametrize("invalid_input,reason", [
-    ("", "empty string"),
-    (None, "null value"),
-    ("   ", "whitespace only"),
-    (-1, "negative number"),
-])
+@pytest.mark.parametrize(
+    "invalid_input,reason",
+    [
+        ("", "empty string"),
+        (None, "null value"),
+        ("   ", "whitespace only"),
+        (-1, "negative number"),
+    ],
+)
 def test_validation_rejects_invalid_input(invalid_input, reason):
     assert validate(invalid_input) is False, f"Should reject: {reason}"
 ```
@@ -359,6 +363,7 @@ def test_validation_rejects_invalid_input(invalid_input, reason):
 ```python
 from hypothesis import given
 from hypothesis import strategies as st
+
 
 @given(bbox=valid_bbox_xyxy_strategy())
 def test_valid_bbox_always_passes_validation(bbox):
@@ -390,12 +395,16 @@ You can use both in the same test file:
 
 ```python
 # Parametrize for known edge cases
-@pytest.mark.parametrize("bbox", [
-    (0, 0, 0, 0),      # Zero-size box
-    (100, 100, 50, 50), # Inverted coordinates
-])
+@pytest.mark.parametrize(
+    "bbox",
+    [
+        (0, 0, 0, 0),  # Zero-size box
+        (100, 100, 50, 50),  # Inverted coordinates
+    ],
+)
 def test_invalid_bbox_edge_cases(bbox):
     assert is_valid_bbox(bbox) is False
+
 
 # Hypothesis for property-based testing
 @given(bbox=valid_bbox_xyxy_strategy())
@@ -479,20 +488,24 @@ For markers that are not auto-applied, use decorators:
 ```python
 import pytest
 
+
 @pytest.mark.slow
 def test_large_batch_processing():
     """Test that processes 10,000 records."""
     ...
+
 
 @pytest.mark.network
 async def test_external_api_call():
     """Test that makes real HTTP requests."""
     ...
 
+
 @pytest.mark.gpu
 async def test_yolo26_inference():
     """Test that requires GPU for object detection."""
     ...
+
 
 @pytest.mark.flaky
 def test_timing_sensitive_operation():
@@ -798,6 +811,7 @@ result = await simulate_concurrent_requests(
 
    ```python
    from backend.core.redis import RedisClient
+
    mock_client = MagicMock(spec=RedisClient)
    ```
 

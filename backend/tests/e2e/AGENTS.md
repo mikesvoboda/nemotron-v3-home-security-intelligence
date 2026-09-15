@@ -136,12 +136,17 @@ class MockRedisClient:
         self._store: dict = {}
         self._queues: dict = {}
 
-    async def get(self, key): return self._store.get(key)
-    async def set(self, key, value, expire=None): self._store[key] = value
+    async def get(self, key):
+        return self._store.get(key)
+
+    async def set(self, key, value, expire=None):
+        self._store[key] = value
+
     async def delete(self, *keys): ...
     async def add_to_queue_safe(self, queue_name, data, **kwargs): ...
     async def get_from_queue(self, queue_name, timeout=0): ...
-    async def publish(self, channel, message): return 1
+    async def publish(self, channel, message):
+        return 1
 ```
 
 ## Test Data

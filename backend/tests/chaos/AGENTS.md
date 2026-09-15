@@ -60,10 +60,7 @@ from backend.tests.chaos.conftest import FaultInjector, FaultConfig, FaultType
 injector = FaultInjector()
 
 # Inject a fault
-injector.inject("yolo26", FaultConfig(
-    fault_type=FaultType.TIMEOUT,
-    delay_seconds=30.0
-))
+injector.inject("yolo26", FaultConfig(fault_type=FaultType.TIMEOUT, delay_seconds=30.0))
 
 # Check if fault is active
 if injector.is_active("yolo26"):
@@ -170,11 +167,7 @@ async def test_circuit_opens_after_failures(fault_injector):
 async def test_degradation_mode_transitions():
     manager = DegradationManager(failure_threshold=2)
 
-    manager.register_service(
-        name="redis",
-        health_check=AsyncMock(return_value=True),
-        critical=True
-    )
+    manager.register_service(name="redis", health_check=AsyncMock(return_value=True), critical=True)
 
     # Simulate failures
     await manager.update_service_health("redis", is_healthy=False)

@@ -283,7 +283,7 @@ def _entity_to_trust_response(entity: Entity) -> EntityTrustResponse:
         if trust_updated_at_str:
             try:
                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
     # Convert trust status string to enum
@@ -550,7 +550,7 @@ async def get_entity(
 
             try:
                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
     return EntityDetail(
@@ -803,7 +803,7 @@ def _entity_model_to_summary(entity: Entity) -> EntitySummary:
         if trust_updated_at_str:
             try:
                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
     thumbnail_url = None
@@ -1082,7 +1082,7 @@ async def get_entity_by_uuid(
         if trust_updated_at_str:
             try:
                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
     thumbnail_url = None

@@ -72,7 +72,7 @@ class Go2RTCClient:
                 )
                 response.raise_for_status()
                 return True
-        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError):
+        except httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError:
             return False
 
     async def register_stream(

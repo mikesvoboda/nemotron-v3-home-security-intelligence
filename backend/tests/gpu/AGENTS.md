@@ -51,8 +51,7 @@ All tests use `@pytest.mark.gpu` marker for CI/CD filtering:
 ```python
 @pytest.mark.gpu
 @pytest.mark.asyncio
-async def test_detector_service_health_check():
-    ...
+async def test_detector_service_health_check(): ...
 ```
 
 ## Configuration
@@ -123,6 +122,7 @@ Tests create temporary JPEG images using PIL:
 
 ```python
 from PIL import Image
+
 
 def create_test_image(path: Path, size: tuple = (640, 480)) -> None:
     img = Image.new("RGB", size, color="red")

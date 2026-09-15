@@ -61,6 +61,7 @@ def get_error_message(data: dict) -> str:
         {"error": {"code": "NOT_FOUND", "message": "Camera not found"}}
     """
 
+
 def has_error(data: dict, code: str = None) -> bool:
     """Check if response contains an error, optionally matching a code."""
 ```
@@ -73,10 +74,12 @@ def test_old_format_detail_string(self):
     data = {"detail": "Camera not found"}
     assert get_error_message(data) == "Camera not found"
 
+
 def test_new_format_simple_error(self):
     """Test extracting message from new format with simple error."""
     data = {"error": {"code": "NOT_FOUND", "message": "Camera not found"}}
     assert get_error_message(data) == "Camera not found"
+
 
 def test_new_format_validation_error_single(self):
     """Test extracting message from new format with single validation error."""

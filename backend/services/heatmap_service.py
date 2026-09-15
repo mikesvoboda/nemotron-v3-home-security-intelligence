@@ -342,7 +342,7 @@ class HeatmapService:
         """
         try:
             import matplotlib
-            from matplotlib import cm
+            from matplotlib import colormaps
             from PIL import Image
             from scipy.ndimage import gaussian_filter, zoom
 
@@ -369,8 +369,8 @@ class HeatmapService:
         zoom_factors = (output_height / grid.shape[0], output_width / grid.shape[1])
         resized = zoom(normalized, zoom_factors, order=1)
 
-        # Apply colormap
-        cmap = cm.get_cmap(colormap)
+        # Apply colormap (matplotlib.colormaps lookup; cm.get_cmap was removed in matplotlib 3.11)
+        cmap = colormaps[colormap]
         colored = cmap(resized)
 
         # Apply alpha channel based on intensity
@@ -613,7 +613,7 @@ class HeatmapService:
         Returns:
             Dictionary with merged heatmap data, or None if no data found.
         """
-        heatmaps, total = await self.get_heatmap_data(
+        heatmaps, _total = await self.get_heatmap_data(
             session, camera_id, start_time, end_time, resolution, limit=1000, offset=0
         )
 

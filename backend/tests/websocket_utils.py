@@ -227,7 +227,7 @@ def assert_ws_message_sent(
                     data = json.loads(msg["data"])
                     if data.get("type") == event_type:
                         matching_messages.append(msg)
-                except (json.JSONDecodeError, KeyError):
+                except json.JSONDecodeError, KeyError:
                     pass
             elif msg.get("type") == "json":
                 data = msg.get("data", {})

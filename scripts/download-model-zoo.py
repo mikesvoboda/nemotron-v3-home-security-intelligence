@@ -280,10 +280,11 @@ def download_transformers_model(model: ModelSpec) -> bool:
 
         print_status(f"Downloading {model.name} from {model.hf_repo}...")
         print_status(f"  -> {model_dir}")
+        # local_dir_use_symlinks was removed in huggingface_hub 1.x; with
+        # local_dir set, 1.x always copies files into the target directory.
         snapshot_download(
             repo_id=model.hf_repo,
             local_dir=str(model_dir),
-            local_dir_use_symlinks=False,  # Copy files, don't symlink
         )
         print_success(f"{model.name} downloaded to {model_dir}")
         return True

@@ -67,6 +67,7 @@ def test_generates_requested_count():
     scenarios = generate_mock_scenarios(10)
     assert len(scenarios) == 10
 
+
 def test_ground_truth_ranges_match_scenario_types():
     """Ground truth ranges should match scenario types."""
     scenarios = generate_mock_scenarios(40)
@@ -93,13 +94,11 @@ def test_score_within_range_returns_zero():
     assert calculate_risk_deviation(50, (40, 60)) == 0.0
     assert calculate_risk_deviation(40, (40, 60)) == 0.0  # At lower bound
 
+
 def test_reasoning_similarity():
     """Partial overlap should return appropriate similarity."""
     # Jaccard similarity: shared / union
-    sim = calculate_reasoning_similarity(
-        "unknown person at door",
-        "unknown person at front door"
-    )
+    sim = calculate_reasoning_similarity("unknown person at door", "unknown person at front door")
     assert sim == pytest.approx(0.8)  # 4/5 overlap
 ```
 
@@ -113,6 +112,7 @@ def test_all_key_points_covered():
     reasoning = "Unknown person detected at night near the front door"
     key_points = ["unknown person", "night", "front door"]
     assert calculate_key_point_coverage(reasoning, key_points) == 1.0
+
 
 def test_empty_key_points_returns_one():
     """Empty key points list should return 1.0 (vacuously true)."""
@@ -158,6 +158,7 @@ def test_generates_valid_html():
     assert html.startswith("<!DOCTYPE html>")
     assert "<html" in html
     assert "</html>" in html
+
 
 def test_escapes_html_in_content():
     """Should escape HTML special characters in content."""

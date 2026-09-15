@@ -291,7 +291,7 @@ class TestStreamConfigServiceSetConfig:
         )
 
         # Attempt to set bitrate exceeding camera's max
-        with pytest.raises(ValueError, match="bitrate.*exceeds camera maximum"):
+        with pytest.raises(ValueError, match=r"bitrate.*exceeds camera maximum"):
             await service.set_stream_config(
                 camera_id="front_door",
                 onvif_client=mock_onvif_client,
@@ -313,7 +313,7 @@ class TestStreamConfigServiceSetConfig:
         )
 
         # Attempt to set unsupported resolution
-        with pytest.raises(ValueError, match="resolution.*not supported"):
+        with pytest.raises(ValueError, match=r"resolution.*not supported"):
             await service.set_stream_config(
                 camera_id="front_door",
                 onvif_client=mock_onvif_client,
@@ -335,7 +335,7 @@ class TestStreamConfigServiceSetConfig:
         )
 
         # Attempt to set unsupported codec
-        with pytest.raises(ValueError, match="codec.*not supported"):
+        with pytest.raises(ValueError, match=r"codec.*not supported"):
             await service.set_stream_config(
                 camera_id="front_door",
                 onvif_client=mock_onvif_client,
@@ -357,7 +357,7 @@ class TestStreamConfigServiceSetConfig:
         )
 
         # Attempt to set FPS exceeding camera's max
-        with pytest.raises(ValueError, match="fps.*exceeds camera maximum"):
+        with pytest.raises(ValueError, match=r"fps.*exceeds camera maximum"):
             await service.set_stream_config(
                 camera_id="front_door",
                 onvif_client=mock_onvif_client,
@@ -449,7 +449,7 @@ class TestStreamConfigServiceValidation:
         mock_capabilities = MagicMock()
         mock_capabilities.bitrate_range = MagicMock(min=512, max=8192)
 
-        with pytest.raises(ValueError, match="bitrate.*below camera minimum"):
+        with pytest.raises(ValueError, match=r"bitrate.*below camera minimum"):
             service.validate_settings(
                 capabilities=mock_capabilities,
                 bitrate=256,  # Below min of 512
@@ -463,7 +463,7 @@ class TestStreamConfigServiceValidation:
         mock_capabilities = MagicMock()
         mock_capabilities.fps_range = MagicMock(min=5, max=30)
 
-        with pytest.raises(ValueError, match="fps.*below camera minimum"):
+        with pytest.raises(ValueError, match=r"fps.*below camera minimum"):
             service.validate_settings(
                 capabilities=mock_capabilities,
                 fps=1,  # Below min of 5

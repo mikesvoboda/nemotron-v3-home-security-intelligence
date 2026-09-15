@@ -322,7 +322,6 @@ class HeatmapGenerator:
         """
         try:
             import matplotlib
-            from matplotlib import cm
 
             matplotlib.use("Agg")
         except ImportError as e:
@@ -340,7 +339,10 @@ class HeatmapGenerator:
             normalized = intensity
 
         # Apply colormap
-        cmap = cm.get_cmap(self.config.colormap)
+        # cm.get_cmap was removed in matplotlib 3.11; colormaps[] is the
+        # replacement registry lookup (raises KeyError for unknown names,
+        # same contract the callers already handle).
+        cmap = matplotlib.colormaps[self.config.colormap]
         colored = cmap(normalized)
 
         # Convert to uint8 RGB (drop alpha channel)
@@ -355,7 +357,6 @@ class HeatmapGenerator:
         """
         try:
             import matplotlib
-            from matplotlib import cm
 
             matplotlib.use("Agg")
         except ImportError as e:
@@ -370,7 +371,10 @@ class HeatmapGenerator:
             normalized = self.accumulator
 
         # Apply colormap
-        cmap = cm.get_cmap(self.config.colormap)
+        # cm.get_cmap was removed in matplotlib 3.11; colormaps[] is the
+        # replacement registry lookup (raises KeyError for unknown names,
+        # same contract the callers already handle).
+        cmap = matplotlib.colormaps[self.config.colormap]
         colored = cmap(normalized)
 
         # Set alpha based on intensity

@@ -59,7 +59,7 @@ def _is_fast_alpr_available() -> bool:
         import importlib.util
 
         return importlib.util.find_spec("fast_alpr") is not None
-    except (ImportError, ModuleNotFoundError):
+    except ImportError, ModuleNotFoundError:
         return False
 
 

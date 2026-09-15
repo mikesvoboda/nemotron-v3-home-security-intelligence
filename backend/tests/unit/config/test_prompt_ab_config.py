@@ -151,7 +151,7 @@ class TestPromptExperimentValidation:
 
     def test_traffic_split_below_zero_raises_error(self) -> None:
         """Test that traffic split below 0.0 raises ValueError."""
-        with pytest.raises(ValueError, match="traffic_split must be between 0.0 and 1.0"):
+        with pytest.raises(ValueError, match=r"traffic_split must be between 0\.0 and 1\.0"):
             PromptExperiment(
                 name="test",
                 description="Test",
@@ -162,7 +162,7 @@ class TestPromptExperimentValidation:
 
     def test_traffic_split_above_one_raises_error(self) -> None:
         """Test that traffic split above 1.0 raises ValueError."""
-        with pytest.raises(ValueError, match="traffic_split must be between 0.0 and 1.0"):
+        with pytest.raises(ValueError, match=r"traffic_split must be between 0\.0 and 1\.0"):
             PromptExperiment(
                 name="test",
                 description="Test",

@@ -529,7 +529,7 @@ class BatchCoalescer:
                     try:
                         candidate = CoalesceCandidate.from_json(data)
                         batch_camera_id = candidate.camera_id
-                    except (json.JSONDecodeError, KeyError, TypeError):
+                    except json.JSONDecodeError, KeyError, TypeError:
                         pass
 
             # Delete candidate data

@@ -141,9 +141,11 @@ Bundles track created resources that can be used by other rules.
 events = Bundle("events")  # Store event IDs
 cameras = Bundle("cameras")  # Store camera IDs
 
+
 @rule(target=events)
 def create_event(self) -> int:
     return event_id  # Added to events bundle
+
 
 @rule(event=events)  # Uses value from events bundle
 def review_event(self, event: int) -> None:
@@ -194,6 +196,7 @@ Use `note()` to log operations:
 ```python
 from hypothesis import note
 
+
 @rule(event=events)
 def review_event(self, event: int) -> None:
     note(f"Reviewing event {event}")
@@ -212,9 +215,9 @@ Tests use these Hypothesis settings:
 
 ```python
 settings(
-    max_examples=50,        # Number of test sequences
-    stateful_step_count=20, # Max steps per sequence
-    deadline=None,          # No timeout for async operations
+    max_examples=50,  # Number of test sequences
+    stateful_step_count=20,  # Max steps per sequence
+    deadline=None,  # No timeout for async operations
 )
 ```
 
@@ -235,7 +238,12 @@ Only track state necessary to verify invariants.
 self.event_states[event_id] = {"reviewed": False, "deleted": False}
 
 # Bad: Track unnecessary fields
-self.event_states[event_id] = {"reviewed": False, "deleted": False, "created_at": ..., "summary": ...}
+self.event_states[event_id] = {
+    "reviewed": False,
+    "deleted": False,
+    "created_at": ...,
+    "summary": ...,
+}
 ```
 
 ### 2. Use Preconditions
@@ -295,6 +303,7 @@ def delete_camera(self, camera: str) -> None:
         if event["camera_id"] == camera:
             event["deleted"] = True
 
+
 @invariant()
 def deleted_cameras_have_no_active_events(self) -> None:
     """Verify cascade worked."""
@@ -313,6 +322,7 @@ VALID_TRANSITIONS = {
     "delivered": ["acknowledged", "dismissed"],
     "acknowledged": ["dismissed"],
 }
+
 
 @rule(alert=alerts, new_status=sampled_from(["delivered", "acknowledged", "dismissed"]))
 def change_alert_status(self, alert: str, new_status: str) -> None:

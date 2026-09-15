@@ -71,6 +71,7 @@ The base class provides common CRUD operations for all repositories:
 from backend.repositories import Repository
 from backend.models import Camera
 
+
 class CameraRepository(Repository[Camera]):
     model_class = Camera
 ```
@@ -195,6 +196,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core import get_db
 from backend.repositories import CameraRepository
 
+
 @router.get("/cameras/{camera_id}")
 async def get_camera(
     camera_id: str,
@@ -212,6 +214,7 @@ async def get_camera(
 ```python
 from backend.core import get_session
 from backend.repositories import EventRepository
+
 
 async def process_events():
     async with get_session() as session:

@@ -49,7 +49,9 @@ def download_huggingface_model(repo: str, target_dir: Path) -> bool:
         from huggingface_hub import snapshot_download
 
         logger.info(f"Downloading {repo} to {target_dir}...")
-        snapshot_download(repo_id=repo, local_dir=str(target_dir), local_dir_use_symlinks=False)
+        # local_dir_use_symlinks was removed in huggingface_hub 1.x; with
+        # local_dir set, 1.x always copies files into the target directory.
+        snapshot_download(repo_id=repo, local_dir=str(target_dir))
         return True
     except Exception as e:
         logger.error(f"Failed to download {repo}: {e}")

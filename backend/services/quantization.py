@@ -141,7 +141,7 @@ def _is_bitsandbytes_available() -> bool:
         import torch
 
         return bool(torch.cuda.is_available())
-    except (ImportError, ModuleNotFoundError):
+    except ImportError, ModuleNotFoundError:
         return False
 
 

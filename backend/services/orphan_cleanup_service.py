@@ -40,7 +40,7 @@ logger = get_logger(__name__)
 
 
 # Type alias for broadcast callback
-BroadcastCallback = Callable[[str, dict[str, Any]], None | Awaitable[None]]
+BroadcastCallback = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 # Job type constant for job tracker
 JOB_TYPE_ORPHAN_CLEANUP = "orphan_cleanup"

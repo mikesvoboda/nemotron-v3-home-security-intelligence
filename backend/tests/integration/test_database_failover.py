@@ -110,7 +110,7 @@ class TestConnectionPoolExhaustion:
                     async with get_session() as session2:
                         await session2.execute(text("SELECT 1"))
                     return True
-                except (SQLAlchemyTimeoutError, OperationalError, TimeoutError):
+                except SQLAlchemyTimeoutError, OperationalError, TimeoutError:
                     return False
 
             # Most should succeed via queuing, but system handles pressure gracefully
@@ -202,7 +202,7 @@ class TestDatabaseConnectionTimeout:
                 # Set timeout and try slow query
                 await session.execute(text("SET statement_timeout = '50ms'"))
                 await session.execute(text("SELECT pg_sleep(0.2)"))
-        except (OperationalError, DBAPIError):
+        except OperationalError, DBAPIError:
             # Expected timeout
             pass
 

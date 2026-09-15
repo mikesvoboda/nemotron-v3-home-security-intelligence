@@ -545,12 +545,10 @@ class TestScoreProperties:
     """Property-based tests for score calculations."""
 
     @given(score=risk_scores)
-    def test_score_is_bounded(self, score):
-        ...
+    def test_score_is_bounded(self, score): ...
 
     @given(score=risk_scores)
-    def test_score_is_idempotent(self, score):
-        ...
+    def test_score_is_idempotent(self, score): ...
 ```
 
 ### Best Practices

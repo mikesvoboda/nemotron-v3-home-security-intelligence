@@ -564,7 +564,7 @@ class PackageTrackingService:
                 if not (0.0 <= value <= 1.0):
                     return False
             return True
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
     def reset(self) -> None:

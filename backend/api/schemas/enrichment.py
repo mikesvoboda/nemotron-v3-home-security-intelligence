@@ -359,11 +359,11 @@ class EnrichmentResponse(BaseModel):
         None, description="Timestamp when enrichment was performed"
     )
     license_plate: LicensePlateEnrichment | dict[str, Any] = Field(
-        default_factory=lambda: LicensePlateEnrichment(),
+        default_factory=LicensePlateEnrichment,
         description="License plate detection results",
     )
     face: FaceEnrichment | dict[str, Any] = Field(
-        default_factory=lambda: FaceEnrichment(),
+        default_factory=FaceEnrichment,
         description="Face detection results",
     )
     vehicle: VehicleEnrichment | dict[str, Any] | None = Field(
@@ -373,7 +373,7 @@ class EnrichmentResponse(BaseModel):
         None, description="Clothing analysis results"
     )
     violence: ViolenceEnrichment | dict[str, Any] = Field(
-        default_factory=lambda: ViolenceEnrichment(),
+        default_factory=ViolenceEnrichment,
         description="Violence detection results",
     )
     weather: WeatherEnrichment | dict[str, Any] | None = Field(

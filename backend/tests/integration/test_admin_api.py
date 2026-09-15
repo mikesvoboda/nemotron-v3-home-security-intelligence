@@ -9,15 +9,14 @@ for local deployment - this is a single-user local deployment).
 """
 
 import os
-import uuid
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 
+from backend.api.middleware.setup_guard import SetupGuardMiddleware
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
-from backend.models.user import User
 from backend.tests.integration.test_helpers import get_error_message
 
 # Mark all tests in this module for serial execution to avoid parallel conflicts
@@ -37,6 +36,14 @@ async def debug_client(integration_db, mock_redis):
 
     This fixture creates an HTTP client with admin access enabled, eliminating
     the need for context managers or try/finally blocks in each test.
+
+    SetupGuardMiddleware is neutralized the same way the shared ``client``
+    fixture does it: its singleton caches the "no users exist" verdict for a
+    60s TTL, and test_api_protection's pre-setup tests TRUNCATE users right
+    before this module runs on the same xdist worker — seeding a user here
+    could not outrun that cache, so admin requests 503'd for the whole TTL
+    window (order-dependent failures, CI run on 94b48ac9). The ADMIN_ENABLED
+    gate under test here is independent of the setup guard.
     """
     from unittest.mock import patch
 
@@ -52,29 +59,11 @@ async def debug_client(integration_db, mock_redis):
         redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
     )
 
+    async def _setup_complete(self):
+        return True
+
     # Import the app only after env is set up
-    # SetupGuardMiddleware returns 503 for every non-whitelisted route until a
-    # user exists (setup complete). Admin tests target the post-setup contract
-    # (debug + admin enabled), so seed the first admin directly to reach it.
-    from sqlalchemy import select
-
-    from backend.core.database import get_engine
     from backend.main import app
-
-    engine = get_engine()
-    async with engine.begin() as conn:
-        count = (await conn.execute(select(func.count(User.id)))).scalar() or 0
-        if count == 0:
-            await conn.execute(
-                User.__table__.insert().values(
-                    id=f"admin_seed_user_{uuid.uuid4().hex[:12]}",
-                    username=f"admin_{uuid.uuid4().hex[:8]}",
-                    email=f"admin_{uuid.uuid4().hex[:8]}@example.com",
-                    password_hash="test-hash-not-a-real-password",  # pragma: allowlist secret
-                    is_active=True,
-                    is_admin=True,
-                )
-            )
 
     with (
         patch("backend.main.init_db", return_value=None),
@@ -83,6 +72,7 @@ async def debug_client(integration_db, mock_redis):
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=debug_settings),
         patch("backend.api.routes.admin.get_settings", return_value=debug_settings),
+        patch.object(SetupGuardMiddleware, "_check_setup_complete", _setup_complete),
     ):
         get_settings.cache_clear()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -567,6 +557,9 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
     app.dependency_overrides[get_redis_dependency] = mock_redis_dependency
     app.dependency_overrides[get_db] = mock_db_dependency
 
+    async def _setup_complete(self):
+        return True
+
     try:
         with (
             patch("backend.main.init_db", return_value=None),
@@ -575,6 +568,10 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
             patch("backend.main.close_redis", return_value=None),
             patch("backend.core.config.get_settings", return_value=production_settings),
             patch("backend.api.routes.admin.get_settings", return_value=production_settings),
+            # Same reason as debug_client: this test asserts the ADMIN_ENABLED
+            # gate (403), but the guard middleware runs first and its cached
+            # "no users" verdict would answer 503 before the gate is reached.
+            patch.object(SetupGuardMiddleware, "_check_setup_complete", _setup_complete),
         ):
             from backend.core.config import get_settings
 

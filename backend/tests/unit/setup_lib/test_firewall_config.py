@@ -20,8 +20,8 @@ class TestDetectFirewallType:
             patch("shutil.which") as mock_which,
             patch("subprocess.run") as mock_run,
         ):
-            mock_which.side_effect = (
-                lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
+            mock_which.side_effect = lambda cmd: (
+                "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
             )
             mock_run.return_value = MagicMock(returncode=0, stdout="running\n")
 
@@ -36,8 +36,8 @@ class TestDetectFirewallType:
             patch("shutil.which") as mock_which,
             patch("subprocess.run") as mock_run,
         ):
-            mock_which.side_effect = (
-                lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
+            mock_which.side_effect = lambda cmd: (
+                "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
             )
             mock_run.return_value = MagicMock(returncode=252, stdout="not running\n")
 
@@ -81,8 +81,8 @@ class TestDetectFirewallType:
             patch("subprocess.run") as mock_run,
             patch("platform.system", return_value="Windows"),
         ):
-            mock_which.side_effect = (
-                lambda cmd: "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
+            mock_which.side_effect = lambda cmd: (
+                "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
             )
             mock_run.return_value = MagicMock(
                 returncode=0,
@@ -101,8 +101,8 @@ class TestDetectFirewallType:
             patch("subprocess.run") as mock_run,
             patch("platform.system", return_value="Windows"),
         ):
-            mock_which.side_effect = (
-                lambda cmd: "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
+            mock_which.side_effect = lambda cmd: (
+                "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
             )
             mock_run.return_value = MagicMock(
                 returncode=0,
@@ -137,8 +137,8 @@ class TestIsFirewallActive:
             patch("shutil.which") as mock_which,
             patch("subprocess.run") as mock_run,
         ):
-            mock_which.side_effect = (
-                lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
+            mock_which.side_effect = lambda cmd: (
+                "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
             )
             mock_run.return_value = MagicMock(returncode=0, stdout="running\n")
 
@@ -182,8 +182,8 @@ class TestIsPortOpen:
             patch("shutil.which") as mock_which,
             patch("subprocess.run") as mock_run,
         ):
-            mock_which.side_effect = (
-                lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
+            mock_which.side_effect = lambda cmd: (
+                "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
             )
             # First call for detect_firewall_type, second for port check
             mock_run.side_effect = [
@@ -202,8 +202,8 @@ class TestIsPortOpen:
             patch("shutil.which") as mock_which,
             patch("subprocess.run") as mock_run,
         ):
-            mock_which.side_effect = (
-                lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
+            mock_which.side_effect = lambda cmd: (
+                "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
             )
             mock_run.side_effect = [
                 MagicMock(returncode=0, stdout="running\n"),  # firewall-cmd --state
@@ -270,8 +270,8 @@ Protocol:                             TCP
             patch("subprocess.run") as mock_run,
             patch("platform.system", return_value="Windows"),
         ):
-            mock_which.side_effect = (
-                lambda cmd: "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
+            mock_which.side_effect = lambda cmd: (
+                "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
             )
             mock_run.side_effect = [
                 MagicMock(
@@ -292,8 +292,8 @@ Protocol:                             TCP
             patch("subprocess.run") as mock_run,
             patch("platform.system", return_value="Windows"),
         ):
-            mock_which.side_effect = (
-                lambda cmd: "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
+            mock_which.side_effect = lambda cmd: (
+                "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
             )
             mock_run.side_effect = [
                 MagicMock(

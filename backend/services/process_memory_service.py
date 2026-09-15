@@ -90,7 +90,7 @@ class ProcessMemoryService:
         self._process = psutil.Process()
         self._warning_threshold = warning_threshold_percent
         self._critical_threshold = critical_threshold_percent
-        self._cached_container_limit: float | None | bool = False  # False = not checked yet
+        self._cached_container_limit: float | bool | None = False  # False = not checked yet
 
     def get_memory_info(self) -> ProcessMemoryInfo:
         """Get current process memory information.
@@ -135,7 +135,7 @@ class ProcessMemoryService:
         """
         try:
             return path.read_text().strip()
-        except (FileNotFoundError, ValueError, PermissionError):
+        except FileNotFoundError, ValueError, PermissionError:
             return None
 
     def _get_container_memory_limit(self) -> float | None:

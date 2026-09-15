@@ -840,7 +840,7 @@ class AlertRuleEngine:
                     if isinstance(result_confidence, int | float):
                         if result_confidence < confidence_threshold:
                             continue
-                except (TypeError, AttributeError):
+                except TypeError, AttributeError:
                     pass  # No confidence data, continue checking
 
                 # Check consecutive count requirement
@@ -855,7 +855,7 @@ class AlertRuleEngine:
                             continue
                         # If we reach here, consecutive_count meets requirement
                         return True
-                except (TypeError, AttributeError):
+                except TypeError, AttributeError:
                     pass  # No consecutive count tracking
 
                 # If no consecutive_count tracking (or it's not a number),
@@ -866,7 +866,7 @@ class AlertRuleEngine:
                     detection_type = smoke_result.detection_type  # type: ignore[attr-defined]
                     if isinstance(detection_type, str) and detection_type in ("smoke", "fire"):
                         return True
-                except (TypeError, AttributeError):
+                except TypeError, AttributeError:
                     pass
 
             return False
