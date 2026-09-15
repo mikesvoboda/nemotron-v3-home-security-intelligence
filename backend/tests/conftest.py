@@ -417,8 +417,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     skip_integration = pytest.mark.skip(
         reason="Integration test requires database - skipped in unit test run"
     )
-    xdist_repository = pytest.mark.xdist_group(name="repository_tests_serial")
-    serial_marker = pytest.mark.serial
 
     for item in items:
         fspath_str = str(item.fspath)
@@ -442,12 +440,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             if not item.get_closest_marker("integration"):
                 item.add_marker(pytest.mark.integration)
 
-            # Repository tests need serial execution due to shared database state
-            if "/repositories/" in fspath_str:
-                if not item.get_closest_marker("xdist_group"):
-                    item.add_marker(xdist_repository)
-                if not item.get_closest_marker("serial"):
-                    item.add_marker(serial_marker)
+            # M3 T4d: the "repository tests share database state" premise
+            # this block enforced is stale. test_db (the only DB fixture
+            # repositories tests use) resolves through get_test_db_url ->
+            # _memo_worker_database, which mints a PER-WORKER database
+            # ('<base>_gwN') since the spec-3.1 cutover — the same isolation
+            # every other integration test runs on. xdist_group forced all
+            # ~201 repository items onto ONE worker for no reason; dropping
+            # the markers lets worksteal balance them across the tier.
 
         # === TIMEOUT HANDLING ===
         if not timeouts_disabled:
