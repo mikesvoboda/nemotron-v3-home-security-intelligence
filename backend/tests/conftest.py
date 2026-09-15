@@ -115,6 +115,7 @@ import os
 import re
 import socket
 import sys
+import warnings
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -2472,3 +2473,147 @@ def scenario_by_type(synthetic_scenarios):
         "threat": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "threat"],
         "edge_case": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "edge_case"],
     }
+
+
+# ---------------------------------------------------------------------------
+# freezegun + SIGALRM leak guard (M3 T11; gate-20 forensics 2026-09-15)
+#
+# Gate 20 attempt 2 lost 13 unit tests on two workers with `Failed: Timeout
+# (>5.0s)` cascades. Root cause (proven from the poisoned gw's own tracebacks
+# + a forced reproduction with --timeout 0.05): pytest-timeout's signal method
+# fires SIGALRM on the MAIN thread at any bytecode boundary — including inside
+# freeze_time.__enter__/start() (the gw3 traceback shows the alarm landing
+# mid-start()) and inside async freeze bodies (abandoned coroutines never run
+# __exit__). Either way stop() never executes: the worker keeps
+# datetime=Fakedatetime / time.monotonic=fake_monotonic patched AND freezegun's
+# asyncio escape hatch (EventLoopClass.time = real_monotonic, installed at the
+# END of start()) never lands. Every later async test on that worker then
+# hangs in asyncio.sleep until ITS 5s alarm fires, and sync tests compute
+# against the frozen clock (attempt 2's dwell assert -63691200.0 ==
+# detected_at(2026-01-21 14:30 UTC) - leaked-now(2024-01-15 10:30), exactly).
+# One stray alarm poisons every remaining test on its worker.
+#
+# Two-layer guard, test infra only; a timed-out test still gets its own
+# verdict — this only stops ONE timeout cascading into a dozen inherited ones:
+#  1. start() made alarm-atomic: the running handler is swapped for a deferrer
+#     during start(), so start() can never be interrupted mid-patch; a fired
+#     alarm is re-delivered to the original handler AFTER the freeze window
+#     fully opened (the test still fails as timed-out; its __enter__ raised
+#     past start, and layer 2 unwinds the opened window below).
+#  2. per-phase repair: any window still open when a test phase finished is a
+#     leak (well-behaved freeze_time blocks close inside the test) — stopped
+#     via the _freeze_time owner saved by the wrapper, whose stop() unwinds
+#     exactly what start() patched, per-module attribute restorations
+#     included.
+# ---------------------------------------------------------------------------
+
+_FREEZE_OWNERS: list = []  # _freeze_time instances paired with freezegun's factory stacks
+
+
+def _install_freezegun_alarm_guard() -> None:
+    """Wrap freezegun start/stop against mid-patch SIGALRM (idempotent)."""
+    import signal
+
+    import freezegun.api as fa
+
+    if getattr(fa._freeze_time.start, "_alarm_guarded", False):
+        return
+    orig_start = fa._freeze_time.start
+    orig_stop = fa._freeze_time.stop
+
+    def guarded_start(self):  # mirrors freezegun's start() contract
+        fired: list = []
+
+        def _defer(sig, frame):  # never raises: start() must run atomically
+            fired.append((sig, frame))
+
+        prev = signal.signal(signal.SIGALRM, _defer)
+        try:
+            remaining = signal.setitimer(signal.ITIMER_REAL, 0)
+        except Exception:  # pragma: no cover - non-POSIX fallback
+            remaining = (0.0, 0.0)
+        try:
+            factory = orig_start(self)
+        except BaseException:
+            signal.signal(signal.SIGALRM, prev)
+            raise
+        _FREEZE_OWNERS.append(self)
+        signal.signal(signal.SIGALRM, prev)
+        if fired:
+            # alarm expired inside the guarded window: re-deliver to the real
+            # handler NOW (window fully open -> the handler's pytest.fail
+            # unwinds the test; layer 2 unwinds the freeze window at report
+            # time). No timer re-arm: pytest-timeout's one-shot is spent, and
+            # prev may be SIG_DFL/None (not callable) — deliver only to handlers.
+            if callable(prev):
+                prev(*fired[0])
+        elif remaining and remaining[0] > 0:
+            # still-pending timer: restore it with its original remaining budget
+            signal.setitimer(signal.ITIMER_REAL, remaining[0], remaining[1] or 0)
+        return factory
+
+    def guarded_stop(self):
+        orig_stop(self)
+        try:
+            _FREEZE_OWNERS.remove(self)
+        except ValueError:
+            pass
+
+    guarded_start._alarm_guarded = True  # type: ignore[attr-defined]
+    fa._freeze_time.start = guarded_start  # type: ignore[method-assign]
+    fa._freeze_time.stop = guarded_stop  # type: ignore[method-assign]
+
+
+def _repair_freeze_leaks(when: str, nodeid: str) -> int:
+    """Force-stop leaked freeze windows; returns the repaired count."""
+    try:
+        import freezegun.api as fa
+    except ImportError:  # pragma: no cover - freezegun is a hard dev dep
+        return 0
+    repaired = 0
+    while fa.freeze_factories:
+        if _FREEZE_OWNERS:
+            _FREEZE_OWNERS[-1].stop()  # unwinds start() fully (wrapped: pops ours too)
+        else:  # pragma: no cover - only if the guard failed to pair
+            fa.freeze_factories.pop()
+            fa.ignore_lists.pop()
+            fa.tick_flags.pop()
+            fa.tz_offsets.pop()
+            if not fa.freeze_factories:
+                import copyreg
+                import datetime as _dt
+                import time as _time
+
+                _dt.datetime = fa.real_datetime
+                _dt.date = fa.real_date
+                copyreg.dispatch_table.pop(fa.real_datetime, None)
+                copyreg.dispatch_table.pop(fa.real_date, None)
+                _time.time = fa.real_time
+                _time.monotonic = fa.real_monotonic
+                _time.perf_counter = fa.real_perf_counter
+                _time.localtime = fa.real_localtime
+                _time.gmtime = fa.real_gmtime
+                _time.strftime = fa.real_strftime
+        repaired += 1
+    if repaired:
+        warnings.warn(
+            f"freezegun leak guard: force-stopped {repaired} leaked freeze window(s) "
+            f"after {when} of {nodeid} (SIGALRM landed inside a freeze_time window)",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    return repaired
+
+
+@pytest.hookimpl
+def pytest_collection_finish(session: pytest.Session) -> None:
+    # NOTE: this conftest already defines pytest_configure (:260); installing
+    # here instead of shadowing it. Collection is complete, no test started.
+    _install_freezegun_alarm_guard()
+    _repair_freeze_leaks("collection", "<startup>")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    """Repair leaked freezegun state after every test phase (see block above)."""
+    _repair_freeze_leaks(report.when, report.nodeid)
