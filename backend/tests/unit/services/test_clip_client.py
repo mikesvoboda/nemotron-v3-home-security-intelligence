@@ -77,14 +77,16 @@ def invalid_embedding_long() -> list[float]:
 @pytest.fixture
 def client(mock_settings: MagicMock) -> CLIPClient:
     """Create a CLIPClient with mocked settings."""
-    with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+    ):
         return CLIPClient()
 
 
 @pytest.fixture
 def client_with_url() -> CLIPClient:
     """Create a CLIPClient with explicit URL."""
-    with patch("backend.services.clip_client.get_settings") as mock_get_settings:
+    with patch("backend.services.clip_client.get_settings", autospec=True) as mock_get_settings:
         mock_get_settings.return_value = MagicMock(
             clip_url="http://default:8093",
             ai_connect_timeout=10.0,
@@ -134,19 +136,25 @@ class TestCLIPClientInit:
 
     def test_init_with_default_url(self, mock_settings: MagicMock) -> None:
         """Test initialization uses settings URL by default."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client = CLIPClient()
             assert client._base_url == "http://test-clip:8093"
 
     def test_init_with_custom_url(self, mock_settings: MagicMock) -> None:
         """Test initialization with custom URL."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client = CLIPClient(base_url="http://custom:9000")
             assert client._base_url == "http://custom:9000"
 
     def test_init_strips_trailing_slash(self, mock_settings: MagicMock) -> None:
         """Test that trailing slashes are stripped from URLs."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client = CLIPClient(base_url="http://custom:9000/")
             assert client._base_url == "http://custom:9000"
 
@@ -157,13 +165,17 @@ class TestCLIPClientInit:
         settings.ai_connect_timeout = 10.0
         settings.ai_health_timeout = 5.0
 
-        with patch("backend.services.clip_client.get_settings", return_value=settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=settings
+        ):
             client = CLIPClient()
             assert client._base_url == "http://test-clip:8093"
 
     def test_init_creates_timeout_config(self, mock_settings: MagicMock) -> None:
         """Test that timeout configuration is created correctly."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client = CLIPClient()
             assert isinstance(client._timeout, httpx.Timeout)
             assert isinstance(client._health_timeout, httpx.Timeout)
@@ -345,7 +357,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+            with patch(
+                "backend.services.clip_client.observe_ai_request_duration", autospec=True
+            ) as mock_observe:
                 result = await client.embed(sample_image)
 
                 assert result == valid_embedding
@@ -374,7 +388,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -399,7 +415,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -418,7 +436,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -438,7 +458,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -464,7 +486,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -489,7 +513,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -510,7 +536,9 @@ class TestEmbed:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.embed(sample_image)
 
@@ -546,7 +574,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+            with patch(
+                "backend.services.clip_client.observe_ai_request_duration", autospec=True
+            ) as mock_observe:
                 anomaly_score, similarity = await client.anomaly_score(
                     sample_image, valid_embedding
                 )
@@ -584,7 +614,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -609,7 +641,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -630,7 +664,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -651,7 +687,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -678,7 +716,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -705,7 +745,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -726,7 +768,9 @@ class TestAnomalyScore:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.anomaly_score(sample_image, valid_embedding)
 
@@ -782,7 +826,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+            with patch(
+                "backend.services.clip_client.observe_ai_request_duration", autospec=True
+            ) as mock_observe:
                 scores, top_label = await client.classify(sample_image, labels)
 
                 assert scores == {"cat": 0.1, "dog": 0.2, "person": 0.7}
@@ -817,7 +863,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.classify(sample_image, ["cat", "dog"])
 
@@ -842,7 +890,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.classify(sample_image, ["cat", "dog"])
 
@@ -863,7 +913,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.classify(sample_image, ["cat"])
 
@@ -883,7 +935,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.classify(sample_image, ["cat"])
 
@@ -909,7 +963,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.classify(sample_image, ["cat"])
 
@@ -933,7 +989,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.classify(sample_image, ["cat"])
 
@@ -953,7 +1011,9 @@ class TestClassify:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.classify(sample_image, ["cat"])
 
@@ -1005,7 +1065,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+            with patch(
+                "backend.services.clip_client.observe_ai_request_duration", autospec=True
+            ) as mock_observe:
                 result = await client.similarity(sample_image, "a photo of a red square")
 
                 assert result == 0.85
@@ -1029,7 +1091,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.similarity(sample_image, "text")
 
@@ -1050,7 +1114,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.similarity(sample_image, "text")
 
@@ -1070,7 +1136,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.similarity(sample_image, "text")
 
@@ -1094,7 +1162,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.similarity(sample_image, "text")
 
@@ -1118,7 +1188,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.similarity(sample_image, "text")
 
@@ -1138,7 +1210,9 @@ class TestSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.similarity(sample_image, "text")
 
@@ -1195,7 +1269,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration") as mock_observe:
+            with patch(
+                "backend.services.clip_client.observe_ai_request_duration", autospec=True
+            ) as mock_observe:
                 result = await client.batch_similarity(sample_image, texts)
 
                 assert result == {"cat": 0.3, "dog": 0.6, "bird": 0.1}
@@ -1229,7 +1305,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError) as exc_info:
                     await client.batch_similarity(sample_image, ["cat"])
 
@@ -1250,7 +1328,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.batch_similarity(sample_image, ["cat"])
 
@@ -1270,7 +1350,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.batch_similarity(sample_image, ["cat"])
 
@@ -1296,7 +1378,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.batch_similarity(sample_image, ["cat"])
 
@@ -1320,7 +1404,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.batch_similarity(sample_image, ["cat"])
 
@@ -1340,7 +1426,9 @@ class TestBatchSimilarity:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error") as mock_record:
+            with patch(
+                "backend.services.clip_client.record_pipeline_error", autospec=True
+            ) as mock_record:
                 with pytest.raises(CLIPUnavailableError):
                     await client.batch_similarity(sample_image, ["cat"])
 
@@ -1383,7 +1471,9 @@ class TestGlobalClientSingleton:
         """Test that get_clip_client creates a new instance."""
         await reset_clip_client()
 
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client = get_clip_client()
             assert isinstance(client, CLIPClient)
 
@@ -1392,7 +1482,9 @@ class TestGlobalClientSingleton:
         """Test that get_clip_client returns the same instance on subsequent calls."""
         await reset_clip_client()
 
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client1 = get_clip_client()
             client2 = get_clip_client()
             assert client1 is client2
@@ -1402,7 +1494,9 @@ class TestGlobalClientSingleton:
         """Test that reset_clip_client clears the global instance."""
         await reset_clip_client()
 
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", autospec=True, return_value=mock_settings
+        ):
             client1 = get_clip_client()
             await reset_clip_client()
             client2 = get_clip_client()
@@ -1459,7 +1553,7 @@ class TestEdgeCases:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration"):
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
                 result = await client.embed(large_image)
                 assert len(result) == EMBEDDING_DIMENSION
         finally:
@@ -1504,7 +1598,7 @@ class TestEdgeCases:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration"):
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
                 await client.anomaly_score(sample_image, valid_embedding)
 
                 call_args = mock_http.post.call_args
@@ -1528,7 +1622,7 @@ class TestEdgeCases:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration"):
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
                 await client.classify(sample_image, ["cat"])
 
                 call_args = mock_http.post.call_args
@@ -1552,7 +1646,7 @@ class TestEdgeCases:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration"):
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
                 await client.similarity(sample_image, "text")
 
                 call_args = mock_http.post.call_args
@@ -1576,7 +1670,7 @@ class TestEdgeCases:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration"):
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
                 await client.batch_similarity(sample_image, ["cat"])
 
                 call_args = mock_http.post.call_args
@@ -1600,7 +1694,7 @@ class TestEdgeCases:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.observe_ai_request_duration"):
+            with patch("backend.services.clip_client.observe_ai_request_duration", autospec=True):
                 await client.embed(sample_image)
 
                 call_kwargs = mock_http.post.call_args[1]
@@ -1638,7 +1732,11 @@ class TestCircuitBreakerIntegration:
     @pytest.fixture
     def client_with_cb(self, mock_settings_with_cb: MagicMock) -> CLIPClient:
         """Create a CLIPClient with circuit breaker enabled."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings_with_cb):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            autospec=True,
+            return_value=mock_settings_with_cb,
+        ):
             client = CLIPClient()
             return client
 
@@ -1654,7 +1752,7 @@ class TestCircuitBreakerIntegration:
         client_with_cb._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error"):
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
                 # Trigger failures up to threshold (3 failures)
                 for _ in range(3):
                     with pytest.raises(CLIPUnavailableError):
@@ -1690,7 +1788,7 @@ class TestCircuitBreakerIntegration:
         client_with_cb._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error"):
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
                 # Trigger failures to open circuit (3 failures)
                 for _ in range(3):
                     with pytest.raises(CLIPUnavailableError):
@@ -1719,7 +1817,11 @@ class TestCircuitBreakerIntegration:
         # Set very short recovery timeout for testing
         mock_settings_with_cb.clip_cb_recovery_timeout = 0.1
 
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings_with_cb):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            autospec=True,
+            return_value=mock_settings_with_cb,
+        ):
             client = CLIPClient()
 
             call_count = 0
@@ -1744,8 +1846,10 @@ class TestCircuitBreakerIntegration:
 
             try:
                 with (
-                    patch("backend.services.clip_client.record_pipeline_error"),
-                    patch("backend.services.clip_client.observe_ai_request_duration"),
+                    patch("backend.services.clip_client.record_pipeline_error", autospec=True),
+                    patch(
+                        "backend.services.clip_client.observe_ai_request_duration", autospec=True
+                    ),
                 ):
                     # Trigger failures to open circuit (3 failures)
                     for _ in range(3):
@@ -1775,7 +1879,7 @@ class TestCircuitBreakerIntegration:
         client_with_cb._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error"):
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
                 # Health check should return False when service is down
                 result = await client_with_cb.check_health()
                 assert result is False
@@ -1796,7 +1900,7 @@ class TestCircuitBreakerIntegration:
         client_with_cb._http_client = mock_http
 
         try:
-            with patch("backend.services.clip_client.record_pipeline_error"):
+            with patch("backend.services.clip_client.record_pipeline_error", autospec=True):
                 # Open the circuit with failures
                 for _ in range(3):
                     with pytest.raises(CLIPUnavailableError):
@@ -1841,8 +1945,8 @@ class TestCircuitBreakerIntegration:
 
         try:
             with (
-                patch("backend.services.clip_client.record_pipeline_error"),
-                patch("backend.services.clip_client.observe_ai_request_duration"),
+                patch("backend.services.clip_client.record_pipeline_error", autospec=True),
+                patch("backend.services.clip_client.observe_ai_request_duration", autospec=True),
             ):
                 # Open the circuit with failures
                 for _ in range(3):
@@ -1864,7 +1968,11 @@ class TestCircuitBreakerIntegration:
 
     def test_circuit_breaker_initialization(self, mock_settings_with_cb: MagicMock) -> None:
         """Test that circuit breaker is initialized with correct settings."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings_with_cb):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            autospec=True,
+            return_value=mock_settings_with_cb,
+        ):
             client = CLIPClient()
 
             # Verify circuit breaker is created
@@ -1900,8 +2008,8 @@ class TestCircuitBreakerIntegration:
 
         try:
             with (
-                patch("backend.services.clip_client.record_pipeline_error"),
-                patch("backend.services.clip_client.observe_ai_request_duration"),
+                patch("backend.services.clip_client.record_pipeline_error", autospec=True),
+                patch("backend.services.clip_client.observe_ai_request_duration", autospec=True),
             ):
                 # Cause some failures (but not enough to open circuit)
                 for _ in range(2):  # 2 failures, threshold is 3
