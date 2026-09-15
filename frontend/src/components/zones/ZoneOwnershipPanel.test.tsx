@@ -125,7 +125,10 @@ const mockDeleteConfig = {
   isPending: false,
 };
 
+// The cast is load-bearing: it widens `config` so mockReturnValue({ config: null })
+// error-state tests typecheck against the hook's real return shape.
 const mockUseZoneHouseholdConfig = vi.fn(() => ({
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   config: mockConfig as ZoneHouseholdConfig | null,
   isLoading: false,
   isError: false,

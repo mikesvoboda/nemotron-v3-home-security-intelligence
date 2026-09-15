@@ -278,13 +278,13 @@ describe('useDetectionEnrichment', () => {
         .mockResolvedValueOnce(firstEnrichment)
         .mockResolvedValueOnce(secondEnrichment);
 
-      const { result, rerender } = renderHook(
-        ({ detectionId }) => useDetectionEnrichment(detectionId),
-        {
-          initialProps: { detectionId: 100 as number | null | undefined },
-          wrapper: createQueryWrapper(queryClient),
-        }
-      );
+      const { result, rerender } = renderHook<
+        ReturnType<typeof useDetectionEnrichment>,
+        { detectionId: number | null | undefined }
+      >(({ detectionId }) => useDetectionEnrichment(detectionId), {
+        initialProps: { detectionId: 100 },
+        wrapper: createQueryWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(result.current.data?.detection_id).toBe(100);
@@ -302,13 +302,13 @@ describe('useDetectionEnrichment', () => {
     });
 
     it('returns null data when detectionId becomes null', async () => {
-      const { result, rerender } = renderHook(
-        ({ detectionId }) => useDetectionEnrichment(detectionId),
-        {
-          initialProps: { detectionId: 123 as number | null | undefined },
-          wrapper: createQueryWrapper(queryClient),
-        }
-      );
+      const { result, rerender } = renderHook<
+        ReturnType<typeof useDetectionEnrichment>,
+        { detectionId: number | null | undefined }
+      >(({ detectionId }) => useDetectionEnrichment(detectionId), {
+        initialProps: { detectionId: 123 },
+        wrapper: createQueryWrapper(queryClient),
+      });
 
       await waitFor(() => {
         expect(result.current.data).not.toBeNull();

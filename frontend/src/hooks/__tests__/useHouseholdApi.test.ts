@@ -877,7 +877,7 @@ describe('useHouseholdsQuery', () => {
         return HttpResponse.json({
           items: [mockHousehold, mockHousehold2],
           total: 2,
-        } as HouseholdListResponse);
+        });
       })
     );
   });
@@ -959,7 +959,7 @@ describe('useCreateHousehold', () => {
           id: 3,
           name: body.name,
           created_at: '2024-01-03T00:00:00Z',
-        } as Household);
+        });
       })
     );
   });
@@ -1221,7 +1221,7 @@ describe('useHouseholdApi', () => {
         return HttpResponse.json({
           items: [mockHousehold],
           total: 1,
-        } as HouseholdListResponse);
+        });
       })
     );
   });
@@ -1277,7 +1277,7 @@ describe('useHouseholdApi', () => {
         return HttpResponse.json({
           items: [mockHousehold],
           total: 1,
-        } as HouseholdListResponse);
+        });
       })
     );
 

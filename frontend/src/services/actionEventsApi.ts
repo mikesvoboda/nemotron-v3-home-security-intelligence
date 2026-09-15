@@ -214,7 +214,7 @@ export async function fetchActionEvents(
 export async function fetchSuspiciousActions(
   params: Omit<ActionEventsQueryParams, 'is_suspicious' | 'track_id' | 'action'> = {}
 ): Promise<SuspiciousActionsResponse> {
-  const queryString = buildQueryString(params as QueryParams);
+  const queryString = buildQueryString(params);
   const response = await fetch(`/api/action-events/suspicious${queryString}`);
 
   if (!response.ok) {
@@ -273,7 +273,7 @@ export async function fetchActionEventsForCamera(
   cameraId: string,
   params: Pick<ActionEventsQueryParams, 'start_time' | 'end_time' | 'limit' | 'offset'> = {}
 ): Promise<ActionEventListResponse> {
-  const queryString = buildQueryString(params as QueryParams);
+  const queryString = buildQueryString(params);
   const response = await fetch(`/api/action-events/camera/${cameraId}${queryString}`);
 
   if (!response.ok) {

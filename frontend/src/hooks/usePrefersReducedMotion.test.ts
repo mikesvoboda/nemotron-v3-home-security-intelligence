@@ -174,6 +174,7 @@ describe('usePrefersReducedMotion', () => {
   });
 
   it('handles SSR gracefully when window.matchMedia is undefined', () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- save/restore idiom; call sites keep `this` on window
     const originalMatchMedia = window.matchMedia;
     // @ts-expect-error Testing SSR scenario
     delete window.matchMedia;

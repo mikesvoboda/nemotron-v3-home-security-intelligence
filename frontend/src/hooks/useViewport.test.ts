@@ -15,7 +15,7 @@ describe('useViewport', () => {
 
     // Mock requestAnimationFrame
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      rafCallback = callback as (time: DOMHighResTimeStamp) => void;
+      rafCallback = callback;
       return 1;
     });
 
@@ -238,6 +238,7 @@ describe('useViewport', () => {
       const { unmount } = renderHook(() => useViewport());
       unmount();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- save/restore idiom; call sites keep `this` on window
       expect(window.removeEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
     });
   });

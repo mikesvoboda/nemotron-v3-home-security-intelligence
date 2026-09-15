@@ -60,10 +60,10 @@ describe('AlertCard', () => {
     risk_score: 75,
     summary: 'Person detected near entrance',
     dedup_key: 'front_door:person',
-    onAcknowledge: vi.fn() as unknown as AlertCardProps['onAcknowledge'],
-    onDismiss: vi.fn() as unknown as AlertCardProps['onDismiss'],
-    onSnooze: vi.fn() as unknown as AlertCardProps['onSnooze'],
-    onViewEvent: vi.fn() as unknown as AlertCardProps['onViewEvent'],
+    onAcknowledge: vi.fn(),
+    onDismiss: vi.fn(),
+    onSnooze: vi.fn(),
+    onViewEvent: vi.fn(),
   };
 
   describe('Rendering', () => {

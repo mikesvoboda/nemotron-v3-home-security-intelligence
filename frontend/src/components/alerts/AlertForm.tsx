@@ -46,13 +46,7 @@ export type AlertSeverityValue = 'low' | 'medium' | 'high' | 'critical';
 
 /** Day of week values aligned with backend VALID_DAYS */
 export type DayOfWeekValue =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 export interface AlertFormData {
   name: string;
@@ -376,7 +370,7 @@ export default function AlertForm({
         object_types_count: result.data.object_types.length,
         channels_count: result.data.channels.length,
       });
-      void onSubmit(result.data as AlertFormData);
+      void onSubmit(result.data);
     } else {
       // Track form validation failure
       trackSubmit(false, {

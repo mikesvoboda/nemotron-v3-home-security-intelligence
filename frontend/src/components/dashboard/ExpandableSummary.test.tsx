@@ -95,7 +95,7 @@ describe('ExpandableSummary', () => {
     vi.setSystemTime(BASE_TIME);
 
     // Mock ResizeObserver
-    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver = MockResizeObserver;
 
     // Mock matchMedia for reduced motion
     Object.defineProperty(window, 'matchMedia', {

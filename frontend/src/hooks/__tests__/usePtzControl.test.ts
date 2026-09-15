@@ -287,13 +287,13 @@ describe('usePtzControl - moveDirection', () => {
     });
   });
 
-  it.each([
-    ['up' as PTZDirection, { command: 'tilt', value: 1.0 }],
-    ['down' as PTZDirection, { command: 'tilt', value: -1.0 }],
-    ['left' as PTZDirection, { command: 'pan', value: -1.0 }],
-    ['right' as PTZDirection, { command: 'pan', value: 1.0 }],
-    ['zoom-in' as PTZDirection, { command: 'zoom', value: 1.0 }],
-    ['zoom-out' as PTZDirection, { command: 'zoom', value: -1.0 }],
+  it.each<[PTZDirection, { command: string; value: number }]>([
+    ['up', { command: 'tilt', value: 1.0 }],
+    ['down', { command: 'tilt', value: -1.0 }],
+    ['left', { command: 'pan', value: -1.0 }],
+    ['right', { command: 'pan', value: 1.0 }],
+    ['zoom-in', { command: 'zoom', value: 1.0 }],
+    ['zoom-out', { command: 'zoom', value: -1.0 }],
   ])('maps direction "%s" to correct command', async (direction, expectedCommand) => {
     let capturedRequest: PTZCommandRequest | null = null;
 

@@ -20,17 +20,8 @@ import {
   withWebCodecs,
 } from './webcodecs';
 
-// Helper type for WebCodecs globals
-type WindowWithWebCodecs = Window &
-  typeof globalThis & {
-    VideoDecoder?: typeof VideoDecoder;
-    VideoEncoder?: typeof VideoEncoder;
-    AudioDecoder?: typeof AudioDecoder;
-    AudioEncoder?: typeof AudioEncoder;
-  };
-
 // Cast window once for cleaner code
-const windowWithCodecs = window as WindowWithWebCodecs;
+const windowWithCodecs = window;
 
 describe('webcodecs utilities', () => {
   // Store original window properties

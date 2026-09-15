@@ -821,9 +821,7 @@ describe('RFC 7807 Error Handling Integration', () => {
       ],
     };
 
-    vi.mocked(fetch).mockResolvedValueOnce(
-      createMockProblemDetailsResponse(problemDetails as ProblemDetails)
-    );
+    vi.mocked(fetch).mockResolvedValueOnce(createMockProblemDetailsResponse(problemDetails));
 
     let caughtError: ApiError | null = null;
     try {

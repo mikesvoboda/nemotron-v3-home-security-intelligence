@@ -818,7 +818,7 @@ function ReIDDashboard() {
           {selectedEntity && (
             <div className="lg:w-[45%]">
               <ReIDDetailPanel
-                entity={selectedEntity as EntityWithHousehold}
+                entity={selectedEntity}
                 cameraNames={cameraNames}
                 onClose={() => setSelectedEntityId(null)}
               />

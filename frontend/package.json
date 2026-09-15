@@ -74,7 +74,8 @@
   },
   "overrides": {
     "tmp": ">=0.2.4",
-    "minimatch": ">=10.2.1"
+    "minimatch": ">=10.2.1",
+    "@mswjs/interceptors": "0.41.8"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
@@ -104,7 +105,7 @@
     "globals": "^17.3.0",
     "jsdom": "^28.1.0",
     "knip": "^5.83.1",
-    "msw": "^2.12.10",
+    "msw": "2.12.10",
     "openapi-typescript": "^7.13.0",
     "postcss": "^8.4.33",
     "prettier": "^3.8.1",

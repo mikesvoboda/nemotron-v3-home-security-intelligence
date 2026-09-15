@@ -364,7 +364,7 @@ export const useDashboardConfigStore = create<DashboardConfigStore>()(
             };
           }
 
-          return state as DashboardConfigStore;
+          return state;
         },
         partialize: (state) => ({
           widgets: state.widgets,

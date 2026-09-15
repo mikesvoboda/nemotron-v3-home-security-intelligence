@@ -419,7 +419,7 @@ describe('useZoneAnomalies', () => {
       mockFetch.mockReturnValueOnce({
         ok: true,
         json: () => acknowledgePromise,
-      } as unknown as Promise<Response>);
+      });
 
       const queryClient = createQueryClient();
       const { result } = renderHook(() => useZoneAnomalies({ zoneId: 'zone-123' }), {
@@ -469,7 +469,7 @@ describe('useZoneAnomalies', () => {
       mockFetch.mockReturnValueOnce({
         ok: true,
         json: () => mockAcknowledgePromise,
-      } as unknown as Promise<Response>);
+      });
 
       const { result } = renderHook(() => useZoneAnomalies({ zoneId: 'zone-123' }), {
         wrapper: createQueryWrapper(),

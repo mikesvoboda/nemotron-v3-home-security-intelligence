@@ -523,7 +523,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               onFocus={() => setShowVolumeSlider(true)}
               onBlur={(e) => {
                 // Only hide if focus is leaving the volume control group entirely
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
                   setShowVolumeSlider(false);
                 }
               }}

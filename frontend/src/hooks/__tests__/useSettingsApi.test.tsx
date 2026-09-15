@@ -346,7 +346,7 @@ describe('useSettingsQuery', () => {
       statusText: 'Internal Server Error',
       json: () => Promise.reject(new Error('Invalid JSON')),
       headers: new Headers(),
-    } as unknown as Response);
+    });
 
     const { result } = renderHook(() => useSettingsQuery(), {
       wrapper: createTestWrapper(),
@@ -459,7 +459,7 @@ describe('useUpdateSettings', () => {
               resolve({
                 ok: true,
                 json: () => Promise.resolve(mockSettingsResponse),
-              } as Response),
+              }),
             100
           )
         )

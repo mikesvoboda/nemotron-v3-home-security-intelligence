@@ -184,7 +184,7 @@ function WebhooksPageContent() {
         if (modalMode === 'create') {
           await createWebhook(data as WebhookCreate);
         } else if (modalMode === 'edit' && selectedWebhook) {
-          await updateWebhook(selectedWebhook.id, data as WebhookUpdate);
+          await updateWebhook(selectedWebhook.id, data);
         }
         handleCloseModal();
       } catch (err) {

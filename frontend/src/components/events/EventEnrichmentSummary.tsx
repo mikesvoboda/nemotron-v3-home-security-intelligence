@@ -140,14 +140,7 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Vehicle classification
-    const vehicle = enrichment.vehicle as
-      | {
-          type?: string;
-          color?: string;
-          confidence?: number;
-        }
-      | null
-      | undefined;
+    const vehicle = enrichment.vehicle;
     if (vehicle) {
       result.hasVehicle = true;
       result.vehicleDetails.push(vehicle);
@@ -199,16 +192,7 @@ function aggregateEnrichments(enrichments: EnrichmentResponse[]): AggregatedEnri
     }
 
     // Clothing analysis
-    const clothing = enrichment.clothing as
-      | {
-          upper?: string;
-          lower?: string;
-          is_suspicious?: boolean;
-          is_service_uniform?: boolean;
-          has_face_covered?: boolean;
-        }
-      | null
-      | undefined;
+    const clothing = enrichment.clothing;
     if (clothing) {
       result.hasClothing = true;
       result.clothingItems.push({

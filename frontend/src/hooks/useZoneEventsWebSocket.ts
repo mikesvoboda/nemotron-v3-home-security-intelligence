@@ -267,9 +267,7 @@ export function useZoneEventsWebSocket(
   const handleZoneCrossing = useCallback((data: unknown) => {
     // Extract data from WebSocket message format
     const eventData =
-      typeof data === 'object' && data !== null && 'data' in data
-        ? (data as { data: unknown }).data
-        : data;
+      typeof data === 'object' && data !== null && 'data' in data ? data.data : data;
 
     if (isZoneCrossingEvent(eventData)) {
       callbacksRef.current.onZoneCrossing?.(eventData);
@@ -283,9 +281,7 @@ export function useZoneEventsWebSocket(
 
   const handleZoneDwellStarted = useCallback((data: unknown) => {
     const eventData =
-      typeof data === 'object' && data !== null && 'data' in data
-        ? (data as { data: unknown }).data
-        : data;
+      typeof data === 'object' && data !== null && 'data' in data ? data.data : data;
 
     if (isZoneDwellStartedEvent(eventData)) {
       callbacksRef.current.onZoneDwellStarted?.(eventData);
@@ -299,9 +295,7 @@ export function useZoneEventsWebSocket(
 
   const handleZoneDwellAlert = useCallback((data: unknown) => {
     const eventData =
-      typeof data === 'object' && data !== null && 'data' in data
-        ? (data as { data: unknown }).data
-        : data;
+      typeof data === 'object' && data !== null && 'data' in data ? data.data : data;
 
     if (isZoneDwellAlertEvent(eventData)) {
       callbacksRef.current.onZoneDwellAlert?.(eventData);
@@ -315,9 +309,7 @@ export function useZoneEventsWebSocket(
 
   const handleZoneApproach = useCallback((data: unknown) => {
     const eventData =
-      typeof data === 'object' && data !== null && 'data' in data
-        ? (data as { data: unknown }).data
-        : data;
+      typeof data === 'object' && data !== null && 'data' in data ? data.data : data;
 
     if (isZoneApproachEvent(eventData)) {
       callbacksRef.current.onZoneApproach?.(eventData);
@@ -380,25 +372,25 @@ export function useZoneEventsWebSocket(
     // Subscribe to zone.crossing events
     if (callbacksRef.current.onZoneCrossing) {
       // Use the emitter's handleMessage which routes by message type
-      const unsub = subscription.on('zone.crossing' as never, handleZoneCrossing as never);
+      const unsub = subscription.on('zone.crossing' as never, handleZoneCrossing);
       unsubscribers.push(unsub);
     }
 
     // Subscribe to zone.dwell_started events
     if (callbacksRef.current.onZoneDwellStarted) {
-      const unsub = subscription.on('zone.dwell_started' as never, handleZoneDwellStarted as never);
+      const unsub = subscription.on('zone.dwell_started' as never, handleZoneDwellStarted);
       unsubscribers.push(unsub);
     }
 
     // Subscribe to zone.dwell_alert events
     if (callbacksRef.current.onZoneDwellAlert) {
-      const unsub = subscription.on('zone.dwell_alert' as never, handleZoneDwellAlert as never);
+      const unsub = subscription.on('zone.dwell_alert' as never, handleZoneDwellAlert);
       unsubscribers.push(unsub);
     }
 
     // Subscribe to zone.approach events
     if (callbacksRef.current.onZoneApproach) {
-      const unsub = subscription.on('zone.approach' as never, handleZoneApproach as never);
+      const unsub = subscription.on('zone.approach' as never, handleZoneApproach);
       unsubscribers.push(unsub);
     }
 

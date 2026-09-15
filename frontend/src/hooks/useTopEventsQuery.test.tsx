@@ -161,7 +161,7 @@ describe('useTopEventsQuery', () => {
       ];
 
       mockFetchEvents.mockResolvedValue({
-        items: mockEvents as any,
+        items: mockEvents,
         pagination: { total: 3, limit: 10, has_more: false },
       });
 

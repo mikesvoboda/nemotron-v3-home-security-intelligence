@@ -42,7 +42,7 @@ function createMockEvent(overrides: Partial<Event> = {}): Event {
     version: 1,
     snooze_until: null,
     ...overrides,
-  } as Event;
+  };
 }
 
 /**
@@ -139,7 +139,7 @@ describe('useSnoozeEvent', () => {
         snooze_until: new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString(),
       };
 
-      (api.snoozeEvent as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockEvent as api.Event);
+      (api.snoozeEvent as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockEvent);
 
       const { result } = renderHook(() => useSnoozeEvent(), {
         wrapper: createWrapper(),

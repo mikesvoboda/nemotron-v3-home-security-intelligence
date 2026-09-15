@@ -17,14 +17,14 @@ import { describe, it, expect } from 'vitest';
 
 import JobHeader from './JobHeader';
 
-import type { JobResponse, JobStatusEnum } from '../../services/api';
+import type { JobResponse } from '../../services/api';
 
 // Helper to create a mock job
 function createMockJob(overrides: Partial<JobResponse> = {}): JobResponse {
   return {
     job_id: 'export-142',
     job_type: 'export',
-    status: 'running' as JobStatusEnum,
+    status: 'running',
     progress: 67,
     message: null,
     error: null,

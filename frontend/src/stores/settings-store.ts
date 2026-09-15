@@ -376,10 +376,10 @@ export const useSettingsStore = create<SettingsStore>()(
               } catch {
                 // Ignore cleanup errors
               }
-              return v1State as SettingsStore;
+              return v1State;
             }
             // Return fresh defaults if no V1 data
-            return { ...DEFAULT_SETTINGS_STATE } as SettingsStore;
+            return { ...DEFAULT_SETTINGS_STATE };
           }
 
           // For current version, merge with defaults to handle new fields
@@ -403,7 +403,7 @@ export const useSettingsStore = create<SettingsStore>()(
                 ...state.ambientStatus?.favicon,
               },
             },
-          } as SettingsStore;
+          };
         },
         partialize: (state) => ({
           ambientStatus: state.ambientStatus,

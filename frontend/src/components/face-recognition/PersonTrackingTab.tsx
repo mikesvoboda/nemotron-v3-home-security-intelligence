@@ -31,7 +31,7 @@ import {
   Search,
   User,
 } from 'lucide-react';
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useKnownPersonsQuery, usePersonAppearancesQuery } from '../../hooks/useFaceRecognitionApi';
 
@@ -597,8 +597,9 @@ export default function PersonTrackingTab({ initialPersonId, className }: Person
   const personsQuery = useKnownPersonsQuery();
   const persons = useMemo(() => personsQuery.data ?? [], [personsQuery.data]);
 
-  // Initialize selected person from prop (use useEffect for side effects)
-  useMemo(() => {
+  // Initialize selected person from prop. Effect, not memo: setState during render
+  // is flagged by react-hooks/set-state-in-render (eslint 10 recommended set).
+  useEffect(() => {
     if (initialPersonId && !selectedPerson && persons.length > 0) {
       const person = persons.find((p) => p.id === initialPersonId);
       if (person) {

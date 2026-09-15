@@ -133,7 +133,7 @@ const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
     Camera,
     Error,
     { name: string; folder_path: string; status: string; motion_sensitivity?: number }
-  >() as UseCameraMutationReturn['createMutation'],
+  >(),
   updateMutation: createMockMutation<
     Camera,
     Error,
@@ -147,11 +147,7 @@ const createDefaultMutationReturn = (): UseCameraMutationReturn => ({
       };
     }
   >() as UseCameraMutationReturn['updateMutation'],
-  deleteMutation: createMockMutation<
-    void,
-    Error,
-    string
-  >() as UseCameraMutationReturn['deleteMutation'],
+  deleteMutation: createMockMutation<void, Error, string>(),
 });
 
 describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
@@ -197,7 +193,7 @@ describe('CamerasSettings - Motion Sensitivity UI (TDD Phase 5)', () => {
     });
 
     vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue({
-      restoreMutation: createMockMutation<Camera, Error, string>() as any,
+      restoreMutation: createMockMutation<Camera, Error, string>(),
     });
   });
 

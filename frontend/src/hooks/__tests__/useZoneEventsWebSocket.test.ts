@@ -58,7 +58,7 @@ describe('useZoneEventsWebSocket', () => {
 
     mockSubscription = {
       unsubscribe: vi.fn(),
-      emitter: {} as Record<string, never>,
+      emitter: {},
       on: vi.fn((event: string, handler: (data: unknown) => void) => {
         const handlers = mockEventHandlers.get(event) || [];
         handlers.push(handler);

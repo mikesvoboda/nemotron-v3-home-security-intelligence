@@ -250,8 +250,8 @@ describe('TrashPage', () => {
 
     vi.mocked(api.restoreEvent).mockResolvedValueOnce({
       ...mockEvent,
-      deleted_at: undefined as unknown as string, // Type workaround for restored event
-    } as unknown as api.Event);
+      deleted_at: undefined, // Type workaround for restored event
+    });
 
     const queryClient = createTestQueryClient();
 

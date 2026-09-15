@@ -330,7 +330,7 @@ describe('useToast', () => {
       act(() => {
         void result.current.promise(mockPromise, {
           loading: 'Uploading file...',
-          success: (data) => `Uploaded ${(data as { name: string }).name}`,
+          success: (data) => `Uploaded ${data.name}`,
           error: (err) => `Failed: ${(err as Error).message}`,
         });
       });

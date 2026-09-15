@@ -88,7 +88,7 @@ describe('ZoneStatusCard', () => {
       vi.mocked(useZonePresence).mockReturnValue({
         ...mockPresenceDefault,
         isLoading: true,
-      } as ReturnType<typeof useZonePresence>);
+      });
 
       render(<ZoneStatusCard {...defaultProps} />);
 

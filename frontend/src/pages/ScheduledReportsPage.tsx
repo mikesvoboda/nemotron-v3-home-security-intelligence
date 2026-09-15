@@ -321,7 +321,7 @@ function ScheduledReportsPageContent() {
         if (modalMode === 'create') {
           await createReport(data as ScheduledReportCreate);
         } else if (modalMode === 'edit' && selectedReport) {
-          await updateReport(selectedReport.id, data as ScheduledReportUpdate);
+          await updateReport(selectedReport.id, data);
         }
         handleCloseModal();
       } catch (err) {

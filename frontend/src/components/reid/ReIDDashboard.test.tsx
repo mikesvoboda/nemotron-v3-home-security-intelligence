@@ -228,7 +228,7 @@ describe('ReIDDashboard', () => {
     // Default successful responses
     // Cast mockEntities to api.EntitySummary[] since TestEntitySummary extends it
     mockFetchEntities.mockResolvedValue({
-      items: mockEntities as unknown as api.EntitySummary[],
+      items: mockEntities,
       pagination: {
         total: mockEntities.length,
         limit: 50,

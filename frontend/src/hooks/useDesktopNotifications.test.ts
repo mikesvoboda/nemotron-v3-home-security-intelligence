@@ -27,7 +27,7 @@ describe('useDesktopNotifications', () => {
       }
 
       static permission: NotificationPermission = 'default';
-      static requestPermission = vi.fn().mockResolvedValue('granted' as NotificationPermission);
+      static requestPermission = vi.fn().mockResolvedValue('granted');
     }
 
     vi.stubGlobal('Notification', MockNotification);
