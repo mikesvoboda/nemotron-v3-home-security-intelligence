@@ -64,7 +64,7 @@ dependencies = [
     "opentelemetry-resourcedetector-docker>=0.4.0",
     # NEM-3792: OpenTelemetry Logs SDK for unified telemetry (logs-traces correlation)
     "opentelemetry-instrumentation-logging>=0.44b0",
-    "urllib3==2.6.3",
+    "urllib3>=2.7.0",  # minimum for PYSEC-2026-141/142 (header leak on cross-origin redirect, streaming decompression bomb); was accidental exact pin ==2.6.3 from #2038
     "openpyxl>=3.1.5",
     # Continuous profiling (NEM-3102)
     "pyroscope-io>=0.8.7",
@@ -146,7 +146,12 @@ dev = [
 # NeMo Data Designer for synthetic test data generation
 # Usage: `uv sync --extra nemo` or `uv sync --group nemo`
 nemo = [
-    "data-designer>=0.1.0",
+    # Lower bound raised to 0.7: data-designer <=0.6 backtracks the *global*
+    # resolution (its engine pins sqlfluff/cryptography/click eras) and those
+    # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
+    # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
+    # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
+    "data-designer>=0.7.0",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",
@@ -263,7 +268,12 @@ quality = [
 # Usage: uv sync --group nemo
 # Requires NVIDIA_API_KEY environment variable
 nemo = [
-    "data-designer>=0.1.0",
+    # Lower bound raised to 0.7: data-designer <=0.6 backtracks the *global*
+    # resolution (its engine pins sqlfluff/cryptography/click eras) and those
+    # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
+    # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
+    # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
+    "data-designer>=0.7.0",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",
