@@ -1,6 +1,0 @@
-name: home-security-javascript-queries
-version: 1.0.0
-description: Custom CodeQL queries for React/TypeScript security patterns
-dependencies:
-  codeql/javascript-all: '*'
-extractor: javascript
