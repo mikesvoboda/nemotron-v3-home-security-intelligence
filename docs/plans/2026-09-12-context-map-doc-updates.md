@@ -2683,3 +2683,22 @@ libgl1 libglib2.0-0`). Side effect: podman arrived as an apt dependency → vali
 Evidence (survives /tmp): /home/agent/gate20-evidence/ — summary-lines.txt, the three tier
 logs, and the 30s disk+inode curve. T11's full percentile row still awaits gate 21 + the
 durations_plugin companion run (gate-identical integration on the FINAL tip).
+
+### Gate 21 — final-tip green #2 (2026-09-15, tip 2be6cf9e, bare `./scripts/validate.sh`)
+
+rc=0, same recipe, first attempt. Summary lines: unit **27535 passed / 125 skipped / 9 xfailed
+in 83.54s** (seed 2138822532); integration **4071 / 131 / 2 xfailed in 537.46s** (seed
+1154275636); vitest **20235 tests / 136 skipped, Duration 394.80s** on the parallel branch.
+Whole-gate wall **1200s (20.0 min)**. Zero node-downs, zero OOM, inodes never below 639k free
+(sweep held).
+
+Honest reconciliation across the green pair: unit totals match (27669 items both runs) with one
+item living on the passed/xfail seam (gate 20: 27536/8xfailed; gate 21: 27535/9xfailed) — a
+genuinely flaky xfail marker flipping, not a census change; integration census byte-identical
+both runs and to the T4 baseline (4071/131/2). Frontend Duration 395.00s vs 394.80s — the
+parallel arm is repeatable to ±0.2s.
+
+**M3 final-gate ×2 satisfied on the FINAL tip (2be6cf9e): gates 20 + 21 both green, zero
+node-downs.** M2's carried "green ×2 under new config" note above is now discharged by these
+two bare no-flag gates rather than the earlier config-equivalence argument. T11's percentile
+row fills next from the gate-identical durations companion run.
