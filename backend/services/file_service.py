@@ -173,7 +173,7 @@ class FileService:
                     await redis.zrem(FILE_DELETION_QUEUE, job_json)
                     logger.info(f"Cancelled file deletion job {job_id}")
                     return True
-            except (json.JSONDecodeError, KeyError):
+            except json.JSONDecodeError, KeyError:
                 continue
 
         logger.debug(f"File deletion job {job_id} not found")
@@ -204,7 +204,7 @@ class FileService:
                     await redis.zrem(FILE_DELETION_QUEUE, job_json)
                     cancelled_count += 1
                     logger.debug(f"Cancelled file deletion job {job.job_id} for event {event_id}")
-            except (json.JSONDecodeError, KeyError):
+            except json.JSONDecodeError, KeyError:
                 continue
 
         if cancelled_count > 0:
@@ -369,7 +369,7 @@ class FileService:
                 job = FileDeletionJob.from_json(job_json)
                 if job.event_id == event_id:
                     result.append(job)
-            except (json.JSONDecodeError, KeyError):
+            except json.JSONDecodeError, KeyError:
                 continue
 
         return result

@@ -281,7 +281,7 @@ class QueueStatusService:
                             # Assume UTC if no timezone
                             queued_at = queued_at.replace(tzinfo=UTC)
                         wait_seconds = (now - queued_at).total_seconds()
-                    except (ValueError, AttributeError):
+                    except ValueError, AttributeError:
                         # Malformed timestamp - continue with default wait_seconds.
                         # Queue status is still useful even without exact wait time.
                         # See: NEM-2540 for rationale

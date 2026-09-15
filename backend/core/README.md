@@ -51,6 +51,7 @@ Quick usage:
 ```python
 from backend.core.redis import RedisClient, get_redis
 
+
 # In FastAPI routes
 @router.post("/events")
 async def create_event(redis: RedisClient = Depends(get_redis)):
@@ -90,6 +91,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core import get_db
 
+
 @app.get("/items")
 async def get_items(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Item))
@@ -113,6 +115,7 @@ async with get_session() as session:
 ```python
 from sqlalchemy import Column, Integer, String
 from backend.core import Base
+
 
 class MyModel(Base):
     __tablename__ = "my_models"

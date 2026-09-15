@@ -441,7 +441,7 @@ class PromptEvaluator:
                     "reasoning": str(data.get("reasoning", "")),
                     "summary": str(data.get("summary", "")),
                 }
-            except (json.JSONDecodeError, ValueError):
+            except json.JSONDecodeError, ValueError:
                 pass
 
         # Fallback if JSON parsing fails

@@ -137,11 +137,13 @@ assert data["total"] >= 0
 from hypothesis import given
 from backend.tests.utils import detection_dict_strategy, risk_scores
 
+
 @given(detection=detection_dict_strategy())
 def test_detection_properties(detection):
     assert 0 <= detection["confidence"] <= 1
     assert detection["camera_id"]
     assert detection["object_type"]
+
 
 @given(score=risk_scores)
 def test_risk_score_range(score):

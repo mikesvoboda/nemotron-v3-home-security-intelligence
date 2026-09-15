@@ -1001,9 +1001,7 @@ from sqlalchemy import select
 from backend.models import PromptConfig
 
 async with get_session() as session:
-    result = await session.execute(
-        select(PromptConfig).where(PromptConfig.model == "nemotron")
-    )
+    result = await session.execute(select(PromptConfig).where(PromptConfig.model == "nemotron"))
     config = result.scalar_one_or_none()
 
     if config:
@@ -1017,9 +1015,7 @@ async with get_session() as session:
 
 ```python
 async with get_session() as session:
-    result = await session.execute(
-        select(PromptConfig).where(PromptConfig.model == "nemotron")
-    )
+    result = await session.execute(select(PromptConfig).where(PromptConfig.model == "nemotron"))
     config = result.scalar_one_or_none()
 
     if config:
@@ -1266,6 +1262,7 @@ This pattern provides:
 ```python
 from sqlalchemy.orm import Mapped, mapped_column
 
+
 class Camera(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -1279,6 +1276,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .detection import Detection
+
 
 class Camera(Base):
     detections: Mapped[list["Detection"]] = relationship(
@@ -1384,14 +1382,13 @@ from sqlalchemy.orm import Session
 
 # Initialize database (async)
 from backend.core.database import init_db
+
 await init_db()  # Creates all tables in PostgreSQL
 
 # Create camera
 with Session(engine) as session:
     camera = Camera(
-        id="front_door",
-        name="Front Door Camera",
-        folder_path="/export/foscam/front_door"
+        id="front_door", name="Front Door Camera", folder_path="/export/foscam/front_door"
     )
     session.add(camera)
     session.commit()
@@ -1401,7 +1398,7 @@ with Session(engine) as session:
         camera_id="front_door",
         file_path="/export/foscam/front_door/20250101_120000.jpg",
         object_type="person",
-        confidence=0.95
+        confidence=0.95,
     )
     session.add(detection)
     session.commit()

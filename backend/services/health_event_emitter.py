@@ -464,7 +464,7 @@ def get_health_event_emitter() -> HealthEventEmitter:
             result = container.get("health_event_emitter")
             # Cast to proper type since container returns Any
             return result  # type: ignore[no-any-return]
-    except (ServiceNotFoundError, ImportError, AttributeError):
+    except ServiceNotFoundError, ImportError, AttributeError:
         # Container not available or service not registered, use legacy pattern
         pass
 
@@ -529,7 +529,7 @@ def reset_health_event_emitter() -> None:
         if registration and registration.instance is not None:
             registration.instance.reset()
             registration.instance = None
-    except (ImportError, AttributeError):
+    except ImportError, AttributeError:
         pass
 
     # Reset legacy global singleton

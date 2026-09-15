@@ -47,7 +47,7 @@ class FieldFilterError(Exception):
         super().__init__(message)
 
 
-def parse_fields_param(fields: str | None | Any) -> set[str] | None:
+def parse_fields_param(fields: str | Any | None) -> set[str] | None:
     """Parse the fields query parameter into a set of field names.
 
     Handles comma-separated field names with optional whitespace.

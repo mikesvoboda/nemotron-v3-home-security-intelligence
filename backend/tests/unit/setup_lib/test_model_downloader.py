@@ -395,7 +395,10 @@ class TestDownloadHfModel:
             mock_download.assert_called_once()
             call_kwargs = mock_download.call_args[1]
             assert call_kwargs["repo_id"] == "microsoft/Florence-2-large"
-            assert call_kwargs["local_dir_use_symlinks"] is False
+            # huggingface_hub 1.x removed local_dir_use_symlinks (local_dir always
+            # copies), so passing it would raise TypeError at runtime.
+            assert "local_dir_use_symlinks" not in call_kwargs
+            assert call_kwargs["local_dir"] == str(Path("/ai/model-zoo/test-model"))
 
 
 class TestRunDownloadScript:

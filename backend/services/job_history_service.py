@@ -193,7 +193,7 @@ class JobHistoryService:
         # keeps the not-a-UUID early-out for special-character test IDs.
         try:
             UUID(job_id)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Job ID is not a valid UUID - return empty transitions
             return []
         result = await self._session.execute(
@@ -246,7 +246,7 @@ class JobHistoryService:
                 )
                 for a in attempts
             ]
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             # Job ID is not a valid UUID - return empty attempts
             return []
 
@@ -275,7 +275,7 @@ class JobHistoryService:
         # Try to parse as UUID for the logs table
         try:
             job_uuid = UUID(str(job_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             logger.debug(
                 "Invalid job ID format for logs lookup",
                 extra={"job_id": str(job_id)},
@@ -346,7 +346,7 @@ class JobHistoryService:
         """
         try:
             job_uuid = UUID(str(job_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             logger.warning(
                 "Invalid job ID format for attempt recording",
                 extra={"job_id": str(job_id)},
@@ -399,7 +399,7 @@ class JobHistoryService:
         """
         try:
             job_uuid = UUID(str(job_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             logger.warning(
                 "Invalid job ID format for attempt end recording",
                 extra={"job_id": str(job_id)},
@@ -468,7 +468,7 @@ class JobHistoryService:
         """
         try:
             job_uuid = UUID(str(job_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             logger.warning(
                 "Invalid job ID format for log recording",
                 extra={"job_id": str(job_id)},

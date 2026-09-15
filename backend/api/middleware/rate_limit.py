@@ -177,7 +177,7 @@ def _mask_ip_for_logging(ip_string: str) -> str:
         Masked string like "192.xxx.xxx.xxx" or "2001:xxx:..."
     """
     # Strip CIDR suffix if present
-    ip_part = ip_string.split("/")[0]
+    ip_part = ip_string.split("/", maxsplit=1)[0]
 
     if ":" in ip_part:
         # IPv6: mask all but first segment

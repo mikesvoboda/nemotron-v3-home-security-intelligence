@@ -463,7 +463,12 @@ class TestXCLIPConcurrency:
         mock_param = MagicMock()
         mock_param.device = "cpu"
         mock_param.dtype = MagicMock()
-        mock_model.parameters.return_value = iter([mock_param, mock_param])
+        # side_effect (not return_value): each .parameters() call needs a
+        # FRESH iterator — a shared iter() exhausts after the first pass and
+        # raises StopIteration inside the next coroutine, which asyncio
+        # converts to RuntimeError (PEP 479). transformers v5's device/dtype
+        # probe walks parameters() more than once per classify_actions call.
+        mock_model.parameters.side_effect = lambda: iter([mock_param, mock_param])
 
         # Configure processor output with valid tensor shape
         mock_pixel_values = MagicMock()

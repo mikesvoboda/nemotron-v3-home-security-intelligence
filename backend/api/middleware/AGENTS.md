@@ -153,11 +153,7 @@ Extracts incoming baggage from W3C Baggage headers and sets application-specific
 # Setting baggage at pipeline entry
 from backend.api.middleware.baggage import set_pipeline_baggage
 
-set_pipeline_baggage(
-    camera_id="front_door",
-    event_priority="high",
-    request_source="api"
-)
+set_pipeline_baggage(camera_id="front_door", event_priority="high", request_source="api")
 
 # Reading baggage in downstream services
 from backend.api.middleware.baggage import (
@@ -313,7 +309,7 @@ Provides Idempotency-Key header support for POST, PUT, PATCH, and DELETE request
 ```python
 app.add_middleware(
     IdempotencyMiddleware,
-    ttl=86400,           # 24 hours (default from settings)
+    ttl=86400,  # 24 hours (default from settings)
     key_prefix="idempotency",  # Redis key prefix
 )
 ```
@@ -458,11 +454,13 @@ Implements HTTP middleware for API endpoint deprecation signaling per RFC 8594. 
 
 ```python
 config = DeprecationConfig()
-config.register(DeprecatedEndpoint(
-    path="/api/v1/old-endpoint",
-    sunset_date=datetime(2025, 6, 1, tzinfo=UTC),
-    replacement="/api/v2/new-endpoint",
-))
+config.register(
+    DeprecatedEndpoint(
+        path="/api/v1/old-endpoint",
+        sunset_date=datetime(2025, 6, 1, tzinfo=UTC),
+        replacement="/api/v2/new-endpoint",
+    )
+)
 app.add_middleware(DeprecationMiddleware, config=config)
 ```
 
@@ -833,11 +831,13 @@ export RATE_LIMIT_BURST=10
 ```python
 from backend.api.middleware import RateLimiter, RateLimitTier
 
+
 @router.get("/endpoint")
 async def endpoint(
     _: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
 ):
     return {"data": "value"}
+
 
 # Or use convenience functions
 @router.get("/search")
@@ -849,6 +849,7 @@ async def search(_: None = Depends(rate_limit_search())):
 
 ```python
 from backend.api.middleware import check_websocket_rate_limit
+
 
 async def websocket_handler(websocket: WebSocket):
     if not await check_websocket_rate_limit(websocket, redis_client):
@@ -984,10 +985,12 @@ from fastapi.security import APIKeyHeader
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 
+
 async def verify_api_key(api_key: str = Security(api_key_header)):
     if not validate_key(api_key):
         raise HTTPException(status_code=401, detail="Invalid API key")
     return api_key
+
 
 @router.get("/protected")
 async def protected_endpoint(api_key: str = Depends(verify_api_key)):

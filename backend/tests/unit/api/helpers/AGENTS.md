@@ -72,6 +72,7 @@ def sample_enrichment_data() -> dict[str, Any]:
         # ... other enrichment types
     }
 
+
 def test_license_plate_extractor(sample_enrichment_data):
     """Test license plate data extraction."""
     extractor = LicensePlateExtractor()

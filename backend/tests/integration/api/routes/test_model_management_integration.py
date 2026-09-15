@@ -189,7 +189,7 @@ def mock_enrichment_responses():
         # Unload model
         if "/models/" in url and "/unload" in url:
             # Extract model name from URL path
-            parts = url.split("/models/")[-1].split("/unload")[0]
+            parts = url.rsplit("/models/", maxsplit=1)[-1].split("/unload", maxsplit=1)[0]
             model_name = parts
             return httpx.Response(
                 200,

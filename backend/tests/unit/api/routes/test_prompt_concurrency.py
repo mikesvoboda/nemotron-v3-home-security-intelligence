@@ -233,7 +233,7 @@ class TestPromptServiceConcurrencyControl:
                 config={"system_prompt": "New prompt"},
                 expected_version=3,  # Matches current version
             )
-        except (TypeError, AttributeError):
+        except TypeError, AttributeError:
             # Expected in unit test without full DB setup
             # The important thing is PromptVersionConflictError was NOT raised
             pass
@@ -260,7 +260,7 @@ class TestPromptServiceConcurrencyControl:
             )
         except PromptVersionConflictError:
             pytest.fail("Should not raise conflict error when expected_version is None")
-        except (TypeError, AttributeError):
+        except TypeError, AttributeError:
             # Expected in unit test without full DB setup
             pass
 
@@ -285,7 +285,7 @@ class TestPromptServiceConcurrencyControl:
             )
         except PromptVersionConflictError:
             pytest.fail("Should not raise conflict error when no existing versions")
-        except (TypeError, AttributeError):
+        except TypeError, AttributeError:
             # Expected in unit test without full DB setup
             pass
 

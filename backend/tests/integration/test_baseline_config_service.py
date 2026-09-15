@@ -146,7 +146,7 @@ class TestSetCameraConfig:
         self, baseline_config_service: BaselineConfigService
     ):
         """Set camera config rejects threshold below 0.5."""
-        with pytest.raises(ValueError, match="at least 0.5"):
+        with pytest.raises(ValueError, match=r"at least 0\.5"):
             await baseline_config_service.set_camera_config(
                 "test_camera",
                 threshold_stdev=0.3,

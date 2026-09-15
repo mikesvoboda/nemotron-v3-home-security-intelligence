@@ -55,7 +55,7 @@ class LicensePlateItem(BaseModel):
             val = float(v)
             # Clamp to valid range rather than reject
             return max(0.0, min(1.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
 
@@ -77,7 +77,7 @@ class FaceItem(BaseModel):
         try:
             val = float(v)
             return max(0.0, min(1.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
 
@@ -99,7 +99,7 @@ class ViolenceDetectionData(BaseModel):
         try:
             val = float(v)
             return max(0.0, min(1.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     @field_validator("is_violent", mode="before")
@@ -133,7 +133,7 @@ class VehicleClassificationData(BaseModel):
         try:
             val = float(v)
             return max(0.0, min(1.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
 
@@ -178,7 +178,7 @@ class ClothingClassificationData(BaseModel):
         try:
             val = float(v)
             return max(0.0, min(1.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
 
@@ -210,7 +210,7 @@ class PetClassificationData(BaseModel):
         try:
             val = float(v)
             return max(0.0, min(1.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
 
@@ -235,7 +235,7 @@ class ImageQualityData(BaseModel):
             val = float(v)
             # Clamp to valid range
             return max(0.0, min(100.0, val))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
 
@@ -395,7 +395,7 @@ class EnrichmentDataSchema(BaseModel):
         try:
             val = float(v)
             return max(0.0, val)  # Can't be negative
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     @field_validator("errors", mode="before")

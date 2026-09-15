@@ -3173,7 +3173,7 @@ class NemotronAnalyzer:
         # Convert detection_id to int if needed
         try:
             detection_id_int = int(detection_id)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             raise ValueError(f"Invalid detection_id: {detection_id}") from None
 
         # Idempotency check (NEM-1725): prevent duplicate Events on retry
@@ -4397,7 +4397,7 @@ class NemotronAnalyzer:
                         risk_score = max(0, min(100, int(score)))
                     elif isinstance(score, str):
                         risk_score = max(0, min(100, int(float(score))))
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     # Risk score extraction failed - use default score.
                     # Partial LLM response recovery is better than complete failure.
                     # See: NEM-2540 for rationale

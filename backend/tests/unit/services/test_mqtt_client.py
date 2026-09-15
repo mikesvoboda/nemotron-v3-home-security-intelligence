@@ -280,7 +280,7 @@ async def test_connect_failure_retry(mqtt_client, mqtt_settings):
         # Limit retries for test to avoid long run time
         mqtt_client.settings.max_retries = 4
 
-        with pytest.raises(MQTTConnectionError, match="Failed to connect after .* retries"):
+        with pytest.raises(MQTTConnectionError, match=r"Failed to connect after .* retries"):
             await mqtt_client.connect()
 
         # Verify exponential backoff: 1s, 2s, 4s, 8s

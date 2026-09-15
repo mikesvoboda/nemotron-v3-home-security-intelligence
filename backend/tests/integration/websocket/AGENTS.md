@@ -45,15 +45,9 @@ uv run pytest backend/tests/integration/websocket/ -v --cov=backend.api.routes.w
 
 ```python
 @pytest.mark.asyncio
-async def test_event_creation_triggers_broadcast(
-    session, mock_redis, event_broadcaster
-):
+async def test_event_creation_triggers_broadcast(session, mock_redis, event_broadcaster):
     # Create event
-    event = Event(
-        camera_id="test_cam",
-        risk_score=75,
-        summary="Test event"
-    )
+    event = Event(camera_id="test_cam", risk_score=75, summary="Test event")
     session.add(event)
     await session.commit()
 
@@ -68,9 +62,7 @@ async def test_event_creation_triggers_broadcast(
 
 ```python
 @pytest.mark.asyncio
-async def test_camera_offline_triggers_broadcast(
-    session, mock_redis, system_broadcaster
-):
+async def test_camera_offline_triggers_broadcast(session, mock_redis, system_broadcaster):
     # Update camera status
     camera = await session.get(Camera, "test_cam")
     camera.status = "offline"
@@ -78,10 +70,7 @@ async def test_camera_offline_triggers_broadcast(
 
     # Verify system status broadcast
     mock_redis.publish.assert_called()
-    assert any(
-        "camera_status" in str(call)
-        for call in mock_redis.publish.call_args_list
-    )
+    assert any("camera_status" in str(call) for call in mock_redis.publish.call_args_list)
 ```
 
 ## Broadcast Channels

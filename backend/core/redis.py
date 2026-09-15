@@ -52,6 +52,21 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
+
+def _as_str(value: object) -> str:
+    """Narrow a Redis reply value to ``str``.
+
+    The connection runs with ``decode_responses=True``, so replies are already
+    ``str`` (or ``int``/``float`` for count-like replies). ``redis-py`` is not
+    generic over ``decode_responses``, so its stubs still widen every reply to
+    ``bytes | str`` — this narrows them at the call sites that store the result
+    in ``str``-typed payloads.
+    """
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return value if isinstance(value, str) else str(value)
+
+
 # Sentinel value to distinguish "not provided" from "explicitly None"
 _UNSET = object()
 
@@ -966,7 +981,7 @@ class RedisClient:
         if result:
             _, value = result
             # Decompress if payload is compressed (backward compatible)
-            decompressed = self._decompress_payload(value)
+            decompressed = self._decompress_payload(_as_str(value))
             try:
                 return json.loads(decompressed)
             except json.JSONDecodeError:
@@ -994,8 +1009,9 @@ class RedisClient:
         client = self._ensure_connected()
         result = await client.lpop(queue_name)  # type: ignore[misc]
         if result:
+            # A count-less LPOP replies with a single element, never a list.
             # Decompress if payload is compressed (backward compatible)
-            decompressed = self._decompress_payload(result)
+            decompressed = self._decompress_payload(_as_str(result))
             try:
                 return json.loads(decompressed)
             except json.JSONDecodeError:
@@ -1530,8 +1546,10 @@ class RedisClient:
         # Use ZRANGE with REV=True to get descending order (highest first)
         result = await client.zrange(queue_name, 0, count - 1, desc=True, withscores=True)
 
+        # WITHSCORES replies are pairs; the stub's union also admits a plain
+        # member list, which cannot happen with withscores=True.
         items = []
-        for member, score in result:
+        for member, score in cast("list[tuple[Any, float]]", result):
             try:
                 decompressed = self._decompress_payload(str(member))
                 items.append((json.loads(decompressed), float(score)))
@@ -1990,7 +2008,7 @@ return result
                 else:
                     try:
                         results.append(json.loads(result))
-                    except (json.JSONDecodeError, TypeError):
+                    except json.JSONDecodeError, TypeError:
                         results.append(result)
 
         return results
@@ -2199,7 +2217,7 @@ return result
             # Deserialize and return cached value
             try:
                 return json.loads(cached)
-            except (json.JSONDecodeError, TypeError):
+            except json.JSONDecodeError, TypeError:
                 return cached
 
         # Cache miss - fetch data
@@ -2281,7 +2299,7 @@ return result
             return 0
         try:
             return int(result)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return 0
 
     async def reset_access_count(self, key: str) -> bool:

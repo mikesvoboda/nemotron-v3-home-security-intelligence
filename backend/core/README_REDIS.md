@@ -54,11 +54,9 @@ from backend.core.redis import RedisClient, get_redis
 
 router = APIRouter()
 
+
 @router.post("/events")
-async def create_event(
-    event: Event,
-    redis: RedisClient = Depends(get_redis)
-):
+async def create_event(event: Event, redis: RedisClient = Depends(get_redis)):
     # Add event to processing queue with backpressure handling
     result = await redis.add_to_queue_safe("events_queue", event.dict())
     return {"status": "queued", "queue_length": result.queue_length}
@@ -72,9 +70,11 @@ from backend.core.redis import init_redis, close_redis
 
 app = FastAPI()
 
+
 @app.on_event("startup")
 async def startup():
     await init_redis()
+
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -87,11 +87,9 @@ async def shutdown():
 
 ```python
 # Add dictionary (auto-serialized to JSON) with backpressure handling
-result = await redis.add_to_queue_safe("detections", {
-    "camera_id": 1,
-    "timestamp": "2024-01-01T12:00:00",
-    "objects": ["person", "car"]
-})
+result = await redis.add_to_queue_safe(
+    "detections", {"camera_id": 1, "timestamp": "2024-01-01T12:00:00", "objects": ["person", "car"]}
+)
 if result.success:
     print(f"Added to queue, length: {result.queue_length}")
 
@@ -130,11 +128,9 @@ await redis.clear_queue("detections")
 
 ```python
 # Publish event (auto-serialized to JSON)
-await redis.publish("camera_events", {
-    "type": "motion_detected",
-    "camera_id": 1,
-    "timestamp": "2024-01-01T12:00:00"
-})
+await redis.publish(
+    "camera_events", {"type": "motion_detected", "camera_id": 1, "timestamp": "2024-01-01T12:00:00"}
+)
 ```
 
 ### Subscribing to Channels
@@ -270,13 +266,13 @@ Real-time messaging using Redis Pub/Sub:
 
 ```python
 # Producer: Add detection to queue with backpressure handling
-result = await redis.add_to_queue_safe("detections", {
-    "camera_id": 1,
-    "image_path": "/data/image.jpg",
-    "timestamp": "2024-01-01T12:00:00"
-})
+result = await redis.add_to_queue_safe(
+    "detections",
+    {"camera_id": 1, "image_path": "/data/image.jpg", "timestamp": "2024-01-01T12:00:00"},
+)
 if not result.success:
     logger.warning(f"Queue full: {result.error}")
+
 
 # Consumer: Process detections in batch
 async def process_detections():
@@ -290,23 +286,22 @@ async def process_detections():
 
 ```python
 # Publish event to all connected WebSocket clients
-await redis.publish("events", {
-    "type": "risk_alert",
-    "risk_score": 85,
-    "camera_id": 1,
-    "message": "Suspicious activity detected"
-})
+await redis.publish(
+    "events",
+    {
+        "type": "risk_alert",
+        "risk_score": 85,
+        "camera_id": 1,
+        "message": "Suspicious activity detected",
+    },
+)
 ```
 
 ### Camera Status Cache
 
 ```python
 # Cache camera status for 5 minutes
-await redis.set(
-    f"camera:{camera_id}:status",
-    {"online": True, "fps": 30},
-    expire=300
-)
+await redis.set(f"camera:{camera_id}:status", {"online": True, "fps": 30}, expire=300)
 
 # Get cached status
 status = await redis.get(f"camera:{camera_id}:status")

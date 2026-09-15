@@ -1185,7 +1185,7 @@ def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
         import xdist
 
         worker_id = xdist.get_xdist_worker_id(request)
-    except (ImportError, AttributeError):
+    except ImportError, AttributeError:
         worker_id = "master"
 
     if worker_id != "master":

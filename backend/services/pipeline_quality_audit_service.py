@@ -433,7 +433,7 @@ class PipelineQualityAuditService:
             except ValueError:
                 logger.warning(f"Could not extract JSON from rubric eval for event {event.id}")
                 return {}
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError):
+        except httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError:
             logger.error("Rubric eval network error", exc_info=True, extra={"event_id": event.id})
             return {}
         except Exception:
@@ -460,7 +460,7 @@ class PipelineQualityAuditService:
                     f"Could not extract JSON from consistency check for event {event.id}"
                 )
                 return {}
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError):
+        except httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError:
             logger.error(
                 "Consistency check network error", exc_info=True, extra={"event_id": event.id}
             )
@@ -488,7 +488,7 @@ class PipelineQualityAuditService:
                     f"Could not extract JSON from prompt improvement for event {event.id}"
                 )
                 return {}
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError):
+        except httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError:
             logger.error(
                 "Prompt improvement network error", exc_info=True, extra={"event_id": event.id}
             )
@@ -621,7 +621,7 @@ class PipelineQualityAuditService:
                 else:
                     # Round to 4 decimal places for cleaner output
                     correlations[model] = round(float(correlation), 4)
-            except (ValueError, FloatingPointError):
+            except ValueError, FloatingPointError:
                 correlations[model] = None
 
         return correlations

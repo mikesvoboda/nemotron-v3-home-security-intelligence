@@ -66,6 +66,7 @@ async def test_middleware_generates_correlation_id_when_not_provided(self) -> No
     assert len(correlation_id) > 0
     uuid.UUID(correlation_id)  # Raises ValueError if invalid
 
+
 @pytest.mark.asyncio
 async def test_middleware_preserves_existing_correlation_id(self) -> None:
     """Verify middleware preserves correlation ID from request headers."""

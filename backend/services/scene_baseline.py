@@ -186,7 +186,7 @@ class SceneBaselineService:
         if updated_data:
             try:
                 last_updated = datetime.fromisoformat(updated_data)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 last_updated = None
 
         return embedding, sample_count, last_updated

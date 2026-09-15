@@ -595,7 +595,7 @@ class FileWatcher:
                 return None, None
 
             return camera_id, folder_name
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             logger.warning(f"Could not extract camera ID from path: {file_path}")
             return None, None
 
@@ -632,7 +632,7 @@ class FileWatcher:
         for _ in range(max_checks):
             try:
                 current_size = Path(file_path).stat().st_size
-            except (FileNotFoundError, OSError):
+            except FileNotFoundError, OSError:
                 # File was deleted or became inaccessible
                 logger.warning(
                     f"File disappeared during stability check: {file_path}",

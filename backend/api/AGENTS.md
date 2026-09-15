@@ -43,6 +43,7 @@ Usage pattern (modern Annotated style - NEM-3742):
 ```python
 from backend.api.dependencies import DbSession, get_camera_or_404
 
+
 @router.get("/{camera_id}")
 async def get_camera(camera_id: str, db: DbSession) -> Camera:
     return await get_camera_or_404(camera_id, db)
@@ -65,6 +66,7 @@ Legacy pattern (still supported):
 ```python
 from fastapi import Depends
 from backend.core.database import get_db
+
 
 @router.get("/{camera_id}")
 async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Camera:

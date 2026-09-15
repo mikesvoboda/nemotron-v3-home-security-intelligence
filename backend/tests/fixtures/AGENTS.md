@@ -59,9 +59,13 @@ These fixtures are used in:
 import pytest
 from pathlib import Path
 
+
 @pytest.fixture
 def test_image_path():
-    return Path(__file__).parent / "fixtures" / "images" / "pipeline_test" / "test_person_porch_1.jpg"
+    return (
+        Path(__file__).parent / "fixtures" / "images" / "pipeline_test" / "test_person_porch_1.jpg"
+    )
+
 
 async def test_detection(test_image_path):
     # Use fixture image for testing

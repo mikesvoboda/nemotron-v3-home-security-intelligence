@@ -5926,7 +5926,7 @@ class EnrichmentPipeline:
                     if not isinstance(embedding, np.ndarray):
                         try:
                             embedding = np.array(embedding, dtype=np.float32)
-                        except (ValueError, TypeError):
+                        except ValueError, TypeError:
                             logger.warning(
                                 f"Could not convert embedding to numpy array for person {det_id}"
                             )

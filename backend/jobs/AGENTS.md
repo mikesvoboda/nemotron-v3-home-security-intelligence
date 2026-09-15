@@ -205,11 +205,13 @@ Runs every 30 seconds by default to detect and handle timed-out jobs.
 from backend.jobs.timeout_checker_job import get_timeout_checker_job
 from backend.core.redis import get_redis_client
 
+
 @app.on_event("startup")
 async def startup():
     redis = await get_redis_client()
     checker = get_timeout_checker_job(redis)
     await checker.start()
+
 
 @app.on_event("shutdown")
 async def shutdown():

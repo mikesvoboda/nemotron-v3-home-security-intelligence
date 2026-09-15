@@ -42,7 +42,7 @@ REDIS_JOB_TTL_SECONDS = 3600
 
 # Type alias for broadcast callback
 # Can be sync (returns None) or async (returns Awaitable)
-BroadcastCallback = Callable[[str, dict[str, Any]], None | Awaitable[None]]
+BroadcastCallback = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 
 class JobStatus(StrEnum):

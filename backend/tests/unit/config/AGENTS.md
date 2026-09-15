@@ -43,6 +43,7 @@ def test_invalid_treatment_percentage():
     with pytest.raises(ValueError, match="between 0.0 and 1.0"):
         ABRolloutConfig(treatment_percentage=1.5)
 
+
 def test_invalid_test_duration():
     """test_duration_hours must be positive."""
     with pytest.raises(ValueError, match="must be positive"):
@@ -63,12 +64,14 @@ def test_camera_assignment_consistency():
     v2 = config.get_version_for_camera("front_door")
     assert v1 == v2
 
+
 def test_treatment_percentage_distribution():
     """50% treatment should give ~50% cameras to treatment."""
     config = PromptExperimentConfig(treatment_percentage=0.5)
 
     treatment_count = sum(
-        1 for i in range(1000)
+        1
+        for i in range(1000)
         if config.get_version_for_camera(f"cam_{i}") == PromptVersion.V2_CALIBRATED
     )
     assert 400 < treatment_count < 600  # Allow variance

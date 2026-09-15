@@ -278,7 +278,7 @@ class RequestRecorderMiddleware(BaseHTTPMiddleware):
                 if body_bytes:
                     try:
                         body_data = json.loads(body_bytes.decode("utf-8"))
-                    except (json.JSONDecodeError, UnicodeDecodeError):
+                    except json.JSONDecodeError, UnicodeDecodeError:
                         # Store as base64 if not JSON
                         import base64
 

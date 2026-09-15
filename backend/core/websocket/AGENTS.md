@@ -192,7 +192,15 @@ from backend.core.websocket.subscription_manager import get_subscription_manager
 # Create an event
 event = create_event(
     WebSocketEventType.ALERT_CREATED,
-    {"id": "uuid", "event_id": 123, "severity": "high", "status": "pending", "dedup_key": "key", "created_at": "...", "updated_at": "..."},
+    {
+        "id": "uuid",
+        "event_id": 123,
+        "severity": "high",
+        "status": "pending",
+        "dedup_key": "key",
+        "created_at": "...",
+        "updated_at": "...",
+    },
     correlation_id="req-abc123",
 )
 

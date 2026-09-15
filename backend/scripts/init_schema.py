@@ -90,7 +90,11 @@ async def init_schema(force: bool = False) -> None:
     db_url = settings.database_url
     if "localhost" not in db_url and "127.0.0.1" not in db_url and not force:
         print(f"WARNING: Database URL does not appear to be local: {db_url[:50]}...")
-        response = input("Are you sure you want to DROP ALL TABLES? (type 'yes' to confirm): ")
+        # Interactive CLI confirmation prompt: this script runs standalone via
+        # `python -m backend.scripts.init_schema`, so blocking on input() is intended.
+        response = input(  # noqa: ASYNC250
+            "Are you sure you want to DROP ALL TABLES? (type 'yes' to confirm): "
+        )
         if response.lower() != "yes":
             print("Aborted.")
             sys.exit(0)

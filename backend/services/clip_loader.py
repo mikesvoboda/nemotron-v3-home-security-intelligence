@@ -157,7 +157,7 @@ class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
                     model = model.cpu()
 
                 self._model["model"] = model
-            except (ImportError, ValueError):
+            except ImportError, ValueError:
                 # torch not installed or invalid device spec - keep model on default device.
                 # Model will still function, just potentially on different device than requested.
                 # See: NEM-2540 for rationale

@@ -607,7 +607,7 @@ class TestEdgeCasesAndSecurity:
             result = _validate_and_resolve_path(tmp_path, malicious_path)
             # If it doesn't raise, verify it's the jpg file
             assert result.suffix.lower() in ALLOWED_TYPES
-        except (HTTPException, ValueError):
+        except HTTPException, ValueError:
             # Expected - null bytes should be rejected
             pass
 

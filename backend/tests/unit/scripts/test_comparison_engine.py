@@ -15,7 +15,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import pytest  # noqa: E402
-
 from scripts.synthetic.comparison_engine import (  # noqa: E402
     CAPTION_SYNONYMS,
     ComparisonEngine,

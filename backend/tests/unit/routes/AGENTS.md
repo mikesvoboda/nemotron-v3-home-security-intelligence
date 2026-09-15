@@ -124,6 +124,7 @@ def mock_session():
 ```python
 from unittest.mock import patch
 
+
 @pytest.mark.asyncio
 async def test_endpoint(client, mock_session):
     with patch("backend.api.routes.cameras.get_db", return_value=mock_session):
@@ -137,12 +138,10 @@ async def test_endpoint(client, mock_session):
 from httpx import AsyncClient, ASGITransport
 from backend.main import app
 
+
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 ```
 

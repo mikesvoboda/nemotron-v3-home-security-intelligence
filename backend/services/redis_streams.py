@@ -48,9 +48,12 @@ __all__ = [
 
 import asyncio
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
+
+from redis.typing import EncodableT, FieldT
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
@@ -58,6 +61,11 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.core.redis import RedisClient
+
+# redis-py declares XADD's ``fields`` parameter as ``Dict[FieldT, EncodableT]``
+# (invariant key). Annotating our payloads with the library aliases keeps them
+# valid without a ``type: ignore[arg-type]`` on every call.
+StreamFields = dict[FieldT, EncodableT]
 
 logger = get_logger(__name__)
 
@@ -74,11 +82,72 @@ DEFAULT_CLAIM_MIN_IDLE_MS = 60000  # 1 minute idle before claiming
 DEFAULT_MAX_DELIVERY_COUNT = 3  # Max redeliveries before DLQ
 
 
+def _text(value: object) -> str:
+    """Coerce a Redis reply value to ``str``.
+
+    The connection is configured with ``decode_responses=True``, so replies are
+    already ``str``/``int``/``float``; ``redis-py``'s stubs still widen reply
+    values to ``bytes | str`` (and ``int`` for count-like fields), so this
+    narrows them for the ``str``-typed message fields.
+    """
+    return value.decode() if isinstance(value, bytes) else str(value)
+
+
+def _stream_entries(result: object) -> list[tuple[str, dict[str, str]]]:
+    """Flatten an ``XREADGROUP`` reply into ``(id, fields)`` pairs.
+
+    ``redis-py`` types ``xreadgroup`` as a union of three container shapes
+    (``list[list[Any]]``, ``dict[bytes | str, list[...]]`` and
+    ``dict[bytes | str, ...]``) whose inner entries are only narrowed to
+    ``tuple[bytes | str | None, dict[bytes | str, bytes | str] | None]``, so the
+    pairs consumed here need an explicit narrowing step.
+    """
+    if isinstance(result, dict):
+        groups = list(cast("Mapping[Any, Any]", result).items())
+    else:
+        groups = list(cast("Sequence[Any]", result or []))
+
+    entries: list[tuple[str, dict[str, str]]] = []
+    for _stream_name, stream_messages in groups:
+        for entry in stream_messages or []:
+            message_id, data = entry[:2]
+            if message_id is None or data is None:
+                # XREADGROUP yields (None, None) for entries trimmed away
+                continue
+            entries.append((_text(message_id), {_text(k): _text(v) for k, v in data.items()}))
+    return entries
+
+
+def _pending_delivery_count(pending_info: Sequence[Any]) -> int:
+    """Read the delivery count from an ``XPENDING`` reply.
+
+    ``redis-py`` declares the XPENDING rows as ``dict[str, bytes | str | int]``
+    and keys them by name (``message_id`` / ``consumer`` / ``time_since_delivered``
+    / ``times_delivered``), not by position. Older redis-py releases returned the
+    raw tuples, so positional access is still accepted as a fallback.
+    """
+    if not pending_info:
+        return 1
+    row = pending_info[0]
+    if isinstance(row, dict):
+        return int(row["times_delivered"])
+    return int(row[3])
+
+
+def _claimed_entries(result: Sequence[Any]) -> list[Any]:
+    """Extract the claimed ``(id, fields)`` entries from an ``XAUTOCLAIM`` reply.
+
+    ``redis-py`` types ``xautoclaim`` as an untyped ``list[Any]`` even though it
+    parses its reply into ``(next_claimed_id, entries, deleted_ids)``.
+    """
+    return list(result[1]) if result and len(result) > 1 else []
+
+
 def _parse_timestamp(value: str) -> float:
     """Parse a timestamp string that may be a Unix float or ISO 8601 format."""
     try:
         return float(value)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
@@ -127,7 +196,7 @@ class DetectionStreamMessage:
         if raw_ts:
             try:
                 ts = _parse_timestamp(raw_ts)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 ts = time.time()
         else:
             ts = time.time()
@@ -299,7 +368,7 @@ class DetectionStreamService:
             raise ValueError("file_path is required")
 
         # Build message fields
-        message_fields: dict[str, str] = {
+        message_fields: StreamFields = {
             "camera_id": camera_id,
             "detection_id": str(detection_id),
             "file_path": file_path,
@@ -316,11 +385,13 @@ class DetectionStreamService:
 
         # Add to stream with MAXLEN for automatic trimming
         # Use approximate (~) trimming for better performance
-        message_id: str = await self._redis._client.xadd(
-            self._stream_key,
-            message_fields,  # type: ignore[arg-type]
-            maxlen=self._maxlen,
-            approximate=DEFAULT_STREAM_APPROXIMATE,
+        message_id = _text(
+            await self._redis._client.xadd(
+                self._stream_key,
+                message_fields,
+                maxlen=self._maxlen,
+                approximate=DEFAULT_STREAM_APPROXIMATE,
+            )
         )
 
         logger.debug(
@@ -379,25 +450,24 @@ class DetectionStreamService:
 
             # Parse messages
             messages: list[DetectionStreamMessage] = []
-            for _stream_name, stream_messages in result:
-                for message_id, data in stream_messages:
-                    try:
-                        msg = DetectionStreamMessage.from_stream_entry(
-                            message_id,
-                            data,
-                            delivery_count=1,  # First delivery
-                        )
-                        messages.append(msg)
-                    except (ValueError, KeyError) as e:
-                        logger.warning(
-                            "Failed to parse stream message",
-                            extra={
-                                "message_id": message_id,
-                                "error": str(e),
-                            },
-                        )
-                        record_pipeline_error("stream_parse_error")
-                        continue
+            for message_id, data in _stream_entries(result):
+                try:
+                    msg = DetectionStreamMessage.from_stream_entry(
+                        message_id,
+                        data,
+                        delivery_count=1,  # First delivery
+                    )
+                    messages.append(msg)
+                except (ValueError, KeyError) as e:
+                    logger.warning(
+                        "Failed to parse stream message",
+                        extra={
+                            "message_id": message_id,
+                            "error": str(e),
+                        },
+                    )
+                    record_pipeline_error("stream_parse_error")
+                    continue
 
             return messages
 
@@ -485,14 +555,13 @@ class DetectionStreamService:
                 count=count,
             )
 
-            if not result or len(result) < 2:
+            claimed_messages = _claimed_entries(result)
+            if not claimed_messages:
                 return []
 
-            # XAUTOCLAIM returns: (next_id, [(id, data), ...], deleted_ids)
-            claimed_messages = result[1] if len(result) > 1 else []
-
             messages: list[DetectionStreamMessage] = []
-            for message_id, data in claimed_messages:
+            for entry in claimed_messages:
+                message_id, data = entry[:2]
                 if data is None:
                     # Message was deleted
                     continue
@@ -505,11 +574,11 @@ class DetectionStreamService:
                         max=message_id,
                         count=1,
                     )
-                    delivery_count = pending_info[0][3] if pending_info else 1
+                    delivery_count = _pending_delivery_count(pending_info)
 
                     msg = DetectionStreamMessage.from_stream_entry(
-                        message_id,
-                        data,
+                        _text(message_id),
+                        {_text(k): _text(v) for k, v in data.items()},
                         delivery_count=delivery_count,
                     )
                     messages.append(msg)
@@ -570,7 +639,7 @@ class DetectionStreamService:
             raise RuntimeError("Redis client not connected")
 
         # Build DLQ message with original data plus metadata
-        dlq_fields: dict[str, str] = {
+        dlq_fields: StreamFields = {
             **{k: str(v) for k, v in message.raw_data.items()},
             "original_message_id": message.id,
             "dlq_reason": reason,
@@ -579,11 +648,13 @@ class DetectionStreamService:
         }
 
         # Add to DLQ stream
-        dlq_message_id: str = await self._redis._client.xadd(
-            self._dlq_key,
-            dlq_fields,  # type: ignore[arg-type]
-            maxlen=self._maxlen,
-            approximate=DEFAULT_STREAM_APPROXIMATE,
+        dlq_message_id = _text(
+            await self._redis._client.xadd(
+                self._dlq_key,
+                dlq_fields,
+                maxlen=self._maxlen,
+                approximate=DEFAULT_STREAM_APPROXIMATE,
+            )
         )
 
         # Acknowledge the original message
@@ -836,7 +907,7 @@ class AnalysisStreamMessage:
         detection_ids_raw = data.get("detection_ids", "[]")
         try:
             detection_ids = json.loads(detection_ids_raw)
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError, TypeError:
             detection_ids = []
 
         # Parse pipeline_start_time: accept both float and ISO 8601 strings
@@ -845,11 +916,11 @@ class AnalysisStreamMessage:
         if raw_pst:
             try:
                 pst = float(raw_pst)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 try:
                     # Handle ISO 8601 format (with or without timezone)
                     pst = datetime.fromisoformat(raw_pst.replace("Z", "+00:00")).timestamp()
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     pst = None
 
         return cls(
@@ -963,7 +1034,7 @@ class AnalysisStreamService:
         if not self._redis._client:
             raise RuntimeError("Redis client not connected")
 
-        message_fields: dict[str, str] = {
+        message_fields: StreamFields = {
             "batch_id": batch_id,
             "camera_id": camera_id,
             "detection_ids": json.dumps(detection_ids),
@@ -973,11 +1044,13 @@ class AnalysisStreamService:
         if pipeline_start_time is not None:
             message_fields["pipeline_start_time"] = str(pipeline_start_time)
 
-        message_id: str = await self._redis._client.xadd(
-            self._stream_key,
-            message_fields,  # type: ignore[arg-type]
-            maxlen=self._maxlen,
-            approximate=DEFAULT_STREAM_APPROXIMATE,
+        message_id = _text(
+            await self._redis._client.xadd(
+                self._stream_key,
+                message_fields,
+                maxlen=self._maxlen,
+                approximate=DEFAULT_STREAM_APPROXIMATE,
+            )
         )
 
         logger.debug(
@@ -1018,20 +1091,19 @@ class AnalysisStreamService:
                 return []
 
             messages: list[AnalysisStreamMessage] = []
-            for _stream_name, stream_messages in result:
-                for message_id, data in stream_messages:
-                    try:
-                        msg = AnalysisStreamMessage.from_stream_entry(
-                            message_id, data, delivery_count=1
-                        )
-                        messages.append(msg)
-                    except (ValueError, KeyError) as e:
-                        logger.warning(
-                            "Failed to parse analysis stream message",
-                            extra={"message_id": message_id, "error": str(e)},
-                        )
-                        record_pipeline_error("analysis_stream_parse_error")
-                        continue
+            for message_id, data in _stream_entries(result):
+                try:
+                    msg = AnalysisStreamMessage.from_stream_entry(
+                        message_id, data, delivery_count=1
+                    )
+                    messages.append(msg)
+                except (ValueError, KeyError) as e:
+                    logger.warning(
+                        "Failed to parse analysis stream message",
+                        extra={"message_id": message_id, "error": str(e)},
+                    )
+                    record_pipeline_error("analysis_stream_parse_error")
+                    continue
 
             return messages
 
@@ -1065,7 +1137,7 @@ class AnalysisStreamService:
         if not self._redis._client:
             raise RuntimeError("Redis client not connected")
 
-        dlq_fields: dict[str, str] = {
+        dlq_fields: StreamFields = {
             **{k: str(v) for k, v in message.raw_data.items()},
             "original_message_id": message.id,
             "dlq_reason": reason,
@@ -1073,11 +1145,13 @@ class AnalysisStreamService:
             "delivery_count": str(message.delivery_count),
         }
 
-        dlq_message_id: str = await self._redis._client.xadd(
-            self._dlq_key,
-            dlq_fields,  # type: ignore[arg-type]
-            maxlen=self._maxlen,
-            approximate=DEFAULT_STREAM_APPROXIMATE,
+        dlq_message_id = _text(
+            await self._redis._client.xadd(
+                self._dlq_key,
+                dlq_fields,
+                maxlen=self._maxlen,
+                approximate=DEFAULT_STREAM_APPROXIMATE,
+            )
         )
 
         await self.acknowledge(message.id)
@@ -1116,13 +1190,13 @@ class AnalysisStreamService:
                 count=count,
             )
 
-            if not result or len(result) < 2:
+            claimed_messages = _claimed_entries(result)
+            if not claimed_messages:
                 return []
 
-            claimed_messages = result[1] if len(result) > 1 else []
-
             messages: list[AnalysisStreamMessage] = []
-            for message_id, data in claimed_messages:
+            for entry in claimed_messages:
+                message_id, data = entry[:2]
                 if data is None:
                     continue
                 try:
@@ -1133,10 +1207,12 @@ class AnalysisStreamService:
                         max=message_id,
                         count=1,
                     )
-                    delivery_count = pending_info[0][3] if pending_info else 1
+                    delivery_count = _pending_delivery_count(pending_info)
 
                     msg = AnalysisStreamMessage.from_stream_entry(
-                        message_id, data, delivery_count=delivery_count
+                        _text(message_id),
+                        {_text(k): _text(v) for k, v in data.items()},
+                        delivery_count=delivery_count,
                     )
                     messages.append(msg)
                 except (ValueError, KeyError, IndexError) as e:

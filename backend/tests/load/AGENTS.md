@@ -136,6 +136,7 @@ async def make_request(request_id):
     # Perform operation
     return result
 
+
 tasks = [make_request(i) for i in range(num_concurrent)]
 results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -189,6 +190,7 @@ async def test_new_feature_memory(self):
 @pytest.mark.asyncio
 async def test_new_feature_concurrency(self):
     """Verify new feature handles concurrent requests."""
+
     async def make_request(request_id):
         return await feature_operation()
 

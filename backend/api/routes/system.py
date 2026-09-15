@@ -1777,7 +1777,7 @@ def _parse_prometheus_timestamp(ts_str: str | None) -> datetime | None:
                 fraction = parts[1].rstrip("Z")[:6]  # Keep only 6 digits
                 ts_str = f"{parts[0]}.{fraction}Z"
         return datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return None
 
 
@@ -2077,7 +2077,7 @@ async def get_monitoring_targets(
             try:
                 # Duration is in seconds as a float string
                 scrape_duration = float(duration_str)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 # Scrape duration is optional metadata - if parsing fails,
                 # we continue with None rather than failing the entire response.
                 # See: NEM-2540 for rationale
@@ -3063,7 +3063,7 @@ async def get_latency_stats(redis: RedisClient) -> PipelineLatencies | None:
                 for s in samples_data:
                     try:
                         samples.append(float(s))
-                    except (TypeError, ValueError):
+                    except TypeError, ValueError:
                         continue
 
             # _calculate_stage_latency returns zero values when samples is empty,
@@ -3675,11 +3675,11 @@ def _get_directory_stats(directory: Path) -> tuple[int, int]:
                 try:
                     total_size += entry.stat().st_size
                     file_count += 1
-                except (OSError, PermissionError):
+                except OSError, PermissionError:
                     # Skip files we can't access - partial results are better than failure.
                     # See: NEM-2540 for rationale
                     pass
-    except (OSError, PermissionError):
+    except OSError, PermissionError:
         # Return zeros if we can't access the directory - caller handles empty results.
         # See: NEM-2540 for rationale
         pass
@@ -3722,7 +3722,7 @@ async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsR
         disk_used = disk_usage.used
         disk_free = disk_usage.free
         disk_percent = (disk_used / disk_total * 100) if disk_total > 0 else 0.0
-    except (OSError, PermissionError):
+    except OSError, PermissionError:
         # Return zeros if we can't access disk stats
         disk_total = 0
         disk_used = 0

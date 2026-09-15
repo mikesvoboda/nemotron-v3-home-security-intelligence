@@ -157,6 +157,7 @@ evaluator = PromptEvaluator(mock_mode=True)
 
 # Generate mock scenarios (or load from parquet)
 from backend.evaluation.harness import generate_mock_scenarios
+
 scenarios = generate_mock_scenarios(50)
 
 # Run evaluation

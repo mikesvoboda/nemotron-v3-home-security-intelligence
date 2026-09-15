@@ -162,7 +162,10 @@ async def load_vitpose_model(model_path: str) -> Any:
             """Load model and processor synchronously."""
             processor = AutoProcessor.from_pretrained(model_path)
 
-            model = VitPoseForPoseEstimation.from_pretrained(
+            # Typed as Module: transformers v5 @wraps decorators make .to() resolve
+            # to _Wrapped on the concrete class (stub drift); Module's own overloads
+            # are correct.
+            model: torch.nn.Module = VitPoseForPoseEstimation.from_pretrained(
                 model_path,
                 torch_dtype=torch.float16,
             )

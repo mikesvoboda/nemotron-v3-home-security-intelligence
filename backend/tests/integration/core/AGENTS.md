@@ -55,9 +55,7 @@ async def test_explain_on_actual_table_query(session):
     result.fetchall()
 
     # Manually run EXPLAIN to verify it works
-    explain_result = await session.execute(
-        text("EXPLAIN ANALYZE SELECT * FROM cameras LIMIT 10")
-    )
+    explain_result = await session.execute(text("EXPLAIN ANALYZE SELECT * FROM cameras LIMIT 10"))
     explain_rows = explain_result.fetchall()
 
     # Verify EXPLAIN output has expected structure

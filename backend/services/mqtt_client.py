@@ -544,7 +544,7 @@ class MQTTClient:
         payload_str = json.dumps(payload)
 
         # Extract topic type for metrics (first path segment)
-        topic_type = topic.split("/")[0] if "/" in topic else topic
+        topic_type = topic.split("/", maxsplit=1)[0] if "/" in topic else topic
 
         import time
 
@@ -716,7 +716,7 @@ class MQTTClient:
             # Parse JSON payload
             try:
                 payload = json.loads(message.payload.decode())
-            except (json.JSONDecodeError, UnicodeDecodeError):
+            except json.JSONDecodeError, UnicodeDecodeError:
                 payload = {"raw": message.payload.decode(errors="replace")}
 
             # Find matching callback (exact match or wildcard)

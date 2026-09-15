@@ -588,7 +588,7 @@ class WorkerSupervisor:
                     asyncio.shield(worker.task),
                     timeout=2.0,
                 )
-            except (TimeoutError, asyncio.CancelledError):
+            except TimeoutError, asyncio.CancelledError:
                 pass
             except Exception as e:
                 logger.debug(f"Exception while cancelling stuck worker '{name}': {e}")

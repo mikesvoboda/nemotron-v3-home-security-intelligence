@@ -64,7 +64,7 @@ def safe_parse_datetime(value: str | None, fallback: datetime | None = None) -> 
         return fallback
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         logger.warning(f"Invalid datetime format: {sanitize_log_value(value)}, using fallback")
         return fallback
 
