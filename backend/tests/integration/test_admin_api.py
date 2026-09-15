@@ -70,7 +70,7 @@ async def debug_client(integration_db, mock_redis):
                     id=f"admin_seed_user_{uuid.uuid4().hex[:12]}",
                     username=f"admin_{uuid.uuid4().hex[:8]}",
                     email=f"admin_{uuid.uuid4().hex[:8]}@example.com",
-                    password_hash="test-hash-not-a-real-password",
+                    password_hash="test-hash-not-a-real-password",  # pragma: allowlist secret
                     is_active=True,
                     is_admin=True,
                 )
@@ -521,19 +521,22 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
 
 @pytest.mark.asyncio
 @pytest.mark.requires_debug_mode
-@pytest.mark.unit  # Override integration mark - this test doesn't need database
 async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
-    """Test admin endpoint access control for ADMIN_ENABLED=false.
+    """Admin endpoints enforce the ADMIN_ENABLED=false -> 403 contract.
 
-    SECURITY: This test verifies the access-control contract that shipped in
-    8ea70057 ("enable Redis Streams and admin endpoints by default", Feb 2026):
-    admin endpoints are gated ONLY by ADMIN_ENABLED — DEBUG mode is decoupled
-    (registration on first login is the access control; binding to 127.0.0.1 is
-    the security boundary). ADMIN_ENABLED=false must still return 403.
+    M3 T10 (audit 5.1): this item carried @pytest.mark.unit while living in
+    integration/ — the "unit+integration simultaneously" contradiction the
+    audit flagged. And it was false in BOTH directions: the test requests
+    `mock_redis`, which ships ONLY in integration/conftest.py (root conftest
+    names that fixture mock_redis_client), so a unit-only invocation cannot
+    even resolve it. It belongs to the integration tier: a full-app HTTP
+    test that overrides the DB dependency with a mock session.
 
-    NOTE: This test doesn't need a real database because it patches init_db
-    and overrides the database dependency with a mock session.
-    It only needs to verify HTTP response codes from the admin endpoints.
+    The access-control contract shipped in 8ea70057 ("enable Redis Streams
+    and admin endpoints by default", Feb 2026): admin endpoints are gated
+    ONLY by ADMIN_ENABLED — DEBUG mode is decoupled (registration on first
+    login is the access control; binding to 127.0.0.1 is the security
+    boundary). ADMIN_ENABLED=false must still return 403.
     """
     from unittest.mock import patch
 
