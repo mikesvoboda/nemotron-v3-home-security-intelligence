@@ -25,9 +25,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Required Node.js major version — keep in sync with .github/workflows/ci.yml
-# (env.NODE_VERSION) and frontend/.nvmrc. Node 24 = Latest LTS; Node 20 is EOL.
-REQUIRED_NODE_MAJOR=24
+# Required Node.js major version — single source of truth is .nvmrc at the repo
+# root (CI workflows and frontend/Dockerfile reference the same line).
+REQUIRED_NODE_MAJOR=$(tr -dc '0-9' < "$PROJECT_ROOT/.nvmrc")
+REQUIRED_NODE_MAJOR=${REQUIRED_NODE_MAJOR:-24}
 
 # Flags
 RUN_BACKEND=true

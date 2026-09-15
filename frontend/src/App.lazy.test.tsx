@@ -73,10 +73,13 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      // Wait for component to load (fast timeout for mocked components)
+      // React 19.3 instruments the lazy() initializer thenable (#35521), adding a
+      // microtask hop; a 300ms budget is too tight for that under parallel-suite
+      // load. waitFor resolves as soon as the content appears, so the wider
+      // standard budget costs nothing.
       await waitFor(
         () => expect(screen.getByText('Lazy Content')).toBeInTheDocument(),
-        FAST_TIMEOUT
+        STANDARD_TIMEOUT
       );
     });
   });

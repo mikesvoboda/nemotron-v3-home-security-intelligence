@@ -2932,3 +2932,34 @@ node v24.21.0 (npm 11.19.0, arm64) — results recorded in PR
 (ci/runtime-parity-2026-09-15). Expected fix-forward: scheduled/advisory
 workflows (visual-tests, mutation-testing, lighthouse...) on Node 24; all are
 non-gating, PR gate is ci.yml only.
+
+## Version single-source + drift gate (2026-09-15, ci/version-single-source)
+
+Asked: "we made a lot of identical edits across files — should this be a
+variable in the project root everything references?" Honest answer: YAML can't
+read files, so full variable-ization is impossible; the achievable (and
+actually sufficient) shape is few truth files + native readers + a drift gate
+that FAILS on disagreement. What landed:
+
+- .nvmrc moved frontend/ -> repo root (git mv; the "project root" variable).
+- scripts/check-version-consistency.sh: reads .nvmrc + .python-version, checks
+  ci.yml labels/env, every workflow's setup-python/NODE_VERSION/node-version
+  literals (deliberate off-runtime tooling pins go in PYTHON_ALLOWLIST with
+  file:version pairs), both Dockerfiles' FROM bases, package.json engines,
+  validate.sh's REQUIRED_NODE_MAJOR. One FAIL line per drift, line-numbered.
+- validate.sh REQUIRED_NODE_MAJOR now DERIVED from .nvmrc (was a literal).
+- Wired: pre-commit hook (always_run, ms-fast) + "Version Consistency" job in
+  ci.yml, added to ci-gate needs + summary (gate depends on job IDs, verified
+  name changes are safe for branch protection).
+- Tests: backend/tests/unit/scripts/test_check_version_consistency.py — 12
+  tests, tmp-dir repo trees incl. the exact 3.11-fiction regression and a
+  real-repo self-check so the allowlist can't silently rot.
+- Deliberately NOT done: deleting ci.yml's single-value python matrix (feeds
+  artifact upload names — verified-globbed, but churn risk without
+  risk-reduction: the label stays honest under gate protection anyway);
+  rewriting all 20 setup-node steps to node-version-file (env.NODE_VERSION is
+  still needed for cache/artifact interpolation, so it wouldn't remove the
+  literal — gate makes the literal safe instead).
+
+Meta point: the gate caught a bug in its own first draft (truth-equal pins
+flagged as drift) before commit — dogfooding works.

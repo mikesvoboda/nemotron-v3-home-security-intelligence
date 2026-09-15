@@ -230,6 +230,13 @@ repos:
         files: ^frontend/(package\.json|package-lock\.json)$
         pass_filenames: false
 
+      - id: version-consistency
+        name: Check runtime versions agree with .nvmrc/.python-version
+        entry: ./scripts/check-version-consistency.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # Test validation hooks
   # NOTE: Full test suite runs in CI. Pre-commit focuses on fast lint/format checks.
   - repo: local

@@ -71,7 +71,8 @@ frontend/
 | File     | Purpose                                          |
 | -------- | ------------------------------------------------ |
 | `.npmrc` | npm configuration (engine strict mode)           |
-| `.nvmrc` | Node.js version specification (24 for this repo) |
+
+Node.js version is specified by `.nvmrc` at the repository root (single source of truth for CI, validate.sh, and the Dockerfile base image).
 
 ### Documentation and Scripts
 

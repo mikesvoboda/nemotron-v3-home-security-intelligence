@@ -509,6 +509,8 @@ class TestGetSessionTransactionIsolation:
         import backend.core.database as db_module
 
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
             mock_session = AsyncMock()
@@ -525,6 +527,13 @@ class TestGetSessionTransactionIsolation:
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
             db_module._async_session_factory = mock_factory
+            # Set to None to prevent loop mismatch (same guard as the rollback
+            # test below): a stale mock _engine + _bound_loop_id leaked by an
+            # earlier test on this xdist worker makes _check_loop_mismatch()
+            # fire `await init_db()` -> `await old_engine.dispose()` on a
+            # MagicMock -> TypeError, turning this test order-dependent.
+            db_module._engine = None
+            db_module._bound_loop_id = None
 
             async with db_module.get_session() as session:
                 assert session is mock_session
@@ -534,6 +543,8 @@ class TestGetSessionTransactionIsolation:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
     @pytest.mark.asyncio
     async def test_get_session_rollbacks_on_error(self) -> None:
