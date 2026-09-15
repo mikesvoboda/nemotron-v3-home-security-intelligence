@@ -2368,17 +2368,3 @@ Fixed: `uv pip install pre-commit` (venv-local, no lock drift) + `pre-commit ins
 installed then REMOVED for gate windows: its parallel-tests entry fans out full pytest +
 vitest on every push — collides with a live gate's worker DBs (run-9 class). Reinstall
 between gates if desired. Pushes during gates run bare by design, not by bypass.
-file re-checked clean, standalone vitest 5/5 (2.04s). Gate 18 relaunches from the
-formatted tip. Lesson for the ledger: frontend edits must clear
-`npm run format:check` before a gate — validate.sh checks, it does not format.
-
-## Process finding (2026-09-14): sandbox had NO git hooks installed (root cause enabler of gate 17)
-
-`.git/hooks/` was empty in this sandbox (setup.py never run here; pre-commit absent from
-the venv) — so the prettier-frontend commit-stage hook (config: `prettier --write` on
-staged frontend TS) never fired and 126bf536's format violation reached a 50-minute gate.
-Fixed: `uv pip install pre-commit` (venv-local, no lock drift) + `pre-commit install`
-(commit stage: prettier-frontend/eslint/tsc/ruff/mypy/semgrep/cmsg/secrets). pre-push hook
-installed then REMOVED for gate windows: its parallel-tests entry fans out full pytest +
-vitest on every push — collides with a live gate's worker DBs (run-9 class). Reinstall
-between gates if desired. Pushes during gates run bare by design, not by bypass.
