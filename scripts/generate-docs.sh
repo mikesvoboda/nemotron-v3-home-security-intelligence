@@ -14,7 +14,7 @@
 #
 # Requirements:
 #   - Python 3.14+ with backend dependencies installed
-#   - Node.js 20.19+ with frontend dependencies installed
+#   - Node.js 24 LTS with frontend dependencies installed
 #   - npm packages: typedoc, typedoc-plugin-markdown, @redocly/cli
 #
 
@@ -96,7 +96,7 @@ Examples:
 
 Requirements:
     Backend:  Python 3.14+, .venv with backend dependencies
-    Frontend: Node.js 20.19+/22.12+, npm with typedoc installed
+    Frontend: Node.js 24 LTS, 22.12+ accepted, npm with typedoc installed
               Optional: @redocly/cli for HTML generation
 
 EOF

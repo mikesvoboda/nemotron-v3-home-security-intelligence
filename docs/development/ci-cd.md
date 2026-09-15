@@ -40,7 +40,7 @@ on:
 ```yaml
 env:
   PYTHON_VERSION: '3.14'
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
   UV_VERSION: '0.9.18'
 ```
 

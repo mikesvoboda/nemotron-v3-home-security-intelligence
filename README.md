@@ -22,7 +22,7 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 </details>
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
-[![Node 20.19+](https://img.shields.io/badge/node-20.19+-green.svg)](https://nodejs.org/)
+[![Node 24 LTS](https://img.shields.io/badge/node-24+-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 

@@ -3,7 +3,7 @@
 > Get your development environment running in under 10 minutes.
 
 **Time to read:** ~5 min
-**Prerequisites:** Python 3.14+, Node.js 20.19+ or 22.12+, Docker/Podman
+**Prerequisites:** Python 3.14+, Node.js 24 LTS, 22.12+ accepted, Docker/Podman
 
 ---
 
