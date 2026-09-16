@@ -2350,114 +2350,6 @@ jobs:
             --tb=short \
             -k "production or blocked"
 
-  # TDD Compliance Tracking (PR-only, non-blocking)
-  # Analyzes commit patterns to detect TDD practice compliance
-  # Reports warnings for potential test-after-implementation patterns
-  tdd-compliance:
-    name: TDD Compliance Tracking
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event_name == 'pull_request'
-    continue-on-error: true
-    permissions:
-      pull-requests: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-
-      - name: Analyze TDD compliance
-        id: tdd-analysis
-        run: |
-          echo "## TDD Compliance Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get base and head commits for PR
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-
-          # Count commits in PR
-          COMMIT_COUNT=$(git rev-list --count $BASE_SHA..$HEAD_SHA)
-          echo "**PR Commits:** $COMMIT_COUNT" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Analyze each commit for test vs implementation file changes
-          echo "### Commit Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          TDD_COMPLIANT=0
-          TDD_WARNING=0
-          MIXED_COMMITS=0
-
-          for commit in $(git rev-list $BASE_SHA..$HEAD_SHA); do
-            COMMIT_MSG=$(git log -1 --pretty=format:"%s" $commit)
-            COMMIT_SHORT=$(git rev-parse --short $commit)
-
-            # Get changed files in commit
-            TEST_FILES=$(git diff-tree --no-commit-id --name-only -r $commit | grep -E "(test_|\.test\.|\.spec\.)" | wc -l)
-            IMPL_FILES=$(git diff-tree --no-commit-id --name-only -r $commit | grep -v -E "(test_|\.test\.|\.spec\.)" | grep -E "\.(py|ts|tsx)$" | wc -l)
-
-            # Determine pattern
-            if [ "$TEST_FILES" -gt 0 ] && [ "$IMPL_FILES" -eq 0 ]; then
-              echo "✅ **$COMMIT_SHORT**: Tests only - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-              TDD_COMPLIANT=$((TDD_COMPLIANT + 1))
-            elif [ "$TEST_FILES" -gt 0 ] && [ "$IMPL_FILES" -gt 0 ]; then
-              echo "⚠️  **$COMMIT_SHORT**: Mixed (tests: $TEST_FILES, impl: $IMPL_FILES) - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-              MIXED_COMMITS=$((MIXED_COMMITS + 1))
-            elif [ "$TEST_FILES" -eq 0 ] && [ "$IMPL_FILES" -gt 0 ]; then
-              echo "⚠️  **$COMMIT_SHORT**: Implementation only - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-              TDD_WARNING=$((TDD_WARNING + 1))
-            else
-              echo "ℹ️  **$COMMIT_SHORT**: Other changes - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Test-only commits: $TDD_COMPLIANT" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚠️  Mixed commits: $MIXED_COMMITS" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚠️  Implementation-only commits: $TDD_WARNING" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Calculate test-to-implementation ratio
-          TOTAL_TEST_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA | grep -E "(test_|\.test\.|\.spec\.)" | wc -l)
-          TOTAL_IMPL_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA | grep -v -E "(test_|\.test\.|\.spec\.)" | grep -E "\.(py|ts|tsx)$" | wc -l)
-
-          echo "### PR File Changes" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Test files changed: $TOTAL_TEST_FILES" >> $GITHUB_STEP_SUMMARY
-          echo "- Implementation files changed: $TOTAL_IMPL_FILES" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$TOTAL_IMPL_FILES" -gt 0 ]; then
-            RATIO=$(awk "BEGIN {printf \"%.2f\", $TOTAL_TEST_FILES / $TOTAL_IMPL_FILES}")
-            echo "- Test-to-implementation ratio: **${RATIO}:1**" >> $GITHUB_STEP_SUMMARY
-
-            if (( $(echo "$RATIO < 0.5" | bc -l) )); then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "⚠️  **Warning**: Low test-to-implementation ratio. Consider adding more test coverage." >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### TDD Best Practices Reminder" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. **RED**: Write failing tests first" >> $GITHUB_STEP_SUMMARY
-          echo "2. **GREEN**: Implement minimum code to pass tests" >> $GITHUB_STEP_SUMMARY
-          echo "3. **REFACTOR**: Improve code while keeping tests green" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Mixed commits (tests + implementation) may indicate test-after-implementation." >> $GITHUB_STEP_SUMMARY
-          echo "Consider separate commits for test creation and implementation phases." >> $GITHUB_STEP_SUMMARY
-
-          # Output for comment
-          echo "tdd_compliant=$TDD_COMPLIANT" >> $GITHUB_OUTPUT
-          echo "tdd_warning=$TDD_WARNING" >> $GITHUB_OUTPUT
-          echo "mixed_commits=$MIXED_COMMITS" >> $GITHUB_OUTPUT
-          echo "test_files=$TOTAL_TEST_FILES" >> $GITHUB_OUTPUT
-          echo "impl_files=$TOTAL_IMPL_FILES" >> $GITHUB_OUTPUT
-
   # Version Consistency - every runtime-version declaration must agree with
   # .nvmrc / .python-version (kills the "label said 3.11, uv ran 3.14" class)
   version-consistency:
@@ -2473,6 +2365,9 @@ jobs:
 
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
+  # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
+  # converges here, or it cannot go red on PR/push, or its red is triaged at
+  # runtime (Linear step / schedule-only), or it is coverage plumbing.
   # Use this as the required check in branch protection to simplify configuration.
   # Non-blocking workflows can use workflow_run trigger on CI completion.
   # Note: Jobs may be skipped based on changed files (detect-changes job)
@@ -2492,6 +2387,20 @@ jobs:
       - frontend-e2e-summary
       - api-types-check
       - version-consistency
+      # WP0.6: every job that can go red on a PR/push converges here. The
+      # 2026-09-16 main baseline sat red on Dead Code / Test Performance Audit
+      # / Trivy x2 while CI Gate reported SUCCESS — the WP0.2 invisibility
+      # class, one layer up. Jobs gated here that only run on main
+      # (contract-tests, dead-code, build-*) arrive as `skipped` on PRs,
+      # which check_job treats as OK.
+      - contract-tests
+      - dead-code
+      - security-tests
+      - api-coverage
+      - npm-audit
+      - build-backend
+      - build-frontend
+      - test-performance-audit
     if: always()
     steps:
       - name: Check required job results
@@ -2523,6 +2432,14 @@ jobs:
           check_job "E2E Tests (Chromium)" "${{ needs.frontend-e2e-summary.result }}"
           check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
           check_job "Version Consistency" "${{ needs.version-consistency.result }}"
+          check_job "Contract Tests (API Schema)" "${{ needs.contract-tests.result }}"
+          check_job "Dead Code Detection" "${{ needs.dead-code.result }}"
+          check_job "Security Test Suite" "${{ needs.security-tests.result }}"
+          check_job "API Endpoint Coverage" "${{ needs.api-coverage.result }}"
+          check_job "npm Audit (Frontend)" "${{ needs.npm-audit.result }}"
+          check_job "Build Docker (backend)" "${{ needs.build-backend.result }}"
+          check_job "Build Docker (frontend)" "${{ needs.build-frontend.result }}"
+          check_job "Test Performance Audit" "${{ needs.test-performance-audit.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

@@ -3066,3 +3066,68 @@ IMPLEMENTATION + MEASURE (replay = ground truth):
 - TDD: scripts/test_audit_gate.sh, 7 cases, red 3 → green 7 (new 4.5s unit
   bites; 3.5s passes raised gate; int 9.5 pass/12 fail; tracked 16s pass /
   61s bite; empty dir FAILS; benchmarks stay excluded).
+
+## WP0.6 MEASUREMENT + DECIDE — workflow conclusion equals gate conclusion (2026-09-16)
+
+MEASURE (main run 35049640472 + graph enumeration, 35 jobs): `ci-gate` needs 11
+direct / 20 transitive; **the four permanently-red main jobs — Trivy×2 (WP0.3,
+deleted), Dead Code (WP0.4), Test Performance Audit (WP0.5) — all sat outside
+ci-gate's reach while `CI Gate` reported SUCCESS.** That is the WP0.2
+invisibility class one layer up: the workflow's _conclusion_ (green gate) lied
+about its _verdict_ (red jobs). Branch protection requires exactly one context
+(`CI Gate (Required Checks)`, API-verified) — so ci-gate's needs list IS the
+merge gate, and anything outside it is decoration.
+
+Classes that satisfy "a job either gates merges or its red is actionable"
+(codified in scripts/test_ci_job_graph.py, which enumerates every job and FAILs
+on an unclassified one — red on 4 jobs pre-edit, green post-edit, 34 jobs /
+gate reach 28 after):
+
+- **GATE** — transitively reachable from ci-gate.
+- **PLUMB** — coverage-merge jobs (artifact-only, cannot produce a verdict);
+  names enumerated in the test so a rename forces an honest edit.
+- **TRIAGE** — red is actioned at runtime: own `Create Linear issue on failure`
+  step (contract-tests, dead-code, build-backend, build-frontend), or
+  schedule/dispatch-only (frontend-e2e-secondary, test-count-verification —
+  a nightly red gets triaged, never merge-ignored).
+- **NEVER-RED** — jobs with no failing exit path (advisory summary writers).
+
+PER-JOB DECIDE (the jobs outside the gate pre-edit):
+
+- contract-tests / dead-code / build-backend / build-frontend: **PROMOTE** into
+  ci-gate needs + `check_job`. They already carry Linear triage, but that only
+  files an issue — it does not stop the merge; dead-code was RED on main for
+  weeks with a green gate (WP0.4 proved it was real findings whitelisted, not
+  noise). On PRs they arrive `skipped` (main-only `if:`) = OK, unchanged.
+- security-tests / npm-audit / api-coverage: **PROMOTE.** All three run on
+  every PR and can genuinely go red (real suites / `npm audit
+--audit-level=high` / `check-api-coverage.sh` exit 1) yet converged nowhere —
+  exactly the WP0.2 pattern for the CVEs. api-coverage's allowlist is reviewed
+  in WP0.8/WP0.9 territory; promoting it now is what makes that review urgent
+  rather than optional.
+- test-performance-audit: **PROMOTE.** WP0.5 made it an honest gate at
+  owner-ruled thresholds; a gate nothing needs is the "red-and-advisory"
+  costume the WP0.5 ruling rejected. Its `if:` mirrors unit-tests' availability
+  so it cannot block frontend/docs PRs where it legitimately never ran.
+- tdd-compliance: **DELETE.** PR-only analytics with job-level
+  `continue-on-error: true` — it can NEVER go red, so the invariant is
+  technically satisfied; what it is instead is a 100-line git-log report with a
+  `## TDD Compliance` header in pull_request_template.md as its only consumer,
+  consuming a runner slot per PR. TDD enforcement in this repo is the commit
+  discipline + gate tests, not a summary table. (grep-verified: no workflow,
+  script, or branch-protection context reads its outputs;
+  `continue-on-error: true` confirmed at ci.yml:2361 pre-delete.)
+- coverage-merge ×3 + summary jobs + detect-changes / collection-sanity:
+  **PLUMB / already GATE** — no change.
+
+Residual known gap logged, not hidden: coverage-merge jobs can `touch
+.coverage` on combine-failure and the 85%/83% floors are enforced nowhere in CI
+— that is WP0.9's named target, and the graph test deliberately classifies them
+PLUMB rather than pretend they gate.
+
+Done-when: "concludes green on main" = proven by the next main CI run — the red
+set WP0.3/0.4/0.5 fixed is exactly the set that was red in 35049640472.
+"deliberately broken test turns it red" = WP0.1's end-to-end gate proof still
+holds: the broken test fails unit-tests → unit-tests-summary → ci-gate
+`check_job` exit 1 (summary→gate edge untouched by this WP, graph test asserts
+the edge exists).
