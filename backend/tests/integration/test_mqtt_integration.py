@@ -46,18 +46,11 @@ TEST_BROKER_HOST = "localhost"
 TEST_BROKER_PORT = 1883
 TEST_TIMEOUT = 5.0
 
-# R-T9-MQTTPUMP (owner ruling pending): MQTTClient never starts its message
-# pump — _message_processing_loop (mqtt_client.py:785) has zero callers
-# repo-wide and no production consumer wires MQTTClient at all, so subscribe()
-# registers callbacks that can never fire. Verified outside pytest: with an
-# explicitly-spawned _process_messages() task delivery works; without one,
-# zero messages are ever received. M3 scope is test-only, so the pump wiring
-# is not ours to add; tests whose assertion requires actual delivery skip
-# citing this ref (docs/plans/2026-09-12-context-map-doc-updates.md).
-MQTT_PUMP_REASON = (
-    "shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so "
-    "subscribe() callbacks can never fire (owner ruling pending)"
-)
+# R-T9-MQTTPUMP: FIXED 2026-09-16 (owner ruling — fold after Phase 2).
+# subscribe() now spawns the message pump once (idempotent is-None guard;
+# disconnect() cancels it), so delivery-dependent tests run unskipped.
+# The pump start is unit-locked by test_subscribe_starts_message_pump in
+# backend/tests/unit/services/test_mqtt_client.py.
 
 
 # Fixtures
@@ -195,7 +188,6 @@ async def test_connection_with_authentication(mqtt_broker_container):
 # Publish-Subscribe flow tests
 
 
-@pytest.mark.skipif(True, reason=MQTT_PUMP_REASON)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_full_publish_subscribe_flow(mqtt_client, second_mqtt_client):
@@ -265,7 +257,6 @@ async def test_qos_0_delivery(mqtt_client, second_mqtt_client):
     assert True
 
 
-@pytest.mark.skipif(True, reason=MQTT_PUMP_REASON)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_qos_1_delivery(mqtt_client, second_mqtt_client):
@@ -290,7 +281,6 @@ async def test_qos_1_delivery(mqtt_client, second_mqtt_client):
     assert len(received_messages) >= 1
 
 
-@pytest.mark.skipif(True, reason=MQTT_PUMP_REASON)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_qos_2_delivery(mqtt_client, second_mqtt_client):
@@ -316,7 +306,6 @@ async def test_qos_2_delivery(mqtt_client, second_mqtt_client):
     assert len(received_messages) >= 1
 
 
-@pytest.mark.skipif(True, reason=MQTT_PUMP_REASON)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_retained_message(mqtt_client, mqtt_test_settings):
@@ -358,7 +347,6 @@ async def test_retained_message(mqtt_client, mqtt_test_settings):
     await new_client.disconnect()
 
 
-@pytest.mark.skipif(True, reason=MQTT_PUMP_REASON)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_wildcard_subscription(mqtt_client, second_mqtt_client):
@@ -391,7 +379,6 @@ async def test_wildcard_subscription(mqtt_client, second_mqtt_client):
     assert len(received_messages) >= len(topics)
 
 
-@pytest.mark.skipif(True, reason=MQTT_PUMP_REASON)
 @pytest.mark.asyncio
 @pytest.mark.integration
 async def test_single_level_wildcard(mqtt_client, second_mqtt_client):

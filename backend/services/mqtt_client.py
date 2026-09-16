@@ -623,6 +623,15 @@ class MQTTClient:
                 extra={"topic": full_topic, "pattern": topic},
             )
 
+            # R-T9-MQTTPUMP: start the message pump (once) so registered
+            # callbacks actually fire — the _message_task slot and the
+            # disconnect() cancel-path existed from the start but nothing
+            # ever spawned the task. Pattern: background_evaluator.py:507.
+            if self._message_task is None:
+                self._message_task = asyncio.create_task(
+                    self._message_processing_loop(), name="mqtt-message-pump"
+                )
+
         except (aiomqtt.MqttError, OSError) as e:
             _get_metrics()["errors_total"].labels(error_type="subscribe").inc()
             logger.error(f"Subscribe failed for {full_topic}: {e}")

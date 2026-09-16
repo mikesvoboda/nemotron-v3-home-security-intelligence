@@ -4082,3 +4082,36 @@ ratchet --update, ci.yml --expect + test mirror at 62. Census replay green.
 Follow-up ticket noted by the plan, NOT taken here: frontend/src/types/
 export.ts lacks the 'cancelled' status the backend schema + cancel route can
 emit (pre-existing frontend/backend enum drift).
+
+## R-T9-MQTTPUMP — FIXED (2026-09-16, owner ruling: fold after Phase 2, second of the three)
+
+**[RED-FIRST + production fix, same commit]** Closure of the 2026-09-14 row
+and its K-2 addendum. subscribe() broker-subscribed, registered callbacks,
+and never started the pump — `_message_processing_loop` had zero callers and
+disconnect()'s cancel-path was dead plumbing for a task never born. LATENT
+today (no production module instantiates MQTTClient yet — NEM-5069 lifespan
+wiring is the future consumer); the fix makes the class honest before that.
+
+Fix = one guarded spawn inside subscribe()'s try, after the metrics/log:
+`if self._message_task is None: self._message_task = asyncio.create_task(
+`\_message_processing_loop(), name="mqtt-message-pump")` — idempotent via the
+is-None guard, disconnect() already cancels+nulls, the loop wrapper survives
+aiomqtt iterator death on reconnect. Pattern precedent: background_evaluator.
+py:507, cleanup_service.py:599, degradation_manager.py:1070.
+
+RED evidence: new unit test_subscribe_starts_message_pump failed at
+`assert task is not None` on unfixed code; GREEN after: 33/33 unit file (the
+11 subscribe-calling tests spawn real pumps on the shared fake — parked on
+its non-terminating AsyncMock .messages, cancelled by disconnect, no hangs)
+
+- 19/19 integration module (six delivery tests unskipped: full pub-sub flow,
+  QoS 0/1/2, wildcard, retained — real broker via the module-scoped mosquitto
+  testcontainer, which works on this S1 boot — 54h-old gate containers
+  disproved the sandbox-docker-cannot-run assumption for testcontainers
+  specifically: DockerContainer.start() succeeds here). Same-commit platform
+  alignment: MQTT_PUMP_REASON block retired, six skipif(True) decorators
+  deleted, registry regen dropped exactly the six R-T9-MQTTPUMP defect entries
+  (48-line diff, prettier adopt held it minimal), skipif mirror trio followed:
+  baseline --update 62→56, ci.yml --expect + real-tree mirror at 56. Blast
+  radius: mqtt_command_handler 28/28, frigate_integration + ha_discovery 80/80
+  — the pump's first consumers stay green.

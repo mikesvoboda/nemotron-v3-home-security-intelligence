@@ -260,9 +260,10 @@ def test_real_tree_matches_spec_baselines():
     allowlist lines vanished for the right reason; the count fell, it was not
     raised (the ratchet's one-directional rule is about the tree, and this
     test is the tree's mirror).
-    pytest_skipif 63→62 (2026-09-16): the EXPORTDEFER fix deleted the
-    module-wide skipif on TestExportDownload — a suppression REMOVED by the
-    defect's repair (the direction the ratchet exists to protect).
+    pytest_skipif 63→62→56 (2026-09-16): the EXPORTDEFER fix deleted the
+    module-wide skipif on TestExportDownload; the MQTTPUMP fix deleted the six
+    delivery skips in test_mqtt_integration.py — suppressions REMOVED by the
+    defects' repairs (the direction the ratchet exists to protect).
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -272,7 +273,7 @@ def test_real_tree_matches_spec_baselines():
         "flake_allowlist": 0,
         "frontend_quarantine": 16,
         "pytest_skip": 32,
-        "pytest_skipif": 62,
+        "pytest_skipif": 56,
         "pytest_xfail": 4,
         "pytest_skip_imperative": 94,
         "frontend_skip": 54,

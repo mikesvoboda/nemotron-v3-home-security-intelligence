@@ -1389,54 +1389,6 @@ pytest_skipif:
     tracking: null
     expires: null
     reason: Symlinks require special permissions on Windows
-  - id: backend/tests/integration/test_mqtt_integration.py::test_full_publish_subscribe_flow
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-MQTTPUMP
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
-      (owner ruling pending)'
-  - id: backend/tests/integration/test_mqtt_integration.py::test_qos_1_delivery
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-MQTTPUMP
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
-      (owner ruling pending)'
-  - id: backend/tests/integration/test_mqtt_integration.py::test_qos_2_delivery
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-MQTTPUMP
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
-      (owner ruling pending)'
-  - id: backend/tests/integration/test_mqtt_integration.py::test_retained_message
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-MQTTPUMP
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
-      (owner ruling pending)'
-  - id: backend/tests/integration/test_mqtt_integration.py::test_single_level_wildcard
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-MQTTPUMP
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
-      (owner ruling pending)'
-  - id: backend/tests/integration/test_mqtt_integration.py::test_wildcard_subscription
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-MQTTPUMP
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
-      (owner ruling pending)'
   - id: backend/tests/unit/api/routes/test_onvif_routes.py::TestDiscoverOnvifDevices
     kind: todo
     owner: mikesvoboda
