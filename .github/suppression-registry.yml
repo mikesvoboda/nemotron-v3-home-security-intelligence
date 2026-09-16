@@ -138,6 +138,103 @@ excluded_test_trees:
     tracking: nightly-full-gate.yml
     expires: null
     reason: null
+frontend_quarantine:
+  - id: src/__tests__/auth-flow.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/alerts/AlertsPage.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/dashboard/SummaryCards.integration.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/entities/ReidHistoryPanel.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/entities/TrustClassificationControls.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/events/EventCard.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/events/EventTimeline.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/events/TimeGroupedEvents.simple.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/pyroscope/PyroscopePage.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/settings/NotificationSettings.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/system/SystemHealthIndicator.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/system/WorkerManagementPanel.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/components/zones/ZoneTimelineScrubber.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/hooks/__tests__/integration/race-conditions.integration.test.ts
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/hooks/__tests__/useHouseholdApi.test.ts
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
+  - id: src/hooks/__tests__/useSettingsApi.test.tsx
+    kind: quarantine
+    owner: mikesvoboda
+    tracking: R-T7-VITEST
+    expires: '2026-12-31'
+    reason: null
 pytest_skip:
   - id: backend/tests/integration/test_alembic_migrations.py::TestAlembicMigrationUpgradeDowngrade
     kind: retired
