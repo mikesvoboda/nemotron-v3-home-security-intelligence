@@ -3544,3 +3544,30 @@ red-but-triaged until upstream moves; (2) authorize a pyproject edit to
 drop the data-designer extra (removes the cap → 50.0.0, scan goes green);
 (3) authorize a genuine .trivyignore re-review commit. Default held: (1),
 nothing bypassed.
+
+## WP0.6 CI TRUTH — gate verdict on head 5e860d98: Test Coverage Gate GREEN under --strict (2026-09-16)
+
+The repaired gate chain is now proven in CI end to end: parse fix +
+hook tests + test-file exemption → "Test Coverage Gate pass 59s", its log
+shows the --strict invocation printing "All test coverage checks passed"
+(0 MISSING findings). Check Integration Test Requirements + Test Coverage
+Summary + every previously-green job hold green.
+
+Remaining PR failures are ONLY the two adjudicated ones: Check CVE Review
+Dates (d, expired .trivyignore dates) and Filesystem Vulnerability Scan
+(c, cryptography 49.0.0 ceiling) — both recorded owner debt awaiting the
+R-TRIVY-CRYPTO ruling; the signals stay red-but-triaged per S2 (never
+re-quieled).
+
+Merge-gate context "CI Gate (Required Checks)" carries NO status on any
+SHA yet (no status/checks API entry, suite list shows it never published)
+— it has never reported, so "green on main" is pending the first ci.yml
+completion on this head (run 35110543303, in flight). Not a check I can
+fabricate; it publishes when ci.yml concludes.
+
+WP1.2 groundwork finding: census --locations minted FIVE fake suppressions
+on real main (2 x .only from `{...onlyErrorsProps}` spread shorthand, 3 x
+.odo from `draft.todos` property accesses) — the locations regex lacked
+the count pass's \b guard. Registry keys built on it would have registered
+nonexistent entries; word-boundary fix + noise fixture landed (5 passed,
+both passes now agree: 54/0/0).
