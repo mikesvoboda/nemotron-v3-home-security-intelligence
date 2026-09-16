@@ -264,6 +264,11 @@ def test_real_tree_matches_spec_baselines():
     module-wide skipif on TestExportDownload; the MQTTPUMP fix deleted the six
     delivery skips in test_mqtt_integration.py — suppressions REMOVED by the
     defects' repairs (the direction the ratchet exists to protect).
+    pytest_skip_imperative 94→93 (2026-09-16): R-T9-MVSOURCE's retirement
+    deleted test_materialized_views_migration.py, whose inline site left with
+    the file. (The file's pytestmark-form skipif was never census-visible —
+    the counter reads decorator AST; module-mark suppression is a known blind
+    spot, noted not widened.)
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -275,7 +280,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 94,
+        "pytest_skip_imperative": 93,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,

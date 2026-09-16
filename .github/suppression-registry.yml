@@ -1022,12 +1022,6 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: null
-  - id: backend/tests/integration/test_materialized_views_migration.py:212
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: null
   - id: backend/tests/integration/test_nemotron_prompts.py:100
     kind: environment
     owner: mikesvoboda

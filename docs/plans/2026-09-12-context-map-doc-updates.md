@@ -4115,3 +4115,48 @@ its non-terminating AsyncMock .messages, cancelled by disconnect, no hangs)
   baseline --update 62→56, ci.yml --expect + real-tree mirror at 56. Blast
   radius: mqtt_command_handler 28/28, frigate_integration + ha_discovery 80/80
   — the pump's first consumers stay green.
+
+## R-T9-MVSOURCE — RETIRED (2026-09-16, owner ruling pre-authorized the sub-choice; DECIDE-on-evidence here, third of the three)
+
+**[RED-FIRST + delete, same commit]** Closure of the 2026-09-14 phantom-DDL
+row. DECIDE rationale (why retire beats restore, on evidence): the six
+materialized views + five SQL functions have had NO shipped DDL since
+6d7ae425 deleted the MV migrations without carrying them into the
+consolidated initial schema (and f1e0ea9e deleted the whole alembic tree —
+now test-extra-only); none of the three schema paths can emit them
+(create_all only). Meanwhile: every aggregate getter had ZERO callers across
+all git history (`git log --all -S`), the sole EnrichmentQueryService
+consumer had zero importers, the scheduler was never wired to lifespan, the
+frontend never called the admin endpoints, ROADMAP has zero MV mentions, and
+the payoff they existed for (dashboard aggregates) is ALREADY shipped inline
+in analytics.py — the dashboard never failed (the original row's claim
+"dashboard fails" was overstated; verified: charts read `/api/analytics/*`,
+the admin MV router just degraded silently). Restore cost: DO-block-guarded
+CREATE MV IF NOT EXISTS in all three schema paths + a refresh-stale second
+copy of live inline aggregates + no alembic chain to hang a revision on.
+RESTORE would be building a second source of truth for a single-user local
+deploy. Retirement also removes the four admin endpoints that lacked auth
+dependencies (CLAUDE.md admin-protection rule) — folded in, per the plan.
+
+RED-FIRST: backend/tests/unit/api/test_materialized_views_retired.py failed
+6/6 pre-delete (routes mounted in app.openapi(), all five modules
+importable). Fix = 6-hunk delete: services/materialized_views.py (547L),
+materialized_view_scheduler.py, api/routes/materialized_views.py,
+api/schemas/materialized_views.py, services/enrichment_queries.py; main.py
+import (:76) + include_router (:1488); five test files deleted (incl. the
+integration test whose pytestmark skipped every MV-object assertion since
+the loss — its reason text cited this ruling: now moot); backend/AGENTS.md
+route rows (2) removed. openapi.json + api.ts regenerate via the commit
+hooks; contracts/test_openapi_schema_validation.py guards drift, no Zod
+mirror (admin-only surface). Lock GREEN after: 10/10 with
+test_route_mounting. Suppression platform: registry regen dropped exactly
+the migration file's one entry (pytest_skip_imperative 94→93 — the MV skip
+lived in pytestmark FORM, which the census never saw: decorator-AST blind
+spot, noted not widened); baseline --update, ci.yml --expect + real-tree
+mirror at 93. Optional hygiene hunk (DROP MV/FUNCTION IF EXISTS for pre-
+f1e0ea9e deployments) NOT taken: this deploy's DB was built by create_all
+after the loss — no orphan MVs exist here, and shipping cleanup DDL for
+hypothetical external deployments without evidence of any is its own
+conversation. If a future owner restores the feature properly (real DDL +
+auth deps + callers), the retirement lock rewrites to assert the shipped
+contract — it is the tripwire, not an obstacle.
