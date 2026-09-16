@@ -3819,3 +3819,51 @@ Parked with evidence, NOT drafted: hub-module import-cost diet (speed lever
 via duration-audit import column — only if the raised budget stings), test-
 side fixture-name edge (WP2.6 absorbs it), versioning of pre-push hook
 itself (WP0.1/WP2.4 history in-file already).
+
+## WP2.4 PRE-PUSH WIRING — MEASURE + DECIDE (2026-09-16)
+
+- MEASURE — wired-shape replay, 20 bake-off commits, serial detached worktrees,
+  wall = max(backend, frontend) per case (pre-push runs them parallel; measured
+  separately on a serial box; harness /tmp/wp21/prepush-time.sh, tsv same dir):
+  **p50 = 428s, p95 = 513s, max = 3014s (n=20)**.
+  Case shapes: hub-module commits (core/config.py, main.py) honestly select
+  627-679 unit+contracts files and run 416-513s; ZERO-in-tier commits (79284117
+  ci.yml+scripts only; 40cf2ba4 integration-tests only) cost 0-2s — honest
+  cheap green, not vacuous (fast_select printed the full NOT-SELECTED manifest;
+  zero Python files changed). The max row 978bb04c is the MEGA-squash class:
+  679 backend files (pre-existing baseline failures at that old head) AND 781
+  vitest-related files; its fe=3014s is REAL run time (vitest finished green on
+  ~500 touched frontend files), not a hang. a4507909 fe_rc=1: pre-existing
+  frontend failure at that old head (bake-off corpus, not this branch).
+  Interpretation notes: (i) be_rc=1 rows carry PRE-EXISTING failures at the
+  sampled old commit — bake-off truth.txt lists 11 baseline-failing nodes per
+  hub case; small-sel forensics corroborate (42acc048 selected 3 files, 2 of
+  them baseline-red; 18984662 selected 1, baseline-red). NOT selector
+  regressions. (ii) Harness quirk: be_sel column for empty-tier rows shows the
+  stale SELECTED line from the previous case's log (the runner never executes
+  on empty selection) — selection truth there is fast_select's own output,
+  verified by re-derivation.
+- DECIDE — budget 300 -> 900s, TIERED (owner ruling 2026-09-16). p95 513s
+  exceeds the plan's 300s target, so per spec the budget RAISES and the trade
+  is recorded: 900 = p95 + ~75% margin covers typical+hub diffs with room; a
+  MEGA diff (978bb04c class: hundreds of frontend files) exceeds any sane
+  budget and gets the budget-timeout path — rc 124 plus a LOUD handoff notice
+  naming the wide-diff cause and the options (split push / raise budget /
+  FULL_TESTS=1). Narrowing selection to hit 300s is explicitly rejected (the
+  spec: narrowing selection to hit a time target is how tests stop running);
+  the timeout bounds wall time only, never the selection.
+- REVIEW FOLD-IN (adversarial pre-commit review, same commit): f1 six temps
+  moved BELOW the budget self-exec into one TMPD dir (bash 5.3.9 verified exec
+  skips EXIT traps — the old order leaked 6 files per push); f2 base
+  resolution now prefers `PRE_COMMIT_FROM_REF` — the stdin read is dead code
+  under pre-commit (it consumes git's stdin and spawns hooks with /dev/null:
+  `hook_impl.py:32`, `util.py:178`; env export `run.py:386-392`) — without this fix
+  EVERY real push silently fell to merge-base, making first-push-of-branch a
+  909-file guaranteed blowout; f3 loud notice when staged-but-uncommitted
+  changes mean the tested tree != pushed tree; f4 unmarked top-level
+  `test*\*.py` join the tier (fast_select's changed-test self-selection must not
+  be silently dropped) + OUT-OF-TIER files named on green runs (WP2.3 named-
+  never-silence); f7 FAST_PREPUSH_BUDGET validated digits-only (typo'd value
+  bricked every push with unattributable rc 125). Behavioral proof: 6 stub-
+  sandbox scenarios green (pre-commit path / legacy / budget validation /
+  staged notice / Z40 fall-through / budget-timeout notice @ rc 124).
