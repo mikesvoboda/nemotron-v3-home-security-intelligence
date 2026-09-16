@@ -3453,3 +3453,36 @@ decoys before green: regex search hit the optimizeDeps exclude array
 (quarantine read 1); .skip counted the Playwright tree (skip read 232). Both
 boundaries now have fixture cases that fail if someone "simplifies" them back
 away.
+
+## WP0.6 CI TRUTH (PR #6549) — first real workflow run on the repaired gates, 4 failures triaged (2026-09-16)
+
+MEASURE: the PR to main ran the real workflows. 4 failed, 3 pre-existing/
+expected, 1 MY REGRESSION:
+(a) REGRESSION (fixed here): WP0.9's gate script used PEP 758 bare
+`except OSError, ValueError:` — valid on this box (3.14) and ruff-clean, but
+CI invokes it as BARE `python3` = the runner's 3.12 → SyntaxError, the gate
+could not even start. Lesson pinned: scripts invoked by workflows under
+plain `python3` must stay parseable below requires-python; uv-run scripts
+need not. (test-coverage-gate.yml runs it bare; ci.yml runs its scripts via
+`uv run` — only the bare-invoked files are affected.) Deeper trap found
+mid-fix: parenthesizing (`except (A, B):`) does NOT survive pre-commit —
+ruff format at target py314 STRIPS the parens back to the bare form, so the
+formatter would silently resurrect the SyntaxError. Shipped form: module-
+level exception TUPLES (`_READ_ERRORS = (OSError, ValueError)`) — formatter-
+inert and parseable on every Python. The parseability test proves the rule
+bites (feature_version=(3,12) on the real file + the bare shape asserted
+REJECTED).
+(b) STRICT GATE NOW FINDS REAL GAPS: once parseable, --strict honestly
+reports useDateRangeState.ts + useHouseholdApi.ts MISSING TESTS — shipped on
+main pre-WP0.1 (the parser's congenital blindness meant the requirement half
+never checked anything). Gate failing FOR THE RIGHT REASON; the hooks need
+unit tests, not a widened gate. Follow-up commit.
+(c) TRIVY FILESYSTEM SCAN: cryptography 49.0.0 (this branch's uv.lock bump)
+hits CVE-2026-69247 (fixed 50.0.0) — branch-caused, lock bump follow-up.
+(d) CVE REVIEW DATES: 6 .trivyignore review dates expired April/May on main
+(pre-existing hygiene; job fires on PRs because scan-filesystem has a PR
+trigger while the schedule-success on main predates nothing — the check
+simply fails on main too when invoked).
+Also: the gate's "Comment PR on failures" step 403s (workflow token lacks
+issues:write) — it masked (a)'s real verdict behind a flood of octokit
+headers. Pre-existing; the verdict is readable in the job log.

@@ -56,6 +56,37 @@ def get_diff_fn():
 
 
 # ---------------------------------------------------------------------------
+# Runner-parseability contract (PR #6549 regression): test-coverage-gate.yml
+# invokes this script as BARE `python3` — the runner's interpreter, NOT the
+# repo's 3.14. PEP 758 bare `except OSError, ValueError:` parses on 3.14 and
+# died with a SyntaxError on the runner's 3.12, so the gate could not even
+# start (and its 403-ing comment step buried the traceback). ast.parse's
+# feature_version pins the source below requires-python for exactly the
+# files a workflow invokes without uv.
+# ---------------------------------------------------------------------------
+
+
+def test_gate_script_parses_under_runner_python(tmp_path):
+    import ast
+
+    source = SCRIPT_PATH.read_text()
+    for minor in (12, 13):  # ubuntu-latest runners ship 3.12-era python3
+        try:
+            ast.parse(source, feature_version=(3, minor))
+        except SyntaxError as e:
+            raise AssertionError(
+                f"CI-invoked gate script must parse on 3.{minor} (bare python3 "
+                f"invocation in test-coverage-gate.yml): {e}"
+            ) from e
+    # The rule bites: the exact regression shape is rejected even though
+    # plain ast.parse (this box's 3.14) accepts it.
+    with pytest.raises(SyntaxError):
+        ast.parse(
+            "try:\n    pass\nexcept OSError, ValueError:\n    pass\n", feature_version=(3, 12)
+        )
+
+
+# ---------------------------------------------------------------------------
 # The toothless-path regression: these all passed unconditionally pre-WP0.9.
 # ---------------------------------------------------------------------------
 

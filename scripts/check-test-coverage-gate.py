@@ -250,6 +250,15 @@ def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
 
 BASELINE_FILENAME = "coverage-baseline.json"
 
+# Exception tuples, not parenthesized except clauses: this file is invoked as
+# BARE python3 by test-coverage-gate.yml (runner interpreter, 3.12-era), and
+# ruff format at target py314 STRIPS `except (A, B):` parens back to the
+# PEP-758 bare form — which is a SyntaxError below 3.14 (PR #6549's first
+# real gate run died exactly there). A tuple reference parses on every
+# Python and the formatter never touches it.
+_READ_ERRORS = (OSError, ValueError)
+_GIT_ERRORS = (subprocess.CalledProcessError, OSError)
+
 
 def _read_percent(path: Path) -> float | None:
     """Read a coverage percentage from a coverage.json report or a baseline file.
@@ -263,7 +272,7 @@ def _read_percent(path: Path) -> float | None:
         return None
     try:
         data = json.loads(path.read_text())
-    except OSError, ValueError:
+    except _READ_ERRORS:
         return None
     if not isinstance(data, dict):
         return None
@@ -305,7 +314,7 @@ def _base_percent_from_git(base_branch: str) -> tuple[float | None, str]:
             text=True,
             stderr=subprocess.DEVNULL,
         )
-    except subprocess.CalledProcessError, OSError:
+    except _GIT_ERRORS:
         return None, f"no {BASELINE_FILENAME} at {base_branch}"
     try:
         data = json.loads(raw)
