@@ -82,6 +82,62 @@ collection_allowlist:
     reason:
       R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation
       = M1 frontend-repair task (Task 3)
+coverage_omit:
+  - id: backend/api/routes/alerts.py
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: backend/api/routes/audit.py
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: backend/core/tls.py
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: backend/services/degradation_manager.py
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: backend/services/video_processor.py
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+excluded_test_trees:
+  - id: benchmarks
+    kind: scoped
+    owner: mikesvoboda
+    tracking: nightly-full-gate.yml
+    expires: null
+    reason: null
+  - id: chaos
+    kind: scoped
+    owner: mikesvoboda
+    tracking: nightly-full-gate.yml
+    expires: null
+    reason: null
+  - id: e2e
+    kind: scoped
+    owner: mikesvoboda
+    tracking: nightly-full-gate.yml
+    expires: null
+    reason: null
+  - id: load
+    kind: scoped
+    owner: mikesvoboda
+    tracking: nightly-full-gate.yml
+    expires: null
+    reason: null
 pytest_skip:
   - id: backend/tests/integration/test_alembic_migrations.py::TestAlembicMigrationUpgradeDowngrade
     kind: retired
