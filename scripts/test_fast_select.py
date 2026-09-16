@@ -70,6 +70,19 @@ def repo(tmp_path):
     (tmp_path / "backend/tests/unit/api/test_package_import.py").write_text(
         "from backend.api.routes import get_x\n"
     )
+    # conftest fixture-indirect edge (bake-off 15d7b5a2 fault-arm miss class):
+    # test_fixture_client's ONLY dotted ref is the conftest — it reaches the
+    # app through the conftest fixture's FUNCTION-LOCAL backend.main import,
+    # exactly like the real test_rum.py reaches middleware faults through
+    # unit/conftest.py:136 `from backend.main import app`.
+    (tmp_path / "backend/main.py").write_text("app = object()\n")
+    (tmp_path / "backend/tests/unit/conftest.py").write_text(
+        "import pytest\n\n\n@pytest.fixture()\ndef client():\n"
+        "    from backend.main import app\n\n    return app\n"
+    )
+    (tmp_path / "backend/tests/unit/api/test_fixture_client.py").write_text(
+        "from backend.tests.unit.conftest import client  # noqa: F401\n\n\ndef test_z(client): ...\n"
+    )
     run("git", "add", "-A")
     run("git", "commit", "-qm", "base")
     return tmp_path
@@ -164,6 +177,43 @@ def test_closure_stops_at_test_files(repo):
     # edge: test_alert_service references alert_service only.
     assert "backend/tests/unit/api/routes/test_alerts.py" in out
     assert "backend/tests/unit/services/test_alert_service.py" not in out
+
+
+def test_conftest_fixture_edge_selects_indirect_test(repo):
+    """A test whose only reference is a conftest still rides a prod change.
+
+    Bake-off 15d7b5a2 fault arm: the injected middleware fault broke
+    test_rum.py, which references NOTHING in backend production — its dotted
+    ref is `backend.tests.unit.conftest`, and the shared client fixture's
+    FUNCTION-LOCAL `from backend.main import app` (unit/conftest.py:136) is
+    the real edge. conftest.py joins the producer graph as a node (it is
+    never COLLECTED as a test, so it can carry edges without enabling
+    test-to-test selection); the existing referrers() prefix lookup then
+    closes test -> conftest with no new mechanism.
+    """
+    write_and_stage(repo, "backend/main.py", "app = object()  # touched\n")
+    r = select(repo)
+    assert "backend/tests/unit/api/test_fixture_client.py" in r.stdout
+
+
+def test_changed_conftest_selects_its_tree(repo):
+    """A conftest edit selects every test pytest would apply it to.
+
+    conftest.py is neither a production seed nor a test_*.py file, so plain
+    rules would select NOTHING for it — the silent stop-running trap. The
+    rule mirrors pytest's own directory scoping: a conftest governs every
+    collection beneath its directory.
+    """
+    write_and_stage(
+        repo,
+        "backend/tests/unit/conftest.py",
+        "import pytest\n\n\n@pytest.fixture()\ndef client():  # touched\n"
+        "    from backend.main import app\n\n    return app\n",
+    )
+    r = select(repo)
+    assert "backend/tests/unit/api/test_fixture_client.py" in r.stdout
+    # tree scope, not global: the contracts tier does not sit under unit/
+    assert "backend/tests/contracts/test_api_contracts.py" not in r.stdout
 
 
 def test_unmapped_is_loud(repo):
