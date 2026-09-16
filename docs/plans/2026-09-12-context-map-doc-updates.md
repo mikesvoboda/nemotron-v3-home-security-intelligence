@@ -3344,3 +3344,32 @@ DONE-WHEN PROOF: full-tree check-integration-tests.py (278 files, the exact
 new-branch shape that went red) exits 0; backend.main imports clean; api.ts
 regeneration byte-identical (contract unchanged). backend/AGENTS.md +
 docs/research/01-backend-api-inventory.md no longer claim the phantom route.
+
+## PRE-EXISTING (surfaced by WP0.1 gate, first full-tree pre-push) — chaos-test sleep comments vs check-test-timeouts contract (2026-09-16)
+
+MEASURE: the same first full-tree pre-push run took check-test-timeouts.py rc=1
+on 12 sites in backend/tests/chaos/test_worker_chaos.py — every line carried
+"# chaos test - mocked" / "# chaos test timing - mocked". The checker's
+contract (its own help text: "Add comment: # mocked, # patched, # cancelled";
+SAFE_COMMENTS substring test) does NOT match the hyphenated variant — the
+author annotated to the documented intent, the checker demands the token. The
+file predates the hook (d5eb7b54/#3181) and no push ever ran the hook over it.
+
+DECIDE: align COMMENTS to the shipped checker ("# mocked: chaos test[ timing]"),
+not the checker to the comments — production/contract discipline applies to
+gates too; widening SAFE_COMMENTS to swallow " - mocked" would loosen the
+contract for every future file to satisfy twelve annotations of one legacy
+file. The token's substring position doesn't matter ("# mocked: …" passes),
+so the author's context survives verbatim behind it. Chaos sleeps are
+intentional (real worker lifecycle timing under mocked redis/detector) — the
+existing annotation was right in kind, wrong in spelling.
+
+IMPLEMENTATION + PROOF: 12 sites rewritten (grep 12 "mocked: chaos test");
+full-tree re-run rc=0. NEW scripts/test_check_test_timeouts.py (4 cases) pins
+both readings so neither side can silently drift: documented token passes;
+unannotated long sleep STILL bites (no laundering); the shipped
+"# mocked: chaos test" form passes; the old hyphenated variant is pinned as a
+CORRECT flag (the checker was not bent). RED-first evidence = the captured
+pre-edit full-tree run (rc=1, exactly 12 findings). Wired into the WP0.7
+collection-sanity anti-rot pytest list (CI shape re-verified: 34 passed);
+graph test still green (34 jobs, gate reaches 28).
