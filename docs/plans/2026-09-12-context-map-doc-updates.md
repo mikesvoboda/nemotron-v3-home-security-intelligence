@@ -3978,3 +3978,38 @@ constituency. Guard (stub commit's) widens to the full f4 in-tier class
   case masquerading as a chain proof). No --closure-depth flag exists
   (depth=4 at the call-site) — the closure is pinned by asserting the
   selection, never by a flag.
+
+## PRE-EXISTING (surfaced by validate.sh at WP2.5 close) — prettier-frontend hook was a VACUOUS GATE: filenames never reached prettier, every pass meaningless (2026-09-16)
+
+validate.sh's frontend prettier check (runs the whole tree; CI has NO
+format:check step) died on src/hooks/{useDateRangeState,useHouseholdApi}.
+test.ts — files landed by f6f8f0f9 with zero gate ever having looked at
+them. Live proof of the mechanism: `.venv/bin/pre-commit run
+prettier-frontend --files <known-drifting-file>` printed "Passed" and left
+the file UNTOUCHED. The hook entry was `bash -c '...npx prettier --write
+--ignore-unknown'` with pass_filenames: true — pre-commit APPENDS the
+selected filenames after the command string, and `bash -c` binds the first
+appended word to $0, so the command saw ZERO filenames; prettier with no
+paths reads nothing and exits 0. WP0.1's defect class (a gate reporting
+success while doing nothing) reborn one file over. Second door of the same
+class found by audit: pass_filenames paths are REPO-ROOT-relative, so a
+hook that `cd frontend` resolves frontend/src/... against frontend/ and
+matches nothing — --ignore-unknown turns even THAT into a silent 0.
+
+Fix: entry rebases and receives (${@#frontend/} + trailing `bash` sentinel
+so every name lands in $@); scripts/test\*precommit_config.py guards BOTH
+doors as text (no PyYAML: undeclared + uv sync demonstrably prunes
+undeclared — a guard that dies on a prune goes red for the wrong reason),
+and joins CI's anti-rot list (WP0.7 doctrine). Red-first PROVEN: guard RED
+on the shipped config (named prettier-frontend), GREEN after; hook live-
+verified formatting the drifting files through the real pre-commit path.
+SCOPE DECIDED: only the two validate-scope files reformatted (validate
+gates src/\*\*); the hook-scope superset audit found 155 more drifters
+(e2e/tests/\_.md/docs-class) — NOT mass-formatted here: noise commit for a
+set no gate checks; when someone widens validate's scope, the fixed hook
+formats touched files onward and the debt burns per-touch. Related standing
+quirk recorded, NOT touched: docs/\*.md ride the OTHER prettier block
+(mirrors-prettier v3.1.0 pinned prettier@3.2.4) vs frontend's 3.9.6 — the
+version split width-measures the same table lines differently, source of
+this session's commit-hook flip-flops (adopt-the-hook's-output cycle);
+unifying pins is a reflow-every-docs-file change, its own conversation.

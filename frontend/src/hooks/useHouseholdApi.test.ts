@@ -126,7 +126,9 @@ describe('household API functions (endpoint contract)', () => {
   });
 
   it('error responses surface the backend detail message', async () => {
-    responses = [{ ok: false, status: 400, statusText: 'Bad Request', body: { detail: 'name required' } }];
+    responses = [
+      { ok: false, status: 400, statusText: 'Bad Request', body: { detail: 'name required' } },
+    ];
     await expect(fetchMembers()).rejects.toThrow('name required');
   });
 
@@ -196,7 +198,9 @@ describe('household query hooks', () => {
   });
 
   it('useDeleteMember surfaces a failed mutation instead of invalidating', async () => {
-    responses = [{ ok: false, status: 404, statusText: 'Not Found', body: { detail: 'no member' } }];
+    responses = [
+      { ok: false, status: 404, statusText: 'Not Found', body: { detail: 'no member' } },
+    ];
     const { result } = renderHook(() => useDeleteMember(), {
       wrapper: freshWrapper(),
     });

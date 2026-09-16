@@ -200,7 +200,13 @@ repos:
     hooks:
       - id: prettier-frontend
         name: Prettier (Frontend)
-        entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown'
+        # "$@" + trailing `bash` sentinel: pre-commit APPENDS filenames after
+        # this string, and `bash -c` binds the first appended word to $0 —
+        # without a sentinel the command string saw ZERO filenames and
+        # prettier exited 0 formatting nothing (every pass here was vacuous
+        # until 2026-09-16; scripts/test_precommit_config.py guards it).
+        # ${@#frontend/} rebases repo-root-relative names onto this cd.
+        entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown ${@#frontend/}' bash
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx|css|json|md)$
         exclude: package-lock\.json$

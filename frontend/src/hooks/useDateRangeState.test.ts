@@ -58,7 +58,11 @@ describe('useDateRangeState', () => {
   });
 
   it('setPreset writes the param and clears custom start/end', () => {
-    initialParams = new URLSearchParams({ range: 'custom', start: '2026-01-01', end: '2026-01-31' });
+    initialParams = new URLSearchParams({
+      range: 'custom',
+      start: '2026-01-01',
+      end: '2026-01-31',
+    });
     const { result } = renderHook(() => useDateRangeState());
 
     act(() => result.current.setPreset('90d'));
@@ -77,7 +81,10 @@ describe('useDateRangeState', () => {
   it('setCustomRange writes custom + UTC-formatted start/end', () => {
     const { result } = renderHook(() => useDateRangeState());
     act(() =>
-      result.current.setCustomRange(new Date('2026-03-01T12:00:00Z'), new Date('2026-03-15T12:00:00Z'))
+      result.current.setCustomRange(
+        new Date('2026-03-01T12:00:00Z'),
+        new Date('2026-03-15T12:00:00Z')
+      )
     );
     expect(initialParams.get('range')).toBe('custom');
     expect(initialParams.get('start')).toBe('2026-03-01');
@@ -104,9 +111,7 @@ describe('useDateRangeState', () => {
 
   it('custom preset with missing/invalid dates falls back to defaultPreset', () => {
     initialParams = new URLSearchParams({ range: 'custom', start: 'not-a-date' });
-    const { result } = renderHook(() =>
-      useDateRangeState({ defaultPreset: 'today' })
-    );
+    const { result } = renderHook(() => useDateRangeState({ defaultPreset: 'today' }));
     expect(result.current.preset).toBe('today');
   });
 
@@ -256,9 +261,7 @@ describe('calculatePresetRange (UTC arithmetic, pinned clock)', () => {
     expect(calculatePresetRange('90d', now).startDate.toISOString()).toBe(
       '2026-03-18T00:00:00.000Z'
     );
-    expect(calculatePresetRange('7d', now).endDate.toISOString()).toBe(
-      '2026-06-15T23:59:59.999Z'
-    );
+    expect(calculatePresetRange('7d', now).endDate.toISOString()).toBe('2026-06-15T23:59:59.999Z');
   });
 
   it('all/custom return now-anchored placeholders (apiParams carry the meaning)', () => {
