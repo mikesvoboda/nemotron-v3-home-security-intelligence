@@ -33,6 +33,199 @@
 flake_allowlist: []
 frontend_only: []
 frontend_todo: []
+pytest_skip:
+  - id: backend/tests/integration/test_alembic_migrations.py::TestAlembicMigrationUpgradeDowngrade
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: Project uses init_schema.py (not Alembic). Tests are placeholders for future Alembic adoption.
+  - id: backend/tests/integration/test_soft_delete.py::test_search_excludes_soft_deleted_events
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:SOFT-DELETE-FILTERING
+    expires: '2026-12-31'
+    reason: Search endpoint soft-delete filtering not yet implemented
+  - id: backend/tests/integration/test_soft_delete.py::test_soft_deleted_camera_excluded_from_list
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:SOFT-DELETE-FILTERING
+    expires: '2026-12-31'
+    reason: List endpoint soft-delete filtering not yet implemented
+  - id: backend/tests/integration/test_system_api.py::test_performance_history_endpoint_empty
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-1900
+    expires: '2026-12-31'
+    reason: Performance REST API endpoint not yet implemented (NEM-1900)
+  - id: backend/tests/integration/test_system_api.py::test_performance_history_endpoint_invalid_time_range
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-1900
+    expires: '2026-12-31'
+    reason: Performance REST API endpoint not yet implemented (NEM-1900)
+  - id: backend/tests/integration/test_system_api.py::test_performance_history_endpoint_with_data
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-1900
+    expires: '2026-12-31'
+    reason: Performance REST API endpoint not yet implemented (NEM-1900)
+  - id: backend/tests/integration/test_system_api.py::test_performance_history_endpoint_with_time_range
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-1900
+    expires: '2026-12-31'
+    reason: Performance REST API endpoint not yet implemented (NEM-1900)
+  - id: backend/tests/integration/test_system_api.py::test_performance_stores_snapshot_in_redis
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-1900
+    expires: '2026-12-31'
+    reason: Performance REST API endpoint not yet implemented (NEM-1900)
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_disabled_model
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_model_not_found
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_model_returns_details
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_model_shows_load_stats
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_returns_model_list
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_returns_model_list
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_returns_registry
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_returns_registry
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_shows_loaded_status
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_shows_loaded_status
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_shows_unloaded_status
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_get_models_shows_unloaded_status
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_model_status_response_has_all_fields
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_models_registry_response_has_all_fields
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_models_registry_response_has_all_fields
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_vram_used_reflects_loaded_models
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_vram_used_reflects_loaded_models
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_vram_zero_when_no_models_loaded
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:MODEL-MANAGEMENT-MOVED
+    expires: '2026-12-31'
+    reason: Moved to test_model_management.py - NEW Model Management API tests
+  - id: backend/tests/unit/api/routes/test_system_models.py::test_vram_zero_when_no_models_loaded
+    kind: flaky
+    owner: mikesvoboda
+    tracking: UNTRACKED:APPINIT-TIMING
+    expires: '2026-10-15'
+    reason: Flaky test - fails in CI due to app initialization timing issues
+  - id: backend/tests/unit/services/test_alert_engine_new_conditions.py::TestDwellTimeCondition
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:DWELL-THRESHOLD-SUPERSEDED
+    expires: '2026-12-31'
+    reason: Dwell time now uses zone-based thresholds - see test_alert_engine.py
+  - id: backend/tests/unit/services/test_alert_engine_new_conditions.py::test_multiple_new_conditions_and_logic
+    kind: retired
+    owner: mikesvoboda
+    tracking: UNTRACKED:DWELL-THRESHOLD-SUPERSEDED
+    expires: '2026-12-31'
+    reason: Uses old dwell_threshold_seconds - see test_alert_engine.py for zone-based tests
+  - id: backend/tests/unit/services/test_zone_baseline_service.py::test_compute_baseline_not_implemented
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-3197
+    expires: '2026-12-31'
+    reason: 'NEM-3197: Not yet implemented'
+  - id: backend/tests/unit/services/test_zone_baseline_service.py::test_delete_baseline_not_implemented
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-3197
+    expires: '2026-12-31'
+    reason: 'NEM-3197: Not yet implemented'
+  - id: backend/tests/unit/services/test_zone_baseline_service.py::test_update_baseline_not_implemented
+    kind: todo
+    owner: mikesvoboda
+    tracking: NEM-3197
+    expires: '2026-12-31'
+    reason: 'NEM-3197: Not yet implemented'
 pytest_skip_imperative:
   - id: backend/tests/conftest.py:2530
     kind: environment
