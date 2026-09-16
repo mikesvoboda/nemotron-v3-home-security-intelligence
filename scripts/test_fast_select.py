@@ -266,3 +266,35 @@ def test_no_changes_empty_selection(repo):
     r = select(repo)
     assert r.returncode == 0
     assert "SELECTED-BACKEND-FILES: 0" in r.stdout
+
+
+def test_deleted_test_file_is_not_selected(repo, tmp_path):
+    """Gate self-trap: deleting a test must not block the push that deletes it.
+
+    The identity rule selects "changed test files" so a test-only commit runs
+    its own edits (bake-off 18984662) — but git diff lists DELETIONS too, and
+    fast-backend-runner's detector 1 correctly CANNOT-RUNs a selected-but-absent
+    file, so ANY test deletion (retired stub, pruned flake) would make the
+    deleting push un-shippable — and --no-verify is forbidden by repo rule.
+    Identity selection needs a subject that exists. Found while planning the
+    schemathesis-stub deletion the WP2.5 measured run demanded.
+    """
+    out = tmp_path / "sel.txt"
+    subprocess.run(
+        ["git", "rm", "-q", "--", "backend/tests/unit/api/routes/test_alerts.py"],
+        cwd=repo,
+        check=True,
+    )
+    # Stage a live production change TOO, so a non-empty selection proves the
+    # run was a real selection and not an empty-list fluke: the metrics route
+    # change pulls its direct dotted-ref test (and the package hub).
+    write_and_stage(
+        repo, "backend/api/routes/metrics.py", "def get_x():\n    return 1  # touched\n"
+    )
+    r = select(repo, "HEAD", "--list-out", str(out))
+    assert r.returncode == 0
+    lines = out.read_text().splitlines()
+    # RED before the fix: the deleted path rides the selection as a phantom.
+    assert "backend/tests/unit/api/routes/test_alerts.py" not in lines
+    # the live change's honest selection is unaffected by the deletion:
+    assert "backend/tests/unit/services/test_metrics.py" in lines

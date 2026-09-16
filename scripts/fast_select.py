@@ -281,6 +281,14 @@ def main(argv: list[str]) -> int:
             f.startswith("backend/tests/")
             and Path(f).name.startswith("test_")
             and f.endswith(".py")
+            # identity selection needs a subject that EXISTS: git diff lists
+            # deletions, and selecting a deleted file routes into
+            # fast-backend-runner detector 1 (CANNOT-RUN: missing) — which
+            # would block the very push that prunes a test, so the gate could
+            # never ship its own corrections (--no-verify is forbidden).
+            # A deleted test's REFERRERS still fail collection and the runner
+            # names those ERRORs; only the phantom self-selection goes.
+            and (root / f).exists()
         ):
             selected[f].append(f"changed test file: {f}")
         # CHANGED CONFTEST SELECTS ITS PYTEST TREE. conftest.py is neither a

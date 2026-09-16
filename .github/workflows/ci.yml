@@ -120,7 +120,9 @@ jobs:
       # WP0.9 added the coverage-diff gate's own tests to the same list;
       # the pre-push timeout checker's contract tests joined after its
       # chaos-comment repair; the WP1.1 census tests joined with the census
-      # itself (a gate with no CI is a gate that rots).
+      # itself (a gate with no CI is a gate that rots). Phase 2: the fast
+      # tier's own tests (selector + manifest contract) joined with the
+      # deleted-test phantom fix — the same doctrine, one tier later.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -131,6 +133,8 @@ jobs:
           scripts/test_check_test_timeouts.py
           scripts/test_suppression_census.py
           scripts/test_ratchet_check.py
+          scripts/test_fast_select.py
+          scripts/test_fast_runners_manifest.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
