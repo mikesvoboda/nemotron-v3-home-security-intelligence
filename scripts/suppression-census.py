@@ -314,7 +314,7 @@ def _skip_imperative_locations(tree_files: list[Path], root: Path) -> list[dict]
 # it.skip("title", …) / test.skip(`title`, …) — the title is the stable key;
 # a title-less call site falls back to line:column so two sites never collide.
 _FRONTEND_SUPPRESSION_CALL_RE = re.compile(
-    r"\.(skip|only|todo)\s*\(?\s*(?:`([^`]*)`|'([^']*)'|\"([^\"]*)\")?"
+    r"\.(skip|only|todo)\b\s*\(?\s*(?:`([^`]*)`|'([^']*)'|\"([^\"]*)\")?"
 )
 
 

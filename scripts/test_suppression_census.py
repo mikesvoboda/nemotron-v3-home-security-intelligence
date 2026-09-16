@@ -66,6 +66,15 @@ FIXTURE = {
     ),
     "frontend/src/a.test.tsx": "it('x', () => {});\nit.skip('y', () => {});\ndescribe.skip('z', () => {});\n",
     "frontend/src/b.test.ts": "it.only('solo', () => {}); it.todo('later');\n",
+    # Identifier noise pins the word-boundary rule: `.onlyErrorsProps`
+    # (spread shorthand) and `draft.todos[0]` (property access) matched as
+    # .only/.todo on real main test files when the locations regex lacked
+    # \b — locations then contradicted the count pass (2/3 vs 0/0).
+    "frontend/src/c.test.tsx": (
+        "const onlyErrorsProps = { ...p };\nrender(<X {...onlyErrorsProps} />);\n"
+        "const todo = draft.todos.find((t) => t.id === id);\n"
+        "expect(newState.todos[0].done).toBe(true);\n"
+    ),
 }
 
 EXPECTED = {
