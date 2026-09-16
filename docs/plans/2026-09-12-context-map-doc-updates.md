@@ -3486,3 +3486,61 @@ simply fails on main too when invoked).
 Also: the gate's "Comment PR on failures" step 403s (workflow token lacks
 issues:write) — it masked (a)'s real verdict behind a flood of octokit
 headers. Pre-existing; the verdict is readable in the job log.
+
+## WP0.6 CI TRUTH — follow-up: (b) repaired, (c)/(d) adjudicated (2026-09-16)
+
+(b) RESOLVED (f6f8f0f9): 45 unit cases added for the two flagged hooks —
+useDateRangeState (URL round-trip incl. garbage/empty/partial-custom
+fallbacks, setPreset('custom') shipped no-op, param preservation,
+persistToUrl=false read+write silence, custom urlParam key, PRESET_LABELS
+incl. NEM-3646 'yesterday', UTC preset math on a pinned clock) and
+useHouseholdApi (query-key hierarchy, endpoint/method contract, 204->
+undefined, detail-vs-HTTP-line error extraction, detections param mapping,
+invalidation observed at the FETCH layer — isFetching races waitFor's first
+poll — failed mutation without invalidation). Test client pins retry +
+refetchOnWindowFocus OFF; production policies re-issue fetches and drain
+mock queues (observed 3 GETs where the contract has 2). No production bent,
+no gate widened. The gate's own find_test_file matcher now resolves both
+files.
+
+DISCOVERY during (b): a .test.ts + .test.tsx sharing one stem in the same
+directory is a SILENT SHADOWING TRAP. TypeScript's include-glob resolves
+`.ts` first, so the legacy useDateRangeState.test.tsx fell OUT of the
+project program: the commit-time "TypeScript Type Check" hook passed while
+NEVER SEEING the file, and typescript-eslint's projectService then refused
+to lint it ("not found by the project service") — full `eslint src` was
+red on MAIN for it (pre-existing, invisible while the suite still ran:
+vitest globs DO match both). Legacy suite's unique cases (PRESET_LABELS
+table, empty/partial-custom fallbacks, reset clearing dates, custom
+placeholder) transplanted into the .ts before the .tsx was removed; 75 ->
+consolidated suites keep every assertion. The new .test.tsx pattern should
+be banned-by-convention: hooks with JSX wrappers get `.test.tsx` ONLY.
+
+(c) ADJUDICATED: cryptography cannot move past 49.0.0 — data-designer-
+engine 0.9.2 pins cryptography>=48.0.1,<=49 and 0.9.2 IS data-designer's
+latest PyPI release (uv lock --upgrade-package cryptography resolves to
+50.0.1 then backtracks to the cap). Fixing CVE-2026-69247 therefore needs
+either a pyproject edit (drop/replace the data-designer extra = STOP AND
+ASK category: pyproject edits outside a WP's named files) or upstream's
+next release. RECORDED AS OWNER DEBT, not bypassed: the trivy failure
+stands as a visible signal (never re-quieled per S2), .trivyignore NOT
+extended to hide it. RULING REQUESTED (see R-TRIVY-CRYPTO below).
+
+(d) ADJUDICATED: the 6 expired .trivyignore review dates (CVE-2026-22695,
+CVE-2026-22801, CVE-2024-23342, CVE-2026-23949, CVE-2026-24049,
+CVE-2026-0994; file footer says reviewed 2026-01-24 / next 2026-04-24) are
+PRE-EXISTING main hygiene — reproduced locally via
+check-trivyignore-expiry.sh --warn-days 14. They fail CI naming the file;
+the honest repair is a real re-review + date bump, which is security-
+judgment work outside any WP's named files. RECORDED; bundled with (c)
+into the ruling request rather than date-bumped blind (blind bump =
+widening an allowlist to pass a gate).
+
+R-TRIVY-CRYPTO (RULING REQUESTED): cryptography 49.0.0 ceiling + 6
+expired trivyignore review dates both need decisions that touch files no
+WP names (pyproject to lift the data-designer cap; .trivyignore to
+re-review). Options: (1) accept owner-debt records, keep the CI signal
+red-but-triaged until upstream moves; (2) authorize a pyproject edit to
+drop the data-designer extra (removes the cap → 50.0.0, scan goes green);
+(3) authorize a genuine .trivyignore re-review commit. Default held: (1),
+nothing bypassed.
