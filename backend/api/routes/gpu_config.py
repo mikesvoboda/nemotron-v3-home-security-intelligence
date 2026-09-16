@@ -124,14 +124,29 @@ async def _get_redis_client() -> RedisClient | None:
     return get_redis_client_sync()
 
 
-async def _get_current_operation_id(redis: RedisClient | None) -> str | None:
+async def _get_current_operation_id(
+    redis: RedisClient | None, *, raise_on_error: bool = False
+) -> str | None:
     """Get the current apply operation ID from Redis.
 
     Args:
         redis: Redis client (may be None)
+        raise_on_error: Re-raise Redis read failures instead of swallowing
+            them. The apply endpoint's concurrency guard MUST use this: when a
+            Redis client exists but the read raises, `_apply_state_fallback`
+            holds only the last COMPLETED apply (it is never updated during a
+            Redis-backed operation), so treating "unreadable" as "no operation
+            running" lets a transient Redis blip silently permit a concurrent
+            apply — the exact race the 409 guard prevents (NEM-3547's in-memory
+            fallback stands in for Redis ABSENCE only, not failure). Readers
+            that genuinely degrade (the status endpoint) keep the default and
+            fall back to in-memory state.
 
     Returns:
         Operation ID if an operation is in progress, None otherwise.
+
+    Raises:
+        Exception: If the Redis read fails and raise_on_error is True.
     """
     if redis is None:
         return _apply_state_fallback.get("operation_id")  # type: ignore[return-value]
@@ -139,6 +154,8 @@ async def _get_current_operation_id(redis: RedisClient | None) -> str | None:
     try:
         return await redis.get(REDIS_CURRENT_OPERATION_KEY)
     except Exception as e:
+        if raise_on_error:
+            raise
         logger.warning(f"Failed to get current operation ID from Redis: {e}")
         return None
 
@@ -829,7 +846,17 @@ async def apply_gpu_config(
     global _apply_state_fallback  # noqa: PLW0603
 
     redis = await _get_redis_client()
-    current_op_id = await _get_current_operation_id(redis)
+    try:
+        # Fail CLOSED if the apply state is unreadable: "unknown" must never
+        # read as "no apply running" here, or a transient Redis failure opens
+        # the exact concurrent-apply race this guard exists to prevent.
+        current_op_id = await _get_current_operation_id(redis, raise_on_error=True)
+    except Exception as e:
+        logger.warning(f"GPU apply state unreadable, refusing apply: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GPU configuration apply state could not be verified; retry shortly",
+        ) from e
 
     if current_op_id is not None:
         # Check if the operation is actually still in progress

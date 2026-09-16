@@ -700,6 +700,30 @@ class TestApplyGpuConfig:
         assert response.status_code == 409
         assert "already in progress" in response.json()["detail"]
 
+    def test_apply_gpu_config_fails_closed_when_apply_state_unreadable(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """The concurrent-apply guard must fail CLOSED when the apply state is unreadable.
+
+        NEM-3547's in-memory fallback stands in only when Redis is ABSENT. When a
+        Redis client exists but the current-operation read raises, `_apply_state_fallback`
+        holds only the last COMPLETED apply (it is never updated during a Redis-backed
+        operation) — so it is not evidence either way. The old behavior returned None
+        from the read, the guard read "no operation running", and a transient Redis
+        blip silently permitted a concurrent apply: the exact race the 409 guard
+        exists to prevent. Surfaced by the honest WP0.5-era validate.sh run
+        (seed 1556902420) as this endpoint answering 500/200 instead of 409 when a
+        stale event-loop redis client poisoned the worker global.
+        """
+        stale_client = MagicMock()
+        stale_client.get = AsyncMock(side_effect=RuntimeError("Event loop is closed"))
+
+        with patch("backend.api.routes.gpu_config._get_redis_client", return_value=stale_client):
+            response = client.post("/api/system/gpu-config/apply")
+
+        assert response.status_code == 503
+        assert "could not be verified" in response.json()["detail"]
+
 
 # =============================================================================
 # GET /api/system/gpu-config/status Tests
