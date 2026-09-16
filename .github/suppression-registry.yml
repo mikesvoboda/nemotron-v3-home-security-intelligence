@@ -235,6 +235,351 @@ frontend_quarantine:
     tracking: R-T7-VITEST
     expires: '2026-12-31'
     reason: null
+frontend_skip:
+  - id: frontend/src/__tests__/auth-flow.test.tsx::handles expired sessions
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/__tests__/auth-flow.test.tsx::logout redirects to login
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/__tests__/auth-flow.test.tsx::recovers from network errors
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/analytics/PipelineLatencyPanel.test.tsx::auto-refreshes when refreshInterval is set
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/developer-tools/DeveloperToolsPage.test.tsx::should show error state when config fetch
+      fails
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/entities/ReidHistoryPanel.test.tsx::clears selection when "Clear" button is clicked
+      in comparison view
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/events/LinkPersonModal.integration.test.tsx::LinkPersonModal - API Integration
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/events/LinkPersonModal.integration.test.tsx::LinkPersonModal - Full User Flows
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/events/LinkPersonModal.integration.test.tsx::LinkPersonModal - State Synchronization
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/events/LinkPersonModal.integration.test.tsx::LinkPersonModal - UI Validation
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/face-recognition/BulkEnrollmentModal.test.tsx::BulkEnrollmentModal
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/household/MemberDetectionHistory.integration.test.tsx::MemberDetectionHistory - Data
+      Fetching
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/household/MemberDetectionHistory.integration.test.tsx::MemberDetectionHistory - Error
+      States
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/household/MemberDetectionHistory.integration.test.tsx::MemberDetectionHistory - Filtering
+      and Sorting
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/household/MemberDetectionHistory.integration.test.tsx::MemberDetectionHistory - Loading
+      States
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/household/MemberDetectionHistory.integration.test.tsx::MemberDetectionHistory - UI
+      and Display
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/household/MemberDetectionHistory.integration.test.tsx::MemberDetectionHistory - Unlink
+      Flow
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/search/SearchBar.test.tsx::Advanced filters panel
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/search/SearchBar.test.tsx::Query syntax help
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/search/SearchBar.test.tsx::Save search functionality
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/search/SearchBar.test.tsx::Saved searches
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/settings/ProcessingSettings.test.tsx::displays storage usage indicator
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::Circuit Breaker Enhancement (NEM-4831)
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::Restart History Integration (NEM-4831)
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::Worker Action Flow (NEM-4831)
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::confirm button triggers API call
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::dialog closes after successful action
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::empty state shows no restart history message
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::pagination next button loads next page
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::pagination works if more than limit items
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::reset error shows error toast
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::reset success shows toast notification
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::restart action triggers restart API call
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::restart history accordion expands on click
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows history items with attempt number
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows history items with status
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows history items with timestamp
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows loading state during API call
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows opened_at timestamp for open breakers
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows rejected calls count for circuit breaker
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows success count for half-open breakers
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::shows total calls count for circuit breaker
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/system/SystemMonitoringPage.test.tsx::toast notification shows error when API call
+      fails
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id:
+      frontend/src/components/system/SystemMonitoringPage.test.tsx::toast notification shows success after action
+      completes
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::worker status unchanged after error
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/components/system/SystemMonitoringPage.test.tsx::worker status updates after successful action
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/hooks/useMonitoringHealth.test.ts::should handle data updates during polling
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/hooks/useMonitoringHealth.test.ts::should support polling interval
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/hooks/useMonitoringTargets.test.ts::should handle data updates during polling
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/hooks/useMonitoringTargets.test.ts::should support polling interval
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/hooks/useSystemConfigQuery.test.tsx::should handle API errors
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/hooks/useSystemConfigQuery.test.tsx::should not fetch when enabled is false
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/pages/ScheduledReportsPage.test.tsx::should allow retry on error
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: frontend/src/pages/ScheduledReportsPage.test.tsx::should show error message on fetch failure
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
 pytest_skip:
   - id: backend/tests/integration/test_alembic_migrations.py::TestAlembicMigrationUpgradeDowngrade
     kind: retired
