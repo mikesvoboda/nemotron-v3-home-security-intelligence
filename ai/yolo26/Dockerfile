@@ -13,7 +13,7 @@
 #   TensorRT engines are GPU-architecture-specific - document the target GPU.
 #   If pre-build is skipped, engines are built on first inference (existing behavior).
 
-FROM nvcr.io/nvidia/tensorrt:26.01-py3 AS tensorrt_base
+FROM nvcr.io/nvidia/tensorrt:26.04-py3 AS tensorrt_base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -23,8 +23,8 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:26.01-py3"
-LABEL org.opencontainers.image.base.digest="nvcr.io/nvidia/tensorrt:26.01-py3"
+LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:26.04-py3"
+LABEL org.opencontainers.image.base.digest="nvcr.io/nvidia/tensorrt:26.04-py3"
 
 # Additional service-specific labels
 LABEL maintainer="home-security-intelligence"
@@ -108,6 +108,7 @@ RUN mkdir -p /models/yolo26/exports
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 120s allows time for TensorRT engine pre-build + model loading
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD python -c "import httpx; r = httpx.get('http://localhost:8095/health'); r.raise_for_status()"
 

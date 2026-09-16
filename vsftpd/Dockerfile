@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Security labels
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -44,6 +44,7 @@ EXPOSE 21 20
 # but it drops privileges after initialization. The ftpsecure user is used for
 # the actual FTP session handling. This is the standard vsftpd security model.
 # Use USER directive for security scanners - entrypoint handles privilege escalation.
+# hadolint ignore=DL3066
 USER ftpsecure
 
 # Use entrypoint script (will use gosu for privilege escalation)
