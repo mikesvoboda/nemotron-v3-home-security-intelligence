@@ -3571,3 +3571,51 @@ on real main (2 x .only from `{...onlyErrorsProps}` spread shorthand, 3 x
 the count pass's \b guard. Registry keys built on it would have registered
 nonexistent entries; word-boundary fix + noise fixture landed (5 passed,
 both passes now agree: 54/0/0).
+
+## WP1.2 registry migration — DECIDE (kind vocabulary, expiry dates, classification method)
+
+**MEASURE:** census `--locations` yields 278 individually-keyed suppressions across
+12 categories (6/0/16/32/63/4/94/54/0/0/4/5 — census counts unchanged by WP1.2;
+only measurement bugs fixed en route: `\b` word-boundary in the frontend
+locations regex [7ccc27ca], module-constant reason resolution [246e2582]).
+All 278 now have registry entries; `suppression-registry-gen.py --check` green.
+
+**DECIDE — kind vocabulary (7 kinds, spec §escape-hatches's owner+expiry intent
+made machine-checkable):** `environment` (guard at the site proves an
+environment prerequisite; spec-EXEMPT: tracking null, expires null — these are
+the hatches the spec allows to survive, but ONLY where a guard read at the site
+proves it) · `scoped` (whole test trees on their own schedule; EXEMPT, tracking
+= nightly-full-gate.yml — counted by the ratchet so a NEW tree silently scoped
+out of validate.sh fails) · `todo` (permanent unimplemented surface; requires a
+tracking value — real findings without Linear issues get explicit
+`UNTRACKED:<family>` markers (ONVIF-SUITES 26, FRONTEND-SKIPS 54, COVERAGE-OMIT 5,
+AUTH-ROUTE, SOFT-DELETE, WEBSOCKET-TOKEN-REFRESH, SESSION-INVALIDATION,
+RATE-LIMIT-SPEC, DWELL, APPINIT, MODEL-MANAGEMENT-MOVED, SETUPGUARD-MOCK-MISMATCH)
+rather than blanks — the registry's job is to make the untracked VISIBLE, not to
+fabricate tickets) · `quarantine` (16 vite-exclude holds → R-T7-VITEST,
+2026-12-31) · `flaky` (7 recorded flakes in pytest_skip → 2026-10-15, the
+flake-allowlist's half-done mechanism made real when WP1.4 enforces expiry) ·
+`retired` (delete-by 2026-12-31: collection_allowlist 6 (all ledgered R-M2/R-FCL),
+15 pytest_skip sites whose subject moved/was renamed/zero-byte) · `defect`
+(7 skipif sites carrying R-T9-MQTTPUMP×6 + R-T9-EXPORTDEFER×1 shipped-defect
+reasons, expires 2026-10-15 = the ruling deadline; WP1.4 fails CI naming the
+owner when it lapses. These 7 are WHY WP1.2 exists — invisible to the registry
+until the census learned to resolve reason=CONST).
+
+**DECIDE — classification is generated, not hand-tended:** the generator
+(scripts/suppression-registry-gen.py) derives kind from reason-regex + per-category
+defaults, with the handful of genuinely-ambiguous sites adjudicated by reading
+the GUARD at each site and encoding the verdict as a rule (the 94 imperative
+sites: exactly 2 permanent TODOs — test_auth_routes.py, test_preview_api.py —
+the other 92 carry environment guards: lib availability, Windows perms,
+TEST_DATABASE_URL reachability [notable against S1's zero-env-skips pledge —
+these skip on UNSET, not on a dead host DB]; skipif 30 env / 7 defect / 26
+ONVIF-family todo; skip 15 retired / 10 todo / 7 flaky; xfail 2 todo / 2 retired).
+CI can regenerate and semantically diff (`--check` compares parsed YAML, because
+pre-commit's prettier hook owns YAML byte formatting). One category per commit
+(8 commits c5f30ede…3a56401c) so any misclassification is bisectable to its
+category.
+
+**RULING-ADJACENT:** the `environment` exemptions here are the census's, not new
+quarantines — zero entries added to any allowlist/quarantine; WP1.3's ratchet
+may only ever LOWER counts from this baseline.
