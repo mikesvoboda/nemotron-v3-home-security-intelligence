@@ -2223,62 +2223,13 @@ jobs:
           fi
 
   # Security Scanning Jobs (Matrix Strategy for Parallelization)
-
-  # Consolidated Trivy scans using matrix for parallel execution
-  trivy-scan:
-    name: Trivy Scan (${{ matrix.target.name }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - name: backend-deps
-            scan-type: fs
-            scan-ref: '.'
-            skip-dirs: 'frontend,node_modules,.git'
-            is-dockerfile: false
-          - name: backend-dockerfile
-            scan-type: config
-            scan-ref: 'backend/Dockerfile'
-            skip-dirs: ''
-            is-dockerfile: true
-          - name: frontend-deps
-            scan-type: fs
-            scan-ref: 'frontend'
-            skip-dirs: ''
-            is-dockerfile: false
-          - name: frontend-dockerfile
-            scan-type: config
-            scan-ref: 'frontend/Dockerfile'
-            skip-dirs: ''
-            is-dockerfile: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Run Trivy vulnerability scanner
-        if: ${{ !matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          scan-type: ${{ matrix.target.scan-type }}
-          scan-ref: ${{ matrix.target.scan-ref }}
-          scanners: 'vuln'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-          ignore-unfixed: true
-          format: 'table'
-          skip-dirs: ${{ matrix.target.skip-dirs }}
-
-      - name: Run Trivy config scanner
-        if: ${{ matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          scan-type: ${{ matrix.target.scan-type }}
-          scan-ref: ${{ matrix.target.scan-ref }}
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-          format: 'table'
+  # WP0.3: the duplicate `trivy-scan` matrix job was REMOVED here. Two Trivy
+  # pipelines scanned overlapping targets on every push/PR; the standalone
+  # .github/workflows/trivy.yml survives as the single Trivy home — it is a
+  # strict superset (fs scan of '.' with .trivyignore, config scan of '.'
+  # covering both Dockerfiles + all IaC, image scans, SARIF upload, SBOM,
+  # and .trivyignore expiry checks). Surface-equivalence proof and rationale:
+  # ledger 2026-09-12-context-map-doc-updates.md, WP0.3 row.
 
   npm-audit:
     name: npm Audit (Frontend)
