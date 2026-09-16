@@ -3673,3 +3673,49 @@ data-designer-engine; R-TRIVY-CRYPTO ruling open, default (1) owner-debt).
 The unit-tests/… SUCCESS claims here were written from the PREVIOUS head's
 results, not this one — retracted until the CI run on 6c712f4e concludes
 (honesty rule: a verdict needs THIS head's job log).
+
+## WP1.3–1.5 CI TRUTH — head 2ab3ec33, CI run 3449 — VERDICT (2026-09-16)
+
+The queued run on 6c712f4e (3448) was superseded by 3449 when this head
+pushed (ci.yml cancel-in-progress) — same CI content (head delta is docs
+only), so 3449's job logs ARE the verdict for both heads. All from THIS
+run's job records, per the honesty rule that governs this section.
+
+GREEN (success): Collection Sanity — THE Phase-1 pin: `uv run python
+scripts/ratchet-check.py` step executed 15:37:23→15:37:50 and the pytest
+step now includes scripts/test_ratchet_check.py, both green. Backend Unit
+(4 shards + unsharded + coverage), Backend Lint, Mypy, Integration API/
+Models/Services/WebSocket, E2E Chromium (6 shards), Frontend Vitest (16
+shards) + lint + tsc, API Types, Version Consistency, npm Audit, Security
+Test Suite, API Endpoint Coverage, Merge Coverage jobs, Build Backend
+Dependencies, Detect Changed Files. Separate workflows: Test Coverage
+Gate (--strict), SAST, Secret Detection, Dependency Audit, AGENTS.md
+Validation, Documentation Drift, PR Review Bot — all green on the head.
+
+RED (1 of 2 is new-to-this-path, pre-existing in substance):
+
+1. Test Performance Audit — FAIL: 1 test over the 4.0s unit limit:
+   `setup_lib.test_podman_install.TestPromptAndInstallPodman::
+test_user_accepts_install_success` at 23.57s. This is the WP0.5-repaired
+   gate (main-only → PR-gated, thresholds raised 1.0→4.0s) running on a PR
+   for the FIRST time; the offender predates Phase 0 (test landed with the
+   cdb6dc92 setup robustness pass) → PRE-EXISTING SURFACED BY REPAIRED
+   GATE → its own commit per the program rule. MECHANISM (read of test +
+   production): the test patches is_podman_installed/install_podman/
+   get_podman_version/configure_rootless_cgroups but NOT the post-install
+   path's `_verify_podman_operational`, `_install_host_tools`,
+   `install_podman_compose`, `upgrade_podman_to_4x`, or
+   `_install_podman5_dependencies` (the sibling already-installed test
+   patches all of them) — so the "unit" test executes REAL apt/podman
+   subprocesses on the runner. Fix aligns the test to the shipped contract
+   (mock the unpatched calls). CI Gate (Required Checks) fails only as its
+   consequence.
+2. Advisory security reds (unchanged, adjudicated): Check CVE Review Dates
+   (6 stale .trivyignore dates), Filesystem Vulnerability Scan
+   (cryptography ceiling; R-TRIVY-CRYPTO ruling open, default (1)
+   owner-debt), Trivy: neutral.
+
+VERDICT: every Phase 1 gate is green in CI on this head (ratchet included,
+proven by job log). Phase 1 closes on CI. Remaining required-check red is
+one pre-existing slow-test offender surfaced by the WP0.5 repair — owned by
+the repair's own rule (separate fix commit), not a Phase-1 regression.
