@@ -1944,18 +1944,39 @@ jobs:
             echo "Created new issue"
           fi
   # Test Performance Audit Job (main-only)
+  # WP0.5 (owner ruling 2026-09-16: "gate at raised thresholds"): this job was
+  # main-only, red-and-advisory forever (46 rows over the 1.0s unit threshold).
+  # It now GATES: raised thresholds (unit 4.0s / integration 10.0s, measured
+  # from the main-run distribution — see ledger WP0.5 row) that the honest
+  # baseline passes with zero laundering (replay of main run 35049640472
+  # artifacts: FAIL(46) -> PASS), the 2 residual >4s outliers tracked in
+  # audit-test-durations.py's SLOW_TEST_PATTERNS (60s cap), the job runs on
+  # PRs under unit-tests' own trigger (a gate main-only is a post-merge
+  # reporter), and missing test data FAILS the job — never a vacuous pass.
   test-performance-audit:
     name: Test Performance Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
     needs:
+      - detect-changes
+      - lint
+      - build-backend-deps
       - unit-tests
       - integration-tests-api
       - integration-tests-websocket
       - integration-tests-services
       - integration-tests-models
       - frontend-e2e
+    # Mirrors unit-tests' availability exactly: when unit-tests was skipped
+    # (frontend/docs-only PR, lint red), the audit has no data by design and
+    # must SKIP honestly; when the tier ran, its artifacts are here (uploaded
+    # if: always()) and zero XML is a pipeline break -> fail.
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.lint.result != 'failure' &&
+      needs.build-backend-deps.result != 'failure'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1999,22 +2020,22 @@ jobs:
           fi
 
       - name: Analyze test durations
-        run: |
-          if [ -d "test-results/" ] && [ -n "$(find test-results/ -type f -name '*.xml' 2>/dev/null)" ]; then
-            uv run python scripts/audit-test-durations.py test-results/
-          else
-            echo "⚠️ No test results found - skipping performance audit"
-            echo "This may indicate that test jobs did not complete or upload artifacts"
-            exit 0
-          fi
+        # WP0.5: no more "skip + exit 0" on missing data — the audit only runs
+        # when its tier ran (job `if:`), so zero XML is a pipeline break and
+        # the script fails it. Thresholds are the owner-ruled raised pair;
+        # distribution evidence + tracked-slow list in the ledger WP0.5 row.
+        run: uv run python scripts/audit-test-durations.py test-results/
         env:
-          UNIT_TEST_THRESHOLD: '1.0'
-          INTEGRATION_TEST_THRESHOLD: '5.0'
+          UNIT_TEST_THRESHOLD: '4.0'
+          INTEGRATION_TEST_THRESHOLD: '10.0'
           E2E_TEST_THRESHOLD: '10.0'
+          SLOW_TEST_THRESHOLD: '60.0'
           WARN_THRESHOLD_PERCENT: '80'
 
       - name: Create Linear issue on failure
-        if: failure()
+        # WP0.5: the job now gates PRs too — a PR failure is a red check the
+        # author sees inline; only post-merge main failures file the follow-up.
+        if: failure() && github.ref == 'refs/heads/main'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |

@@ -3032,3 +3032,37 @@ Done-when half 2 (still reports genuine dead code) — planted probes:
 - `import difflib` (globally common name): package scan did NOT report it at 80%; direct single-file scan did (90%). Mechanism pinned: vulture's unused-import rule skips names used ANYWHERE in the scanned tree (backend/ has ~90 difflib users) — a real vulture semantic, not a config bug.
 - Globally-unique probe `import xmlrpc.client as wp04_unique_alias_xyz` in backend/core/: package scan reports it at 90% confidence ✓. (Note: the CI gate command exits 0 even while printing findings — the job's `|| true` sibling in weekly-audit vs ci.yml:1059 bare command is why the gate verdict itself deserves WP0.6 scrutiny.)
   After whitelist: 0 findings, rc=0. Genuine-dead-code bite: proven via unique-name probe (rm'd after).
+
+## WP0.5 MEASUREMENT + RULING + IMPLEMENTATION — Test Performance Audit (2026-09-16)
+
+MEASURE (main run 35049640472, thresholds unit=1.0s/integration=5.0s/e2e=10.0s):
+FAIL — 46 rows exceeded = **37 unit / 9 integration** (~30 distinct tests; shard
+duplicates inflate rows). Unit worst 16.12s (test_timestamp_auto_generated),
+6.00s (test_connection_timeout RTSP); majority of the 3.xs cluster are
+Hypothesis property tests (multi-second by design). Integration worst 9.01s
+(openapi schema) + 5.16–5.83s auth-flow API-key cluster. Job was main-only,
+nothing `needs:` it → purely advisory red.
+
+RULING (owner, 2026-09-16, AskUserQuestion): "Gate at raised thresholds" —
+keep the job, make it gate, thresholds from the measured distribution so the
+honest baseline passes but NEW slow tests bite; the >cap outliers become a
+tracked list for Phase 2's p50/p95 backlog (WP2.4), not a 46-test fix project.
+
+IMPLEMENTATION + MEASURE (replay = ground truth):
+
+- New thresholds unit 4.0s / integration 10.0s / e2e 10.0s / slow-cap 60.0s.
+- Replayed the ACTUAL main-run artifacts (9 JUnit XMLs downloaded via gh)
+  through the modified gate: **FAIL(46) → PASS with 3 warnings, 224 known-slow
+  tracked, 0 failures, rc=0.** Zero laundering: exactly 2 tests remain >4s and
+  are added to SLOW_TEST_PATTERNS with provenance comments (error_handler
+  timestamp 16.1s, rtsp connection_timeout 6.0s); a tracked test at 61s still
+  fails (gate test case 5).
+- Vacuous-pass hole closed: `audit-test-durations.py` now FAILS on a results
+  dir with zero XML (was: warning + exit 0). ci.yml's "skip + exit 0" branch
+  deleted.
+- The gate now runs on PRs too (mirrors unit-tests' exact availability
+  `if:` — skips honestly on frontend/docs-only PRs, which have no data by
+  design, never passes vacuously). Linear-issue step scoped main-only.
+- TDD: scripts/test_audit_gate.sh, 7 cases, red 3 → green 7 (new 4.5s unit
+  bites; 3.5s passes raised gate; int 9.5 pass/12 fail; tracked 16s pass /
+  61s bite; empty dir FAILS; benchmarks stay excluded).
