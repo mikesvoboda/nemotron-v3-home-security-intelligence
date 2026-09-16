@@ -3745,3 +3745,27 @@ exit codes) against canned runner output — real pytest/vitest integration is
 WP2.4's job when the fast tier gets wired into pre-push (the runners' real
 invocations are the same lines the playbook already exercised in run 1).
 Commits: e1c1acda (contract), 5b43a198 (machine-visible names).
+
+## OWNER RULINGS 2026-09-16 (batch, asked pre-Phase-3 to unblock the queue)
+
+- **WP3.6 GB300 trust boundary — DEFERRED ENTIRELY.** Owner chose neither offered
+  trust arrangement: no GB300 registration this program; Phase 3 stays on the
+  hosted x86 runners. The plan's "confirm the arrangement with the owner before
+  enabling" is now answered as "do not enable." arm64 CI remains a backlog item,
+  not a WP. Removes the last standing STOP-AND-ASK from Phase 3.
+- **R-T9-EXPORTDEFER / R-T9-MQTTPUMP / R-T9-MVSOURCE — FIXES FOLD INTO THE
+  PROGRAM SCHEDULE** (supersedes "parked; tickets later"). Each is a production
+  bugfix with its own commit, slotted AFTER Phase 2 closes and BEFORE WP3.1
+  (they are not sizing work, so WP3.1-before-sizing still holds; test alignment
+  already landed in waves K-1R/K-2 — these commits fix production to make the
+  honest skips collectable-as-passing). Sequence: EXPORTDEFER (every non-empty
+  export fails — worst user-visible), MQTTPUMP (pump never starts), MVSOURCE
+  (DDL source missing since 6d7ae425 — restore or consciously retire the views;
+  that sub-choice surfaces at the WP, evidence first).
+- **Trivy advisory reds — ONE-SHOT REVIEW-DATE TRIAGE COMMIT**, scheduled after
+  the Phase 2 push + CI-truth verdict, before Phase 3 kickoff. Honest per-CVE
+  review (upstream-fix-status check), refresh dates only where defensible;
+  anything genuinely unfixable gets surfaced, not blanket-ignored.
+- **#6549 merge mechanics — re-arm auto-squash after the Phase 2 push**
+  (owner pressed auto-squash once at 15:26Z; gate failure disarmed it). Once
+  the push's CI Gate goes green, #6549 squash-merges itself into main.
