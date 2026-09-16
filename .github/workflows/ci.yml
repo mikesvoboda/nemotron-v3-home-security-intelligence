@@ -96,11 +96,13 @@ jobs:
       # WP0.7: the two gates above are themselves tested; the suites sit
       # outside testpaths on purpose (no self-collection) — run explicitly.
       # A regression in either gate script fails here (scripts/test_*.py).
+      # WP0.9 added the coverage-diff gate's own tests to the same list.
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
           scripts/test_check_test_collection.py
           scripts/test_check_flake_allowlist.py
+          scripts/test_check_coverage_diff.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
@@ -344,6 +346,7 @@ jobs:
         run: find coverage-reports/ -name "*.xml" | head -20
 
       - name: Combine and check coverage threshold
+        id: combine
         run: |
           # List available coverage files
           echo "Available coverage files:"
@@ -354,12 +357,39 @@ jobs:
             uv run coverage combine --data-file=.coverage
             uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null
             echo "Coverage merged successfully"
+            # WP0.9: publish a machine-readable baseline from REAL merged data
+            # only. The else-branch `touch .coverage` vacuous fill (logged as a
+            # residual in the WP0.6 ledger row) must never mint a baseline —
+            # merged=true is set exclusively on this path.
+            # --fail-under=0 here is number EXTRACTION, not a floor change:
+            # [tool.coverage.report] fail_under=85 would make this command exit
+            # 1 and redden the job (and drop the codecov artifact) exactly when
+            # coverage moves. The 85% floor lives in the diff gate (WP0.9) and
+            # the ci-gate checks — same rationale as the shard jobs'
+            # --cov-fail-under=0.
+            total="$(uv run coverage report \
+              --data-file=.coverage --format=total --fail-under=0)"
+            printf '{"percent_covered": %s, "source": "ci.yml unit-tests-coverage-merge @ %s"}\n' \
+              "$total" "${GITHUB_SHA}" > coverage-baseline.json
+            cat coverage-baseline.json
+            echo "merged=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::No coverage files found to merge"
             # Create empty coverage files to prevent downstream failures
             touch .coverage
             touch coverage-unit.xml
           fi
+
+      # WP0.9: main-only. test-coverage-gate.yml fetches this artifact from the
+      # latest successful main run as COVERAGE_BASE_JSON, so PRs diff against
+      # main's real merged number without re-running the suite on base.
+      - name: Publish coverage baseline (main)
+        if: steps.combine.outputs.merged == 'true' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: coverage-baseline
+          path: coverage-baseline.json
+          retention-days: 30
 
       - name: Upload merged unit test coverage
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5

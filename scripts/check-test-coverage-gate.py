@@ -12,6 +12,7 @@ Usage:
 """
 
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -218,58 +219,159 @@ def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
     return None
 
 
-def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
-    """Check if coverage has decreased.
+BASELINE_FILENAME = "coverage-baseline.json"
 
-    Args:
-        base_branch: Base branch to compare against
+
+def _read_percent(path: Path) -> float | None:
+    """Read a coverage percentage from a coverage.json report or a baseline file.
+
+    Accepts both shapes: coverage's own report nests the number under
+    "totals" ({"totals": {"percent_covered": ...}}) while a committed baseline
+    file is the flat {"percent_covered": ...} it was written from. Returns None
+    for absent/unparseable input so the caller can apply skip semantics.
+    """
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except OSError, ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    if isinstance(data.get("totals"), dict):
+        value = data["totals"].get("percent_covered")
+    else:
+        value = data.get("percent_covered")
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def _current_via_seam() -> tuple[bool, float | None]:
+    """(seam_present, percent) for the working tree.
+
+    Seam = COVERAGE_JSON env (explicit, e.g. CI that collected coverage in an
+    earlier step) or ./coverage.json. A SET-but-UNREADABLE seam is an honest
+    "no data" answer — skip, never collect over the top of a caller's explicit
+    choice. Only when NO seam exists (classic CI invocation: the gate job
+    collects inline) does the caller fall through to collection.
+    """
+    env_path = os.environ.get("COVERAGE_JSON")
+    if env_path:
+        return True, _read_percent(Path(env_path))
+    path = Path("coverage.json")
+    if path.is_file():
+        return True, _read_percent(path)
+    return False, None
+
+
+def _base_percent_from_git(base_branch: str) -> tuple[float | None, str]:
+    """Base coverage from the baseline file committed at the base ref.
+
+    Returns (percent, note). This is the mechanism that makes the gate work in
+    CI without running the suite twice: `main` publishes
+    coverage-baseline.json, so the PR side only needs its own number.
+    """
+    try:
+        raw = subprocess.check_output(
+            ["git", "show", f"{base_branch}:{BASELINE_FILENAME}"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError, OSError:
+        return None, f"no {BASELINE_FILENAME} at {base_branch}"
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None, f"{BASELINE_FILENAME} at {base_branch} is not valid JSON"
+    value = data.get("percent_covered") if isinstance(data, dict) else None
+    if not isinstance(value, (int, float)):
+        return None, f"{BASELINE_FILENAME} at {base_branch} has no percent_covered"
+    return float(value), f"baseline from {base_branch}:{BASELINE_FILENAME}"
+
+
+def check_coverage_diff(
+    base_branch: str = "origin/main",
+    current_percent: float | None = None,
+    base_percent: float | None = None,
+) -> tuple[bool, str]:
+    """Fail when coverage has DROPPED relative to the base branch.
+
+    The name is now the contract. Pre-WP0.9 this ran the suite and reported
+    `True, "Current coverage: X%"` for every input, so no drop could ever be
+    detected — the spec's "misleading name is the actual defect".
+
+    Resolution order, current side: explicit `current_percent`, then the
+    coverage.json seam (COVERAGE_JSON env, else ./coverage.json), then a full
+    suite run that generates the report (the classic CI call — no seam — where
+    the gate job collects inline; never vacuous in production). Base side:
+    explicit `base_percent`, then COVERAGE_BASE_JSON, then
+    `git show <base_branch>:coverage-baseline.json`.
+
+    Skip semantics are genuine, not vacuous: an explicit seam that points at
+    nothing (coverage never collected) or an unpublished baseline skips with a
+    message saying so. What it can never do again is see both numbers
+    and still pass a drop.
 
     Returns:
         Tuple of (passed, message)
     """
-    project_root = Path(__file__).parent.parent
+    if current_percent is None:
+        seam, seam_percent = _current_via_seam()
+        if seam:
+            if seam_percent is None:
+                return True, "Coverage seam present but unreadable/empty, skipping coverage diff"
+            current_percent = seam_percent
+        else:
+            # Nothing collected yet (classic CI invocation): collect once inline,
+            # anchored at the repo root like the pre-WP0.9 code (the script may
+            # be invoked from any directory).
+            project_root = Path(__file__).resolve().parent.parent
+            try:
+                subprocess.run(
+                    [
+                        "uv",
+                        "run",
+                        "pytest",
+                        "backend/tests/unit/",
+                        "--cov=backend",
+                        "--cov-report=json",
+                        "-q",
+                    ],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                )
+            except (subprocess.CalledProcessError, OSError) as e:
+                stderr_msg = getattr(e, "stderr", None)
+                detail = stderr_msg.decode()[:300] if isinstance(stderr_msg, bytes) else str(e)
+                return False, f"Coverage collection failed: {detail}"
+            current_percent = _read_percent(project_root / "coverage.json")
+            if current_percent is None:
+                return True, "No coverage data collected, skipping coverage diff check"
 
-    try:
-        # Run coverage for current branch
-        subprocess.run(
-            [
-                "uv",
-                "run",
-                "pytest",
-                "backend/tests/unit/",
-                "--cov=backend",
-                "--cov-report=json",
-            ],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-        )
+    if base_percent is None:
+        env_base = os.environ.get("COVERAGE_BASE_JSON")
+        if env_base:
+            base_percent = _read_percent(Path(env_base))
+            base_note = f"base from COVERAGE_BASE_JSON={env_base}"
+        else:
+            base_percent, base_note = _base_percent_from_git(base_branch)
+    else:
+        base_note = "explicit base"
 
-        coverage_file = project_root / ".coverage"
-        if not coverage_file.exists():
-            # Coverage not available, skip check
-            return True, "Coverage file not found, skipping coverage diff check"
+    if base_percent is None:
+        return True, f"Current coverage {current_percent:.1f}% — {base_note}, skipping diff"
 
-        # Parse coverage JSON (--cov-report=json generates coverage.json)
-        coverage_json = project_root / "coverage.json"
-        if coverage_json.exists():
-            # Resolve to absolute path for security
-            resolved_path = coverage_json.resolve()
-            with open(resolved_path) as f:  # nosemgrep: path-traversal-open
-                current_coverage = json.load(f)
-                current_percentage = current_coverage.get("totals", {}).get("percent_covered", 0)
-
-                return True, f"Current coverage: {current_percentage:.1f}%"
-
-        return True, "Unable to parse coverage data"
-
-    except subprocess.CalledProcessError as e:
-        stderr_msg = e.stderr.decode()[:500] if e.stderr else ""
-        stdout_msg = e.stdout.decode()[-500:] if e.stdout else ""
+    if current_percent < base_percent:
         return (
             False,
-            f"Coverage check failed: {e!s}\nSTDERR: {stderr_msg}\nSTDOUT (last 500): {stdout_msg}",
+            f"Coverage DROPPED {base_percent:.1f}% -> {current_percent:.1f}% "
+            f"(-{base_percent - current_percent:.1f}pp; {base_note})",
         )
+
+    return (
+        True,
+        f"Coverage {current_percent:.1f}% vs base {base_percent:.1f}% (+{current_percent - base_percent:.1f}pp)",
+    )
 
 
 def main() -> int:
@@ -295,11 +397,13 @@ def main() -> int:
 
     print("Checking test coverage requirements...\n")
 
-    # Get changed files
+    # Get changed files. An empty change list must NOT short-circuit the
+    # coverage diff below — that early return was a second vacuous exit: a
+    # shallow checkout or an unresolvable base ref yields no changes and would
+    # have skipped the drop check entirely (same bug family WP0.7 catalogued).
     changes = get_changed_files(args.base_branch)
     if not changes:
-        print("No changes detected")
-        return 0
+        print("No changed files detected (requirement checks skipped)")
 
     # Check requirements for each file
     requirements = []

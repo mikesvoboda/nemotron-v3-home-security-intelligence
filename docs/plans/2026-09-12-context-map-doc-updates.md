@@ -3260,3 +3260,62 @@ without the fixture, green with it; (c) the exact original condition — full un
 tier in validate.sh's own shape at `--randomly-seed=1556902420` — re-run green.
 NOTE for readers: `-n 8` split the probe files across workers and gave a
 false-green necessity check; load-bearing proof requires same-worker `-n0`.
+
+## WP0.9 MEASUREMENT + DECIDE — make the two coverage gates bite (2026-09-16)
+
+MEASURE (baseline census): `check-integration-tests` ran with
+`continue-on-error: true` (test-coverage-gate.yml:116) — structurally unable to
+redden the workflow; summary job read only test-coverage-gate's result.
+`check_coverage_diff()` (check-test-coverage-gate.py:221) never compared against
+a base: it unconditionally returned `(True, "Current coverage: X%")`, and its
+`base_branch` param was used ONLY by the requirement loop. Two more vacuous exits
+found in the same family (WP0.7 taxonomy): `if not changes: return 0` skipped the
+diff on empty-diff/shallow-checkout, and the old code read repo-root `.coverage`/
+`coverage.json` by absolute path while running pytest with cwd=repo root (fixture
+incapable AND CI-path-wrong). Proof-before-fix: scripts/test_check_coverage_diff.py
+against the old function = 7 failed (drop passes, equal/increase trigger a live
+FULL-SUITE run, skip cases fake passes).
+CI truth: Test Coverage Gate workflow green on recent PRs (35046691534 all jobs
+`success`) — so enabling the check flips nothing today; the gate stays green
+until a real violation.
+
+DECIDE (plan branch): REAL diff, not a rename — the plan states a real diff is
+higher-value; the misleading name was the defect. Base source = main's published
+baseline ARTIFACT, not a base-branch re-run: the gate job has no DB services, a
+re-run costs +9 min on every PR, and `coverage report --format=total
+--fail-under=0` gives the merged number without re-collection (the
+fail-under=0 is extraction, not a floor: [tool.coverage.report]
+fail_under=85 would make the number-extraction call exit 1 and redden the
+merge job exactly when coverage moves — same rationale as the shard jobs'
+--cov-fail-under=0). Publisher added to ci.yml unit-tests-
+coverage-merge, main-only (the job also runs on PRs; only main publishes), set
+behind `merged=true` so the `touch .coverage` vacuous-fill branch — WP0.6
+residual — can never mint a baseline. Fetcher scans the newest completed main
+runs for the artifact: artifact EXISTENCE is the trust marker (never minted
+vacuously), so no run-conclusion filter — main is currently red fleet-wide on
+Trivy, and a successful-run-only filter would skip baselines for weeks
+(main's last green ci.yml predates the retention window). Absent everywhere =
+the script's honest skip, never a faked pass.
+Collection fallback kept for the classic no-seam CI call (gate job collects the
+unit tier inline — DB-less unit tier passes: probes 30/30 without
+TEST_DATABASE_URL); an explicit-but-unreadable seam skips instead of
+collect-over-the-top. Threshold = ANY drop (floors 85/83 untouched — not a floor
+change, a diff mechanism). Summary job now gates on coverage-gate AND
+check-integration-tests results; api-test-generation stays advisory (its own
+step is `|| true` + continue-on-error = explicitly NEVER-RED triage).
+
+IMPLEMENTATION: check_coverage_diff rewritten (seams: explicit args /
+COVERAGE_JSON / COVERAGE_BASE_JSON / git-shipped coverage-baseline.json
+fallback); NEW scripts/test_check_coverage_diff.py (7 cases, added to the WP0.7
+anti-rot pytest list — real pytest file, unlike WP0.8's standalone script);
+test-coverage-gate.yml (fetch step + env + continue-on-error removed + summary
+gates both verdicts); ci.yml (baseline writer + main-only upload).
+
+DONE-WHEN PROOF: "a PR that drops coverage fails" — test_coverage_drop_fails +
+test_cli_exit_code_on_drop (rc=1 AND stdout names DROPPED — distinguishes the
+drop verdict from the collection-failure branch that shares the exit code);
+collection-sanity list 30 passed in CI shape (-n 8 worksteal).
+RESIDUAL: branch protection requires exactly one context ("CI Gate (Required
+Checks)", API-verified) — this workflow's verdict is visible and real but not
+merge-blocking; routing it through ci-gate is the owner's branch-protection
+surface, flagged for the WP close-out (no plan WP owns it).
