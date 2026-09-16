@@ -4044,3 +4044,41 @@ Follow-up worth a future WP, NOT taken here: validate.sh gains the CI-only
 gate steps (census --expect, ratchet, the `scripts/test*\*.py` list) so local green
 means CI green for this job too — the mirror-set class of staleness is
 exactly what a pre-push replay would have made impossible.
+
+## R-T9-EXPORTDEFER — FIXED (2026-09-16, owner ruling: fold after Phase 2, first of the three)
+
+**[RED-FIRST + production fix, same commit]** The 2026-09-14 row above stands
+as the original record; this is its closure. Chosen fix = the plan's option
+A (undefer at the QUERY site): `select(Event).options(undefer(Event.reasoning))`
+at both export query builds — export_service.py's progress method (the live
+path, ~:761) and the zero-production-caller websocket variant (same cause,
+cleaned in the same commit). The rejected alternative (un-defer on the model)
+stays rejected — it regresses every list query to the large-text load — and
+the unit lock's side 1 fails if anyone makes that move. Repo precedent for
+options-at-build: event_service.py:200-210, background_evaluator.py.
+
+RED evidence before the fix: new integration
+TestExportDeferredReasoning::test_nonempty_export_completes failed with
+exactly the shipped traceback (MissingGreenlet via await_only, job row
+FAILED, error_message cites it); both unit mechanism locks
+(TestExportDeferredColumns, export-service unit file) failed on the compiled
+fetch text lacking events.reasoning. GREEN after: 22/22 integration module
+(incl. TestExportDownload re-enabled — its poll loops now break on the first
+tick) + 297/297 export-tier unit tests.
+
+Unit lock, corrected mechanism: the plan drafted `_compile_state_options`
+introspection (à la a remembered test_search trick); neither exists —
+probed empirically instead: a plain deferred select OMITS events.reasoning
+from compiled text, undefer renders it, and the count-over-subquery renders
+ALL columns either way, so the locks assert presence on the fetch stmt (2nd
+execute) only, plus model-side "bare select still defers". Same commit per
+the suppression-platform contract: skipped-by-constant module skip dropped
+(TestExportDownload), PENDING/FAILED defect tolerances at both lifecycle
+sites tightened to COMPLETED, module comment rewritten, EXPORTDEFER_REASON
+retired, registry regen removed the TestExportDownload defect entry (the
+only semantic diff — prettier adopt-cycle kept the 8-line removal minimal),
+and the skipif mirror triple followed the census: baseline 63→62 via
+ratchet --update, ci.yml --expect + test mirror at 62. Census replay green.
+Follow-up ticket noted by the plan, NOT taken here: frontend/src/types/
+export.ts lacks the 'cancelled' status the backend schema + cancel route can
+emit (pre-existing frontend/backend enum drift).

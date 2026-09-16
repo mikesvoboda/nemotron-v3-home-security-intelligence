@@ -1359,14 +1359,6 @@ pytest_skipif:
     tracking: null
     expires: null
     reason: Database tests require a reachable PostgreSQL (TEST_DATABASE_URL/DATABASE_URL unset)
-  - id: backend/tests/integration/test_export_api.py::TestExportDownload
-    kind: defect
-    owner: mikesvoboda
-    tracking: R-T9-EXPORTDEFER
-    expires: '2026-10-15'
-    reason:
-      'shipped defect R-T9-EXPORTDEFER: non-empty export always fails via deferred Event.reasoning read in async
-      job (owner ruling pending)'
   - id: backend/tests/integration/test_file_watcher_filesystem.py::TestPermissionErrorHandling::test_handles_permission_denied_on_directory
     kind: environment
     owner: mikesvoboda

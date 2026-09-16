@@ -1389,3 +1389,112 @@ class TestExportConstants:
         # Extended should have additional fields
         assert "object_types" in extended_fields
         assert "reasoning" in extended_fields
+
+
+class TestExportDeferredColumns:
+    """Mechanism lock for R-T9-EXPORTDEFER (deferred Event.reasoning).
+
+    Two sides, both required — each alone is launderable:
+    1. The MODEL contract: a bare ``select(Event)`` must still NOT render
+       events.reasoning. If someone "fixes" the defect by un-deferring the
+       column outright, every query pays the large-text load again (the
+       ledger's rejected alternative) — this side goes red on that move.
+    2. The FIX contract: the export methods' EVENT query must render
+       events.reasoning (undefer at query-build), while its COUNT companion
+       stays untouched. Empirical basis (SQLAlchemy 2.0.53): a plain deferred
+       select omits the column from compiled text; ``.options(undefer(...))``
+       adds it; a count-over-subquery renders all columns EITHER way, so only
+       the fetch statement is checked for presence.
+    """
+
+    @staticmethod
+    def _mock_event():
+        from unittest.mock import MagicMock
+
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "cam-1"
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        event.ended_at = None
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Test"
+        event.detection_count = 1
+        event.reviewed = False
+        event.object_types = None
+        event.reasoning = "why the model thought so"
+        return event
+
+    @staticmethod
+    def _mock_results(event):
+        from unittest.mock import MagicMock
+
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
+        event_result = MagicMock()
+        event_result.scalars.return_value.all.return_value = [event]
+        camera_result = MagicMock()
+        camera_result.scalar.return_value = "Camera"
+        return [count_result, event_result, camera_result]
+
+    def test_bare_event_select_still_defers_reasoning(self):
+        """Side 1: the column stays deferred at the model — the fix belongs
+        at the query site, not at mapped_column(deferred(...))."""
+        from sqlalchemy import select
+
+        from backend.models.event import Event
+
+        text_ = str(select(Event).compile())
+        assert "events.reasoning" not in text_
+
+    async def test_progress_method_fetch_undefers_reasoning(self, tmp_path):
+        """Side 2 for export_events_with_progress: the FETCH statement (2nd
+        execute; 1st is the count, 3rd the camera-name lookup) must carry
+        undefer(Event.reasoning) — reading the deferred column synchronously
+        inside the async job is what raised MissingGreenlet."""
+        from unittest.mock import AsyncMock
+
+        from backend.services.job_tracker import JobTracker
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(side_effect=self._mock_results(self._mock_event()))
+
+        tracker = JobTracker()
+        tracker.create_job("export", job_id="defer-lock-job")
+
+        service = ExportService(db=mock_db)
+        await service.export_events_with_progress(
+            job_id="defer-lock-job",
+            job_tracker=tracker,
+            export_format="csv",
+        )
+
+        stmts = [c.args[0] for c in mock_db.execute.call_args_list]
+        assert len(stmts) == 3  # count, fetch, camera-name
+        assert "events.reasoning" in str(stmts[1].compile())
+
+    async def test_websocket_method_fetch_undefers_reasoning(self):
+        """Side 2 for export_events_with_websocket (no production callers —
+        fixed same commit as cleanup; locked here identically)."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        reporter = MagicMock()
+        reporter.start = AsyncMock()
+        reporter.report_progress = AsyncMock()
+        reporter.complete = AsyncMock()
+        reporter.fail = AsyncMock()
+        reporter.job_id = "defer-lock-job"
+        reporter.duration_seconds = 1.0
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(side_effect=self._mock_results(self._mock_event()))
+
+        service = ExportService(db=mock_db)
+        await service.export_events_with_websocket(
+            progress_reporter=reporter,
+            export_format="csv",
+        )
+
+        stmts = [c.args[0] for c in mock_db.execute.call_args_list]
+        assert len(stmts) == 3
+        assert "events.reasoning" in str(stmts[1].compile())
