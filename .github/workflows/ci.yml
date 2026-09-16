@@ -105,6 +105,7 @@ jobs:
           scripts/test_check_test_collection.py
           scripts/test_check_flake_allowlist.py
           scripts/test_check_coverage_diff.py
+          scripts/test_check_gate_changed_files.py
           scripts/test_check_test_timeouts.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,

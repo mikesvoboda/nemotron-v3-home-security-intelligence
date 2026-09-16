@@ -70,6 +70,22 @@ class TestRequirement:
     test_files: list[str]
 
 
+def _numstat_new_path(p: str) -> str:
+    """Resolve numstat's path column to the file's NEW name.
+
+    Rename detection renders paths as `old => new` or `dir/{old => new}.py`;
+    the requirement checks care about the new path.
+    """
+    if " => " in p:
+        if "{" in p and "}" in p:
+            pre, rest = p.split("{", 1)
+            mid, post = rest.split("}", 1)
+            _old, new_part = mid.split(" => ", 1)
+            return pre + new_part + post
+        return p.split(" => ", 1)[1]
+    return p
+
+
 def get_changed_files(base_branch: str = "origin/main") -> list[FileChange]:
     """Get list of changed files in the PR.
 
@@ -84,42 +100,55 @@ def get_changed_files(base_branch: str = "origin/main") -> list[FileChange]:
             stderr=subprocess.DEVNULL,
         ).strip()
 
-        # Get diff stats
-        diff_output = subprocess.check_output(
-            ["git", "diff", "--name-status", "--numstat", f"{merge_base}...HEAD"],
+        # PRE-EXISTING parser bug fixed: git does NOT combine --name-status
+        # with --numstat — name-status wins and lines come out `M\tpath`
+        # (2 fields), which the old 3-field parser dropped wholesale: every
+        # diff read as zero changes. Run the two formats separately and join
+        # on the new path (WP0.1's first full-tree pre-push surfaced this).
+        status_output = subprocess.check_output(
+            ["git", "diff", "--name-status", f"{merge_base}...HEAD"],
             text=True,
         )
-
-        changes = []
-        for line in diff_output.strip().split("\n"):
-            if not line:
-                continue
-
-            parts = line.split("\t")
-            if len(parts) < 3:
-                continue
-
-            status = parts[0]
-            additions = int(parts[1]) if parts[1].isdigit() else 0
-            deletions = int(parts[2]) if parts[2].isdigit() else 0
-            path = parts[3] if len(parts) > 3 else parts[2]
-
-            # Map git status codes to our status names
-            status_map = {
-                "A": "added",
-                "M": "modified",
-                "D": "deleted",
-                "R": "renamed",
-                "C": "copied",
-            }
-            status = status_map.get(status[0], "modified")
-
-            changes.append(FileChange(path, status, additions, deletions))
-
-        return changes
+        numstat_output = subprocess.check_output(
+            ["git", "diff", "--numstat", f"{merge_base}...HEAD"],
+            text=True,
+        )
     except subprocess.CalledProcessError as e:
         print(f"Error getting changed files: {e}", file=sys.stderr)
         return []
+
+    counts: dict[str, tuple[int, int]] = {}
+    for line in numstat_output.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        # Binary files report "-" instead of counts.
+        additions = int(parts[0]) if parts[0].isdigit() else 0
+        deletions = int(parts[1]) if parts[1].isdigit() else 0
+        counts[_numstat_new_path(parts[2])] = (additions, deletions)
+
+    status_map = {
+        "A": "added",
+        "M": "modified",
+        "D": "deleted",
+        "R": "renamed",
+        "C": "copied",
+    }
+    changes = []
+    for line in status_output.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split("\t")
+        code = parts[0][0]
+        status = status_map.get(code, "modified")
+        # R/C lines carry old AND new path; the new path is the last field.
+        path = parts[-1]
+        additions, deletions = counts.get(path, (0, 0))
+        changes.append(FileChange(path, status, additions, deletions))
+
+    return changes
 
 
 def find_test_file(source_file: str) -> str | None:

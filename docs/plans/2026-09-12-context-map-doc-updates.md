@@ -3373,3 +3373,22 @@ CORRECT flag (the checker was not bent). RED-first evidence = the captured
 pre-edit full-tree run (rc=1, exactly 12 findings). Wired into the WP0.7
 collection-sanity anti-rot pytest list (CI shape re-verified: 34 passed);
 graph test still green (34 jobs, gate reaches 28).
+
+## PRE-EXISTING (surfaced by WP0.1 gate, first full-tree pre-push) — get_changed_files parsed nothing: git's --name-status/--numstat mutual exclusion (2026-09-16)
+
+MEASURE: the full-tree pre-push ran scripts/check-test-coverage-gate.py as the
+'check-new-files-have-tests' hook over 68 changed files and printed "No
+changed files detected" — get_changed_files() returned [] for every diff.
+Mechanism: `git diff --name-status --numstat` is NOT a combined format — git
+gives --name-status precedence and emits `M\tpath` 2-field lines; the parser
+required >=3 fields and skipped every line. Blind from birth: the pre-WP0.9
+`if not changes: return 0` vacuous exit made even the emptiness invisible;
+WP0.9's honest skip exposed it. Requirement half of the gate — file→test
+matching, 85/80 thresholds — had never actually checked anything.
+
+FIX + PROOF: scripts/test_check_gate_changed_files.py (4 cases, RED first:
+3 parser drops + rename; scratch repos use REAL git so the parser is pinned
+against git's actual output, not a guess of it). Rewritten as two separate
+diff runs (name-status for status, numstat for counts) joined on the new path,
+with rename `{old => new}` rendering resolved to the new path. Real tree after
+fix: 68 files parsed (was 0); the hook shape now reports per-file ✓/✗ verdicts.
