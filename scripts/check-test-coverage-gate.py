@@ -328,12 +328,14 @@ def check_coverage_diff(
     `True, "Current coverage: X%"` for every input, so no drop could ever be
     detected — the spec's "misleading name is the actual defect".
 
-    Resolution order, current side: explicit `current_percent`, then the
-    coverage.json seam (COVERAGE_JSON env, else ./coverage.json), then a full
-    suite run that generates the report (the classic CI call — no seam — where
-    the gate job collects inline; never vacuous in production). Base side:
-    explicit `base_percent`, then COVERAGE_BASE_JSON, then
-    `git show <base_branch>:coverage-baseline.json`.
+    Resolution order, base side first: explicit `base_percent`, then
+    COVERAGE_BASE_JSON, then `git show <base_branch>:coverage-baseline.json`.
+    An unresolvable base skips BEFORE any collection — the old order ran the
+    full suite and only then discovered there was nothing to diff against.
+    Current side: explicit `current_percent`, then the coverage.json seam
+    (COVERAGE_JSON env, else ./coverage.json), then a full suite run that
+    generates the report (the classic no-seam call, where the gate collects
+    inline; never vacuous in production).
 
     Skip semantics are genuine, not vacuous: an explicit seam that points at
     nothing (coverage never collected) or an unpublished baseline skips with a
@@ -343,40 +345,6 @@ def check_coverage_diff(
     Returns:
         Tuple of (passed, message)
     """
-    if current_percent is None:
-        seam, seam_percent = _current_via_seam()
-        if seam:
-            if seam_percent is None:
-                return True, "Coverage seam present but unreadable/empty, skipping coverage diff"
-            current_percent = seam_percent
-        else:
-            # Nothing collected yet (classic CI invocation): collect once inline,
-            # anchored at the repo root like the pre-WP0.9 code (the script may
-            # be invoked from any directory).
-            project_root = Path(__file__).resolve().parent.parent
-            try:
-                subprocess.run(
-                    [
-                        "uv",
-                        "run",
-                        "pytest",
-                        "backend/tests/unit/",
-                        "--cov=backend",
-                        "--cov-report=json",
-                        "-q",
-                    ],
-                    cwd=project_root,
-                    check=True,
-                    capture_output=True,
-                )
-            except (subprocess.CalledProcessError, OSError) as e:
-                stderr_msg = getattr(e, "stderr", None)
-                detail = stderr_msg.decode()[:300] if isinstance(stderr_msg, bytes) else str(e)
-                return False, f"Coverage collection failed: {detail}"
-            current_percent = _read_percent(project_root / "coverage.json")
-            if current_percent is None:
-                return True, "No coverage data collected, skipping coverage diff check"
-
     if base_percent is None:
         env_base = os.environ.get("COVERAGE_BASE_JSON")
         if env_base:
@@ -388,7 +356,55 @@ def check_coverage_diff(
         base_note = "explicit base"
 
     if base_percent is None:
-        return True, f"Current coverage {current_percent:.1f}% — {base_note}, skipping diff"
+        # Skip BEFORE collecting: no baseline exists to diff against, so the
+        # 90s+ suite run would buy nothing (the first full-tree pre-push
+        # proved it — collection ran, then the diff skipped for want of a base).
+        return True, f"No base coverage available ({base_note}), skipping diff"
+
+    if current_percent is None:
+        seam, seam_percent = _current_via_seam()
+        if seam:
+            if seam_percent is None:
+                return True, "Coverage seam present but unreadable/empty, skipping coverage diff"
+            current_percent = seam_percent
+        else:
+            # Nothing collected yet (classic invocation): collect once inline,
+            # anchored at the repo root like the pre-WP0.9 code (the script may
+            # be invoked from any directory). --cov-fail-under=0 because this
+            # call EXISTS to extract the number: pytest-cov would otherwise
+            # apply pyproject's fail_under=85 to the run, and unit-tier-only
+            # coverage (84.4% measured) would exit 1 and fail the gate for the
+            # wrong reason — collection, not diff (same extraction-not-floor
+            # rationale as the ci.yml shard jobs).
+            project_root = Path(__file__).resolve().parent.parent
+            try:
+                proc = subprocess.run(
+                    [
+                        "uv",
+                        "run",
+                        "pytest",
+                        "backend/tests/unit/",
+                        "--cov=backend",
+                        "--cov-report=json",
+                        "--cov-fail-under=0",
+                        "-q",
+                    ],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                # pytest writes findings to stdout; reporting only stderr gave
+                # a useless empty "collection failed:" detail on the first
+                # real occurrence. Report whichever side has content.
+                detail = ((e.stderr or "") + "\n" + (e.stdout or "")).strip()[-300:]
+                return False, f"Coverage collection failed (rc={e.returncode}): {detail}"
+            except OSError as e:
+                return False, f"Coverage collection failed to launch: {e}"
+            current_percent = _read_percent(project_root / "coverage.json")
+            if current_percent is None:
+                return True, "No coverage data collected, skipping coverage diff check"
 
     if current_percent < base_percent:
         return (

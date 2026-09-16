@@ -3392,3 +3392,29 @@ against git's actual output, not a guess of it). Rewritten as two separate
 diff runs (name-status for status, numstat for counts) joined on the new path,
 with rename `{old => new}` rendering resolved to the new path. Real tree after
 fix: 68 files parsed (was 0); the hook shape now reports per-file ✓/✗ verdicts.
+
+## WP0.9 FOLLOW-UP (same first full-tree pre-push) — collect-then-skip ordering + fail_under trap in the fallback collection (2026-09-16)
+
+MEASURE: the same hook step took 98.62s and rc=1: base was unresolvable
+(origin/main has no coverage-baseline.json — correct honest skip), but the
+function collected the FULL unit tier FIRST (93.6s), and the collection
+exited 1 because pytest-cov applies pyproject fail_under=85 to the run while
+unit-tier-only coverage is 84.39% (validate's 87.99% includes contracts+
+security). Two defects, both in code WP0.9 shipped 2 commits ago:
+(a) skip-before-collect ordering — the diff skipped for want of a base AFTER
+spending 90s+ to learn it; (b) the extraction-not-floor rule was applied to
+the ci.yml coverage-report call and MISSED on the pytest fallback — same trap,
+same family (the spec's vacuous-exit taxonomy runs adjacent to it: a gate that
+fails for the wrong reason is as rot-prone as one that vacuously passes).
+Also: collection failures printed an EMPTY detail (pytest findings go to
+stdout; only stderr was captured).
+
+FIX + PROOF: base resolution moved FIRST (skip before any collection);
+fallback gets --cov-fail-under=0 (extraction, not a floor — the 85% floor
+lives in the diff verdict and ci.yml's floors, untouched); failure detail now
+spans stdout+stderr with rc. Hook-shape re-run on this exact tree: 0.09s
+(was 98.6s), rc=0, message "No base coverage available (no
+coverage-baseline.json at origin/main), skipping diff". test*check_coverage*
+diff.py 7 cases + new changed-files 4 cases green together (11 passed).
+Wiring: changed-files test joined the collection-sanity anti-rot list in the
+parser-fix commit; the coverage-diff file has been on it since WP0.9.

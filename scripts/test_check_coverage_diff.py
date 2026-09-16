@@ -117,6 +117,27 @@ def test_no_base_available_skips(isolated_cwd):
     assert "skip" in msg.lower()
 
 
+@pytest.mark.timeout(300)  # the FIXED path is milliseconds; on regression this
+# case actually launches the full-suite collection (90-120s) to prove the old
+# ordering pays it — needs headroom to fail on the wall assertion, not the
+# tier timeout.
+def test_unresolvable_base_skips_before_collecting(isolated_cwd):
+    """Base-first ordering (WP0.9 follow-up): with NO seam at all, an
+    unresolvable base must skip WITHOUT attempting the 90s+ inline collection.
+    The pre-fix order collected first (and in this scratch tree collection
+    cannot even work — the old code surfaced a collection-failure FAIL where
+    the honest answer is a skip; the first real-world occurrence burned 93.6s
+    in a pre-push hook to then skip anyway)."""
+    import time
+
+    t0 = time.monotonic()
+    ok, msg = get_diff_fn()(base_branch="nonexistent-base-xyz")
+    elapsed = time.monotonic() - t0
+    assert ok is True, f"unresolvable base must skip, not fail: {msg}"
+    assert "skip" in msg.lower(), msg
+    assert elapsed < 5.0, f"skipped but only AFTER attempting collection ({elapsed:.1f}s)"
+
+
 # ---------------------------------------------------------------------------
 # The git-shipped baseline: what CI actually uses. A committed
 # coverage-baseline.json at the base ref is the source of truth without
