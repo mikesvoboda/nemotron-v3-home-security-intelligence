@@ -300,8 +300,32 @@ def _decorator_reason(dec: ast.expr, consts: dict[str, str] | None = None) -> st
     return ""
 
 
+def _qualified_names(tree: ast.Module) -> dict[int, str]:
+    """id(node) -> qualified dotted name for every decorator-bearing node.
+
+    Registry ids key on file::<qualname>, NOT the bare method name: two
+    classes can each define a method of the same name (test_system_models.py
+    ships 7 such pairs) and bare-name ids COLLIDE — registry entries overwrite
+    each other and the ratchet can't license sites individually. pytest's own
+    node ids qualify with the class, so the census does too.
+    """
+    names: dict[int, str] = {}
+
+    def visit(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+                name = prefix + child.name
+                names[id(child)] = name
+                visit(child, name + "::")
+            else:
+                visit(child, prefix)
+
+    visit(tree, "")
+    return names
+
+
 def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> list[dict]:
-    """file::test_name ids — line-number-drift-proof keys for the registry."""
+    """file::[Class::]test_name ids — line-number-drift-proof, collision-proof."""
     out = []
     for path in tree_files:
         try:
@@ -309,13 +333,17 @@ def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> lis
         except SyntaxError, OSError:
             continue
         consts = _module_str_constants(tree)
+        names = _qualified_names(tree)
         for node in ast.walk(tree):
+            seen_on_node = 0
             for dec in getattr(node, "decorator_list", []):
                 name = _decorator_name(dec)
                 if name in {f"pytest.mark.{marker}", f"mark.{marker}"}:
+                    seen_on_node += 1
+                    suffix = "" if seen_on_node == 1 else f"#{seen_on_node}"
                     out.append(
                         {
-                            "id": f"{_rel(root, path)}::{getattr(node, 'name', '?')}",
+                            "id": f"{_rel(root, path)}::{names.get(id(node), getattr(node, 'name', '?'))}{suffix}",
                             "reason": _decorator_reason(dec, consts),
                         }
                     )

@@ -62,6 +62,15 @@ FIXTURE = {
         "def test_two():\n    pass\n"
         "@mark.skip(reason='bare-idiom spelling must count')\n"
         "def test_three():\n    pass\n"
+        "@pytest.mark.skip(reason='stacked a')\n"
+        "@pytest.mark.skip(reason='stacked b')\n"
+        "def test_stacked():\n    pass\n"
+        "class TestOne:\n"
+        "    @pytest.mark.skip(reason='cls one site')\n"
+        "    def test_shared(self):\n        pass\n"
+        "class TestTwo:\n"
+        "    @pytest.mark.skip(reason='cls two site')\n"
+        "    def test_shared(self):\n        pass\n"
     ),
     "backend/tests/unit/test_b.py": (
         "import pytest\n@pytest.mark.xfail(strict=True)\ndef test_four():\n    pytest.skip()\n"
@@ -83,7 +92,7 @@ EXPECTED = {
     "collection_allowlist": 2,
     "flake_allowlist": 1,
     "frontend_quarantine": 3,  # glob-tree entries excluded from the count
-    "pytest_skip": 2,  # called + bare-idiom spellings
+    "pytest_skip": 6,  # called + bare-idiom + stacked pair + two same-named methods
     "pytest_skipif": 1,
     "pytest_xfail": 1,
     "pytest_skip_imperative": 2,
@@ -166,6 +175,23 @@ EXPECTED_LOCATIONS = {
             "id": "backend/tests/unit/test_a.py::test_three",
             "reason": "bare-idiom spelling must count",
         },
+        # stacked pair (the real defect shape: test_system_models.py attaches
+        # BOTH "Moved to…" and "Flaky…" to one def — 7 sites). The count pass
+        # counts both decorators; ids suffix from #2 so both are addressable.
+        {"id": "backend/tests/unit/test_a.py::test_stacked", "reason": "stacked a"},
+        {"id": "backend/tests/unit/test_a.py::test_stacked#2", "reason": "stacked b"},
+        # class-qualified: two classes each carry test_shared — the bare method
+        # name collides (the real defect: test_system_models.py ships 7 such
+        # pairs, its registry entries overwrote each other) and pytest itself
+        # identifies them by Class.method.
+        {
+            "id": "backend/tests/unit/test_a.py::TestOne::test_shared",
+            "reason": "cls one site",
+        },
+        {
+            "id": "backend/tests/unit/test_a.py::TestTwo::test_shared",
+            "reason": "cls two site",
+        },
     ],
     "pytest_skipif": [{"id": "backend/tests/unit/test_a.py::test_two", "reason": "y"}],
     "pytest_xfail": [{"id": "backend/tests/unit/test_b.py::test_four", "reason": ""}],
@@ -221,7 +247,8 @@ def test_counts_only_move_with_the_suppression(tmp_path):
         )
     )
     got = run_census(root)
-    assert got["pytest_skip"] == 1 and got["pytest_skipif"] == EXPECTED["pytest_skipif"]
+    assert got["pytest_skip"] == EXPECTED["pytest_skip"] - 1
+    assert got["pytest_skipif"] == EXPECTED["pytest_skipif"]
 
 
 @pytest.mark.timeout(180)  # real-tree AST census ~14s; tier default timeout is 5s
