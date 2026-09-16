@@ -1535,7 +1535,7 @@ real files. Wave N next: 27 files (23 run-9-reds fixed after the run +
 4 re-scores: detections_api, audit, export_api, mqtt_integration with the
 new timeout markers).
 
-**[VERIFIED totals, re-read from /tmp/waveM-out/*.log same turn]** 1765
+**[VERIFIED totals, re-read from /tmp/waveM-out/\*.log same turn]** 1765
 passed, 42 skipped, 0 failed across the 79 scored files.
 
 ## M3 T8 prep — Part 4 clusters re-verified by AST (audit [REPORTED] counts drifted) (2026-09-14)
@@ -3867,3 +3867,114 @@ itself (WP0.1/WP2.4 history in-file already).
   bricked every push with unattributable rc 125). Behavioral proof: 6 stub-
   sandbox scenarios green (pre-commit path / legacy / budget validation /
   staged notice / Z40 fall-through / budget-timeout notice @ rc 124).
+
+## PRE-EXISTING (found while preparing the WP2.5 measured run) — deleted test files identity-selected: the gate could not ship its own corrections (2026-09-16)
+
+The WP2.5 measured run demanded deleting the schemathesis stub (row below);
+planning that deletion surfaced the blocker first: fast_select's changed-test
+IDENTITY rule (bake-off 18984662 class — a test-only commit must run its own
+edits) selected every changed test path, and `git diff` lists DELETIONS too.
+A deleted test riding the selection routes straight into fast-backend-runner
+detector 1 (CANNOT-RUN: file missing, rc=1) — so ANY push pruning a test
+(retired stub, pruned flake) would block itself, and --no-verify is forbidden
+by repo rule. Identity selection needs a subject that EXISTS.
+
+Fix (e4414bca): `(root / f).exists()` precondition on the identity branch —
+only the phantom self-selection goes; a deleted test's REFERRERS still fail
+collection and the runner names those ERRORs. Red-first test
+test_fast_select.py::test_deleted_test_file_is_not_selected (git rm a fixture
+test + stage a live prod change; deleted path absent, live selection intact).
+Same commit: test_fast_select.py + test_fast_runners_manifest.py joined
+ci.yml's anti-rot list — WP0.7's own doctrine (a gate with no CI is a gate
+that rots) and both files had NEVER run in CI.
+
+## PRE-EXISTING (surfaced by WP2.5 playbook Run 1) — retired schemathesis stub CANNOT-RUNs every API-touching push (2026-09-16)
+
+MEASURE (Run 1, case route(alerts)): 78 s wall, rc=1 — MANIFEST CANNOT-RUN:
+backend/tests/contracts/test_schemathesis_contracts.py — "defines no test
+functions or Test classes" (WP2.3 manifest detector 1). Trigger: fast_select's
+directory policy adds ALL of backend/tests/contracts/ on any backend/api/\*\*
+change, so EVERY API-touching push inherits this contribution at the fast
+tier. Run 2 (post-delete, same case): 78 s rc=0, raw selection 145 -> 144 —
+exactly the stub's departure; the service case (no backend/api change, policy
+never fires) stayed 145 both runs — the count arithmetic corroborates.
+
+DECIDE — DELETE, not revive. Evidence: (1) the file is a 36-line docstring
+stub, zero tests, Schemathesis 4.x broke its API (docstring says so);
+(2) collection-sanity-allowlist R-M2-COLLECTION-FINDINGS already classified
+it "genuinely disabled ... revive-or-delete queued M2"; registry kind=
+`retired` = "superseded/dead test kept in the tree. Delete-by expiry";
+(3) the revive half requires a pyproject pin (schemathesis<4.0) — outside
+the program's named files (STOP-AND-ASK category), so delete is both the
+queued remediation and the scope-respecting choice. The M1-era allowance was
+honest for its gate (collection-sanity reads the allowlist); the WP2.3
+manifest has NO allowlist by design ("cannot render alike"), so the
+allowance went stale the moment WP2.1 promoted the selector to a gate —
+fast_select's own header said over-selection is "harmless under an advisory
+tier"; it isn't under a gate.
+
+PREVENTION: scripts/test_fast_select.py guard (real-tree): every file the
+contracts directory-policy contributes must define tests — regex mirrors
+detector 1 verbatim. Red-first PROVEN (executed against the tree:
+missing=[the stub] pre-delete, [] post-delete). Allowlist line + registry
+entry drop with the file (generator re-run); fast_select docstring era-fixed;
+tests/AGENTS.md + contracts/AGENTS.md mentions updated.
+
+## PRE-EXISTING (same census as the stub) — test*utils.py: shared helper wearing a test* name, one edit from CANNOT-RUN (2026-09-16)
+
+Census (mirroring manifest detector 1 over all tracked test\_\*.py) found 8
+zero-test-name files; 6 are integration-tier (never in-tier); 2 reachable:
+the stub (row above) and backend/tests/test_utils.py — a 256-line shared
+HELPER module imported at runtime by integration/conftest.py:43, kept
+IN-TIER by the f4 filter's top-level class. fast_select's changed-test rule
+selects it the moment anyone edits it -> CANNOT-RUN -> any push touching
+shared test helpers would block the fast tier. Latent (no selection in any
+WP2.4 replay row or playbook case contains it — all verified).
+
+DECIDE — execute M2's queued rename (registry already says "rename queued
+M2", fe646612): git mv -> backend/tests/testing*utils.py (does not match
+pytest python_files=test*\*.py by construction; location and package
+unchanged). One runtime importer (integration/conftest.py:43);
+docs/conftest-docstring/f4-comment follow. The f4 filter KEEPS its top-level
+class — test_db_isolation.py and future top-level test files are its real
+constituency. Guard (stub commit's) widens to the full f4 in-tier class
+(contracts dir + top-level), red-first on this file, green after the rename.
+
+## WP2.5 PLAYBOOK TRANSITIVE CASES + MEASURED BOUND — MEASURE + DECIDE (2026-09-16)
+
+- MEASURE — playbook Run 3 (BASE=HEAD one-file probe diffs, 12/12 green, rc=0
+  — the quotable run, executed from the SHIPPED script byte-identical to the
+  committed file): max wall 484 s (x6, 674-file conftest tree), hub-class
+  x1-intm/x2 465 s (633/635 in-tier), 900 s bound certified with ~46%
+  headroom on the heaviest shapes; every selection count reproduces the
+  frozen 515a4810 probe lists, with exactly -1 on the two backend/api/\*\*-
+  touching cases (route in-tier 145->144 across runs; x4 285->284) = the
+  deleted stub, and bit-identical non-api counts (x1 633, x1b 145, x2 635) —
+  arithmetic corroboration of the stub commit's directory-policy claim.
+  Full case table: Row F3, docs/development/fast-confidence-loop-
+  measurements.md. Run history: Run 1 (killed 7/12, pre-fix) is the evidence
+  record the three PRE-EXISTING repair commits cite (rows above); Run 2
+  (10/12) proved those fixes green and exposed the slash-in-NAME log-path
+  death (x2/x4 died rc=2 before running — zero log, zero signal; retroactively
+  explains Run 1's same row, misread then as a pkill artifact).
+- DECIDE — wall 600 -> 900 s. The playbook certifies the SAME tier the
+  pre-push hook ships, so it shares WP2.4's measured budget exactly (p50 428
+  / p95 513, owner tiered ruling); the 600 s spec-era guess predates any
+  measurement. Selection never narrows to fit the wall.
+- DECIDE — assertions grade the RAW selector list (sel.txt, pre-tier-filter),
+  the RUN uses the WP2.4 f4 filter: the two integration-tier transitive proofs
+  (x2 models re-export, x4 depth-2 chain) assert on selection where they
+  exist and are excluded from the run by tier contract — running 191 serial
+  -n0 integration files here would blow the wall for the wrong reason.
+  Verdict folds rc + wall + assertion (Run 1 proof: route(alerts) printed
+  "OK" at rc=1 while the manifest CANNOT-RUN'd — rc-blind verdicts launder
+  red tiers).
+- RECONCILIATION (both evidence-forced, in-file): the plan-era x1 draft probe
+  (alert_service.py -> test_alerts.py) reaches its target ONLY through the
+  routes-package **init** hub, so it became its own case x1b and the x1 claim
+  moved to event_broadcaster.py (hop through an UNTOUCHED intermediate — the
+  bake-off 09872e45 class); a "narrower" x4 candidate (schemas/jobs) was
+  probe-REJECTED: test_jobs.py references schemas.jobs directly (a depth-0
+  case masquerading as a chain proof). No --closure-depth flag exists
+  (depth=4 at the call-site) — the closure is pinned by asserting the
+  selection, never by a flag.
