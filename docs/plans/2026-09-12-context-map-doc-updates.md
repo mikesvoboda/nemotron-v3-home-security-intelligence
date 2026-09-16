@@ -3619,3 +3619,42 @@ category.
 **RULING-ADJACENT:** the `environment` exemptions here are the census's, not new
 quarantines — zero entries added to any allowlist/quarantine; WP1.3's ratchet
 may only ever LOWER counts from this baseline.
+
+## WP1.3–1.5 ratchet + expiry + route-mounts — MEASURE & DECIDE
+
+**MEASURE (WP1.3):** baseline seeded from the live census at
+6/0/16/32/63/4/94/54/0/0/4/5 (=278, matching the spec table — the ratchet's
+`--expect` literal in collection-sanity and the census agree by construction).
+The ratchet's own census self-check found a REAL defect on its first run:
+`file::method` ids collide — test_system_models.py attaches BOTH the
+"Moved to…" and "Flaky…" decorators to the same 7 defs (stacked) and repeats
+7 method names across classes; the registry's rows were overwriting each
+other (32 sites → 25 unique ids). Census ids now mirror pytest node identity:
+`file::Class::method` + `#2` for stacked decorators; counts UNCHANGED
+(32/63/4/94 — the count pass always saw both decorators; only identity was
+lossy). Registry regenerated; registry --check + ratchet green on HEAD.
+
+**DECIDE (WP1.3):** an increase needs registry entries AND a hand-raised
+baseline in the same commit; `--update` REFUSES to raise (adjudication must be
+a human's diff). STALE entries (site gone, entry stays) fail too — a zombie
+launders the next re-addition. Both pair-sides pinned by fixtures
+(test_increase_without_registry_entry_fails IS the done-when;
+test_real_tree_ratchet_is_green keeps HEAD's license honest every CI run).
+
+**DECIDE (WP1.4):** expiry < today FAILS naming owner+tracking ("does not
+warn, does not silently lapse"); boundary inclusive (2026-10-15 green ON the
+15th — the R-T9 deadline seam is deterministic); non-exempt kinds REQUIRE an
+ISO expires and an unparseable date is itself a failure (a date that can't be
+compared can't be enforced); exemption integrity — environment requires NULL
+tracking+expires, scoped requires null expires (its tracking names the
+schedule). `--today` exists for tests/drills; CI runs the real clock, so
+test_real_tree_ratchet_is_green doubles as "zero entries expired today".
+
+**MEASURE (WP1.5):** 61 route modules define 65 module-level APIRouters;
+main.py mounts 65 — allowlist EMPTY (every router mounted today; the test
+guards tomorrow). Attribution must be AST-based: an APIRouter instance
+reports `__module__=="fastapi.routing"`, so introspection cannot separate
+defined from re-exported (a first-pass introspective version silently passed
+by skipping ALL 65 — caught before commit by counting what it skipped).
+Done-when verified on the real file: `# app.include_router(backup.router)`
+→ suite fails naming backup.router; git checkout → 4 passed.
