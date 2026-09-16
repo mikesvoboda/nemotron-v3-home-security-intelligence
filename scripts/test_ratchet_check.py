@@ -230,10 +230,109 @@ def test_nonexempt_entry_without_tracking_fails(tmp_path):
     assert "tracking" in r.stderr.lower()
 
 
+# ---- WP1.4: expiry enforcement -------------------------------------------
+# --today exists for these tests (and for "what breaks on 2026-10-16?"
+# drills); CI never passes it, so the real clock rules there.
+
+
+def test_expired_entry_fails_naming_the_owner(tmp_path):
+    """THE done-when: an entry dated in the past fails CI with a message
+    naming the owner. Not a warning — the plan is explicit."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["kind"] = "flaky"
+    reg["pytest_skip"][0]["tracking"] = "NEM-1"
+    reg["pytest_skip"][0]["expires"] = "2026-01-01"
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root, "--today", "2026-09-16")
+    assert r.returncode == 1
+    assert "EXPIRED" in r.stderr
+    assert "tester" in r.stderr  # names the owner, per the done-when
+    assert "test_a.py::test_one" in r.stderr
+
+
+def test_future_entry_passes(tmp_path):
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["kind"] = "flaky"
+    reg["pytest_skip"][0]["tracking"] = "NEM-1"
+    reg["pytest_skip"][0]["expires"] = "2099-01-01"
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root, "--today", "2026-09-16")
+    assert r.returncode == 0, r.stderr
+
+
+def test_expiry_boundary_is_inclusive(tmp_path):
+    """expires: 2026-10-15 is green ON the 15th, red on the 16th — the R-T9
+    ruling deadline behaves deterministically at the seam."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["kind"] = "defect"
+    reg["pytest_skip"][0]["tracking"] = "R-T9-MQTTPUMP"
+    reg["pytest_skip"][0]["expires"] = "2026-10-15"
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    assert run_ratchet(root, "--today", "2026-10-15").returncode == 0
+    assert run_ratchet(root, "--today", "2026-10-16").returncode == 1
+
+
+def test_expiry_string_format_enforced(tmp_path):
+    """An expiry that cannot be parsed cannot be enforced, so an unparseable
+    expiry is itself a failure — never a silent skip of the check."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["kind"] = "todo"
+    reg["pytest_skip"][0]["tracking"] = "NEM-1"
+    reg["pytest_skip"][0]["expires"] = "someday"
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root, "--today", "2026-09-16")
+    assert r.returncode == 1
+    assert "ISO" in r.stderr
+
+
+def test_exempt_kind_with_expiry_fails(tmp_path):
+    """environment/scoped are the spec's EXEMPT kinds: exempt means no
+    deadline, so a date on one is a misclassification — either the kind is
+    wrong or the date is decoration the gate would never enforce."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["expires"] = "2099-01-01"  # kind stays environment
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root, "--today", "2026-09-16")
+    assert r.returncode == 1
+    assert "null" in r.stderr.lower()
+
+
+def test_nonexempt_entry_requires_expiry(tmp_path):
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["kind"] = "todo"
+    reg["pytest_skip"][0]["tracking"] = "NEM-1"
+    reg["pytest_skip"][0]["expires"] = None
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root, "--today", "2026-09-16")
+    assert r.returncode == 1
+    assert "expires" in r.stderr.lower()
+
+
+def test_exempt_entry_requires_null_tracking(tmp_path):
+    """The symmetric side: an environment entry CLAIMING a tracking ref is
+    hiding a real finding behind an exemption (or misclassified) — the two
+    kinds of entry must not blur. `scoped` is exempt from the date but not
+    from tracking: it names the schedule that runs the tree."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    reg["pytest_skip"][0]["tracking"] = "NEM-999"  # kind stays environment
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+    r = run_ratchet(root, "--today", "2026-09-16")
+    assert r.returncode == 1
+    assert "null" in r.stderr.lower()
+
+
 @pytest.mark.timeout(180)  # real-tree census twice over (locations + rerun) ~30-60s
 def test_real_tree_ratchet_is_green():
-    """The seeded baseline + complete registry must pass the gate on HEAD —
-    if this rots, every CI run on every PR rots with it."""
+    """The seeded baseline + complete registry (every WP1.4 expiry rule
+    included, real clock) must pass the gate on HEAD — if this rots, every
+    CI run on every PR rots with it."""
     r = subprocess.run(
         [sys.executable, str(RATCHET)], capture_output=True, text=True, check=False, cwd=REPO_ROOT
     )

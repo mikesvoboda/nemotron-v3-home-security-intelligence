@@ -39,7 +39,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -48,11 +50,14 @@ import yaml
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
 
-# Kinds the spec exempts from tracking/expires (see registry header); every
-# other kind is an adjudication and must carry tracking, and its expiry is
-# enforced by WP1.4.
+# Kinds the spec exempts (see registry header): `environment` carries neither
+# tracking nor expiry; `scoped` names its schedule file but carries no date.
+# Every other kind is an adjudication: tracking required (WP1.3) and an ISO
+# expiry whose lapse FAILS the build naming the owner (WP1.4 — "It does not
+# warn, and it does not silently lapse").
 EXEMPT_KINDS = ("environment", "scoped")
 REQUIRED_FIELDS = ("id", "kind", "owner")
+ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 CENSUS_ERRORS = (subprocess.SubprocessError, OSError, json.JSONDecodeError, ValueError)
 
@@ -91,7 +96,7 @@ def load_state(root: Path) -> tuple[dict[str, int], dict[str, list[dict]]]:
     return baseline, registry
 
 
-def check(root: Path, update: bool) -> int:
+def check(root: Path, update: bool, today: dt.date) -> int:
     loc = census_locations(root)
     baseline, registry = load_state(root)
     errors: list[str] = []
@@ -109,8 +114,53 @@ def check(root: Path, update: bool) -> int:
             kind = row["kind"]
             if kind not in (*EXEMPT_KINDS, "todo", "quarantine", "flaky", "retired", "defect"):
                 errors.append(f"REGISTRY {cat}: {row['id']}: unknown kind {kind!r}")
-            if kind not in EXEMPT_KINDS and not row.get("tracking"):
-                errors.append(f"REGISTRY {cat}: {row['id']}: kind={kind} requires a tracking ref")
+                entry_ids.setdefault(cat, set()).add(row["id"])
+                continue
+            # exemption integrity: an exemption is a CLASSIFICATION, and a
+            # field that contradicts it means the classification is wrong (or
+            # decoration that no rule would ever enforce).
+            if kind == "environment" and row.get("tracking") not in (None, ""):
+                errors.append(
+                    f"REGISTRY {cat}: {row['id']}: kind=environment requires null "
+                    "tracking (a tracked finding is a todo/defect, not an exemption)"
+                )
+            if kind in EXEMPT_KINDS and row.get("expires") not in (None, ""):
+                errors.append(
+                    f"REGISTRY {cat}: {row['id']}: kind={kind} requires null expires "
+                    "(exempt kinds have no deadline — an unenforced date is decoration)"
+                )
+            if kind not in EXEMPT_KINDS:
+                if not row.get("tracking"):
+                    errors.append(
+                        f"REGISTRY {cat}: {row['id']}: kind={kind} requires a tracking ref"
+                    )
+                # 2. WP1.4 expiry — expired means BROKEN, not lapsed quietly.
+                expires = row.get("expires")
+                if expires in (None, ""):
+                    errors.append(
+                        f"REGISTRY {cat}: {row['id']}: kind={kind} requires expires "
+                        "(ISO YYYY-MM-DD) — kind=environment/scoped is the only exemption"
+                    )
+                elif not (isinstance(expires, str) and ISO_DATE_RE.match(expires)):
+                    errors.append(
+                        f"REGISTRY {cat}: {row['id']}: expires={expires!r} is not ISO "
+                        "YYYY-MM-DD — an unparseable date cannot be enforced"
+                    )
+                else:
+                    try:
+                        deadline = dt.date.fromisoformat(expires)
+                    except ValueError:
+                        errors.append(
+                            f"REGISTRY {cat}: {row['id']}: expires={expires!r} is not a real date"
+                        )
+                    else:
+                        if deadline < today:
+                            errors.append(
+                                f"EXPIRED {cat}: {row['id']} expired {expires} — owner "
+                                f"{row['owner']} (tracking {row.get('tracking')}): fix it, "
+                                "or adjudicate a NEW expiry in a reviewed commit; the "
+                                "gate does not warn and does not silently lapse"
+                            )
             entry_ids.setdefault(cat, set()).add(row["id"])
 
     # 2. per-category: ids vs entries, counts vs baseline.
@@ -185,8 +235,14 @@ def main() -> int:
         action="store_true",
         help="write decreases into the baseline (never an increase; that needs a hand edit)",
     )
+    ap.add_argument(
+        "--today",
+        default=None,
+        help="override the expiry clock (YYYY-MM-DD) — tests and deadline drills; CI never passes it",
+    )
     args = ap.parse_args()
-    return check(Path(args.root).resolve(), args.update)
+    today = dt.date.fromisoformat(args.today) if args.today else dt.date.today()
+    return check(Path(args.root).resolve(), args.update, today)
 
 
 if __name__ == "__main__":
