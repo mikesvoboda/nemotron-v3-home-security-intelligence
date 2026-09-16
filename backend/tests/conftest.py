@@ -87,7 +87,10 @@ Domain-Specific Hypothesis Strategies:
 - Use with @given decorator from hypothesis for property-based tests
 
 Flaky Test Detection:
-- Tests marked with @pytest.mark.flaky are quarantined (failures don't fail CI)
+- @pytest.mark.flaky is an allowlist-governed quarantine (WP0.8): collection
+  fails if a marked test has no unexpired entry with a tracking ref in
+  .github/flake-allowlist.yml. Registered marked tests have failures
+  converted to skips; un-allowlisted failures fail once and stay failed.
 - Test outcomes are tracked in FLAKY_TEST_RESULTS_FILE for analysis
 - Use pytest-rerunfailures with --reruns flag for automatic retry
 
@@ -136,6 +139,86 @@ logger = logging.getLogger(__name__)
 backend_path = Path(__file__).parent.parent
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
+
+
+# =============================================================================
+# WP0.8: @pytest.mark.flaky is an allowlist-governed quarantine
+# =============================================================================
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_FLAKE_ENTRY_RE = re.compile(r"^\s*-\s+id:\s*(\S+)")
+_FLAKE_FIELD_RE = re.compile(r"^\s+(tracking|expires):\s*(.+?)\s*$")
+
+
+def _active_flake_allowlist_ids() -> tuple[list[str], Path]:
+    """Ids in .github/flake-allowlist.yml whose expiry has not passed.
+
+    Same 15-line flat-list parse as scripts/check-flake-allowlist.py and
+    scripts/flake-k-filter.py (the zero-coupling convention those two already
+    share deliberately). FLAKE_ALLOWLIST_FILE is the test seam. Expired ids are
+    EXCLUDED — expiry is revocation; reviving a quarantine means re-registering,
+    and check-flake-allowlist.py fails CI on the stale entry anyway.
+    """
+    path = Path(
+        os.environ.get("FLAKE_ALLOWLIST_FILE") or _REPO_ROOT / ".github/flake-allowlist.yml"
+    )
+    if not path.is_file():
+        return [], path
+    import datetime as dt
+
+    entries: list[dict[str, str]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        m = _FLAKE_ENTRY_RE.match(line)
+        if m:
+            entries.append({"id": m.group(1)})
+            continue
+        if entries:
+            fm = _FLAKE_FIELD_RE.match(line)
+            if fm:
+                entries[-1][fm.group(1)] = fm.group(2).strip("'\"")
+    today = dt.date.today()
+    active = []
+    for e in entries:
+        try:
+            if dt.date.fromisoformat(e.get("expires", "")) < today:
+                continue
+        except ValueError:
+            continue
+        active.append(e["id"])
+    return active, path
+
+
+def _enforce_flaky_registration(items: list[pytest.Item]) -> None:
+    """Fail collection if any collected item carries @pytest.mark.flaky without
+    a matching, unexpired entry in .github/flake-allowlist.yml (WP0.8).
+
+    The marker feeds pytest_runtest_makereport's failure→skip conversion, so an
+    unregistered mark means a permanent failure can hide as a skip with no
+    owner, no expiry, no review — the exact state .github/flake-allowlist.yml
+    exists to prevent (spec §5.2: un-allowlisted failures fail once and stay
+    failed). Id matching follows the -k semantics flake-k-filter.py already
+    ships: the id must appear in the item's nodeid.
+    """
+    active, path = _active_flake_allowlist_ids()
+    violations = [
+        item.nodeid
+        for item in items
+        if item.get_closest_marker("flaky") is not None
+        and not any(flake_id in item.nodeid for flake_id in active)
+    ]
+    if violations:
+        shown = "\n".join(f"  - {nodeid}" for nodeid in sorted(violations)[:20])
+        more = f"\n  ... and {len(violations) - 20} more" if len(violations) > 20 else ""
+        msg = (
+            f"{len(violations)} @pytest.mark.flaky test(s) are NOT registered in "
+            f"{path.relative_to(_REPO_ROOT)} (quarantine without a tracking ref and expiry "
+            "is how WP0.2-class rot hides for months — a marked test's failures convert to "
+            "skips): \n"
+            f"{shown}{more}\n"
+            "Fix: register each with a real Linear tracking ref + expiry in "
+            ".github/flake-allowlist.yml, or remove the mark if the test is not actually flaky."
+        )
+        raise pytest.UsageError(msg)
 
 
 # =============================================================================
@@ -453,6 +536,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         # === TIMEOUT HANDLING ===
         if not timeouts_disabled:
             _apply_timeout_marker(item, fspath_str, cli_timeout)
+
+    # WP0.8: every surviving @pytest.mark.flaky item must be registered in the
+    # governed allowlist — an unregistered quarantine fails collection outright.
+    _enforce_flaky_registration(items)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

@@ -32,8 +32,10 @@ from backend.models.event import Event
 from backend.models.event_detection import EventDetection
 from backend.tests.conftest import unique_id
 
-# Module-level markers: integration test + flaky (CI timeout, pre-existing issue)
-pytestmark = [pytest.mark.integration, pytest.mark.flaky]
+# Module-level markers: integration test. The WP0-era `flaky` mark ("CI
+# timeout, pre-existing issue") was DELETED in WP0.8 (2026-09-16): 8 main runs
+# x all shards = 517/517 passes, zero failures, zero quarantined skips — the
+# claim was stale, and an unregistered flaky mark now fails collection.
 
 logger = logging.getLogger(__name__)
 

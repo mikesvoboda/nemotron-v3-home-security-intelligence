@@ -3154,3 +3154,57 @@ scripts restored byte-clean (git status empty) after each. CI-side enforcement
 is the collection-sanity→summary→ci-gate edge WP0.6's graph test pins.
 (Measurement bug caught in-flight: `pytest … | tail -1` reports TAIL's rc —
 re-ran redirecting to a file to capture pytest's real 1.)
+
+## WP0.8 MEASUREMENT + DECIDE — close the ungoverned quarantine (2026-09-16)
+
+MEASURE (baseline census): the plan said "the 5 @pytest.mark.flaky call sites";
+the tree has **3**: module-level pytestmark on test_transaction_rollback.py:36
+and test_api_error_scenarios.py:35, decorator on
+test_enrichment_parallelization.py:330. (Plan-vs-census: 3 is right today —
+grep across all workflows/paths; the conftest failure→skip machinery at
+makereport is the harm multiplier for ALL marked items.) The governed parallel
+mechanism — .github/flake-allowlist.yml (tracking ref + expiry, enforced by
+check-flake-allowlist.py on every push, feeds reruns via flake-k-filter.py -k) —
+carried `flakes: []`. flaky_tests.txt: header + commented-out NEM-5851 entries
+whose fixes (8d70481b, a00a378e) shipped in-file — zero live rows.
+
+LIVENESS AUDIT (the DECIDE's ground truth): 8 recent main runs × ALL shards of
+the integration artifacts = **517/517 passes across the two marked modules' 67
+tests, zero failures, zero quarantined skips**; unit timing test 6/6 pass at
+75–93ms vs its 250ms assertion (marked Feb 25 in 3396d3ef-era runs at 605ms —
+the pipeline-optimization wave fixed the timing, not the mark). The quarantine
+hid no live flake; it guaranteed future failures in 68 tests would hide.
+
+DECIDE per plan branch: the plan offered "migrate the call sites into the
+allowlist" — REJECTED on evidence: the allowlist's own header requires "a real
+flake and a Linear issue"; registering 3 dormant marks manufactures fake
+registrations (and the sandbox has no /linear-python skill — no real ref could
+be minted honestly this window). **All 3 marks DELETED** with evidence
+comments; if any flake returns it bites honestly, then gets a real registration.
+
+IMPLEMENTATION:
+
+- backend/tests/conftest.py: `_enforce_flaky_registration` in
+  pytest_collection_modifyitems — any collected item with @pytest.mark.flaky
+  and no UNEXPIRED allowlist entry (id-in-nodeid = the shipped -k semantics)
+  fails collection naming every offender + the fix. FLAKE_ALLOWLIST_FILE is the
+  test seam. Expired entry = revocation (case 3b).
+- scripts/test_flaky_marker_governance.py (NEW): 4 subprocess cases (unreg fails
+  collection naming it / registered collects / typo'd id still fails / EXPIRED
+  entry still fails) + real-tree sweep over the whole unit tier. TDD: red 3
+  (toothless) → green 4+sweep. Wired into collection-sanity as its OWN step —
+  standalone script, NOT appended to the WP0.7 pytest list (pytest would
+  collect zero cases from it: silent no-op avoided).
+- flaky-test-detection.yml:371 recommendation now says register in the
+  allowlist; analyzer `--quarantine-file/--update-quarantine` (the auto-append
+  ungoverned path) REPLACED by `--allowlist-file` — [QUARANTINED] means
+  registered-unexpired. Smoke: 3-run fixture → registered flake reports
+  QUARANTINED, unregistered reports NEW.
+- backend/tests/flaky_tests.txt DELETED (plan's "confirm first": only readers
+  were the analyzer arg — rewired — and docs; zero code refs after).
+- Docs updated: flaky-test-detection.md quarantine section rewritten to the
+  governed model; AGENTS.md marker table + example annotated.
+
+DONE-WHEN PROOF: "a @pytest.mark.flaky test with no allowlist entry fails
+collection" — governance gate case 1 does exactly this in a scratch file
+against the real conftest, and the sweep case proves the shipped tree passes.

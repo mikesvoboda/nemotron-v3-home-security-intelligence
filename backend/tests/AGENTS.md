@@ -432,19 +432,19 @@ Tests are organized using pytest markers for selective execution. Markers are au
 
 ### Available Markers
 
-| Marker        | Description                                   | Auto-applied             |
-| ------------- | --------------------------------------------- | ------------------------ |
-| `unit`        | Unit test (isolated component testing)        | Yes (`/unit/` directory) |
-| `integration` | Integration test (multi-component workflows)  | Yes (`/integration/`)    |
-| `e2e`         | End-to-end pipeline test                      | No                       |
-| `gpu`         | GPU test (requires RTX A5500)                 | No                       |
-| `slow`        | Legitimately slow test (30s timeout)          | No                       |
-| `benchmark`   | Benchmark test (requires pytest-benchmark)    | No                       |
-| `serial`      | Requires serial execution (no parallel)       | No                       |
-| `flaky`       | Known to fail intermittently (quarantined)    | No                       |
-| `network`     | Requires network access (for isolation in CI) | No                       |
-| `db`          | Requires database access                      | No                       |
-| `redis`       | Requires Redis access                         | No                       |
+| Marker        | Description                                                                                           | Auto-applied             |
+| ------------- | ----------------------------------------------------------------------------------------------------- | ------------------------ |
+| `unit`        | Unit test (isolated component testing)                                                                | Yes (`/unit/` directory) |
+| `integration` | Integration test (multi-component workflows)                                                          | Yes (`/integration/`)    |
+| `e2e`         | End-to-end pipeline test                                                                              | No                       |
+| `gpu`         | GPU test (requires RTX A5500)                                                                         | No                       |
+| `slow`        | Legitimately slow test (30s timeout)                                                                  | No                       |
+| `benchmark`   | Benchmark test (requires pytest-benchmark)                                                            | No                       |
+| `serial`      | Requires serial execution (no parallel)                                                               | No                       |
+| `flaky`       | Quarantined — REQUIRES a `.github/flake-allowlist.yml` entry (WP0.8; unregistered = collection fails) | No                       |
+| `network`     | Requires network access (for isolation in CI)                                                         | No                       |
+| `db`          | Requires database access                                                                              | No                       |
+| `redis`       | Requires Redis access                                                                                 | No                       |
 
 ### Running Tests by Marker
 
@@ -509,7 +509,8 @@ async def test_yolo26_inference():
 
 @pytest.mark.flaky
 def test_timing_sensitive_operation():
-    """Test known to fail intermittently."""
+    """Fails collection unless test_timing_sensitive_operation is registered in
+    .github/flake-allowlist.yml (tracking ref + expiry, WP0.8)."""
     ...
 ```
 

@@ -327,7 +327,12 @@ class TestPhase1ParallelExecution:
             # by ensuring asyncio.gather is used for Phase 1 models
 
     @pytest.mark.asyncio
-    @pytest.mark.flaky(reruns=2)
+    # The flaky(reruns=2) mark (07bd5657, Feb: enrich_batch hit 605ms in CI
+    # beyond the 250ms assertion) was DELETED in WP0.8: the pipeline-optimization
+    # wave brought CI elapsed to 75-93ms (3x headroom), 6/6 shard-occurrences
+    # pass across 8 main runs, zero quarantined skips. An unregistered flaky
+    # mark now fails collection; if timing flakiness returns it bites honestly
+    # and gets a real allowlist registration (tracking ref + expiry) then.
     async def test_phase1_execution_time_indicates_parallelism(
         self,
         mock_enrichment_services,

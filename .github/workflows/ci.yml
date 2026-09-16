@@ -83,7 +83,9 @@ jobs:
   collection-sanity:
     name: Collection Sanity (zero-byte / zero-test tracked files)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 10 -> 15 (WP0.8): the gate-test step now collects the whole unit tier
+    # (the governance test's real-tree sweep), which imports every module.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -100,6 +102,10 @@ jobs:
           scripts/test_check_test_collection.py
           scripts/test_check_flake_allowlist.py
           -q
+      # WP0.8: standalone gate test (no pytest cases — invoked as a script,
+      # NOT added to the pytest list above, which would collect zero).
+      - name: Flaky-marker governance gate test
+        run: uv run python scripts/test_flaky_marker_governance.py
 
   # Backend Jobs
 
