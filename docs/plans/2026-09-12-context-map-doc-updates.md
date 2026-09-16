@@ -3769,3 +3769,28 @@ Commits: e1c1acda (contract), 5b43a198 (machine-visible names).
 - **#6549 merge mechanics — re-arm auto-squash after the Phase 2 push**
   (owner pressed auto-squash once at 15:26Z; gate failure disarmed it). Once
   the push's CI Gate goes green, #6549 squash-merges itself into main.
+
+## WP2.1 SELECTOR BAKE-OFF — MEASURE + DECIDE (2026-09-16)
+
+- Protocol v3, 20 sampled commits, two ground-truth arms, strict-serial
+  worktrees. Full dossier: docs/development/selector-evaluation.md (incl. the
+  4-item harness-defect ledger: v1 parser FAILED-truncation, comm -3 tab
+  prefix, db-recycle guard, `-m` deactivation claim disproven).
+- MEASURE (corrected derive backfill + frozen-list rebench):
+  outcome arm recall — shipped fast_select 6/15 (40%), testmon 14/16 (93%),
+  WP2.2 closure 15/15 (100%).
+  fault arm recall (12 injectable cases, 8 NO_PY_TARGET recorded) — shipped
+  75/136 (55%), testmon 92/136 (68%), closure 136/136 (100%).
+  selection time 0-2s (closure) vs 6-17s (testmon); testmon cold cost = full
+  parent run 82-165s every push; stale-db fallback = large sets (71-109s rows).
+  fast_select over-selection recorded per case (fs_out_of_tier); never
+  under-runs.
+- DECIDE — KEEP fast_select (+WP2.2 closure), DEMOTE testmon to advisory:
+  (1) closure dominates both arms at 100% while warm testmon misses 44/136
+  fault files — transitive-by-construction != complete-at-selection-time;
+  (2) 0-2s stateless vs ~90-180s warm-then-6-17s-select (pre-push budget
+  arithmetic leaves no contest); (3) pure-function-of-tree+diff determinism,
+  no .testmondata to warm/share/stale in worktrees+CI; (4) demote-not-delete
+  because coverage-ACTUAL is a distinct measurement the static graph cannot
+  make — testmon keeps the offline-auditor role, docs/development/testing.md
+  demoted to advisory box, never a CI selector.

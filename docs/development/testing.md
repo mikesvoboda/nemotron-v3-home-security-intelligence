@@ -428,9 +428,20 @@ Tests are marked as `slow` when they:
 
 See `scripts/audit-test-durations.py` for test duration analysis.
 
-### Affected-Only Test Execution (pytest-testmon)
+### Affected-Only Test Execution (pytest-testmon) — ADVISORY ONLY (WP2.1 DECIDE)
 
-For even faster feedback, use `pytest-testmon` to run only tests affected by code changes:
+> **Status (2026-09-16):** the 20-commit bake-off ([selector
+> evaluation](selector-evaluation.md)) decided the gate-role contest:
+> `scripts/fast_select.py` (with its WP2.2 transitive closure) is the test
+> selector for the fast tier — fault-arm recall 136/136 vs testmon 92/136,
+> outcome arm 15/15 vs 14/16, and 0–2s stateless selection vs a 82–165s full
+> parent run just to warm testmon's database. testmon is **demoted to an
+> advisory, developer-local tool**: fine for personal TDD loops, never the
+> gate's authority, and never a CI selector. Measured costs below supersede
+> the pre-bake-off estimates that used to live here.
+
+For even faster **local** feedback, `pytest-testmon` can run only tests
+affected by code changes (advisory — see status box):
 
 ```bash
 # First run: runs all tests and creates .testmondata tracking database
@@ -472,8 +483,13 @@ rm .testmondata*
 - Cache can become stale (clear with `rm .testmondata*` if unsure)
 - Automatically deactivated when selecting specific tests manually (e.g., `pytest test_file.py::test_name --testmon`)
 
-**Performance improvement:**
-After making a small change to a single service module, testmon might run only 50-100 tests instead of 7193 unit tests, reducing feedback time from ~60s to ~5s.
+**Performance (bake-off measured, 2026-09-16):**
+Warm incremental runs genuinely are cheap (selection then only the affected
+tests). The honest cost is everything BEFORE that: a populated `.testmondata`
+requires a FULL run of the parent commit — measured 82–165s across the sample,
+every single push — plus 6–17s for the selection pass itself, and stale-db runs
+silently fall back to large selection sets. The static selector answers the
+same question in 0–2s with no database to warm, share, or invalidate.
 
 **CI Integration Note:**
 This implementation keeps testmon **opt-in via --testmon flag only**. CI workflows continue running full test suites by default (without `--testmon`). This ensures:
