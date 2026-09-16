@@ -10,6 +10,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The "Comment PR on failures" step posts with GITHUB_TOKEN; with no explicit
+# grant this workflow ran under the repo's read-only default and every
+# comment attempt 403'd ("Resource not accessible by integration") — and the
+# octokit exception dump buried the ACTUAL step verdict under pages of
+# headers (PR #6549: a SyntaxError in the gate script was readable only in
+# raw job logs). Scope the grant to what the job actually does.
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   PYTHON_VERSION: '3.14'
   NODE_VERSION: '24'
@@ -86,7 +96,10 @@ jobs:
         id: coverage-gate
 
       - name: Comment PR on failures
-        if: failure()
+        # workflow_dispatch has no PR context — context.issue.number would be
+        # undefined and the step would throw AFTER a real verdict (same
+        # wrong-reason failure class the WP0.x audit catalogued).
+        if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
