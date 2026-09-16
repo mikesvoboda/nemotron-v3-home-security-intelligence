@@ -33,6 +33,571 @@
 flake_allowlist: []
 frontend_only: []
 frontend_todo: []
+pytest_skip_imperative:
+  - id: backend/tests/conftest.py:2530
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: pandas not installed (required for synthetic scenarios)
+  - id: backend/tests/conftest.py:2534
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py
+  - id: backend/tests/conftest.py:2555
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Synthetic scenarios not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:432
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: YOLO26 service not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:435
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Nemotron service not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:446
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: YOLO26 service returned error
+  - id: backend/tests/e2e/test_gpu_pipeline.py:483
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/e2e/test_gpu_pipeline.py:531
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: YOLO26 service not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:544
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: YOLO26 service returned error
+  - id: backend/tests/e2e/test_gpu_pipeline.py:599
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Nemotron service not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:612
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:216
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:240
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:276
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:304
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:342
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:358
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: CUDA not available (nvidia-smi failed)
+  - id: backend/tests/gpu/test_detector_integration.py:384
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: nvidia-smi not found
+  - id: backend/tests/gpu/test_detector_integration.py:387
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: CUDA not available
+  - id: backend/tests/gpu/test_detector_integration.py:427
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:445
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Could not parse nvidia-smi output
+  - id: backend/tests/gpu/test_detector_integration.py:448
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:450
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: nvidia-smi timed out
+  - id: backend/tests/gpu/test_detector_integration.py:463
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/gpu/test_detector_integration.py:497
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/services/test_fast_alpr_loader.py:27
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fast-alpr is installed, cannot test missing package path
+  - id: backend/tests/integration/test_alert_rules.py:335
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_alert_rules.py:343
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_dashboard_queries.py:368
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_dashboard_queries.py:371
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_dashboard_queries.py:567
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: pipeline.json not found
+  - id: backend/tests/integration/test_dashboard_queries.py:684
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: ci-health.json not found
+  - id: backend/tests/integration/test_dashboard_queries.py:706
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: slo.json not found
+  - id: backend/tests/integration/test_dashboard_queries.py:731
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: synthetic-monitoring.json not found
+  - id: backend/tests/integration/test_github_workflows.py:278
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: ci.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:289
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: ci.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:292
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No concurrency config
+  - id: backend/tests/integration/test_github_workflows.py:307
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: ci.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:320
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: gpu-tests.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:338
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: gpu-tests.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:352
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: deploy.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:368
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: nightly.yml not found
+  - id: backend/tests/integration/test_github_workflows.py:63
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_github_workflows.py:66
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_materialized_views_migration.py:212
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/integration/test_nemotron_prompts.py:100
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No threat scenarios available
+  - id: backend/tests/integration/test_nemotron_prompts.py:145
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No full enrichment scenarios available
+  - id: backend/tests/integration/test_nemotron_prompts.py:168
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Scenarios not available
+  - id: backend/tests/integration/test_nemotron_prompts.py:186
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No threat scenarios available
+  - id: backend/tests/integration/test_nemotron_prompts.py:211
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Scenarios not available
+  - id: backend/tests/integration/test_nemotron_prompts.py:229
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No normal scenarios available
+  - id: backend/tests/integration/test_nemotron_prompts.py:270
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No scenarios available
+  - id: backend/tests/integration/test_nemotron_prompts.py:45
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Synthetic scenarios not available
+  - id: backend/tests/integration/test_nemotron_prompts.py:68
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Nemotron service not available (use --mock for mock mode)
+  - id: backend/tests/integration/test_nemotron_prompts.py:70
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Nemotron service not available (use --mock for mock mode)
+  - id: backend/tests/integration/test_preview_api.py:428
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:RATE-LIMIT-SPEC
+    expires: '2026-12-31'
+    reason: Rate limiting not yet specified in design doc
+  - id: backend/tests/integration/test_risk_score_validation.py:199
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No synthetic scenario events present in the test database
+  - id: backend/tests/integration/test_risk_score_validation.py:381
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No detections found in database
+  - id: backend/tests/integration/test_risk_score_validation.py:386
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No confidence scores found in detections
+  - id: backend/tests/security/test_docker_compose_security.py:190
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/security/test_docker_compose_security.py:203
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/security/test_docker_compose_security.py:227
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/security/test_docker_compose_security.py:238
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/security/test_docker_compose_security.py:43
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/test_db_isolation.py:66
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: no TEST_DATABASE_URL/DATABASE_URL exported (run under validate.sh env)
+  - id: backend/tests/unit/api/routes/test_media.py:120
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Symlinks not supported on this filesystem
+  - id: backend/tests/unit/core/test_ai_service_resource_limits.py:41
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_dockerfile_config.py:29
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:135
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:142
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:236
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:297
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No nginx configuration files found
+  - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:346
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_connection_limit_config.py:44
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_rate_limit_config.py:184
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_rate_limit_config.py:289
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_rate_limit_config.py:334
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_rate_limit_config.py:393
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No nginx configuration files found
+  - id: backend/tests/unit/core/test_nginx_rate_limit_config.py:52
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_rate_limit_config.py:59
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:128
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:194
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No HTTPS_REDIRECT block found - may not be applicable
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:226
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No SSL_SERVER_BLOCK found - may not be applicable
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:236
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: No static assets location in SSL_SERVER_BLOCK
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:260
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:311
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:368
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_nginx_security_headers.py:66
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_prometheus_rules.py:30
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_prometheus_rules.py:44
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
+  - id: backend/tests/unit/core/test_redis.py:840
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/routes/test_auth_routes.py:99
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:AUTH-ROUTE-IMPLEMENTATION
+    expires: '2026-12-31'
+    reason: Auth router not implemented yet (expected in TDD RED phase)
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py:880
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography not installed
+  - id: backend/tests/unit/test_benchmark_vram.py:208
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: null
 pytest_xfail:
   - id: backend/tests/integration/test_websocket_auth_flow.py::test_websocket_connection_survives_token_refresh
     kind: todo
