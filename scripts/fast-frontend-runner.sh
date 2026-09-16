@@ -72,8 +72,10 @@ emit_manifest() {
     NS=$(printf '%s\n' "$NOT_SEL" | grep -c . || true)
     printf 'MANIFEST NOT-SELECTED: %s (not selected for this diff)\n' "$NS"
     if [ "$NS" -gt 0 ]; then
-        printf '%s\n' "$NOT_SEL" | head -20 | sed 's/^/  not-selected: /'
-        [ "$NS" -gt 20 ] && printf '  not-selected: +%s more\n' "$((NS - 20))"
+        # names on MANIFEST-prefixed lines: a parser filtering MANIFEST* must
+        # see WHICH files didn't run (see fast-backend-runner.sh, same fix).
+        printf '%s\n' "$NOT_SEL" | head -20 | sed 's/^/MANIFEST NOT-SELECTED-FILE: /'
+        [ "$NS" -gt 20 ] && printf 'MANIFEST NOT-SELECTED-MORE: %s\n' "$((NS - 20))"
     fi
     # A crash is its own category — never ALSO "normal zero-selection" (the
     # probe caught both lines printing together; the contract forbids the two

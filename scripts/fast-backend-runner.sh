@@ -117,8 +117,12 @@ printf 'MANIFEST SELECTED: %s\n' "$N_SEL"
 printf 'SELECTED-BACKEND-FILES: %s\n' "$N_SEL"   # playbook greps this line
 printf 'MANIFEST NOT-SELECTED: %s (not selected for this diff)\n' "$N_NS"
 if [ "$N_NS" -gt 0 ]; then
-    printf '%s\n' "$NOT_SEL" | head -20 | sed 's/^/  not-selected: /'
-    [ "$N_NS" -gt 20 ] && printf '  not-selected: +%s more\n' "$((N_NS - 20))"
+    # names ride ON the MANIFEST line (not indented human-only text): a CI
+    # parser filtering MANIFEST* must see WHICH files didn't run — "named,
+    # never silence" includes machine-readable (caught by the suite's first
+    # real run: name lines were filtered out by exactly such a parser).
+    printf '%s\n' "$NOT_SEL" | head -20 | sed 's/^/MANIFEST NOT-SELECTED-FILE: /'
+    [ "$N_NS" -gt 20 ] && printf 'MANIFEST NOT-SELECTED-MORE: %s\n' "$((N_NS - 20))"
 fi
 if [ "$N_CR" -gt 0 ]; then
     printf '%s\n' "$CANNOT" | sed 's/\t/ — /; s/^/MANIFEST CANNOT-RUN: /'
