@@ -3794,3 +3794,28 @@ Commits: e1c1acda (contract), 5b43a198 (machine-visible names).
   because coverage-ACTUAL is a distinct measurement the static graph cannot
   make — testmon keeps the offline-auditor role, docs/development/testing.md
   demoted to advisory box, never a CI selector.
+
+## PLAN AMENDMENT 2026-09-16 — WP2.6–2.9 added from today's artifacts (draft WPs)
+
+Owner-directed fold-in of the session's improvement findings. Each traces to
+a named today-artifact; the goal prompt's "31 WP" census now reads 35 (4
+drafts; WP2.9 gates itself out with a trigger grep if the class is
+compose-only).
+
+- WP2.6 fixture-provider edges: closes the closure's last structural class
+  (bare-fixture-name consumers; today's conftest rule requires a textual
+  conftest reference — 100% recall was a corpus property, not a guarantee).
+- WP2.7 measurement harnesses carry verification gates + bake-off tooling
+  moves /tmp/wp21 -> scripts/dev/bakeoff/ (both bake-off lies were
+  measurement-layer and silent for hours; derive-from-raw-logs becomes the
+  named standard).
+- WP2.8 unit tests may not execute real system commands: ratchet-style AST
+  check; podman_install executed real apt-get/podman before 403bdf69 —
+  destructive-on-dev-box class with no existing gate.
+- WP2.9 data-file dependency declaration (compose rule generalized; scoped
+  narrow today because basename-matching over-selects; trigger-gated).
+
+Parked with evidence, NOT drafted: hub-module import-cost diet (speed lever
+via duration-audit import column — only if the raised budget stings), test-
+side fixture-name edge (WP2.6 absorbs it), versioning of pre-push hook
+itself (WP0.1/WP2.4 history in-file already).

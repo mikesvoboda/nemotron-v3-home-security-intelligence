@@ -310,6 +310,103 @@ Today it probes 5 synthetic changes against a 600s bound. Add transitive cases a
 
 **Done when:** all playbook cases pass within the recorded bound.
 
+### WP2.6 (DRAFT 2026-09-16, from the WP2.1/2.2 artifacts): Fixture-provider edges in the selector
+
+**Files:** Modify `scripts/fast_select.py`, `scripts/test_fast_select.py`
+
+The WP2.2 conftest rule attaches a test to a conftest only when the test's
+text NAMES the conftest module (bake-off test_rum.py does exactly that). The
+normal pytest idiom — consume the fixture by parameter name, never mention
+the conftest — is still statically invisible: a hub change (config.py,
+main.py) that rides through `unit/conftest.py`'s client fixture reaches only
+the tests that import the conftest by dotted name. Today's 100% recall holds
+because THIS corpus happens to import its conftests; the class is a corpus
+accident, not a guarantee.
+
+- [ ] Write the red synthetic test: a test that uses a conftest fixture by
+      bare parameter name, asserting a hub-module change selects it.
+- [ ] Implement: extract fixture DEFINITIONS per conftest (name -> module),
+      attach each test that declares the fixture name as a parameter (AST,
+      cheap — the tests are already read for dotted refs). Same producer
+      graph carries the conftest->prod half; referrers() semantics unchanged.
+- [ ] MEASURE: rebench all 20 cases (recall must not fall; selection cost
+      delta recorded) + fs_out_of_tier delta (this rule over-selects toward
+      "everything under a conftest with app fixtures" — record the number).
+- [ ] Commit.
+
+**Done when:** the bare-name fixture test passes and the bake-off rebench
+shows no recall regression, with the over-selection delta recorded.
+
+### WP2.7 (DRAFT 2026-09-16): Measurement harnesses carry their own verification gate
+
+**Files:** Relocate bake-off tooling into `scripts/dev/bakeoff/`; add self-checks
+
+Two harness defects (v1 fails() parser truncating every node id to the word
+FAILED; `comm -3`'s tab-led right column poisoning the join) silently lied
+for hours until independent count cross-checks caught them. Both were in the
+MEASUREMENT layer — the kind of code that gets zero test attention because
+it is "just tooling", while producing the numbers a DECIDE rests on. Two
+durable rules come out of this:
+
+- [ ] Verification gate INSIDE every heavy measurement script: after each
+      parse, assert parsed-count against an independent raw count
+      (`grep -c`), print VERIFY lines, fail loud on mismatch. The
+      derive-from-raw-logs pattern (never trust the live line; re-derive
+      from artifacts) becomes the named standard, not an accident.
+- [ ] Relocate protocol v3 (`driver.sh`, `derive.sh`, `rebench.sh`,
+      README) from `/tmp/wp21` into `scripts/dev/bakeoff/` — the next
+      selector question (sizing, a testmon-audit re-check) must not rebuild
+      5 hours of harness, including its defect fixes, from memory.
+- [ ] Commit.
+
+**Done when:** the tooling is in-repo, every parse prints its VERIFY line,
+and a planted bad-parse fixture trips the gate.
+
+### WP2.8 (DRAFT 2026-09-16): Unit tests may not execute real system commands
+
+**Files:** Create `scripts/check-unit-subprocess.py`; wire in `.pre-commit-config.yaml`
+
+Found the hard way (WP0.5-gated audit, first PR run): `test_podman_install`
+executed REAL `sudo apt-get install` / `podman --version` — 23.57s, fixed in
+403bdf69. The class is worse than slow: on a developer box it mutates the
+system. check-test-mocks guards integration-only; check-test-timeouts guards
+sleeps only. Neither sees a unit test spawning binaries.
+
+- [ ] Detection pass: AST-scan `backend/tests/unit/**` for `subprocess.` /
+      `os.system` / `shutil.which`-exec sites without a `monkeypatch`/mock
+      seam in the same test; output names the file, count recorded (expect:
+      near-clean post-403bdf69 — that is the regression-lock use case).
+- [ ] Fail-closed check script in the ratchet style: NEW violations block;
+      existing recorded in the allowlist with owner+date (counts only fall).
+- [ ] Commit.
+
+**Done when:** the check runs in the gate and the podman class has a CI
+face — a reintroduced real-command unit test fails, naming the test.
+
+### WP2.9 (DRAFT 2026-09-16): Data-file dependency declaration (compose rule, generalized)
+
+**Files:** Modify `scripts/fast_select.py`, `docs/development/testing.md`
+
+The compose-config rule selects tests by FILENAME appearing in test text —
+correct for the evidenced class, but the scope had to be narrowed to root
+`docker-compose*.yml` because basename-matching any data file over-selects
+(half the suite mentions `pyproject.toml`). If accidental-filename
+dependencies grow beyond compose (lockfiles, schema JSON, fixtures dirs),
+the principled form is DECLARATION: a marker or module-level manifest naming
+a test's data-file deps, selection reading the declaration; text-matching
+stays as the fallback for undeclared tests.
+
+- [ ] Trigger check (cheap, now): grep the corpus for tests `Path()`-ing
+      tracked non-test data files the selector cannot currently see. If the
+      class is compose-only, park this WP with the grep recorded; the plan
+      earns its keep only when the class grows.
+- [ ] If triggered: `@pytest.mark.datafiles(...)`-style declaration +
+      selector rule + red-first tests.
+- [ ] Commit.
+
+**Done when:** either the trigger grep shows compose-only (parked, evidence
+in commit body) or declared deps are selected and tested.
+
 ---
 
 # Phase 3 — CI throughput
