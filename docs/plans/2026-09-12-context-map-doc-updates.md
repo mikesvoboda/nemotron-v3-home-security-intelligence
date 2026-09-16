@@ -3019,7 +3019,7 @@ CI truth at DECIDE time (main run 35049640472): red jobs were exactly `Trivy Sca
 
 ## Prettier drift repair — chore 3021e853 (pre-existing, surfaced by WP0.2's deeper validate)
 
-Sep-15 npm sweep (228647d7) pinned prettier 3.9.6 in package-lock.json; committed src/ files were formatted under the previous tool and 24 of them fail `prettier --check` with the installed one. Shipped tool = contract → `npm run format` (3.9.6). `-w` diff proves formatting-only (3.9 fit-out collapses union types). MEASURE: check 24 fail → "All matched files use Prettier code style". Full vitest re-verification ran at commit time (dot reporter; result lands here when recorded by the follow-up row).
+Sep-15 npm sweep (228647d7) pinned prettier 3.9.6 in package-lock.json; committed src/ files were formatted under the previous tool and 24 of them fail `prettier --check` with the installed one. Shipped tool = contract → `npm run format` (3.9.6). `-w` diff proves formatting-only (3.9 fit-out collapses union types). MEASURE: check 24 fail → "All matched files use Prettier code style". Full vitest re-verification (2026-09-16, verbose+file-logged on the post-reformat tree at 3021e853): **rc=0 — 446 test files, 5968 tests passed, 0 failed, 13.8 min wall.** The reformat is behaviorally inert; zero pre-existing failures surfaced.
 
 ## WP0.4 MEASUREMENT — vulture whitelist (2026-09-16)
 
