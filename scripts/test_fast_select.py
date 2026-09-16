@@ -216,6 +216,32 @@ def test_changed_conftest_selects_its_tree(repo):
     assert "backend/tests/contracts/test_api_contracts.py" not in r.stdout
 
 
+def test_compose_config_change_selects_naming_test(repo):
+    """A test whose dependency is a DATA FILE rides when that file changes.
+
+    Bake-off a743cd64, the outcome arm's only closure miss:
+    test_ai_service_resource_limits.py has zero backend.* refs — it parses
+    docker-compose.prod.yml via Path and asserts YAML content. No Python
+    import edge can exist; the dependency IS the filename. Rule scope =
+    root-level docker-compose*.yml (the evidenced class), matched by the
+    file's NAME appearing in the test's text.
+    """
+    (repo / "docker-compose.prod.yml").write_text("services:\n  ai-yolo26:\n    deploy: {}\n")
+    (repo / "backend/tests/unit/test_compose_limits.py").write_text(
+        "from pathlib import Path\n\n"
+        'COMPOSE = Path("docker-compose.prod.yml")\n\n\n'
+        "def test_limits(): ...\n"
+    )
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "compose base"], cwd=repo, check=True)
+    (repo / "docker-compose.prod.yml").write_text(
+        "services:\n  ai-yolo26:\n    deploy:\n      resources: {}\n"
+    )
+    subprocess.run(["git", "add", "--", "docker-compose.prod.yml"], cwd=repo, check=True)
+    r = select(repo)
+    assert "backend/tests/unit/test_compose_limits.py" in r.stdout
+
+
 def test_unmapped_is_loud(repo):
     write_and_stage(repo, "backend/services/orphan.py", "def f():\n    return 1\n")
     r = select(repo)
