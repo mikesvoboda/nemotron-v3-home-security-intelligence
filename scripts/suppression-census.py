@@ -260,12 +260,43 @@ def _frontend_quarantine_locations(root: Path) -> list[dict]:
     return []
 
 
-def _decorator_reason(dec: ast.expr) -> str:
-    """The reason= kwarg of a decorator call, '' for bare or reason-less forms."""
+def _module_str_constants(tree: ast.Module) -> dict[str, str]:
+    """{name: value} for top-level NAME = <string constant> assignments.
+
+    Reason texts are commonly factored into a module constant when several
+    decorators share one — the real MQTT_PUMP_REASON / EXPORTDEFER_REASON
+    shape. A locations pass that only reads ast.Constant loses those
+    reasons, and WP1.2's registry cannot classify what it cannot read.
+    """
+    consts: dict[str, str] = {}
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        ):
+            try:
+                value = ast.literal_eval(node.value)
+            except ValueError, SyntaxError:
+                continue
+            if isinstance(value, str):
+                consts[node.targets[0].id] = value
+    return consts
+
+
+def _decorator_reason(dec: ast.expr, consts: dict[str, str] | None = None) -> str:
+    """The reason= kwarg of a decorator call, '' for bare or reason-less forms.
+
+    A Name value resolves through the module's string constants (same-file
+    indirection only — imports are out of scope for a census).
+    """
     if isinstance(dec, ast.Call):
         for kw in dec.keywords:
-            if kw.arg == "reason" and isinstance(kw.value, ast.Constant):
-                return str(kw.value.value)
+            if kw.arg == "reason":
+                if isinstance(kw.value, ast.Constant):
+                    return str(kw.value.value)
+                if isinstance(kw.value, ast.Name) and consts:
+                    return consts.get(kw.value.id, "")
     return ""
 
 
@@ -277,6 +308,7 @@ def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> lis
             tree = ast.parse(path.read_text())
         except SyntaxError, OSError:
             continue
+        consts = _module_str_constants(tree)
         for node in ast.walk(tree):
             for dec in getattr(node, "decorator_list", []):
                 name = _decorator_name(dec)
@@ -284,7 +316,7 @@ def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> lis
                     out.append(
                         {
                             "id": f"{_rel(root, path)}::{getattr(node, 'name', '?')}",
-                            "reason": _decorator_reason(dec),
+                            "reason": _decorator_reason(dec, consts),
                         }
                     )
     return out
@@ -297,16 +329,19 @@ def _skip_imperative_locations(tree_files: list[Path], root: Path) -> list[dict]
             tree = ast.parse(path.read_text())
         except SyntaxError, OSError:
             continue
+        consts = _module_str_constants(tree)
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and _call_name(node.func) in (
                 "pytest.skip",
                 "_pytest.skipping.skip",
             ):
-                reason = (
-                    str(node.args[0].value)
-                    if node.args and isinstance(node.args[0], ast.Constant)
-                    else ""
-                )
+                reason = ""
+                if node.args:
+                    arg = node.args[0]
+                    if isinstance(arg, ast.Constant):
+                        reason = str(arg.value)
+                    elif isinstance(arg, ast.Name):
+                        reason = consts.get(arg.id, "")
                 out.append({"id": f"{_rel(root, path)}:{node.lineno}", "reason": reason})
     return out
 

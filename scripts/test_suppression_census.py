@@ -54,7 +54,9 @@ FIXTURE = {
     "backend/tests/unit/test_a.py": (
         "import pytest\n"
         "from pytest import mark\n"
-        "@pytest.mark.skip(reason='x')\n"
+        "SKIP_X = 'x'  # module-constant reason indirection — the real "
+        "MQTT_PUMP_REASON/EXPORTDEFER_REASON shape; locations must resolve it\n"
+        "@pytest.mark.skip(reason=SKIP_X)\n"
         "def test_one():\n    pytest.skip('nope')\n"
         "@pytest.mark.skipif(True, reason='y')\n"
         "def test_two():\n    pass\n"
@@ -168,7 +170,7 @@ EXPECTED_LOCATIONS = {
     "pytest_skipif": [{"id": "backend/tests/unit/test_a.py::test_two", "reason": "y"}],
     "pytest_xfail": [{"id": "backend/tests/unit/test_b.py::test_four", "reason": ""}],
     "pytest_skip_imperative": [
-        {"id": "backend/tests/unit/test_a.py:5", "reason": "nope"},
+        {"id": "backend/tests/unit/test_a.py:6", "reason": "nope"},
         {"id": "backend/tests/unit/test_b.py:4", "reason": ""},
     ],
     "collection_allowlist": [
