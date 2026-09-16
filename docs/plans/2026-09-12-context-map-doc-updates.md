@@ -3658,3 +3658,18 @@ defined from re-exported (a first-pass introspective version silently passed
 by skipping ALL 65 — caught before commit by counting what it skipped).
 Done-when verified on the real file: `# app.include_router(backup.router)`
 → suite fails naming backup.router; git checkout → 4 passed.
+
+## WP1.3–1.5 CI TRUTH — head 6c712f4e (ratchet live in CI) — IN PROGRESS
+
+Verified green on the pushed head (separate workflows, job logs/API):
+Test Coverage Gate, AGENTS.md Validation, Dependency Audit, Secret Detection,
+SAST, Documentation Drift, PR Review Bot. In flight at write-time: the main
+CI run (Collection Sanity = ratchet + census + gate self-tests incl. new
+test_ratchet_check.py, lint, typecheck, unit, 4 integration tiers, frontend)
+— all jobs queued/starting. Known reds: the two PRE-EXISTING adjudicated
+security signals only (Check CVE Review Dates — 6 stale .trivyignore dates;
+Filesystem Vulnerability Scan — cryptography 49.0.0 ceiling via
+data-designer-engine; R-TRIVY-CRYPTO ruling open, default (1) owner-debt).
+The unit-tests/… SUCCESS claims here were written from the PREVIOUS head's
+results, not this one — retracted until the CI run on 6c712f4e concludes
+(honesty rule: a verdict needs THIS head's job log).
