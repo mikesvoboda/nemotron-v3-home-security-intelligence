@@ -9,7 +9,7 @@
 #   engine during container startup before serving requests.
 #   TensorRT engines are GPU-architecture-specific - rebuild for each target GPU.
 
-FROM nvcr.io/nvidia/tensorrt:26.01-py3
+FROM nvcr.io/nvidia/tensorrt:26.04-py3
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="CLIP ViT-L embedding server for entity re-identification"
@@ -93,6 +93,7 @@ RUN mkdir -p /cache/huggingface /cache/tensorrt
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 300s allows time for model loading and TensorRT auto-export on first run
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
     CMD python -c "import httpx; r = httpx.get('http://localhost:8093/health'); r.raise_for_status()"
 
