@@ -4013,3 +4013,34 @@ quirk recorded, NOT touched: docs/\*.md ride the OTHER prettier block
 version split width-measures the same table lines differently, source of
 this session's commit-hook flip-flops (adopt-the-hook's-output cycle);
 unifying pins is a reflow-every-docs-file change, its own conversation.
+
+## OUR PUSH INTRODUCED (surfaced by CI at Phase-2-close) — removal commits left the census mirrors stale: collection-sanity red on the head (2026-09-16)
+
+CI on head 91e3ee54 went red at the WP1.1 census step (Suppression census
+(baseline stable)) — `--expect` said `collection_allowlist` 6, the tree
+reproduced 4. Not drift the wrong way: 97153cbb DELETED the schemathesis stub
+and fe646612 RENAMED test*utils.py, and each removal correctly deleted its
+line from scripts/collection-sanity-allowlist.txt — 6→4 is exactly the
+counts-may-only-fall direction. The defect is that the THREE hand-maintained
+mirrors of that count were not updated in the same commits: the ci.yml
+`--expect` literal, .github/suppression-baseline.json, and
+test_real_tree_matches_spec_baselines in scripts/test_suppression_census.py.
+How it hid: the 18 commits rode one push, so CI ran only at the head (per-
+commit CI would have caught each removal at its own commit); and validate.sh
+never runs the census/ratchet steps — a CI-only mirror set is WP0.7 doctrine
+in reverse: the gate has CI, but the LOCAL green devs trust doesn't include
+it, so a "VALIDATION SUCCESSFUL" tree pushed a red collection-sanity.
+RED-FIRST proof: `pytest scripts/test_suppression_census.py` → 1 failed
+(census=4 spec=6) / 4 passed on HEAD before any edit. GREEN after: full CI
+collection-sanity replay (check-test-collection 3647 files, flake-allowlist,
+census --expect at the new literal, ratchet) + the CI step-8 anti-rot list,
+86 passed. ADJUDICATED: `ratchet-check.py --update` lowered baseline.json
+6→4 (refuses to RAISE — decreases are its one sanctioned write); test mirror
+and ci.yml literal edited to 4 with the provenance recorded in the test
+docstring; registry needed no edit (gen already carried exactly the 4
+survivors — no zombie entries). Historical ledger mentions of the count 6
+(WP1.1 MEASURE, WP1.2 adjudication) stay untouched — point-in-time records.
+Follow-up worth a future WP, NOT taken here: validate.sh gains the CI-only
+gate steps (census --expect, ratchet, the `scripts/test*\*.py` list) so local green
+means CI green for this job too — the mirror-set class of staleness is
+exactly what a pre-push replay would have made impossible.

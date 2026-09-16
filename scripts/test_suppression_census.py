@@ -253,14 +253,19 @@ def test_counts_only_move_with_the_suppression(tmp_path):
 
 @pytest.mark.timeout(180)  # real-tree AST census ~14s; tier default timeout is 5s
 def test_real_tree_matches_spec_baselines():
-    """The spec's escape-hatch table: 6/0/16/32/63/4/94/54 + 4 trees + 5 modules.
+    """The spec's escape-hatch table: 4/0/16/32/63/4/94/54 + 4 trees + 5 modules.
 
+    collection_allowlist 6→4 (2026-09-16): 97153cbb deleted the schemathesis
+    stub and fe646612 renamed test_utils.py — real remediation, so the two
+    allowlist lines vanished for the right reason; the count fell, it was not
+    raised (the ratchet's one-directional rule is about the tree, and this
+    test is the tree's mirror).
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
     got = run_census(REPO_ROOT)
     expected = {
-        "collection_allowlist": 6,
+        "collection_allowlist": 4,
         "flake_allowlist": 0,
         "frontend_quarantine": 16,
         "pytest_skip": 32,
