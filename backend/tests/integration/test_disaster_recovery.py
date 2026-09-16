@@ -18,6 +18,7 @@ Related: NEM-2096 (Epic: Disaster Recovery Testing)
 from __future__ import annotations
 
 import asyncio
+import json
 from unittest.mock import AsyncMock
 
 import pytest
@@ -155,20 +156,46 @@ class TestRedisFailover:
 
     @pytest.mark.asyncio
     async def test_redis_connection_pool_exhaustion_recovery(self) -> None:
-        """Redis connection pool recovers from stress."""
+        """Pool survives sustained load and still serves requests after exhaustion.
+
+        The shipped RedisClient (NEM-3368) uses redis-py's non-blocking pool:
+        past `redis_pool_size` (default 50) checked-out connections it raises
+        MaxConnectionsError immediately rather than queueing. So the fail-fast
+        is the contract, and the disaster-recovery property that matters is
+        that the pool is still healthy afterwards. The old assertion (100
+        unbounded concurrent sets, >90% success) measured the pool cap and
+        failed 50/100 deterministically.
+        """
         client = RedisClient()
         await client.connect()
 
+        keys = [f"dr_test:key_{i}" for i in range(100)]
         try:
-            # Perform many operations to stress the pool
-            tasks = [client.set(f"key_{i}", f"value_{i}") for i in range(100)]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Sustained load inside the pool capacity all succeeds
+            capacity: int = client._pool.max_connections  # type: ignore[union-attr]
+            window = asyncio.Semaphore(capacity)
 
-            # Most should succeed
-            successful = sum(1 for r in results if not isinstance(r, Exception))
-            assert successful > 90  # At least 90% success rate
+            async def put(index: int) -> bool:
+                async with window:
+                    return await client.set(keys[index], f"value_{index}")
 
+            results = await asyncio.gather(*(put(i) for i in range(100)))
+            assert all(results), "writes within pool capacity must all succeed"
+
+            # Exhausting the pool fails fast and LOUD — never silently queues
+            beyond = await asyncio.gather(
+                *(client.set(f"dr_test:beyond_{i}", "v") for i in range(capacity * 2)),
+                return_exceptions=True,
+            )
+            errors = [r for r in beyond if isinstance(r, Exception)]
+            assert errors, "pool exhaustion must raise, not block forever"
+            assert all("MaxConnections" in type(e).__name__ for e in errors), errors[:3]
+
+            # Recovery: the pool still serves ordinary requests afterwards
+            assert await client.set("dr_test:after_recovery", "ok") is True
+            assert await client.get("dr_test:after_recovery") == "ok"
         finally:
+            await client.delete(*keys, "dr_test:after_recovery")
             await client.disconnect()
 
 
@@ -300,8 +327,6 @@ class TestCacheDatabaseConsistency:
         Now the real CacheService.set runs (JSON payload, default TTL), so
         the DB write and the cache write are both genuinely verified.
         """
-        import json
-
         from backend.services.cache_service import CACHE_PREFIX, DEFAULT_TTL, CacheService
 
         # Create camera in database

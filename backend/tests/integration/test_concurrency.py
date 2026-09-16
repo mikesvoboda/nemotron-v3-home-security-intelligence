@@ -629,15 +629,26 @@ class TestConcurrentRedisOperations:
 
         Expected: All values should be present in the list after concurrent appends.
         Note: Redis RPUSH is atomic, so this test should always pass.
+
+        The concurrency window is capped to the client's live pool size: the
+        shipped RedisClient (NEM-3368) uses redis-py's non-blocking pool, which
+        raises MaxConnectionsError instead of queueing once `redis_pool_size`
+        (default 50) connections are checked out. An unbounded 100-way fan-out
+        therefore measured pool policy, not RPUSH atomicity — 50/100 raises
+        every time. Cap the window, keep the real invariant (no lost appends).
         """
         list_key = f"test:list:{unique_id('list')}"
 
         # Get underlying Redis client
         client = real_redis._ensure_connected()
+        capacity: int = client.connection_pool.max_connections
 
-        # 100 concurrent RPUSH operations
+        # 100 RPUSH operations, at most `capacity` in flight at once
+        window: asyncio.Semaphore = asyncio.Semaphore(capacity)
+
         async def push_value(value: int) -> None:
-            await client.rpush(list_key, str(value))  # Store as string
+            async with window:
+                await client.rpush(list_key, str(value))  # Store as string
 
         tasks = [push_value(i) for i in range(100)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
