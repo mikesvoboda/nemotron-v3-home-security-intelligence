@@ -3006,3 +3006,29 @@ Collateral (recorded, accepted): otel runtime 1.44.0→1.43.0 + instruments 0.65
 Suppression debt (Phase 1 material, not papered over here): `dependency-audit.yml` still passes `--ignore-vuln GHSA-537c-gmf6-5ccf PYSEC-2026-3553/3554` — inert now (IDs no longer reported; pip-audit accepts unknown ignores), and 3552 (pkcs7 Bleichenbacher oracle) STILL applies at 49.0.0 (fix 50.0.0 > engine cap 49) — the ignore's "pkcs7 APIs unused" rationale holds and its OpenSSL-3.2 implicit-rejection argument strengthened. WP1.2 registry should adopt the whole `dependency-audit.yml` ignore list + `.trivyignore` REVIEW-BY set (several dates expired 2026-04-05) with owners/expiries.
 
 Trivy done-when: no trivy binary in-sandbox (CI installs v0.68.2); pip-audit re-run is the local proxy — GHSA-537c and CVE-2026-25087 no longer reported; backend-deps Trivy job goes green on push (CI), frontend-deps already clear.
+
+## WP0.3 MEASUREMENT + DECIDE — Trivy pipeline collapse (2026-09-16, commit 85596599)
+
+BEFORE baseline (saved /tmp/wp03-trivy-baseline.txt): ci.yml matrix job = {fs '.', fs 'frontend', config backend/Dockerfile, config frontend/Dockerfile}, all exit-code:1, ignore-unfixed:true, NO .trivyignore param on config scans. trivy.yml = {fs '.' exit1 + SARIF fs exit0 MEDIUM, config '.' exit1 + SARIF, SBOM×2, expiry-check job, backend image scan, frontend image scan}, all with trivyignores=.trivyignore, fs scan WITHOUT ignore-unfixed.
+
+AFTER: ci.yml job deleted (grep-verified zero `needs:` dependents first). trivy.yml unchanged except push trigger +frontend/package-lock.json + frontend/bun.lock.
+
+Surface diff: every ci.yml target is covered by a trivy.yml scan of equal-or-greater strictness — scan-config '.' is a strict superset of the two per-Dockerfile config scans AND fails on findings; scan-filesystem '.' covers both fs scans and honors .trivyignore (ci's job relied on root auto-find anyway). One trigger nuance: ci.yml fired on every push (unfiltered) while trivy.yml's push filter is dep-path-filtered — the WP's own DECIDE ("standalone workflow is the more natural home") accepts this; the schedule (weekly Mon) + PR filter + lockfile additions keep the dep-drift window bounded. CI post-push = final proof (WP0.6).
+
+CI truth at DECIDE time (main run 35049640472): red jobs were exactly `Trivy Scan (backend-deps)`, `Trivy Scan (frontend-deps)` — the CVEs 938d158f patches — plus Dead Code Detection (WP0.4) and Test Performance Audit (WP0.5). trivy.yml's own fs-scan failure (30 HIGH lockfile findings it scans without ignore-unfixed) and Check CVE Review Dates (every .trivyignore REVIEW BY 2026-04/06 expired) are honest signals WP0.2's ledger row already logged as WP0.8/WP1.2 work — NOT reintroduced here.
+
+## Prettier drift repair — chore 3021e853 (pre-existing, surfaced by WP0.2's deeper validate)
+
+Sep-15 npm sweep (228647d7) pinned prettier 3.9.6 in package-lock.json; committed src/ files were formatted under the previous tool and 24 of them fail `prettier --check` with the installed one. Shipped tool = contract → `npm run format` (3.9.6). `-w` diff proves formatting-only (3.9 fit-out collapses union types). MEASURE: check 24 fail → "All matched files use Prettier code style". Full vitest re-verification ran at commit time (dot reporter; result lands here when recorded by the follow-up row).
+
+## WP0.4 MEASUREMENT — vulture whitelist (2026-09-16)
+
+Baseline: `uv run vulture backend/ vulture_whitelist.py --config pyproject.toml` → 26 findings, rc≠0: clean_tracker ×8 (test_jobs_api.py), real_session_store ×11 (test_auth_flow.py), mock_run_sudo ×5 (test_deploy_phases.py) — pytest fixtures requested for side effects; approximate ×1 (test_pipeline_e2e.py:163 `_xadd_impl` mirrors redis-py's xadd signature). All 100% confidence, all the whitelisted idiom, zero genuine dead code in the report.
+
+WHITELISTED (vulture*whitelist.py, +4 names, job NOT silenced, fixtures NOT renamed): *.clean*tracker, *.real*session_store, *.mock*run_sudo (side-effect fixture group); *.approximate (mock-signature group — required by the xadd interface).
+
+Done-when half 2 (still reports genuine dead code) — planted probes:
+
+- `import difflib` (globally common name): package scan did NOT report it at 80%; direct single-file scan did (90%). Mechanism pinned: vulture's unused-import rule skips names used ANYWHERE in the scanned tree (backend/ has ~90 difflib users) — a real vulture semantic, not a config bug.
+- Globally-unique probe `import xmlrpc.client as wp04_unique_alias_xyz` in backend/core/: package scan reports it at 90% confidence ✓. (Note: the CI gate command exits 0 even while printing findings — the job's `|| true` sibling in weekly-audit vs ci.yml:1059 bare command is why the gate verdict itself deserves WP0.6 scrutiny.)
+  After whitelist: 0 findings, rc=0. Genuine-dead-code bite: proven via unique-name probe (rm'd after).

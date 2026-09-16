@@ -6,6 +6,13 @@
 # Protocol method parameters (required by abstract signature)
 _.input_data
 
+# WP0.4: fixtures requested purely for their side effects (setup/teardown runs
+# whether or not the test body names them) — the standard pytest-idiom vulture
+# cannot model. Whitelisted per-name; the job keeps reporting everything else.
+_.clean_tracker
+_.real_session_store
+_.mock_run_sudo
+
 # Test fixtures that are injected by pytest
 _.isolated_db
 _.reset_fallback_service
@@ -67,6 +74,8 @@ _.device_tokens
 _.pos
 _.auto_enhance
 _.plate_crop
+# WP0.4: _xadd_impl mirrors redis.xadd(name, fields, maxlen, approximate)
+_.approximate
 
 # ASGI middleware parameters (required by ASGI signature in test mock apps)
 # async def minimal_app(scope, receive, send): pass
