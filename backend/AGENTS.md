@@ -150,7 +150,6 @@ backend/
   - `webhooks` - Webhook management
   - `websocket` - Real-time event streaming
   - `zone_anomalies` - Zone anomaly detection
-  - `zone_baselines` - Zone baseline management
   - `zone_household` - Zone-household configuration
   - `zones` - Zone management for camera areas
 - Database and Redis initialization
@@ -472,7 +471,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `household_matcher.py` | `/api/household-matcher` | Household matching operations |
 | `plate_reads.py`       | `/api/plate-reads`       | License plate read queries    |
 | `zone_anomalies.py`    | `/api/zone-anomalies`    | Zone anomaly detection        |
-| `zone_baselines.py`    | `/api/zone-baselines`    | Zone baseline management      |
 | `zone_household.py`    | `/api/zone-household`    | Zone-household configuration  |
 
 ### Integration Routes

@@ -184,7 +184,6 @@ The backend exposes **150+ API endpoints** across **50 route files** organized b
 | webhooks.py                 | Webhooks       | Webhook configuration       |
 | websocket.py                | WebSocket      | WebSocket connections       |
 | zone_anomalies.py           | Zones          | Zone anomaly detection      |
-| zone_baselines.py           | Zones          | Zone baseline data          |
 | zone_household.py           | Zones          | Zone-household mapping      |
 
 ## API Characteristics

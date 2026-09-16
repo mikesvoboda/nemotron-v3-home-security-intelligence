@@ -3319,3 +3319,28 @@ RESIDUAL: branch protection requires exactly one context ("CI Gate (Required
 Checks)", API-verified) — this workflow's verdict is visible and real but not
 merge-blocking; routing it through ci-gate is the owner's branch-protection
 surface, flagged for the WP close-out (no plan WP owns it).
+
+## PRE-EXISTING (surfaced by WP0.1 gate, first full-tree pre-push) — dead zone-baseline placeholder family (2026-09-16)
+
+MEASURE: pushing feat/phase2 for the first time makes the pre-push range every
+file; check-integration-tests.py went red on zone_baselines.py "requires
+integration tests". Census (git ls-tree -l size column): the whole family is
+0-byte blobs in HEAD — api/routes/zone_baselines.py, api/schemas/zone_baseline.py,
+jobs/compute_baselines.py, tests/matchers.py. Zero importers (grep across
+backend/ ai/ scripts/ frontend/src; only docs hit). Never mounted: main.py
+mounts by explicit import and this isn't among them; /api/zone-baselines absent
+from api.ts + OpenAPI. The "missing" test was itself a 0-byte stub shipped in
+d54f28ed and gone at the #6538 squash (no deletion commit exists) — restore was
+never an option. test-suite-audit-2026-09-13.md §1.2 independently verified the
+same family and prescribed populate-or-delete.
+
+DECIDE: DELETE + doc corrections, not populate — a never-mounted API has no
+shipped contract to test; populating would manufacture scope. The real Zone
+Intelligence (models/zone_baseline.py, zone_baseline_service.py, zone_anomalies
+route) is alive with real coverage. docs/components/AGENTS.md (also 0-byte) left
+alone: AGENTS.md is the docs-navigation convention, blocks no gate.
+
+DONE-WHEN PROOF: full-tree check-integration-tests.py (278 files, the exact
+new-branch shape that went red) exits 0; backend.main imports clean; api.ts
+regeneration byte-identical (contract unchanged). backend/AGENTS.md +
+docs/research/01-backend-api-inventory.md no longer claim the phantom route.
