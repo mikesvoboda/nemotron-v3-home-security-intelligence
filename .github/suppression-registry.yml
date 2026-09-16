@@ -791,6 +791,399 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: null
+pytest_skipif:
+  - id: backend/tests/benchmarks/test_bigo.py::TestBatchAggregatorComplexity
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: big-o library not installed
+  - id: backend/tests/benchmarks/test_bigo.py::TestFileWatcherComplexity
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: big-o library not installed
+  - id: backend/tests/benchmarks/test_memory.py::TestMemoryProfiling
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: memray only available on Linux
+  - id: backend/tests/benchmarks/test_memory.py::test_cameras_endpoint_without_memray
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: memray is available, using memray tests instead
+  - id: backend/tests/benchmarks/test_memory.py::test_health_endpoint_without_memray
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: memray is available, using memray tests instead
+  - id: backend/tests/integration/test_audit.py::TestAuditServiceDatabase
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Database tests require a reachable PostgreSQL (TEST_DATABASE_URL/DATABASE_URL unset)
+  - id: backend/tests/integration/test_export_api.py::TestExportDownload
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-EXPORTDEFER
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-EXPORTDEFER: non-empty export always fails via deferred Event.reasoning read in async
+      job (owner ruling pending)'
+  - id: backend/tests/integration/test_file_watcher_filesystem.py::test_follows_symlink_to_file
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Symlinks require special permissions on Windows
+  - id: backend/tests/integration/test_file_watcher_filesystem.py::test_handles_broken_symlink
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Symlinks require special permissions on Windows
+  - id: backend/tests/integration/test_file_watcher_filesystem.py::test_handles_permission_denied_on_directory
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Permission tests require non-root on Unix-like systems
+  - id: backend/tests/integration/test_file_watcher_filesystem.py::test_handles_unreadable_file_gracefully
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Permission tests require non-root on Unix-like systems
+  - id: backend/tests/integration/test_file_watcher_filesystem.py::test_symlink_to_directory
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: Symlinks require special permissions on Windows
+  - id: backend/tests/integration/test_mqtt_integration.py::test_full_publish_subscribe_flow
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-MQTTPUMP
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
+      (owner ruling pending)'
+  - id: backend/tests/integration/test_mqtt_integration.py::test_qos_1_delivery
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-MQTTPUMP
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
+      (owner ruling pending)'
+  - id: backend/tests/integration/test_mqtt_integration.py::test_qos_2_delivery
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-MQTTPUMP
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
+      (owner ruling pending)'
+  - id: backend/tests/integration/test_mqtt_integration.py::test_retained_message
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-MQTTPUMP
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
+      (owner ruling pending)'
+  - id: backend/tests/integration/test_mqtt_integration.py::test_single_level_wildcard
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-MQTTPUMP
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
+      (owner ruling pending)'
+  - id: backend/tests/integration/test_mqtt_integration.py::test_wildcard_subscription
+    kind: defect
+    owner: mikesvoboda
+    tracking: R-T9-MQTTPUMP
+    expires: '2026-10-15'
+    reason:
+      'shipped defect R-T9-MQTTPUMP: MQTTClient starts no message pump, so subscribe() callbacks can never fire
+      (owner ruling pending)'
+  - id: backend/tests/unit/api/routes/test_onvif_routes.py::TestDiscoverOnvifDevices
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: ONVIF routes not implemented yet
+  - id: backend/tests/unit/api/routes/test_onvif_routes.py::TestExecutePTZCommand
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: ONVIF routes not implemented yet
+  - id: backend/tests/unit/api/routes/test_onvif_routes.py::TestGetDeviceCapabilities
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: ONVIF routes not implemented yet
+  - id: backend/tests/unit/api/routes/test_onvif_routes.py::TestGetPTZPresets
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: ONVIF routes not implemented yet
+  - id: backend/tests/unit/api/routes/test_onvif_routes.py::TestGotoPTZPreset
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: ONVIF routes not implemented yet
+  - id: backend/tests/unit/api/schemas/test_onvif.py::TestOnvifDeviceConfig
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifDeviceConfig not implemented yet
+  - id: backend/tests/unit/api/schemas/test_onvif.py::TestOnvifDiscoveryRequest
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifDiscoveryRequest not implemented yet
+  - id: backend/tests/unit/api/schemas/test_onvif.py::TestOnvifDiscoveryResult
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifDiscoveryResult not implemented yet
+  - id: backend/tests/unit/api/schemas/test_onvif.py::TestPTZCommand
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: PTZCommand not implemented yet
+  - id: backend/tests/unit/api/schemas/test_onvif.py::TestPTZPreset
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: PTZPreset not implemented yet
+  - id: backend/tests/unit/api/schemas/test_stream_config.py::TestEncoderSettings
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: EncoderSettings schema not implemented yet
+  - id: backend/tests/unit/api/schemas/test_stream_config.py::TestResolution
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: Resolution schema not implemented yet
+  - id: backend/tests/unit/api/schemas/test_stream_config.py::TestStreamCapabilities
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamCapabilities schema not implemented yet
+  - id: backend/tests/unit/api/schemas/test_stream_config.py::TestStreamConfigResponse
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamConfigResponse schema not implemented yet
+  - id: backend/tests/unit/api/schemas/test_stream_config.py::TestStreamConfigUpdate
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamConfigUpdate schema not implemented yet
+  - id: backend/tests/unit/api/schemas/test_stream_config.py::TestStreamProfile
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamProfile schema not implemented yet
+  - id: backend/tests/unit/core/test_redis.py::test_backpressure_integration_dlq_policy
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/core/test_redis.py::test_backpressure_integration_drop_oldest_policy
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/core/test_redis.py::test_backpressure_integration_reject_policy
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/core/test_redis.py::test_redis_integration_cache_operations
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/core/test_redis.py::test_redis_integration_queue_operations
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/core/test_redis.py::test_setex_integration
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: fakeredis not installed
+  - id: backend/tests/unit/services/test_onvif_service.py::TestDiscoverDevices
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_onvif_service.py::TestExecutePtzCommand
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_onvif_service.py::TestGetCapabilities
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_onvif_service.py::TestGetPresets
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_onvif_service.py::TestGetRtspUrlFromDevice
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_onvif_service.py::TestGotoPreset
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_onvif_service.py::TestOnvifServiceInit
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: OnvifService not implemented yet
+  - id: backend/tests/unit/services/test_stream_config_service.py::TestStreamConfigServiceGetConfig
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamConfigService not implemented yet
+  - id: backend/tests/unit/services/test_stream_config_service.py::TestStreamConfigServiceSetConfig
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamConfigService not implemented yet
+  - id: backend/tests/unit/services/test_stream_config_service.py::TestStreamConfigServiceValidation
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:ONVIF-SUITES
+    expires: '2026-12-31'
+    reason: StreamConfigService not implemented yet
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_creates_parent_directories
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_generates_rsa_key_with_correct_size
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_generates_valid_certificate
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_includes_custom_san_dns
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_includes_custom_san_ips
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_includes_default_sans
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_respects_days_valid_parameter
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_returns_false_for_corrupted_certificate
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_returns_false_for_nearly_expired_certificate
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_returns_true_for_valid_certificate
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_sets_key_file_permissions
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/setup_lib/test_ssl_certs.py::test_skips_invalid_ip_addresses
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: cryptography library not installed
+  - id: backend/tests/unit/test_benchmark_vram.py::test_get_gpu_memory_returns_tuple
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: GPU-dependent test - run manually on GPU system
 pytest_xfail:
   - id: backend/tests/integration/test_websocket_auth_flow.py::test_websocket_connection_survives_token_refresh
     kind: todo
