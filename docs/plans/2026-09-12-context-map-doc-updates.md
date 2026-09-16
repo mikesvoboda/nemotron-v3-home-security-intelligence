@@ -3208,3 +3208,55 @@ IMPLEMENTATION:
 DONE-WHEN PROOF: "a @pytest.mark.flaky test with no allowlist entry fails
 collection" — governance gate case 1 does exactly this in a scratch file
 against the real conftest, and the sweep case proves the shipped tree passes.
+
+## PRE-EXISTING (surfaced by WP0.5 honest gate) — gpu_config concurrent-apply guard + redis worker-global leak (2026-09-16)
+
+MEASURE: the WP0.5-era validate.sh unit tier red ONE test —
+`test_apply_gpu_config_rejects_concurrent_applies` answered 500, contract says
+409 — at `--randomly-seed=1556902420`, worker gw2, at 61%. gw2's recorded history
+in the log (`grep '\[gw2\]' | tail`) showed the failure arriving with NO
+gpu_config-adjacent redis usage on that worker beforehand: the residue came from
+an earlier module sharing the worker, which is why the failure is seed-dependent
+and survived every prior quieted run.
+
+ROOT CAUSE (two independent defects, both PRE-EXISTING, one commit each):
+
+1. **Production lie** (`gpu_config.py`, commit 8861a6e4): NEM-3547's in-memory
+   `_apply_state_fallback` stands in for Redis ABSENCE only. But
+   `_get_current_operation_id()` swallowed redis READ ERRORS → returned None →
+   the 409 guard read "no apply running" → a transient Redis failure silently
+   permitted a concurrent apply: the exact race the guard exists to prevent.
+   The fallback dict cannot rescue that path (while redis is present the dict
+   mirrors only the last COMPLETED apply — never updated mid-operation), so
+   "unknown" had no safe optimistic value.
+
+2. **Test-isolation leak** (`backend/tests/unit/conftest.py`, commit 2):
+   `backend.core.redis._redis_client` is a module global that persists for an
+   xdist worker's WHOLE life, across modules. A lifespan-bearing test (real app
+   lifespan → `init_redis()`, main.py:761) leaving it set hands the next module a
+   client bound to a closed loop → `redis.get` raises "Event loop is closed"
+   mid-request → defect 1 turned that into the 500.
+
+DECIDE — guard semantics: FAIL CLOSED with 503, not fall back to the dict.
+Rejected (a) "return the fallback dict on read error" — while redis is present
+the dict is provably stale (last completed apply), so it would return a
+confidently-wrong None and keep the race open; rejected (b) "treat read error as
+in-progress → 409" — a Redis outage would then block every legitimate apply with
+a misleading conflict. 503 is the honest answer: state unverifiable, retry.
+Scope held to what the gate surfaced: the GET status endpoint's own swallow
+(`get_operation_status` → None on error) degrades the same way but was NOT red
+here — logged as a follow-up candidate, not scope-crept in.
+
+IMPLEMENTATION: `raise_on_error=True` at the apply guard's call site → 503;
+autouse conftest sweep of both redis globals before AND after every unit test
+(entry blocks leak-in, the observed direction; exit blocks leak-out;
+unconditional — no unit test relies on the global persisting).
+
+DONE-WHEN PROOF: (a) regression test red-first — stale-loop client → apply →
+expected 503, red as 500/200 leak against pre-fix production, green after;
+(b) fixture necessity proven by injection — dead-loop client left in the global
+reds the shipped 409 test (`assert 503 == 409`) in a same-worker `-n0` run
+without the fixture, green with it; (c) the exact original condition — full unit
+tier in validate.sh's own shape at `--randomly-seed=1556902420` — re-run green.
+NOTE for readers: `-n 8` split the probe files across workers and gave a
+false-green necessity check; load-bearing proof requires same-worker `-n0`.

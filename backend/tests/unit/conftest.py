@@ -29,6 +29,35 @@ if TYPE_CHECKING:
 UNIT_TEST_API_KEY = "test-unit-api-key-12345"  # pragma: allowlist secret
 
 
+@pytest.fixture(autouse=True)
+def isolate_redis_module_global() -> Generator[None]:
+    """Sweep backend.core.redis module globals before and after every unit test.
+
+    `init_redis()` caches its client in the `backend.core.redis._redis_client`
+    module global, which under xdist persists across test MODULES on a worker.
+    A module whose lifespan/init test leaves a client bound to a since-closed
+    event loop poisons every later test on that worker: the next `redis.get`
+    raises "Event loop is closed" mid-request. Surfaced by the WP0.5-era honest
+    validate.sh run (seed 1556902420) as gpu_config's concurrent-apply guard
+    answering 500 where the shipped contract says 409.
+
+    Sweep is unconditional at BOTH ends: entry, so residue can never reach a
+    unit test (the observed direction of harm), and exit, so a unit test can
+    never poison the next module. Nothing in backend/tests/unit legitimately
+    relies on the global persisting across tests — tests that need a client
+    build or patch their own — so None is always the safe inter-test value.
+    """
+    import backend.core.redis as redis_module
+
+    redis_module._redis_client = None
+    redis_module._redis_init_lock = None
+    try:
+        yield
+    finally:
+        redis_module._redis_client = None
+        redis_module._redis_init_lock = None
+
+
 @pytest.fixture(scope="session", autouse=True)
 def enable_api_key_auth_for_unit_tests() -> Generator[None]:
     """Enable API key authentication for all unit tests.
