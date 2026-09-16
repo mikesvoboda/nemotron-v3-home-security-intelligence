@@ -34,14 +34,6 @@ flake_allowlist: []
 frontend_only: []
 frontend_todo: []
 collection_allowlist:
-  - id: backend/tests/contracts/test_schemathesis_contracts.py
-    kind: retired
-    owner: mikesvoboda
-    tracking: R-M2-COLLECTION-FINDINGS
-    expires: '2026-12-31'
-    reason:
-      R-M2-COLLECTION-FINDINGS (FCL ledger) — genuinely disabled (Schemathesis 4.x API break, documented in
-      its docstring); revive-or-delete queued M2
   - id: backend/tests/integration/test_helpers.py
     kind: retired
     owner: mikesvoboda

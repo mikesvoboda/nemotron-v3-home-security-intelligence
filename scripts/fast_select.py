@@ -13,9 +13,12 @@ Directory policy: any change under backend/api/** adds backend/tests/contracts
 (plan Task 10): the spec's "3 smoke files named in validate.sh's contracts
 step" do not exist on disk (validate.sh has no contracts step - grep 'contracts'
 scripts/validate.sh returns comment-only hits), so the smoke set IS
-backend/tests/contracts/ (4 test files at draft time: test_api_contracts,
-test_openapi_schema_validation, test_schemathesis_contracts,
-test_websocket_contracts - the CI-named contracts tier).
+backend/tests/contracts/ (the CI-named contracts tier; the draft-era set
+included test_schemathesis_contracts, a zero-test stub since DELETED
+2026-09-16 under R-M2-COLLECTION-FINDINGS' queued revive-or-delete).
+Policy contributions must DEFINE tests: the fast tier is a gate and
+fast-backend-runner detector 1 CANNOT-RUNs a zero-test file - pinned by
+scripts/test_fast_select.py::test_contract_policy_files_define_tests.
 
 Usage: fast_select.py --base REF [--list-out FILE] [--why]
 Stdout: human report ending in machine lines:
@@ -25,7 +28,9 @@ Exit: 0 report produced (selection may be empty), 2 git failure.
 Inert-additive (M1 constraint): scripts/ is outside pytest testpaths; the
 paired scripts/test_fast_select.py is not collected by validate.sh until the
 --fast tier lands. The regex also catches prose/docstrings mentioning dotted
-paths - over-selection direction only, harmless under an advisory tier.
+paths - over-selection direction only, and WP2.1 promoted the advisory
+selector to a GATE: there, over-selection is NOT harmless (the WP2.3
+manifest runs everything selected and names what cannot run).
 """
 
 from __future__ import annotations
