@@ -14,13 +14,7 @@
  * Days of the week for quiet hours scheduling.
  */
 export type DayOfWeek =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 /**
  * Day of week options with labels for UI display.

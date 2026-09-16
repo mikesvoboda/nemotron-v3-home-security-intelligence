@@ -241,11 +241,7 @@ export function createCameras(count: number): Camera[] {
 
 export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 export type ServiceStatusType =
-  | 'healthy'
-  | 'unhealthy'
-  | 'restarting'
-  | 'restart_failed'
-  | 'failed';
+  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
 
 /**
  * Service health status.

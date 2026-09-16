@@ -21,11 +21,7 @@ import { buildWebSocketOptions } from '../services/api';
 
 export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 export type ServiceStatusType =
-  | 'healthy'
-  | 'unhealthy'
-  | 'restarting'
-  | 'restart_failed'
-  | 'failed';
+  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
 
 export interface ServiceStatus {
   service: ServiceName;

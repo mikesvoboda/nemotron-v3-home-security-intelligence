@@ -4,12 +4,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
  * Button variant options
  */
 export type ButtonVariant =
-  | 'primary'
-  | 'secondary'
-  | 'ghost'
-  | 'outline'
-  | 'outline-primary'
-  | 'danger';
+  'primary' | 'secondary' | 'ghost' | 'outline' | 'outline-primary' | 'danger';
 
 /**
  * Button size options

@@ -236,13 +236,7 @@ export type AlertSeverity = components['schemas']['AlertSeverity'];
  * Constrains days to valid lowercase day names.
  */
 export type DayOfWeek =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 /**
  * Alert rule schedule type with properly constrained days.

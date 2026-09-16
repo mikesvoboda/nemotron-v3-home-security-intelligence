@@ -315,8 +315,8 @@ export function createDisconnectedSystemStatus(): UseSystemStatusReturn {
  * });
  * ```
  */
-export const mockUseSystemStatus = vi.fn(
-  (): UseSystemStatusReturn => createMockSystemStatusReturn()
+export const mockUseSystemStatus = vi.fn((): UseSystemStatusReturn =>
+  createMockSystemStatusReturn()
 );
 
 // =============================================================================

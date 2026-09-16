@@ -187,11 +187,7 @@ export interface PlateRecognizeResponse {
  * Sort options for plate reads listing.
  */
 export type PlateReadSortField =
-  | 'timestamp'
-  | 'plate_text'
-  | 'ocr_confidence'
-  | 'detection_confidence'
-  | 'image_quality_score';
+  'timestamp' | 'plate_text' | 'ocr_confidence' | 'detection_confidence' | 'image_quality_score';
 
 /**
  * Sort direction for plate reads listing.
