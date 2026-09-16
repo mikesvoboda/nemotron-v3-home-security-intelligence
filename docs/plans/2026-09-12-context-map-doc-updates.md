@@ -3131,3 +3131,26 @@ set WP0.3/0.4/0.5 fixed is exactly the set that was red in 35049640472.
 holds: the broken test fails unit-tests → unit-tests-summary → ci-gate
 `check_job` exit 1 (summary→gate edge untouched by this WP, graph test asserts
 the edge exists).
+
+## WP0.7 MEASUREMENT — the anti-rot gates' own tests run in CI (2026-09-16)
+
+MEASURE (baseline): `scripts/test_check_test_collection.py` (17 cases) +
+`scripts/test_check_flake_allowlist.py` (6 cases) = 23 items, all pass locally
+(2.4s), referenced by NO workflow and outside `testpaths` (pyproject.toml:480 —
+correctly, they drive subprocesses; self-collection would make the gate test
+the gate). Running-where: nowhere. A regression in `check-test-collection.py`
+or `check-flake-allowlist.py` was invisible.
+
+IMPLEMENTATION: `collection-sanity` job (already WP0.6-verified GATE-reachable
+via unit-tests-summary/integration-tests-summary) gains "Run the anti-rot
+gates' own tests" — explicit `pytest scripts/test_check_*.py -q`, the plan's
+"invoke them explicitly instead".
+
+DONE-WHEN PROOF ("a regression in either gate script fails CI"): injected the
+WP0.5-class lie itself into each script in turn (vacuous `sys.exit(0)` in
+main()) and ran the EXACT step command: check-test-collection regression → 7
+cases fail, rc=1; check-flake-allowlist regression → 3 cases fail, rc=1. Both
+scripts restored byte-clean (git status empty) after each. CI-side enforcement
+is the collection-sanity→summary→ci-gate edge WP0.6's graph test pins.
+(Measurement bug caught in-flight: `pytest … | tail -1` reports TAIL's rc —
+re-ran redirecting to a file to capture pytest's real 1.)

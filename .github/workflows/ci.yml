@@ -91,6 +91,15 @@ jobs:
         run: uv run --no-project python scripts/check-test-collection.py backend frontend
       - name: Flake allowlist hygiene
         run: uv run --no-project python scripts/check-flake-allowlist.py
+      # WP0.7: the two gates above are themselves tested; the suites sit
+      # outside testpaths on purpose (no self-collection) — run explicitly.
+      # A regression in either gate script fails here (scripts/test_*.py).
+      - name: Run the anti-rot gates' own tests
+        run: >-
+          uv run python -m pytest
+          scripts/test_check_test_collection.py
+          scripts/test_check_flake_allowlist.py
+          -q
 
   # Backend Jobs
 
