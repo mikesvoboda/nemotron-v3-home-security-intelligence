@@ -105,6 +105,15 @@ jobs:
         run: >-
           uv run python scripts/suppression-census.py --expect
           '{"collection_allowlist":6,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":94,"pytest_skipif":63,"pytest_xfail":4}'
+      # WP1.3: the ratchet. The --expect above says "the census must not
+      # drift"; this says "counts may only FALL" — an unregistered
+      # @pytest.mark.skip (or any new suppression of any category) fails CI
+      # naming its id, and a registry entry whose site vanished goes stale.
+      # Baseline: .github/suppression-baseline.json; decreases lower via
+      # `ratchet-check.py --update`, an increase needs registry entries AND a
+      # hand-raised baseline in the same reviewed commit.
+      - name: Suppression ratchet (counts may only fall)
+        run: uv run python scripts/ratchet-check.py
       # WP0.7: the two gates above are themselves tested; the suites sit
       # outside testpaths on purpose (no self-collection) — run explicitly.
       # A regression in either gate script fails here (scripts/test_*.py).
@@ -121,6 +130,7 @@ jobs:
           scripts/test_check_gate_changed_files.py
           scripts/test_check_test_timeouts.py
           scripts/test_suppression_census.py
+          scripts/test_ratchet_check.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).

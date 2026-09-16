@@ -1,0 +1,14 @@
+{
+  "collection_allowlist": 6,
+  "coverage_omit": 5,
+  "excluded_test_trees": 4,
+  "flake_allowlist": 0,
+  "frontend_only": 0,
+  "frontend_quarantine": 16,
+  "frontend_skip": 54,
+  "frontend_todo": 0,
+  "pytest_skip": 32,
+  "pytest_skip_imperative": 94,
+  "pytest_skipif": 63,
+  "pytest_xfail": 4
+}
