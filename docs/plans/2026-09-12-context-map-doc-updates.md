@@ -3719,3 +3719,29 @@ VERDICT: every Phase 1 gate is green in CI on this head (ratchet included,
 proven by job log). Phase 1 closes on CI. Remaining required-check red is
 one pre-existing slow-test offender surfaced by the WP0.5 repair — owned by
 the repair's own rule (separate fix commit), not a Phase-1 regression.
+
+## WP2.3 manifest contract — MEASURE (fake-seam verification; 2026-09-16)
+
+Both fast-tier runners now end EVERY exit path with the manifest: NOT-SELECTED
+(named, green — the normal state), CANNOT-RUN (defect, forces non-zero),
+ZERO-RELATED (green zero-run, named — never silence), FAILING (a real failing
+test under its own name, not relabelled a selection defect). Contract bugs the
+fake-driven probes caught BEFORE the pytest suite ran: (1) the frontend runner
+printed ZERO-RELATED and CANNOT-RUN together on a crash run — a crash is never
+also "normal zero selection"; fixed and pinned by assertion. (2) Backend draft
+`sh -c "$CMD" sh "$@"` never appended the selected files to the command. (3)
+Both drafts self-cd'd to the repo root, hijacking fixture-cwd runs into the
+REAL repo (printed the real 796-file universe from a 5-file fixture).
+
+MEASURE: scripts/test_fast_runners_manifest.py — 7 tests, 7 passed, 0.47s
+(first real run; fake pytest/vitest via the runners' PYTEST_CMD/VITEST_CMD
+seams; runs 15 subprocess shells/case max, box-safe during the bake-off).
+The suite's first run caught the third contract bug: file NAMES printed as
+indented prose, invisible to a `grep '^MANIFEST'` consumer — names now ride
+`MANIFEST NOT-SELECTED-FILE:` lines (5b43a198, suite re-run 7/7).
+
+DEFERRED HONESTLY: the manifest suite verifies runner BEHAVIOR (contract +
+exit codes) against canned runner output — real pytest/vitest integration is
+WP2.4's job when the fast tier gets wired into pre-push (the runners' real
+invocations are the same lines the playbook already exercised in run 1).
+Commits: e1c1acda (contract), 5b43a198 (machine-visible names).
