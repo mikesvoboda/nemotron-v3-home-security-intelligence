@@ -134,9 +134,7 @@ export default function PrintableReport({
     <div className={containerClasses} data-testid="printable-report">
       {/* Print Header - Hidden on screen, shown on print */}
       <div className="print-header hidden print:block" data-testid="print-header">
-        {title && (
-          <h1 className="text-2xl font-bold text-gray-900 print:text-black">{title}</h1>
-        )}
+        {title && <h1 className="text-2xl font-bold text-gray-900 print:text-black">{title}</h1>}
         <div className="mt-2 border-b border-gray-300 pb-4" />
       </div>
 
@@ -162,9 +160,7 @@ export default function PrintableReport({
         <div className="print-footer hidden print:block" data-testid="print-footer">
           <div className="mt-8 border-t border-gray-300 pt-4 text-sm text-gray-600 print:text-gray-700">
             <p>Generated: {formatPrintTimestamp(new Date())}</p>
-            <p className="mt-1 text-xs text-gray-500">
-              Home Security AI Monitoring Dashboard
-            </p>
+            <p className="mt-1 text-xs text-gray-500">Home Security AI Monitoring Dashboard</p>
           </div>
         </div>
       )}

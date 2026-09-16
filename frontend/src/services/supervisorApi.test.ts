@@ -217,10 +217,9 @@ describe('supervisorApi', () => {
 
       const result = await resetWorkerRestartCount('detection_worker');
 
-      expect(mockFetchApi).toHaveBeenCalledWith(
-        '/api/system/supervisor/reset/detection_worker',
-        { method: 'POST' }
-      );
+      expect(mockFetchApi).toHaveBeenCalledWith('/api/system/supervisor/reset/detection_worker', {
+        method: 'POST',
+      });
       expect(result).toEqual(mockResponse);
     });
 
@@ -228,9 +227,7 @@ describe('supervisorApi', () => {
       const errorMessage = 'Cannot reset running worker';
       mockFetchApi.mockRejectedValue(new Error(errorMessage));
 
-      await expect(resetWorkerRestartCount('running_worker')).rejects.toThrow(
-        errorMessage
-      );
+      await expect(resetWorkerRestartCount('running_worker')).rejects.toThrow(errorMessage);
     });
   });
 
@@ -258,9 +255,7 @@ describe('supervisorApi', () => {
 
       const result = await fetchRestartHistory();
 
-      expect(mockFetchApi).toHaveBeenCalledWith(
-        '/api/system/supervisor/restart-history'
-      );
+      expect(mockFetchApi).toHaveBeenCalledWith('/api/system/supervisor/restart-history');
       expect(result).toEqual(mockData);
     });
 

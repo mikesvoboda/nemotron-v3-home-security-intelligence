@@ -23,8 +23,10 @@ class TestPlateReadsAPIIntegration:
         response = await async_client.get("/api/plate-reads")
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data
-        assert data["items"] == []
+        # Shipped contract: PlateReadListResponse pagination envelope
+        # (plate_reads/page/page_size/total), not a bare list under 'items'.
+        assert "plate_reads" in data
+        assert data["plate_reads"] == []
 
     @pytest.mark.asyncio
     async def test_get_plate_read_returns_404_when_not_found(self, async_client: AsyncClient):
@@ -33,12 +35,19 @@ class TestPlateReadsAPIIntegration:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_camera_plate_reads_returns_404_for_nonexistent_camera(
+    async def test_get_camera_plate_reads_returns_empty_list_for_nonexistent_camera(
         self, async_client: AsyncClient
     ):
-        """Verify 404 returned when camera doesn't exist."""
+        """Verify empty list returned when camera doesn't exist.
+
+        get_reads_by_camera returns an empty PlateReadListResponse rather than
+        404 — unknown cameras have no reads, which is not an error condition.
+        """
         response = await async_client.get("/api/plate-reads/camera/nonexistent")
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.json()
+        assert "plate_reads" in data
+        assert data["plate_reads"] == []
 
     @pytest.mark.asyncio
     async def test_search_plate_reads_returns_empty_list(self, async_client: AsyncClient):
@@ -46,8 +55,9 @@ class TestPlateReadsAPIIntegration:
         response = await async_client.get("/api/plate-reads/search?text=ABC123")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert data == []
+        # Shipped contract: search returns the pagination envelope.
+        assert "plate_reads" in data
+        assert data["plate_reads"] == []
 
     @pytest.mark.asyncio
     async def test_get_statistics_returns_defaults(self, async_client: AsyncClient):

@@ -171,9 +171,7 @@ export default function BackupSection({ className }: BackupSectionProps) {
             <Download className="h-4 w-4 text-gray-400" />
             Available Backups
             {backupListData && (
-              <span className="text-sm font-normal text-gray-400">
-                ({backupListData.total})
-              </span>
+              <span className="text-sm font-normal text-gray-400">({backupListData.total})</span>
             )}
           </h4>
           <Button

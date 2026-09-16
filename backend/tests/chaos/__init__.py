@@ -5,7 +5,6 @@ under failure conditions. It helps verify that the system degrades gracefully
 when dependencies become unavailable.
 
 Components:
-    - conftest.py: Fault injection fixtures and FaultInjector class
     - test_redis_failures.py: Redis cache/queue service failures
     - test_database_failures.py: PostgreSQL database failures
     - test_nemotron_failures.py: Nemotron LLM service failures

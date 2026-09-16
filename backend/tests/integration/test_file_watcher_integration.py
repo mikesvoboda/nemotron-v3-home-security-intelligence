@@ -32,9 +32,16 @@ def temp_camera_root(tmp_path, integration_env):
 
 @pytest.fixture
 def mock_redis_client():
-    """Mock Redis client for capturing queue operations."""
+    """Mock Redis client for capturing queue operations.
+
+    NEM-3469: production queues via Redis Streams
+    (get_detection_stream_service(...).add_detection) when
+    use_redis_streams is enabled (default). The queue_contract fixture
+    below patches that path; add_to_queue_safe stays mocked so the legacy
+    branch remains observable if streams are disabled.
+    """
     mock_client = AsyncMock()
-    # Safe method with backpressure handling - this is what FileWatcher actually uses
+    # Safe method with backpressure handling - legacy list-queue branch
     mock_client.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
@@ -46,6 +53,52 @@ def mock_redis_client():
     # delete() for clearing hash from dedupe cache
     mock_client.delete = AsyncMock(return_value=1)
     return mock_client
+
+
+class _QueuedCall:
+    """Normalized record of one file-queue operation (streams path)."""
+
+    def __init__(self, camera_id: str, file_path: str, media_type: str | None = None) -> None:
+        self.camera_id = camera_id
+        self.file_path = file_path
+        self.media_type = media_type
+
+
+@pytest.fixture
+def queue_contract(monkeypatch, mock_redis_client):
+    """Capture FileWatcher's shipped queue path (Redis Streams, NEM-3469).
+
+    use_redis_streams defaults True, so production routes through
+    get_detection_stream_service(...).add_detection. Patches the service
+    getter to a fresh recording mock per test and records calls as
+    _QueuedCall objects; tests assert on queue_contract instead of the
+    legacy add_to_queue_safe mock (pattern from test_file_watcher_
+    filesystem.py, commit 3899a63c).
+    """
+    import backend.services.redis_streams as rs_module
+    from backend.services import file_watcher as fw_module
+    from backend.services.redis_streams import DetectionStreamService
+
+    recording = AsyncMock(spec=DetectionStreamService)
+    watcher_queue_calls: list[_QueuedCall] = []
+
+    async def _record_add_detection(
+        camera_id: str, detection_id: int, file_path: str, **kwargs
+    ) -> str:
+        extra = kwargs.get("extra_fields") or {}
+        watcher_queue_calls.append(_QueuedCall(camera_id, file_path, extra.get("media_type")))
+        return "msg-1"
+
+    recording.add_detection = AsyncMock(side_effect=_record_add_detection)
+
+    monkeypatch.setattr(rs_module, "_detection_stream_service", recording, raising=False)
+    patcher = patch.object(
+        fw_module, "get_detection_stream_service", AsyncMock(return_value=recording)
+    )
+    patcher.start()
+    yield watcher_queue_calls
+    patcher.stop()
+    monkeypatch.setattr(rs_module, "_detection_stream_service", None, raising=False)
 
 
 def create_test_image(path: Path, color: str = "red", size: tuple = (640, 480)) -> Path:
@@ -81,7 +134,9 @@ class TestFileWatcherDetectsNewImage:
     """Test that FileWatcher properly detects new image files."""
 
     @pytest.mark.asyncio
-    async def test_file_watcher_detects_new_image(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_detects_new_image(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that a single new image file triggers the callback."""
         # Setup: Create camera directory
         camera_dir = temp_camera_root / "camera1"
@@ -108,29 +163,23 @@ class TestFileWatcherDetectsNewImage:
             await asyncio.sleep(0.5)
 
             # Verify the image was queued
-            assert mock_redis_client.add_to_queue_safe.await_count >= 1
+            assert len(queue_contract) >= 1
 
-            # Find the call with our image
-            found = False
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    queue_name, data = call[0]
-                    if (
-                        queue_name == "detection_queue"
-                        and data["camera_id"] == "camera1"
-                        and data["file_path"] == str(image_path)
-                    ):
-                        found = True
-                        assert "timestamp" in data
-                        break
-
+            # Find the call with our image (streams path carries camera_id +
+            # file_path; timestamp flows through extra_fields)
+            found = any(
+                call.camera_id == "camera1" and call.file_path == str(image_path)
+                for call in queue_contract
+            )
             assert found, "Expected image to be queued with correct data"
 
         finally:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_detects_png_image(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_detects_png_image(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that PNG files are also detected."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -152,15 +201,13 @@ class TestFileWatcherDetectsNewImage:
             await asyncio.sleep(0.5)
 
             # Verify PNG was detected
-            assert mock_redis_client.add_to_queue_safe.await_count >= 1
+            assert len(queue_contract) >= 1
 
             found = False
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    if str(image_path) in data.get("file_path", ""):
-                        found = True
-                        break
+            for call in queue_contract:
+                if str(image_path) in call.file_path:
+                    found = True
+                    break
 
             assert found, "PNG image should be queued"
 
@@ -172,7 +219,9 @@ class TestFileWatcherIgnoresNonMediaFiles:
     """Test that FileWatcher properly ignores non-media files."""
 
     @pytest.mark.asyncio
-    async def test_file_watcher_ignores_txt_files(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_ignores_txt_files(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that .txt files are ignored."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -195,18 +244,16 @@ class TestFileWatcherIgnoresNonMediaFiles:
 
             # Verify no calls were made to queue
             # (only image files should trigger)
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert "notes.txt" not in data.get("file_path", ""), (
-                        "Text file should not be queued"
-                    )
+            for call in queue_contract:
+                assert "notes.txt" not in call.file_path, "Text file should not be queued"
 
         finally:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_ignores_tmp_files(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_ignores_tmp_files(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that .tmp files are ignored."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -228,16 +275,16 @@ class TestFileWatcherIgnoresNonMediaFiles:
             await asyncio.sleep(0.5)
 
             # Verify tmp file was not queued
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert ".tmp" not in data.get("file_path", ""), "Tmp file should not be queued"
+            for call in queue_contract:
+                assert ".tmp" not in call.file_path, "Tmp file should not be queued"
 
         finally:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_ignores_mp4_files(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_ignores_mp4_files(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that .mp4 files are ignored (FileWatcher only handles images)."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -259,16 +306,16 @@ class TestFileWatcherIgnoresNonMediaFiles:
             await asyncio.sleep(0.5)
 
             # Verify mp4 was not queued
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert ".mp4" not in data.get("file_path", ""), "MP4 file should not be queued"
+            for call in queue_contract:
+                assert ".mp4" not in call.file_path, "MP4 file should not be queued"
 
         finally:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_ignores_directories(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_ignores_directories(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that directory creation events are ignored."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -290,12 +337,8 @@ class TestFileWatcherIgnoresNonMediaFiles:
             await asyncio.sleep(0.5)
 
             # Verify no directory paths were queued
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert "subdir" not in data.get("file_path", ""), (
-                        "Directory should not be queued"
-                    )
+            for call in queue_contract:
+                assert "subdir" not in call.file_path, "Directory should not be queued"
 
         finally:
             await watcher.stop()
@@ -305,7 +348,9 @@ class TestFileWatcherMultipleCameras:
     """Test FileWatcher handling multiple camera directories."""
 
     @pytest.mark.asyncio
-    async def test_file_watcher_multiple_cameras(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_multiple_cameras(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that the watcher monitors multiple camera directories concurrently."""
         # Create multiple camera directories
         camera1_dir = temp_camera_root / "front_door"
@@ -340,10 +385,8 @@ class TestFileWatcherMultipleCameras:
 
             # Collect all camera IDs from queued items
             camera_ids = set()
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    camera_ids.add(data.get("camera_id"))
+            for call in queue_contract:
+                camera_ids.add(call.camera_id)
 
             # Verify all three cameras were detected
             assert "front_door" in camera_ids, "front_door camera should be detected"
@@ -354,7 +397,9 @@ class TestFileWatcherMultipleCameras:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_camera_subdirectories(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_camera_subdirectories(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that images in camera subdirectories are properly attributed."""
         camera_dir = temp_camera_root / "front_porch"
         subdir = camera_dir / "2024" / "12" / "26"
@@ -378,13 +423,11 @@ class TestFileWatcherMultipleCameras:
 
             # Verify the correct camera ID was extracted
             found = False
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    if data.get("camera_id") == "front_porch":
-                        found = True
-                        assert str(nested_image) == data["file_path"]
-                        break
+            for call in queue_contract:
+                if call.camera_id == "front_porch":
+                    found = True
+                    assert str(nested_image) == call.file_path
+                    break
 
             assert found, "Image in subdirectory should have correct camera ID"
 
@@ -396,7 +439,9 @@ class TestFileWatcherStartStopLifecycle:
     """Test FileWatcher lifecycle management."""
 
     @pytest.mark.asyncio
-    async def test_file_watcher_start_stop_lifecycle(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_start_stop_lifecycle(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test clean start/stop cycle."""
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
@@ -419,7 +464,9 @@ class TestFileWatcherStartStopLifecycle:
         assert watcher._loop is None
 
     @pytest.mark.asyncio
-    async def test_file_watcher_double_start_idempotent(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_double_start_idempotent(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that calling start twice is safe."""
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
@@ -440,7 +487,9 @@ class TestFileWatcherStartStopLifecycle:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_stop_without_start(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_stop_without_start(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that stopping without starting is safe."""
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
@@ -454,7 +503,7 @@ class TestFileWatcherStartStopLifecycle:
         assert watcher.running is False
 
     @pytest.mark.asyncio
-    async def test_file_watcher_restart(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_restart(self, temp_camera_root, mock_redis_client, queue_contract):
         """Test that watcher can be restarted after stopping."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -487,7 +536,7 @@ class TestFileWatcherStartStopLifecycle:
         await asyncio.sleep(0.5)
 
         # Verify detection still works after restart
-        assert mock_redis_client.add_to_queue_safe.await_count >= 1
+        assert len(queue_contract) >= 1
 
         await watcher.stop()
 
@@ -521,7 +570,7 @@ class TestFileWatcherRapidFileCreation:
 
     @pytest.mark.asyncio
     async def test_file_watcher_handles_rapid_file_creation(
-        self, temp_camera_root, mock_redis_client
+        self, temp_camera_root, mock_redis_client, queue_contract
     ):
         """Test handling a burst of files created in quick succession."""
         camera_dir = temp_camera_root / "camera1"
@@ -552,10 +601,8 @@ class TestFileWatcherRapidFileCreation:
 
             # Verify all files were queued
             queued_files = set()
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    queued_files.add(data.get("file_path"))
+            for call in queue_contract:
+                queued_files.add(call.file_path)
 
             for f in created_files:
                 assert str(f) in queued_files, f"File {f} should be queued"
@@ -565,7 +612,7 @@ class TestFileWatcherRapidFileCreation:
 
     @pytest.mark.asyncio
     async def test_file_watcher_debounce_reduces_queue_calls(
-        self, temp_camera_root, mock_redis_client
+        self, temp_camera_root, mock_redis_client, queue_contract
     ):
         """Test that debouncing reduces the number of queue operations.
 
@@ -612,11 +659,9 @@ class TestFileWatcherRapidFileCreation:
 
                 # Count queue calls for this file
                 queue_count = 0
-                for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                    if len(call[0]) >= 2:
-                        _, data = call[0]
-                        if data.get("file_path") == str(image_path):
-                            queue_count += 1
+                for call in queue_contract:
+                    if call.file_path == str(image_path):
+                        queue_count += 1
 
                 # Debouncing should result in fewer queue calls than events
                 # (exact count depends on timing, but should be less than num_events)
@@ -631,7 +676,9 @@ class TestFileWatcherRapidFileCreation:
                 await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_concurrent_camera_files(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_concurrent_camera_files(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test concurrent file creation across multiple cameras."""
         # Create camera directories
         cameras = ["cam1", "cam2", "cam3", "cam4"]
@@ -660,10 +707,8 @@ class TestFileWatcherRapidFileCreation:
 
             # Verify all cameras had files queued
             queued_cameras = set()
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    queued_cameras.add(data.get("camera_id"))
+            for call in queue_contract:
+                queued_cameras.add(call.camera_id)
 
             for cam in cameras:
                 assert cam in queued_cameras, f"Camera {cam} should have file queued"
@@ -676,7 +721,9 @@ class TestFileWatcherEdgeCases:
     """Test FileWatcher edge cases and error handling."""
 
     @pytest.mark.asyncio
-    async def test_file_watcher_empty_file(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_empty_file(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that empty image files are not queued."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -698,18 +745,16 @@ class TestFileWatcherEdgeCases:
             await asyncio.sleep(0.5)
 
             # Empty files should not be queued
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert "empty.jpg" not in data.get("file_path", ""), (
-                        "Empty file should not be queued"
-                    )
+            for call in queue_contract:
+                assert "empty.jpg" not in call.file_path, "Empty file should not be queued"
 
         finally:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_corrupted_image(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_corrupted_image(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that corrupted image files are not queued."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -731,12 +776,8 @@ class TestFileWatcherEdgeCases:
             await asyncio.sleep(0.5)
 
             # Corrupted files should not be queued
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert "corrupted.jpg" not in data.get("file_path", ""), (
-                        "Corrupted file should not be queued"
-                    )
+            for call in queue_contract:
+                assert "corrupted.jpg" not in call.file_path, "Corrupted file should not be queued"
 
         finally:
             await watcher.stop()
@@ -771,7 +812,9 @@ class TestFileWatcherEdgeCases:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_redis_exception(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_redis_exception(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test watcher handles Redis exceptions gracefully."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -803,7 +846,7 @@ class TestFileWatcherEdgeCases:
 
     @pytest.mark.asyncio
     async def test_file_watcher_stop_cancels_pending_tasks(
-        self, temp_camera_root, mock_redis_client
+        self, temp_camera_root, mock_redis_client, queue_contract
     ):
         """Test that stopping the watcher cancels pending debounce tasks."""
         camera_dir = temp_camera_root / "camera1"
@@ -837,7 +880,9 @@ class TestFileWatcherEdgeCases:
                 await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_without_event_loop(self, temp_camera_root, mock_redis_client):
+    async def test_file_watcher_without_event_loop(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test event handling when event loop reference is lost."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -867,7 +912,7 @@ class TestFileWatcherFileTypes:
     """Test FileWatcher file type filtering."""
 
     @pytest.mark.asyncio
-    async def test_accepts_jpg_uppercase(self, temp_camera_root, mock_redis_client):
+    async def test_accepts_jpg_uppercase(self, temp_camera_root, mock_redis_client, queue_contract):
         """Test that uppercase JPG extension is accepted."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -888,12 +933,10 @@ class TestFileWatcherFileTypes:
             await asyncio.sleep(0.5)
 
             found = False
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    if "TEST.JPG" in data.get("file_path", ""):
-                        found = True
-                        break
+            for call in queue_contract:
+                if "TEST.JPG" in call.file_path:
+                    found = True
+                    break
 
             assert found, "Uppercase JPG should be accepted"
 
@@ -901,7 +944,9 @@ class TestFileWatcherFileTypes:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_accepts_jpeg_extension(self, temp_camera_root, mock_redis_client):
+    async def test_accepts_jpeg_extension(
+        self, temp_camera_root, mock_redis_client, queue_contract
+    ):
         """Test that .jpeg extension is accepted."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -922,12 +967,10 @@ class TestFileWatcherFileTypes:
             await asyncio.sleep(0.5)
 
             found = False
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    if "photo.jpeg" in data.get("file_path", ""):
-                        found = True
-                        break
+            for call in queue_contract:
+                if "photo.jpeg" in call.file_path:
+                    found = True
+                    break
 
             assert found, ".jpeg extension should be accepted"
 
@@ -935,7 +978,7 @@ class TestFileWatcherFileTypes:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_rejects_gif_files(self, temp_camera_root, mock_redis_client):
+    async def test_rejects_gif_files(self, temp_camera_root, mock_redis_client, queue_contract):
         """Test that GIF files are not processed (not in allowed extensions)."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -957,16 +1000,14 @@ class TestFileWatcherFileTypes:
 
             await asyncio.sleep(0.5)
 
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert ".gif" not in data.get("file_path", ""), "GIF files should not be queued"
+            for call in queue_contract:
+                assert ".gif" not in call.file_path, "GIF files should not be queued"
 
         finally:
             await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_rejects_webp_files(self, temp_camera_root, mock_redis_client):
+    async def test_rejects_webp_files(self, temp_camera_root, mock_redis_client, queue_contract):
         """Test that WebP files are not processed."""
         camera_dir = temp_camera_root / "camera1"
         camera_dir.mkdir()
@@ -988,12 +1029,8 @@ class TestFileWatcherFileTypes:
 
             await asyncio.sleep(0.5)
 
-            for call in mock_redis_client.add_to_queue_safe.call_args_list:
-                if len(call[0]) >= 2:
-                    _, data = call[0]
-                    assert ".webp" not in data.get("file_path", ""), (
-                        "WebP files should not be queued"
-                    )
+            for call in queue_contract:
+                assert ".webp" not in call.file_path, "WebP files should not be queued"
 
         finally:
             await watcher.stop()

@@ -323,9 +323,7 @@ export interface UpdateScheduledReportVariables {
  */
 export interface UseUpdateScheduledReportMutationReturn {
   /** The mutation object */
-  mutation: ReturnType<
-    typeof useMutation<ScheduledReport, Error, UpdateScheduledReportVariables>
-  >;
+  mutation: ReturnType<typeof useMutation<ScheduledReport, Error, UpdateScheduledReportVariables>>;
   /** Convenience method to update scheduled report */
   updateReport: (id: number, data: ScheduledReportUpdate) => Promise<ScheduledReport>;
   /** Whether the mutation is in progress */
@@ -374,8 +372,7 @@ export function useUpdateScheduledReportMutation(): UseUpdateScheduledReportMuta
 
   return {
     mutation,
-    updateReport: (id: number, data: ScheduledReportUpdate) =>
-      mutation.mutateAsync({ id, data }),
+    updateReport: (id: number, data: ScheduledReportUpdate) => mutation.mutateAsync({ id, data }),
     isLoading: mutation.isPending,
     error: mutation.error,
   };

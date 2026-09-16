@@ -60,7 +60,7 @@ jobs:
             --output drift-report.json \
             --base "$BASE_REF" \
             --head "$HEAD_REF" \
-            ${PR_NUMBER:+--pr-number "$PR_NUMBER"}
+            ${PR_NUMBER:+--pr "$PR_NUMBER"}
 
       - name: Check if drift report exists
         id: check-drift
@@ -79,11 +79,21 @@ jobs:
           fi
 
       - name: Create Linear tasks for drift
-        if: steps.check-drift.outputs.drift_detected == 'true' && secrets.LINEAR_API_KEY
+        # NOTE: `secrets` is not an available context in step-level `if` — the
+        # old `&& secrets.LINEAR_API_KEY` guard made GitHub reject the whole
+        # workflow at parse time (failing run, 0 jobs, no log) on every push
+        # since it was added. The key arrives via env below; the script fails
+        # with a clear message if the secret is unset.
+        if: steps.check-drift.outputs.drift_detected == 'true'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          uv run python scripts/create-docs-tasks.py drift-report.json
+          # Best-effort by design: the repo's LINEAR_API_KEY currently 401s
+          # (rotated/expired — owner-held secret). Drift detection itself
+          # worked; only backlog-task creation failed, so it must not color
+          # the whole check red. Re-tighten once the key is rotated.
+          uv run python scripts/create-docs-tasks.py drift-report.json || \
+            echo "::warning::Linear task creation failed — LINEAR_API_KEY secret needs rotation"
 
       - name: Comment on PR with drift summary
         if: github.event_name == 'pull_request' && steps.check-drift.outputs.drift_detected == 'true'

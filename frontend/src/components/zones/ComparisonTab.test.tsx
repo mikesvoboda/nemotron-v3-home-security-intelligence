@@ -18,9 +18,17 @@ import type { Zone } from '../../types/generated';
 
 // Mock the child components to simplify testing
 vi.mock('./ZoneComparisonTable', () => {
-  const MockTable = ({ zones, metric, isLoading }: { zones: unknown[]; metric: string; isLoading?: boolean }) => (
+  const MockTable = ({
+    zones,
+    metric,
+    isLoading,
+  }: {
+    zones: unknown[];
+    metric: string;
+    isLoading?: boolean;
+  }) => (
     <div data-testid="mock-comparison-table">
-      {isLoading ? 'Loading...' : `Table: ${(zones).length} zones, metric: ${metric}`}
+      {isLoading ? 'Loading...' : `Table: ${zones.length} zones, metric: ${metric}`}
     </div>
   );
   return {
@@ -30,9 +38,17 @@ vi.mock('./ZoneComparisonTable', () => {
 });
 
 vi.mock('./ZoneComparisonChart', () => {
-  const MockChart = ({ zones, metric, isLoading }: { zones: unknown[]; metric: string; isLoading?: boolean }) => (
+  const MockChart = ({
+    zones,
+    metric,
+    isLoading,
+  }: {
+    zones: unknown[];
+    metric: string;
+    isLoading?: boolean;
+  }) => (
     <div data-testid="mock-comparison-chart">
-      {isLoading ? 'Loading...' : `Chart: ${(zones).length} zones, metric: ${metric}`}
+      {isLoading ? 'Loading...' : `Chart: ${zones.length} zones, metric: ${metric}`}
     </div>
   );
   return {

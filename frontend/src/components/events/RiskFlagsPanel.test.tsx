@@ -40,9 +40,7 @@ describe('RiskFlagsPanel', () => {
     });
 
     it('has correct test id', () => {
-      const flags: RiskFlag[] = [
-        { type: 'loitering', description: 'Test', severity: 'warning' },
-      ];
+      const flags: RiskFlag[] = [{ type: 'loitering', description: 'Test', severity: 'warning' }];
       render(<RiskFlagsPanel flags={flags} />);
       expect(screen.getByTestId('risk-flags-panel')).toBeInTheDocument();
     });
@@ -68,9 +66,7 @@ describe('RiskFlagsPanel', () => {
     });
 
     it('displays flag type formatted', () => {
-      const flags: RiskFlag[] = [
-        { type: 'loitering', description: 'Test', severity: 'warning' },
-      ];
+      const flags: RiskFlag[] = [{ type: 'loitering', description: 'Test', severity: 'warning' }];
       render(<RiskFlagsPanel flags={flags} />);
       expect(screen.getByText('Loitering')).toBeInTheDocument();
     });
@@ -86,17 +82,13 @@ describe('RiskFlagsPanel', () => {
 
   describe('severity display', () => {
     it('displays warning severity badge', () => {
-      const flags: RiskFlag[] = [
-        { type: 'loitering', description: 'Test', severity: 'warning' },
-      ];
+      const flags: RiskFlag[] = [{ type: 'loitering', description: 'Test', severity: 'warning' }];
       render(<RiskFlagsPanel flags={flags} />);
       expect(screen.getByText('Warning')).toBeInTheDocument();
     });
 
     it('displays alert severity badge', () => {
-      const flags: RiskFlag[] = [
-        { type: 'nighttime', description: 'Test', severity: 'alert' },
-      ];
+      const flags: RiskFlag[] = [{ type: 'nighttime', description: 'Test', severity: 'alert' }];
       render(<RiskFlagsPanel flags={flags} />);
       expect(screen.getByText('Alert')).toBeInTheDocument();
     });
@@ -155,9 +147,7 @@ describe('RiskFlagsPanel', () => {
     });
 
     it('uses gray header when no critical flags', () => {
-      const flags: RiskFlag[] = [
-        { type: 'loitering', description: 'Test', severity: 'warning' },
-      ];
+      const flags: RiskFlag[] = [{ type: 'loitering', description: 'Test', severity: 'warning' }];
       render(<RiskFlagsPanel flags={flags} />);
       const header = screen.getByText('Risk Flags');
       expect(header).toHaveClass('text-gray-400');
@@ -166,9 +156,7 @@ describe('RiskFlagsPanel', () => {
 
   describe('styling', () => {
     it('applies custom className', () => {
-      const flags: RiskFlag[] = [
-        { type: 'loitering', description: 'Test', severity: 'warning' },
-      ];
+      const flags: RiskFlag[] = [{ type: 'loitering', description: 'Test', severity: 'warning' }];
       render(<RiskFlagsPanel flags={flags} className="custom-class" />);
       expect(screen.getByTestId('risk-flags-panel')).toHaveClass('custom-class');
     });

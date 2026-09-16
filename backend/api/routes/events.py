@@ -165,7 +165,7 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
         if isinstance(ids, list):
             return [int(d) for d in ids]
         return []
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError, ValueError:
         # Fallback for legacy comma-separated format
         return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
 

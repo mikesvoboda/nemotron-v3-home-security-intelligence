@@ -211,7 +211,9 @@ describe('LiveActivitySection', () => {
         summary: `Event ${i + 1}`,
       }));
 
-      renderWithProvider(<LiveActivitySection {...defaultProps} events={manyEvents} maxItems={10} />);
+      renderWithProvider(
+        <LiveActivitySection {...defaultProps} events={manyEvents} maxItems={10} />
+      );
 
       expect(screen.getByText(/showing 10 of 15 recent events/i)).toBeInTheDocument();
     });

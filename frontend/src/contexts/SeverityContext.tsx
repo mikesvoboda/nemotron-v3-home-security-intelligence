@@ -17,10 +17,7 @@
 import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 import { useSeverityConfig } from '../hooks/useSeverityConfig';
-import {
-  DEFAULT_SEVERITY_DEFINITIONS,
-  DEFAULT_SEVERITY_THRESHOLDS,
-} from '../types/severity';
+import { DEFAULT_SEVERITY_DEFINITIONS, DEFAULT_SEVERITY_THRESHOLDS } from '../types/severity';
 
 import type { SeverityDefinition, SeverityLevel, SeverityThresholds } from '../types/severity';
 
@@ -121,30 +118,25 @@ export function SeverityProvider({
   children,
   enabled = true,
 }: SeverityProviderProps): React.ReactElement {
-  const {
-    thresholds,
-    definitions,
-    isLoading,
-    isRefetching,
-    error,
-    refetch,
-    getRiskLevel,
-  } = useSeverityConfig({ enabled });
+  const { thresholds, definitions, isLoading, isRefetching, error, refetch, getRiskLevel } =
+    useSeverityConfig({ enabled });
 
   // Helper to get definition by level
   const getDefinition = useMemo(
-    () => (level: SeverityLevel): SeverityDefinition | undefined => {
-      return definitions.find((def) => def.severity === level);
-    },
+    () =>
+      (level: SeverityLevel): SeverityDefinition | undefined => {
+        return definitions.find((def) => def.severity === level);
+      },
     [definitions]
   );
 
   // Helper to get color by level
   const getColor = useMemo(
-    () => (level: SeverityLevel): string => {
-      const definition = definitions.find((def) => def.severity === level);
-      return definition?.color ?? '#6b7280'; // gray-500 fallback
-    },
+    () =>
+      (level: SeverityLevel): string => {
+        const definition = definitions.find((def) => def.severity === level);
+        return definition?.color ?? '#6b7280'; // gray-500 fallback
+      },
     [definitions]
   );
 

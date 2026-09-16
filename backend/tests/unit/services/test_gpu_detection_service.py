@@ -103,7 +103,7 @@ def mock_pynvml() -> MagicMock:
     )
 
     # Temperature
-    mock_nvml.nvmlDeviceGetTemperature.side_effect = lambda h, _: (65 if h == mock_handle_0 else 45)
+    mock_nvml.nvmlDeviceGetTemperature.side_effect = lambda h, _: 65 if h == mock_handle_0 else 45
     mock_nvml.NVML_TEMPERATURE_GPU = 0
 
     # Power usage (milliwatts)

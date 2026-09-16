@@ -138,13 +138,7 @@ export const eventDetectionsQueryKeys = {
 export function useEventDetectionsQuery(
   options: UseEventDetectionsQueryOptions
 ): UseEventDetectionsQueryReturn {
-  const {
-    eventId,
-    limit = 100,
-    enabled = true,
-    staleTime = DEFAULT_STALE_TIME,
-    orderBy,
-  } = options;
+  const { eventId, limit = 100, enabled = true, staleTime = DEFAULT_STALE_TIME, orderBy } = options;
 
   // Validate eventId - disable query if invalid
   const isValidEventId = !isNaN(eventId) && eventId > 0;

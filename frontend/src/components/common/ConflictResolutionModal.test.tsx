@@ -58,9 +58,7 @@ describe('ConflictResolutionModal', () => {
     it('displays the error message', () => {
       render(<ConflictResolutionModal {...defaultProps} />);
 
-      expect(
-        screen.getByText('This alert was modified by another user.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('This alert was modified by another user.')).toBeInTheDocument();
     });
 
     it('displays contextual title with resource type and action', () => {

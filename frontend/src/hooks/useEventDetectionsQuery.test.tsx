@@ -7,8 +7,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
-import { describe, expect, it, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   useEventDetectionsQuery,
@@ -17,6 +16,7 @@ import {
   PREFETCH_STALE_TIME,
   PREFETCH_DEFAULT_LIMIT,
 } from './useEventDetectionsQuery';
+import { server } from '../mocks/server';
 
 import type { ReactNode } from 'react';
 
@@ -48,26 +48,33 @@ const mockResponse = {
   },
 };
 
-// Setup MSW server
-const server = setupServer(
-  http.get('/api/events/:eventId/detections', () => {
-    return HttpResponse.json(mockResponse);
-  })
+// The request is answered by the GLOBAL msw server (src/mocks/server.ts,
+// started in src/test/setup.ts). A second setupServer() in this file could
+// never see these requests: two live interceptors stack in-process and the
+// global one answers /api/events/:id/detections first (its default handler
+// returns an EMPTY items list — src/mocks/handlers.ts:373). Tests override
+// that handler per-test with server.use() instead, which the repo's own
+// setup documents (handlers.ts header, usage pattern 2).
+const detectionsHandler = http.get('/api/events/:id/detections', () =>
+  HttpResponse.json(mockResponse)
 );
-
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterAll(() => server.close());
-afterEach(() => {
-  server.resetHandlers();
-});
 
 // Test wrapper with fresh QueryClient
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
+        // retry:false governs hook-internal TanStack retries ONLY on tests
+        // that reach terminal state; the error-state test intentionally
+        // exercises the hook's own retry:2 (passed per-query there is not —
+        // see the error test comment; the hard-coded value wins).
         retry: false,
-        gcTime: 0,
+        // NOT gcTime:0 — prefetch writes go through
+        // queryClient.prefetchQuery, which has no observers, and an
+        // observer-less cache entry at gcTime:0 is collected the moment the
+        // fetch resolves, so isCached() can never observe it (the shipped
+        // production path uses the default gcTime).
+        gcTime: 5_000,
       },
     },
   });
@@ -79,6 +86,7 @@ function createWrapper() {
 
 describe('useEventDetectionsQuery', () => {
   it('fetches detections for a valid event ID', async () => {
+    server.use(detectionsHandler);
     const { result } = renderHook(
       () =>
         useEventDetectionsQuery({
@@ -131,13 +139,17 @@ describe('useEventDetectionsQuery', () => {
   });
 
   it('returns error state on API failure', async () => {
-    // Override handler to return error
+    // Shipped retry contract: the hook hard-codes TanStack retry:2 with
+    // default 1s/2s exponential backoff (useEventDetectionsQuery.ts:153),
+    // so 3 attempts settle ~3s after mount — waitFor's 1s default can't
+    // outlast it, and a test that gives up early leaves the ladder's
+    // same-URL fetch in fetchApi's module-global dedup map (GET dedup,
+    // api.ts fetchApi), which the later prefetch test would inherit.
+    // Outlast the ladder here; a 404 keeps fetchApi's OWN 5xx retries out
+    // of the picture (shouldRetry(404) === false), capping the total ~3s.
     server.use(
-      http.get('/api/events/:eventId/detections', () => {
-        return HttpResponse.json(
-          { error: 'Internal server error' },
-          { status: 500 }
-        );
+      http.get('/api/events/:id/detections', () => {
+        return HttpResponse.json({ detail: 'Not found' }, { status: 404 });
       })
     );
 
@@ -149,9 +161,12 @@ describe('useEventDetectionsQuery', () => {
       { wrapper: createWrapper() }
     );
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 6000 }
+    );
 
     expect(result.current.error).toBeTruthy();
   });
@@ -227,6 +242,7 @@ describe('usePrefetchEventDetections', () => {
   });
 
   it('prefetches and caches data', async () => {
+    server.use(detectionsHandler);
     const { result } = renderHook(() => usePrefetchEventDetections(), {
       wrapper: createWrapper(),
     });

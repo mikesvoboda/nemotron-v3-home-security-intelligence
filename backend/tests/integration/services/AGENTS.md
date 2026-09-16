@@ -95,14 +95,11 @@ async def test_calibration_affects_severity(session, calibration_service):
     # Create calibration
     await calibration_service.save_calibration(
         user_id="user1",
-        sensitivity=0.8  # High sensitivity
+        sensitivity=0.8,  # High sensitivity
     )
 
     # Verify severity mapping changed
-    severity = await calibration_service.map_risk_to_severity(
-        risk_score=50,
-        user_id="user1"
-    )
+    severity = await calibration_service.map_risk_to_severity(risk_score=50, user_id="user1")
     assert severity == "high"  # Would be "medium" at default sensitivity
 ```
 

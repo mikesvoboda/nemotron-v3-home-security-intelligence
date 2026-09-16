@@ -93,9 +93,7 @@ export interface UseRestartHistoryResult {
  * @param options - Configuration options for filtering and pagination
  * @returns Restart history data, loading state, error, and refetch function
  */
-export function useRestartHistory(
-  options?: UseRestartHistoryOptions
-): UseRestartHistoryResult {
+export function useRestartHistory(options?: UseRestartHistoryOptions): UseRestartHistoryResult {
   const { workerName, limit, offset } = options ?? {};
 
   const [data, setData] = useState<RestartHistoryResponse | undefined>(undefined);

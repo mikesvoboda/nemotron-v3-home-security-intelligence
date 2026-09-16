@@ -383,10 +383,7 @@ describe('WebSocket Compression and Serialization Utilities', () => {
 
   describe('createWebSocketUrl', () => {
     it('should append format query parameter', () => {
-      const url = createWebSocketUrl(
-        'ws://localhost:8000/ws',
-        SerializationFormat.MSGPACK
-      );
+      const url = createWebSocketUrl('ws://localhost:8000/ws', SerializationFormat.MSGPACK);
       expect(url).toBe('ws://localhost:8000/ws?format=msgpack');
     });
 

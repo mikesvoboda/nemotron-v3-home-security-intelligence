@@ -37,27 +37,21 @@ vi.mock('../../types/faceRecognition', async () => {
         label: 'Lighting',
         status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
         recommendation:
-          score < 0.8
-            ? 'Face towards a light source or move to a better-lit area'
-            : undefined,
+          score < 0.8 ? 'Face towards a light source or move to a better-lit area' : undefined,
       },
       angle: {
         score: score,
         label: 'Face Angle',
         status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
         recommendation:
-          score < 0.8
-            ? 'Look directly at the camera with face fully visible'
-            : undefined,
+          score < 0.8 ? 'Look directly at the camera with face fully visible' : undefined,
       },
       occlusion: {
         score: score,
         label: 'Visibility',
         status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
         recommendation:
-          score < 0.8
-            ? 'Remove glasses, hats, or other items covering your face'
-            : undefined,
+          score < 0.8 ? 'Remove glasses, hats, or other items covering your face' : undefined,
       },
     }),
   };
@@ -74,14 +68,24 @@ const mockFairFactors: QualityFactors = {
   blur: { score: 0.75, label: 'Sharpness', status: 'fair', recommendation: 'Hold camera steady' },
   lighting: { score: 0.72, label: 'Lighting', status: 'fair', recommendation: 'Improve lighting' },
   angle: { score: 0.78, label: 'Face Angle', status: 'fair', recommendation: 'Face the camera' },
-  occlusion: { score: 0.7, label: 'Visibility', status: 'fair', recommendation: 'Remove obstructions' },
+  occlusion: {
+    score: 0.7,
+    label: 'Visibility',
+    status: 'fair',
+    recommendation: 'Remove obstructions',
+  },
 };
 
 const mockPoorFactors: QualityFactors = {
   blur: { score: 0.4, label: 'Sharpness', status: 'poor', recommendation: 'Image is blurry' },
   lighting: { score: 0.5, label: 'Lighting', status: 'poor', recommendation: 'Too dark' },
   angle: { score: 0.55, label: 'Face Angle', status: 'poor', recommendation: 'Face not visible' },
-  occlusion: { score: 0.45, label: 'Visibility', status: 'poor', recommendation: 'Face is occluded' },
+  occlusion: {
+    score: 0.45,
+    label: 'Visibility',
+    status: 'poor',
+    recommendation: 'Face is occluded',
+  },
 };
 
 describe('FaceQualityAssessment', () => {
@@ -187,9 +191,7 @@ describe('FaceQualityAssessment', () => {
     });
 
     it('uses provided quality factors instead of computing', () => {
-      render(
-        <FaceQualityAssessment qualityScore={0.85} qualityFactors={mockGoodFactors} />
-      );
+      render(<FaceQualityAssessment qualityScore={0.85} qualityFactors={mockGoodFactors} />);
       // Check that factor scores are displayed (90% for blur)
       const blurSection = screen.getByTestId('quality-factor-sharpness');
       expect(within(blurSection).getByText('90%')).toBeInTheDocument();
@@ -198,9 +200,9 @@ describe('FaceQualityAssessment', () => {
     it('shows progress bars for each factor', () => {
       render(<FaceQualityAssessment qualityScore={0.85} />);
       const factorsSection = screen.getByTestId('quality-factors');
-      const progressBars = within(factorsSection).getAllByRole('generic').filter(
-        el => el.classList.contains('bg-gray-700')
-      );
+      const progressBars = within(factorsSection)
+        .getAllByRole('generic')
+        .filter((el) => el.classList.contains('bg-gray-700'));
       expect(progressBars.length).toBe(4);
     });
   });
@@ -242,31 +244,23 @@ describe('FaceQualityAssessment', () => {
 
   describe('recommendations', () => {
     it('shows recommendations list for fair quality', () => {
-      render(
-        <FaceQualityAssessment qualityScore={0.75} qualityFactors={mockFairFactors} />
-      );
+      render(<FaceQualityAssessment qualityScore={0.75} qualityFactors={mockFairFactors} />);
       expect(screen.getByTestId('quality-recommendations')).toBeInTheDocument();
       expect(screen.getByText(/tips for better quality/i)).toBeInTheDocument();
     });
 
     it('shows recommendations list for poor quality', () => {
-      render(
-        <FaceQualityAssessment qualityScore={0.5} qualityFactors={mockPoorFactors} />
-      );
+      render(<FaceQualityAssessment qualityScore={0.5} qualityFactors={mockPoorFactors} />);
       expect(screen.getByTestId('quality-recommendations')).toBeInTheDocument();
     });
 
     it('does not show recommendations for good quality', () => {
-      render(
-        <FaceQualityAssessment qualityScore={0.9} qualityFactors={mockGoodFactors} />
-      );
+      render(<FaceQualityAssessment qualityScore={0.9} qualityFactors={mockGoodFactors} />);
       expect(screen.queryByTestId('quality-recommendations')).not.toBeInTheDocument();
     });
 
     it('displays factor-specific recommendations', () => {
-      render(
-        <FaceQualityAssessment qualityScore={0.75} qualityFactors={mockFairFactors} />
-      );
+      render(<FaceQualityAssessment qualityScore={0.75} qualityFactors={mockFairFactors} />);
       expect(screen.getByText(/hold camera steady/i)).toBeInTheDocument();
       expect(screen.getByText(/improve lighting/i)).toBeInTheDocument();
     });

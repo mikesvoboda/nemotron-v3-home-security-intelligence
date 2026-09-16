@@ -85,12 +85,7 @@ const MIN_ARROW_LENGTH = 30;
 /**
  * Convert normalized coordinates (0-1) to pixel coordinates.
  */
-function normalizedToPixel(
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): [number, number] {
+function normalizedToPixel(x: number, y: number, width: number, height: number): [number, number] {
   return [x * width, y * height];
 }
 
@@ -179,12 +174,7 @@ interface ApproachArrowProps {
   showETA: boolean;
 }
 
-function ApproachArrow({
-  vector,
-  videoWidth,
-  videoHeight,
-  showETA,
-}: ApproachArrowProps) {
+function ApproachArrow({ vector, videoWidth, videoHeight, showETA }: ApproachArrowProps) {
   // Convert positions to pixels
   const [startX, startY] = normalizedToPixel(
     vector.current_position.x,
@@ -201,12 +191,7 @@ function ApproachArrow({
   );
 
   // Calculate arrow geometry
-  const { endX, endY, length } = calculateArrowPoints(
-    startX,
-    startY,
-    targetX,
-    targetY
-  );
+  const { endX, endY, length } = calculateArrowPoints(startX, startY, targetX, targetY);
 
   // Skip rendering if arrow is too short
   if (length < MIN_ARROW_LENGTH) {
@@ -224,10 +209,7 @@ function ApproachArrow({
   return (
     <g
       data-testid={`approach-arrow-${vector.track_id}`}
-      className={clsx(
-        'approach-arrow',
-        vector.urgency === 'imminent' && 'animate-pulse'
-      )}
+      className={clsx('approach-arrow', vector.urgency === 'imminent' && 'animate-pulse')}
     >
       {/* Arrow path */}
       <path
@@ -355,10 +337,7 @@ function ApproachVectorOverlayComponent({
       viewBox={`0 0 ${videoWidth} ${videoHeight}`}
       width="100%"
       height="100%"
-      className={clsx(
-        'pointer-events-none absolute inset-0',
-        className
-      )}
+      className={clsx('pointer-events-none absolute inset-0', className)}
       aria-label="Approach vector overlay"
       role="img"
       style={{ overflow: 'visible' }}

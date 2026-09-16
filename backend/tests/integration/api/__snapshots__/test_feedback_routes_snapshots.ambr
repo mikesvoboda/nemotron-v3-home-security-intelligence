@@ -1,0 +1,112 @@
+# serializer version: 1
+# name: test_create_feedback_response_schema_snapshot
+  dict({
+    'actual_identity': 'NoneType',
+    'actual_threat_level': 'NoneType',
+    'created_at': 'str',
+    'event_id': 'int',
+    'feedback_type': 'str',
+    'id': 'int',
+    'model_failures': 'NoneType',
+    'notes': 'NoneType',
+    'suggested_score': 'NoneType',
+    'what_was_wrong': 'NoneType',
+  })
+# ---
+# name: test_create_feedback_with_notes_schema_snapshot
+  dict({
+    'actual_identity': 'NoneType',
+    'actual_threat_level': 'NoneType',
+    'created_at': 'str',
+    'event_id': 'int',
+    'feedback_type': 'str',
+    'id': 'int',
+    'model_failures': 'NoneType',
+    'notes': 'str',
+    'suggested_score': 'NoneType',
+    'what_was_wrong': 'NoneType',
+  })
+# ---
+# name: test_feedback_invalid_event_error_schema_snapshot
+  dict({
+    'detail': 'str',
+    'instance': 'str',
+    'status': 'int',
+    'title': 'str',
+    'type': 'str',
+  })
+# ---
+# name: test_feedback_not_found_error_schema_snapshot
+  dict({
+    'detail': 'str',
+    'instance': 'str',
+    'status': 'int',
+    'title': 'str',
+    'type': 'str',
+  })
+# ---
+# name: test_feedback_schema_consistency_across_endpoints
+  dict({
+    'actual_identity': 'NoneType',
+    'actual_threat_level': 'NoneType',
+    'created_at': 'str',
+    'event_id': 'int',
+    'feedback_type': 'str',
+    'id': 'int',
+    'model_failures': 'NoneType',
+    'notes': 'NoneType',
+    'suggested_score': 'NoneType',
+    'what_was_wrong': 'NoneType',
+  })
+# ---
+# name: test_feedback_validation_error_schema_snapshot
+  dict({
+    'error': dict({
+      'code': 'str',
+      'errors': list([
+        dict({
+          'field': 'str',
+          'message': 'str',
+          'value': 'str',
+        }),
+      ]),
+      'message': 'str',
+      'timestamp': 'str',
+    }),
+  })
+# ---
+# name: test_get_feedback_by_event_id_response_schema_snapshot
+  dict({
+    'actual_identity': 'NoneType',
+    'actual_threat_level': 'NoneType',
+    'created_at': 'str',
+    'event_id': 'int',
+    'feedback_type': 'str',
+    'id': 'int',
+    'model_failures': 'NoneType',
+    'notes': 'NoneType',
+    'suggested_score': 'NoneType',
+    'what_was_wrong': 'NoneType',
+  })
+# ---
+# name: test_get_feedback_stats_empty_schema_snapshot
+  dict({
+    'by_camera': dict({
+    }),
+    'by_type': dict({
+    }),
+    'total_feedback': 'int',
+  })
+# ---
+# name: test_get_feedback_stats_response_schema_snapshot
+  dict({
+    'by_camera': dict({
+      '<camera_id>': 'int',
+    }),
+    'by_type': dict({
+      'false_positive': 'int',
+      'missed_threat': 'int',
+    }),
+    'total_feedback': 'int',
+  })
+# ---

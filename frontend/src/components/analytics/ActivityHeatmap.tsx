@@ -176,7 +176,7 @@ export default function ActivityHeatmap({
                       key={hour}
                       role="gridcell"
                       tabIndex={hasData ? 0 : -1}
-                      className={`m-0.5 h-6 flex-1 rounded-sm transition-colors ${hasData ? getCellColor(avgCount, isPeak) : 'bg-gray-800/50'} ${hasData ? 'cursor-pointer hover:ring-2 hover:ring-white/30 focus:ring-2 focus:ring-[#76B900] focus:outline-none' : ''} `}
+                      className={`m-0.5 h-6 flex-1 rounded-sm transition-colors ${hasData ? getCellColor(avgCount, isPeak) : 'bg-gray-800/50'} ${hasData ? 'cursor-pointer hover:ring-2 hover:ring-white/30 focus:outline-none focus:ring-2 focus:ring-[#76B900]' : ''} `}
                       style={{ minWidth: '24px' }}
                       onMouseEnter={(e) =>
                         handleCellHover(

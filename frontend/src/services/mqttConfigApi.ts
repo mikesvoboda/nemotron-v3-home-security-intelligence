@@ -101,11 +101,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     } catch {
       errorData = await response.text();
     }
-    throw new MqttApiError(
-      response.status,
-      `API Error: ${response.statusText}`,
-      errorData
-    );
+    throw new MqttApiError(response.status, `API Error: ${response.statusText}`, errorData);
   }
   return response.json() as Promise<T>;
 }
@@ -127,9 +123,7 @@ export async function getMqttConfig(): Promise<MqttConfig> {
 /**
  * Update MQTT configuration.
  */
-export async function updateMqttConfig(
-  config: MqttConfigUpdate
-): Promise<MqttConfig> {
+export async function updateMqttConfig(config: MqttConfigUpdate): Promise<MqttConfig> {
   const response = await fetch(`${BASE_URL}${API_BASE}`, {
     method: 'PUT',
     headers: buildHeaders(),

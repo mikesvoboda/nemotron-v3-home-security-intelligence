@@ -87,7 +87,12 @@ async def test_events(db_session: AsyncSession, test_camera: Camera):
             camera_id=test_camera.id,
             started_at=started_at,
             ended_at=started_at + timedelta(minutes=5),
-            risk_score=i * 4,  # 0, 4, 8, ..., 96
+            # Scores sit strictly inside each severity band (0-29 low, 30-59
+            # medium, 60-84 high — backend.api.schemas.events._compute_risk_level).
+            # The list endpoint recomputes risk_level from risk_score on
+            # serialize (NEM-3398 computed field), so scores 85+ would surface
+            # as 'critical' regardless of the seeded column value.
+            risk_score=(i * 84) // 24,
             risk_level="low" if i < 10 else "medium" if i < 20 else "high",
             summary=f"Test event {i}",
             reasoning=f"Test reasoning {i}",
@@ -377,13 +382,17 @@ class TestEventsCursorPagination:
         assert "cursor" in data["deprecation_warning"].lower()
 
     @pytest.mark.asyncio
-    async def test_simultaneous_offset_and_cursor_returns_400(
+    async def test_simultaneous_offset_and_cursor_cursor_takes_precedence(
         self, client: AsyncClient, test_events: list[Event]
     ):
-        """Test that providing both offset and cursor returns 400 error (NEM-2613).
+        """Test that providing both offset and cursor resolves to cursor wins.
 
-        Per NEM-2613, the API should reject requests that provide both offset
-        and cursor parameters to prevent undefined pagination behavior.
+        The 400-conflict rule from NEM-2613 was added in #2992 but removed in
+        #3011 (28209ba2). The shipped contract is precedence, not rejection:
+        "Apply cursor-based pagination filter (takes precedence over offset)"
+        (backend/api/routes/events.py) — a request carrying both returns 200
+        and pages by cursor only, with no deprecation warning (warnings fire
+        for offset-without-cursor only, pagination.get_deprecation_warning).
         """
         # Get first page to get a valid cursor
         response1 = await client.get("/api/events?limit=10")
@@ -391,15 +400,20 @@ class TestEventsCursorPagination:
         data1 = response1.json()
         cursor = data1["pagination"]["next_cursor"]
 
-        # Try to use both cursor and non-zero offset (should fail)
+        # Both cursor and a non-zero offset: cursor takes precedence → 200
         response2 = await client.get(f"/api/events?limit=10&offset=50&cursor={cursor}")
-        assert response2.status_code == 400
+        assert response2.status_code == 200
         data2 = response2.json()
 
-        # Verify error message explains the conflict
-        assert "offset" in data2["detail"].lower()
-        assert "cursor" in data2["detail"].lower()
-        assert "choose one" in data2["detail"].lower()
+        # No deprecation warning: cursor was supplied, so offset was ignored
+        assert data2["deprecation_warning"] is None
+
+        # Content equals the cursor-only page — offset had no effect
+        response_cursor_only = await client.get(f"/api/events?limit=10&cursor={cursor}")
+        assert response_cursor_only.status_code == 200
+        assert [e["id"] for e in data2["items"]] == [
+            e["id"] for e in response_cursor_only.json()["items"]
+        ]
 
     @pytest.mark.asyncio
     async def test_cursor_with_zero_offset_allowed(
@@ -514,24 +528,36 @@ class TestDetectionsCursorPagination:
         assert len(data2["items"]) == 5  # Remaining 5 person detections
 
     @pytest.mark.asyncio
-    async def test_detections_simultaneous_offset_and_cursor_returns_400(
+    async def test_detections_simultaneous_offset_and_cursor_cursor_wins(
         self, client: AsyncClient, test_detections: list[Detection]
     ):
-        """Test that detections endpoint rejects simultaneous offset and cursor (NEM-2613)."""
+        """Detections mirrors events: cursor takes precedence over offset, 200.
+
+        The NEM-2613 400-conflict rule was added in #2992 and removed in
+        #3011 (28209ba2); shipped route says "Apply cursor-based pagination
+        filter (takes precedence over offset)" (backend/api/routes/
+        detections.py). Warning fires for offset-without-cursor only.
+        """
         # Get first page to get a valid cursor
         response1 = await client.get("/api/detections?limit=10")
         assert response1.status_code == 200
         data1 = response1.json()
         cursor = data1["pagination"]["next_cursor"]
 
-        # Try to use both cursor and non-zero offset (should fail)
+        # Both cursor and a non-zero offset: cursor takes precedence → 200
         response2 = await client.get(f"/api/detections?limit=10&offset=20&cursor={cursor}")
-        assert response2.status_code == 400
+        assert response2.status_code == 200
         data2 = response2.json()
 
-        # Verify error message explains the conflict
-        assert "offset" in data2["detail"].lower()
-        assert "cursor" in data2["detail"].lower()
+        # No deprecation warning: cursor was supplied, offset was ignored
+        assert data2["deprecation_warning"] is None
+
+        # Content equals the cursor-only page — offset had no effect
+        response_cursor_only = await client.get(f"/api/detections?limit=10&cursor={cursor}")
+        assert response_cursor_only.status_code == 200
+        assert [d["id"] for d in data2["items"]] == [
+            d["id"] for d in response_cursor_only.json()["items"]
+        ]
 
 
 class TestCursorEncodingDecoding:

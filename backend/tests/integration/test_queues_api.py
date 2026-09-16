@@ -12,6 +12,7 @@ Tests verify:
 """
 
 import os
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
@@ -170,7 +171,29 @@ async def queues_client(
 
     This fixture creates an HTTP client with mocked Redis.
     """
+    # SetupGuardMiddleware returns 503 for every non-whitelisted route until a
+    # user exists (setup complete). These tests target the post-setup API
+    # contract, so seed the first admin directly to reach it.
+    from sqlalchemy import func, select
+
+    from backend.core.database import get_engine
     from backend.main import app
+    from backend.models.user import User
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        count = (await conn.execute(select(func.count(User.id)))).scalar() or 0
+        if count == 0:
+            await conn.execute(
+                User.__table__.insert().values(
+                    id=f"setup_seed_user_{uuid.uuid4().hex[:12]}",
+                    username=f"setup_seed_{uuid.uuid4().hex[:8]}",
+                    email=f"setup_seed_{uuid.uuid4().hex[:8]}@example.com",
+                    password_hash="test-hash-not-a-real-password",
+                    is_active=True,
+                    is_admin=True,
+                )
+            )
 
     # Create settings
     test_settings = Settings(
@@ -280,9 +303,11 @@ class TestGetQueuesStatus:
     ) -> None:
         """Test status shows warning when queue depth exceeds warning threshold."""
 
-        # Configure mock to return depth at warning threshold (50 for detection)
+        # Configure mock to return depth at warning threshold (50 for detection).
+        # Exact match: DLQ queue names CONTAIN the base names ('dlq:detection_queue'),
+        # and DLQ thresholds are far lower, so substring matching misroutes depths.
         async def get_queue_length_side_effect(queue_name: str) -> int:
-            if DETECTION_QUEUE in queue_name:
+            if queue_name == DETECTION_QUEUE:
                 return 60  # Above warning threshold of 50
             return 0
 
@@ -617,15 +642,18 @@ class TestSummaryCalculation:
     ) -> None:
         """Test that summary totals are calculated correctly."""
 
-        # Configure different depths for different queues
+        # Configure different depths for different queues.
+        # Exact match: DLQ queue names CONTAIN the base names ('dlq:detection_queue'),
+        # so substring matching gives DLQ queues the base queues' depths and the
+        # DLQ branches below are unreachable.
         async def get_queue_length_side_effect(queue_name: str) -> int:
-            if DETECTION_QUEUE in queue_name:
+            if queue_name == DETECTION_QUEUE:
                 return 20
-            elif ANALYSIS_QUEUE in queue_name:
+            elif queue_name == ANALYSIS_QUEUE:
                 return 15
-            elif DLQ_DETECTION_QUEUE in queue_name:
+            elif queue_name == DLQ_DETECTION_QUEUE:
                 return 5
-            elif DLQ_ANALYSIS_QUEUE in queue_name:
+            elif queue_name == DLQ_ANALYSIS_QUEUE:
                 return 3
             return 0
 

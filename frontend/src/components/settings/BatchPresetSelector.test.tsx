@@ -187,9 +187,9 @@ describe('BatchPresetSelector', () => {
     it('uses presets from batchSettingsValidation utility', () => {
       // Verify presets match the utility
       expect(BATCH_PRESETS).toHaveLength(3);
-      expect(BATCH_PRESETS.find(p => p.id === 'realtime')).toBeDefined();
-      expect(BATCH_PRESETS.find(p => p.id === 'balanced')).toBeDefined();
-      expect(BATCH_PRESETS.find(p => p.id === 'efficient')).toBeDefined();
+      expect(BATCH_PRESETS.find((p) => p.id === 'realtime')).toBeDefined();
+      expect(BATCH_PRESETS.find((p) => p.id === 'balanced')).toBeDefined();
+      expect(BATCH_PRESETS.find((p) => p.id === 'efficient')).toBeDefined();
     });
   });
 });

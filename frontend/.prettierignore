@@ -4,3 +4,9 @@ coverage
 *.min.js
 *.min.css
 package-lock.json
+
+# Generator-owned — formatted by their generators, not prettier; keeps
+# format:check and the --check generators (generate-types.sh,
+# generate-ws-types.py) coherent.
+src/types/generated/api.ts
+src/types/generated/websocket.ts

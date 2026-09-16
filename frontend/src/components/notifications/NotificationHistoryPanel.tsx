@@ -42,7 +42,10 @@ export interface NotificationHistoryPanelProps {
 }
 
 /** Channel display configuration */
-const CHANNEL_CONFIG: Record<NotificationChannel, { icon: typeof Mail; label: string; color: string }> = {
+const CHANNEL_CONFIG: Record<
+  NotificationChannel,
+  { icon: typeof Mail; label: string; color: string }
+> = {
   email: { icon: Mail, label: 'Email', color: 'blue' },
   webhook: { icon: Webhook, label: 'Webhook', color: 'purple' },
   push: { icon: AlertCircle, label: 'Push', color: 'orange' },
@@ -257,7 +260,9 @@ export default function NotificationHistoryPanel({
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
-          <Text className="text-red-400">{error.message || 'Failed to load notification history'}</Text>
+          <Text className="text-red-400">
+            {error.message || 'Failed to load notification history'}
+          </Text>
         </div>
       )}
 
@@ -319,7 +324,7 @@ export default function NotificationHistoryPanel({
                     {/* Channel */}
                     <td className="px-3 py-3">
                       <Badge
-                        color={channelConfig?.color as 'blue' | 'purple' | 'orange' || 'gray'}
+                        color={channelConfig?.color || 'gray'}
                         size="sm"
                         className="flex w-fit items-center gap-1"
                       >
@@ -353,10 +358,7 @@ export default function NotificationHistoryPanel({
                     {/* Error */}
                     <td className="px-3 py-3">
                       {entry.error ? (
-                        <Text
-                          className="text-sm text-red-400"
-                          title={entry.error}
-                        >
+                        <Text className="text-sm text-red-400" title={entry.error}>
                           {truncateText(entry.error, 40)}
                         </Text>
                       ) : (

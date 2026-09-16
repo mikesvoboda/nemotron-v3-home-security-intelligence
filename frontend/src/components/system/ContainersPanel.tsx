@@ -25,7 +25,8 @@ import {
 /**
  * Container status type
  */
-export type ContainerStatus = 'running' | 'starting' | 'unhealthy' | 'stopped' | 'disabled' | 'not_found';
+export type ContainerStatus =
+  'running' | 'starting' | 'unhealthy' | 'stopped' | 'disabled' | 'not_found';
 
 /**
  * Category type
@@ -107,14 +108,21 @@ function StatusIcon({ status }: { status: ContainerStatus }) {
     case 'unhealthy':
       return <XCircle className="h-4 w-4 text-red-500" data-testid="status-icon-unhealthy" />;
     case 'starting':
-      return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" data-testid="status-icon-starting" />;
+      return (
+        <Loader2
+          className="h-4 w-4 animate-spin text-yellow-500"
+          data-testid="status-icon-starting"
+        />
+      );
     case 'stopped':
       return <Pause className="h-4 w-4 text-gray-500" data-testid="status-icon-stopped" />;
     case 'disabled':
       return <AlertTriangle className="h-4 w-4 text-gray-500" data-testid="status-icon-disabled" />;
     case 'not_found':
     default:
-      return <AlertTriangle className="h-4 w-4 text-gray-500" data-testid="status-icon-not-found" />;
+      return (
+        <AlertTriangle className="h-4 w-4 text-gray-500" data-testid="status-icon-not-found" />
+      );
   }
 }
 
@@ -205,12 +213,18 @@ function ContainerCard({ container }: ContainerCardProps) {
               {container.port && <Text className="text-xs text-gray-500">:{container.port}</Text>}
             </div>
             {container.container_id && (
-              <Text className="text-xs text-gray-500" data-testid={`container-id-${container.name}`}>
+              <Text
+                className="text-xs text-gray-500"
+                data-testid={`container-id-${container.name}`}
+              >
                 ID: {container.container_id}
               </Text>
             )}
             {container.image && (
-              <Text className="text-xs text-gray-500 truncate max-w-[200px]" title={container.image}>
+              <Text
+                className="max-w-[200px] truncate text-xs text-gray-500"
+                title={container.image}
+              >
                 {container.image}
               </Text>
             )}
@@ -231,7 +245,10 @@ function ContainerCard({ container }: ContainerCardProps) {
           {container.uptimeFormatted && (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-gray-500" />
-              <Text className="text-xs text-gray-400" data-testid={`container-uptime-${container.name}`}>
+              <Text
+                className="text-xs text-gray-400"
+                data-testid={`container-uptime-${container.name}`}
+              >
                 {container.uptimeFormatted}
               </Text>
             </div>
@@ -241,7 +258,10 @@ function ContainerCard({ container }: ContainerCardProps) {
           {container.restart_count > 0 && (
             <div className="flex items-center gap-1">
               <RefreshCw className="h-3 w-3 text-gray-500" />
-              <Text className="text-xs text-gray-400" data-testid={`container-restarts-${container.name}`}>
+              <Text
+                className="text-xs text-gray-400"
+                data-testid={`container-restarts-${container.name}`}
+              >
                 {container.restart_count} restarts
               </Text>
             </div>
@@ -390,7 +410,7 @@ export default function ContainersPanel({
     };
 
     containersWithStatus.forEach((container) => {
-      const cat = container.category as ContainerCategory;
+      const cat = container.category;
       if (groups[cat]) {
         groups[cat].push(container);
       }
@@ -401,7 +421,9 @@ export default function ContainersPanel({
 
   // Calculate totals
   const totalContainers = containersWithStatus.length;
-  const runningContainers = containersWithStatus.filter((c) => c.displayStatus === 'running').length;
+  const runningContainers = containersWithStatus.filter(
+    (c) => c.displayStatus === 'running'
+  ).length;
 
   // Loading state
   if (loading) {
@@ -457,7 +479,13 @@ export default function ContainersPanel({
           Containers
         </Title>
         <Badge
-          color={runningContainers === totalContainers ? 'emerald' : runningContainers === 0 ? 'red' : 'yellow'}
+          color={
+            runningContainers === totalContainers
+              ? 'emerald'
+              : runningContainers === 0
+                ? 'red'
+                : 'yellow'
+          }
           size="sm"
           data-testid="containers-total-badge"
         >

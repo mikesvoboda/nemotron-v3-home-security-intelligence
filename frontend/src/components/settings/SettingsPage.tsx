@@ -173,8 +173,7 @@ export default function SettingsPage() {
   const location = useLocation();
 
   // Determine the active tab based on current path
-  const activeTabId =
-    settingsTabs.find((tab) => location.pathname === tab.path)?.id ?? 'cameras';
+  const activeTabId = settingsTabs.find((tab) => location.pathname === tab.path)?.id ?? 'cameras';
 
   return (
     <DebugModeProvider>

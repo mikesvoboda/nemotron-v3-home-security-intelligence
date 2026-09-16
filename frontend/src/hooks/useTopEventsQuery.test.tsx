@@ -133,9 +133,7 @@ describe('useTopEventsQuery', () => {
       renderHook(() => useTopEventsQuery({ limit: 5 }), { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(mockFetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 5 })
-        );
+        expect(mockFetchEvents).toHaveBeenCalledWith(expect.objectContaining({ limit: 5 }));
       });
     });
 
@@ -163,7 +161,7 @@ describe('useTopEventsQuery', () => {
       ];
 
       mockFetchEvents.mockResolvedValue({
-        items: mockEvents as any,
+        items: mockEvents,
         pagination: { total: 3, limit: 10, has_more: false },
       });
 

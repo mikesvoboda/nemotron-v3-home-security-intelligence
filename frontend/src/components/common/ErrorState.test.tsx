@@ -99,25 +99,13 @@ describe('ErrorState', () => {
     });
 
     it('renders message in compact variant', () => {
-      render(
-        <ErrorState
-          title="Error"
-          message="Details here"
-          variant="compact"
-        />
-      );
+      render(<ErrorState title="Error" message="Details here" variant="compact" />);
       expect(screen.getByText('Details here')).toBeInTheDocument();
     });
 
     it('renders retry button in compact variant', () => {
       const onRetry = vi.fn();
-      render(
-        <ErrorState
-          title="Error"
-          onRetry={onRetry}
-          variant="compact"
-        />
-      );
+      render(<ErrorState title="Error" onRetry={onRetry} variant="compact" />);
 
       expect(screen.getByText('Try again')).toBeInTheDocument();
       fireEvent.click(screen.getByText('Try again'));
@@ -126,14 +114,7 @@ describe('ErrorState', () => {
 
     it('shows retrying state in compact variant', () => {
       const onRetry = vi.fn();
-      render(
-        <ErrorState
-          title="Error"
-          onRetry={onRetry}
-          isRetrying
-          variant="compact"
-        />
-      );
+      render(<ErrorState title="Error" onRetry={onRetry} isRetrying variant="compact" />);
 
       expect(screen.getByText('Retrying...')).toBeInTheDocument();
     });

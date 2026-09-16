@@ -227,18 +227,26 @@ class TestGetPromptForModel:
             == "You are a security analyst. Analyze the following detections."
         )
 
-    async def test_get_prompt_for_model_not_found(
+    async def test_get_prompt_for_model_returns_default_config(
         self,
         client: AsyncClient,
         _clean_prompt_tables: None,
     ):
-        """Test 404 when model configuration doesn't exist."""
+        """Test GET /api/prompts/{model} on an empty DB returns the default.
+
+        Shipped contract (prompt_service.py:729-737, since 69703c80): with
+        no active version rows the service returns
+        DEFAULT_CONFIGS[model].copy() — the route's 404 branch is
+        unreachable for known models, and the frontend consumes the
+        defaults.
+        """
         response = await client.get("/api/prompts/nemotron")
-        assert response.status_code == 404
+        assert response.status_code == 200
 
         data = response.json()
-        error_msg = get_error_message(data)
-        assert "no configuration found" in error_msg.lower()
+        assert data["version"] == 1
+        assert "system_prompt" in data["config"]
+        assert data["config"]["system_prompt"].strip() != ""
 
     async def test_get_prompt_invalid_model_enum(
         self,
@@ -299,7 +307,13 @@ class TestUpdatePromptForModel:
         assert response.status_code == 422
 
         data = response.json()
-        assert "invalid configuration" in data["detail"]["message"].lower()
+        # RFC 7807 problem-details contract (problem_details_exception_
+        # handler, exception_handlers.py:121): the HTTPException's dict
+        # detail is stringified into the "detail" string field — there is
+        # no nested {"message": ...} object to index.
+        assert data["type"] == "about:blank"
+        assert data["status"] == 422
+        assert "invalid configuration" in data["detail"].lower()
 
     async def test_update_prompt_missing_required_field(
         self,
@@ -320,8 +334,10 @@ class TestUpdatePromptForModel:
         assert response.status_code == 422
 
         data = response.json()
-        assert "errors" in data["detail"]
-        assert any("system_prompt" in str(err).lower() for err in data["detail"]["errors"])
+        # RFC 7807: nested structure is stringified; assert through the
+        # stringified detail text.
+        assert data["status"] == 422
+        assert "system_prompt" in data["detail"].lower()
 
     async def test_update_prompt_optimistic_locking_success(
         self,
@@ -368,9 +384,13 @@ class TestUpdatePromptForModel:
         assert response.status_code == 409
 
         data = response.json()
-        assert "concurrent modification" in data["detail"]["message"].lower()
-        assert data["detail"]["expected_version"] == 999
-        assert data["detail"]["actual_version"] == 1
+        # RFC 7807 problem-details contract: the HTTPException's dict detail
+        # (message/expected_version/actual_version) is stringified into the
+        # "detail" string field by problem_details_exception_handler.
+        assert data["status"] == 409
+        assert "concurrent modification" in data["detail"].lower()
+        assert "999" in data["detail"]  # expected_version echoed
+        assert "'actual_version': 1" in data["detail"]  # actual_version echoed
 
 
 class TestGetPromptHistory:
@@ -607,7 +627,15 @@ class TestImportPreview:
         diff = data["diffs"][0]
         assert diff["model"] == "nemotron"
         assert diff["has_changes"] is True
-        assert "New configuration" in " ".join(diff["changes"])
+        # Shipped diff shape (_compute_config_diff,
+        # prompt_management.py:388-427): when a current config exists (the
+        # service falls back to DEFAULT_CONFIGS on an empty table — same
+        # default contract as GET), changes are per-field
+        # 'Added:/Removed:/Changed:' entries; the blanket
+        # 'New configuration (no existing version)' fires only when
+        # current_config is None, which cannot happen through the service
+        # fallback.
+        assert "Added:" in " ".join(diff["changes"]) or "Changed:" in " ".join(diff["changes"])
 
     async def test_import_preview_with_existing_config(
         self,
@@ -792,7 +820,9 @@ class TestPromptTest:
         assert response.status_code == 422
 
         data = response.json()
-        assert "invalid configuration" in data["detail"]["message"].lower()
+        # RFC 7807 problem-details contract (stringified dict detail)
+        assert data["status"] == 422
+        assert "invalid configuration" in data["detail"].lower()
 
     async def test_prompt_test_missing_required_field(
         self,
@@ -827,15 +857,44 @@ class TestPromptTest:
             },
         }
 
-        # Make multiple rapid requests
-        responses = []
-        for _ in range(15):  # Exceed the rate limit
-            response = await client.post("/api/prompts/test", json=test_request)
-            responses.append(response)
+        # The conftest mock_redis's evalsha returns [1, 1] forever, so the
+        # real limiter can never 429 against this fixture. Override the
+        # Depends-injected limiter (routes-local object — module-attribute
+        # patch is a no-op under FastAPI's route-time capture) with a
+        # counting limiter that allows the first N then raises 429,
+        # mirroring the shipped RateLimiter.__call__ contract
+        # (rate_limit.py:509-531).
+        from fastapi import HTTPException
+        from fastapi import status as http_status
+
+        from backend.api.routes.prompt_management import prompt_test_rate_limiter
+        from backend.main import app
+
+        max_requests = 10
+        calls = {"n": 0}
+
+        async def _counting_limiter() -> None:
+            calls["n"] += 1
+            if calls["n"] > max_requests:
+                raise HTTPException(
+                    status_code=http_status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Rate limit exceeded",
+                )
+
+        original = app.dependency_overrides.copy()
+        app.dependency_overrides[prompt_test_rate_limiter] = _counting_limiter
+        try:
+            # Make multiple rapid requests
+            responses = []
+            for _ in range(15):  # Exceed the rate limit
+                response = await client.post("/api/prompts/test", json=test_request)
+                responses.append(response)
+        finally:
+            app.dependency_overrides = original
 
         # At least one should be rate limited
         status_codes = [r.status_code for r in responses]
-        assert 429 in status_codes or any(s in [500, 503] for s in status_codes)
+        assert 429 in status_codes
 
 
 class TestPromptManagementEdgeCases:

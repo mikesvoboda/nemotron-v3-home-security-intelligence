@@ -11,7 +11,17 @@ from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
+    AsyncEngine,
+    AsyncSession,
+    AsyncTransaction,
+    async_sessionmaker,
+)
+from sqlalchemy.pool import QueuePool
 
+from backend.core.config import Settings
 from backend.core.database import escape_ilike_pattern
 
 
@@ -167,8 +177,9 @@ class TestInitDb:
         """Test that init_db raises ValueError for invalid URL."""
         from backend.core.database import init_db
 
-        with patch("backend.core.database.get_settings") as mock_settings:
+        with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
+                spec=Settings,
                 database_url="mysql://localhost/test",
                 debug=False,
                 database_pool_size=5,
@@ -219,11 +230,11 @@ class TestCloseDb:
 
         try:
             # Create mock engine
-            mock_engine = AsyncMock()
+            mock_engine = AsyncMock(spec=AsyncEngine)
             mock_engine.dispose = AsyncMock()
 
             db_module._engine = mock_engine
-            db_module._async_session_factory = MagicMock()
+            db_module._async_session_factory = MagicMock(spec=async_sessionmaker)
 
             await db_module.close_db()
 
@@ -248,11 +259,11 @@ class TestCloseDb:
 
         try:
             # Create mock engine that raises greenlet error
-            mock_engine = AsyncMock()
+            mock_engine = AsyncMock(spec=AsyncEngine)
             mock_engine.dispose = AsyncMock(side_effect=ValueError("greenlet is not installed"))
 
             db_module._engine = mock_engine
-            db_module._async_session_factory = MagicMock()
+            db_module._async_session_factory = MagicMock(spec=async_sessionmaker)
 
             # Should not raise
             await db_module.close_db()
@@ -276,11 +287,11 @@ class TestCloseDb:
 
         try:
             # Create mock engine that raises different error
-            mock_engine = AsyncMock()
+            mock_engine = AsyncMock(spec=AsyncEngine)
             mock_engine.dispose = AsyncMock(side_effect=ValueError("some other error"))
 
             db_module._engine = mock_engine
-            db_module._async_session_factory = MagicMock()
+            db_module._async_session_factory = MagicMock(spec=async_sessionmaker)
 
             with pytest.raises(ValueError) as exc_info:
                 await db_module.close_db()
@@ -305,11 +316,11 @@ class TestGetSession:
         import backend.core.database as db_module
 
         # Create mock session factory and session
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
 
-        mock_factory = MagicMock()
+        mock_factory = MagicMock(spec=async_sessionmaker)
 
         # Mock the context manager
         async def mock_cm():
@@ -338,11 +349,11 @@ class TestGetSession:
         import backend.core.database as db_module
 
         # Create mock session
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
 
-        mock_factory = MagicMock()
+        mock_factory = MagicMock(spec=async_sessionmaker)
         mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -370,12 +381,12 @@ class TestGetDb:
         import backend.core.database as db_module
 
         # Create mock session
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
         mock_session.close = AsyncMock()
 
-        mock_factory = MagicMock()
+        mock_factory = MagicMock(spec=async_sessionmaker)
         mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -400,17 +411,17 @@ class TestGetDb:
         import backend.core.database as db_module
 
         # Create mock session
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
         mock_session.close = AsyncMock()
 
         # Create an async context manager mock
-        mock_context_manager = AsyncMock()
+        mock_context_manager = AsyncMock(spec=AsyncSession)
         mock_context_manager.__aenter__ = AsyncMock(return_value=mock_session)
         mock_context_manager.__aexit__ = AsyncMock(return_value=None)
 
-        mock_factory = MagicMock()
+        mock_factory = MagicMock(spec=async_sessionmaker)
         mock_factory.return_value = mock_context_manager
 
         # Save original state
@@ -462,8 +473,9 @@ class TestConnectionPoolSettings:
             db_module._async_session_factory = None
 
             # Create mock settings with specific pool settings
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
+                    spec=Settings,
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
                     database_url_read=None,
                     debug=False,
@@ -475,18 +487,20 @@ class TestConnectionPoolSettings:
                 )
 
                 # Mock create_async_engine to capture arguments
-                with patch("backend.core.database.create_async_engine") as mock_create_engine:
-                    mock_engine = AsyncMock()
+                with patch(
+                    "backend.core.database.create_async_engine", autospec=True
+                ) as mock_create_engine:
+                    mock_engine = AsyncMock(spec=AsyncEngine)
                     mock_create_engine.return_value = mock_engine
 
                     # Mock the async engine's begin context manager
-                    mock_conn = AsyncMock()
+                    mock_conn = AsyncMock(spec=AsyncConnection)
                     mock_conn.execute = AsyncMock(
                         return_value=MagicMock(scalar=MagicMock(return_value=True))
                     )
                     mock_conn.run_sync = AsyncMock()
 
-                    mock_ctx = AsyncMock()
+                    mock_ctx = AsyncMock(spec=AsyncTransaction)
                     mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
                     mock_ctx.__aexit__ = AsyncMock(return_value=None)
                     mock_engine.begin = MagicMock(return_value=mock_ctx)
@@ -658,13 +672,13 @@ class TestGetPoolStatus:
 
         try:
             # Create a mock engine with a mock pool
-            mock_pool = MagicMock()
+            mock_pool = MagicMock(spec=QueuePool)
             mock_pool.size.return_value = 20
             mock_pool.overflow.return_value = 5
             mock_pool.checkedin.return_value = 15
             mock_pool.checkedout.return_value = 10
 
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.pool = mock_pool
 
             db_module._engine = mock_engine
@@ -714,11 +728,11 @@ class TestGetPoolStatus:
 
         try:
             # Create a mock engine with NullPool (no size/overflow methods)
-            mock_pool = MagicMock()
+            mock_pool = MagicMock(spec=QueuePool)
             # NullPool doesn't have these methods
             mock_pool.size.side_effect = AttributeError("NullPool has no size")
 
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.pool = mock_pool
 
             db_module._engine = mock_engine
@@ -760,28 +774,36 @@ class TestEventLoopMismatch:
             db_module._bound_loop_id = None
 
             # Mock get_settings
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                # spec= exposed (M3 T9): init_db() reads database_url_read
+                # and use_pgbouncer on every path; the pre-spec mock let
+                # these stubs omit both and hand production a Mock instead.
                 mock_settings.return_value = MagicMock(
-                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    spec=Settings,
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=5,
                     database_pool_overflow=10,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
-                with patch("backend.core.database.create_async_engine") as mock_create_engine:
-                    mock_engine = AsyncMock()
+                with patch(
+                    "backend.core.database.create_async_engine", autospec=True
+                ) as mock_create_engine:
+                    mock_engine = AsyncMock(spec=AsyncEngine)
                     mock_create_engine.return_value = mock_engine
 
                     # Mock the connection context
-                    mock_conn = AsyncMock()
+                    mock_conn = AsyncMock(spec=AsyncConnection)
                     mock_conn.execute = AsyncMock(
                         return_value=MagicMock(scalar=MagicMock(return_value=True))
                     )
                     mock_conn.run_sync = AsyncMock()
 
-                    mock_ctx = AsyncMock()
+                    mock_ctx = AsyncMock(spec=AsyncTransaction)
                     mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
                     mock_ctx.__aexit__ = AsyncMock(return_value=None)
                     mock_engine.begin = MagicMock(return_value=mock_ctx)
@@ -810,34 +832,42 @@ class TestEventLoopMismatch:
 
         try:
             # Create mock old engine with different loop ID
-            mock_old_engine = AsyncMock()
+            mock_old_engine = AsyncMock(spec=AsyncEngine)
             mock_old_engine.dispose = AsyncMock()
 
             db_module._engine = mock_old_engine
             db_module._bound_loop_id = 99999  # Different from current
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                # spec= exposed (M3 T9): init_db() reads database_url_read
+                # and use_pgbouncer on every path; the pre-spec mock let
+                # these stubs omit both and hand production a Mock instead.
                 mock_settings.return_value = MagicMock(
-                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    spec=Settings,
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=5,
                     database_pool_overflow=10,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
-                with patch("backend.core.database.create_async_engine") as mock_create_engine:
-                    mock_new_engine = AsyncMock()
+                with patch(
+                    "backend.core.database.create_async_engine", autospec=True
+                ) as mock_create_engine:
+                    mock_new_engine = AsyncMock(spec=AsyncEngine)
                     mock_create_engine.return_value = mock_new_engine
 
                     # Mock the connection context
-                    mock_conn = AsyncMock()
+                    mock_conn = AsyncMock(spec=AsyncConnection)
                     mock_conn.execute = AsyncMock(
                         return_value=MagicMock(scalar=MagicMock(return_value=True))
                     )
                     mock_conn.run_sync = AsyncMock()
 
-                    mock_ctx = AsyncMock()
+                    mock_ctx = AsyncMock(spec=AsyncTransaction)
                     mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
                     mock_ctx.__aexit__ = AsyncMock(return_value=None)
                     mock_new_engine.begin = MagicMock(return_value=mock_ctx)
@@ -867,33 +897,41 @@ class TestEventLoopMismatch:
 
         try:
             # Create mock old engine that raises RuntimeError on disposal
-            mock_old_engine = AsyncMock()
+            mock_old_engine = AsyncMock(spec=AsyncEngine)
             mock_old_engine.dispose = AsyncMock(side_effect=RuntimeError("Event loop closed"))
 
             db_module._engine = mock_old_engine
             db_module._bound_loop_id = 99999
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                # spec= exposed (M3 T9): init_db() reads database_url_read
+                # and use_pgbouncer on every path; the pre-spec mock let
+                # these stubs omit both and hand production a Mock instead.
                 mock_settings.return_value = MagicMock(
-                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    spec=Settings,
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=5,
                     database_pool_overflow=10,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
-                with patch("backend.core.database.create_async_engine") as mock_create_engine:
-                    mock_new_engine = AsyncMock()
+                with patch(
+                    "backend.core.database.create_async_engine", autospec=True
+                ) as mock_create_engine:
+                    mock_new_engine = AsyncMock(spec=AsyncEngine)
                     mock_create_engine.return_value = mock_new_engine
 
-                    mock_conn = AsyncMock()
+                    mock_conn = AsyncMock(spec=AsyncConnection)
                     mock_conn.execute = AsyncMock(
                         return_value=MagicMock(scalar=MagicMock(return_value=True))
                     )
                     mock_conn.run_sync = AsyncMock()
 
-                    mock_ctx = AsyncMock()
+                    mock_ctx = AsyncMock(spec=AsyncTransaction)
                     mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
                     mock_ctx.__aexit__ = AsyncMock(return_value=None)
                     mock_new_engine.begin = MagicMock(return_value=mock_ctx)
@@ -922,33 +960,41 @@ class TestEventLoopMismatch:
 
         try:
             # Create mock old engine that raises OSError on disposal
-            mock_old_engine = AsyncMock()
+            mock_old_engine = AsyncMock(spec=AsyncEngine)
             mock_old_engine.dispose = AsyncMock(side_effect=OSError("Connection cleanup failed"))
 
             db_module._engine = mock_old_engine
             db_module._bound_loop_id = 99999
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                # spec= exposed (M3 T9): init_db() reads database_url_read
+                # and use_pgbouncer on every path; the pre-spec mock let
+                # these stubs omit both and hand production a Mock instead.
                 mock_settings.return_value = MagicMock(
-                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    spec=Settings,
+                    database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=5,
                     database_pool_overflow=10,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
-                with patch("backend.core.database.create_async_engine") as mock_create_engine:
-                    mock_new_engine = AsyncMock()
+                with patch(
+                    "backend.core.database.create_async_engine", autospec=True
+                ) as mock_create_engine:
+                    mock_new_engine = AsyncMock(spec=AsyncEngine)
                     mock_create_engine.return_value = mock_new_engine
 
-                    mock_conn = AsyncMock()
+                    mock_conn = AsyncMock(spec=AsyncConnection)
                     mock_conn.execute = AsyncMock(
                         return_value=MagicMock(scalar=MagicMock(return_value=True))
                     )
                     mock_conn.run_sync = AsyncMock()
 
-                    mock_ctx = AsyncMock()
+                    mock_ctx = AsyncMock(spec=AsyncTransaction)
                     mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
                     mock_ctx.__aexit__ = AsyncMock(return_value=None)
                     mock_new_engine.begin = MagicMock(return_value=mock_ctx)
@@ -975,12 +1021,14 @@ class TestEventLoopMismatch:
 
         try:
             # Set up engine with a bound loop
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             db_module._engine = mock_engine
             db_module._bound_loop_id = 12345
 
             # Mock asyncio to simulate no running loop
-            with patch("backend.core.database.asyncio.get_running_loop") as mock_get_loop:
+            with patch(
+                "backend.core.database.asyncio.get_running_loop", autospec=True
+            ) as mock_get_loop:
                 mock_get_loop.side_effect = RuntimeError("no running event loop")
 
                 result = db_module._check_loop_mismatch()
@@ -1004,11 +1052,11 @@ class TestEventLoopMismatch:
 
         try:
             # Set up engine first to make _check_loop_mismatch return True
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             db_module._engine = mock_engine
             db_module._bound_loop_id = 99999  # Different from current loop
 
-            with patch("backend.core.database.init_db") as mock_init:
+            with patch("backend.core.database.init_db", autospec=True) as mock_init:
 
                 async def mock_init_impl():
                     # Reset to current loop after reinit
@@ -1019,9 +1067,9 @@ class TestEventLoopMismatch:
                 mock_init.side_effect = mock_init_impl
 
                 # Create a mock factory after init_db
-                mock_session = AsyncMock()
+                mock_session = AsyncMock(spec=AsyncSession)
                 mock_session.commit = AsyncMock()
-                mock_factory = MagicMock()
+                mock_factory = MagicMock(spec=async_sessionmaker)
                 mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1050,11 +1098,11 @@ class TestEventLoopMismatch:
 
         try:
             # Set up engine first to make _check_loop_mismatch return True
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             db_module._engine = mock_engine
             db_module._bound_loop_id = 99999
 
-            with patch("backend.core.database.init_db") as mock_init:
+            with patch("backend.core.database.init_db", autospec=True) as mock_init:
 
                 async def mock_init_impl():
                     import asyncio
@@ -1063,9 +1111,9 @@ class TestEventLoopMismatch:
 
                 mock_init.side_effect = mock_init_impl
 
-                mock_session = AsyncMock()
+                mock_session = AsyncMock(spec=AsyncSession)
                 mock_session.commit = AsyncMock()
-                mock_factory = MagicMock()
+                mock_factory = MagicMock(spec=async_sessionmaker)
                 mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1097,11 +1145,11 @@ class TestEventLoopMismatch:
 
         try:
             # Set up engine first to make _check_loop_mismatch return True
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             db_module._engine = mock_engine
             db_module._bound_loop_id = 99999
 
-            with patch("backend.core.database.init_db") as mock_init:
+            with patch("backend.core.database.init_db", autospec=True) as mock_init:
 
                 async def mock_init_impl():
                     import asyncio
@@ -1110,10 +1158,10 @@ class TestEventLoopMismatch:
 
                 mock_init.side_effect = mock_init_impl
 
-                mock_session = AsyncMock()
+                mock_session = AsyncMock(spec=AsyncSession)
                 mock_session.commit = AsyncMock()
                 mock_session.close = AsyncMock()
-                mock_factory = MagicMock()
+                mock_factory = MagicMock(spec=async_sessionmaker)
                 mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1257,15 +1305,17 @@ class TestSlowQueryLogging:
 
         try:
             # Create mock engine
-            mock_sync_engine = MagicMock()
-            mock_engine = MagicMock()
+            mock_sync_engine = MagicMock(spec=Engine)
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.sync_engine = mock_sync_engine
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.event.listen") as mock_listen:
-                with patch("backend.core.database.get_settings") as mock_settings:
-                    mock_settings.return_value = MagicMock(slow_query_threshold_ms=100)
+            with patch("backend.core.database.event.listen", autospec=True) as mock_listen:
+                with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                    mock_settings.return_value = MagicMock(
+                        spec=Settings, slow_query_threshold_ms=100
+                    )
 
                     result = setup_slow_query_logging()
 
@@ -1320,7 +1370,7 @@ class TestSlowQueryLogging:
 
         try:
             # Create mock engine that raises exception
-            mock_engine = MagicMock()
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.sync_engine = MagicMock(side_effect=RuntimeError("Test error"))
 
             db_module._engine = mock_engine
@@ -1351,18 +1401,20 @@ class TestSlowQueryLogging:
 
         try:
             # Create mock engine
-            mock_sync_engine = MagicMock()
-            mock_engine = MagicMock()
+            mock_sync_engine = MagicMock(spec=Engine)
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.sync_engine = mock_sync_engine
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.event.listen"):
-                with patch("backend.core.database.get_settings") as mock_settings:
-                    mock_settings.return_value = MagicMock(slow_query_threshold_ms=100)
+            with patch("backend.core.database.event.listen", autospec=True):
+                with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                    mock_settings.return_value = MagicMock(
+                        spec=Settings, slow_query_threshold_ms=100
+                    )
                     setup_slow_query_logging()
 
-            with patch("backend.core.database.event.remove") as mock_remove:
+            with patch("backend.core.database.event.remove", autospec=True) as mock_remove:
                 result = disable_slow_query_logging()
 
                 assert result is True
@@ -1397,14 +1449,16 @@ class TestSlowQueryLogging:
 
         try:
             # Set up logging first
-            mock_sync_engine = MagicMock()
-            mock_engine = MagicMock()
+            mock_sync_engine = MagicMock(spec=Engine)
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.sync_engine = mock_sync_engine
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.event.listen"):
-                with patch("backend.core.database.get_settings") as mock_settings:
-                    mock_settings.return_value = MagicMock(slow_query_threshold_ms=100)
+            with patch("backend.core.database.event.listen", autospec=True):
+                with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                    mock_settings.return_value = MagicMock(
+                        spec=Settings, slow_query_threshold_ms=100
+                    )
                     setup_slow_query_logging()
 
             # Now remove engine and try to disable
@@ -1440,13 +1494,13 @@ class TestSlowQueryLogging:
             db_module._slow_query_logging_enabled = True
 
             # Create engine
-            mock_sync_engine = MagicMock()
-            mock_engine = MagicMock()
+            mock_sync_engine = MagicMock(spec=Engine)
+            mock_engine = MagicMock(spec=AsyncEngine)
             mock_engine.sync_engine = mock_sync_engine
             db_module._engine = mock_engine
 
             # Mock event.remove to raise exception
-            with patch("backend.core.database.event.remove") as mock_remove:
+            with patch("backend.core.database.event.remove", autospec=True) as mock_remove:
                 mock_remove.side_effect = RuntimeError("Test error")
 
                 result = disable_slow_query_logging()
@@ -1467,12 +1521,12 @@ class TestSlowQueryLogging:
         import backend.core.database as db_module
 
         # Create mock connection with start time
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=Connection)
         mock_conn.info = {"query_start_time": 0.0}
 
         with patch("backend.core.database.time.perf_counter", return_value=0.2):
-            with patch("backend.core.database.get_settings") as mock_settings:
-                mock_settings.return_value = MagicMock(slow_query_threshold_ms=50)
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                mock_settings.return_value = MagicMock(spec=Settings, slow_query_threshold_ms=50)
 
                 # Mock the metrics import to fail
                 original_modules = sys.modules.copy()
@@ -1499,12 +1553,12 @@ class TestSlowQueryLogging:
         from backend.core.database import _after_cursor_execute
 
         # Create mock connection with start time
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=Connection)
         mock_conn.info = {"query_start_time": 0.0}
 
         with patch("backend.core.database.time.perf_counter", return_value=0.2):
-            with patch("backend.core.database.get_settings") as mock_settings:
-                mock_settings.return_value = MagicMock(slow_query_threshold_ms=50)
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
+                mock_settings.return_value = MagicMock(spec=Settings, slow_query_threshold_ms=50)
 
                 # Import the function fresh to ensure it tries to import metrics
                 import sys
@@ -1583,7 +1637,7 @@ class TestDatabaseErrorLogging:
 
         try:
             # Create mock session that raises IntegrityError
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(
                 side_effect=IntegrityError(
                     "duplicate key", None, Exception("unique_constraint_violation")
@@ -1591,7 +1645,7 @@ class TestDatabaseErrorLogging:
             )
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1627,13 +1681,13 @@ class TestDatabaseErrorLogging:
 
         try:
             # Create mock session that raises OperationalError
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(
                 side_effect=OperationalError("connection lost", None, Exception("lost"))
             )
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1666,11 +1720,11 @@ class TestDatabaseErrorLogging:
 
         try:
             # Create mock session that raises TimeoutError
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(side_effect=SQLAlchemyTimeoutError("pool timeout"))
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1703,13 +1757,13 @@ class TestDatabaseErrorLogging:
 
         try:
             # Create mock session that raises ProgrammingError
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(
                 side_effect=ProgrammingError("bad SQL", None, Exception("syntax error"))
             )
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1740,11 +1794,11 @@ class TestDatabaseErrorLogging:
 
         try:
             # Create mock session that raises unexpected error
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(side_effect=RuntimeError("unexpected"))
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1777,14 +1831,14 @@ class TestDatabaseErrorLogging:
 
         try:
             # Create mock session that raises IntegrityError
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(
                 side_effect=IntegrityError("fk violation", None, Exception("foreign_key"))
             )
             mock_session.rollback = AsyncMock()
             mock_session.close = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1816,7 +1870,7 @@ class TestDatabaseErrorLogging:
         original_factory = db_module._async_session_factory
 
         try:
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             # Use "connection refused" which triggers the connection_error category
             mock_session.commit = AsyncMock(
                 side_effect=OperationalError("db down", None, Exception("connection refused"))
@@ -1824,7 +1878,7 @@ class TestDatabaseErrorLogging:
             mock_session.rollback = AsyncMock()
             mock_session.close = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1854,12 +1908,12 @@ class TestDatabaseErrorLogging:
         original_factory = db_module._async_session_factory
 
         try:
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(side_effect=KeyError("missing"))
             mock_session.rollback = AsyncMock()
             mock_session.close = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1900,11 +1954,11 @@ class TestDatabaseErrorLogging:
 
             error = IntegrityError("duplicate key", None, mock_orig)
 
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(side_effect=error)
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1935,11 +1989,11 @@ class TestDatabaseErrorLogging:
             # Create error with no constraint information available
             error = IntegrityError("integrity error", None, None)
 
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.commit = AsyncMock(side_effect=error)
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -1973,10 +2027,10 @@ class TestDatabaseErrorLogging:
         original_factory = db_module._async_session_factory
 
         try:
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.rollback = AsyncMock()
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
@@ -2013,16 +2067,16 @@ class TestDatabaseErrorLogging:
         original_factory = db_module._async_session_factory
 
         try:
-            mock_session = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
             mock_session.rollback = AsyncMock()
             mock_session.close = AsyncMock()
 
             # Create an async context manager mock
-            mock_context_manager = AsyncMock()
+            mock_context_manager = AsyncMock(spec=AsyncSession)
             mock_context_manager.__aenter__ = AsyncMock(return_value=mock_session)
             mock_context_manager.__aexit__ = AsyncMock(return_value=None)
 
-            mock_factory = MagicMock()
+            mock_factory = MagicMock(spec=async_sessionmaker)
             mock_factory.return_value = mock_context_manager
 
             db_module._async_session_factory = mock_factory

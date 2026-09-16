@@ -329,14 +329,14 @@ const PlateSearchBar = memo(function PlateSearchBar({
                 value={filters.min_confidence ?? 0}
                 onChange={handleConfidenceChange}
                 className={clsx(
-                  'w-full cursor-pointer appearance-none rounded-lg bg-gray-700 h-2',
-                  '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4',
+                  'h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700',
+                  '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none',
                   '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#76B900]',
                   '[&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform',
                   '[&::-webkit-slider-thumb]:hover:scale-110',
                   '[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4',
                   '[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#76B900]',
-                  '[&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer'
+                  '[&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0'
                 )}
               />
               <div className="mt-1 flex justify-between text-xs text-gray-500">

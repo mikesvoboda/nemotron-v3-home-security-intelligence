@@ -7,7 +7,6 @@ import * as useMonitoringHealthModule from '../../hooks/useMonitoringHealth';
 
 import type { MonitoringHealthResponse } from '../../services/monitoringApi';
 
-
 // Mock the hook
 vi.mock('../../hooks/useMonitoringHealth');
 

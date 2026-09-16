@@ -100,21 +100,15 @@ export function ErrorState({
       <div
         role="alert"
         aria-live="polite"
-        className={clsx(
-          'rounded-lg border border-red-500/30 bg-red-500/10 p-3',
-          className
-        )}
+        className={clsx('rounded-lg border border-red-500/30 bg-red-500/10 p-3', className)}
         data-testid={testId}
       >
         <div className="flex items-start gap-3">
-          <AlertCircle
-            className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400"
-            aria-hidden="true"
-          />
-          <div className="flex-1 min-w-0">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-red-400">{title}</p>
             {errorMessage && (
-              <p className="mt-0.5 text-xs text-gray-400 truncate">{errorMessage}</p>
+              <p className="mt-0.5 truncate text-xs text-gray-400">{errorMessage}</p>
             )}
             {onRetry && (
               <button
@@ -148,22 +142,14 @@ export function ErrorState({
     <div
       role="alert"
       aria-live="polite"
-      className={clsx(
-        'rounded-lg border border-red-500/20 bg-red-500/10 p-4',
-        className
-      )}
+      className={clsx('rounded-lg border border-red-500/20 bg-red-500/10 p-4', className)}
       data-testid={testId}
     >
       <div className="flex items-start gap-3">
-        <AlertCircle
-          className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
-          aria-hidden="true"
-        />
+        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" aria-hidden="true" />
         <div className="flex-1">
           <h3 className="font-semibold text-red-500">{title}</h3>
-          {errorMessage && (
-            <p className="mt-1 text-sm text-red-400">{errorMessage}</p>
-          )}
+          {errorMessage && <p className="mt-1 text-sm text-red-400">{errorMessage}</p>}
           {onRetry && (
             <button
               type="button"

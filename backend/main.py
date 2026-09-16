@@ -49,6 +49,7 @@ from backend.api.routes import (
     analytics_zones,
     audit,
     auth,
+    backup,
     calibration,
     cameras,
     cost_analytics,
@@ -1453,9 +1454,12 @@ app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
 app.include_router(analytics_zones.router)
-app.include_router(analytics_zones.zones_redirect_router)
 app.include_router(audit.router)
 app.include_router(auth.router)
+# Ruling F4 (2026-09-13): backup.router was implemented in f79f066e and called by the frontend
+# (backupApi.ts) but never mounted in any revision — /api/backup 404'd in production. Owner
+# ruling: mount it. See docs/plans/2026-09-12-context-map-doc-updates.md (R-T7-BACKUP-MOUNT).
+app.include_router(backup.router)
 app.include_router(cost_analytics.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
@@ -1507,6 +1511,14 @@ app.include_router(webhooks.router)
 app.include_router(websocket.router)
 app.include_router(zone_anomalies.router)
 app.include_router(zone_household.router)
+# NOTE: the /api/zones -> /api/analytics-zones 308 redirect (NEM-5377,
+# 89b2001b, Feb 4 2026) is registered AFTER the real /api/zones routers
+# (zone_anomalies, zone_household) so it only serves paths they do not
+# define. Registered earlier it shadowed /api/zones/{zone_id}/household*
+# with a redirect to a path with no routes, breaking the Zone Trust Matrix
+# feature (frontend useZoneTrustMatrix.ts) and 32 zone_household tests
+# (owner ruling F1, M1 Task 7).
+app.include_router(analytics_zones.zones_redirect_router)
 app.include_router(zones.router)
 
 

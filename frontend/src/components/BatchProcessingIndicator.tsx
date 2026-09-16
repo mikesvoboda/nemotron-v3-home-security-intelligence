@@ -159,9 +159,7 @@ function BatchStatusItem({ status, showCamera = true }: BatchStatusItemProps) {
       <span className={clsx('font-medium', styles.text)}>{label}</span>
 
       {/* Camera ID (optional) */}
-      {showCamera && (
-        <span className="text-gray-500">{status.cameraId}</span>
-      )}
+      {showCamera && <span className="text-gray-500">{status.cameraId}</span>}
 
       {/* Detection count */}
       {status.detectionCount > 0 && (
@@ -208,20 +206,18 @@ export default function BatchProcessingIndicator({
   className,
   enabled = true,
 }: BatchProcessingIndicatorProps) {
-  const {
-    processingBatches,
-    completedBatches,
-    failedBatches,
-    activeCount,
-    isConnected,
-  } = useBatchProcessingStatus({
-    enabled,
-    filterCameraId,
-    maxHistory: 10,
-  });
+  const { processingBatches, completedBatches, failedBatches, activeCount, isConnected } =
+    useBatchProcessingStatus({
+      enabled,
+      filterCameraId,
+      maxHistory: 10,
+    });
 
   // Don't show anything if not connected or no activity
-  if (!isConnected || (activeCount === 0 && completedBatches.length === 0 && failedBatches.length === 0)) {
+  if (
+    !isConnected ||
+    (activeCount === 0 && completedBatches.length === 0 && failedBatches.length === 0)
+  ) {
     return null;
   }
 
@@ -242,10 +238,7 @@ export default function BatchProcessingIndicator({
         aria-live="polite"
         aria-label={`${activeCount} batch${activeCount !== 1 ? 'es' : ''} analyzing`}
       >
-        <div
-          className="h-2 w-2 animate-pulse rounded-full bg-blue-500"
-          aria-hidden="true"
-        />
+        <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" aria-hidden="true" />
         <span className="text-xs font-medium text-blue-700">{activeCount}</span>
       </div>
     );
@@ -276,16 +269,10 @@ export default function BatchProcessingIndicator({
       {processingBatches.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {processingBatches.slice(0, 5).map((status) => (
-            <BatchStatusItem
-              key={status.batchId}
-              status={status}
-              showCamera={!filterCameraId}
-            />
+            <BatchStatusItem key={status.batchId} status={status} showCamera={!filterCameraId} />
           ))}
           {processingBatches.length > 5 && (
-            <span className="text-xs text-gray-500">
-              +{processingBatches.length - 5} more
-            </span>
+            <span className="text-xs text-gray-500">+{processingBatches.length - 5} more</span>
           )}
         </div>
       )}
@@ -294,11 +281,7 @@ export default function BatchProcessingIndicator({
       {completedBatches.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {completedBatches.slice(0, 3).map((status) => (
-            <BatchStatusItem
-              key={status.batchId}
-              status={status}
-              showCamera={!filterCameraId}
-            />
+            <BatchStatusItem key={status.batchId} status={status} showCamera={!filterCameraId} />
           ))}
         </div>
       )}
@@ -307,19 +290,15 @@ export default function BatchProcessingIndicator({
       {failedBatches.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {failedBatches.slice(0, 3).map((status) => (
-            <BatchStatusItem
-              key={status.batchId}
-              status={status}
-              showCamera={!filterCameraId}
-            />
+            <BatchStatusItem key={status.batchId} status={status} showCamera={!filterCameraId} />
           ))}
         </div>
       )}
 
       {/* Empty state */}
-      {processingBatches.length === 0 && completedBatches.length === 0 && failedBatches.length === 0 && (
-        <p className="text-xs text-gray-500">No recent activity</p>
-      )}
+      {processingBatches.length === 0 &&
+        completedBatches.length === 0 &&
+        failedBatches.length === 0 && <p className="text-xs text-gray-500">No recent activity</p>}
     </div>
   );
 }

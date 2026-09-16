@@ -33,7 +33,10 @@ async def sample_camera(db_session) -> Camera:
     camera = Camera(
         id="test_anomaly_camera",
         name="Test Camera for Anomalies",
-        status="active",
+        # "active" violates the shipped ck_cameras_status CHECK
+        # (models/camera.py:87 — online|offline|error|unknown); every test in
+        # this file ERRORed at fixture setup on it. (ledger R-T9-CAMSTATUS)
+        status="online",
         folder_path="/test/anomaly",
     )
     db_session.add(camera)
@@ -89,7 +92,8 @@ async def sample_anomalies(db_session, sample_zone) -> list[ZoneAnomaly]:
     now = datetime.now(UTC)
     anomalies = [
         ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_TIME,
             severity=AnomalySeverity.WARNING,
@@ -101,7 +105,8 @@ async def sample_anomalies(db_session, sample_zone) -> list[ZoneAnomaly]:
             timestamp=now - timedelta(hours=2),
         ),
         ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_FREQUENCY,
             severity=AnomalySeverity.CRITICAL,
@@ -116,7 +121,8 @@ async def sample_anomalies(db_session, sample_zone) -> list[ZoneAnomaly]:
             acknowledged_by="test_user",
         ),
         ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_DWELL,
             severity=AnomalySeverity.INFO,
@@ -146,7 +152,8 @@ class TestZoneAnomalyModel:
     async def test_create_anomaly(self, db_session, sample_zone) -> None:
         """Test creating an anomaly in the database."""
         anomaly = ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_TIME,
             severity=AnomalySeverity.WARNING,
@@ -167,7 +174,7 @@ class TestZoneAnomalyModel:
     @pytest.mark.asyncio
     async def test_query_anomalies_by_zone(self, db_session, sample_zone, sample_anomalies) -> None:
         """Test querying anomalies by zone ID."""
-        stmt = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == uuid.UUID(sample_zone.id))
+        stmt = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == sample_zone.id)
         result = await db_session.execute(stmt)
         anomalies = result.scalars().all()
 
@@ -179,7 +186,7 @@ class TestZoneAnomalyModel:
     ) -> None:
         """Test querying only unacknowledged anomalies."""
         stmt = select(ZoneAnomaly).where(
-            ZoneAnomaly.zone_id == uuid.UUID(sample_zone.id),
+            ZoneAnomaly.zone_id == sample_zone.id,
             ZoneAnomaly.acknowledged == False,  # noqa: E712
         )
         result = await db_session.execute(stmt)
@@ -193,7 +200,7 @@ class TestZoneAnomalyModel:
     ) -> None:
         """Test querying anomalies by severity."""
         stmt = select(ZoneAnomaly).where(
-            ZoneAnomaly.zone_id == uuid.UUID(sample_zone.id),
+            ZoneAnomaly.zone_id == sample_zone.id,
             ZoneAnomaly.severity == AnomalySeverity.CRITICAL,
         )
         result = await db_session.execute(stmt)
@@ -206,7 +213,8 @@ class TestZoneAnomalyModel:
     async def test_acknowledge_anomaly(self, db_session, sample_zone) -> None:
         """Test acknowledging an anomaly."""
         anomaly = ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_FREQUENCY,
             severity=AnomalySeverity.WARNING,
@@ -303,7 +311,8 @@ class TestZoneAnomalyServiceIntegration:
 
         # Create an anomaly
         anomaly = ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_TIME,
             severity=AnomalySeverity.WARNING,
@@ -361,10 +370,18 @@ class TestZoneAnomalyServiceIntegration:
         assert counts[sample_zone.id] == 3
 
     @pytest.mark.asyncio
-    async def test_get_anomaly_counts_filtered_by_camera(
+    async def test_get_anomaly_counts_since_filter(
         self, db_session, sample_zone, sample_anomalies
     ) -> None:
-        """Test getting anomaly counts filtered by camera ID."""
+        """Test the shipped `since` boundary on per-zone counts.
+
+        Renamed + retargeted (R-T9-ZONEANOM): get_anomaly_counts_by_zone
+        (zone_anomaly_service.py:465-470) takes (since,
+        unacknowledged_only, session) — there is NO camera_id kwarg; the
+        old test's signature raised TypeError.
+        """
+        from datetime import UTC, datetime, timedelta
+
         from backend.services.zone_anomaly_service import (
             ZoneAnomalyService,
             reset_zone_anomaly_service,
@@ -373,19 +390,19 @@ class TestZoneAnomalyServiceIntegration:
         reset_zone_anomaly_service()
         service = ZoneAnomalyService()
 
-        counts = await service.get_anomaly_counts_by_zone(
-            camera_id=sample_zone.camera_id, session=db_session
-        )
+        # A window starting in the future excludes the rows
+        future = datetime.now(UTC) + timedelta(hours=1)
+        counts = await service.get_anomaly_counts_by_zone(since=future, session=db_session)
+        assert sample_zone.id not in counts
 
-        assert sample_zone.id in counts
-        assert counts[sample_zone.id] == 3
-
-        # Filter by non-existent camera
-        counts = await service.get_anomaly_counts_by_zone(
-            camera_id="nonexistent_camera", session=db_session
-        )
-
-        assert len(counts) == 0
+        # A window wider than the fixture's spread (now / -1h / -2h) includes
+        # all three. -1h was the first attempt and raced the boundary row: the
+        # fixture computed its own "now - 1h" microseconds earlier than this
+        # line, so timestamp >= since excluded it (count 1, not 3 — wave I-3
+        # 'assert 1 == 3'). -3h is unambiguous. (R-T9-ZONEANOM)
+        past = datetime.now(UTC) - timedelta(hours=3)
+        counts = await service.get_anomaly_counts_by_zone(since=past, session=db_session)
+        assert counts.get(sample_zone.id) == 3
 
 
 # =============================================================================
@@ -414,11 +431,16 @@ class TestZoneAnomalyRelationships:
     async def test_cascade_delete_zone_deletes_anomalies(
         self, db_session, sample_camera, sample_zone, sample_anomalies
     ) -> None:
-        """Test that deleting a zone cascades to delete anomalies."""
+        """Test that deleting a zone cascades to delete anomalies.
+
+        zone_id is a VARCHAR column (R-T9-ZONEANOM): comparing it against a
+        uuid.UUID object asks Postgres for varchar = uuid, which has no
+        operator (UndefinedFunctionError). Pass the string.
+        """
         zone_id = sample_zone.id
 
         # Verify anomalies exist
-        stmt = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == uuid.UUID(zone_id))
+        stmt = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == zone_id)
         result = await db_session.execute(stmt)
         anomalies_before = result.scalars().all()
         assert len(anomalies_before) == 3
@@ -428,7 +450,7 @@ class TestZoneAnomalyRelationships:
         await db_session.flush()
 
         # Verify anomalies are deleted
-        stmt = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == uuid.UUID(zone_id))
+        stmt = select(ZoneAnomaly).where(ZoneAnomaly.zone_id == zone_id)
         result = await db_session.execute(stmt)
         anomalies_after = result.scalars().all()
         assert len(anomalies_after) == 0
@@ -448,7 +470,8 @@ class TestZoneAnomalyConstraints:
         # Valid anomaly types should work
         for anomaly_type in AnomalyType:
             anomaly = ZoneAnomaly(
-                zone_id=uuid.UUID(sample_zone.id),
+                id=str(uuid.uuid4()),
+                zone_id=sample_zone.id,
                 camera_id=sample_zone.camera_id,
                 anomaly_type=anomaly_type,
                 severity=AnomalySeverity.INFO,
@@ -464,7 +487,8 @@ class TestZoneAnomalyConstraints:
         # Valid severities should work
         for severity in AnomalySeverity:
             anomaly = ZoneAnomaly(
-                zone_id=uuid.UUID(sample_zone.id),
+                id=str(uuid.uuid4()),
+                zone_id=sample_zone.id,
                 camera_id=sample_zone.camera_id,
                 anomaly_type=AnomalyType.UNUSUAL_TIME,
                 severity=severity,
@@ -479,7 +503,8 @@ class TestZoneAnomalyConstraints:
         """Test that deviation must be non-negative or null."""
         # Non-negative should work
         anomaly = ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_TIME,
             severity=AnomalySeverity.INFO,
@@ -491,7 +516,8 @@ class TestZoneAnomalyConstraints:
 
         # Null deviation should also work
         anomaly2 = ZoneAnomaly(
-            zone_id=uuid.UUID(sample_zone.id),
+            id=str(uuid.uuid4()),
+            zone_id=sample_zone.id,
             camera_id=sample_zone.camera_id,
             anomaly_type=AnomalyType.UNUSUAL_TIME,
             severity=AnomalySeverity.INFO,

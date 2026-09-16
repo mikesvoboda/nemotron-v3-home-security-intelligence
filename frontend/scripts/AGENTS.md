@@ -163,7 +163,7 @@ From `frontend/package.json`:
 - Environment variables: `DATABASE_URL`, `REDIS_URL` (can be dummy values)
 
 ### validate-build-chunks.ts
-- Node.js 22+
+- Node.js 24+
 - TypeScript (tsx for execution)
 - Production build output (run `npm run build` first to generate the dist folder)
 

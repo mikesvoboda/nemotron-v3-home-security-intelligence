@@ -84,15 +84,12 @@ def mock_session():
     session.refresh = AsyncMock()
     return session
 
+
 @pytest.mark.asyncio
 async def test_create_entity(mock_session):
     repository = EntityRepository(mock_session)
 
-    entity = await repository.create(
-        name="John Doe",
-        entity_type="person",
-        trust_level="known"
-    )
+    entity = await repository.create(name="John Doe", entity_type="person", trust_level="known")
 
     mock_session.add.assert_called_once()
     mock_session.commit.assert_called_once()

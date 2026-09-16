@@ -169,7 +169,7 @@ class TestValidateManifest:
         sample_manifest["version"] = "2.0"
         service = RestoreService()
 
-        with pytest.raises(BackupValidationError, match="Unsupported backup version: 2.0"):
+        with pytest.raises(BackupValidationError, match=r"Unsupported backup version: 2\.0"):
             service._validate_manifest(sample_manifest)
 
     def test_validate_manifest_invalid_contents_type(self, sample_manifest):

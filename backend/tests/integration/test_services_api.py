@@ -3,13 +3,36 @@
 Tests the /api/system/services endpoints for container orchestrator service management.
 """
 
+from contextlib import contextmanager
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.api.routes.services import get_orchestrator
 from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.tests.integration.test_helpers import get_error_message
+
+
+@contextmanager
+def override_orchestrator(mock_get_orchestrator):
+    """Override the get_orchestrator dependency for the current request(s).
+
+    Route handlers resolve Depends(get_orchestrator) on the
+    routes.services module-local function (services.py:40); FastAPI captures
+    the original function object at route-declaration time, so
+    unittest.mock.patch("backend.api.routes.services.get_orchestrator", ...)
+    rebinds only the module attribute and never runs (probe-verified, M1
+    Task 7). dependency_overrides IS consulted at request time.
+    """
+    from backend.main import app
+
+    original = app.dependency_overrides.copy()
+    app.dependency_overrides[get_orchestrator] = mock_get_orchestrator
+    try:
+        yield
+    finally:
+        app.dependency_overrides = original
 
 
 @pytest.fixture
@@ -151,10 +174,10 @@ async def test_list_services_filter_by_category(client, mock_redis):
 
     mock_orchestrator.get_all_services.return_value = [mock_ai_service, mock_infra_service]
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         # Filter by AI category
         response = await client.get("/api/system/services?category=ai")
 
@@ -206,10 +229,10 @@ async def test_list_services_with_unhealthy_services(client, mock_redis):
 
     mock_orchestrator.get_all_services.return_value = [mock_healthy, mock_unhealthy]
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.get("/api/system/services")
 
         assert response.status_code == 200
@@ -244,10 +267,10 @@ async def test_list_services_calculates_uptime(client, mock_redis):
 
     mock_orchestrator.get_all_services.return_value = [mock_service]
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.get("/api/system/services")
 
         assert response.status_code == 200
@@ -280,10 +303,10 @@ async def test_list_services_stopped_service_has_null_uptime(client, mock_redis)
 
     mock_orchestrator.get_all_services.return_value = [mock_service]
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.get("/api/system/services")
 
         assert response.status_code == 200
@@ -316,13 +339,13 @@ async def test_restart_service_success(client, mock_redis):
     mock_service.restart_count = 0
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
     mock_orchestrator.restart_service.return_value = True
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/test-service/restart")
 
         assert response.status_code == 200
@@ -342,12 +365,12 @@ async def test_restart_service_success(client, mock_redis):
 async def test_restart_service_not_found(client, mock_redis):
     """Test POST /api/system/services/{name}/restart returns 404 for non-existent service."""
     mock_orchestrator = AsyncMock()
-    mock_orchestrator.get_service.return_value = None
+    mock_orchestrator.get_service = MagicMock(return_value=None)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/nonexistent/restart")
 
         assert response.status_code == 404
@@ -374,12 +397,12 @@ async def test_restart_service_disabled(client, mock_redis):
     mock_service.restart_count = 5
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/disabled-service/restart")
 
         assert response.status_code == 400
@@ -392,12 +415,12 @@ async def test_restart_service_disabled(client, mock_redis):
 async def test_restart_service_orchestrator_not_available(client, mock_redis):
     """Test POST /api/system/services/{name}/restart returns 503 when orchestrator unavailable."""
 
-    async def mock_get_orchestrator_unavailable(request):
+    async def mock_get_orchestrator_unavailable():
         from fastapi import HTTPException
 
         raise HTTPException(503, "Container orchestrator not available")
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator_unavailable):
+    with override_orchestrator(mock_get_orchestrator_unavailable):
         response = await client.post("/api/system/services/test-service/restart")
 
         assert response.status_code == 503
@@ -429,13 +452,13 @@ async def test_enable_service_success(client, mock_redis):
     mock_service.restart_count = 5
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
     mock_orchestrator.enable_service.return_value = True
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/test-service/enable")
 
         assert response.status_code == 200
@@ -453,12 +476,12 @@ async def test_enable_service_success(client, mock_redis):
 async def test_enable_service_not_found(client, mock_redis):
     """Test POST /api/system/services/{name}/enable returns 404 for non-existent service."""
     mock_orchestrator = AsyncMock()
-    mock_orchestrator.get_service.return_value = None
+    mock_orchestrator.get_service = MagicMock(return_value=None)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/nonexistent/enable")
 
         assert response.status_code == 404
@@ -490,13 +513,13 @@ async def test_disable_service_success(client, mock_redis):
     mock_service.restart_count = 0
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
     mock_orchestrator.disable_service.return_value = True
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/test-service/disable")
 
         assert response.status_code == 200
@@ -514,12 +537,12 @@ async def test_disable_service_success(client, mock_redis):
 async def test_disable_service_not_found(client, mock_redis):
     """Test POST /api/system/services/{name}/disable returns 404 for non-existent service."""
     mock_orchestrator = AsyncMock()
-    mock_orchestrator.get_service.return_value = None
+    mock_orchestrator.get_service = MagicMock(return_value=None)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/nonexistent/disable")
 
         assert response.status_code == 404
@@ -551,13 +574,13 @@ async def test_start_service_success(client, mock_redis):
     mock_service.restart_count = 0
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
     mock_orchestrator.start_service.return_value = True
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/test-service/start")
 
         assert response.status_code == 200
@@ -589,12 +612,12 @@ async def test_start_service_already_running(client, mock_redis):
     mock_service.restart_count = 0
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/running-service/start")
 
         assert response.status_code == 400
@@ -621,12 +644,12 @@ async def test_start_service_disabled(client, mock_redis):
     mock_service.restart_count = 5
     mock_service.last_restart_at = None
 
-    mock_orchestrator.get_service.return_value = mock_service
+    mock_orchestrator.get_service = MagicMock(return_value=mock_service)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/disabled-service/start")
 
         assert response.status_code == 400
@@ -639,12 +662,12 @@ async def test_start_service_disabled(client, mock_redis):
 async def test_start_service_not_found(client, mock_redis):
     """Test POST /api/system/services/{name}/start returns 404 for non-existent service."""
     mock_orchestrator = AsyncMock()
-    mock_orchestrator.get_service.return_value = None
+    mock_orchestrator.get_service = MagicMock(return_value=None)
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.post("/api/system/services/nonexistent/start")
 
         assert response.status_code == 404
@@ -679,10 +702,10 @@ async def test_list_services_with_container_id_truncation(client, mock_redis):
 
     mock_orchestrator.get_all_services.return_value = [mock_service]
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.get("/api/system/services")
 
         assert response.status_code == 200
@@ -743,10 +766,10 @@ async def test_list_services_with_multiple_categories(client, mock_redis):
 
     mock_orchestrator.get_all_services.return_value = [mock_infra, mock_ai, mock_monitoring]
 
-    async def mock_get_orchestrator(request):
+    async def mock_get_orchestrator():
         return mock_orchestrator
 
-    with patch("backend.api.routes.services.get_orchestrator", mock_get_orchestrator):
+    with override_orchestrator(mock_get_orchestrator):
         response = await client.get("/api/system/services")
 
         assert response.status_code == 200

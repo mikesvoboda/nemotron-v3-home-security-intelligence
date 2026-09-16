@@ -1,0 +1,222 @@
+# Nightly honest full gate (fast-confidence-loop spec SS5.4 / plan Task 14).
+# [M1 §6 GATE] Lands only after M1's final no-flag validate.sh run is
+# recorded green (M1 design §6 exit criteria) — satisfied: gate 19 GREEN,
+# ledger "M1 §6 CLOSE-OUT" row (commit 10373abd), 2026-09-14. The nightly
+# adds NO strictness to any governed file — it only RUNS them nightly.
+# (Draft-time note: the schedule-only variant was superseded by this
+# variant-A file — schedule + workflow_dispatch, needed for §6.1 green×2
+# evidence and manual pre-push dispatch — and deleted at landing per the
+# owner ruling recorded in the ledger rulings batch.)
+#
+# Honest reporting, three ways:
+#   1. Every verdict step keeps its real exit code — no `|| true` on
+#      verdicts, and NO grep->pkill->exit-0 pattern (ci.yml still harbors
+#      that hack for the frontend push job; this workflow does NOT copy it).
+#   2. No un-pipefail'd pipelines anywhere: statuses come from processes,
+#      never from a `tee`/`tail` riding the same pipe (the ci.yml retry-mask
+#      class). Long output goes to log files via redirection.
+#   3. The summary is artifact-derived (coverage re-read from the merged
+#      data file, vitest summary from the log FILE), and the status job
+#      fails on anything but two successes — a silently-skipped nightly is
+#      the lying-gate class this spec exists to kill.
+#
+# Does this file reference --fast or the fast-tier runners? NO — the full
+# gate is --fast-free by design (spec §4.2 Tier 2, unchanged semantics). The
+# T13 dependency runs the other way: if a future revision adds a `--fast`
+# comparison leg here, it must wait for T13's apply gates (M1 §6 record +
+# scripts/fast_select.py / fast-backend-runner.sh / fast-frontend-runner.sh
+# on disk from Tasks 10-12).
+name: Nightly Full Gate
+on:
+  schedule:
+    - cron: '17 4 * * *' # UTC 04:17 — off the :00 herd (plan Task 14 convention)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Nightly evidence runs must not cancel each other.
+concurrency:
+  group: nightly-full-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend-full:
+    name: Backend full gate (validate.sh semantics)
+    runs-on: ubuntu-latest
+    # Ledger anchor: integration tier alone 597-620s measured (gate-13 597.47s,
+    # runA2 618.53s); unit tier + coverage dominate the rest; 240 min is a
+    # generous hosted-runner bound [UNVERIFIED until first dispatch].
+    timeout-minutes: 240
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      LOG_DB_ENABLED: 'false'
+      ENVIRONMENT: development # Avoid production password validation in CI
+      CI: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      # D14-split mirror of scripts/validate.sh (unit+contracts+security in
+      # one process, integration in another; identical --ignore x4; one
+      # COVERAGE_FILE per invocation; both --cov-fail-under=0 so the 80%
+      # gate fires only on the merged COMBINED file — validate.sh's preserved
+      # semantics). Output via redirection to log files, never `cmd | tee`.
+      - name: Backend unit+contracts+security tier (validate.sh semantics)
+        run: |
+          set -eu
+          mkdir -p /tmp/fcl-cov
+          if ! COVERAGE_FILE=/tmp/fcl-cov/.coverage.unit \
+            uv run pytest backend/tests/unit backend/tests/contracts backend/tests/security \
+            --cov=backend --cov-report= --cov-fail-under=0 \
+            --ignore=backend/tests/load --ignore=backend/tests/benchmarks \
+            --ignore=backend/tests/e2e --ignore=backend/tests/chaos \
+            > /tmp/nightly-backend-unit.log 2>&1; then
+            echo "[ERROR] unit tier failed — log tail:" >&2
+            tail -80 /tmp/nightly-backend-unit.log >&2 || true
+            exit 1
+          fi
+          tail -5 /tmp/nightly-backend-unit.log
+
+      - name: Backend integration tier (validate.sh semantics)
+        run: |
+          set -eu
+          if ! COVERAGE_FILE=/tmp/fcl-cov/.coverage.integration \
+            uv run pytest backend/tests/integration \
+            --cov=backend --cov-report= --cov-fail-under=0 \
+            --ignore=backend/tests/load --ignore=backend/tests/benchmarks \
+            --ignore=backend/tests/e2e --ignore=backend/tests/chaos \
+            --timeout=30 > /tmp/nightly-backend-integration.log 2>&1; then
+            echo "[ERROR] integration tier failed — log tail:" >&2
+            tail -80 /tmp/nightly-backend-integration.log >&2 || true
+            exit 1
+          fi
+          tail -5 /tmp/nightly-backend-integration.log
+
+      - name: Combined coverage gate (80%, validate.sh semantics)
+        if: always()
+        run: |
+          set -eu
+          # NO pipe on the report: `report | tail` would mask a below-80
+          # exit with tail's status (the exact mask class spec §5 removes).
+          uv run python -m coverage combine --data-file=/tmp/fcl-cov/.coverage \
+            /tmp/fcl-cov/.coverage.unit /tmp/fcl-cov/.coverage.integration
+          uv run python -m coverage report --data-file=/tmp/fcl-cov/.coverage \
+            --fail-under=80 --show-missing > /tmp/nightly-coverage-report.log
+          tail -1 /tmp/nightly-coverage-report.log > /tmp/fcl-cov/summary-cov.txt
+
+      - name: Honesty summary (artifact-derived; feeds spec 6.1 trend)
+        if: always()
+        run: |
+          {
+            echo "## Nightly full gate — backend"
+            echo "- combined coverage: $(cat /tmp/fcl-cov/summary-cov.txt 2>/dev/null || echo 'not produced (a tier failed — see the red step, not this line)')"
+            echo '- tier close lines (verbatim from the logs):'
+            echo '```'
+            grep -hE '=====.*(passed|failed|error).*=====' /tmp/nightly-backend-*.log 2>/dev/null | tail -4 || echo 'no summary lines produced'
+            echo '```'
+            echo '- raw logs retained in-job: /tmp/nightly-backend-{unit,integration}.log'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  frontend-full:
+    name: Frontend full gate (honest exit code)
+    runs-on: ubuntu-latest
+    # Dev-box serial-file anchor 2981.18s (validate-full-10.log:35473);
+    # hosted runners slower per file — 240 min bound [UNVERIFIED].
+    timeout-minutes: 240
+    env:
+      # npx bypasses the npm-script NODE_OPTIONS wrapper, so the heap cap is
+      # set explicitly here (8192 = the inherited default; NOT raised —
+      # raising CI heap is a separate measured decision, spec §3.3).
+      NODE_OPTIONS: '--max-old-space-size=8192 --expose-gc'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      # THE honest one (D-1: deliberate divergence from ci.yml's push-job
+      # grep->pkill->exit-0 hack — this job must never copy it). vitest's
+      # own status is the step verdict: default GH shell is bash -e; the
+      # run line's exit status is vitest's. Output lands in a log file for
+      # the summary step; sequential files (VITEST_PARALLEL unset) keep the
+      # inherited memory-safe profile on 16 GB runners.
+      - name: Run full vitest suite (real exit code)
+        run: |
+          set -eu
+          cd frontend
+          set +e
+          npx vitest run --reporter=default --teardownTimeout=1000 \
+            > /tmp/nightly-vitest.log 2>&1
+          RC=$?
+          set -e
+          echo "vitest exit=$RC"
+          tail -12 /tmp/nightly-vitest.log || true
+          exit $RC
+
+      - name: Honesty summary (log-file derived)
+        if: always()
+        run: |
+          {
+            echo "## Nightly full gate — frontend"
+            echo '```'
+            grep -E 'Test Files |Tests |Duration ' /tmp/nightly-vitest.log 2>/dev/null | tail -6 || echo 'no summary line produced (process died before reporting — that is still RED; the step exit says so)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  status:
+    name: Nightly status
+    needs: [backend-full, frontend-full]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate (anything but two successes is red — no silent skips)
+        run: |
+          echo "nightly full gate: backend=${{ needs.backend-full.result }} frontend=${{ needs.frontend-full.result }}" \
+            >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ needs.backend-full.result }}" = "success" ] && \
+          [ "${{ needs.frontend-full.result }}" = "success" ]

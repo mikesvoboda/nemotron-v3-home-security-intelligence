@@ -133,7 +133,10 @@ describe('useBulkCreateDetections', () => {
     });
 
     expect(api.bulkCreateDetections).toHaveBeenCalled();
-    expect(vi.mocked(api.bulkCreateDetections).mock.calls[0][0]).toEqual([createDetectionItem, createDetectionItem]);
+    expect(vi.mocked(api.bulkCreateDetections).mock.calls[0][0]).toEqual([
+      createDetectionItem,
+      createDetectionItem,
+    ]);
     expect(result.current.data).toEqual(createSuccessResponse);
     expect(onSuccess).toHaveBeenCalledWith(createSuccessResponse);
   });
@@ -394,10 +397,9 @@ describe('useBulkDeleteDetections', () => {
     };
     vi.mocked(api.bulkDeleteDetections).mockResolvedValueOnce(deleteResponse);
 
-    const { result } = renderHook(
-      () => useBulkDeleteDetections({ skipInvalidation: true }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useBulkDeleteDetections({ skipInvalidation: true }), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.mutate([1]);

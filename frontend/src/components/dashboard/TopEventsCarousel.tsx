@@ -238,7 +238,7 @@ export default function TopEventsCarousel({
         {canExpand && (
           <button
             onClick={handleToggleExpand}
-            className="text-sm font-medium text-[#76B900] hover:text-[#88d200] transition-colors"
+            className="text-sm font-medium text-[#76B900] transition-colors hover:text-[#88d200]"
             aria-expanded={isExpanded}
           >
             {isExpanded ? 'Show less' : 'Show more'}
@@ -268,9 +268,7 @@ export default function TopEventsCarousel({
         >
           <AlertTriangle className="mb-2 h-8 w-8" />
           <p className="text-sm">Failed to load events</p>
-          {error instanceof Error && (
-            <p className="mt-1 text-xs text-gray-500">{error.message}</p>
-          )}
+          {error instanceof Error && <p className="mt-1 text-xs text-gray-500">{error.message}</p>}
         </div>
       )}
 
@@ -311,7 +309,7 @@ export default function TopEventsCarousel({
           {/* Scrollable Container */}
           <div
             ref={scrollContainerRef}
-            className="mx-8 flex gap-3 overflow-x-auto scroll-smooth scrollbar-hide"
+            className="scrollbar-hide mx-8 flex gap-3 overflow-x-auto scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <AnimatePresence mode="popLayout">

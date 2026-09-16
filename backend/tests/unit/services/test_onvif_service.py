@@ -481,7 +481,7 @@ class TestGetCapabilities:
 
         service = OnvifService(mock_session, mock_redis)
 
-        with pytest.raises(ValueError, match="Camera .* not found"):
+        with pytest.raises(ValueError, match=r"Camera .* not found"):
             await service.get_capabilities(camera_id="nonexistent")
 
     @pytest.mark.asyncio
@@ -618,7 +618,7 @@ class TestExecutePtzCommand:
 
         service = OnvifService(mock_session, mock_redis)
 
-        with pytest.raises(ValueError, match="PTZ value must be between -1.0 and 1.0"):
+        with pytest.raises(ValueError, match=r"PTZ value must be between -1\.0 and 1\.0"):
             await service.execute_ptz_command(
                 camera_id="front_door",
                 command="pan",
@@ -633,7 +633,7 @@ class TestExecutePtzCommand:
 
         service = OnvifService(mock_session, mock_redis)
 
-        with pytest.raises(ValueError, match="Camera .* not found"):
+        with pytest.raises(ValueError, match=r"Camera .* not found"):
             await service.execute_ptz_command(
                 camera_id="nonexistent", command="pan", value=0.5, speed=1.0
             )
@@ -771,7 +771,7 @@ class TestGetPresets:
 
         service = OnvifService(mock_session, mock_redis)
 
-        with pytest.raises(ValueError, match="Camera .* not found"):
+        with pytest.raises(ValueError, match=r"Camera .* not found"):
             await service.get_presets(camera_id="nonexistent")
 
 
@@ -823,5 +823,5 @@ class TestGotoPreset:
 
         service = OnvifService(mock_session, mock_redis)
 
-        with pytest.raises(ValueError, match="Camera .* not found"):
+        with pytest.raises(ValueError, match=r"Camera .* not found"):
             await service.goto_preset(camera_id="nonexistent", preset_token="preset_1")

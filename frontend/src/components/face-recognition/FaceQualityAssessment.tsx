@@ -119,17 +119,17 @@ function OverallScore({ score, status, compact }: OverallScoreProps) {
 
   return (
     <div data-testid="quality-overall-score">
-      <div className="flex items-center justify-between text-sm mb-1">
+      <div className="mb-1 flex items-center justify-between text-sm">
         <span className="text-gray-400">Quality Score</span>
         <div className="flex items-center gap-2">
-          <span className="text-white font-medium">{(score * 100).toFixed(0)}%</span>
-          <span className={`${textColorClass} text-xs font-medium`}>
-            {getStatusLabel(status)}
-          </span>
+          <span className="font-medium text-white">{(score * 100).toFixed(0)}%</span>
+          <span className={`${textColorClass} text-xs font-medium`}>{getStatusLabel(status)}</span>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <div className={`flex-1 ${compact ? 'h-1.5' : 'h-2'} bg-gray-700 rounded-full overflow-hidden`}>
+        <div
+          className={`flex-1 ${compact ? 'h-1.5' : 'h-2'} overflow-hidden rounded-full bg-gray-700`}
+        >
           <div
             data-testid="quality-progress-bar"
             className={`h-full transition-all duration-300 ${colorClass}`}
@@ -138,7 +138,7 @@ function OverallScore({ score, status, compact }: OverallScoreProps) {
         </div>
         <div
           data-testid="quality-indicator"
-          className={`${compact ? 'w-2 h-2' : 'w-3 h-3'} rounded-full ${colorClass}`}
+          className={`${compact ? 'h-2 w-2' : 'h-3 w-3'} rounded-full ${colorClass}`}
           aria-label={`Quality: ${getStatusLabel(status)}`}
         />
       </div>
@@ -159,17 +159,22 @@ function FactorRow({ factor, compact }: FactorRowProps) {
   const colorClass = getStatusColorClass(factor.status);
 
   return (
-    <div className="flex items-center gap-3" data-testid={`quality-factor-${factor.label.toLowerCase().replace(' ', '-')}`}>
-      <span className={`${compact ? 'w-16' : 'w-20'} text-xs text-gray-400 truncate`}>
+    <div
+      className="flex items-center gap-3"
+      data-testid={`quality-factor-${factor.label.toLowerCase().replace(' ', '-')}`}
+    >
+      <span className={`${compact ? 'w-16' : 'w-20'} truncate text-xs text-gray-400`}>
         {factor.label}
       </span>
-      <div className={`flex-1 ${compact ? 'h-1' : 'h-1.5'} bg-gray-700 rounded-full overflow-hidden`}>
+      <div
+        className={`flex-1 ${compact ? 'h-1' : 'h-1.5'} overflow-hidden rounded-full bg-gray-700`}
+      >
         <div
           className={`h-full transition-all duration-300 ${colorClass}`}
           style={{ width: `${progressWidth}%` }}
         />
       </div>
-      <span className={`w-8 text-xs text-right ${getStatusTextColorClass(factor.status)}`}>
+      <span className={`w-8 text-right text-xs ${getStatusTextColorClass(factor.status)}`}>
         {(factor.score * 100).toFixed(0)}%
       </span>
     </div>
@@ -195,14 +200,14 @@ function QualityWarning({ score, recommendation }: QualityWarningProps) {
   if (isBlocked) {
     return (
       <div
-        className="p-3 rounded-lg bg-red-500/10 border border-red-500/30"
+        className="rounded-lg border border-red-500/30 bg-red-500/10 p-3"
         data-testid="quality-blocked-warning"
       >
         <div className="flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
           <div>
-            <p className="text-sm text-red-400 font-medium">Quality Too Low</p>
-            <p className="text-xs text-red-400/80 mt-1">
+            <p className="text-sm font-medium text-red-400">Quality Too Low</p>
+            <p className="mt-1 text-xs text-red-400/80">
               {recommendation ||
                 'Image quality is below the minimum threshold (70%) required for enrollment. Please try again with better lighting and a clearer view of your face.'}
             </p>
@@ -214,14 +219,14 @@ function QualityWarning({ score, recommendation }: QualityWarningProps) {
 
   return (
     <div
-      className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30"
+      className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3"
       data-testid="quality-fair-warning"
     >
       <div className="flex items-start gap-2">
-        <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-400" />
         <div>
-          <p className="text-sm text-yellow-400 font-medium">Moderate Quality</p>
-          <p className="text-xs text-yellow-400/80 mt-1">
+          <p className="text-sm font-medium text-yellow-400">Moderate Quality</p>
+          <p className="mt-1 text-xs text-yellow-400/80">
             {recommendation ||
               'Face recognition may be less accurate. Consider capturing a clearer image for better results.'}
           </p>
@@ -275,16 +280,16 @@ function RecommendationsList({ factors }: RecommendationsListProps) {
 
   return (
     <div
-      className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30"
+      className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3"
       data-testid="quality-recommendations"
     >
       <div className="flex items-start gap-2">
-        <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-400" />
         <div className="flex-1">
-          <p className="text-sm text-blue-400 font-medium mb-2">Tips for Better Quality</p>
+          <p className="mb-2 text-sm font-medium text-blue-400">Tips for Better Quality</p>
           <ul className="space-y-1">
             {recommendations.map(({ factor, recommendation }) => (
-              <li key={factor} className="text-xs text-blue-400/80 flex items-start gap-2">
+              <li key={factor} className="flex items-start gap-2 text-xs text-blue-400/80">
                 <span className="text-blue-400/60">-</span>
                 <span>
                   <strong className="text-blue-400">{factor}:</strong> {recommendation}
@@ -312,11 +317,11 @@ function GoodQualityMessage({ score }: GoodQualityMessageProps) {
 
   return (
     <div
-      className="p-3 rounded-lg bg-green-500/10 border border-green-500/30"
+      className="rounded-lg border border-green-500/30 bg-green-500/10 p-3"
       data-testid="quality-good-message"
     >
       <div className="flex items-center gap-2">
-        <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+        <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-400" />
         <p className="text-sm text-green-400">
           Excellent quality! This face is suitable for enrollment.
         </p>
@@ -365,7 +370,7 @@ export default function FaceQualityAssessment({
       {/* Quality Factors Breakdown */}
       {showFactors && (
         <div className={`space-y-2 ${compact ? 'pt-1' : 'pt-2'}`} data-testid="quality-factors">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">Quality Factors</p>
+          <p className="text-xs uppercase tracking-wider text-gray-500">Quality Factors</p>
           <div className={`space-y-${compact ? '1' : '2'}`}>
             <FactorRow factor={factors.blur} compact={compact} />
             <FactorRow factor={factors.lighting} compact={compact} />

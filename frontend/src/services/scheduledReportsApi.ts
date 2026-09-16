@@ -79,7 +79,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       } else if (typeof errorBody === 'string') {
         errorMessage = errorBody;
@@ -112,10 +112,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * @param options - Optional fetch options
  * @returns Parsed JSON response
  */
-async function fetchScheduledReportsApi<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchScheduledReportsApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${API_BASE}${endpoint}`;
 
   const fetchOptions: RequestInit = {
@@ -194,9 +191,7 @@ export async function getScheduledReport(id: number): Promise<ScheduledReport> {
  * });
  * ```
  */
-export async function createScheduledReport(
-  data: ScheduledReportCreate
-): Promise<ScheduledReport> {
+export async function createScheduledReport(data: ScheduledReportCreate): Promise<ScheduledReport> {
   return fetchScheduledReportsApi<ScheduledReport>('', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -263,9 +258,7 @@ export async function deleteScheduledReport(id: number): Promise<void> {
  * console.log(`Report triggered: ${result.message}`);
  * ```
  */
-export async function triggerScheduledReport(
-  id: number
-): Promise<ScheduledReportRunResponse> {
+export async function triggerScheduledReport(id: number): Promise<ScheduledReportRunResponse> {
   return fetchScheduledReportsApi<ScheduledReportRunResponse>(`/${id}/trigger`, {
     method: 'POST',
   });

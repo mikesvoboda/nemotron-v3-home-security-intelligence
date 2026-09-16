@@ -322,10 +322,7 @@ describe('EnrichmentViewer - Interactions', () => {
 
   it('test_controlled_expanded_sections', () => {
     render(
-      <EnrichmentViewer
-        enrichmentData={completeEnrichment}
-        expandedSections={['vehicle', 'pet']}
-      />
+      <EnrichmentViewer enrichmentData={completeEnrichment} expandedSections={['vehicle', 'pet']} />
     );
 
     // Specified sections should be expanded
@@ -342,9 +339,7 @@ describe('EnrichmentViewer - Interactions', () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
 
-    render(
-      <EnrichmentViewer enrichmentData={vehicleEnrichment} onSectionToggle={onToggle} />
-    );
+    render(<EnrichmentViewer enrichmentData={vehicleEnrichment} onSectionToggle={onToggle} />);
 
     const vehicleButton = screen.getByRole('button', { name: /vehicle/i });
     await user.click(vehicleButton);
@@ -360,10 +355,7 @@ describe('EnrichmentViewer - Interactions', () => {
     const onEntityClick = vi.fn();
 
     render(
-      <EnrichmentViewer
-        enrichmentData={licensePlateEnrichment}
-        onEntityClick={onEntityClick}
-      />
+      <EnrichmentViewer enrichmentData={licensePlateEnrichment} onEntityClick={onEntityClick} />
     );
 
     // Expand section first
@@ -391,9 +383,7 @@ describe('EnrichmentViewer - Loading and Error States', () => {
   });
 
   it('test_error_state_shows_message', () => {
-    render(
-      <EnrichmentViewer enrichmentData={null} error="Failed to load enrichment data" />
-    );
+    render(<EnrichmentViewer enrichmentData={null} error="Failed to load enrichment data" />);
 
     expect(screen.getByTestId('enrichment-viewer-error')).toBeInTheDocument();
     expect(screen.getByText('Failed to load enrichment data')).toBeInTheDocument();
@@ -403,13 +393,7 @@ describe('EnrichmentViewer - Loading and Error States', () => {
     const user = userEvent.setup();
     const onRefresh = vi.fn();
 
-    render(
-      <EnrichmentViewer
-        enrichmentData={null}
-        error="Failed to load"
-        onRefresh={onRefresh}
-      />
-    );
+    render(<EnrichmentViewer enrichmentData={null} error="Failed to load" onRefresh={onRefresh} />);
 
     const refreshButton = screen.getByRole('button', { name: /retry/i });
     await user.click(refreshButton);
@@ -450,9 +434,7 @@ describe('EnrichmentViewer - Accessibility', () => {
     render(<EnrichmentViewer enrichmentData={completeEnrichment} />);
 
     // Check ARIA labels on accordion buttons
-    expect(screen.getByRole('button', { name: /vehicle/i })).toHaveAttribute(
-      'aria-controls'
-    );
+    expect(screen.getByRole('button', { name: /vehicle/i })).toHaveAttribute('aria-controls');
     expect(screen.getByRole('button', { name: /pet/i })).toHaveAttribute('aria-controls');
   });
 

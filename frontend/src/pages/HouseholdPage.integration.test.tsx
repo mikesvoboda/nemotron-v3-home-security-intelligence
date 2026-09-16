@@ -1044,10 +1044,7 @@ describe('HouseholdPage - Form Validation', () => {
   it('error message displays on validation failure', async () => {
     server.use(
       http.post('/api/household/members', () => {
-        return HttpResponse.json(
-          { detail: 'Name must be at least 2 characters' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Name must be at least 2 characters' }, { status: 400 });
       })
     );
 

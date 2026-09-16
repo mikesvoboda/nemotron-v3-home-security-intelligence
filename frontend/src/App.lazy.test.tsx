@@ -8,7 +8,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { Suspense, lazy, ComponentType, ReactNode } from 'react';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
-import { FAST_TIMEOUT } from './test/setup';
+import { FAST_TIMEOUT, STANDARD_TIMEOUT } from './test/setup';
 
 describe('App lazy loading', () => {
   afterEach(() => {
@@ -73,10 +73,13 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      // Wait for component to load (fast timeout for mocked components)
+      // React 19.3 instruments the lazy() initializer thenable (#35521), adding a
+      // microtask hop; a 300ms budget is too tight for that under parallel-suite
+      // load. waitFor resolves as soon as the content appears, so the wider
+      // standard budget costs nothing.
       await waitFor(
         () => expect(screen.getByText('Lazy Content')).toBeInTheDocument(),
-        FAST_TIMEOUT
+        STANDARD_TIMEOUT
       );
     });
   });
@@ -129,7 +132,15 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(() => expect(screen.getByTestId('route1')).toBeInTheDocument(), FAST_TIMEOUT);
+      // Same React-19 lazy-delivery timing as the error-boundary site below:
+      // resolve reaches the DOM only after microtask + act flush (~250-300ms edge
+      // under full-suite contention — gate 16's lone FAIL was exactly here at
+      // 3045s of loaded runtime). STANDARD_TIMEOUT is the repo constant for real
+      // async renders; FAST stays for the mock-resolved sites above.
+      await waitFor(
+        () => expect(screen.getByTestId('route1')).toBeInTheDocument(),
+        STANDARD_TIMEOUT
+      );
 
       // Only route1 should be imported
       expect(importedRoutes).toEqual(['route1']);
@@ -143,7 +154,10 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(() => expect(screen.getByTestId('route2')).toBeInTheDocument(), FAST_TIMEOUT);
+      await waitFor(
+        () => expect(screen.getByTestId('route2')).toBeInTheDocument(),
+        STANDARD_TIMEOUT
+      );
 
       // Now both routes should be imported
       expect(importedRoutes).toEqual(['route1', 'route2']);
@@ -194,7 +208,11 @@ describe('App lazy loading', () => {
         </TestErrorBoundary>
       );
 
-      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), FAST_TIMEOUT);
+      // 300ms FAST_TIMEOUT is a coin-flip here: React 19 delivers a lazy
+      // rejection to the boundary only after the microtask + act flush (verified
+      // via minimal repro catching at ~250-300ms edge). STANDARD_TIMEOUT is the
+      // repo constant for real async renders.
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), STANDARD_TIMEOUT);
 
       expect(screen.getByTestId('error-boundary')).toHaveTextContent('Loading chunk failed');
 

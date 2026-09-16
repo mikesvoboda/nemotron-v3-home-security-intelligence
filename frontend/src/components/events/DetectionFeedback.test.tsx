@@ -19,8 +19,10 @@ describe('DetectionFeedback', () => {
   };
 
   // Helper to get buttons by their full aria-label
-  const getCorrectButton = () => screen.getByRole('button', { name: /^Mark detection as correct$/i });
-  const getIncorrectButton = () => screen.getByRole('button', { name: /^Mark detection as incorrect$/i });
+  const getCorrectButton = () =>
+    screen.getByRole('button', { name: /^Mark detection as correct$/i });
+  const getIncorrectButton = () =>
+    screen.getByRole('button', { name: /^Mark detection as incorrect$/i });
   const getUnsureButton = () => screen.getByRole('button', { name: /^Mark detection as unsure$/i });
 
   beforeEach(() => {
@@ -299,7 +301,9 @@ describe('DetectionFeedback', () => {
     it('does not call onFeedbackSubmit when disabled', async () => {
       const user = userEvent.setup();
       const onFeedbackSubmit = vi.fn();
-      render(<DetectionFeedback {...defaultProps} onFeedbackSubmit={onFeedbackSubmit} disabled={true} />);
+      render(
+        <DetectionFeedback {...defaultProps} onFeedbackSubmit={onFeedbackSubmit} disabled={true} />
+      );
 
       await user.click(getCorrectButton());
 

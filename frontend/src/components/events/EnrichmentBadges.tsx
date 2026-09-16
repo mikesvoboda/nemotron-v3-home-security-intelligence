@@ -67,7 +67,9 @@ export interface EnrichmentBadgesProps {
  * Convert full EnrichmentData to EnrichmentSummary for badge display.
  */
 
-export function enrichmentDataToSummary(data: EnrichmentData | null | undefined): EnrichmentSummary {
+export function enrichmentDataToSummary(
+  data: EnrichmentData | null | undefined
+): EnrichmentSummary {
   if (!data) return {};
 
   const summary: EnrichmentSummary = {};

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.12.0 || >=24.0.0"
   },
   "scripts": {
     "dev": "vite",
@@ -16,9 +16,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest",
+    "test": "NODE_OPTIONS=\"--max-old-space-size=${VITEST_HEAP_MB:-8192}\" vitest",
     "test:ui": "NODE_OPTIONS='--max-old-space-size=8192' vitest --ui",
-    "test:coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest --coverage",
+    "test:coverage": "NODE_OPTIONS=\"--max-old-space-size=${VITEST_HEAP_MB:-8192}\" vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
@@ -74,7 +74,8 @@
   },
   "overrides": {
     "tmp": ">=0.2.4",
-    "minimatch": ">=10.2.1"
+    "minimatch": ">=10.2.1",
+    "@mswjs/interceptors": "0.41.8"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
@@ -104,12 +105,12 @@
     "globals": "^17.3.0",
     "jsdom": "^28.1.0",
     "knip": "^5.83.1",
-    "msw": "^2.12.10",
+    "msw": "2.12.10",
     "openapi-typescript": "^7.13.0",
     "postcss": "^8.4.33",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "rollup-plugin-visualizer": "^6.0.5",
+    "rollup-plugin-visualizer": "^7.0.0",
     "timezone-mock": "^1.4.1",
     "typedoc": "0.28.17",
     "typedoc-plugin-markdown": "4.10.0",

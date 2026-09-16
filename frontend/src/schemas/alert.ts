@@ -153,7 +153,10 @@ export const alertFormCooldownSecondsSchema = z
  */
 export const alertFormSchema = z.object({
   name: alertFormNameSchema,
-  description: z.string().default('').transform((val) => val.trim()),
+  description: z
+    .string()
+    .default('')
+    .transform((val) => val.trim()),
   enabled: z.boolean().default(true),
   severity: alertFormSeveritySchema.default('medium'),
   risk_threshold: alertFormRiskThresholdSchema.default(null),

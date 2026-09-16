@@ -227,13 +227,18 @@ function formatRiskHistorySection(history: AnalyticsExportData['riskHistory']): 
     point.critical,
   ]);
 
-  return generateCSV(['Risk History'], []) + generateCSV(['Date', 'Low', 'Medium', 'High', 'Critical'], rows);
+  return (
+    generateCSV(['Risk History'], []) +
+    generateCSV(['Date', 'Low', 'Medium', 'High', 'Critical'], rows)
+  );
 }
 
 /**
  * Format Object Distribution data for CSV.
  */
-function formatObjectDistributionSection(distribution: AnalyticsExportData['objectDistribution']): string {
+function formatObjectDistributionSection(
+  distribution: AnalyticsExportData['objectDistribution']
+): string {
   const rows: (string | number)[][] = distribution.objectTypes.map((obj) => [
     obj.object_type,
     obj.count,
@@ -243,7 +248,10 @@ function formatObjectDistributionSection(distribution: AnalyticsExportData['obje
   // Add total row
   rows.push(['Total', distribution.totalDetections, '100%']);
 
-  return generateCSV(['Object Distribution'], []) + generateCSV(['Object Type', 'Count', 'Percentage'], rows);
+  return (
+    generateCSV(['Object Distribution'], []) +
+    generateCSV(['Object Type', 'Count', 'Percentage'], rows)
+  );
 }
 
 /**
@@ -256,7 +264,10 @@ function formatCameraUptimeSection(uptime: AnalyticsExportData['cameraUptime']):
     cam.detection_count,
   ]);
 
-  return generateCSV(['Camera Uptime'], []) + generateCSV(['Camera Name', 'Uptime %', 'Detection Count'], rows);
+  return (
+    generateCSV(['Camera Uptime'], []) +
+    generateCSV(['Camera Name', 'Uptime %', 'Detection Count'], rows)
+  );
 }
 
 /**

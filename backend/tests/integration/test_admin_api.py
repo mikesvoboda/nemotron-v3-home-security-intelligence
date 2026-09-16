@@ -13,6 +13,7 @@ import os
 import pytest
 from sqlalchemy import select
 
+from backend.api.middleware.setup_guard import SetupGuardMiddleware
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
@@ -35,6 +36,14 @@ async def debug_client(integration_db, mock_redis):
 
     This fixture creates an HTTP client with admin access enabled, eliminating
     the need for context managers or try/finally blocks in each test.
+
+    SetupGuardMiddleware is neutralized the same way the shared ``client``
+    fixture does it: its singleton caches the "no users exist" verdict for a
+    60s TTL, and test_api_protection's pre-setup tests TRUNCATE users right
+    before this module runs on the same xdist worker — seeding a user here
+    could not outrun that cache, so admin requests 503'd for the whole TTL
+    window (order-dependent failures, CI run on 94b48ac9). The ADMIN_ENABLED
+    gate under test here is independent of the setup guard.
     """
     from unittest.mock import patch
 
@@ -50,6 +59,9 @@ async def debug_client(integration_db, mock_redis):
         redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
     )
 
+    async def _setup_complete(self):
+        return True
+
     # Import the app only after env is set up
     from backend.main import app
 
@@ -60,6 +72,7 @@ async def debug_client(integration_db, mock_redis):
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=debug_settings),
         patch("backend.api.routes.admin.get_settings", return_value=debug_settings),
+        patch.object(SetupGuardMiddleware, "_check_setup_complete", _setup_complete),
     ):
         get_settings.cache_clear()
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -498,17 +511,22 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
 
 @pytest.mark.asyncio
 @pytest.mark.requires_debug_mode
-@pytest.mark.unit  # Override integration mark - this test doesn't need database
 async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
-    """Test that admin endpoints return 403 when DEBUG=false or ADMIN_ENABLED=false.
+    """Admin endpoints enforce the ADMIN_ENABLED=false -> 403 contract.
 
-    SECURITY: This test verifies defense-in-depth access control.
-    Admin endpoints must have BOTH debug=True AND admin_enabled=True.
-    This prevents accidental exposure in production environments.
+    M3 T10 (audit 5.1): this item carried @pytest.mark.unit while living in
+    integration/ — the "unit+integration simultaneously" contradiction the
+    audit flagged. And it was false in BOTH directions: the test requests
+    `mock_redis`, which ships ONLY in integration/conftest.py (root conftest
+    names that fixture mock_redis_client), so a unit-only invocation cannot
+    even resolve it. It belongs to the integration tier: a full-app HTTP
+    test that overrides the DB dependency with a mock session.
 
-    NOTE: This test doesn't need a real database because it patches init_db
-    and overrides the database dependency with a mock session.
-    It only needs to verify HTTP response codes from the admin endpoints.
+    The access-control contract shipped in 8ea70057 ("enable Redis Streams
+    and admin endpoints by default", Feb 2026): admin endpoints are gated
+    ONLY by ADMIN_ENABLED — DEBUG mode is decoupled (registration on first
+    login is the access control; binding to 127.0.0.1 is the security
+    boundary). ADMIN_ENABLED=false must still return 403.
     """
     from unittest.mock import patch
 
@@ -518,7 +536,7 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
     from backend.core.database import get_db
     from backend.core.dependencies import get_redis_dependency
 
-    # Test 1: DEBUG=false, ADMIN_ENABLED=true (should fail)
+    # Test 1: DEBUG=false, ADMIN_ENABLED=true (allowed since 8ea70057)
     production_settings = Settings(
         debug=False,
         admin_enabled=True,
@@ -539,6 +557,9 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
     app.dependency_overrides[get_redis_dependency] = mock_redis_dependency
     app.dependency_overrides[get_db] = mock_db_dependency
 
+    async def _setup_complete(self):
+        return True
+
     try:
         with (
             patch("backend.main.init_db", return_value=None),
@@ -547,6 +568,10 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
             patch("backend.main.close_redis", return_value=None),
             patch("backend.core.config.get_settings", return_value=production_settings),
             patch("backend.api.routes.admin.get_settings", return_value=production_settings),
+            # Same reason as debug_client: this test asserts the ADMIN_ENABLED
+            # gate (403), but the guard middleware runs first and its cached
+            # "no users" verdict would answer 503 before the gate is reached.
+            patch.object(SetupGuardMiddleware, "_check_setup_complete", _setup_complete),
         ):
             from backend.core.config import get_settings
 
@@ -565,17 +590,18 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
                     ("POST", "/api/admin/maintenance/flush-queues", None),
                 ]
 
+                # DEBUG=false no longer blocks admin endpoints (8ea70057):
+                # each seeded endpoint performs its operation successfully.
                 for method, endpoint, body in endpoints:
                     if body:
                         response = await client.request(method, endpoint, json=body)
                     else:
                         response = await client.request(method, endpoint)
 
-                    assert response.status_code == 403, (
-                        f"{method} {endpoint} should return 403 when DEBUG=false, "
-                        f"but returned {response.status_code}"
+                    assert response.status_code != 403, (
+                        f"{method} {endpoint} must not be gated by DEBUG mode "
+                        f"(8ea70057); returned {response.status_code}"
                     )
-                    assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
             get_settings.cache_clear()
 
         # Test 2: DEBUG=true, ADMIN_ENABLED=false (should fail)
@@ -603,7 +629,7 @@ async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
                 # Test one endpoint to verify admin_enabled=false also blocks
                 response = await client.post("/api/admin/seed/cameras", json={"count": 1})
                 assert response.status_code == 403
-                assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
+                assert "Admin endpoints require ADMIN_ENABLED=true" in response.json()["detail"]
             get_settings.cache_clear()
     finally:
         # Clean up dependency overrides

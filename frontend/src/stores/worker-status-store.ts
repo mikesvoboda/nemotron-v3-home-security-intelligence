@@ -16,7 +16,12 @@
 
 import { useShallow } from 'zustand/react/shallow';
 
-import { createComputedSelector, createImmerSelectorStore, type Draft, type ImmerSetState } from './middleware';
+import {
+  createComputedSelector,
+  createImmerSelectorStore,
+  type Draft,
+  type ImmerSetState,
+} from './middleware';
 
 import type {
   WorkerType,
@@ -219,7 +224,7 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
         draft.workers[payload.worker_name] = {
           name: payload.worker_name,
           type: payload.worker_type,
-          state: 'running' as WorkerState,
+          state: 'running',
           lastUpdated: payload.timestamp,
           lastError: undefined,
           lastErrorType: undefined,
@@ -241,7 +246,7 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
           ...(existingWorker || {}),
           name: payload.worker_name,
           type: payload.worker_type,
-          state: 'stopped' as WorkerState,
+          state: 'stopped',
           lastUpdated: payload.timestamp,
           lastError: payload.reason,
         };
@@ -257,7 +262,7 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
           ...(existingWorker || {}),
           name: payload.worker_name,
           type: payload.worker_type,
-          state: 'error' as WorkerState,
+          state: 'error',
           lastError: payload.error,
           lastErrorType: payload.error_type,
           lastUpdated: payload.timestamp,
@@ -297,7 +302,7 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
           ...(existingWorker || {}),
           name: payload.worker_name,
           type: payload.worker_type,
-          state: 'starting' as WorkerState,
+          state: 'starting',
           restartAttempt: payload.attempt,
           maxRestartAttempts: payload.max_attempts,
           lastError: payload.reason,
@@ -314,7 +319,7 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
         draft.workers[payload.worker_name] = {
           name: payload.worker_name,
           type: payload.worker_type,
-          state: 'running' as WorkerState,
+          state: 'running',
           lastUpdated: payload.timestamp,
           lastError: undefined,
           lastErrorType: undefined,
@@ -390,10 +395,7 @@ export const selectWorkerByName = (
  * Factory for creating memoized workers-by-type selectors.
  * Each unique worker type gets its own memoized selector.
  */
-const workersByTypeSelectors = new Map<
-  WorkerType,
-  (state: WorkerStatusState) => WorkerStatus[]
->();
+const workersByTypeSelectors = new Map<WorkerType, (state: WorkerStatusState) => WorkerStatus[]>();
 
 /**
  * Memoized selector for workers by type.
@@ -402,9 +404,8 @@ const workersByTypeSelectors = new Map<
 export const selectWorkersByType = (state: WorkerStatusState, type: WorkerType): WorkerStatus[] => {
   let selector = workersByTypeSelectors.get(type);
   if (!selector) {
-    selector = createComputedSelector(
-      (s: WorkerStatusState): WorkerStatus[] =>
-        Object.values(s.workers).filter((w) => w.type === type)
+    selector = createComputedSelector((s: WorkerStatusState): WorkerStatus[] =>
+      Object.values(s.workers).filter((w) => w.type === type)
     );
     workersByTypeSelectors.set(type, selector);
   }

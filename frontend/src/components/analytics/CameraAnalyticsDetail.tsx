@@ -123,9 +123,7 @@ export default function CameraAnalyticsDetail({
         <div className="flex h-48 flex-col items-center justify-center text-red-400">
           <AlertCircle className="mb-2 h-8 w-8" />
           <Text className="text-red-400">Failed to load analytics data</Text>
-          <Text className="mt-1 text-sm text-gray-500">
-            Please try refreshing the page
-          </Text>
+          <Text className="mt-1 text-sm text-gray-500">Please try refreshing the page</Text>
         </div>
       </Card>
     );
@@ -161,9 +159,7 @@ export default function CameraAnalyticsDetail({
             <BarChart3 className="h-4 w-4" />
             <Text className="text-sm">Total Detections</Text>
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">
-            {totalDetections.toLocaleString()}
-          </p>
+          <p className="mt-2 text-3xl font-bold text-white">{totalDetections.toLocaleString()}</p>
         </div>
 
         {/* Average Confidence */}
@@ -178,9 +174,7 @@ export default function CameraAnalyticsDetail({
 
       {/* Class Distribution */}
       <div>
-        <Text className="mb-3 text-sm font-medium text-gray-400">
-          Detection by Class
-        </Text>
+        <Text className="mb-3 text-sm font-medium text-gray-400">Detection by Class</Text>
         <div className="space-y-3">
           {sortedClasses.map((item, index) => (
             <div

@@ -413,9 +413,7 @@ describe('DetectionThresholdsPanel', () => {
       renderWithQueryClient(<DetectionThresholdsPanel />);
 
       await waitFor(() => {
-        expect(
-          screen.getByLabelText('Minimum detection confidence threshold')
-        ).toBeInTheDocument();
+        expect(screen.getByLabelText('Minimum detection confidence threshold')).toBeInTheDocument();
       });
 
       expect(screen.getByLabelText('Fast path confidence threshold')).toBeInTheDocument();

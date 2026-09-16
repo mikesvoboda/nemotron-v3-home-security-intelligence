@@ -15,10 +15,7 @@ import PerformanceDashboard from './PerformanceDashboard';
 
 export default function PerformancePage() {
   return (
-    <div
-      className="min-h-screen bg-[#121212] p-8"
-      data-testid="performance-page"
-    >
+    <div className="min-h-screen bg-[#121212] p-8" data-testid="performance-page">
       <div className="mx-auto max-w-[1920px] space-y-8">
         {/* Real-time metric cards */}
         <PerformanceDashboard />

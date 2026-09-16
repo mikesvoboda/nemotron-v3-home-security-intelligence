@@ -254,7 +254,7 @@ class _GCNUnit(nn.Module):
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        N, C, T, V = x.shape
+        N, _C, T, V = x.shape
         res = self.down(x) if self.down is not None else x
 
         z = self.conv(x)

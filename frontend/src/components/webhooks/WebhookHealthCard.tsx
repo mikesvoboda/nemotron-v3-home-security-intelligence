@@ -121,9 +121,7 @@ export default function WebhookHealthCard({
           <Activity className="h-5 w-5 text-[#76B900]" />
           Webhook Health
         </h2>
-        {isRefetching && (
-          <span className="text-xs text-gray-500">Refreshing...</span>
-        )}
+        {isRefetching && <span className="text-xs text-gray-500">Refreshing...</span>}
       </div>
 
       {/* Stats Grid */}
@@ -161,9 +159,7 @@ export default function WebhookHealthCard({
           label="24h Deliveries"
           value={health?.total_deliveries_24h ?? 0}
           subValue={
-            deliverySuccessRate !== null
-              ? `${deliverySuccessRate}% success`
-              : 'No deliveries'
+            deliverySuccessRate !== null ? `${deliverySuccessRate}% success` : 'No deliveries'
           }
           color={
             deliverySuccessRate === null
@@ -185,12 +181,7 @@ export default function WebhookHealthCard({
         />
 
         {/* Avg Response Time */}
-        <StatItem
-          icon={Clock}
-          label="Avg Response"
-          value={avgResponseTime}
-          color="blue"
-        />
+        <StatItem icon={Clock} label="Avg Response" value={avgResponseTime} color="blue" />
       </div>
     </div>
   );

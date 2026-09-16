@@ -71,13 +71,7 @@ function getStateColor(state: ConnectionState): {
 /**
  * Get icon component based on connection state
  */
-function StatusIcon({
-  state,
-  className,
-}: {
-  state: ConnectionState;
-  className: string;
-}) {
+function StatusIcon({ state, className }: { state: ConnectionState; className: string }) {
   switch (state) {
     case 'connected':
       return <Wifi className={className} aria-hidden="true" />;
@@ -204,10 +198,7 @@ function EndpointRow({ endpoint }: EndpointRowProps) {
     >
       <div className="flex items-center gap-2">
         <EndpointStatusIcon state={endpoint.state} />
-        <div
-          className={`h-2 w-2 rounded-full ${stateColors.dot}`}
-          aria-hidden="true"
-        />
+        <div className={`h-2 w-2 rounded-full ${stateColors.dot}`} aria-hidden="true" />
         <span className="text-sm text-gray-300">{endpoint.name}</span>
       </div>
       <div className="flex items-center gap-2">
@@ -216,9 +207,7 @@ function EndpointRow({ endpoint }: EndpointRowProps) {
             {endpoint.reconnectAttempts}/{endpoint.maxReconnectAttempts}
           </span>
         )}
-        {endpoint.state === 'failed' && (
-          <span className="text-xs text-orange-400">Failed</span>
-        )}
+        {endpoint.state === 'failed' && <span className="text-xs text-orange-400">Failed</span>}
         <span className="text-xs text-gray-500">{timeSince}</span>
       </div>
     </div>

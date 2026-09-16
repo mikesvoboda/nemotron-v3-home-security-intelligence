@@ -94,11 +94,7 @@ function SparklineCard({ label, metric, testId, invertColors = false }: Sparklin
   const sparklinePath = useMemo(() => generateSparklinePath(values, 80, 24), [values]);
 
   // Determine sparkline color based on metric type
-  const sparklineColor = invertColors
-    ? deviationPct > 0
-      ? '#f87171'
-      : '#4ade80'
-    : '#60a5fa';
+  const sparklineColor = invertColors ? (deviationPct > 0 ? '#f87171' : '#4ade80') : '#60a5fa';
 
   return (
     <div
@@ -150,10 +146,7 @@ function SparklineCard({ label, metric, testId, invertColors = false }: Sparklin
  */
 function TrendSparklinesSkeleton() {
   return (
-    <div
-      className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-      data-testid="trend-sparklines-loading"
-    >
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="trend-sparklines-loading">
       {[1, 2, 3].map((i) => (
         <div
           key={i}

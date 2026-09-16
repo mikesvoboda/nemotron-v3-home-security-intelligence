@@ -71,7 +71,12 @@ import type { ThreatData } from './ThreatBoundingBox';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
-import type { RiskEntity, RiskFactor, RiskFlag, ConfidenceFactors } from '../../types/risk-analysis';
+import type {
+  RiskEntity,
+  RiskFactor,
+  RiskFlag,
+  ConfidenceFactors,
+} from '../../types/risk-analysis';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
@@ -590,11 +595,7 @@ export default function EventDetailModal({
                   </div>
                   <div className="flex items-center gap-3">
                     {/* Snooze Status Badge (NEM-3640) */}
-                    <SnoozeBadge
-                      snoozeUntil={event.snooze_until}
-                      size="md"
-                      showEndTime={true}
-                    />
+                    <SnoozeBadge snoozeUntil={event.snooze_until} size="md" showEndTime={true} />
                     <div data-testid="risk-score">
                       <RiskBadge
                         level={riskLevel}
@@ -669,16 +670,11 @@ export default function EventDetailModal({
                     <div className="space-y-6" data-testid="ai-analysis-tab-content">
                       {/* LLM Reasoning Explorer - Shows <think> blocks, risk factors, enrichment sources */}
                       {!isNaN(eventIdNumber) && (
-                        <LLMReasoningExplorer
-                          eventId={eventIdNumber}
-                          defaultExpanded={true}
-                        />
+                        <LLMReasoningExplorer eventId={eventIdNumber} defaultExpanded={true} />
                       )}
 
                       {/* Event Enrichment Summary - Aggregated enrichment data from all detections */}
-                      {!isNaN(eventIdNumber) && (
-                        <EventEnrichmentSummary eventId={eventIdNumber} />
-                      )}
+                      {!isNaN(eventIdNumber) && <EventEnrichmentSummary eventId={eventIdNumber} />}
                     </div>
                   ) : activeTab === 'details' ? (
                     <>

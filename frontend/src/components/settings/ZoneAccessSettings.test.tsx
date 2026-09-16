@@ -34,7 +34,12 @@ const mockZones: Zone[] = [
     camera_id: 'cam-1',
     name: 'Front Door',
     zone_type: 'entry_point',
-    coordinates: [[0, 0], [100, 0], [100, 100], [0, 100]],
+    coordinates: [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+    ],
     shape: 'polygon',
     color: '#3B82F6',
     enabled: true,
@@ -47,7 +52,12 @@ const mockZones: Zone[] = [
     camera_id: 'cam-1',
     name: 'Backyard',
     zone_type: 'yard',
-    coordinates: [[0, 0], [100, 0], [100, 100], [0, 100]],
+    coordinates: [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+    ],
     shape: 'polygon',
     color: '#EF4444',
     enabled: true,
@@ -120,11 +130,7 @@ function createTestQueryClient() {
 // Wrapper component
 function Wrapper({ children }: { children: React.ReactNode }) {
   const queryClient = createTestQueryClient();
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe('ZoneAccessSettings', () => {
@@ -145,15 +151,33 @@ describe('ZoneAccessSettings', () => {
       householdsLoading: false,
       householdsError: null,
       refetchHouseholds: vi.fn(),
-      createMember: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['createMember'],
-      updateMember: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['updateMember'],
-      deleteMember: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['deleteMember'],
-      createVehicle: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['createVehicle'],
-      updateVehicle: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['updateVehicle'],
-      deleteVehicle: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['deleteVehicle'],
-      createHousehold: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['createHousehold'],
-      updateHousehold: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['updateHousehold'],
-      deleteHousehold: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useHouseholdApiModule.useHouseholdApi>['deleteHousehold'],
+      createMember: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['createMember'],
+      updateMember: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['updateMember'],
+      deleteMember: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['deleteMember'],
+      createVehicle: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['createVehicle'],
+      updateVehicle: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['updateVehicle'],
+      deleteVehicle: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['deleteVehicle'],
+      createHousehold: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['createHousehold'],
+      updateHousehold: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['updateHousehold'],
+      deleteHousehold: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useHouseholdApiModule.useHouseholdApi
+      >['deleteHousehold'],
     });
 
     vi.mocked(useZoneHouseholdConfigModule.useZoneHouseholdConfig).mockReturnValue({
@@ -162,9 +186,18 @@ describe('ZoneAccessSettings', () => {
       isError: false,
       error: null,
       refetch: vi.fn(),
-      upsertConfig: { mutateAsync: vi.fn().mockResolvedValue(mockConfig), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['upsertConfig'],
-      patchConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['patchConfig'],
-      deleteConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['deleteConfig'],
+      upsertConfig: {
+        mutateAsync: vi.fn().mockResolvedValue(mockConfig),
+        isPending: false,
+      } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['upsertConfig'],
+      patchConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['patchConfig'],
+      deleteConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['deleteConfig'],
       setOwner: vi.fn(),
       setAllowedMembers: vi.fn(),
       setAllowedVehicles: vi.fn(),
@@ -274,9 +307,15 @@ describe('ZoneAccessSettings', () => {
       isError: false,
       error: null,
       refetch: vi.fn(),
-      upsertConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['upsertConfig'],
-      patchConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['patchConfig'],
-      deleteConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['deleteConfig'],
+      upsertConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['upsertConfig'],
+      patchConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['patchConfig'],
+      deleteConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['deleteConfig'],
       setOwner: vi.fn(),
       setAllowedMembers: vi.fn(),
       setAllowedVehicles: vi.fn(),
@@ -315,11 +354,7 @@ describe('ZoneAccessSettings', () => {
 
     render(
       <Wrapper>
-        <ZoneAccessSettings
-          zones={[]}
-          zonesError="Failed to fetch zones"
-          onRetryZones={onRetry}
-        />
+        <ZoneAccessSettings zones={[]} zonesError="Failed to fetch zones" onRetryZones={onRetry} />
       </Wrapper>
     );
 
@@ -357,9 +392,15 @@ describe('ZoneAccessSettings', () => {
       isError: false,
       error: null,
       refetch: vi.fn(),
-      upsertConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['upsertConfig'],
-      patchConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['patchConfig'],
-      deleteConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig>['deleteConfig'],
+      upsertConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['upsertConfig'],
+      patchConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['patchConfig'],
+      deleteConfig: { mutateAsync: vi.fn(), isPending: false } as unknown as ReturnType<
+        typeof useZoneHouseholdConfigModule.useZoneHouseholdConfig
+      >['deleteConfig'],
       setOwner: vi.fn(),
       setAllowedMembers: vi.fn(),
       setAllowedVehicles: vi.fn(),

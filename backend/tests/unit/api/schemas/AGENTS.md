@@ -71,11 +71,7 @@ uv run pytest backend/tests/unit/api/schemas/ -v --cov=backend/api/schemas
 
 ```python
 def test_valid_schema():
-    data = {
-        "id": "abc123",
-        "confidence": 0.95,
-        "label": "person"
-    }
+    data = {"id": "abc123", "confidence": 0.95, "label": "person"}
     schema = DetectionSchema(**data)
     assert schema.id == "abc123"
     assert schema.confidence == 0.95
@@ -89,7 +85,7 @@ def test_invalid_confidence():
         DetectionSchema(
             id="abc123",
             confidence=1.5,  # Invalid: > 1.0
-            label="person"
+            label="person",
         )
     assert "confidence" in str(exc_info.value)
 ```
@@ -98,11 +94,7 @@ def test_invalid_confidence():
 
 ```python
 def test_serialization():
-    schema = DetectionSchema(
-        id="abc123",
-        confidence=0.95,
-        label="person"
-    )
+    schema = DetectionSchema(id="abc123", confidence=0.95, label="person")
     data = schema.model_dump()
     assert isinstance(data, dict)
     assert data["id"] == "abc123"

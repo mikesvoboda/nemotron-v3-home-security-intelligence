@@ -35,9 +35,20 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import ExportColumnSelector from '../components/exports/ExportColumnSelector';
 import { useExportJobsQuery, useStartExportJob, useCancelExportJob } from '../hooks/useExportJobs';
 import { downloadExportFile } from '../services/api';
-import { formatFileSize, formatFilterParams, calculateDuration, formatDuration } from '../types/export';
+import {
+  formatFileSize,
+  formatFilterParams,
+  calculateDuration,
+  formatDuration,
+} from '../types/export';
 
-import type { ExportJob, ExportType, ExportFormat, ExportJobCreateParams, ExportColumnName } from '../types/export';
+import type {
+  ExportJob,
+  ExportType,
+  ExportFormat,
+  ExportJobCreateParams,
+  ExportColumnName,
+} from '../types/export';
 
 // ============================================================================
 // Types
@@ -332,7 +343,8 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
           <ProgressBar percent={job.progress.progress_percent} />
           {job.progress.total_items && (
             <div className="mt-1 text-xs text-gray-500">
-              {job.progress.processed_items.toLocaleString()} / {job.progress.total_items.toLocaleString()} items
+              {job.progress.processed_items.toLocaleString()} /{' '}
+              {job.progress.total_items.toLocaleString()} items
             </div>
           )}
         </div>
@@ -377,7 +389,6 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
     </div>
   );
 }
-
 
 // ============================================================================
 // Main Component

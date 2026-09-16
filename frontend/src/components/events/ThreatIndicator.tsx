@@ -28,13 +28,7 @@ export interface ThreatIndicatorProps {
 /**
  * Single threat badge component
  */
-function ThreatBadge({
-  threat,
-  index,
-}: {
-  threat: ThreatData;
-  index: number;
-}) {
+function ThreatBadge({ threat, index }: { threat: ThreatData; index: number }) {
   const config = getThreatPriorityConfig(threat.is_high_priority);
   const displayName = formatThreatClassName(threat.class_name);
   const confidencePercent = formatConfidencePercent(threat.confidence);
@@ -48,7 +42,7 @@ function ThreatBadge({
       data-testid={`threat-badge-${index}`}
       aria-label={ariaLabel}
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border truncate',
+        'inline-flex items-center gap-1.5 truncate rounded-full border px-2.5 py-1 text-xs font-semibold',
         config.bgColor,
         config.borderColor,
         config.textColor
@@ -73,7 +67,7 @@ function OverflowBadge({ count }: { count: number }) {
     <span
       className={clsx(
         'inline-flex items-center justify-center rounded-full px-2 py-1 text-xs font-semibold',
-        'bg-gray-600 text-white border border-gray-700'
+        'border border-gray-700 bg-gray-600 text-white'
       )}
     >
       +{count}
@@ -119,11 +113,7 @@ export default function ThreatIndicator({
       role={hasHighPriority ? 'alert' : 'status'}
       aria-live={hasHighPriority ? 'assertive' : 'polite'}
       aria-label={containerAriaLabel}
-      className={clsx(
-        'flex flex-wrap items-center gap-2',
-        compact && 'compact',
-        className
-      )}
+      className={clsx('flex flex-wrap items-center gap-2', compact && 'compact', className)}
     >
       {threatsToDisplay.map((threat, index) => (
         <ThreatBadge key={`${threat.class_name}-${index}`} threat={threat} index={index} />

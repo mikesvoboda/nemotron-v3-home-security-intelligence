@@ -138,7 +138,7 @@ describe('QueryClient retry configuration', () => {
           title: 'Rate Limited',
           status: 429,
           error_code: ErrorCode.RATE_LIMIT_EXCEEDED,
-          retry_after: 'invalid' as unknown as number,
+          retry_after: 'invalid',
         };
         const error = new ApiError(429, 'Rate limited', undefined, problemDetails);
 

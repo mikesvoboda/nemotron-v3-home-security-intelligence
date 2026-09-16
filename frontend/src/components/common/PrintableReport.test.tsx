@@ -6,6 +6,7 @@ import PrintableReport from './PrintableReport';
 describe('PrintableReport', () => {
   // Mock window.print
   const mockPrint = vi.fn();
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- save/restore idiom; call sites keep `this` on window
   const originalPrint = window.print;
 
   beforeEach(() => {

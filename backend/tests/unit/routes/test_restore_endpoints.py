@@ -38,6 +38,24 @@ SAMPLE_CAMERA_UUID = "d4e5f6a7-b8c9-0123-defa-234567890123"
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def _no_leaked_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the process-wide redis global out of these unit tests.
+
+    restore_event's NEM-1988 leg (event_service.py:238 -> file_service
+    cancel_deletion_by_event_id -> FileService._get_redis ->
+    get_redis_client_sync, core/redis.py:2776) reads the module-global
+    _redis_client at call time. A prior lifespan test on the same xdist
+    worker can leave there a client bound to its own dead loop — gate
+    run-4: test_restore_deleted_event_success died "got Future ...
+    attached to a different loop" only when randomly scheduled after
+    such a test (unit log :55491). Forcing None exercises the shipped
+    redis-unavailable branch (file_service.py:194-197 returns 0), which
+    is the contract these db/cache-mocked unit tests actually target.
+    """
+    monkeypatch.setattr("backend.core.redis._redis_client", None)
+
+
 @pytest.fixture
 def mock_db_session() -> AsyncMock:
     """Create a mock database session."""

@@ -174,6 +174,22 @@ class TestHealthReadyWithRealRedis:
 class TestHealthCheckFailureScenarios:
     """Test health check behavior when services fail."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_health_caches(self) -> None:
+        """get_readiness caches its response for HEALTH_CACHE_TTL_SECONDS
+        (~10s, system._readiness_cache, NEM-3892). Every test below mutates
+        service health and hits the endpoint within that window, so a stale
+        cached verdict from a preceding test is what answers — a fully-
+        healthy cached response served to the timeout test ('healthy' !=
+        'unhealthy'), a degraded cache served to the db-down tests
+        (ledger R-T7-HEALTH). clear_health_cache() before/after, per the
+        test_system_api.py cache-reset precedent."""
+        from backend.api.routes.system import clear_health_cache
+
+        clear_health_cache()
+        yield
+        clear_health_cache()
+
     @pytest.mark.asyncio
     async def test_health_ready_with_db_connection_error(
         self,
@@ -290,7 +306,9 @@ class TestHealthCheckFailureScenarios:
 
         assert result.status == "unhealthy"
         assert "Redis unavailable" in result.message
-        assert result.details is None
+        # Shipped check_redis_health reports the None-client reason in
+        # details (system.py, NEM-3892 era); there is no details=None contract.
+        assert result.details == {"error": "Redis client not available"}
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(15)  # Extend timeout for this specific test

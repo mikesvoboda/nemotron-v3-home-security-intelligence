@@ -261,7 +261,15 @@ class TestConfigSettings:
                 # pragma: allowlist nextline secret
                 "DATABASE_URL": "postgresql+asyncpg://test:test@localhost/test"
             },
-        ):
+            clear=False,
+        ) as env:
+            # The conftest opts the test PROCESS out of telemetry
+            # (R-T7-OTEL-OOM: pytest_configure setdefaults OTEL_ENABLED=false
+            # to keep BatchSpanProcessors pointed at an unreachable OTLP
+            # endpoint from accumulating GBs in xdist workers). This test
+            # asserts the Settings CLASS default, so remove the env opt-out
+            # for the duration of the Settings() call.
+            env.pop("OTEL_ENABLED", None)
             settings = Settings()
 
         assert settings.otel_enabled is True  # OTEL enabled by default

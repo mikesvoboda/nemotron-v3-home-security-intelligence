@@ -174,10 +174,7 @@ export function useJobWebSocket(options: UseJobWebSocketOptions = {}): UseJobWeb
   );
 
   // Only compute URL when enabled to avoid unnecessary WebSocket connections
-  const wsUrl = useMemo(
-    () => (enabled ? getJobsWebSocketUrl(baseUrl) : ''),
-    [baseUrl, enabled]
-  );
+  const wsUrl = useMemo(() => (enabled ? getJobsWebSocketUrl(baseUrl) : ''), [baseUrl, enabled]);
 
   // useWebSocket with an empty URL effectively disables the connection
   // We pass a valid URL only when enabled

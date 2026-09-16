@@ -164,10 +164,7 @@ const FaceEventCard = memo(function FaceEventCard({
   }
 
   return (
-    <div
-      className={cardClasses.join(' ')}
-      data-testid={`face-event-card-${id}`}
-    >
+    <div className={cardClasses.join(' ')} data-testid={`face-event-card-${id}`}>
       {/* Thumbnail Column */}
       <div className="flex-shrink-0">
         {thumbnail_url ? (

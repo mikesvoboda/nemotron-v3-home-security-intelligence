@@ -46,7 +46,7 @@ async def test_full_config_flow_get_update_verify(client, integration_db):
     }
 
     # Note: PATCH requires API key authentication
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
     response = await client.patch(
         "/api/system/anomaly-config",
         json=update_payload,
@@ -86,7 +86,7 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
     """
     from datetime import UTC, datetime
 
-    from backend.models.baseline import ActivityBaseline
+    from backend.models.baseline import ClassBaseline
     from backend.models.camera import Camera
 
     # Create test camera
@@ -98,17 +98,36 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
     )
     db_session.add(camera)
 
-    # Create baseline data with known statistics
-    # avg_count=10.0, so detecting 20 items would be 2 standard deviations above
-    baseline = ActivityBaseline(
-        camera_id="test_cam_config",
-        hour=14,
-        day_of_week=0,  # Monday
-        avg_count=10.0,
-        sample_count=30,  # Sufficient samples
-        last_updated=datetime.now(UTC),
+    # SHIPPED contract (services/baseline.py is_anomalous): the score is
+    # relative class FREQUENCY, 1.0 - class_freq/total_freq over
+    # ClassBaseline rows for the queried hour, and the flag is
+    # score > 1 - 1/(threshold+1). ActivityBaseline rows are not consulted
+    # here (they back get_current_deviation), so seed class baselines.
+    # person=3, vehicle=5 -> relative 3/8 -> score 0.625, which sits in
+    # the window that flips: cutoff at t=2.0 is 1-1/3=0.667 (0.625 not
+    # above it), cutoff at t=1.5 is 1-1/2.5=0.60 (0.625 IS above it).
+    # Fresh last_updated keeps the time-decay factor at 1.0.
+    now = datetime.now(UTC)
+    db_session.add_all(
+        [
+            ClassBaseline(
+                camera_id="test_cam_config",
+                detection_class="person",
+                hour=14,
+                frequency=3.0,
+                sample_count=10,
+                last_updated=now,
+            ),
+            ClassBaseline(
+                camera_id="test_cam_config",
+                detection_class="vehicle",
+                hour=14,
+                frequency=5.0,
+                sample_count=10,
+                last_updated=now,
+            ),
+        ]
     )
-    db_session.add(baseline)
     await db_session.commit()
 
     # Get the baseline service
@@ -116,24 +135,22 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
 
     service = get_baseline_service()
 
-    # Reset to default threshold of 2.0 standard deviations
-    service.update_config(threshold_stdev=2.0)
+    # Reset explicitly (singleton is process-wide; test order is randomized)
+    service.update_config(threshold_stdev=2.0, min_samples=10)
 
-    # Test detection at exactly 2.0 standard deviations above mean
-    # With threshold=2.0, this should NOT be anomalous (needs to exceed threshold)
-    test_time = datetime(2026, 1, 27, 14, 0, 0, tzinfo=UTC)  # Monday at 14:00
+    # score=0.625; at threshold=2.0 the cutoff is 1 - 1/3 = 0.667 -> not anomalous
+    test_time = datetime(2026, 1, 27, 14, 0, 0, tzinfo=UTC)  # hour 14 matches seed
     is_anomalous, score = await service.is_anomalous(
         "test_cam_config",
         "person",
         test_time,
         session=db_session,
     )
-
-    # At threshold=2.0, score=2.0 should not be anomalous
-    assert not is_anomalous, "Score at threshold should not be anomalous"
+    assert score == 0.625
+    assert not is_anomalous, "Score below the 2.0-threshold cutoff should not be anomalous"
 
     # Now lower the threshold to 1.5 via API
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
     response = await client.patch(
         "/api/system/anomaly-config",
         json={"threshold_stdev": 1.5},
@@ -152,9 +169,12 @@ async def test_config_affects_anomaly_detection(client, integration_db, db_sessi
         session=db_session,
     )
 
-    # With threshold=1.5, score=2.0 should now be anomalous
-    assert is_anomalous_new, "Score above new threshold should be anomalous"
+    # score unchanged; cutoff moved to 1 - 1/2.5 = 0.4 -> 0.5 > 0.4 anomalous
     assert score_new == score, "Score calculation should not change"
+    assert is_anomalous_new, "Score above new threshold cutoff should be anomalous"
+
+    # Restore shipped defaults so the singleton's next reader sees a clean config
+    service.update_config(threshold_stdev=2.0, min_samples=10)
 
 
 @pytest.mark.asyncio
@@ -166,7 +186,7 @@ async def test_concurrent_config_updates_race_condition(client, integration_db):
     """
     import asyncio
 
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Define two different updates
     update1 = {"threshold_stdev": 2.5, "min_samples": 15}
@@ -213,21 +233,24 @@ async def test_config_update_validation_errors(client, integration_db):
     3. Error messages are descriptive
     4. Invalid updates don't change the configuration
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
     assert response.status_code == 200
     initial_config = response.json()
 
+    # NOTE: request-body validation errors return 422 with the standardized
+    # structured error payload (validation_exception_handler in
+    # backend/api/exception_handlers.py), not the legacy 400 + detail string.
     # Test 1: Negative threshold_stdev
     response = await client.patch(
         "/api/system/anomaly-config",
         json={"threshold_stdev": -1.0},
         headers=headers,
     )
-    assert response.status_code == 400
-    assert "positive" in response.json()["detail"].lower()
+    assert response.status_code == 422
+    assert "greater than 0" in response.json()["error"]["errors"][0]["message"].lower()
 
     # Test 2: Zero threshold_stdev
     response = await client.patch(
@@ -235,7 +258,7 @@ async def test_config_update_validation_errors(client, integration_db):
         json={"threshold_stdev": 0.0},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test 3: Zero min_samples
     response = await client.patch(
@@ -243,7 +266,7 @@ async def test_config_update_validation_errors(client, integration_db):
         json={"min_samples": 0},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test 4: Negative min_samples
     response = await client.patch(
@@ -251,7 +274,7 @@ async def test_config_update_validation_errors(client, integration_db):
         json={"min_samples": -5},
         headers=headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     # Test 5: Invalid type (string instead of number)
     response = await client.patch(
@@ -277,7 +300,7 @@ async def test_config_update_partial_updates(client, integration_db):
     This test verifies that updating only threshold_stdev doesn't
     affect min_samples, and vice versa.
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
@@ -322,15 +345,24 @@ async def test_config_update_requires_authentication(client, integration_db):
     response = await client.get("/api/system/anomaly-config")
     assert response.status_code == 200
 
-    # PATCH should fail without authentication
-    response = await client.patch(
-        "/api/system/anomaly-config",
-        json={"threshold_stdev": 2.5},
-    )
-    assert response.status_code == 401  # Unauthorized
+    # PATCH should fail without authentication. The shared client fixture sets
+    # a default valid X-API-Key on every request, so build a header-less client
+    # to exercise the unauthenticated path.
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as no_auth_client:
+        response = await no_auth_client.patch(
+            "/api/system/anomaly-config",
+            json={"threshold_stdev": 2.5},
+        )
+        assert response.status_code == 401  # Unauthorized
 
     # PATCH should succeed with authentication
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
     response = await client.patch(
         "/api/system/anomaly-config",
         json={"threshold_stdev": 2.5},
@@ -352,7 +384,7 @@ async def test_config_update_creates_audit_log(client, integration_db, db_sessio
 
     from backend.models.audit import AuditAction, AuditLog
 
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
@@ -414,7 +446,7 @@ async def test_config_update_idempotent(client, integration_db):
     2. No changes are recorded when values don't change
     3. Service state remains consistent
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")
@@ -449,7 +481,7 @@ async def test_config_endpoint_readonly_fields(client, integration_db):
     These fields are returned by GET but cannot be modified via PATCH
     as they affect historical data calculations.
     """
-    headers = {"X-API-Key": "test-api-key"}
+    headers = {"X-API-Key": "test-api-key-12345"}
 
     # Get initial configuration
     response = await client.get("/api/system/anomaly-config")

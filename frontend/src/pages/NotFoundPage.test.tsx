@@ -55,9 +55,7 @@ describe('NotFoundPage', () => {
       </BrowserRouter>
     );
 
-    expect(
-      screen.getByText(/the page you are looking for does not exist/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/the page you are looking for does not exist/i)).toBeInTheDocument();
   });
 
   it('displays "Return to Dashboard" button', () => {

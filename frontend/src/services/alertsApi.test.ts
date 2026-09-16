@@ -115,8 +115,17 @@ describe('alertsApi', () => {
         createMockErrorResponse(404, 'Not Found', 'Alert alert-not-found not found')
       );
 
-      await expect(acknowledgeAlert('alert-not-found')).rejects.toThrow(AlertsApiError);
-      await expect(acknowledgeAlert('alert-not-found')).rejects.toThrow('Alert not found');
+      // Single invocation asserting BOTH type and message. Calling
+      // acknowledgeAlert twice would consume the one-shot mock on call 1 and
+      // let call 2 fall through the spy to msw's global /api/alerts handler
+      // (test setup: server.listen in src/test/setup.ts), which answers 2xx —
+      // so the second `rejects` asserted against a resolved real-fetch call.
+      const rejection = acknowledgeAlert('alert-not-found');
+      await expect(rejection).rejects.toThrow(AlertsApiError);
+      // Shipped client forwards the API's detail verbatim (alertsApi.ts
+      // handleResponse); assert the actual message, not a paraphrase — the
+      // old 'Alert not found' substring never matches contiguously.
+      await expect(rejection).rejects.toThrow('Alert alert-not-found not found');
     });
 
     it('throws AlertsApiError with isConflict flag on 409 conflict', async () => {
@@ -216,8 +225,10 @@ describe('alertsApi', () => {
         createMockErrorResponse(404, 'Not Found', 'Alert alert-not-found not found')
       );
 
-      await expect(dismissAlert('alert-not-found')).rejects.toThrow(AlertsApiError);
-      await expect(dismissAlert('alert-not-found')).rejects.toThrow('Alert not found');
+      // See acknowledgeAlert 404 test: one invocation, both assertions.
+      const rejection = dismissAlert('alert-not-found');
+      await expect(rejection).rejects.toThrow(AlertsApiError);
+      await expect(rejection).rejects.toThrow('Alert alert-not-found not found');
     });
 
     it('throws AlertsApiError with isConflict flag on 409 conflict', async () => {

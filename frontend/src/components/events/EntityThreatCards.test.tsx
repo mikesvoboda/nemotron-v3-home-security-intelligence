@@ -31,9 +31,7 @@ describe('EntityThreatCards', () => {
     });
 
     it('has correct test id', () => {
-      const entities: RiskEntity[] = [
-        { type: 'person', description: 'Test', threat_level: 'low' },
-      ];
+      const entities: RiskEntity[] = [{ type: 'person', description: 'Test', threat_level: 'low' }];
       render(<EntityThreatCards entities={entities} />);
       expect(screen.getByTestId('entity-threat-cards')).toBeInTheDocument();
     });
@@ -121,9 +119,7 @@ describe('EntityThreatCards', () => {
 
   describe('styling', () => {
     it('applies custom className', () => {
-      const entities: RiskEntity[] = [
-        { type: 'person', description: 'Test', threat_level: 'low' },
-      ];
+      const entities: RiskEntity[] = [{ type: 'person', description: 'Test', threat_level: 'low' }];
       render(<EntityThreatCards entities={entities} className="custom-class" />);
       expect(screen.getByTestId('entity-threat-cards')).toHaveClass('custom-class');
     });

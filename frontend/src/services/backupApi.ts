@@ -77,7 +77,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       } else if (typeof errorBody === 'string') {
         errorMessage = errorBody;
@@ -123,10 +123,7 @@ async function fetchBackupApi<T>(endpoint: string, options?: RequestInit): Promi
     if (error instanceof BackupApiError) {
       throw error;
     }
-    throw new BackupApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new BackupApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 
@@ -248,7 +245,7 @@ export async function deleteBackup(jobId: string): Promise<void> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       }
     } catch {
@@ -306,10 +303,7 @@ export async function startRestore(file: File): Promise<RestoreJobStartResponse>
     if (error instanceof BackupApiError) {
       throw error;
     }
-    throw new BackupApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new BackupApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 

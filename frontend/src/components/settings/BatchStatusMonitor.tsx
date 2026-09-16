@@ -18,7 +18,10 @@ import { clsx } from 'clsx';
 import { ChevronDown, Activity, AlertCircle, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
-import { useBatchAggregatorStatus, type HealthIndicator } from '../../hooks/useBatchAggregatorStatus';
+import {
+  useBatchAggregatorStatus,
+  type HealthIndicator,
+} from '../../hooks/useBatchAggregatorStatus';
 
 export interface BatchStatusMonitorProps {
   /** Optional className for styling */
@@ -108,7 +111,9 @@ function BatchStatusPanelContent({
         {/* Average Age */}
         <div className="rounded-lg bg-[#1A1A1A] p-3">
           <Text className="text-xs text-gray-500">Avg Age</Text>
-          <Text className="mt-1 text-xl font-semibold text-white">{Math.round(averageBatchAge)}s</Text>
+          <Text className="mt-1 text-xl font-semibold text-white">
+            {Math.round(averageBatchAge)}s
+          </Text>
         </div>
 
         {/* Detections */}
@@ -129,7 +134,9 @@ function BatchStatusPanelContent({
         <div className="flex items-center justify-between">
           <Text className="text-xs text-gray-500">Health Status</Text>
           <div className="flex items-center gap-2">
-            <div className={clsx('h-3 w-3 rounded-full', getHealthIndicatorClass(healthIndicator))} />
+            <div
+              className={clsx('h-3 w-3 rounded-full', getHealthIndicatorClass(healthIndicator))}
+            />
             <Text className="text-sm text-gray-300">{getHealthDescription(healthIndicator)}</Text>
           </div>
         </div>
@@ -139,7 +146,10 @@ function BatchStatusPanelContent({
           <div className="mt-2">
             <div className="h-2 w-full overflow-hidden rounded-full bg-gray-700">
               <div
-                className={clsx('h-full transition-all duration-300', getHealthIndicatorClass(healthIndicator))}
+                className={clsx(
+                  'h-full transition-all duration-300',
+                  getHealthIndicatorClass(healthIndicator)
+                )}
                 style={{
                   width: `${Math.min(100, (averageBatchAge / batchWindowSeconds) * 100)}%`,
                 }}
@@ -177,7 +187,11 @@ export default function BatchStatusMonitor({ className }: BatchStatusMonitorProp
   } = useBatchAggregatorStatus({ enabled: isOpen, pollingInterval: 5000 });
 
   return (
-    <Disclosure as="div" data-testid="batch-status-monitor" className={clsx('rounded-lg border border-gray-700 bg-[#121212]', className)}>
+    <Disclosure
+      as="div"
+      data-testid="batch-status-monitor"
+      className={clsx('rounded-lg border border-gray-700 bg-[#121212]', className)}
+    >
       {({ open }) => (
         <>
           <Disclosure.Button
@@ -201,7 +215,10 @@ export default function BatchStatusMonitor({ className }: BatchStatusMonitorProp
               <Text className="text-sm text-gray-400">{activeBatchCount} active</Text>
 
               <ChevronDown
-                className={clsx('h-5 w-5 text-gray-400 transition-transform duration-200', open && 'rotate-180')}
+                className={clsx(
+                  'h-5 w-5 text-gray-400 transition-transform duration-200',
+                  open && 'rotate-180'
+                )}
               />
             </div>
           </Disclosure.Button>

@@ -24,7 +24,7 @@ export function ActiveTracksBadge({
     return (
       <span
         className={clsx(
-          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+          'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
           'bg-gray-500/10 text-gray-400',
           className
         )}
@@ -42,7 +42,7 @@ export function ActiveTracksBadge({
   return (
     <span
       className={clsx(
-        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
         'bg-blue-500/10 text-blue-400',
         className
       )}
@@ -50,10 +50,7 @@ export function ActiveTracksBadge({
       aria-label={`${count} active ${count === 1 ? 'track' : 'tracks'}`}
       data-testid="active-tracks-badge"
     >
-      <span
-        className="w-2 h-2 mr-1.5 rounded-full bg-blue-500 animate-pulse"
-        aria-hidden="true"
-      />
+      <span className="mr-1.5 h-2 w-2 animate-pulse rounded-full bg-blue-500" aria-hidden="true" />
       {count} active
     </span>
   );

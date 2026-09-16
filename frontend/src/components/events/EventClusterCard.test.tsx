@@ -248,9 +248,7 @@ describe('EventClusterCard', () => {
   describe('Thumbnail Grid (NEM-3620)', () => {
     it('displays thumbnails in a grid layout', () => {
       const thumbnails = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'];
-      renderWithProviders(
-        <EventClusterCard cluster={createMockCluster({ thumbnails })} />
-      );
+      renderWithProviders(<EventClusterCard cluster={createMockCluster({ thumbnails })} />);
       const grid = screen.getByTestId('thumbnail-grid');
       expect(grid).toBeInTheDocument();
       expect(grid.querySelectorAll('img').length).toBe(5);
@@ -258,18 +256,14 @@ describe('EventClusterCard', () => {
 
     it('shows "+N more" indicator when more than 6 thumbnails', () => {
       const thumbnails = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg'];
-      renderWithProviders(
-        <EventClusterCard cluster={createMockCluster({ thumbnails })} />
-      );
+      renderWithProviders(<EventClusterCard cluster={createMockCluster({ thumbnails })} />);
       expect(screen.getByTestId('thumbnail-more-indicator')).toBeInTheDocument();
       expect(screen.getByText('+2 more')).toBeInTheDocument();
     });
 
     it('does not show "+N more" when 6 or fewer thumbnails', () => {
       const thumbnails = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'];
-      renderWithProviders(
-        <EventClusterCard cluster={createMockCluster({ thumbnails })} />
-      );
+      renderWithProviders(<EventClusterCard cluster={createMockCluster({ thumbnails })} />);
       expect(screen.queryByTestId('thumbnail-more-indicator')).not.toBeInTheDocument();
     });
   });

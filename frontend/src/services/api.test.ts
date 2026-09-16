@@ -739,7 +739,9 @@ describe('RFC 7807 Error Handling Integration', () => {
       await createCamera({
         name: 'Test',
         folder_path: '/invalid/path',
-        status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5,
+        status: 'online',
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       });
     } catch (e) {
       caughtError = e as ApiError;
@@ -819,16 +821,16 @@ describe('RFC 7807 Error Handling Integration', () => {
       ],
     };
 
-    vi.mocked(fetch).mockResolvedValueOnce(
-      createMockProblemDetailsResponse(problemDetails as ProblemDetails)
-    );
+    vi.mocked(fetch).mockResolvedValueOnce(createMockProblemDetailsResponse(problemDetails));
 
     let caughtError: ApiError | null = null;
     try {
       await createCamera({
         name: '',
         folder_path: '/bad path',
-        status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5,
+        status: 'online',
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       });
     } catch (e) {
       caughtError = e as ApiError;
@@ -1032,7 +1034,9 @@ describe('Camera API', () => {
       const createData: CameraCreate = {
         name: 'New Camera',
         folder_path: '/export/foscam/new-camera',
-        status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5,
+        status: 'online',
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(
@@ -1078,7 +1082,13 @@ describe('Camera API', () => {
       );
 
       await expect(
-        createCamera({ name: 'Bad', folder_path: 'invalid', status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5 })
+        createCamera({
+          name: 'Bad',
+          folder_path: 'invalid',
+          status: 'online',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
+        })
       ).rejects.toThrow(ApiError);
     });
   });
@@ -2839,8 +2849,20 @@ describe('Request Deduplication Integration', () => {
     );
 
     // Start two concurrent POST requests
-    const promise1 = createCamera({ name: 'Camera 1', folder_path: '/cam1', status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5 });
-    const promise2 = createCamera({ name: 'Camera 2', folder_path: '/cam2', status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5 });
+    const promise1 = createCamera({
+      name: 'Camera 1',
+      folder_path: '/cam1',
+      status: 'online',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
+    });
+    const promise2 = createCamera({
+      name: 'Camera 2',
+      folder_path: '/cam2',
+      status: 'online',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
+    });
 
     await Promise.all([promise1, promise2]);
 
@@ -2911,7 +2933,7 @@ const mockCleanupResponseForStorage = {
   images_deleted: 0,
   space_reclaimed: 524288000,
   retention_days: 30,
-        log_retention_days: 7,
+  log_retention_days: 7,
   dry_run: true,
   timestamp: '2025-01-01T00:00:00Z',
 };

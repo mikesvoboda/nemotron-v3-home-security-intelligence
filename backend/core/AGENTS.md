@@ -250,10 +250,7 @@ Provides a reusable `CircuitBreaker` class for protecting AI service calls. Prev
 from backend.core.circuit_breaker import CircuitBreaker
 
 breaker = CircuitBreaker(
-    name="florence",
-    failure_threshold=5,
-    recovery_timeout=60,
-    half_open_max_calls=3
+    name="florence", failure_threshold=5, recovery_timeout=60, half_open_max_calls=3
 )
 ```
 
@@ -408,6 +405,7 @@ raise AIServiceError("YOLO26 unavailable", service="yolo26")
 
 # Get HTTP status
 from backend.core.exceptions import get_exception_status_code
+
 status = get_exception_status_code(exc)  # Returns 503 for AIServiceError
 ```
 
@@ -474,6 +472,7 @@ Provides reusable retry patterns with exponential backoff and jitter for transie
 from backend.core.retry import retry_async
 from backend.core.exceptions import ExternalServiceError
 
+
 @retry_async(max_retries=3, retry_on=(ExternalServiceError,))
 async def call_external_service():
     return await http_client.get(url)
@@ -483,6 +482,7 @@ async def call_external_service():
 
 ```python
 from backend.core.retry import retry_sync
+
 
 @retry_sync(max_retries=3, retry_on=(ConnectionError,))
 def sync_operation():
@@ -593,10 +593,11 @@ await wire_services(container)
 detector = container.get("detector_client")
 redis = await container.get_async("redis_client")
 
+
 # FastAPI integration
 @app.get("/")
-async def endpoint(service: MyService = Depends(container.get_dependency("my_service"))):
-    ...
+async def endpoint(service: MyService = Depends(container.get_dependency("my_service"))): ...
+
 
 # Testing with overrides
 container.override("redis_client", mock_redis)
@@ -638,8 +639,8 @@ Container for pagination limit configuration:
 
 ```python
 class PaginationLimits:
-    max_limit: int       # Maximum allowed limit for paginated requests
-    default_limit: int   # Default limit when not specified in request
+    max_limit: int  # Maximum allowed limit for paginated requests
+    default_limit: int  # Default limit when not specified in request
 ```
 
 ### Usage
@@ -652,6 +653,7 @@ from backend.core.dependencies import (
     get_pagination_limits,
     PaginationLimits,
 )
+
 
 @router.get("/detections")
 async def get_detections(
@@ -699,10 +701,11 @@ from backend.core.profiling import (
     get_profiling_manager,
 )
 
+
 # Decorator for automatic profiling when PROFILING_ENABLED=true
 @profile_if_enabled
-async def my_endpoint_handler():
-    ...
+async def my_endpoint_handler(): ...
+
 
 # Manual profiling control
 manager = get_profiling_manager()
@@ -758,10 +761,12 @@ Defines Protocol classes for structural subtyping, enabling type-safe interface 
 ```python
 from backend.core.protocols import AIServiceProtocol, HealthCheckableProtocol
 
+
 # Type hinting with protocols
 async def process_with_service(service: AIServiceProtocol) -> dict[str, Any]:
     if await service.health_check():
         return await service.process(input_data)
+
 
 # Works with any class that has matching methods (structural subtyping)
 detector = DetectorClient()  # Implements AIServiceProtocol structurally
@@ -852,9 +857,11 @@ with trace_span("detect_objects", camera_id="front_door") as span:
 ```python
 from backend.core.telemetry import trace_function
 
+
 @trace_function("yolo26_detection")
 async def detect_objects(image_path: str) -> list[Detection]:
     return await client.detect(image_path)
+
 
 @trace_function(service="nemotron")
 async def analyze_batch(batch: Batch) -> AnalysisResult:
@@ -1311,8 +1318,10 @@ await client.connect()
 async def init_redis() -> RedisClient:
     """Initialize Redis for app startup."""
 
+
 async def close_redis() -> None:
     """Close Redis for app shutdown."""
+
 
 async def get_redis() -> AsyncGenerator[RedisClient, None]:
     """FastAPI dependency for Redis."""
@@ -1417,10 +1426,7 @@ except Exception as e:
 
 ```python
 with log_context(camera_id="front_door"):
-    logger.info(
-        "Detection completed",
-        extra={"detection_count": 5, "duration_ms": 250}
-    )
+    logger.info("Detection completed", extra={"detection_count": 5, "duration_ms": 250})
     # Includes: camera_id (from context), detection_count, duration_ms (from extra)
 ```
 
@@ -1442,11 +1448,9 @@ with log_context(camera_id="front_door"):
 from backend.core import get_logger
 
 logger = get_logger(__name__)
-logger.info("Detection processed", extra={
-    "camera_id": "front_door",
-    "detection_id": 123,
-    "duration_ms": 45
-})
+logger.info(
+    "Detection processed", extra={"camera_id": "front_door", "detection_id": 123, "duration_ms": 45}
+)
 ```
 
 **`sanitize_error(error, max_length=500)`** - Sanitize error messages:
@@ -1486,9 +1490,11 @@ When using `asyncio.create_task()`, the logging context (request_id, connection_
 # BAD: Context is lost in the background task
 set_request_id("req-123")
 
+
 async def background_work():
     # request_id is None here!
     logger.info("Working")  # No request_id in log
+
 
 task = asyncio.create_task(background_work())  # Context not propagated
 ```
@@ -1502,9 +1508,11 @@ from backend.core.async_context import create_task_with_context
 
 set_request_id("req-123")
 
+
 async def background_work():
     # request_id is "req-123" here!
     logger.info("Working")  # Includes request_id
+
 
 # Context is automatically propagated
 task = create_task_with_context(background_work())
@@ -1521,6 +1529,7 @@ async with propagate_log_context(request_id="req-123"):
     # All logs in this context include request_id
     await some_operation()
 
+
 # Or to preserve existing context in a background task:
 async def background_work():
     async with propagate_log_context():
@@ -1534,10 +1543,12 @@ For functions that are always called as background tasks:
 ```python
 from backend.core.async_context import copy_context_to_task
 
+
 @copy_context_to_task
 async def background_processing():
     # Automatically inherits context from caller
     logger.info("Processing")  # Includes request_id from caller
+
 
 set_request_id("caller-request")
 task = asyncio.create_task(background_processing())
@@ -1550,6 +1561,7 @@ For WebSocket connections, use `connection_id` for persistent tracing across the
 
 ```python
 from backend.core.async_context import set_connection_id, get_connection_id
+
 
 # In WebSocket handler
 async def websocket_handler(websocket):
@@ -1692,10 +1704,11 @@ Provides TLS certificate management for HTTPS:
 ```python
 from backend.core.tls import TLSMode, TLSConfig
 
+
 class TLSMode(str, Enum):
-    DISABLED = "disabled"      # HTTP only (default)
+    DISABLED = "disabled"  # HTTP only (default)
     SELF_SIGNED = "self_signed"  # Auto-generate certificates
-    PROVIDED = "provided"      # Use existing certificate files
+    PROVIDED = "provided"  # Use existing certificate files
 ```
 
 ### Key Functions
@@ -1769,10 +1782,10 @@ Provides robust JSON extraction from potentially malformed LLM outputs, handling
 ````python
 from backend.core.json_utils import extract_json_from_llm_response
 
-response = '''<think>analyzing...</think>
+response = """<think>analyzing...</think>
 ```json
 {"risk_score": 75, "summary": "Person detected"}
-```'''
+```"""
 
 data = extract_json_from_llm_response(response)
 # Returns: {"risk_score": 75, "summary": "Person detected"}
@@ -1914,8 +1927,7 @@ from backend.core.url_validation import validate_webhook_url_for_request
 
 # Use at request time to catch DNS rebinding
 validated = validate_webhook_url_for_request(
-    "https://webhook.example.com/notify",
-    is_development=False
+    "https://webhook.example.com/notify", is_development=False
 )
 ```
 
@@ -1947,9 +1959,7 @@ Circuit breaker pattern for WebSocket connections in broadcasters, providing gra
 from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
 
 breaker = WebSocketCircuitBreaker(
-    failure_threshold=3,
-    recovery_timeout=30.0,
-    name="event_broadcaster"
+    failure_threshold=3, recovery_timeout=30.0, name="event_broadcaster"
 )
 
 if breaker.is_call_permitted():
@@ -2065,6 +2075,7 @@ if connected:
 ```python
 from backend.core.docker_client import DockerClient
 
+
 async def check_container_health(container_name: str) -> bool:
     """Check if a container is running and healthy."""
     async with DockerClient() as client:
@@ -2108,10 +2119,10 @@ from backend.core.redis import RedisClient
 
 router = APIRouter()
 
+
 @router.get("/example")
 async def example_route(
-    db: AsyncSession = Depends(get_db),
-    redis: RedisClient = Depends(get_redis)
+    db: AsyncSession = Depends(get_db), redis: RedisClient = Depends(get_redis)
 ):
     # Database operations
     result = await db.execute(select(Camera))
@@ -2129,6 +2140,7 @@ Services can use context managers directly:
 
 ```python
 from backend.core import get_session, init_redis
+
 
 async def my_background_task():
     # Database

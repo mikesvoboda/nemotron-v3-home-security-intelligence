@@ -149,17 +149,13 @@ describe('DateRangePickerModal', () => {
 
   describe('initial values', () => {
     it('populates start date input with initialStartDate', () => {
-      render(
-        <DateRangePickerModal {...defaultProps} initialStartDate="2024-01-01" />
-      );
+      render(<DateRangePickerModal {...defaultProps} initialStartDate="2024-01-01" />);
       const startInput = screen.getByTestId('start-date-input');
       expect((startInput as HTMLInputElement).value).toBe('2024-01-01');
     });
 
     it('populates end date input with initialEndDate', () => {
-      render(
-        <DateRangePickerModal {...defaultProps} initialEndDate="2024-01-15" />
-      );
+      render(<DateRangePickerModal {...defaultProps} initialEndDate="2024-01-15" />);
       const endInput = screen.getByTestId('end-date-input');
       expect((endInput as HTMLInputElement).value).toBe('2024-01-15');
     });
@@ -298,17 +294,13 @@ describe('DateRangePickerModal', () => {
     });
 
     it('apply button is disabled when only start date is selected', () => {
-      render(
-        <DateRangePickerModal {...defaultProps} initialStartDate="2024-01-01" />
-      );
+      render(<DateRangePickerModal {...defaultProps} initialStartDate="2024-01-01" />);
       const applyButton = screen.getByTestId('date-range-apply');
       expect(applyButton).toBeDisabled();
     });
 
     it('apply button is disabled when only end date is selected', () => {
-      render(
-        <DateRangePickerModal {...defaultProps} initialEndDate="2024-01-15" />
-      );
+      render(<DateRangePickerModal {...defaultProps} initialEndDate="2024-01-15" />);
       const applyButton = screen.getByTestId('date-range-apply');
       expect(applyButton).toBeDisabled();
     });
@@ -430,9 +422,7 @@ describe('DateRangePickerModal', () => {
     });
 
     it('end date input has min attribute set to start date', () => {
-      render(
-        <DateRangePickerModal {...defaultProps} initialStartDate="2024-01-05" />
-      );
+      render(<DateRangePickerModal {...defaultProps} initialStartDate="2024-01-05" />);
       const endInput = screen.getByTestId('end-date-input');
       expect((endInput as HTMLInputElement).min).toBe('2024-01-05');
     });

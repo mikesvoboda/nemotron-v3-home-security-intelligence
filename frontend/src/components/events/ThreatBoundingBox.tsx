@@ -132,11 +132,7 @@ function BoundingBox({
   imageWidth: number;
   imageHeight: number;
 }) {
-  const { left, top, width, height } = normalizeBbox(
-    threat.bbox,
-    imageWidth,
-    imageHeight
-  );
+  const { left, top, width, height } = normalizeBbox(threat.bbox, imageWidth, imageHeight);
 
   const color = getThreatColor(threat.is_high_priority);
   const zIndex = getThreatZIndex(threat.is_high_priority);
@@ -150,9 +146,7 @@ function BoundingBox({
       data-testid="threat-bbox"
       role="img"
       aria-label={ariaLabel}
-      className={clsx(
-        threat.is_high_priority ? 'threat-high-priority' : 'threat-medium-priority'
-      )}
+      className={clsx(threat.is_high_priority ? 'threat-high-priority' : 'threat-medium-priority')}
       style={{
         position: 'absolute',
         left: `${left}%`,

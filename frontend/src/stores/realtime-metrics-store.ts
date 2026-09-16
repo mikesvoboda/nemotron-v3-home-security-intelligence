@@ -282,11 +282,7 @@ export const handleGPUStatsEvent = createWebSocketEventHandler<
   RealtimeMetricsState,
   GPUStatsEventPayload
 >(
-  useRealtimeMetricsStore.setState as (
-    partial:
-      | Partial<RealtimeMetricsState>
-      | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
-  ) => void,
+  useRealtimeMetricsStore.setState,
   (event) => ({
     gpu: {
       data: {
@@ -312,11 +308,7 @@ export const handlePipelineMetricsEvent = createWebSocketEventHandler<
   RealtimeMetricsState,
   PipelineMetricsEventPayload
 >(
-  useRealtimeMetricsStore.setState as (
-    partial:
-      | Partial<RealtimeMetricsState>
-      | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
-  ) => void,
+  useRealtimeMetricsStore.setState,
   (event) => ({
     pipeline: {
       data: {
@@ -342,11 +334,7 @@ export const handleInferenceMetricsEvent = createWebSocketEventHandler<
   RealtimeMetricsState,
   InferenceMetricsEventPayload
 >(
-  useRealtimeMetricsStore.setState as (
-    partial:
-      | Partial<RealtimeMetricsState>
-      | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
-  ) => void,
+  useRealtimeMetricsStore.setState,
   (event) => ({
     inference: {
       data: {
@@ -472,9 +460,7 @@ export const selectPipelineHealthStatus = (
  * ```
  */
 export function useGPUMetrics() {
-  return useRealtimeMetricsStore(
-    useShallow((state) => state.gpu.data)
-  );
+  return useRealtimeMetricsStore(useShallow((state) => state.gpu.data));
 }
 
 /**
@@ -486,9 +472,7 @@ export function useGPUMetrics() {
  * ```
  */
 export function usePipelineMetrics() {
-  return useRealtimeMetricsStore(
-    useShallow((state) => state.pipeline.data)
-  );
+  return useRealtimeMetricsStore(useShallow((state) => state.pipeline.data));
 }
 
 /**
@@ -500,9 +484,7 @@ export function usePipelineMetrics() {
  * ```
  */
 export function useInferenceMetrics() {
-  return useRealtimeMetricsStore(
-    useShallow((state) => state.inference.data)
-  );
+  return useRealtimeMetricsStore(useShallow((state) => state.inference.data));
 }
 
 /**

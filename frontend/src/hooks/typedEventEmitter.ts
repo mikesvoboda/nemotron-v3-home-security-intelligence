@@ -306,9 +306,7 @@ export class TypedWebSocketEmitter {
         // Extract payload from the individual message
         const msgRecord = individualMessage;
         const payload =
-          'data' in msgRecord && msgRecord.data !== undefined
-            ? msgRecord.data
-            : individualMessage;
+          'data' in msgRecord && msgRecord.data !== undefined ? msgRecord.data : individualMessage;
 
         this.emit(msgType, payload as WebSocketEventMap[typeof msgType]);
       }

@@ -255,18 +255,12 @@ vi.mock('./SummaryCards', () => ({
     >
       Summary Cards
       {onViewFull && hourly && (
-        <button
-          data-testid="view-full-hourly"
-          onClick={() => onViewFull(hourly)}
-        >
+        <button data-testid="view-full-hourly" onClick={() => onViewFull(hourly)}>
           View Full Hourly
         </button>
       )}
       {onViewFull && daily && (
-        <button
-          data-testid="view-full-daily"
-          onClick={() => onViewFull(daily)}
-        >
+        <button data-testid="view-full-daily" onClick={() => onViewFull(daily)}>
           View Full Daily
         </button>
       )}
@@ -1236,10 +1230,7 @@ describe('DashboardPage', () => {
         expect(screen.getByTestId('expandable-detail-panel')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId('expandable-detail-panel')).toHaveAttribute(
-        'data-detail-id',
-        '10'
-      );
+      expect(screen.getByTestId('expandable-detail-panel')).toHaveAttribute('data-detail-id', '10');
       expect(screen.getByTestId('expandable-detail-panel')).toHaveAttribute(
         'data-summary-type',
         'hourly'

@@ -96,8 +96,7 @@ function transformToChartData(items: GPUHistoryItem[]): GPUChartDataPoint[] {
     utilization: item.utilization,
     temperature: item.temperature,
     memory_used: item.memory_used,
-    memory_percent:
-      item.memory_total > 0 ? (item.memory_used / item.memory_total) * 100 : 0,
+    memory_percent: item.memory_total > 0 ? (item.memory_used / item.memory_total) * 100 : 0,
     power_usage: item.power_usage,
     inference_fps: item.inference_fps,
   }));
@@ -122,7 +121,9 @@ function transformToChartData(items: GPUHistoryItem[]): GPUChartDataPoint[] {
  * return <AreaChart data={chartData} />;
  * ```
  */
-export function useGPUMetricsHistory(options: UseGPUMetricsHistoryOptions = {}): UseGPUMetricsHistoryResult {
+export function useGPUMetricsHistory(
+  options: UseGPUMetricsHistoryOptions = {}
+): UseGPUMetricsHistoryResult {
   const { limit = 300 } = options;
 
   const [data, setData] = useState<GPUHistoryResponse | undefined>(undefined);

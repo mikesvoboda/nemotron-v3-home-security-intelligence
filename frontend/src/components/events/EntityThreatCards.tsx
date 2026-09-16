@@ -30,10 +30,18 @@ function getEntityIcon(type: string): ReactNode {
   if (normalizedType.includes('person') || normalizedType.includes('individual')) {
     return <User className={iconClass} />;
   }
-  if (normalizedType.includes('vehicle') || normalizedType.includes('car') || normalizedType.includes('truck')) {
+  if (
+    normalizedType.includes('vehicle') ||
+    normalizedType.includes('car') ||
+    normalizedType.includes('truck')
+  ) {
     return <Car className={iconClass} />;
   }
-  if (normalizedType.includes('package') || normalizedType.includes('box') || normalizedType.includes('delivery')) {
+  if (
+    normalizedType.includes('package') ||
+    normalizedType.includes('box') ||
+    normalizedType.includes('delivery')
+  ) {
     return <Package className={iconClass} />;
   }
 
@@ -62,22 +70,14 @@ function EntityCard({ entity }: { entity: RiskEntity }) {
   return (
     <div
       data-testid="entity-card"
-      className={clsx(
-        'rounded-lg border p-3',
-        config.bgColor,
-        config.borderColor
-      )}
+      className={clsx('rounded-lg border p-3', config.bgColor, config.borderColor)}
     >
       <div className="flex items-start gap-3">
-        <div className={clsx('flex-shrink-0', config.color)}>
-          {getEntityIcon(entity.type)}
-        </div>
+        <div className={clsx('flex-shrink-0', config.color)}>{getEntityIcon(entity.type)}</div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <h5 className="text-sm font-medium text-white">
-              {getEntityLabel(entity.type)}
-            </h5>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h5 className="text-sm font-medium text-white">{getEntityLabel(entity.type)}</h5>
             <span
               className={clsx(
                 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
@@ -101,20 +101,14 @@ function EntityCard({ entity }: { entity: RiskEntity }) {
  * Renders a grid of entity cards from risk analysis.
  * Returns null if no entities are provided.
  */
-export default function EntityThreatCards({
-  entities,
-  className,
-}: EntityThreatCardsProps) {
+export default function EntityThreatCards({ entities, className }: EntityThreatCardsProps) {
   // Don't render if no entities
   if (!entities || entities.length === 0) {
     return null;
   }
 
   return (
-    <div
-      data-testid="entity-threat-cards"
-      className={clsx('space-y-3', className)}
-    >
+    <div data-testid="entity-threat-cards" className={clsx('space-y-3', className)}>
       <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
         Identified Entities
       </h4>

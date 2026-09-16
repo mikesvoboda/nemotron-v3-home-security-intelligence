@@ -123,10 +123,7 @@ const sectionConfigs: SectionConfig[] = [
               </span>
             </div>
           )}
-          <DetailRow
-            label="Confidence"
-            value={formatConfidencePercent(vehicle.confidence)}
-          />
+          <DetailRow label="Confidence" value={formatConfidencePercent(vehicle.confidence)} />
         </div>
       );
     },
@@ -143,10 +140,7 @@ const sectionConfigs: SectionConfig[] = [
         <div className="space-y-2">
           <DetailRow label="Type" value={pet.type} />
           {pet.breed && <DetailRow label="Breed" value={pet.breed} />}
-          <DetailRow
-            label="Confidence"
-            value={formatConfidencePercent(pet.confidence)}
-          />
+          <DetailRow label="Confidence" value={formatConfidencePercent(pet.confidence)} />
         </div>
       );
     },
@@ -161,13 +155,9 @@ const sectionConfigs: SectionConfig[] = [
       if (!person) return null;
       return (
         <div className="space-y-2">
-          {person.clothing && (
-            <DetailRow label="Clothing" value={person.clothing} />
-          )}
+          {person.clothing && <DetailRow label="Clothing" value={person.clothing} />}
           {person.action && <DetailRow label="Action" value={person.action} />}
-          {person.carrying && (
-            <DetailRow label="Carrying" value={person.carrying} />
-          )}
+          {person.carrying && <DetailRow label="Carrying" value={person.carrying} />}
           {person.suspicious_attire && (
             <div className="pt-1">
               <span className="inline-flex items-center gap-1 rounded-md border border-yellow-500/40 bg-yellow-500/20 px-2 py-0.5 text-xs font-medium text-yellow-400">
@@ -176,10 +166,7 @@ const sectionConfigs: SectionConfig[] = [
               </span>
             </div>
           )}
-          <DetailRow
-            label="Confidence"
-            value={formatConfidencePercent(person.confidence)}
-          />
+          <DetailRow label="Confidence" value={formatConfidencePercent(person.confidence)} />
         </div>
       );
     },
@@ -223,10 +210,7 @@ const sectionConfigs: SectionConfig[] = [
               </div>
             </div>
           )}
-          <DetailRow
-            label="Confidence"
-            value={formatConfidencePercent(pose.confidence ?? 0)}
-          />
+          <DetailRow label="Confidence" value={formatConfidencePercent(pose.confidence ?? 0)} />
         </div>
       );
     },
@@ -253,10 +237,7 @@ const sectionConfigs: SectionConfig[] = [
               </button>
             }
           />
-          <DetailRow
-            label="Confidence"
-            value={formatConfidencePercent(plate.confidence)}
-          />
+          <DetailRow label="Confidence" value={formatConfidencePercent(plate.confidence)} />
         </div>
       );
     },
@@ -272,10 +253,7 @@ const sectionConfigs: SectionConfig[] = [
       return (
         <div className="space-y-2">
           <DetailRow label="Condition" value={weather.condition} />
-          <DetailRow
-            label="Confidence"
-            value={formatConfidencePercent(weather.confidence)}
-          />
+          <DetailRow label="Confidence" value={formatConfidencePercent(weather.confidence)} />
         </div>
       );
     },
@@ -290,10 +268,7 @@ const sectionConfigs: SectionConfig[] = [
       if (!quality) return null;
       return (
         <div className="space-y-2">
-          <DetailRow
-            label="Score"
-            value={formatConfidencePercent(quality.score)}
-          />
+          <DetailRow label="Score" value={formatConfidencePercent(quality.score)} />
           {quality.issues.length > 0 && (
             <DetailRow
               label="Issues"
@@ -321,13 +296,7 @@ const sectionConfigs: SectionConfig[] = [
 // Helper Components
 // ============================================================================
 
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-2 py-1">
       <span className="text-sm text-gray-400">{label}</span>
@@ -338,30 +307,19 @@ function DetailRow({
 
 function LoadingSkeleton() {
   return (
-    <div
-      className="animate-pulse space-y-3 p-4"
-      data-testid="enrichment-viewer-skeleton"
-    >
+    <div className="animate-pulse space-y-3 p-4" data-testid="enrichment-viewer-skeleton">
       <div className="h-4 w-48 rounded bg-gray-700" />
       <div className="space-y-2">
         <div className="h-10 rounded bg-gray-700" />
         <div className="h-10 rounded bg-gray-700" />
         <div className="h-10 rounded bg-gray-700" />
       </div>
-      <p className="text-center text-sm text-gray-400">
-        Loading enrichment data...
-      </p>
+      <p className="text-center text-sm text-gray-400">Loading enrichment data...</p>
     </div>
   );
 }
 
-function ErrorState({
-  error,
-  onRefresh,
-}: {
-  error: string;
-  onRefresh?: () => void;
-}) {
+function ErrorState({ error, onRefresh }: { error: string; onRefresh?: () => void }) {
   return (
     <div
       className="flex flex-col items-center justify-center gap-3 p-6"
@@ -431,9 +389,7 @@ function AccordionSection({
         data-testid={`enrichment-header-${id}`}
       >
         <div className="flex items-center gap-2">
-          <span className={clsx(hasAlerts ? 'text-red-400' : 'text-[#76B900]')}>
-            {icon}
-          </span>
+          <span className={clsx(hasAlerts ? 'text-red-400' : 'text-[#76B900]')}>{icon}</span>
           <span className="font-medium text-white">{title}</span>
           {hasAlerts && alertCount && alertCount > 0 && (
             <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
@@ -442,10 +398,7 @@ function AccordionSection({
           )}
         </div>
         <ChevronDown
-          className={clsx(
-            'h-4 w-4 text-gray-400 transition-transform',
-            isExpanded && 'rotate-180'
-          )}
+          className={clsx('h-4 w-4 text-gray-400 transition-transform', isExpanded && 'rotate-180')}
         />
       </button>
       <div
@@ -580,9 +533,7 @@ export default function EnrichmentViewer({
   }
 
   // Filter to sections that have data
-  const activeSections = sectionConfigs.filter((config) =>
-    config.hasData(enrichmentData)
-  );
+  const activeSections = sectionConfigs.filter((config) => config.hasData(enrichmentData));
 
   // Compact variant - badge display
   if (variant === 'compact') {
@@ -610,17 +561,11 @@ export default function EnrichmentViewer({
   return (
     <div
       data-testid={testId}
-      className={clsx(
-        'rounded-lg border border-gray-800 bg-black/20',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-800 bg-black/20', className)}
     >
       {activeSections.map((config) => {
         const hasAlerts = config.hasAlerts?.(enrichmentData) ?? false;
-        const alertCount =
-          hasAlerts && enrichmentData.pose
-            ? enrichmentData.pose.alerts.length
-            : 0;
+        const alertCount = hasAlerts && enrichmentData.pose ? enrichmentData.pose.alerts.length : 0;
 
         return (
           <AccordionSection

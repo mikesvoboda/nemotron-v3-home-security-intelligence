@@ -29,6 +29,7 @@ from backend.services.vision_extractor import (
     format_scene_analysis,
     format_vehicle_attributes,
     get_vision_extractor,
+    is_semantically_equivalent,
     reset_vision_extractor,
 )
 
@@ -2168,135 +2169,51 @@ class TestYOLOFlorenceSemanticEquivalence:
     description matches the YOLO detection class.
 
     NEM-5478: Florence-2 YOLO Cross-Validation feature.
+
+    M3 T8 (audit Part 4): the 20 single-pair tests were one parametrize table
+    (guard-bucketed: identical AST modulo literals); every pair preserved as
+    a param. The two multi-assert cases (case-insensitivity, partial match)
+    carry distinct AST shapes and stay their own tests.
     """
 
-    def test_semantic_equivalence_car_sedan(self) -> None:
-        """Test YOLO 'car' matches Florence 'sedan' (same semantic class).
-
-        A sedan is a type of car, so Florence saying 'sedan' when YOLO detects 'car'
-        should be considered semantically equivalent.
-        """
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("car", "sedan") is True
-
-    def test_semantic_equivalence_car_coupe(self) -> None:
-        """Test YOLO 'car' matches Florence 'coupe'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("car", "coupe") is True
-
-    def test_semantic_equivalence_car_hatchback(self) -> None:
-        """Test YOLO 'car' matches Florence 'hatchback'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("car", "hatchback") is True
-
-    def test_semantic_equivalence_car_suv(self) -> None:
-        """Test YOLO 'car' matches Florence 'SUV'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("car", "SUV") is True
-
-    def test_semantic_equivalence_car_crossover(self) -> None:
-        """Test YOLO 'car' matches Florence 'crossover'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("car", "crossover") is True
-
-    def test_semantic_equivalence_bus_police_car_mismatch(self) -> None:
-        """Test YOLO 'bus' does NOT match Florence 'police car'.
-
-        This is a critical regression test. A bus should never be described as a
-        police car. Florence may hallucinate vehicle types, and the cross-validation
-        should catch this mismatch.
-        """
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("bus", "police car") is False
-
-    def test_semantic_equivalence_bus_minibus(self) -> None:
-        """Test YOLO 'bus' matches Florence 'minibus'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("bus", "minibus") is True
-
-    def test_semantic_equivalence_bus_shuttle(self) -> None:
-        """Test YOLO 'bus' matches Florence 'shuttle'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("bus", "shuttle") is True
-
-    def test_semantic_equivalence_bus_coach(self) -> None:
-        """Test YOLO 'bus' matches Florence 'coach'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("bus", "coach") is True
-
-    def test_semantic_equivalence_bus_transit(self) -> None:
-        """Test YOLO 'bus' matches Florence 'transit bus'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("bus", "transit") is True
-
-    def test_semantic_equivalence_truck_pickup(self) -> None:
-        """Test YOLO 'truck' matches Florence 'pickup'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("truck", "pickup") is True
-
-    def test_semantic_equivalence_truck_dump_truck(self) -> None:
-        """Test YOLO 'truck' matches Florence 'dump truck'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("truck", "dump truck") is True
-
-    def test_semantic_equivalence_truck_semi(self) -> None:
-        """Test YOLO 'truck' matches Florence 'semi-truck'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("truck", "semi-truck") is True
-
-    def test_semantic_equivalence_truck_lorry(self) -> None:
-        """Test YOLO 'truck' matches Florence 'lorry'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("truck", "lorry") is True
-
-    def test_semantic_equivalence_motorcycle_scooter(self) -> None:
-        """Test YOLO 'motorcycle' matches Florence 'scooter'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("motorcycle", "scooter") is True
-
-    def test_semantic_equivalence_motorcycle_moped(self) -> None:
-        """Test YOLO 'motorcycle' matches Florence 'moped'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("motorcycle", "moped") is True
-
-    def test_semantic_equivalence_motorcycle_bike(self) -> None:
-        """Test YOLO 'motorcycle' matches Florence 'motorbike'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("motorcycle", "motorbike") is True
-
-    def test_semantic_equivalence_car_bus_mismatch(self) -> None:
-        """Test YOLO 'car' does NOT match Florence 'bus'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("car", "bus") is False
-
-    def test_semantic_equivalence_truck_car_mismatch(self) -> None:
-        """Test YOLO 'truck' does NOT match Florence 'car'."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        assert is_semantically_equivalent("truck", "car") is False
+    @pytest.mark.parametrize(
+        ("yolo_class", "florence_description", "expected"),
+        [
+            # car family
+            ("car", "sedan", True),
+            ("car", "coupe", True),
+            ("car", "hatchback", True),
+            ("car", "SUV", True),
+            ("car", "crossover", True),
+            ("car", "bus", False),
+            # bus family
+            ("bus", "police car", False),  # critical regression: bus != police car
+            ("bus", "minibus", True),
+            ("bus", "shuttle", True),
+            ("bus", "coach", True),
+            ("bus", "transit", True),
+            # truck family
+            ("truck", "pickup", True),
+            ("truck", "dump truck", True),
+            ("truck", "semi-truck", True),
+            ("truck", "lorry", True),
+            ("truck", "car", False),
+            # motorcycle family
+            ("motorcycle", "scooter", True),
+            ("motorcycle", "moped", True),
+            ("motorcycle", "motorbike", True),
+            # unknown YOLO class matches nothing
+            ("spaceship", "sedan", False),
+        ],
+    )
+    def test_semantic_equivalence(
+        self, yolo_class: str, florence_description: str, expected: bool
+    ) -> None:
+        """Each (YOLO class, Florence description) pair matches as documented."""
+        assert is_semantically_equivalent(yolo_class, florence_description) is expected
 
     def test_semantic_equivalence_case_insensitive(self) -> None:
         """Test semantic equivalence is case-insensitive."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
         assert is_semantically_equivalent("CAR", "SEDAN") is True
         assert is_semantically_equivalent("Car", "Sedan") is True
         assert is_semantically_equivalent("car", "SEDAN") is True
@@ -2307,18 +2224,9 @@ class TestYOLOFlorenceSemanticEquivalence:
         Florence may say 'white sedan' or 'blue pickup truck' - the equivalence
         check should find the vehicle type within the description.
         """
-        from backend.services.vision_extractor import is_semantically_equivalent
-
         assert is_semantically_equivalent("car", "white sedan") is True
         assert is_semantically_equivalent("truck", "blue pickup truck") is True
         assert is_semantically_equivalent("bus", "yellow school bus") is True
-
-    def test_semantic_equivalence_unknown_yolo_class(self) -> None:
-        """Test semantic equivalence returns False for unknown YOLO class."""
-        from backend.services.vision_extractor import is_semantically_equivalent
-
-        # Unknown YOLO class should not match anything
-        assert is_semantically_equivalent("spaceship", "sedan") is False
 
 
 class TestYOLOFlorenceConfidenceOverride:

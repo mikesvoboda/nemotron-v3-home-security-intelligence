@@ -43,14 +43,7 @@ export default function ThresholdPreview({
   label = 'Events that would trigger:',
   testId = 'threshold-preview',
 }: ThresholdPreviewProps) {
-  const {
-    isLoading,
-    error,
-    eventsMatched,
-    eventsTested,
-    matchRate,
-    refresh,
-  } = previewState;
+  const { isLoading, error, eventsMatched, eventsTested, matchRate, refresh } = previewState;
 
   // Loading state
   if (isLoading) {
@@ -107,9 +100,7 @@ export default function ThresholdPreview({
         data-testid={testId}
       >
         <TrendingUp className="h-4 w-4 text-gray-500" />
-        <span className="text-sm text-text-secondary">
-          Save rule to see threshold preview
-        </span>
+        <span className="text-sm text-text-secondary">Save rule to see threshold preview</span>
       </div>
     );
   }
@@ -141,9 +132,7 @@ export default function ThresholdPreview({
           {eventsMatched} / {eventsTested}
         </span>
         {matchRate !== null && (
-          <span className="text-xs text-gray-500">
-            ({matchRate.toFixed(1)}%)
-          </span>
+          <span className="text-xs text-gray-500">({matchRate.toFixed(1)}%)</span>
         )}
       </div>
 

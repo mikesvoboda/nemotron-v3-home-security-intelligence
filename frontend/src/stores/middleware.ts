@@ -20,7 +20,17 @@ import { shallow, useShallow } from 'zustand/shallow';
 // Re-exports for convenience
 // ============================================================================
 
-export { castDraft, current, devtools, isDraft, original, produce, shallow, subscribeWithSelector, useShallow };
+export {
+  castDraft,
+  current,
+  devtools,
+  isDraft,
+  original,
+  produce,
+  shallow,
+  subscribeWithSelector,
+  useShallow,
+};
 export type { Draft };
 
 // ============================================================================
@@ -118,7 +128,7 @@ export function createImmerStore<T extends object>(
             // Type for Zustand's internal set function with optional replace parameter
             type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
             if (typeof partial === 'function') {
-              const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+              const nextState: T = produce<T>(get(), partial);
               // Cast to bypass Zustand's strict typing on replace parameter
               (set as unknown as SetFn)(nextState, replace);
             } else {
@@ -141,7 +151,7 @@ export function createImmerStore<T extends object>(
       // Type for Zustand's internal set function with optional replace parameter
       type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
       if (typeof partial === 'function') {
-        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        const nextState: T = produce<T>(get(), partial);
         // Cast to bypass Zustand's strict typing on replace parameter
         (set as unknown as SetFn)(nextState, replace);
       } else {
@@ -189,7 +199,7 @@ export function createImmerSelectorStore<T extends object>(
       // Type for Zustand's internal set function with optional replace parameter
       type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
       if (typeof partial === 'function') {
-        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        const nextState: T = produce<T>(get(), partial);
         // Cast to bypass Zustand's strict typing on replace parameter
         (set as SetFn)(nextState, replace);
       } else {
@@ -213,9 +223,7 @@ export function createImmerSelectorStore<T extends object>(
   }
 
   // Without devtools config, use subscribeWithSelector only
-  return create<T>()(
-    subscribeWithSelector((set, get, store) => createImmerState(set, get, store))
-  );
+  return create<T>()(subscribeWithSelector((set, get, store) => createImmerState(set, get, store)));
 }
 
 // ============================================================================
@@ -514,8 +522,7 @@ export function createImmerDevtoolsStore<T extends object>(
 ): UseBoundStore<StoreApi<T>> {
   const {
     name = 'immer-store',
-    devtools: enableDevtools = typeof import.meta !== 'undefined' &&
-      import.meta.env?.DEV === true,
+    devtools: enableDevtools = typeof import.meta !== 'undefined' && import.meta.env?.DEV === true,
     withSelector = false,
   } = options;
 
@@ -530,7 +537,7 @@ export function createImmerDevtoolsStore<T extends object>(
   const immerCreator = (set: ZustandSetFn, get: () => T, store: any): T => {
     const immerSet: ImmerSetState<T> = (partial, replace) => {
       if (typeof partial === 'function') {
-        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        const nextState: T = produce<T>(get(), partial);
         if (replace) {
           set(nextState, true);
         } else {
@@ -550,10 +557,7 @@ export function createImmerDevtoolsStore<T extends object>(
 
   if (withSelector && enableDevtools) {
     return create<T>()(
-      devtools(
-        subscribeWithSelector(immerCreator),
-        { name, enabled: enableDevtools }
-      )
+      devtools(subscribeWithSelector(immerCreator), { name, enabled: enableDevtools })
     );
   } else if (withSelector) {
     return create<T>()(subscribeWithSelector(immerCreator));
@@ -581,10 +585,7 @@ export function createImmerDevtoolsStore<T extends object>(
  * @param updater - Immer draft updater function
  * @returns New state with updates applied immutably
  */
-export function applyImmerUpdate<T>(
-  state: T,
-  updater: (draft: Draft<T>) => void
-): T {
+export function applyImmerUpdate<T>(state: T, updater: (draft: Draft<T>) => void): T {
   return produce(state, updater);
 }
 
@@ -643,7 +644,9 @@ export function createImmerAction<T, Args extends unknown[]>(
  * @returns Current (frozen) state if draft, original value otherwise
  */
 export function safeReadCurrent<T>(draft: T): T {
-  return isDraft(draft) ? current(draft) : draft;
+  // immer 11.1.18 tightened current()'s parameter to Draft<T>; the isDraft()
+  // guard proves draft-ness at runtime but isn't a TS narrowing.
+  return isDraft(draft) ? current(draft as unknown as Draft<T>) : draft;
 }
 
 /**
@@ -667,7 +670,8 @@ export function safeReadCurrent<T>(draft: T): T {
  * @returns Original (pre-mutation) state, or undefined if not a draft
  */
 export function safeReadOriginal<T>(draft: T): T | undefined {
-  return isDraft(draft) ? original(draft) : undefined;
+  // See safeReadCurrent: isDraft() guard is runtime-only, immer 11.1.18 wants Draft<T>.
+  return isDraft(draft) ? original(draft as unknown as Draft<T>) : undefined;
 }
 
 /**
@@ -689,9 +693,7 @@ export function safeReadOriginal<T>(draft: T): T | undefined {
  * @param selector - Selector function
  * @returns Memoized selector function
  */
-export function createComputedSelector<T, R>(
-  selector: (state: T) => R
-): (state: T) => R {
+export function createComputedSelector<T, R>(selector: (state: T) => R): (state: T) => R {
   let lastState: T | undefined;
   let lastResult: R | undefined;
 

@@ -228,10 +228,7 @@ export default function RecentThreatsIndicator({
         <span
           data-testid="connection-indicator"
           title={isConnected ? 'Connected' : 'Disconnected'}
-          className={clsx(
-            'ml-1 h-2 w-2 rounded-full',
-            isConnected ? 'bg-green-500' : 'bg-red-500'
-          )}
+          className={clsx('ml-1 h-2 w-2 rounded-full', isConnected ? 'bg-green-500' : 'bg-red-500')}
         />
       </div>
 
@@ -295,40 +292,39 @@ interface ThreatItemProps {
   onClick: (eventId: string) => void;
 }
 
-const ThreatItem = forwardRef<HTMLButtonElement, ThreatItemProps>(
-  function ThreatItem({ threat, isNew, onClick }, ref) {
-    return (
-      <button
-        ref={ref}
-        data-testid={`threat-item-${threat.id}`}
-        role="menuitem"
-        tabIndex={0}
-        onClick={() => onClick(threat.eventId)}
-        className={clsx(
-          'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors',
-          'hover:bg-gray-800 focus:bg-gray-800 focus:outline-none',
-          isNew && 'bg-red-50'
-        )}
-      >
-        {/* Threat Icon */}
-        <div className="mt-0.5 flex-shrink-0">
-          <ShieldAlert className="h-5 w-5 text-red-500" />
-        </div>
+const ThreatItem = forwardRef<HTMLButtonElement, ThreatItemProps>(function ThreatItem(
+  { threat, isNew, onClick },
+  ref
+) {
+  return (
+    <button
+      ref={ref}
+      data-testid={`threat-item-${threat.id}`}
+      role="menuitem"
+      tabIndex={0}
+      onClick={() => onClick(threat.eventId)}
+      className={clsx(
+        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors',
+        'hover:bg-gray-800 focus:bg-gray-800 focus:outline-none',
+        isNew && 'bg-red-50'
+      )}
+    >
+      {/* Threat Icon */}
+      <div className="mt-0.5 flex-shrink-0">
+        <ShieldAlert className="h-5 w-5 text-red-500" />
+      </div>
 
-        {/* Content */}
-        <div className="min-w-0 flex-1">
-          {/* Weapon Type */}
-          <p className="font-medium text-white">
-            {formatWeaponType(threat.weaponType)}
-          </p>
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        {/* Weapon Type */}
+        <p className="font-medium text-white">{formatWeaponType(threat.weaponType)}</p>
 
-          {/* Camera Name */}
-          <p className="text-sm text-gray-400">{threat.cameraName || 'Unknown camera'}</p>
+        {/* Camera Name */}
+        <p className="text-sm text-gray-400">{threat.cameraName || 'Unknown camera'}</p>
 
-          {/* Time */}
-          <p className="mt-1 text-xs text-gray-500">{formatTimeAgo(threat.timestamp)}</p>
-        </div>
-      </button>
-    );
-  }
-);
+        {/* Time */}
+        <p className="mt-1 text-xs text-gray-500">{formatTimeAgo(threat.timestamp)}</p>
+      </div>
+    </button>
+  );
+});

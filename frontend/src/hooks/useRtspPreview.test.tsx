@@ -29,9 +29,7 @@ vi.mock('../services/go2rtcClient', () => ({
 }));
 
 // Get a reference to the mock for test assertions
-const mockGo2rtcClient = vi.mocked(
-  (await import('../services/go2rtcClient')).go2rtcClient
-);
+const mockGo2rtcClient = vi.mocked((await import('../services/go2rtcClient')).go2rtcClient);
 
 // Mock RTCPeerConnection
 class MockRTCPeerConnection {
@@ -44,7 +42,7 @@ class MockRTCPeerConnection {
 
   createOffer(): Promise<RTCSessionDescriptionInit> {
     return Promise.resolve({
-      type: 'offer' as RTCSdpType,
+      type: 'offer',
       sdp: 'mock-offer-sdp',
     });
   }
@@ -93,7 +91,7 @@ describe('useRtspPreview', () => {
   describe('Connection Lifecycle', () => {
     it('should transition to connecting when startPreview is called', async () => {
       mockGo2rtcClient.createPreview.mockResolvedValue({
-        type: 'answer' as RTCSdpType,
+        type: 'answer',
         sdp: 'mock-answer-sdp',
       });
 

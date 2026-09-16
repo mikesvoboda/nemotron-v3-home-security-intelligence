@@ -19,7 +19,7 @@
 # =============================================================================
 # Base stage: shared Node.js setup and dependencies
 # =============================================================================
-FROM node:20.19.6-alpine3.23 AS base
+FROM node:24.21.0-alpine3.23 AS base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -29,8 +29,8 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="node:20.19.6-alpine3.23"
-LABEL org.opencontainers.image.base.digest="node:20.19.6-alpine3.23"
+LABEL org.opencontainers.image.base.name="node:24.21.0-alpine3.23"
+LABEL org.opencontainers.image.base.digest="node:24.21.0-alpine3.23"
 
 WORKDIR /app
 
@@ -65,12 +65,14 @@ FROM base AS dev
 COPY --chown=node:node . .
 
 # Switch to non-root user
+# hadolint ignore=DL3066
 USER node
 
 # Expose Vite dev server port
 EXPOSE 5173
 
 # Health check for dev server
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:5173 || exit 1
 
@@ -111,6 +113,7 @@ LABEL org.opencontainers.image.base.name="docker.io/nginxinc/nginx-unprivileged:
 LABEL org.opencontainers.image.base.digest="docker.io/nginxinc/nginx-unprivileged:stable-alpine-slim"
 
 # Switch to root temporarily to install wget and configure files
+# hadolint ignore=DL3066
 USER root
 
 # Install wget for healthcheck and openssl for self-signed cert generation
@@ -134,12 +137,14 @@ RUN chmod +x /docker-entrypoint.sh && \
     chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
 
 # Switch back to non-root nginx user
+# hadolint ignore=DL3066
 USER nginx
 
 # Expose nginx ports (unprivileged ports: 8080 for HTTP, 8443 for HTTPS)
 EXPOSE 8080 8443
 
 # Health check (nginx-unprivileged listens on 8080)
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1
 

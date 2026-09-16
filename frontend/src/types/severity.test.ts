@@ -4,10 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  DEFAULT_SEVERITY_DEFINITIONS,
-  DEFAULT_SEVERITY_THRESHOLDS,
-} from './severity';
+import { DEFAULT_SEVERITY_DEFINITIONS, DEFAULT_SEVERITY_THRESHOLDS } from './severity';
 
 import type {
   SeverityDefinition,
@@ -74,9 +71,7 @@ describe('severity types', () => {
 
     it('definitions have contiguous non-overlapping score ranges', () => {
       // Sort by min_score to ensure order
-      const sorted = [...DEFAULT_SEVERITY_DEFINITIONS].sort(
-        (a, b) => a.min_score - b.min_score
-      );
+      const sorted = [...DEFAULT_SEVERITY_DEFINITIONS].sort((a, b) => a.min_score - b.min_score);
 
       // First should start at 0
       expect(sorted[0].min_score).toBe(0);

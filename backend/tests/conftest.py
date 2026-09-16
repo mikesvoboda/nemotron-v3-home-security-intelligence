@@ -8,8 +8,6 @@ FIXTURE HIERARCHY AND ORGANIZATION:
 Root Fixtures (backend/tests/conftest.py - THIS FILE):
     Database-per-Worker Isolation (pytest-xdist):
         - cleanup_stale_databases: Session-scoped autouse, removes leftover test databases
-        - template_database: Session-scoped, creates template database with full schema
-        - worker_database: Session-scoped, creates per-worker database copy from template
 
     Database Fixtures:
         - isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
@@ -20,7 +18,6 @@ Root Fixtures (backend/tests/conftest.py - THIS FILE):
         - mock_db_session: Comprehensive database session mock
         - mock_db_session_context: Async context manager wrapper for mock_db_session
         - mock_redis_client: Full-featured Redis client mock
-        - mock_redis: Simplified Redis mock for basic operations
         - mock_http_client: HTTP client mock with all methods
         - mock_http_response: HTTP response mock
         - mock_detector_client: YOLO26 detector service mock
@@ -47,16 +44,9 @@ Domain-Specific Fixtures (in subdirectories):
         - session: Override of root session for worker isolation
         - client: FastAPI test client with full app lifecycle
 
-    Chaos Tests (backend/tests/chaos/conftest.py):
-        - fault_injector: Core fault injection framework
-        - yolo26_*, redis_*, database_*, nemotron_*: Service-specific fault fixtures
-        - high_latency, packet_loss: Network condition simulation
-        - all_ai_services_down, cache_and_ai_down: Compound fault scenarios
-
     Contract Tests (backend/tests/contracts/conftest.py):
         - test_app: FastAPI app with mocked dependencies
         - async_client: HTTP client for contract testing
-        - patch_database_dependency, patch_redis_dependency: Dependency injection patches
         NOTE: Uses mock_db_session and mock_redis_client from root conftest.py
 
     Security Tests (backend/tests/security/conftest.py):
@@ -65,8 +55,6 @@ Domain-Specific Fixtures (in subdirectories):
     Unit Tests (backend/tests/unit/conftest.py):
         - mock_transformers_for_speed: Speed optimization for transformers import
 
-    Unit Model Tests (backend/tests/unit/models/conftest.py):
-        - _soft_delete_serial_lock: Cross-process lock for soft delete tests
 
 CONSOLIDATION (NEM-3152):
 ==========================
@@ -115,13 +103,22 @@ import os as _os
 
 _os.environ.setdefault("ENVIRONMENT", "test")
 
+# R-T7-CRASH: pyroscope-io's native sampling profiler (oncpu + gil_only=False)
+# crashes pytest-xdist workers on aarch64/64k-page kernels whenever a test
+# boots the FastAPI lifespan (main.py calls init_profiling()). Disabling it for
+# the test session only — prod/compose keep the PYROSCOPE_ENABLED=true default
+# (docker-compose.prod.yml), and an explicit env value still wins (setdefault).
+_os.environ.setdefault("PYROSCOPE_ENABLED", "false")
+
 import logging
 import os
+import re
 import socket
 import sys
+import warnings
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from urllib.parse import urlparse, urlunparse
 
 import psycopg2
@@ -289,6 +286,21 @@ def pytest_configure(config: pytest.Config) -> None:
         "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",  # pragma: allowlist secret
     )
 
+    # Disable OpenTelemetry tracing in the test process (R-T7-OTEL-OOM):
+    # otel_enabled defaults True (config.py:1815), so every TestClient(app)
+    # with a live lifespan runs setup_telemetry and arms an OTLP
+    # BatchSpanProcessor pointed at the shipped default endpoint
+    # (http://alloy:4317) — unreachable outside the compose network, and
+    # every export 502s through the sandbox proxy. Failed exports retry
+    # with the span held in memory; xdist workers running thousands of
+    # span-generating tests (websocket auth flows, LLM analysis pipeline)
+    # accumulated ~52GB anon RSS per worker until the host OOM-killed the
+    # process (11 'node down' cascades in validate run 3; dmesg:
+    # 'Out of memory: Killed process ... [pytest-xdist r] anon-rss:
+    # 51844004kB'). Production keeps the default True; this only opts the
+    # test process out, matching how the D21 memray marker is scoped.
+    os.environ.setdefault("OTEL_ENABLED", "false")
+
     # Register custom markers to prevent warnings
     config.addinivalue_line(
         "markers",
@@ -336,20 +348,30 @@ def _check_redis_connection(host: str = "localhost", port: int = 6379) -> bool:
     return _check_tcp_connection(host, port)
 
 
-def _apply_timeout_marker(item: pytest.Item, fspath_str: str) -> None:
+def _apply_timeout_marker(item: pytest.Item, fspath_str: str, cli_cap: float | None = None) -> None:
     """Apply appropriate timeout marker to a test item.
 
     Helper function extracted from pytest_collection_modifyitems to reduce
     branch complexity in the main hook.
 
-    Timeout hierarchy:
-    1. Explicit @pytest.mark.timeout(N) on test - unchanged
-    2. @pytest.mark.slow marker - 30 seconds
-    3. Integration tests (in integration/ directory) - 5 seconds
-    4. Default from pyproject.toml - 1 second (no marker needed)
+    Timeout hierarchy (M3 T5: a CLI --timeout now GOVERNS — pytest-timeout's
+    per-item markers override the CLI option, so validate.sh's --timeout=30
+    integration stage silently ran at the 5s stamp; ruling packet
+    docs/superpowers/rulings/2026-09-14-m3-t5-timeout-config-ruling-packet.md,
+    owner-approved 2026-09-14):
+    1. Explicit @pytest.mark.timeout(N) on test - always unchanged
+    2. CLI --timeout=N (cli_cap) - governs slow/integration tiers
+    3. @pytest.mark.slow marker - 30 seconds
+    4. Integration tests (in integration/ directory) - 5 seconds
+    5. Default from pyproject.toml - no marker needed
     """
     # Skip if test has explicit timeout marker
     if item.get_closest_marker("timeout"):
+        return
+
+    # CLI --timeout governs everything unmarked (M3 T5 honesty fix).
+    if cli_cap:
+        item.add_marker(pytest.mark.timeout(cli_cap))
         return
 
     # Slow-marked tests get 30s
@@ -377,15 +399,15 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     2. Integration tests (/integration/ directory):
        - Applies 'integration' marker
        - Repository tests (/integration/repositories/) get xdist_group + serial markers
-    3. Soft delete tests (test_soft_delete.py in /unit/models/):
-       - Gets xdist_group marker to force serial execution (prevents DB deadlocks)
 
-    Timeout hierarchy (highest priority first):
+    Timeout hierarchy (highest priority first; M3 T5 — CLI now governs):
     1. CLI --timeout=0 disables all timeouts (for CI)
     2. Explicit @pytest.mark.timeout(N) on test - unchanged
-    3. @pytest.mark.slow marker - 30 seconds
-    4. Integration tests (in integration/ directory) - 5 seconds
-    5. Default from pyproject.toml - 1 second
+    3. CLI --timeout=N - governs every unmarked item (was: silently
+       overridden by the stamps below; ruling packet owner-approved 2026-09-14)
+    4. @pytest.mark.slow marker - 30 seconds
+    5. Integration tests (in integration/ directory) - 5 seconds
+    6. Default from pyproject.toml (timeout ini) for everything else
     """
     # Check if timeouts are disabled via CLI (--timeout=0)
     # This is used in CI where environment is slower
@@ -396,13 +418,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     skip_integration = pytest.mark.skip(
         reason="Integration test requires database - skipped in unit test run"
     )
-    xdist_soft_delete = pytest.mark.xdist_group(name="soft_delete_serial")
-    xdist_repository = pytest.mark.xdist_group(name="repository_tests_serial")
-    serial_marker = pytest.mark.serial
 
     for item in items:
         fspath_str = str(item.fspath)
-        nodeid = item.nodeid
         is_unit = "/unit/" in fspath_str
         is_integration = "/integration/" in fspath_str
 
@@ -417,27 +435,24 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             if "integration" in item.keywords:
                 item.add_marker(skip_integration)
 
-            # Soft delete tests need xdist_group for serial execution
-            # to avoid database deadlocks when modifying schema
-            if "test_soft_delete.py" in nodeid and not item.get_closest_marker("xdist_group"):
-                item.add_marker(xdist_soft_delete)
-
         # === INTEGRATION TEST HANDLING ===
         elif is_integration:
             # Apply integration marker
             if not item.get_closest_marker("integration"):
                 item.add_marker(pytest.mark.integration)
 
-            # Repository tests need serial execution due to shared database state
-            if "/repositories/" in fspath_str:
-                if not item.get_closest_marker("xdist_group"):
-                    item.add_marker(xdist_repository)
-                if not item.get_closest_marker("serial"):
-                    item.add_marker(serial_marker)
+            # M3 T4d: the "repository tests share database state" premise
+            # this block enforced is stale. test_db (the only DB fixture
+            # repositories tests use) resolves through get_test_db_url ->
+            # _memo_worker_database, which mints a PER-WORKER database
+            # ('<base>_gwN') since the spec-3.1 cutover — the same isolation
+            # every other integration test runs on. xdist_group forced all
+            # ~201 repository items onto ONE worker for no reason; dropping
+            # the markers lets worksteal balance them across the tier.
 
         # === TIMEOUT HANDLING ===
         if not timeouts_disabled:
-            _apply_timeout_marker(item, fspath_str)
+            _apply_timeout_marker(item, fspath_str, cli_timeout)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -494,14 +509,52 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo) -> Gener
         report.wasxfail = "Quarantined flaky test"
 
 
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Pre-clean crashed sessions' root-tier worker databases (spec 3.1 Task 7).
+
+    Coordination (master) process only — every xdist worker sets
+    PYTEST_XDIST_WORKER before its inner session starts (xdist/remote.py), so
+    the same conftest loaded in a worker skips. Silent when Postgres or the
+    test-DB env is absent: AI-tier / setup_lib sessions share this testpaths
+    and must not gain a Postgres dependency from this hook.
+
+    Deliberately a hook, not the plan's autouse session fixture: an autouse
+    session fixture fires inside EVERY xdist worker (each worker = its own
+    session), so a sweep written that way runs -n times and races itself;
+    pytest_sessionstart is the only place the once-per-run semantics live.
+    """
+    if _coordination_worker_id() != "master":
+        return
+    base_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not base_url or os.environ.get("TEST_DB_NO_WORKER_SUFFIX"):
+        return
+    if not _check_postgres_connection():
+        return
+    try:
+        _sweep_stale_worker_dbs(base_url)
+    except Exception as exc:  # hygiene must never fail a session at startup
+        logger.warning(f"worker-DB stale sweep failed: {exc}")
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """Write flaky test tracking data at end of test session.
 
     Outputs a JSON file with test outcomes for aggregation across CI runs.
     This data is used by scripts/analyze-flaky-tests.py to detect flaky tests.
+
+    Then reclaims this process's worker databases (spec 3.1 Task 7). Placement
+    note: conftest hooks run before pytest-runner's sessionfinish (LIFO), i.e.
+    before session-scoped fixture finalizers — that is safe ONLY because
+    _reclaim_worker_dbs is guard-first (any connection still on the database,
+    ours or a foreign session's, defers the drop to the next session's sweep).
     """
     import json
     from datetime import UTC, datetime
+
+    # NOTE: the flaky-data block below ends in `return` when
+    # FLAKY_TEST_RESULTS_FILE is unset, so worker-DB reclamation must run
+    # BEFORE it, not at the function tail.
+    _reclaim_root_worker_dbs_at_session_end()
 
     if not FLAKY_TEST_RESULTS_FILE:
         return
@@ -551,6 +604,8 @@ def get_test_db_url() -> str:
     """Get the PostgreSQL test database URL for unit tests.
 
     Priority order:
+    0. TEST_DB_NO_WORKER_SUFFIX set -> verbatim env URL (documented emergency
+       opt-out; the pre-spec-3.1 behavior, kept as the rollback lever)
     1. TEST_DATABASE_URL environment variable (explicit override)
     2. Local PostgreSQL on port 5432 (development with Podman/Docker)
 
@@ -558,22 +613,37 @@ def get_test_db_url() -> str:
     backend/tests/integration/conftest.py instead.
 
     Returns:
-        str: PostgreSQL connection URL with asyncpg driver
+        str: PostgreSQL connection URL with asyncpg driver, pointed at a
+        PER-WORKER database ('<base>_gwN' under xdist, '<base>_main' when
+        serial), created idempotently on first call (spec 3.1; M1
+        R-T7-DBRACE-FINAL proved the verbatim return serializes every worker
+        on one schema-reset advisory lock).
 
     Raises:
         RuntimeError: If no PostgreSQL instance is available
     """
-    # 1. Check for explicit environment variable override (CI sets both)
+    # 0. Emergency opt-out (rollback lever named in spec 3.1's risk framing).
+    if os.environ.get("TEST_DB_NO_WORKER_SUFFIX"):
+        env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+        if env_url:
+            if "postgresql://" in env_url and "asyncpg" not in env_url:
+                env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
+            return env_url
+
+    # 1. Check for explicit environment variable override (CI sets both).
+    #    The returned URL is PER-WORKER: the base DB name gets the xdist worker
+    #    id suffixed and the database is ensured to exist. Connection params
+    #    (host/port/credentials) still come from the env.
     env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if env_url:
         # Ensure asyncpg driver
         if "postgresql://" in env_url and "asyncpg" not in env_url:
             env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
-        return env_url
+        return _memo_worker_database(env_url)
 
     # 2. Check for local PostgreSQL (development environment with Podman/Docker)
     if _check_postgres_connection():
-        return DEFAULT_DEV_POSTGRES_URL
+        return _memo_worker_database(DEFAULT_DEV_POSTGRES_URL)
 
     raise RuntimeError(
         "PostgreSQL not available for unit testing. Options:\n"
@@ -581,6 +651,319 @@ def get_test_db_url() -> str:
         "2. Set TEST_DATABASE_URL environment variable\n"
         "Note: Integration tests use module-scoped testcontainers."
     )
+
+
+# ── Per-worker test database isolation (fast-confidence-loop spec SS3.1) ─────
+# Root-tier tests must not share one database across xdist workers: every
+# test_db/isolated_db invocation would queue on _reset_db_schema's advisory
+# lock (M1 R-T7-DBRACE-FINAL: load 8.1 on 72 cores, all of it queue). Pattern
+# mirrors backend/tests/integration/conftest.py's proven worker machinery;
+# duplication across conftests is deliberate (conftest-to-conftest imports are
+# brittle under pytest's importer) and matches the existing _get_advisory_lock_key
+# duplication. get_test_db_url now routes through these helpers (the spec 3.1
+# cutover landed in e8619d80); session lifecycle (create-once memo, master-only
+# stale sweep, collision-safe reclamation) lives above get_test_redis_url.
+
+
+def worker_id() -> str:
+    """Current xdist worker id ('gw0'…) or 'master' when running serially.
+
+    Reads the env var xdist sets in each worker at startup
+    (xdist/remote.py: os.environ['PYTEST_XDIST_WORKER'] = workerinput['workerid'])
+    so it works inside plain functions without a fixture request.
+    """
+    return os.environ.get("PYTEST_XDIST_WORKER", "master")
+
+
+def worker_db_name(base_url: str) -> str:
+    """Per-worker database name derived from the base DB name.
+
+    master -> '<base>_main', gwN -> '<base>_gwN'. Base name is sanitized to
+    [a-z0-9_] and the total is capped at 63 chars (Postgres NAMEDATALEN).
+    """
+    base = urlparse(base_url.replace("+asyncpg", "")).path.lstrip("/") or "test"
+    prefix = re.sub(r"[^a-z0-9_]", "_", base.lower()).strip("_") or "test"
+    suffix = "main" if worker_id() == "master" else worker_id()
+    name = f"{prefix}_{suffix}"
+    return name[:63]
+
+
+def _create_worker_database(base_url: str, db_name: str) -> str:
+    """CREATE DATABASE (IF-MISSING) via psycopg2 autocommit; return worker URL.
+
+    Idempotent: two workers (or a rerun after a crash) racing on the same name
+    is safe — the pg_database existence check plus catching duplicate_database
+    covers the race window.
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        user=parsed.username or "postgres",
+        password=parsed.password or "postgres",
+        dbname=parsed.path.lstrip("/") or "postgres",
+    )
+    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+            if not cur.fetchone():
+                try:
+                    # Use sql.Identifier for safe escaping (NEM-4452)
+                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
+                except psycopg2.errors.DuplicateDatabase:
+                    pass  # lost the race to a sibling worker: the DB exists, that is all we wanted
+    finally:
+        conn.close()
+    worker_url = urlunparse(parsed._replace(path=f"/{db_name}"))
+    if "postgresql://" in worker_url and "asyncpg" not in worker_url:
+        worker_url = worker_url.replace("postgresql://", "postgresql+asyncpg://")
+    return worker_url
+
+
+_PROTECTED_DB_NAMES = frozenset({"security", "security_test", "postgres", "template1", "template0"})
+
+
+def _drop_worker_database(base_url: str, db_name: str, max_retries: int = 3) -> None:
+    """Terminate connections then DROP DATABASE, advisory-locked, retrying.
+
+    Refuses protected names (raises ValueError — these helpers run against the
+    developer's live Postgres; a bug here must not be able to eat the dev DB).
+    Final failure after retries logs a warning only: leaked fcl/test worker DBs
+    are cleaned by the next session's pre-clean sweep, never by failing tests.
+    """
+    import time
+
+    if db_name in _PROTECTED_DB_NAMES:
+        raise ValueError(f"refusing to drop protected database: {db_name}")
+
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    lock_key = _get_advisory_lock_key(f"fcl_drop:{db_name}")
+
+    for attempt in range(max_retries):
+        conn = None
+        try:
+            conn = psycopg2.connect(
+                host=parsed.hostname or "localhost",
+                port=parsed.port or 5432,
+                user=parsed.username or "postgres",
+                password=parsed.password or "postgres",
+                dbname="postgres",  # must connect elsewhere to DROP
+            )
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            with conn.cursor() as cur:
+                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
+                cur.execute(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = %s AND pid <> pg_backend_pid()",
+                    (db_name,),
+                )
+                # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name)))
+                cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+            return
+        except psycopg2.Error as exc:
+            logger.warning(f"drop {db_name} attempt {attempt + 1} failed: {exc}")
+            if attempt + 1 < max_retries:
+                time.sleep(0.1 * (2**attempt))
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except psycopg2.Error:
+                    pass
+    logger.warning(
+        f"could not drop worker database {db_name}; stale copy will be swept next session"
+    )
+
+
+# ── Worker-DB session lifecycle: create-once memo + sweep + reclaim ─────────
+# Task 7 (spec 3.1). Create-per-call (Task 6) is idempotent but re-parses
+# pg_database on every fixture invocation, and crashed sessions leak copies.
+# The collision-safety rules gate run 9 demands (ledger: "worker-DB names
+# COLLIDE by construction"):
+#   - only names in THIS process's memo are ever drop candidates at teardown;
+#   - a name with ANY live connection (ours, a sibling worker's, or another
+#     pytest session's) is skipped, never fought over;
+#   - the sweep's membership regex can never match the base DB, the
+#     integration tier's 'security_test' / 'security_test_gwN' names, or
+#     template_test/test_db_gw* (those stay with cleanup_stale_databases);
+#   - nothing here ever runs a DROP during session setup except the
+#     master-only sweep of exactly-matched stale names.
+
+_worker_db_url_cache: dict[tuple[str, str], str] = {}
+_worker_dbs_created: set[str] = set()
+
+
+def _coordination_worker_id() -> str:
+    """Master/worker id for session bookkeeping WITHOUT importing xdist.
+
+    Reads the env var xdist sets in every worker before its inner session
+    starts (xdist/remote.py: os.environ["PYTEST_XDIST_WORKER"]). Kept separate
+    from worker_id() — same value, different contract: session hooks must not
+    import xdist's helpers (a worker runs pytest_sessionstart before its
+    plugins are configured) nor take a fixture ``request`` (hooks have none).
+    """
+    return os.environ.get("PYTEST_XDIST_WORKER", "master")
+
+
+def _memo_worker_database(base_url: str) -> str:
+    """Create-once: memoized per (worker, base URL) worker-database creation.
+
+    Cache hit returns the URL without a psycopg2 round trip. The key includes
+    worker_id() so an in-process env change (a test monkeypatching
+    TEST_DATABASE_URL under a different PYTEST_XDIST_WORKER, as
+    test_db_isolation does) re-derives instead of returning another worker's
+    URL. Names created are bookkept for _reclaim_worker_dbs.
+    """
+    key = (worker_id(), base_url)
+    url = _worker_db_url_cache.get(key)
+    if url is None:
+        name = worker_db_name(base_url)
+        url = _create_worker_database(base_url, name)
+        _worker_db_url_cache[key] = url
+        _worker_dbs_created.add(name)
+    return url
+
+
+def _base_db_prefix(base_url: str) -> str:
+    """Sanitized worker-DB name prefix for a base URL.
+
+    Mirrors worker_db_name()'s sanitize/strip/cap logic exactly (minus the
+    worker suffix) so sweep membership and name derivation cannot diverge.
+    """
+    base = urlparse(base_url.replace("+asyncpg", "")).path.lstrip("/") or "test"
+    prefix = re.sub(r"[^a-z0-9_]", "_", base.lower()).strip("_") or "test"
+    return prefix[:63]
+
+
+def _list_databases_by_prefix(base_url: str, prefix: str) -> list[str]:
+    """Existing database names starting with prefix (anchored, LIKE-escaped).
+
+    Connects to the server's 'postgres' db. Connection errors propagate to the
+    caller (the sweep treats them as "skip hygiene this session", never as
+    "no databases" — fail-closed).
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        user=parsed.username or "postgres",
+        password=parsed.password or "postgres",
+        dbname="postgres",
+    )
+    try:
+        with conn.cursor() as cur:
+            like_prefix = prefix.replace("\\", "\\\\").replace("_", "\\_")
+            cur.execute(
+                "SELECT datname FROM pg_database WHERE datname LIKE %s || '%' ORDER BY 1",
+                (like_prefix,),
+            )
+            return [row[0] for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def _db_has_active_connections(base_url: str, db_name: str) -> bool:
+    """True if any server process is currently connected to db_name.
+
+    Fail-closed: psycopg2.Error propagates — an unreachable server must read
+    as "do not drop", not as "nobody is home".
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    conn = psycopg2.connect(
+        host=parsed.hostname or "localhost",
+        port=parsed.port or 5432,
+        user=parsed.username or "postgres",
+        password=parsed.password or "postgres",
+        dbname="postgres",
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM pg_stat_activity WHERE datname = %s LIMIT 1",
+                (db_name,),
+            )
+            return cur.fetchone() is not None
+    finally:
+        conn.close()
+
+
+def _sweep_stale_worker_dbs(base_url: str) -> None:
+    """Drop <prefix>_main / <prefix>_gw<N> leftovers from crashed sessions.
+
+    Master-only (pytest_sessionstart). Membership is exactly the live
+    root-tier naming: anchored fullmatch of prefix_main or prefix_gw<digits>
+    — so 'security_test' / 'security_test_gw0' (integration tier, possibly a
+    LIVE gate's right now), the bare base DB, and template_test / test_db_gw*
+    (kept by cleanup_stale_databases) can never match. Anything still holding
+    a connection is a live session's database (gate run 9: 'a concurrent
+    -n auto run dropped the live gate's DBs') and is skipped, never stolen.
+    """
+    prefix = _base_db_prefix(base_url)
+    try:
+        candidates = [
+            name
+            for name in _list_databases_by_prefix(base_url, prefix)
+            if name not in _PROTECTED_DB_NAMES
+            and re.fullmatch(rf"^{prefix}_(?:gw[0-9]+|main)$", name)
+        ]
+    except psycopg2.Error as exc:
+        logger.warning(f"worker-DB stale sweep skipped (server unreachable): {exc}")
+        return
+    for name in candidates:
+        try:
+            if _db_has_active_connections(base_url, name):
+                logger.info(f"worker DB {name} is in active use (live session?) — sweep skips it")
+                continue
+        except psycopg2.Error as exc:
+            logger.warning(f"worker DB {name} liveness check failed ({exc}) — sweep skips it")
+            continue
+        logger.info(f"Dropping stale root-tier worker database: {name}")
+        _drop_worker_database(base_url, name)
+
+
+def _reclaim_root_worker_dbs_at_session_end() -> None:
+    """Gate the Task-7 reclamation: coordination process only, env only.
+
+    xdist workers never drop anything: gate run 9 proved a session-end drop
+    kills siblings mid-flight, and xdist can recycle a gwN id for a
+    late-spawned replacement worker (worksteal reschedule) whose database a
+    per-worker drop would then delete out from under it. Parallel runs' worker
+    DBs therefore persist until the next session's sweep — the plan's own
+    tolerance ("leaked fcl/test worker DBs are cleaned by the next session's
+    pre-clean sweep, never by failing tests").
+    """
+    if _coordination_worker_id() != "master" or os.environ.get("TEST_DB_NO_WORKER_SUFFIX"):
+        return
+    base_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not base_url:
+        return
+    try:
+        _reclaim_worker_dbs(base_url)
+    except Exception as exc:  # cleanup errors never fail the session (NEM-4491 doctrine)
+        logger.warning(f"worker-DB session teardown failed: {exc}")
+
+
+def _reclaim_worker_dbs(base_url: str) -> None:
+    """Drop databases THIS process created at session end, if provably unused.
+
+    Master-only caller (_reclaim_root_worker_dbs_at_session_end). Memo-scoped
+    ownership + zero-connection check are the two collision guards; leftovers
+    are tolerated by design and picked up by the next session's sweep.
+    """
+    for name in sorted(_worker_dbs_created):
+        try:
+            if _db_has_active_connections(base_url, name):
+                logger.info(
+                    f"worker DB {name} still has connections; next session's sweep reclaims it"
+                )
+                continue
+        except psycopg2.Error as exc:
+            logger.warning(f"worker DB {name} liveness check failed ({exc}); leaving it in place")
+            continue
+        _drop_worker_database(base_url, name)
 
 
 def get_test_redis_url() -> str:
@@ -802,7 +1185,7 @@ def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
         import xdist
 
         worker_id = xdist.get_xdist_worker_id(request)
-    except (ImportError, AttributeError):
+    except ImportError, AttributeError:
         worker_id = "master"
 
     if worker_id != "master":
@@ -944,233 +1327,6 @@ def _apply_schema_to_database(db_url: str) -> None:
             )
     finally:
         engine.dispose()
-
-
-@pytest.fixture(scope="session")
-def template_database(
-    request: pytest.FixtureRequest, cleanup_stale_databases: None
-) -> Generator[str]:
-    """Create template database with full schema for worker copies.
-
-    This session-scoped fixture creates a template database once with the full
-    schema applied. Worker databases are then created as instant copies of this
-    template using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
-
-    NEM-4491: Uses advisory locks to prevent race conditions when multiple
-    test sessions try to create the template database concurrently.
-
-    Args:
-        request: pytest fixture request (for worker_id detection)
-        cleanup_stale_databases: Ensures stale databases are cleaned first
-
-    Yields:
-        Name of the template database ("template_test")
-    """
-    template_name = "template_test"
-
-    # Only master process creates the template database
-    try:
-        import xdist
-
-        worker_id = xdist.get_xdist_worker_id(request)
-    except (ImportError, AttributeError):
-        worker_id = "master"
-
-    if worker_id != "master":
-        # Workers just yield the template name - master already created it
-        yield template_name
-        return
-
-    # Check if PostgreSQL is available
-    if not _check_postgres_connection():
-        logger.warning("PostgreSQL not available, skipping template database creation")
-        yield template_name
-        return
-
-    try:
-        base_url = _get_base_database_url()
-        params = _parse_database_url(base_url)
-
-        conn = psycopg2.connect(
-            host=params["host"],
-            port=params["port"],
-            user=params["user"],
-            password=params["password"],
-            dbname="postgres",
-        )
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-        try:
-            with conn.cursor() as cur:
-                # NEM-4491: Acquire advisory lock to prevent race conditions
-                lock_key = _get_advisory_lock_key(template_name)
-                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
-
-                try:
-                    # Drop existing template database if it exists
-                    # First terminate any connections
-                    cur.execute(
-                        """
-                        SELECT pg_terminate_backend(pid)
-                        FROM pg_stat_activity
-                        WHERE datname = %s AND pid <> pg_backend_pid()
-                        """,
-                        (template_name,),
-                    )
-                    # Use sql.Identifier for safe escaping (NEM-4452)
-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
-                    cur.execute(
-                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(template_name))
-                    )
-
-                    # Create fresh template database
-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
-                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(template_name)))
-                    logger.info(f"Created template database: {template_name}")
-                finally:
-                    # Release advisory lock
-                    cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
-        finally:
-            conn.close()
-
-        # Apply schema to template database
-        template_url = _build_database_url(base_url, template_name)
-        _apply_schema_to_database(template_url)
-        logger.info(f"Applied schema to template database: {template_name}")
-
-        yield template_name
-
-    except Exception as e:
-        logger.error(f"Failed to create template database: {e}")
-        raise
-
-
-@pytest.fixture(scope="session")
-def worker_database(request: pytest.FixtureRequest, template_database: str) -> Generator[str]:
-    """Create isolated database for this xdist worker from template.
-
-    This session-scoped fixture creates a per-worker database by copying the
-    template database using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
-    This is nearly instant (filesystem copy) and provides complete isolation
-    between workers.
-
-    Database naming:
-    - gw0 -> test_db_gw0
-    - gw1 -> test_db_gw1
-    - master (non-xdist) -> test_db_main
-
-    NEM-4491: Uses advisory locks to prevent race conditions when multiple
-    test sessions try to create/drop worker databases concurrently.
-
-    Args:
-        request: pytest fixture request (for worker_id detection)
-        template_database: Name of the template database to copy from
-
-    Yields:
-        Full database URL for the worker's isolated database
-    """
-    # Get worker ID
-    try:
-        import xdist
-
-        worker_id = xdist.get_xdist_worker_id(request)
-    except (ImportError, AttributeError):
-        worker_id = "master"
-
-    # Use "main" for non-xdist runs for clarity
-    if worker_id == "master":
-        db_name = "test_db_main"
-    else:
-        db_name = f"test_db_{worker_id}"
-
-    # Check if PostgreSQL is available
-    if not _check_postgres_connection():
-        logger.warning("PostgreSQL not available, returning default URL")
-        yield DEFAULT_DEV_POSTGRES_URL
-        return
-
-    try:
-        base_url = _get_base_database_url()
-        params = _parse_database_url(base_url)
-
-        conn = psycopg2.connect(
-            host=params["host"],
-            port=params["port"],
-            user=params["user"],
-            password=params["password"],
-            dbname="postgres",
-        )
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-        try:
-            with conn.cursor() as cur:
-                # NEM-4491: Acquire advisory lock to prevent race conditions
-                lock_key = _get_advisory_lock_key(db_name)
-                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
-
-                try:
-                    # Terminate any existing connections to the worker database
-                    cur.execute(
-                        """
-                        SELECT pg_terminate_backend(pid)
-                        FROM pg_stat_activity
-                        WHERE datname = %s AND pid <> pg_backend_pid()
-                        """,
-                        (db_name,),
-                    )
-
-                    # Drop existing worker database if it exists
-                    # Use sql.Identifier for safe escaping (NEM-4452)
-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
-                    cur.execute(
-                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name))
-                    )
-
-                    # Create worker database from template (instant copy)
-                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
-                    cur.execute(
-                        sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(
-                            sql.Identifier(db_name),
-                            sql.Identifier(template_database),
-                        )
-                    )
-                    logger.info(
-                        f"Created worker database: {db_name} from template {template_database}"
-                    )
-                finally:
-                    # Release advisory lock
-                    cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
-        finally:
-            conn.close()
-
-        # Build and yield the worker database URL
-        worker_url = _build_database_url(base_url, db_name)
-        yield worker_url
-
-    except Exception as e:
-        logger.error(f"Failed to create worker database: {e}")
-        raise
-
-    finally:
-        # Cleanup: drop worker database at session end
-        # NEM-4491: Use advisory lock protected drop with retries
-        try:
-            conn = psycopg2.connect(
-                host=params["host"],
-                port=params["port"],
-                user=params["user"],
-                password=params["password"],
-                dbname="postgres",
-            )
-            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-            try:
-                with conn.cursor() as cur:
-                    _drop_database_with_lock(cur, db_name)
-            finally:
-                conn.close()
-        except Exception as e:
-            logger.warning(f"Failed to drop worker database {db_name}: {e}")
 
 
 # Track if schema has been reset this worker process to avoid redundant operations
@@ -1541,42 +1697,6 @@ async def isolated_db() -> AsyncGenerator[None]:
     get_settings.cache_clear()
 
 
-@pytest.fixture
-async def session(isolated_db: None) -> AsyncGenerator[None]:
-    """Create an isolated database session with transaction rollback for each test.
-
-    This fixture provides true isolation in parallel test execution by:
-    1. Starting a savepoint before each test
-    2. Rolling back to the savepoint after each test
-
-    All data created during the test is automatically rolled back, ensuring
-    parallel tests don't see each other's data.
-
-    Usage:
-        @pytest.mark.asyncio
-        async def test_something(session):
-            camera = Camera(id="test", name="Test")
-            session.add(camera)
-            await session.flush()
-            # Test assertions...
-            # Data is automatically rolled back after test
-    """
-    from sqlalchemy import text
-
-    from backend.core.database import get_session
-
-    async with get_session() as sess:
-        # Start a savepoint that we'll roll back to after the test
-        # This ensures test isolation without needing TRUNCATE
-        await sess.execute(text("SAVEPOINT test_savepoint"))
-
-        try:
-            yield sess
-        finally:
-            # Roll back to savepoint to undo all changes from this test
-            await sess.execute(text("ROLLBACK TO SAVEPOINT test_savepoint"))
-
-
 @pytest.fixture(autouse=True)
 def reset_settings_cache() -> Generator[None]:
     """Automatically reset settings cache and ensure required env vars before each test.
@@ -1695,35 +1815,6 @@ async def test_db() -> AsyncGenerator[None]:
 # =============================================================================
 # These fixtures are available to all tests (unit and integration).
 # Integration tests use module-scoped fixtures from backend/tests/integration/conftest.py
-
-
-@pytest.fixture
-async def mock_redis() -> AsyncGenerator[AsyncMock]:
-    """Mock Redis operations for tests that don't need real Redis.
-
-    This fixture provides a mock Redis client with common operations pre-configured:
-    - health_check: Returns healthy status
-
-    The mock is patched into backend.core.redis module.
-
-    Use this for unit tests that need to mock Redis behavior.
-    Integration tests should use the mock_redis or real_redis fixtures
-    from backend/tests/integration/conftest.py instead.
-    """
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    # Patch the shared singleton, initializer, and closer.
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
-    ):
-        yield mock_redis_client
 
 
 def unique_id(prefix: str = "test") -> str:
@@ -2384,117 +2475,145 @@ def scenario_by_type(synthetic_scenarios):
     }
 
 
-# =============================================================================
-# Enrichment Edge Case Fixtures (NEM-3232)
-# =============================================================================
+# ---------------------------------------------------------------------------
+# freezegun + SIGALRM leak guard (M3 T11; gate-20 forensics 2026-09-15)
+#
+# Gate 20 attempt 2 lost 13 unit tests on two workers with `Failed: Timeout
+# (>5.0s)` cascades. Root cause (proven from the poisoned gw's own tracebacks
+# + a forced reproduction with --timeout 0.05): pytest-timeout's signal method
+# fires SIGALRM on the MAIN thread at any bytecode boundary — including inside
+# freeze_time.__enter__/start() (the gw3 traceback shows the alarm landing
+# mid-start()) and inside async freeze bodies (abandoned coroutines never run
+# __exit__). Either way stop() never executes: the worker keeps
+# datetime=Fakedatetime / time.monotonic=fake_monotonic patched AND freezegun's
+# asyncio escape hatch (EventLoopClass.time = real_monotonic, installed at the
+# END of start()) never lands. Every later async test on that worker then
+# hangs in asyncio.sleep until ITS 5s alarm fires, and sync tests compute
+# against the frozen clock (attempt 2's dwell assert -63691200.0 ==
+# detected_at(2026-01-21 14:30 UTC) - leaked-now(2024-01-15 10:30), exactly).
+# One stray alarm poisons every remaining test on its worker.
+#
+# Two-layer guard, test infra only; a timed-out test still gets its own
+# verdict — this only stops ONE timeout cascading into a dozen inherited ones:
+#  1. start() made alarm-atomic: the running handler is swapped for a deferrer
+#     during start(), so start() can never be interrupted mid-patch; a fired
+#     alarm is re-delivered to the original handler AFTER the freeze window
+#     fully opened (the test still fails as timed-out; its __enter__ raised
+#     past start, and layer 2 unwinds the opened window below).
+#  2. per-phase repair: any window still open when a test phase finished is a
+#     leak (well-behaved freeze_time blocks close inside the test) — stopped
+#     via the _freeze_time owner saved by the wrapper, whose stop() unwinds
+#     exactly what start() patched, per-module attribute restorations
+#     included.
+# ---------------------------------------------------------------------------
+
+_FREEZE_OWNERS: list = []  # _freeze_time instances paired with freezegun's factory stacks
 
 
-@pytest.fixture
-def mock_threat_detector():
-    """Mock threat detector with controlled outputs.
+def _install_freezegun_alarm_guard() -> None:
+    """Wrap freezegun start/stop against mid-patch SIGALRM (idempotent)."""
+    import signal
 
-    Provides a mock threat detection model that returns predictable results
-    for testing enrichment pipeline threat detection logic.
+    import freezegun.api as fa
 
-    Returns:
-        MagicMock configured for threat detection
-    """
-    from unittest.mock import AsyncMock, MagicMock
+    if getattr(fa._freeze_time.start, "_alarm_guarded", False):
+        return
+    orig_start = fa._freeze_time.start
+    orig_stop = fa._freeze_time.stop
 
-    mock = MagicMock()
-    mock.detect = AsyncMock(
-        return_value=[
-            {
-                "threat_type": "weapon",
-                "confidence": 0.92,
-                "bbox": [100, 150, 80, 120],
-            }
-        ]
-    )
-    return mock
+    def guarded_start(self):  # mirrors freezegun's start() contract
+        fired: list = []
 
+        def _defer(sig, frame):  # never raises: start() must run atomically
+            fired.append((sig, frame))
 
-@pytest.fixture
-def mock_model_zoo(request):
-    """Configurable mock for entire model zoo.
+        prev = signal.signal(signal.SIGALRM, _defer)
+        try:
+            remaining = signal.setitimer(signal.ITIMER_REAL, 0)
+        except Exception:  # pragma: no cover - non-POSIX fallback
+            remaining = (0.0, 0.0)
+        try:
+            factory = orig_start(self)
+        except BaseException:
+            signal.signal(signal.SIGALRM, prev)
+            raise
+        _FREEZE_OWNERS.append(self)
+        signal.signal(signal.SIGALRM, prev)
+        if fired:
+            # alarm expired inside the guarded window: re-deliver to the real
+            # handler NOW (window fully open -> the handler's pytest.fail
+            # unwinds the test; layer 2 unwinds the freeze window at report
+            # time). No timer re-arm: pytest-timeout's one-shot is spent, and
+            # prev may be SIG_DFL/None (not callable) — deliver only to handlers.
+            if callable(prev):
+                prev(*fired[0])
+        elif remaining and remaining[0] > 0:
+            # still-pending timer: restore it with its original remaining budget
+            signal.setitimer(signal.ITIMER_REAL, remaining[0], remaining[1] or 0)
+        return factory
 
-    Provides a flexible mock ModelManager that can be configured per-test
-    to simulate different model availability and behavior scenarios.
-
-    Usage:
-        @pytest.mark.parametrize("mock_model_zoo", [
-            {"available_models": ["florence_2", "pose_estimation"]},
-        ], indirect=True)
-        def test_with_limited_models(mock_model_zoo):
-            # mock_model_zoo will only allow specified models
+    def guarded_stop(self):
+        orig_stop(self)
+        try:
+            _FREEZE_OWNERS.remove(self)
+        except ValueError:
             pass
 
-    Args:
-        request: pytest request fixture for parameterization
-
-    Returns:
-        MagicMock configured as ModelManager
-    """
-    from unittest.mock import AsyncMock, MagicMock
-
-    # Get configuration from parametrize (if provided)
-    config = getattr(request, "param", {})
-    available_models = config.get("available_models", None)
-
-    mock_manager = MagicMock()
-
-    async def mock_get_model(model_name: str):
-        """Mock get_model that respects available_models constraint."""
-        if available_models is not None and model_name not in available_models:
-            raise RuntimeError(f"Model {model_name} not available")
-        mock_model = MagicMock()
-        mock_model.predict = AsyncMock(return_value=[])
-        return mock_model
-
-    mock_manager.get_model = AsyncMock(side_effect=mock_get_model)
-    mock_manager.status = MagicMock(
-        return_value={
-            "loaded_models": available_models or [],
-            "total_loaded_vram_mb": 0,
-            "load_counts": {},
-        }
-    )
-
-    return mock_manager
+    guarded_start._alarm_guarded = True  # type: ignore[attr-defined]
+    fa._freeze_time.start = guarded_start  # type: ignore[method-assign]
+    fa._freeze_time.stop = guarded_stop  # type: ignore[method-assign]
 
 
-@pytest.fixture
-def enrichment_scenarios():
-    """Load enrichment edge case scenarios for testing.
-
-    Provides access to pre-generated enrichment edge case scenarios including:
-    - Multi-threat scenarios
-    - Rare pose scenarios
-    - Boundary confidence scenarios
-    - OCR failure scenarios
-    - VRAM stress scenarios
-
-    Returns:
-        Dict mapping scenario type to list of ScenarioBundle instances
-
-    Raises:
-        pytest.skip: If scenario generation tools are not available
-    """
+def _repair_freeze_leaks(when: str, nodeid: str) -> int:
+    """Force-stop leaked freeze windows; returns the repaired count."""
     try:
-        from tools.nemo_data_designer.enrichment_scenarios import (
-            generate_boundary_confidence_scenarios,
-            generate_multi_threat_scenarios,
-            generate_ocr_failure_scenarios,
-            generate_rare_pose_scenarios,
-            generate_vram_stress_scenarios,
-        )
-    except ImportError:
-        pytest.skip("Enrichment scenario generators not available")
+        import freezegun.api as fa
+    except ImportError:  # pragma: no cover - freezegun is a hard dev dep
+        return 0
+    repaired = 0
+    while fa.freeze_factories:
+        if _FREEZE_OWNERS:
+            _FREEZE_OWNERS[-1].stop()  # unwinds start() fully (wrapped: pops ours too)
+        else:  # pragma: no cover - only if the guard failed to pair
+            fa.freeze_factories.pop()
+            fa.ignore_lists.pop()
+            fa.tick_flags.pop()
+            fa.tz_offsets.pop()
+            if not fa.freeze_factories:
+                import copyreg
+                import datetime as _dt
+                import time as _time
 
-    return {
-        "multi_threat": generate_multi_threat_scenarios(count=5),
-        "rare_pose": generate_rare_pose_scenarios(count=5),
-        "boundary_confidence": generate_boundary_confidence_scenarios(count=5),
-        "ocr_failure": generate_ocr_failure_scenarios(count=5),
-        "vram_stress": generate_vram_stress_scenarios(count=3),
-    }
+                _dt.datetime = fa.real_datetime
+                _dt.date = fa.real_date
+                copyreg.dispatch_table.pop(fa.real_datetime, None)
+                copyreg.dispatch_table.pop(fa.real_date, None)
+                _time.time = fa.real_time
+                _time.monotonic = fa.real_monotonic
+                _time.perf_counter = fa.real_perf_counter
+                _time.localtime = fa.real_localtime
+                _time.gmtime = fa.real_gmtime
+                _time.strftime = fa.real_strftime
+        repaired += 1
+    if repaired:
+        warnings.warn(
+            f"freezegun leak guard: force-stopped {repaired} leaked freeze window(s) "
+            f"after {when} of {nodeid} (SIGALRM landed inside a freeze_time window)",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    return repaired
+
+
+@pytest.hookimpl
+def pytest_collection_finish(session: pytest.Session) -> None:
+    # NOTE: this conftest already defines pytest_configure (:260); installing
+    # here instead of shadowing it. Collection is complete, no test started.
+    _install_freezegun_alarm_guard()
+    _repair_freeze_leaks("collection", "<startup>")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    """Repair leaked freezegun state after every test phase (see block above)."""
+    _repair_freeze_leaks(report.when, report.nodeid)

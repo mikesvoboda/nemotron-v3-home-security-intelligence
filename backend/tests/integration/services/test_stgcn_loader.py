@@ -46,9 +46,12 @@ class TestSTGCNLoaderIntegration:
 
     def test_adjacency_matrix_construction(self) -> None:
         """Test COCO skeleton adjacency matrix is valid."""
-        from backend.services.stgcn_loader import build_coco_adjacency
+        # Shipped name is _build_coco_adjacency (stgcn_loader.py:166) —
+        # the public surface is load_stgcn_model(); the matrix builder is
+        # module-private (ledger R-T9-STGCN).
+        from backend.services.stgcn_loader import _build_coco_adjacency
 
-        adj = build_coco_adjacency()
+        adj = _build_coco_adjacency()
         assert adj.shape == (3, 17, 17)
         # Self-connections on diagonal
         for i in range(17):

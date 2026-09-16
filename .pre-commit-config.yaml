@@ -112,16 +112,20 @@ repos:
           - --error
         types: [python]
         # Exclude mutants/, test_database_isolation.py (uses intentional raw SQL for advisory locks),
+        # test_database_failover.py (text("SELECT 1") is a connection health probe, not user input),
         # conftest.py (table names come from SQLAlchemy reflection, not user input),
         # helpers.py (migration DDL operations require raw SQL),
         # nemo_data_designer (synthetic test data generation intentionally uses random),
         # and vehicle_classifier_loader.py (file path is from internal model directory, not user input)
-        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/|backend/services/vehicle_classifier_loader\.py$)
+        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/test_database_failover\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/|backend/services/vehicle_classifier_loader\.py$)
 
   # Python - Ruff (fast linter + formatter)
   # NOTE: Keep in sync with uv.lock ruff version for consistent behavior
+  # rev tracks the ruff version in uv.lock (CI runs `uv run ruff` from the
+  # lock; a stale rev here re-lints staged files under an older rule set and
+  # can diverge both directions — false passes AND unparseable new rule codes)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.3
+    rev: v0.16.7
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -132,15 +136,18 @@ repos:
         exclude: ^mutants/
 
   # Python - Type checking with mypy
+  # rev + additional_dependencies track uv.lock so the hook and CI's
+  # `uv run mypy` see identical stubs (unpinned deps here drifted the hook
+  # away from CI verdicts)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+    rev: v2.3.1
     hooks:
       - id: mypy
         additional_dependencies:
-          - pydantic
-          - sqlalchemy
-          - fastapi
-          - redis
+          - pydantic==2.13.5
+          - sqlalchemy==2.0.53
+          - fastapi==0.141.1
+          - redis==8.1.0
           - types-PyYAML
         args: [--ignore-missing-imports]
         files: ^backend/
@@ -229,6 +236,13 @@ repos:
         language: system
         files: ^frontend/(package\.json|package-lock\.json)$
         pass_filenames: false
+
+      - id: version-consistency
+        name: Check runtime versions agree with .nvmrc/.python-version
+        entry: ./scripts/check-version-consistency.sh
+        language: system
+        pass_filenames: false
+        always_run: true
 
   # Test validation hooks
   # NOTE: Full test suite runs in CI. Pre-commit focuses on fast lint/format checks.

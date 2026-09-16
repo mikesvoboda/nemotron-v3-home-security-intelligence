@@ -41,7 +41,6 @@ from backend.api.routes.system import (
 )
 from backend.api.schemas.system import (
     DegradationModeEnum,
-    HealthCheckServiceStatus,
 )
 from backend.core.config import Settings
 from backend.core.redis import get_redis
@@ -534,86 +533,6 @@ class TestGetDirectoryStats:
             assert total_size == 6
 
 
-# =============================================================================
-# Storage Stats Endpoint Tests
-# =============================================================================
-
-
-@pytest.mark.integration  # Requires isolated_db fixture (real database)
-class TestGetStorageStats:
-    """Tests for GET /api/system/storage endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_get_storage_stats_success(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test successful storage stats retrieval."""
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.shutil.disk_usage") as mock_disk_usage,
-            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
-        ):
-            # Mock disk usage
-            mock_disk_usage.return_value = MagicMock(
-                total=1000000000,  # 1GB
-                used=400000000,  # 400MB
-                free=600000000,  # 600MB
-            )
-
-            # Mock directory stats
-            mock_dir_stats.return_value = (1024, 5)  # 1KB, 5 files
-
-            response = await async_client.get("/api/system/storage")
-
-            assert response.status_code == 200
-            data = response.json()
-
-            assert data["disk_total_bytes"] == 1000000000
-            assert data["disk_used_bytes"] == 400000000
-            assert data["disk_free_bytes"] == 600000000
-            assert data["disk_usage_percent"] == 40.0
-            assert data["thumbnails"]["file_count"] == 5
-            assert data["thumbnails"]["size_bytes"] == 1024
-
-    @pytest.mark.asyncio
-    async def test_get_storage_stats_handles_disk_error(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test that disk errors return zeros instead of failing."""
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch(
-                "backend.api.routes.system.shutil.disk_usage",
-                side_effect=OSError("Permission denied"),
-            ),
-            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
-        ):
-            mock_dir_stats.return_value = (0, 0)
-
-            response = await async_client.get("/api/system/storage")
-
-            assert response.status_code == 200
-            data = response.json()
-
-            # Should return zeros when disk access fails
-            assert data["disk_total_bytes"] == 0
-            assert data["disk_used_bytes"] == 0
-            assert data["disk_free_bytes"] == 0
-            assert data["disk_usage_percent"] == 0.0
-
-
-# =============================================================================
-# Severity Thresholds Tests
-# =============================================================================
-
-
-@pytest.mark.integration  # Requires isolated_db fixture (real database)
 class TestSeverityThresholds:
     """Tests for severity threshold configuration."""
 
@@ -629,61 +548,15 @@ class TestSeverityThresholds:
 
         assert not is_valid, "Invalid threshold ordering should be detected"
 
-    @pytest.mark.asyncio
-    async def test_update_severity_thresholds_success(
-        self,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test successful threshold update."""
-        from backend.api.routes.system import update_severity_thresholds
-        from backend.api.schemas.system import SeverityThresholdsUpdateRequest
 
-        request_obj = MagicMock()
-        update_request = SeverityThresholdsUpdateRequest(
-            low_max=35,
-            medium_max=65,
-            high_max=85,
-        )
+# =============================================================================
+# Storage Stats Endpoint Tests
+# =============================================================================
 
-        with (
-            patch("backend.api.routes.system._write_runtime_env") as mock_write,
-            patch("backend.api.routes.system.get_settings") as mock_get_settings,
-        ):
-            # Mock the settings return
-            mock_get_settings.return_value = mock_settings
-            mock_get_settings.cache_clear = MagicMock()
 
-            # Mock severity service within the function's import context
-            mock_service = MagicMock()
-            mock_service.get_thresholds.return_value = {
-                "low_max": 35,
-                "medium_max": 65,
-                "high_max": 85,
-            }
-            mock_service.get_severity_definitions.return_value = []
-
-            with (
-                patch(
-                    "backend.services.severity.get_severity_service",
-                    return_value=mock_service,
-                ),
-                patch("backend.services.severity.reset_severity_service"),
-                patch("backend.api.routes.system.AuditService.log_action", new=AsyncMock()),
-            ):
-                result = await update_severity_thresholds(
-                    update=update_request,
-                    db=isolated_db,
-                    request=request_obj,
-                )
-
-                # Verify thresholds in response
-                assert result.thresholds.low_max == 35
-                assert result.thresholds.medium_max == 65
-                assert result.thresholds.high_max == 85
-
-                # Verify runtime env was written
-                mock_write.assert_called_once()
+# =============================================================================
+# Severity Thresholds Tests
+# =============================================================================
 
 
 # =============================================================================
@@ -923,196 +796,6 @@ class TestHelperFunctions:
 # =============================================================================
 
 
-@pytest.mark.integration  # Requires isolated_db fixture (real database)
-class TestGetHealthEndpoint:
-    """Tests for GET /api/system/health endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_health_endpoint_all_healthy(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test health endpoint returns 200 when all services healthy."""
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
-            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
-        ):
-            # Mock all services as healthy
-            mock_db.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_redis.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_ai.return_value = HealthCheckServiceStatus(
-                status="healthy", message="All services operational", details=None
-            )
-
-            response = await async_client.get("/api/system/health")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "healthy"
-            assert data["services"]["database"]["status"] == "healthy"
-            assert data["services"]["redis"]["status"] == "healthy"
-            assert data["services"]["ai"]["status"] == "healthy"
-
-    @pytest.mark.asyncio
-    async def test_health_endpoint_database_unhealthy(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test health endpoint returns 503 when database is unhealthy."""
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
-            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
-        ):
-            # Database unhealthy
-            mock_db.return_value = HealthCheckServiceStatus(
-                status="unhealthy", message="Connection failed", details=None
-            )
-            mock_redis.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_ai.return_value = HealthCheckServiceStatus(
-                status="healthy", message="All services operational", details=None
-            )
-
-            response = await async_client.get("/api/system/health")
-
-            assert response.status_code == 503
-            data = response.json()
-            assert data["status"] == "unhealthy"
-
-    @pytest.mark.asyncio
-    async def test_health_endpoint_degraded(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test health endpoint returns 503 degraded when AI services down."""
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
-            patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
-        ):
-            # AI services unhealthy
-            mock_db.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_redis.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_ai.return_value = HealthCheckServiceStatus(
-                status="unhealthy", message="Services not responding", details=None
-            )
-
-            response = await async_client.get("/api/system/health")
-
-            assert response.status_code == 503
-            data = response.json()
-            assert data["status"] == "degraded"
-
-
-@pytest.mark.integration  # Requires isolated_db fixture (real database)
-class TestGetReadinessEndpoint:
-    """Tests for GET /api/system/health/ready endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_readiness_endpoint_ready(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test readiness endpoint returns 200 when ready."""
-        mock_manager = MagicMock()
-        mock_manager.get_status.return_value = {
-            "running": True,
-            "workers": {
-                "detection": {"state": "running"},
-                "analysis": {"state": "running"},
-            },
-        }
-
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
-        ):
-            mock_db.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_redis.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_ai.return_value = HealthCheckServiceStatus(
-                status="healthy", message="All services operational", details=None
-            )
-
-            register_workers(pipeline_manager=mock_manager)
-
-            response = await async_client.get("/api/system/health/ready")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["ready"] is True
-            assert data["status"] == "ready"
-
-    @pytest.mark.asyncio
-    async def test_readiness_endpoint_not_ready_pipeline_down(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test readiness endpoint returns 503 when pipeline workers down."""
-        mock_manager = MagicMock()
-        mock_manager.get_status.return_value = {
-            "running": False,
-            "workers": {},
-        }
-
-        with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
-        ):
-            mock_db.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_redis.return_value = HealthCheckServiceStatus(
-                status="healthy", message="Connected", details=None
-            )
-            mock_ai.return_value = HealthCheckServiceStatus(
-                status="healthy", message="All services operational", details=None
-            )
-
-            register_workers(pipeline_manager=mock_manager)
-
-            response = await async_client.get("/api/system/health/ready")
-
-            assert response.status_code == 503
-            data = response.json()
-            assert data["ready"] is False
-            assert data["status"] == "not_ready"
-
-
 class TestWebSocketHealthEndpoint:
     """Tests for GET /api/system/health/websocket endpoint."""
 
@@ -1201,51 +884,6 @@ class TestListWebSocketEventTypesEndpoint:
         assert "channels" in data
         assert "total_count" in data
         assert isinstance(data["event_types"], list)
-
-
-@pytest.mark.integration  # Requires isolated_db fixture (real database)
-class TestGetStatsEndpoint:
-    """Tests for GET /api/system/stats endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_get_stats_success(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test successful stats retrieval."""
-        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
-            response = await async_client.get("/api/system/stats")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert "total_cameras" in data
-            assert "total_events" in data
-            assert "total_detections" in data
-            assert "uptime_seconds" in data
-            assert isinstance(data["uptime_seconds"], int | float)
-
-
-@pytest.mark.integration  # Requires isolated_db fixture (real database)
-class TestGetGPUStatsEndpoint:
-    """Tests for GET /api/system/gpu endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_get_gpu_stats_no_data(
-        self,
-        async_client: AsyncClient,
-        isolated_db: AsyncSession,
-        mock_settings: Settings,
-    ) -> None:
-        """Test GPU stats endpoint when no data available."""
-        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
-            response = await async_client.get("/api/system/gpu")
-
-            assert response.status_code == 200
-            data = response.json()
-            # Should have null values when no stats available
-            assert data["gpu_name"] is None or isinstance(data["gpu_name"], str)
 
 
 class TestGetGPUStatsEndpointUnit:

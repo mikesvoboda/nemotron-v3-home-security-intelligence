@@ -227,10 +227,7 @@ const WorkerActionConfirmDialog = memo(function WorkerActionConfirmDialog({
                   data-testid="warning-icon"
                 />
               ) : (
-                <Info
-                  className="h-6 w-6 flex-shrink-0 text-[#76B900]"
-                  data-testid="info-icon"
-                />
+                <Info className="h-6 w-6 flex-shrink-0 text-[#76B900]" data-testid="info-icon" />
               )}
               <div>
                 <h2 id={titleId} className="text-lg font-semibold text-white">

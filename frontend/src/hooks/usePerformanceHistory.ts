@@ -51,9 +51,7 @@ export interface UsePerformanceHistoryResult {
  * return <Chart data={snapshots} />;
  * ```
  */
-export function usePerformanceHistory(
-  timeRange: TimeRange = '5m'
-): UsePerformanceHistoryResult {
+export function usePerformanceHistory(timeRange: TimeRange = '5m'): UsePerformanceHistoryResult {
   const [snapshots, setSnapshots] = useState<PerformanceSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

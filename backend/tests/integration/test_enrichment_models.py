@@ -822,6 +822,13 @@ class TestEnrichmentCascadeDelete:
         await session.delete(detection)
         await session.flush()
 
+        # The cascade fires in Postgres (FKs ship ondelete="CASCADE"); the
+        # ORM does not evict child instances from the identity map, so a
+        # bare session.get() would return the stale in-memory row instead of
+        # observing the deletion (R-T9-ENRICHCASCADE). Expire first, then
+        # session.get re-SELECTs against the database.
+        session.expire_all()
+
         # Verify all enrichment results are deleted
         assert await session.get(PoseResult, pose_id) is None
         assert await session.get(ThreatDetection, threat_id) is None

@@ -23,7 +23,7 @@ Before starting, ensure you have the following installed:
 | Requirement    | Minimum Version         | Check Command                            | Notes                 |
 | -------------- | ----------------------- | ---------------------------------------- | --------------------- |
 | **Python**     | 3.14+                   | `python3 --version`                      | Required for backend  |
-| **Node.js**    | 20.19+ or 22.12+        | `node --version`                         | Required for frontend |
+| **Node.js**    | 24 LTS, 22.12+ accepted | `node --version`                         | Required for frontend |
 | **npm**        | 9+                      | `npm --version`                          | Comes with Node.js    |
 | **Git**        | 2.x                     | `git --version`                          | Version control       |
 | **Container**  | Docker 20+ or Podman 4+ | `docker --version` or `podman --version` | Docker or Podman      |

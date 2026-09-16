@@ -49,8 +49,7 @@ export const plateSearchQueryKeys = {
       ? ([...plateSearchQueryKeys.all, 'list', filters] as const)
       : ([...plateSearchQueryKeys.all, 'list'] as const),
   /** Search by text with params */
-  byText: (params: PlateSearchParams) =>
-    [...plateSearchQueryKeys.all, 'search', params] as const,
+  byText: (params: PlateSearchParams) => [...plateSearchQueryKeys.all, 'search', params] as const,
 };
 
 // ============================================================================
@@ -214,12 +213,7 @@ export function usePlateSearchQuery(
   filters: PlateSearchFilters = {},
   options: UsePlateSearchQueryOptions = {}
 ): UsePlateSearchQueryReturn {
-  const {
-    enabled = true,
-    staleTime = DEFAULT_STALE_TIME,
-    retry = 1,
-    debounceMs = 300,
-  } = options;
+  const { enabled = true, staleTime = DEFAULT_STALE_TIME, retry = 1, debounceMs = 300 } = options;
 
   // Debounce the search text to avoid excessive API calls
   const debouncedText = useDebouncedValue(filters.text ?? '', debounceMs);

@@ -99,7 +99,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
         typeof errorBody === 'object' &&
         errorBody !== null &&
         'detail' in errorBody &&
-        typeof (errorBody as { detail: unknown }).detail === 'string'
+        typeof errorBody.detail === 'string'
       ) {
         detail = (errorBody as { detail: string }).detail;
       }

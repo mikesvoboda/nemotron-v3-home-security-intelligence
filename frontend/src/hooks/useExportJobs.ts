@@ -258,10 +258,7 @@ export function useExportJobStatus(
   });
 
   // Find this job in the active WebSocket jobs
-  const wsJobState = useMemo(
-    () => activeJobs.find((j) => j.job_id === jobId),
-    [activeJobs, jobId]
-  );
+  const wsJobState = useMemo(() => activeJobs.find((j) => j.job_id === jobId), [activeJobs, jobId]);
 
   const query = useQuery<ExportJob, Error>({
     queryKey: exportJobsQueryKeys.detail(jobId),

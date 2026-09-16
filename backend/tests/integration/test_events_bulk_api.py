@@ -84,12 +84,20 @@ class TestBulkCreateEvents:
 
     @pytest.mark.asyncio
     async def test_bulk_create_events_success(self, async_client, sample_camera):
-        """Test successful bulk creation of events."""
-        batch_id = str(uuid.uuid4())
+        """Test successful bulk creation of events.
+
+        One batch_id PER event (ledger R-T9-BULKEVENTS): Event.batch_id ships
+        unique=True (models/event.py:52). The old shared batch_id made the
+        second flush raise IntegrityError, which aborts the whole Postgres
+        transaction — the endpoint's per-item catch marks item 2 failed, but
+        the poisoned transaction then fails the commit, so the endpoint flips
+        ALL results to failed ('Transaction commit failed') and the response
+        reports succeeded=0 (wave I-9 'assert 0 == 2').
+        """
         events_data = {
             "events": [
                 {
-                    "batch_id": batch_id,
+                    "batch_id": str(uuid.uuid4()),
                     "camera_id": sample_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 75,
@@ -97,7 +105,7 @@ class TestBulkCreateEvents:
                     "summary": "Test event 1",
                 },
                 {
-                    "batch_id": batch_id,
+                    "batch_id": str(uuid.uuid4()),
                     "camera_id": sample_camera.id,
                     "started_at": datetime.now(UTC).isoformat(),
                     "risk_score": 25,

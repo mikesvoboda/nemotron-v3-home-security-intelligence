@@ -118,7 +118,10 @@ def _build_mock_redis_with_candidates(
     async def mock_get(key: str) -> str | None:
         return storage.get(key)
 
-    async def mock_zrangebyscore(key: str, min: float, max: float) -> list[bytes]:
+    # Keyword names must match the shipped RedisClient.zrangebyscore wrapper
+    # (core/redis.py:1360 — min_score/max_score), which is what
+    # batch_coalescer.find_compatible_candidates calls with (ledger R-T9-COALESCER).
+    async def mock_zrangebyscore(key: str, min_score: float, max_score: float) -> list[bytes]:
         # Return all candidate batch_ids as bytes (simulating Redis sorted set)
         return [c.batch_id.encode() for c in candidates]
 

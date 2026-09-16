@@ -331,7 +331,9 @@ class DemographicsEstimator:
                 qscheme=torch.per_channel_symmetric,
             ),
         )
-        model.qconfig = vit_qconfig
+        # Module.__setattr__ stubs type arbitrary attrs as Tensor|Module; qconfig is a
+        # real nn.Module attribute torch's eager quantization API sets this way.
+        model.qconfig = vit_qconfig  # type: ignore[assignment]  # torch Module.__setattr__ stub drift
         model = ao_quantization.prepare(model, inplace=False)
         model = ao_quantization.convert(model, inplace=False)
 

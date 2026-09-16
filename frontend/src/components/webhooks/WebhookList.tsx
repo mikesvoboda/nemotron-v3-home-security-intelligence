@@ -12,13 +12,7 @@
  */
 
 import { clsx } from 'clsx';
-import {
-  Edit,
-  ExternalLink,
-  MoreVertical,
-  Play,
-  Trash2,
-} from 'lucide-react';
+import { Edit, ExternalLink, MoreVertical, Play, Trash2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import {
@@ -30,11 +24,7 @@ import {
 } from '../../types/webhook';
 import EmptyState from '../common/EmptyState';
 
-import type {
-  Webhook,
-  WebhookEventType,
-  IntegrationType,
-} from '../../types/webhook';
+import type { Webhook, WebhookEventType, IntegrationType } from '../../types/webhook';
 
 export interface WebhookListProps {
   /** List of webhooks to display */
@@ -107,10 +97,7 @@ function EventTypeBadges({ eventTypes }: { eventTypes: WebhookEventType[] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {visible.map((type) => (
-        <span
-          key={type}
-          className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300"
-        >
+        <span key={type} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
           {WEBHOOK_EVENT_LABELS[type]}
         </span>
       ))}
@@ -138,9 +125,7 @@ function SuccessRateBadge({ webhook }: { webhook: Webhook }) {
       : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
 
   return (
-    <span
-      className={`rounded border px-2 py-0.5 text-xs font-medium ${colorClasses}`}
-    >
+    <span className={`rounded border px-2 py-0.5 text-xs font-medium ${colorClasses}`}>
       {rate}%
     </span>
   );
@@ -176,13 +161,10 @@ function ActionDropdown({
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleAction = useCallback(
-    (action: () => void) => {
-      action();
-      setIsOpen(false);
-    },
-    []
-  );
+  const handleAction = useCallback((action: () => void) => {
+    action();
+    setIsOpen(false);
+  }, []);
 
   return (
     <div className="relative">
@@ -200,11 +182,7 @@ function ActionDropdown({
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-            aria-hidden="true"
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} aria-hidden="true" />
 
           {/* Dropdown menu */}
           <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-gray-700 bg-[#1A1A1A] py-1 shadow-xl">
@@ -339,10 +317,7 @@ export default function WebhookList({
 
                   {/* URL */}
                   <td className="px-4 py-4">
-                    <p
-                      className="max-w-[200px] truncate text-sm text-gray-300"
-                      title={webhook.url}
-                    >
+                    <p className="max-w-[200px] truncate text-sm text-gray-300" title={webhook.url}>
                       {webhook.url}
                     </p>
                   </td>

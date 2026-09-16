@@ -34,7 +34,9 @@ export const plateReadsQueryKeys = {
   all: ['plate-reads'] as const,
   /** List of plate reads with optional filters */
   list: (filters?: PlateReadFilters) =>
-    filters ? ([...plateReadsQueryKeys.all, 'list', filters] as const) : ([...plateReadsQueryKeys.all, 'list'] as const),
+    filters
+      ? ([...plateReadsQueryKeys.all, 'list', filters] as const)
+      : ([...plateReadsQueryKeys.all, 'list'] as const),
 };
 
 /**

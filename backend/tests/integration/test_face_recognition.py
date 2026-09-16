@@ -1,6 +1,11 @@
 """Integration tests for face recognition API endpoints.
 
 Tests verify API routes work correctly with database and services.
+
+List endpoints answer with {items, ...} wrappers (KnownPersonListResponse /
+FaceDetectionEventListResponse / UnknownStrangerListResponse response_models
+on the routes), not bare JSON arrays — empty-list assertions read data["items"]
+(ledger R-T7-FACERECOG).
 """
 
 import pytest
@@ -23,8 +28,8 @@ class TestKnownPersonsAPIIntegration:
         response = await async_client.get("/api/known-persons")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert data == []
+        assert isinstance(data, dict)
+        assert data["items"] == []
 
     @pytest.mark.asyncio
     async def test_get_known_person_returns_404_when_not_found(self, async_client: AsyncClient):
@@ -57,8 +62,8 @@ class TestFaceEventsAPIIntegration:
         response = await async_client.get("/api/face-events")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert data == []
+        assert isinstance(data, dict)
+        assert data["items"] == []
 
     @pytest.mark.asyncio
     async def test_list_unknown_faces_returns_empty_list(self, async_client: AsyncClient):
@@ -66,5 +71,5 @@ class TestFaceEventsAPIIntegration:
         response = await async_client.get("/api/face-events/unknown")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert data == []
+        assert isinstance(data, dict)
+        assert data["items"] == []

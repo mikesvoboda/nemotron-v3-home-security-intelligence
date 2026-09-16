@@ -29,24 +29,30 @@ import asyncio
 import contextlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TypedDict
 
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.core.logging import get_logger, sanitize_error  # noqa: F401
+from backend.core.redis import RedisClient
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.models.log import Log
+from backend.services.job_status import JobStatusService
+from backend.services.job_tracker import JobTracker
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from backend.core.redis import RedisClient
-    from backend.services.job_status import JobStatusService
-    from backend.services.job_tracker import JobTracker
+# NOTE: these are RUNTIME imports on purpose — pyproject ignores ruff TC001/
+# TC002/TC003 exactly because TYPE_CHECKING-only imports of names used in
+# method signatures crash annotation evaluation under Python 3.14's lazy
+# __annotate__ (NameError when MagicMock(spec=)/get_type_hints force eval).
+# CleanupService.__init__'s redis_client: RedisClient | None poisoned
+# ~20 MagicMock(spec=CleanupService) sites in test_system_routes.py whenever
+# the evaluation landed on the same xdist worker — the intermittent
+# Backend Unit Tests 1/4 & 4/4 CI flakes (9ee4ebb9, efaa6366).
 
 logger = get_logger(__name__)
 

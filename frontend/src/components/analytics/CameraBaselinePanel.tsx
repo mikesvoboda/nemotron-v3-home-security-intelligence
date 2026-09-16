@@ -106,10 +106,7 @@ function formatDate(dateStr: string): string {
  * - Current deviation status with interpretation
  * - Contributing factors for anomalies
  */
-export default function CameraBaselinePanel({
-  cameraId,
-  cameraName,
-}: CameraBaselinePanelProps) {
+export default function CameraBaselinePanel({ cameraId, cameraName }: CameraBaselinePanelProps) {
   // Fetch baseline summary and activity data
   const baselineQuery = useCameraBaselineQuery(cameraId);
   const activityQuery = useCameraActivityBaselineQuery(cameraId);
@@ -169,16 +166,16 @@ export default function CameraBaselinePanel({
         className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-6"
         data-testid="camera-baseline-panel"
       >
-        <div className="flex items-center gap-2 mb-4">
+        <div className="mb-4 flex items-center gap-2">
           <Activity className="h-5 w-5 text-[#76B900]" />
           <h3 className="text-lg font-semibold text-white">{cameraName}</h3>
         </div>
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <Calendar className="h-12 w-12 text-gray-600 mb-4" />
+          <Calendar className="mb-4 h-12 w-12 text-gray-600" />
           <h4 className="text-lg font-medium text-gray-300">No Baseline Data Yet</h4>
           <p className="mt-2 max-w-sm text-sm text-gray-500">
-            Baseline data will be collected automatically as the camera captures activity.
-            Check back after a few days of operation.
+            Baseline data will be collected automatically as the camera captures activity. Check
+            back after a few days of operation.
           </p>
         </div>
       </div>
@@ -188,10 +185,7 @@ export default function CameraBaselinePanel({
   const deviation = baselineData?.current_deviation;
 
   return (
-    <div
-      className="space-y-4"
-      data-testid="camera-baseline-panel"
-    >
+    <div className="space-y-4" data-testid="camera-baseline-panel">
       {/* Header with camera name and stats */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -205,7 +199,8 @@ export default function CameraBaselinePanel({
             </span>
             {baselineData.baseline_established && (
               <span>
-                Since <span className="text-white">{formatDate(baselineData.baseline_established)}</span>
+                Since{' '}
+                <span className="text-white">{formatDate(baselineData.baseline_established)}</span>
               </span>
             )}
           </div>
@@ -220,7 +215,12 @@ export default function CameraBaselinePanel({
         >
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className={clsx('flex items-center gap-2', getDeviationColor(deviation.interpretation))}>
+              <div
+                className={clsx(
+                  'flex items-center gap-2',
+                  getDeviationColor(deviation.interpretation)
+                )}
+              >
                 {getDeviationIcon(deviation.interpretation)}
                 <span className="font-medium">
                   {formatInterpretation(deviation.interpretation)}
@@ -234,7 +234,9 @@ export default function CameraBaselinePanel({
 
           {deviation.contributing_factors.length > 0 && (
             <div className="mt-3 border-t border-gray-800 pt-3">
-              <span className="text-xs uppercase tracking-wider text-gray-500">Contributing Factors</span>
+              <span className="text-xs uppercase tracking-wider text-gray-500">
+                Contributing Factors
+              </span>
               <div className="mt-2 flex flex-wrap gap-2">
                 {deviation.contributing_factors.map((factor) => (
                   <span

@@ -29,6 +29,12 @@ import numpy as np
 import pytest
 from PIL import Image
 
+# Load/performance tests verify latency, memory, and throughput budgets that
+# are tuned for scheduled jobs, not PR gates: the marker excludes this module
+# from default -m expressions while keeping it runnable via dedicated
+# path-scoped workflows (load-tests.yml) and explicit invocations.
+pytestmark = pytest.mark.load
+
 # =============================================================================
 # Test Data Generators
 # =============================================================================
@@ -457,7 +463,12 @@ class TestXCLIPConcurrency:
         mock_param = MagicMock()
         mock_param.device = "cpu"
         mock_param.dtype = MagicMock()
-        mock_model.parameters.return_value = iter([mock_param, mock_param])
+        # side_effect (not return_value): each .parameters() call needs a
+        # FRESH iterator — a shared iter() exhausts after the first pass and
+        # raises StopIteration inside the next coroutine, which asyncio
+        # converts to RuntimeError (PEP 479). transformers v5's device/dtype
+        # probe walks parameters() more than once per classify_actions call.
+        mock_model.parameters.side_effect = lambda: iter([mock_param, mock_param])
 
         # Configure processor output with valid tensor shape
         mock_pixel_values = MagicMock()

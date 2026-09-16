@@ -15,10 +15,7 @@ import { clsx } from 'clsx';
 import { PieChart, Users } from 'lucide-react';
 import { memo } from 'react';
 
-import {
-  getEntityTypeColor,
-  getEntityTypeLabel,
-} from '../../hooks/useZoneEntityDistribution';
+import { getEntityTypeColor, getEntityTypeLabel } from '../../hooks/useZoneEntityDistribution';
 
 import type { ZoneEntityDistribution } from '../../hooks/useZoneEntityDistribution';
 
@@ -63,7 +60,7 @@ function EntityTypeRow({ entityType, count, percentage }: EntityTypeRowProps) {
     <div className="space-y-1" data-testid={`entity-type-${entityType}`}>
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-300">{label}</span>
-        <span className="text-white font-medium">
+        <span className="font-medium text-white">
           {count} <span className="text-gray-500">({percentage.toFixed(1)}%)</span>
         </span>
       </div>
@@ -115,7 +112,7 @@ function EmptyState() {
       className="flex flex-col items-center justify-center py-6 text-gray-400"
       data-testid="empty-state"
     >
-      <Users className="h-8 w-8 mb-2 opacity-50" />
+      <Users className="mb-2 h-8 w-8 opacity-50" />
       <p className="text-sm">No entities detected</p>
     </div>
   );
@@ -177,7 +174,7 @@ function ZoneEntityDistributionCardComponent({
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <PieChart className="h-4 w-4 text-[#76B900]" aria-hidden="true" />
-              <h3 className="font-medium text-white truncate" title={distribution.zone_name}>
+              <h3 className="truncate font-medium text-white" title={distribution.zone_name}>
                 {distribution.zone_name}
               </h3>
             </div>

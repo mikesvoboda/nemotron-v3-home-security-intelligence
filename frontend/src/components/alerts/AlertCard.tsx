@@ -93,7 +93,6 @@ const AlertCard = memo(function AlertCard({
   onSelectChange,
   snooze_until,
 }: AlertCardProps) {
-
   /**
    * Handle acknowledge action with version_id for optimistic locking
    * @see NEM-3626
@@ -284,11 +283,7 @@ const AlertCard = memo(function AlertCard({
               className="flex items-center gap-1.5 rounded-md bg-gray-700/50 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Dismiss alert"
             >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <X className="h-4 w-4" />
-              )}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
               Dismiss
             </button>
           )}

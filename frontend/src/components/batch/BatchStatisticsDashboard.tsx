@@ -72,9 +72,7 @@ export default function BatchStatisticsDashboard({
 
   // Check if we have any data
   const hasData =
-    activeBatchCount > 0 ||
-    totalClosedCount > 0 ||
-    Object.keys(perCameraStats).length > 0;
+    activeBatchCount > 0 || totalClosedCount > 0 || Object.keys(perCameraStats).length > 0;
 
   // Loading state
   if (isLoading) {
@@ -158,10 +156,7 @@ export default function BatchStatisticsDashboard({
       {/* Summary Metrics */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         {/* Active Batches */}
-        <div
-          className="rounded-lg bg-gray-800/50 p-4"
-          aria-label="Active batches"
-        >
+        <div className="rounded-lg bg-gray-800/50 p-4" aria-label="Active batches">
           <div className="flex items-center gap-2 text-gray-400">
             <Activity className="h-4 w-4" />
             <Text className="text-sm">Active Batches</Text>
@@ -175,10 +170,7 @@ export default function BatchStatisticsDashboard({
         </div>
 
         {/* Total Closed */}
-        <div
-          className="rounded-lg bg-gray-800/50 p-4"
-          aria-label="Total closed batches"
-        >
+        <div className="rounded-lg bg-gray-800/50 p-4" aria-label="Total closed batches">
           <div className="flex items-center gap-2 text-gray-400">
             <CheckCircle className="h-4 w-4" />
             <Text className="text-sm">Total Closed</Text>
@@ -197,10 +189,7 @@ export default function BatchStatisticsDashboard({
             <Clock className="h-4 w-4" />
             <Text className="text-sm">Avg Duration</Text>
           </div>
-          <span
-            className="mt-2 block text-2xl font-bold text-white"
-            data-testid="average-duration"
-          >
+          <span className="mt-2 block text-2xl font-bold text-white" data-testid="average-duration">
             {Math.round(averageDurationSeconds)}s
           </span>
         </div>
@@ -211,10 +200,7 @@ export default function BatchStatisticsDashboard({
             <Clock className="h-4 w-4" />
             <Text className="text-sm">Batch Window</Text>
           </div>
-          <span
-            className="mt-2 block text-2xl font-bold text-gray-300"
-            data-testid="batch-window"
-          >
+          <span className="mt-2 block text-2xl font-bold text-gray-300" data-testid="batch-window">
             {batchWindowSeconds}s
           </span>
         </div>
@@ -225,10 +211,7 @@ export default function BatchStatisticsDashboard({
             <Clock className="h-4 w-4" />
             <Text className="text-sm">Idle Timeout</Text>
           </div>
-          <span
-            className="mt-2 block text-2xl font-bold text-gray-300"
-            data-testid="idle-timeout"
-          >
+          <span className="mt-2 block text-2xl font-bold text-gray-300" data-testid="idle-timeout">
             {idleTimeoutSeconds}s
           </span>
         </div>
@@ -242,8 +225,8 @@ export default function BatchStatisticsDashboard({
         >
           <Layers className="h-12 w-12 text-gray-600" />
           <Text className="text-center text-gray-400">
-            No batch data available. Batch events will appear here once the AI
-            pipeline begins processing detections.
+            No batch data available. Batch events will appear here once the AI pipeline begins
+            processing detections.
           </Text>
         </div>
       )}

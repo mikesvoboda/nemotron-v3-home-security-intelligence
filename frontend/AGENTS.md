@@ -71,7 +71,8 @@ frontend/
 | File     | Purpose                                          |
 | -------- | ------------------------------------------------ |
 | `.npmrc` | npm configuration (engine strict mode)           |
-| `.nvmrc` | Node.js version specification (22 for this repo) |
+
+Node.js version is specified by `.nvmrc` at the repository root (single source of truth for CI, validate.sh, and the Dockerfile base image).
 
 ### Documentation and Scripts
 
@@ -553,7 +554,7 @@ Import types from `src/services/api.ts` which re-exports all generated types.
 
 The `Dockerfile` uses a multi-stage build:
 
-- **Stage 1 (build)**: Node 22.16.0-alpine for building the React app
+- **Stage 1 (build)**: Node 24.21.0-alpine3.23 for building the React app
 - **Stage 2 (production)**: nginx:1.28.1-alpine3.23 for serving
 - Uses `docker-entrypoint.sh` for runtime environment variable injection
 - Includes health check endpoint

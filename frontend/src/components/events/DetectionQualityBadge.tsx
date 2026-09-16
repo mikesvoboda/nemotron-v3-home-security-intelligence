@@ -106,7 +106,8 @@ export default function DetectionQualityBadge({
   const tier = getQualityTier(confidence);
   const styles = getTierStyles(tier);
   const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5';
-  const paddingClass = size === 'sm' ? 'px-1.5 py-0.5 text-xs gap-1' : 'px-2 py-0.5 text-xs gap-1.5';
+  const paddingClass =
+    size === 'sm' ? 'px-1.5 py-0.5 text-xs gap-1' : 'px-2 py-0.5 text-xs gap-1.5';
 
   return (
     <span

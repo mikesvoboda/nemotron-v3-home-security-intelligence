@@ -240,8 +240,12 @@ def test_new_operation_complexity(self):
 
     best, _ = big_o(new_op, lambda n: n, n_repeats=5, min_n=100, max_n=10000)
 
-    acceptable = [complexities.Constant, complexities.Logarithmic,
-                  complexities.Linear, complexities.Linearithmic]
+    acceptable = [
+        complexities.Constant,
+        complexities.Logarithmic,
+        complexities.Linear,
+        complexities.Linearithmic,
+    ]
     assert any(isinstance(best, c) for c in acceptable)
 ```
 

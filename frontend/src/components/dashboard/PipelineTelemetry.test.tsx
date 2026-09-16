@@ -307,7 +307,7 @@ describe('PipelineTelemetry', () => {
         ...mockTelemetryData,
         latencies: null,
       };
-      vi.mocked(api.fetchTelemetry).mockResolvedValue(nullLatencyData as api.TelemetryResponse);
+      vi.mocked(api.fetchTelemetry).mockResolvedValue(nullLatencyData);
 
       render(<PipelineTelemetry />);
 
@@ -330,7 +330,7 @@ describe('PipelineTelemetry', () => {
           analyze: null,
         },
       };
-      vi.mocked(api.fetchTelemetry).mockResolvedValue(undefinedStageData as api.TelemetryResponse);
+      vi.mocked(api.fetchTelemetry).mockResolvedValue(undefinedStageData);
 
       render(<PipelineTelemetry />);
 

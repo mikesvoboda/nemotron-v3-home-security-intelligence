@@ -188,9 +188,7 @@ export async function fetchActionEvents(
   const response = await fetch(`/api/action-events${queryString}`);
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch action events: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch action events: ${response.status} ${response.statusText}`);
   }
 
   return (await response.json()) as ActionEventListResponse;
@@ -216,7 +214,7 @@ export async function fetchActionEvents(
 export async function fetchSuspiciousActions(
   params: Omit<ActionEventsQueryParams, 'is_suspicious' | 'track_id' | 'action'> = {}
 ): Promise<SuspiciousActionsResponse> {
-  const queryString = buildQueryString(params as QueryParams);
+  const queryString = buildQueryString(params);
   const response = await fetch(`/api/action-events/suspicious${queryString}`);
 
   if (!response.ok) {
@@ -248,9 +246,7 @@ export async function fetchActionEvent(eventId: number): Promise<ActionEvent> {
     if (response.status === 404) {
       throw new Error(`Action event ${eventId} not found`);
     }
-    throw new Error(
-      `Failed to fetch action event: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to fetch action event: ${response.status} ${response.statusText}`);
   }
 
   return (await response.json()) as ActionEvent;
@@ -277,7 +273,7 @@ export async function fetchActionEventsForCamera(
   cameraId: string,
   params: Pick<ActionEventsQueryParams, 'start_time' | 'end_time' | 'limit' | 'offset'> = {}
 ): Promise<ActionEventListResponse> {
-  const queryString = buildQueryString(params as QueryParams);
+  const queryString = buildQueryString(params);
   const response = await fetch(`/api/action-events/camera/${cameraId}${queryString}`);
 
   if (!response.ok) {

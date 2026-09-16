@@ -35,17 +35,13 @@ const mockMatchMedia = (matches: boolean) => {
       onchange: null,
       addListener: vi.fn(), // deprecated
       removeListener: vi.fn(), // deprecated
-      addEventListener: vi.fn(
-        (_type: string, callback: (e: MediaQueryListEvent) => void) => {
-          listeners.push(callback);
-        }
-      ),
-      removeEventListener: vi.fn(
-        (_type: string, callback: (e: MediaQueryListEvent) => void) => {
-          const index = listeners.indexOf(callback);
-          if (index > -1) listeners.splice(index, 1);
-        }
-      ),
+      addEventListener: vi.fn((_type: string, callback: (e: MediaQueryListEvent) => void) => {
+        listeners.push(callback);
+      }),
+      removeEventListener: vi.fn((_type: string, callback: (e: MediaQueryListEvent) => void) => {
+        const index = listeners.indexOf(callback);
+        if (index > -1) listeners.splice(index, 1);
+      }),
       dispatchEvent: vi.fn(),
     })),
   });
@@ -53,7 +49,10 @@ const mockMatchMedia = (matches: boolean) => {
   return {
     triggerChange: (newMatches: boolean) => {
       listeners.forEach((listener) =>
-        listener({ matches: newMatches, media: '(prefers-color-scheme: dark)' } as MediaQueryListEvent)
+        listener({
+          matches: newMatches,
+          media: '(prefers-color-scheme: dark)',
+        } as MediaQueryListEvent)
       );
     },
   };

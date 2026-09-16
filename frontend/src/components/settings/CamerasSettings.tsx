@@ -39,7 +39,11 @@ import {
   type CameraStatusValue,
   type IngestionModeValue,
 } from '../../schemas/camera';
-import { formatRelativeTime, formatSecondsAsHumanReadable, isTimestampStale } from '../../utils/time';
+import {
+  formatRelativeTime,
+  formatSecondsAsHumanReadable,
+  isTimestampStale,
+} from '../../utils/time';
 import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
 import SceneChangePanel from '../analytics/SceneChangePanel';
 import { CameraAnomalyTimeline } from '../cameras';
@@ -51,7 +55,6 @@ import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 import type { OnvifDevice } from '../../types/onvif';
-import type { PreviewConfig } from '../../types/preview';
 
 interface CameraFormData {
   name: string;
@@ -164,8 +167,10 @@ export default function CamerasSettings() {
 
   // Check if current camera is RTSP-based (either by ingestion mode or folder_path URL detection)
   const folderPathLower = formData.folder_path.toLowerCase();
-  const hasRtspUrl = folderPathLower.startsWith('rtsp://') || folderPathLower.startsWith('rtsps://');
-  const isRtspMode = formData.ingestion_mode === 'rtsp' || formData.ingestion_mode === 'onvif' || hasRtspUrl;
+  const hasRtspUrl =
+    folderPathLower.startsWith('rtsp://') || folderPathLower.startsWith('rtsps://');
+  const isRtspMode =
+    formData.ingestion_mode === 'rtsp' || formData.ingestion_mode === 'onvif' || hasRtspUrl;
 
   // Filter cameras based on search query
   const filteredCameras = cameras.filter((camera) =>
@@ -417,20 +422,20 @@ export default function CamerasSettings() {
 
       {/* Snapshot Cache TTL Settings (NEM-4946) */}
       <div className="rounded-lg border border-gray-800 bg-card p-4">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="mb-4 flex items-center gap-2">
           <Image className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-text-primary">Snapshot Cache Settings</h3>
         </div>
-        <p className="text-sm text-text-secondary mb-4">
-          Configure how long extracted camera snapshots are cached. Longer cache times reduce
-          CPU usage but may show older preview images.
+        <p className="mb-4 text-sm text-text-secondary">
+          Configure how long extracted camera snapshots are cached. Longer cache times reduce CPU
+          usage but may show older preview images.
         </p>
 
         {settingsLoading ? (
-          <div className="h-12 bg-gray-800 animate-pulse rounded-lg"></div>
+          <div className="h-12 animate-pulse rounded-lg bg-gray-800"></div>
         ) : globalSettings?.camera ? (
           <div data-testid="snapshot-cache-ttl-section">
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-text-secondary" />
                 <span className="text-sm text-text-secondary">Cache Duration</span>
@@ -455,19 +460,19 @@ export default function CamerasSettings() {
                 });
               }}
               disabled={updateSettingsMutation.isPending}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-primary disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Snapshot cache TTL"
               data-testid="snapshot-cache-ttl-slider"
             />
-            <div className="flex justify-between mt-1 text-xs text-text-secondary">
+            <div className="mt-1 flex justify-between text-xs text-text-secondary">
               <span>1 minute</span>
               <span>24 hours</span>
             </div>
             {updateSettingsMutation.isPending && (
-              <p className="text-xs text-primary mt-2">Saving...</p>
+              <p className="mt-2 text-xs text-primary">Saving...</p>
             )}
             {updateSettingsMutation.isError && (
-              <p className="text-xs text-red-500 mt-2">
+              <p className="mt-2 text-xs text-red-500">
                 Failed to save: {updateSettingsMutation.error?.message}
               </p>
             )}
@@ -682,7 +687,7 @@ export default function CamerasSettings() {
         <div className="border-t border-gray-800 pt-6">
           <button
             onClick={() => setShowDeletedCameras(!showDeletedCameras)}
-            className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
             data-testid="show-deleted-toggle"
           >
             <Trash2 className="h-4 w-4" />
@@ -978,9 +983,7 @@ export default function CamerasSettings() {
                             id="rtsp_url"
                             data-testid="camera-rtsp-url-input"
                             value={formData.rtsp_url ?? ''}
-                            onChange={(e) =>
-                              setFormData({ ...formData, rtsp_url: e.target.value })
-                            }
+                            onChange={(e) => setFormData({ ...formData, rtsp_url: e.target.value })}
                             className={clsx(
                               'mt-1 block w-full rounded-lg border bg-card px-3 py-2 font-mono text-sm text-text-primary focus:outline-none focus:ring-2',
                               formErrors.rtsp_url
@@ -1038,10 +1041,7 @@ export default function CamerasSettings() {
                                   password: formData.rtsp_password || undefined,
                                 });
                               }}
-                              disabled={
-                                !formData.rtsp_url ||
-                                testConnection.isPending
-                              }
+                              disabled={!formData.rtsp_url || testConnection.isPending}
                               data-testid="test-connection-button"
                               className="flex-1 rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -1062,7 +1062,9 @@ export default function CamerasSettings() {
                           {/* Show ConnectionStatusCard when testing or have results */}
                           {(testConnection.isPending || testConnection.data) && (
                             <ConnectionStatusCard
-                              result={testConnection.isPending ? null : testConnection.data ?? null}
+                              result={
+                                testConnection.isPending ? null : (testConnection.data ?? null)
+                              }
                             />
                           )}
                         </div>
@@ -1094,20 +1096,22 @@ export default function CamerasSettings() {
                                 motion_sensitivity: parseFloat(e.target.value),
                               })
                             }
-                            className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-primary"
                           />
                           <span className="text-sm text-text-secondary">High</span>
                         </div>
                         <div className="mt-1 text-center">
                           <span
                             data-testid="motion-sensitivity-value"
-                            className="text-sm font-mono text-text-secondary"
+                            className="font-mono text-sm text-text-secondary"
                           >
                             {(formData.motion_sensitivity ?? 0.5).toFixed(2)}
                           </span>
                         </div>
                         {formErrors.motion_sensitivity && (
-                          <p className="mt-1 text-sm text-red-500">{formErrors.motion_sensitivity}</p>
+                          <p className="mt-1 text-sm text-red-500">
+                            {formErrors.motion_sensitivity}
+                          </p>
                         )}
                       </div>
                     )}
@@ -1115,20 +1119,16 @@ export default function CamerasSettings() {
                     {/* PTZ Controls Section - Only for ONVIF cameras being edited (NEM-4885) */}
                     {editingCamera && formData.ingestion_mode === 'onvif' && (
                       <div className="rounded-lg border border-gray-800 bg-card/50 p-4">
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="mb-4 flex items-center gap-2">
                           <Move className="h-4 w-4 text-primary" />
                           <span className="text-sm font-medium text-text-primary">
                             PTZ Camera Controls
                           </span>
                         </div>
-                        <p className="text-xs text-text-secondary mb-4">
+                        <p className="mb-4 text-xs text-text-secondary">
                           Control pan, tilt, and zoom for this ONVIF camera.
                         </p>
-                        <PTZControls
-                          cameraId={editingCamera.id}
-                          showPresets
-                          compact
-                        />
+                        <PTZControls cameraId={editingCamera.id} showPresets compact />
                       </div>
                     )}
 
@@ -1207,7 +1207,7 @@ export default function CamerasSettings() {
                   {/* Warning about related data */}
                   <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
                     <div className="flex gap-2 text-sm text-yellow-300">
-                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                       <div>
                         <p className="font-medium">This will affect related data</p>
                         <ul className="mt-1 list-disc pl-4 text-yellow-300/80">
@@ -1216,7 +1216,8 @@ export default function CamerasSettings() {
                           <li>Zone configurations will be preserved</li>
                         </ul>
                         <p className="mt-2">
-                          The camera can be restored from the &quot;Show deleted cameras&quot; section.
+                          The camera can be restored from the &quot;Show deleted cameras&quot;
+                          section.
                         </p>
                       </div>
                     </div>
@@ -1228,9 +1229,8 @@ export default function CamerasSettings() {
                       htmlFor="delete-confirm"
                       className="block text-sm font-medium text-text-primary"
                     >
-                      Type{' '}
-                      <span className="font-mono text-red-400">{deletingCamera?.name}</span>{' '}
-                      to confirm
+                      Type <span className="font-mono text-red-400">{deletingCamera?.name}</span> to
+                      confirm
                     </label>
                     <input
                       type="text"
@@ -1452,13 +1452,11 @@ export default function CamerasSettings() {
 
                     {formData.rtsp_url && (
                       <RTSPPreviewPlayer
-                        config={
-                          {
-                            rtspUrl: formData.rtsp_url,
-                            username: formData.rtsp_username || undefined,
-                            password: formData.rtsp_password || undefined,
-                          } as PreviewConfig
-                        }
+                        config={{
+                          rtspUrl: formData.rtsp_url,
+                          username: formData.rtsp_username || undefined,
+                          password: formData.rtsp_password || undefined,
+                        }}
                         autoStart
                         onConnected={() => {
                           // Preview connected successfully

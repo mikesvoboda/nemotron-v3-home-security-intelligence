@@ -250,7 +250,10 @@ async def load_xclip_model(model_path: str) -> Any:
         # Load model and processor in thread pool to avoid blocking
         def _load() -> dict[str, Any]:
             processor = XCLIPProcessor.from_pretrained(model_path)
-            model = XCLIPModel.from_pretrained(model_path)
+            # Typed as Module: transformers v5 @wraps decorators make .cuda()/.half()
+            # resolve to _Wrapped on the concrete class (stub drift); Module's own
+            # overloads are correct.
+            model: torch.nn.Module = XCLIPModel.from_pretrained(model_path)
 
             # Move to GPU if available and use float16 for memory efficiency
             try:

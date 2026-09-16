@@ -94,9 +94,7 @@ describe('LoggingSettings', () => {
         expect(screen.getByText('Logging Configuration')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText(/Configure application logging settings/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Configure application logging settings/)).toBeInTheDocument();
     });
 
     it('applies custom className', async () => {

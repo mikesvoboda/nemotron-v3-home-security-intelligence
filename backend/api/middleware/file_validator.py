@@ -263,7 +263,7 @@ def validate_file_magic_sync(
         return False, None
 
     # Normalize claimed type (remove parameters)
-    claimed_base = claimed_type.split(";")[0].strip().lower()
+    claimed_base = claimed_type.split(";", maxsplit=1)[0].strip().lower()
 
     # Exact match
     if detected_type == claimed_base:

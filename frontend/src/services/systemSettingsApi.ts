@@ -71,13 +71,10 @@ export async function updateSystemSetting(
   key: string,
   value: Record<string, unknown>
 ): Promise<SystemSettingResponse> {
-  return fetchApi<SystemSettingResponse>(
-    `/api/v1/system-settings/${encodeURIComponent(key)}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ value }),
-    }
-  );
+  return fetchApi<SystemSettingResponse>(`/api/v1/system-settings/${encodeURIComponent(key)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ value }),
+  });
 }
 
 /**
@@ -87,10 +84,7 @@ export async function updateSystemSetting(
  * @throws Error if setting not found (404)
  */
 export async function deleteSystemSetting(key: string): Promise<void> {
-  await fetchApi<void>(
-    `/api/v1/system-settings/${encodeURIComponent(key)}`,
-    {
-      method: 'DELETE',
-    }
-  );
+  await fetchApi<void>(`/api/v1/system-settings/${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+  });
 }

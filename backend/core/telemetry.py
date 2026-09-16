@@ -733,7 +733,7 @@ def create_span_with_links(
                             trace_flags=TraceFlags(0x01),  # Sampled
                         )
                         otel_links.append(Link(span_context))
-                    except (ValueError, TypeError):
+                    except ValueError, TypeError:
                         # Invalid hex string, skip this link
                         continue
         except ImportError:
@@ -822,7 +822,7 @@ def trace_span_with_links(
                             trace_flags=TraceFlags(0x01),
                         )
                         otel_links.append(Link(span_context))
-                    except (ValueError, TypeError):
+                    except ValueError, TypeError:
                         continue
         except ImportError:
             # OpenTelemetry not available, keep empty list

@@ -134,14 +134,18 @@ export function useEventClip(
         } else if (response.status === 'failed') {
           setError(response.message || 'Failed to generate clip');
           // Update clip info to reflect unavailable state
-          setClipInfo((prev) => prev ? { ...prev, clip_available: false } : {
-            event_id: eventId,
-            clip_available: false,
-            clip_url: null,
-            duration_seconds: null,
-            generated_at: null,
-            file_size_bytes: null,
-          });
+          setClipInfo((prev) =>
+            prev
+              ? { ...prev, clip_available: false }
+              : {
+                  event_id: eventId,
+                  clip_available: false,
+                  clip_url: null,
+                  duration_seconds: null,
+                  generated_at: null,
+                  file_size_bytes: null,
+                }
+          );
         }
       } catch (err) {
         if (isMountedRef.current) {

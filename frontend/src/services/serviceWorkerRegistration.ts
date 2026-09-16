@@ -67,9 +67,7 @@ export function isServiceWorkerSupported(): boolean {
  * });
  * ```
  */
-export async function registerServiceWorker(
-  config: ServiceWorkerConfig = {}
-): Promise<boolean> {
+export async function registerServiceWorker(config: ServiceWorkerConfig = {}): Promise<boolean> {
   const { onUpdate, onSuccess, onError, onActivated } = config;
 
   if (!isServiceWorkerSupported()) {

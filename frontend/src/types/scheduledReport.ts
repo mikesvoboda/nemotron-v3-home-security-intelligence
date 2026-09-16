@@ -226,9 +226,7 @@ export const COMMON_TIMEZONES: readonly string[] = [
  * Type guard to check if a string is a valid report frequency.
  */
 export function isReportFrequency(value: unknown): value is ReportFrequency {
-  return (
-    typeof value === 'string' && REPORT_FREQUENCIES.includes(value as ReportFrequency)
-  );
+  return typeof value === 'string' && REPORT_FREQUENCIES.includes(value as ReportFrequency);
 }
 
 /**

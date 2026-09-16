@@ -21,15 +21,7 @@
  */
 
 import { clsx } from 'clsx';
-import {
-  AlertTriangle,
-  Camera,
-  Clock,
-  Download,
-  Flame,
-  Grid3X3,
-  RefreshCw,
-} from 'lucide-react';
+import { AlertTriangle, Camera, Clock, Download, Flame, Grid3X3, RefreshCw } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 
 import Button from '../components/common/Button';
@@ -81,7 +73,8 @@ const COLORMAP_OPTIONS: { value: HeatmapColormap; label: string; gradient: strin
   {
     value: 'jet',
     label: 'Jet',
-    gradient: 'linear-gradient(to right, #00007F, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000, #7F0000)',
+    gradient:
+      'linear-gradient(to right, #00007F, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000, #7F0000)',
   },
   {
     value: 'hot',
@@ -370,7 +363,7 @@ function HeatmapDisplay({
           </div>
           <div>
             <span className="text-sm text-gray-400">Resolution</span>
-            <p className="text-xl font-semibold text-white capitalize">{resolution}</p>
+            <p className="text-xl font-semibold capitalize text-white">{resolution}</p>
           </div>
         </div>
 
@@ -426,7 +419,7 @@ function HeatmapHistory({ history, isLoading, onSelectEntry }: HeatmapHistoryPro
   }
 
   return (
-    <div className="space-y-2 max-h-[400px] overflow-y-auto" data-testid="heatmap-history">
+    <div className="max-h-[400px] space-y-2 overflow-y-auto" data-testid="heatmap-history">
       {history.map((entry) => (
         <button
           key={entry.id}
@@ -440,7 +433,7 @@ function HeatmapHistory({ history, isLoading, onSelectEntry }: HeatmapHistoryPro
               <p className="text-sm font-medium text-white">
                 {new Date(entry.time_bucket).toLocaleString()}
               </p>
-              <p className="text-xs text-gray-400 capitalize">{entry.resolution}</p>
+              <p className="text-xs capitalize text-gray-400">{entry.resolution}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-[#76B900]">
@@ -493,10 +486,7 @@ function HeatmapsPageComponent() {
   });
 
   // Heatmap history query
-  const {
-    data: historyData,
-    isLoading: isHistoryLoading,
-  } = useHeatmapHistoryQuery({
+  const { data: historyData, isLoading: isHistoryLoading } = useHeatmapHistoryQuery({
     cameraId: selectedCameraId ?? undefined,
     timeRange,
     resolution,
@@ -627,7 +617,7 @@ function HeatmapsPageComponent() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Main heatmap display */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="space-y-4 lg:col-span-2">
               <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-white">

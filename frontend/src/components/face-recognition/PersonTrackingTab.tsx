@@ -31,12 +31,9 @@ import {
   Search,
   User,
 } from 'lucide-react';
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
-import {
-  useKnownPersonsQuery,
-  usePersonAppearancesQuery,
-} from '../../hooks/useFaceRecognitionApi';
+import { useKnownPersonsQuery, usePersonAppearancesQuery } from '../../hooks/useFaceRecognitionApi';
 
 import type { KnownPerson, PersonAppearance, AppearancesFilter } from '../../types/faceRecognition';
 
@@ -202,16 +199,14 @@ function PersonSelector({
     if (query === '') {
       return safePersons;
     }
-    return safePersons.filter((person) =>
-      person.name.toLowerCase().includes(query.toLowerCase())
-    );
+    return safePersons.filter((person) => person.name.toLowerCase().includes(query.toLowerCase()));
   }, [persons, query]);
 
   if (isLoading) {
     return (
       <div
         data-testid="persons-loading"
-        className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-gray-700 rounded-lg"
+        className="flex items-center gap-2 rounded-lg border border-gray-700 bg-[#1A1A1A] px-4 py-2"
       >
         <Loader2 className="h-5 w-5 animate-spin text-[#76B900]" data-testid="loading-spinner" />
         <span className="text-gray-400">Loading persons...</span>
@@ -225,10 +220,10 @@ function PersonSelector({
         <div
           data-testid="person-selector"
           aria-label="Select a person"
-          className="relative w-full cursor-default overflow-hidden rounded-lg bg-[#1A1A1A] border border-gray-700 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#76B900]"
+          className="relative w-full cursor-default overflow-hidden rounded-lg border border-gray-700 bg-[#1A1A1A] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#76B900]"
         >
           <Combobox.Input
-            className="w-full border-none py-2 pl-10 pr-10 text-sm text-white bg-transparent focus:ring-0"
+            className="w-full border-none bg-transparent py-2 pl-10 pr-10 text-sm text-white focus:ring-0"
             displayValue={(person: KnownPerson | null) => person?.name ?? ''}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search and select a person..."
@@ -249,14 +244,14 @@ function PersonSelector({
         >
           <Combobox.Options
             data-testid="person-dropdown"
-            className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-[#1A1A1A] border border-gray-700 py-1 text-sm shadow-lg focus:outline-none"
+            className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-700 bg-[#1A1A1A] py-1 text-sm shadow-lg focus:outline-none"
           >
             {filteredPersons.length === 0 && query !== '' ? (
-              <div className="relative cursor-default select-none py-2 px-4 text-gray-400">
+              <div className="relative cursor-default select-none px-4 py-2 text-gray-400">
                 No persons found matching &ldquo;{query}&rdquo;
               </div>
             ) : filteredPersons.length === 0 ? (
-              <div className="relative cursor-default select-none py-2 px-4 text-gray-400">
+              <div className="relative cursor-default select-none px-4 py-2 text-gray-400">
                 No known persons available
               </div>
             ) : (
@@ -265,7 +260,7 @@ function PersonSelector({
                   key={person.id}
                   className={({ active }) =>
                     clsx(
-                      'relative cursor-pointer select-none py-2 pl-10 pr-4 truncate',
+                      'relative cursor-pointer select-none truncate py-2 pl-10 pr-4',
                       active ? 'bg-[#76B900]/10 text-white' : 'text-gray-300'
                     )
                   }
@@ -282,7 +277,7 @@ function PersonSelector({
                         {person.name}
                       </span>
                       {person.is_household_member && (
-                        <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">
+                        <span className="ml-2 inline-flex items-center gap-1 rounded bg-blue-500/20 px-1.5 py-0.5 text-xs text-blue-400">
                           <Home className="h-3 w-3" />
                           Household
                         </span>
@@ -338,10 +333,10 @@ function DateRangeSelector({
             onClick={() => onPresetSelect(option.value)}
             aria-pressed={selectedPreset === option.value}
             className={clsx(
-              'px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
+              'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
               selectedPreset === option.value
                 ? 'bg-[#76B900] text-white'
-                : 'bg-[#1A1A1A] border border-gray-700 text-gray-300 hover:border-[#76B900] hover:text-[#76B900]'
+                : 'border border-gray-700 bg-[#1A1A1A] text-gray-300 hover:border-[#76B900] hover:text-[#76B900]'
             )}
           >
             {option.label}
@@ -352,41 +347,41 @@ function DateRangeSelector({
       {/* Custom date inputs */}
       {selectedPreset === 'custom' && (
         <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[140px]">
+          <div className="min-w-[140px] flex-1">
             <label
               htmlFor="custom-start-date"
-              className="block text-xs font-medium text-gray-400 mb-1"
+              className="mb-1 block text-xs font-medium text-gray-400"
             >
               Start Date
             </label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 id="custom-start-date"
                 type="date"
                 value={customStartDate}
                 onChange={(e) => onCustomStartChange(e.target.value)}
                 max={customEndDate || undefined}
-                className="w-full pl-10 pr-3 py-2 bg-[#1A1A1A] border border-gray-700 rounded-lg text-sm text-white focus:border-[#76B900] focus:ring-1 focus:ring-[#76B900] focus:outline-none"
+                className="w-full rounded-lg border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
               />
             </div>
           </div>
-          <div className="flex-1 min-w-[140px]">
+          <div className="min-w-[140px] flex-1">
             <label
               htmlFor="custom-end-date"
-              className="block text-xs font-medium text-gray-400 mb-1"
+              className="mb-1 block text-xs font-medium text-gray-400"
             >
               End Date
             </label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 id="custom-end-date"
                 type="date"
                 value={customEndDate}
                 onChange={(e) => onCustomEndChange(e.target.value)}
                 min={customStartDate || undefined}
-                className="w-full pl-10 pr-3 py-2 bg-[#1A1A1A] border border-gray-700 rounded-lg text-sm text-white focus:border-[#76B900] focus:ring-1 focus:ring-[#76B900] focus:outline-none"
+                className="w-full rounded-lg border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
               />
             </div>
           </div>
@@ -416,10 +411,10 @@ function TimelineItem({
       <div className="flex flex-col items-center">
         <div
           data-testid="timeline-dot"
-          className="w-3 h-3 rounded-full bg-[#76B900] flex-shrink-0 mt-1.5"
+          className="mt-1.5 h-3 w-3 flex-shrink-0 rounded-full bg-[#76B900]"
         />
         {!isLast && (
-          <div data-testid="timeline-connector" className="w-0.5 flex-1 bg-gray-600 my-1" />
+          <div data-testid="timeline-connector" className="my-1 w-0.5 flex-1 bg-gray-600" />
         )}
       </div>
 
@@ -434,14 +429,14 @@ function TimelineItem({
               </span>
               <span
                 data-testid="action-type"
-                className="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300"
+                className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300"
               >
                 {actionType}
               </span>
             </div>
 
             {/* Camera and location */}
-            <div className="flex items-center gap-2 mt-1">
+            <div className="mt-1 flex items-center gap-2">
               <MapPin className="h-4 w-4 text-gray-400" />
               <span className="text-sm text-gray-300">{appearance.camera_name}</span>
             </div>
@@ -453,12 +448,12 @@ function TimelineItem({
               <img
                 src={appearance.thumbnail_url}
                 alt={`Detection at ${appearance.camera_name}`}
-                className="w-12 h-12 rounded-lg object-cover border border-gray-700"
+                className="h-12 w-12 rounded-lg border border-gray-700 object-cover"
               />
             ) : (
               <div
                 data-testid="appearance-icon"
-                className="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center"
+                className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-700"
               >
                 <User className="h-6 w-6 text-gray-400" />
               </div>
@@ -489,11 +484,11 @@ function PersonJourneyTimeline({
 }) {
   if (appearances.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="py-12 text-center">
         <div data-testid="empty-state-icon" className="mx-auto mb-4">
-          <Camera className="h-12 w-12 text-gray-600 mx-auto" />
+          <Camera className="mx-auto h-12 w-12 text-gray-600" />
         </div>
-        <p className="text-gray-400 mb-2">No appearances found</p>
+        <p className="mb-2 text-gray-400">No appearances found</p>
         <p className="text-sm text-gray-500">
           {personName} has not been detected in the selected time period.
         </p>
@@ -507,10 +502,7 @@ function PersonJourneyTimeline({
   );
 
   return (
-    <ul
-      aria-label="Journey timeline"
-      className="space-y-0"
-    >
+    <ul aria-label="Journey timeline" className="space-y-0">
       {sortedAppearances.map((appearance, index) => (
         <TimelineItem
           key={appearance.detection_id}
@@ -532,14 +524,14 @@ function PersonStatsCards({
   stats: { sightings: number; avgPerDay: number; uniqueCameras: number };
 }) {
   return (
-    <div data-testid="stats-cards" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div data-testid="stats-cards" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {/* Sightings */}
       <article
         data-testid="stat-sightings"
-        className="bg-[#1A1A1A] rounded-lg border border-gray-700 p-4"
+        className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[#76B900]/10">
+          <div className="rounded-lg bg-[#76B900]/10 p-2">
             <User className="h-5 w-5 text-[#76B900]" />
           </div>
           <div>
@@ -552,10 +544,10 @@ function PersonStatsCards({
       {/* Average per day */}
       <article
         data-testid="stat-avg-day"
-        className="bg-[#1A1A1A] rounded-lg border border-gray-700 p-4"
+        className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-500/10">
+          <div className="rounded-lg bg-blue-500/10 p-2">
             <Clock className="h-5 w-5 text-blue-400" />
           </div>
           <div>
@@ -568,10 +560,10 @@ function PersonStatsCards({
       {/* Cameras */}
       <article
         data-testid="stat-cameras"
-        className="bg-[#1A1A1A] rounded-lg border border-gray-700 p-4"
+        className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-purple-500/10">
+          <div className="rounded-lg bg-purple-500/10 p-2">
             <Camera className="h-5 w-5 text-purple-400" />
           </div>
           <div>
@@ -594,10 +586,7 @@ function PersonStatsCards({
  * Displays a searchable person selector, date range filter, journey timeline,
  * and statistics cards for the selected person's appearances.
  */
-export default function PersonTrackingTab({
-  initialPersonId,
-  className,
-}: PersonTrackingTabProps) {
+export default function PersonTrackingTab({ initialPersonId, className }: PersonTrackingTabProps) {
   // State
   const [selectedPerson, setSelectedPerson] = useState<KnownPerson | null>(null);
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('today');
@@ -608,8 +597,9 @@ export default function PersonTrackingTab({
   const personsQuery = useKnownPersonsQuery();
   const persons = useMemo(() => personsQuery.data ?? [], [personsQuery.data]);
 
-  // Initialize selected person from prop (use useEffect for side effects)
-  useMemo(() => {
+  // Initialize selected person from prop. Effect, not memo: setState during render
+  // is flagged by react-hooks/set-state-in-render (eslint 10 recommended set).
+  useEffect(() => {
     if (initialPersonId && !selectedPerson && persons.length > 0) {
       const person = persons.find((p) => p.id === initialPersonId);
       if (person) {
@@ -630,10 +620,7 @@ export default function PersonTrackingTab({
     return getDateRangeFromPreset(dateRangePreset);
   }, [dateRangePreset, customStartDate, customEndDate]);
 
-  const appearancesQuery = usePersonAppearancesQuery(
-    selectedPerson?.id ?? null,
-    appearancesFilter
-  );
+  const appearancesQuery = usePersonAppearancesQuery(selectedPerson?.id ?? null, appearancesFilter);
 
   const appearances = useMemo(
     () => appearancesQuery.data?.appearances ?? [],
@@ -685,16 +672,18 @@ export default function PersonTrackingTab({
 
   // Error state for persons
   if (personsQuery.isError) {
-    const errorMessage =
-      (personsQuery.error as Error | undefined)?.message ?? 'An error occurred';
+    const errorMessage = (personsQuery.error as Error | undefined)?.message ?? 'An error occurred';
     return (
       <div
         data-testid="person-tracking-tab"
-        className={clsx('bg-[#121212] rounded-lg p-6', className)}
+        className={clsx('rounded-lg bg-[#121212] p-6', className)}
       >
-        <h2 className="text-xl font-semibold text-white mb-4">Person Tracking</h2>
-        <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-center">
-          <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+        <h2 className="mb-4 text-xl font-semibold text-white">Person Tracking</h2>
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-center"
+        >
+          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-red-400" />
           <p className="text-red-400">{errorMessage}</p>
         </div>
       </div>
@@ -706,12 +695,12 @@ export default function PersonTrackingTab({
     return (
       <div
         data-testid="person-tracking-tab"
-        className={clsx('bg-[#121212] rounded-lg p-6', className)}
+        className={clsx('rounded-lg bg-[#121212] p-6', className)}
       >
-        <h2 className="text-xl font-semibold text-white mb-4">Person Tracking</h2>
+        <h2 className="mb-4 text-xl font-semibold text-white">Person Tracking</h2>
         <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center">
-          <User className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 mb-2">No known persons</p>
+          <User className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+          <p className="mb-2 text-gray-400">No known persons</p>
           <p className="text-sm text-gray-500">
             Add known persons to track their appearances across cameras.
           </p>
@@ -723,10 +712,10 @@ export default function PersonTrackingTab({
   return (
     <div
       data-testid="person-tracking-tab"
-      className={clsx('bg-[#121212] rounded-lg p-6', className)}
+      className={clsx('rounded-lg bg-[#121212] p-6', className)}
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold text-white">Person Tracking</h2>
         <div className="w-full sm:w-72">
           <PersonSelector
@@ -741,8 +730,8 @@ export default function PersonTrackingTab({
       {/* No person selected state */}
       {!selectedPerson && !personsQuery.isLoading && (
         <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center">
-          <Search className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 mb-2">Select a person to view their tracking data</p>
+          <Search className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+          <p className="mb-2 text-gray-400">Select a person to view their tracking data</p>
           <p className="text-sm text-gray-500">
             Use the dropdown above to search and select a person.
           </p>
@@ -769,22 +758,28 @@ export default function PersonTrackingTab({
               role="status"
               className="flex items-center justify-center py-12"
             >
-              <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" data-testid="loading-spinner" />
+              <Loader2
+                className="h-8 w-8 animate-spin text-[#76B900]"
+                data-testid="loading-spinner"
+              />
               <span className="ml-3 text-gray-400">Loading appearances...</span>
             </div>
           )}
 
           {/* Error state */}
           {appearancesQuery.isError && (
-            <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-center">
-              <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-3" />
-              <p className="text-red-400 mb-4">
+            <div
+              role="alert"
+              className="rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-center"
+            >
+              <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-red-400" />
+              <p className="mb-4 text-red-400">
                 {(appearancesQuery.error as Error | undefined)?.message ?? 'An error occurred'}
               </p>
               <button
                 type="button"
                 onClick={handleRetry}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
               >
                 <RefreshCw className="h-4 w-4" />
                 Retry
@@ -797,16 +792,24 @@ export default function PersonTrackingTab({
             <>
               {/* Statistics Cards */}
               <div>
-                <h3 className="text-sm font-medium text-gray-400 mb-3">
-                  Statistics ({dateRangePreset === '7d' ? 'Last 7 Days' : dateRangePreset === 'today' ? 'Today' : dateRangePreset === 'yesterday' ? 'Yesterday' : 'Custom Range'})
+                <h3 className="mb-3 text-sm font-medium text-gray-400">
+                  Statistics (
+                  {dateRangePreset === '7d'
+                    ? 'Last 7 Days'
+                    : dateRangePreset === 'today'
+                      ? 'Today'
+                      : dateRangePreset === 'yesterday'
+                        ? 'Yesterday'
+                        : 'Custom Range'}
+                  )
                 </h3>
                 <PersonStatsCards stats={stats} />
               </div>
 
               {/* Journey Timeline */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">{getJourneyTitle()}</h3>
-                <div className="bg-[#1A1A1A] rounded-lg border border-gray-700 p-4">
+                <h3 className="mb-4 text-lg font-semibold text-white">{getJourneyTitle()}</h3>
+                <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4">
                   <PersonJourneyTimeline
                     appearances={appearances}
                     personName={selectedPerson.name}

@@ -122,7 +122,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       } else if (typeof errorBody === 'string') {
         errorMessage = errorBody;
@@ -150,10 +150,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * @param options - Optional fetch options
  * @returns Parsed JSON response
  */
-async function fetchBaselineConfigApiInner<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchBaselineConfigApiInner<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}/api/cameras${endpoint}`;
 
   const fetchOptions: RequestInit = {

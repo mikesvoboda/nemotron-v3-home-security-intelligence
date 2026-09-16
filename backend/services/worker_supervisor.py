@@ -45,7 +45,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from backend.core.logging import get_logger
 from backend.core.metrics import (
@@ -60,9 +60,9 @@ from backend.core.metrics import (
     set_worker_status,
     update_worker_pool_metrics,
 )
-
-if TYPE_CHECKING:
-    from backend.services.event_broadcaster import EventBroadcaster
+from backend.services.event_broadcaster import (
+    EventBroadcaster,  # runtime import: used in annotations (pyproject TC001-003 rationale; TYPE_CHECKING-only breaks spec=/get_type_hints on 3.14)
+)
 
 logger = get_logger(__name__)
 
@@ -588,7 +588,7 @@ class WorkerSupervisor:
                     asyncio.shield(worker.task),
                     timeout=2.0,
                 )
-            except (TimeoutError, asyncio.CancelledError):
+            except TimeoutError, asyncio.CancelledError:
                 pass
             except Exception as e:
                 logger.debug(f"Exception while cancelling stuck worker '{name}': {e}")

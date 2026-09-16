@@ -5125,6 +5125,331 @@
         "title": "AutoEnrollmentSettingsResponse",
         "type": "object"
       },
+      "BackupContentInfo": {
+        "description": "Information about a single backup content type.\n\nStored inside the backup manifest to track what data is included\nand verify integrity via checksum.",
+        "properties": {
+          "checksum": {
+            "description": "SHA256 checksum of the JSON file",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "count": {
+            "description": "Number of records",
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "checksum"
+        ],
+        "title": "BackupContentInfo",
+        "type": "object"
+      },
+      "BackupJobCreate": {
+        "description": "Schema for creating a backup job (no parameters needed for full backup).\n\nFull system backups export all data without filters. Simply POST\nto the endpoint to create a new backup job.",
+        "example": {},
+        "properties": {},
+        "title": "BackupJobCreate",
+        "type": "object"
+      },
+      "BackupJobProgress": {
+        "description": "Progress information for a backup job.\n\nTracks how many tables have been exported and the overall\nprogress percentage.",
+        "properties": {
+          "completed_tables": {
+            "default": 0,
+            "description": "Tables exported so far",
+            "title": "Completed Tables",
+            "type": "integer"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current step description",
+            "title": "Current Step"
+          },
+          "progress_percent": {
+            "default": 0,
+            "description": "Progress percentage",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress Percent",
+            "type": "integer"
+          },
+          "total_tables": {
+            "default": 8,
+            "description": "Total tables to export",
+            "title": "Total Tables",
+            "type": "integer"
+          }
+        },
+        "title": "BackupJobProgress",
+        "type": "object"
+      },
+      "BackupJobResponse": {
+        "description": "Full status response for a backup job.\n\nComplete status information for a backup job, including progress,\ntiming, result, and any error information.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job completion timestamp",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "Job creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed",
+            "title": "Error Message"
+          },
+          "file_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Download path for backup file",
+            "title": "File Path"
+          },
+          "file_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Backup file size",
+            "title": "File Size Bytes"
+          },
+          "id": {
+            "description": "Unique backup job identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "manifest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BackupManifest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Backup manifest"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/BackupJobProgress"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job start timestamp",
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BackupJobStatus",
+            "description": "Current job status"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "created_at"
+        ],
+        "title": "BackupJobResponse",
+        "type": "object"
+      },
+      "BackupJobStartResponse": {
+        "description": "Response when creating a backup job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/{job_id}.",
+        "example": {
+          "job_id": "019478a1-b2c3-7def-8901-234567890abc",
+          "message": "Backup job created. Use GET /api/backup/{job_id} to track progress.",
+          "status": "pending"
+        },
+        "properties": {
+          "job_id": {
+            "description": "Unique job identifier",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BackupJobStatus",
+            "default": "pending",
+            "description": "Initial status"
+          }
+        },
+        "required": [
+          "job_id",
+          "message"
+        ],
+        "title": "BackupJobStartResponse",
+        "type": "object"
+      },
+      "BackupJobStatus": {
+        "description": "Backup job status values.",
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "BackupJobStatus",
+        "type": "string"
+      },
+      "BackupListItem": {
+        "description": "Summary item for backup list.\n\nLightweight representation of a backup for list views.",
+        "properties": {
+          "created_at": {
+            "description": "Creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Download URL if completed",
+            "title": "Download Url"
+          },
+          "file_size_bytes": {
+            "description": "File size in bytes",
+            "title": "File Size Bytes",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Backup ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BackupJobStatus",
+            "description": "Job status"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "file_size_bytes",
+          "status"
+        ],
+        "title": "BackupListItem",
+        "type": "object"
+      },
+      "BackupListResponse": {
+        "description": "Response for listing available backups.",
+        "properties": {
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/BackupListItem"
+            },
+            "title": "Backups",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "description": "Total number of backups",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "BackupListResponse",
+        "type": "object"
+      },
+      "BackupManifest": {
+        "description": "Manifest file stored inside backup ZIP.\n\nThe manifest is written as manifest.json at the root of the backup\narchive. It contains metadata about the backup and checksums for\nall included data files.",
+        "properties": {
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Application version",
+            "title": "App Version"
+          },
+          "backup_id": {
+            "description": "Unique backup identifier",
+            "title": "Backup Id",
+            "type": "string"
+          },
+          "contents": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BackupContentInfo"
+            },
+            "description": "Map of content type to info (events, alerts, cameras, etc.)",
+            "title": "Contents",
+            "type": "object"
+          },
+          "created_at": {
+            "description": "Backup creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "version": {
+            "description": "Backup format version (e.g., '1.0')",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backup_id",
+          "version",
+          "created_at"
+        ],
+        "title": "BackupManifest",
+        "type": "object"
+      },
       "BaselineConfigResponse": {
         "description": "Response schema for baseline configuration.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
         "example": {
@@ -5987,12 +6312,27 @@
         "title": "BatchSettingsUpdate",
         "type": "object"
       },
+      "Body_backup_start_restore": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "Backup ZIP file",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_backup_start_restore",
+        "type": "object"
+      },
       "Body_face-recognition_bulk_enroll_faces": {
         "properties": {
           "images": {
             "description": "Face images to enroll (JPEG/PNG)",
             "items": {
-              "format": "binary",
+              "contentMediaType": "application/octet-stream",
               "type": "string"
             },
             "title": "Images",
@@ -6038,14 +6378,14 @@
       "Body_face-recognition_compare_faces": {
         "properties": {
           "image1": {
+            "contentMediaType": "application/octet-stream",
             "description": "First face image (JPEG/PNG)",
-            "format": "binary",
             "title": "Image1",
             "type": "string"
           },
           "image2": {
+            "contentMediaType": "application/octet-stream",
             "description": "Second face image (JPEG/PNG)",
-            "format": "binary",
             "title": "Image2",
             "type": "string"
           },
@@ -34644,6 +34984,190 @@
         "title": "RestartHistoryResponse",
         "type": "object"
       },
+      "RestoreJobProgress": {
+        "description": "Progress information for a restore job.\n\nTracks how many tables have been restored and the overall\nprogress percentage.",
+        "properties": {
+          "completed_tables": {
+            "default": 0,
+            "description": "Tables restored so far",
+            "title": "Completed Tables",
+            "type": "integer"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current step description",
+            "title": "Current Step"
+          },
+          "progress_percent": {
+            "default": 0,
+            "description": "Progress percentage",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress Percent",
+            "type": "integer"
+          },
+          "total_tables": {
+            "default": 8,
+            "description": "Total tables to restore",
+            "title": "Total Tables",
+            "type": "integer"
+          }
+        },
+        "title": "RestoreJobProgress",
+        "type": "object"
+      },
+      "RestoreJobResponse": {
+        "description": "Full status response for a restore job.\n\nComplete status information for a restore job, including progress,\nsource backup info, timing, result, and any error information.",
+        "properties": {
+          "backup_created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When source backup was created",
+            "title": "Backup Created At"
+          },
+          "backup_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Source backup ID from manifest",
+            "title": "Backup Id"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job completion timestamp",
+            "title": "Completed At"
+          },
+          "created_at": {
+            "description": "Job creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed",
+            "title": "Error Message"
+          },
+          "id": {
+            "description": "Unique restore job identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "items_restored": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Count of restored items per table",
+            "title": "Items Restored"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/RestoreJobProgress"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Job start timestamp",
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RestoreJobStatus",
+            "description": "Current job status"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "created_at"
+        ],
+        "title": "RestoreJobResponse",
+        "type": "object"
+      },
+      "RestoreJobStartResponse": {
+        "description": "Response when starting a restore job.\n\nReturns the job ID that can be used to track progress via\nGET /api/backup/restore/{job_id}.",
+        "properties": {
+          "job_id": {
+            "description": "Unique restore job identifier",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RestoreJobStatus",
+            "default": "pending"
+          }
+        },
+        "required": [
+          "job_id",
+          "message"
+        ],
+        "title": "RestoreJobStartResponse",
+        "type": "object"
+      },
+      "RestoreJobStatus": {
+        "description": "Restore job status values.",
+        "enum": [
+          "pending",
+          "validating",
+          "restoring",
+          "completed",
+          "failed"
+        ],
+        "title": "RestoreJobStatus",
+        "type": "string"
+      },
       "RetentionSettings": {
         "description": "Data retention settings for events and logs.\n\nControls how long events, detections, and logs are retained before cleanup.",
         "example": {
@@ -40433,6 +40957,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [
@@ -48750,6 +49281,300 @@
         "summary": "Get Auto Enrollment Settings",
         "tags": [
           "face-recognition"
+        ]
+      }
+    },
+    "/api/backup": {
+      "get": {
+        "description": "List available backup files.",
+        "operationId": "backup_list_backups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List backups",
+        "tags": [
+          "backup"
+        ]
+      },
+      "post": {
+        "description": "Create a new backup job that runs in the background. Use GET /api/backup/{job_id} to track progress.",
+        "operationId": "backup_create_backup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupJobCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupJobStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create backup job",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/restore": {
+      "post": {
+        "description": "Start a restore operation from an uploaded backup file. Use GET /api/backup/restore/{job_id} to track progress.",
+        "operationId": "backup_start_restore",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_backup_start_restore"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreJobStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid backup file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start restore",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/restore/{job_id}": {
+      "get": {
+        "description": "Get the current status and progress of a restore job.",
+        "operationId": "backup_get_restore_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Restore job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get restore status",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/{job_id}": {
+      "delete": {
+        "description": "Delete a backup file and its job record.",
+        "operationId": "backup_delete_backup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Backup Delete Backup",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Backup job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete backup",
+        "tags": [
+          "backup"
+        ]
+      },
+      "get": {
+        "description": "Get the current status and progress of a backup job.",
+        "operationId": "backup_get_backup_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Backup job not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get backup status",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/{job_id}/download": {
+      "get": {
+        "description": "Download the completed backup file.",
+        "operationId": "backup_download_backup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Backup not yet complete"
+          },
+          "404": {
+            "description": "Backup job or file not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download backup file",
+        "tags": [
+          "backup"
         ]
       }
     },

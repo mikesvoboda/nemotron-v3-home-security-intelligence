@@ -10,7 +10,8 @@ const mockUseMemberDetectionsQuery = vi.fn();
 const mockUseUnlinkDetection = vi.fn();
 
 vi.mock('../../hooks/useHouseholdApi', () => ({
-  useMemberDetectionsQuery: (memberId: number, params: any) => mockUseMemberDetectionsQuery(memberId, params),
+  useMemberDetectionsQuery: (memberId: number, params: any) =>
+    mockUseMemberDetectionsQuery(memberId, params),
   useUnlinkDetection: () => mockUseUnlinkDetection(),
 }));
 
@@ -120,7 +121,9 @@ describe('MemberDetectionHistory', () => {
 
       renderComponent();
       expect(screen.getByText(/no detections found/i)).toBeInTheDocument();
-      expect(screen.getByText(/mike has not been linked to any detections yet/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/mike has not been linked to any detections yet/i)
+      ).toBeInTheDocument();
     });
 
     it('shows pagination controls when total exceeds limit', () => {
@@ -217,9 +220,12 @@ describe('MemberDetectionHistory', () => {
       await user.click(loadMoreButton);
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          offset: 2,
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            offset: 2,
+          })
+        );
       });
     });
 
@@ -254,7 +260,9 @@ describe('MemberDetectionHistory', () => {
       const unlinkButtons = screen.getAllByRole('button', { name: /unlink/i });
       await user.click(unlinkButtons[0]);
 
-      expect(screen.getByText(/are you sure you want to unlink this detection/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/are you sure you want to unlink this detection/i)
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
@@ -356,9 +364,12 @@ describe('MemberDetectionHistory', () => {
       await user.selectOptions(cameraFilter, 'Front Door');
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          camera: 'Front Door',
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            camera: 'Front Door',
+          })
+        );
       });
     });
 
@@ -379,10 +390,13 @@ describe('MemberDetectionHistory', () => {
       await user.type(toDate, '2025-01-31');
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          from_date: '2025-01-01',
-          to_date: '2025-01-31',
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            from_date: '2025-01-01',
+            to_date: '2025-01-31',
+          })
+        );
       });
     });
 
@@ -397,9 +411,12 @@ describe('MemberDetectionHistory', () => {
       await user.click(clearButton);
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          camera: undefined,
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            camera: undefined,
+          })
+        );
       });
     });
   });
@@ -414,9 +431,12 @@ describe('MemberDetectionHistory', () => {
 
     it('sorts by date descending by default', () => {
       renderComponent();
-      expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-        sort: 'date_desc',
-      }));
+      expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          sort: 'date_desc',
+        })
+      );
     });
 
     it('sorts by date ascending when selected', async () => {
@@ -427,9 +447,12 @@ describe('MemberDetectionHistory', () => {
       await user.selectOptions(sortDropdown, 'date_asc');
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          sort: 'date_asc',
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            sort: 'date_asc',
+          })
+        );
       });
     });
 
@@ -441,9 +464,12 @@ describe('MemberDetectionHistory', () => {
       await user.selectOptions(sortDropdown, 'confidence_desc');
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          sort: 'confidence_desc',
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            sort: 'confidence_desc',
+          })
+        );
       });
     });
 
@@ -455,9 +481,12 @@ describe('MemberDetectionHistory', () => {
       await user.selectOptions(sortDropdown, 'confidence_asc');
 
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          sort: 'confidence_asc',
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            sort: 'confidence_asc',
+          })
+        );
       });
     });
   });
@@ -560,9 +589,7 @@ describe('MemberDetectionHistory', () => {
     it('handles missing thumbnail gracefully', () => {
       const dataWithoutThumbnail = {
         ...mockMemberDetections,
-        items: [
-          { ...mockMemberDetections.items[0], thumbnail_url: null },
-        ],
+        items: [{ ...mockMemberDetections.items[0], thumbnail_url: null }],
       };
 
       mockUseMemberDetectionsQuery.mockReturnValue({
@@ -581,9 +608,7 @@ describe('MemberDetectionHistory', () => {
       const longSummary = 'A'.repeat(500);
       const dataWithLongSummary = {
         ...mockMemberDetections,
-        items: [
-          { ...mockMemberDetections.items[0], event_summary: longSummary },
-        ],
+        items: [{ ...mockMemberDetections.items[0], event_summary: longSummary }],
       };
 
       mockUseMemberDetectionsQuery.mockReturnValue({
@@ -633,9 +658,12 @@ describe('MemberDetectionHistory', () => {
 
       // Should request next page with offset 2
       await waitFor(() => {
-        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(1, expect.objectContaining({
-          offset: 2,
-        }));
+        expect(mockUseMemberDetectionsQuery).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({
+            offset: 2,
+          })
+        );
       });
     });
 

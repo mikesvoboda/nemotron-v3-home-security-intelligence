@@ -111,14 +111,12 @@ const KnownPersonCard = memo(function KnownPersonCard({
 
   // Determine embedding badge styling
   const hasEmbeddings = person.embedding_count > 0;
-  const embeddingBadgeClass = hasEmbeddings
-    ? 'text-green-400'
-    : 'text-yellow-400';
+  const embeddingBadgeClass = hasEmbeddings ? 'text-green-400' : 'text-yellow-400';
 
   return (
     <div
       data-testid="known-person-card"
-      className={`relative rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 cursor-pointer hover:border-[#76B900] transition-colors ${className}`}
+      className={`relative cursor-pointer rounded-lg border border-gray-700 bg-[#1A1A1A] p-4 transition-colors hover:border-[#76B900] ${className}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="button"
@@ -131,7 +129,7 @@ const KnownPersonCard = memo(function KnownPersonCard({
           <Menu as="div" className="relative">
             <Menu.Button
               data-testid="context-menu-button"
-              className="p-1 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+              className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
               onClick={handleMenuButtonClick}
               aria-label={`More options for ${person.name}`}
             >
@@ -147,7 +145,7 @@ const KnownPersonCard = memo(function KnownPersonCard({
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <Menu.Items className="absolute right-0 z-10 mt-1 w-36 origin-top-right rounded-md bg-[#252525] border border-gray-700 shadow-lg focus:outline-none">
+              <Menu.Items className="absolute right-0 z-10 mt-1 w-36 origin-top-right rounded-md border border-gray-700 bg-[#252525] shadow-lg focus:outline-none">
                 <div className="py-1">
                   {onEdit && (
                     <Menu.Item>
@@ -189,10 +187,10 @@ const KnownPersonCard = memo(function KnownPersonCard({
       )}
 
       {/* Avatar */}
-      <div className="flex justify-center mb-3">
+      <div className="mb-3 flex justify-center">
         <div
           data-testid="person-avatar"
-          className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-700"
         >
           <User className="lucide-user h-8 w-8 text-gray-400" />
         </div>
@@ -201,7 +199,7 @@ const KnownPersonCard = memo(function KnownPersonCard({
       {/* Person Name */}
       <h3
         data-testid="person-name"
-        className="text-center text-white font-medium truncate mb-2"
+        className="mb-2 truncate text-center font-medium text-white"
         title={person.name}
       >
         {person.name}

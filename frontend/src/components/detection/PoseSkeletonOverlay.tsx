@@ -1,4 +1,3 @@
-
 /**
  * PoseSkeletonOverlay Component
  *

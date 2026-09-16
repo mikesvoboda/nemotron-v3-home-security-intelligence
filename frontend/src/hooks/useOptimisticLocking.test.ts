@@ -58,11 +58,7 @@ describe('useOptimisticLocking', () => {
     it('sets conflict state when operation throws conflict error', async () => {
       const { result } = renderHook(() => useOptimisticLocking());
 
-      const conflictError = new AlertsApiError(
-        'Alert was modified by another request',
-        409,
-        true
-      );
+      const conflictError = new AlertsApiError('Alert was modified by another request', 409, true);
       const mockOperation = vi.fn().mockRejectedValue(conflictError);
 
       await act(async () => {
@@ -84,9 +80,9 @@ describe('useOptimisticLocking', () => {
       const mockOperation = vi.fn().mockRejectedValue(regularError);
 
       await act(async () => {
-        await expect(
-          result.current.executeWithConflictHandling(mockOperation)
-        ).rejects.toThrow(regularError);
+        await expect(result.current.executeWithConflictHandling(mockOperation)).rejects.toThrow(
+          regularError
+        );
       });
 
       expect(result.current.hasConflict).toBe(false);
@@ -205,7 +201,8 @@ describe('useOptimisticLocking', () => {
 
       // First, trigger a conflict
       const conflictError = new AlertsApiError('Conflict', 409, true);
-      const mockOperation = vi.fn()
+      const mockOperation = vi
+        .fn()
         .mockRejectedValueOnce(conflictError)
         .mockResolvedValueOnce({ status: 'success' });
 

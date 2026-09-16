@@ -108,7 +108,9 @@ describe('useThreatDetection', () => {
 
       act(() => {
         result.current.addThreat(createMockThreat({ id: 1, threat_type: 'gun' }));
-        result.current.addThreat(createMockThreat({ id: 2, threat_type: 'knife', severity: 'high' }));
+        result.current.addThreat(
+          createMockThreat({ id: 2, threat_type: 'knife', severity: 'high' })
+        );
         result.current.addThreat(createMockThreat({ id: 3, threat_type: 'gun' }));
       });
 
@@ -120,7 +122,9 @@ describe('useThreatDetection', () => {
 
       act(() => {
         result.current.addThreat(createMockThreat({ id: 1, camera_id: 'front_door' }));
-        result.current.addThreat(createMockThreat({ id: 2, camera_id: 'back_yard', severity: 'high' }));
+        result.current.addThreat(
+          createMockThreat({ id: 2, camera_id: 'back_yard', severity: 'high' })
+        );
         result.current.addThreat(createMockThreat({ id: 3, camera_id: 'front_door' }));
       });
 
@@ -186,8 +190,8 @@ describe('useThreatDetection', () => {
     });
 
     it('respects custom expiration timeout', () => {
-      const { result } = renderHook(() =>
-        useThreatDetection({ expirationMs: 10000 }) // 10 seconds
+      const { result } = renderHook(
+        () => useThreatDetection({ expirationMs: 10000 }) // 10 seconds
       );
 
       act(() => {
@@ -208,9 +212,7 @@ describe('useThreatDetection', () => {
     });
 
     it('does not expire threats when expirationMs is 0', () => {
-      const { result } = renderHook(() =>
-        useThreatDetection({ expirationMs: 0 })
-      );
+      const { result } = renderHook(() => useThreatDetection({ expirationMs: 0 }));
 
       act(() => {
         result.current.addThreat(createMockThreat({ id: 1 }));
@@ -296,7 +298,9 @@ describe('useThreatDetection', () => {
 
       act(() => {
         result.current.addThreat(createMockThreat({ id: 1, created_at: oldDate }));
-        result.current.addThreat(createMockThreat({ id: 2, created_at: newDate, severity: 'high' }));
+        result.current.addThreat(
+          createMockThreat({ id: 2, created_at: newDate, severity: 'high' })
+        );
       });
 
       expect(result.current.threatSummary.latestThreat?.id).toBe(2);

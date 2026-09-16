@@ -263,7 +263,7 @@ def _is_paddleocr_available() -> bool:
         import importlib.util
 
         return importlib.util.find_spec("paddleocr") is not None
-    except (ImportError, ModuleNotFoundError):
+    except ImportError, ModuleNotFoundError:
         return False
 
 

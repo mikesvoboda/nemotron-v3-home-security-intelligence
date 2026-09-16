@@ -147,6 +147,28 @@ class MockRedisClient:
 
         inner_client.pipeline = _pipeline_impl
 
+        # xadd - Redis Streams append. Shipped use_redis_streams defaults to
+        # True (core/config.py:2104), so BatchAggregator.close_batch enqueues
+        # via AnalysisStreamService.add_batch → self._redis._client.xadd.
+        # Without this the inner MagicMock's xadd isn't awaitable and every
+        # close_batch test died TypeError (ledger R-T9-PIPELINE-E2E). The
+        # tests never consume the stream (analyze_batch is called directly),
+        # so a per-stream incrementing message id matches the contract.
+        parent._streams: dict[str, list[tuple[str, dict]]] = {}
+
+        async def _xadd_impl(
+            name: str,
+            fields: dict,
+            maxlen: int | None = None,
+            approximate: bool = False,
+        ) -> str:
+            entries = parent._streams.setdefault(name, [])
+            message_id = f"{len(entries) + 1}-0"
+            entries.append((message_id, dict(fields)))
+            return message_id
+
+        inner_client.xadd = _xadd_impl
+
         return inner_client
 
     def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
@@ -268,6 +290,10 @@ class MockRedisClient:
         self._validate_json_serializable(message)
         return 1
 
+    def peek_stream(self, stream_name: str) -> list[dict]:
+        """Entries appended by the async xadd mock (shipped stream path)."""
+        return [fields for _mid, fields in self._streams.get(stream_name, [])]
+
     async def health_check(self) -> dict[str, Any]:
         return {"status": "healthy", "connected": True, "redis_version": "mock"}
 
@@ -347,7 +373,21 @@ def create_test_image(path: Path) -> None:
 
 @pytest.fixture
 async def mock_redis() -> MockRedisClient:
-    """Provide a mock Redis client for tests."""
+    """Provide a mock Redis client for tests.
+
+    Also rebinds the process-wide AnalysisStreamService singleton to THIS
+    mock. get_analysis_stream_service (services/redis_streams.py:1192) is
+    first-client-wins: ANY earlier test in the same xdist worker that
+    closed a batch via the streams path caches its client there, and this
+    file's close_batch assertions then xadd into the dead mock instead of
+    the fixture (run-3 gate: "MagicMock object can't be awaited",
+    test_full_pipeline_multiple_images_same_camera; ledger
+    R-T9-PIPELINE-E2E — the file already reset inline at two enqueue
+    sites; the fixture boundary makes it universal).
+    """
+    import backend.services.redis_streams as _redis_streams
+
+    _redis_streams._analysis_stream_service = None
     return MockRedisClient()
 
 
@@ -984,17 +1024,32 @@ async def test_batch_timeout_closes_batch(
     batch_keys = mock_redis.get_batch_keys()
     mock_redis._client.scan_iter = mock_redis._create_scan_iter_mock(batch_keys)
 
+    # The AnalysisStreamService singleton caches the first redis client it
+    # ever saw; reset it so this test's mock receives the xadd
+    # (R-T9-PIPELINE-E2E).
+    import backend.services.redis_streams as _redis_streams
+
+    _redis_streams._analysis_stream_service = None
+
     # Check for timeouts
     closed_batches = await aggregator.check_batch_timeouts()
 
     # Batch should have been closed due to idle timeout
     assert batch_id in closed_batches
 
-    # Verify batch was pushed to analysis queue
-    queue_items = await mock_redis.peek_queue("analysis_queue")
-    assert len(queue_items) == 1
-    assert queue_items[0]["batch_id"] == batch_id
-    assert queue_items[0]["camera_id"] == camera_id
+    # Verify batch was pushed to the analysis stream. Shipped default is
+    # use_redis_streams=True (config.py:2104) → close_batch xadds to
+    # "analysis:stream", NOT the legacy "analysis_queue" LIST
+    # (batch_aggregator.py:928-937; R-T9-PIPELINE-E2E).
+    from backend.services.redis_streams import ANALYSIS_STREAM_KEY
+
+    stream_entries = mock_redis.peek_stream(ANALYSIS_STREAM_KEY)
+    assert len(stream_entries) == 1
+    assert stream_entries[0]["batch_id"] == batch_id
+    assert stream_entries[0]["camera_id"] == camera_id
+    import json as _json
+
+    assert _json.loads(stream_entries[0]["detection_ids"]) == [1]
 
 
 @pytest.mark.asyncio
@@ -1005,10 +1060,15 @@ async def test_fast_path_high_priority_detection(
 ) -> None:
     """Test that high-confidence person detections trigger fast path analysis.
 
-    Verifies that:
-    1. Detection with confidence >= 0.90 and type 'person' triggers fast path
-    2. Event is created immediately without batching
-    3. Event is marked as is_fast_path=True
+    Fast path SHIPS disabled (R-T9-PIPELINE-E2E): settings default to
+    fast_path_confidence_threshold=2.0 and fast_path_object_types=[] so
+    _should_use_fast_path is always False (batch_aggregator.py:1163-1178 —
+    "FAST PATH IS DISABLED — DO NOT RE-ENABLE WITHOUT ENRICHMENT"). The old
+    test relied on the removed permissive defaults and asserted
+    batch_id.startswith("fast_path_") under them. The shipped GATE is still
+    exercised here, honestly: the aggregator's threshold/types are
+    explicitly overridden to the legacy 0.90/person values, then the fast
+    path must fire.
     """
     camera, temp_camera_dir = test_camera
     camera_id = camera.id
@@ -1057,6 +1117,10 @@ async def test_fast_path_high_priority_detection(
         mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
         aggregator = BatchAggregator(redis_client=mock_redis)
+        # Ship defaults disable fast path (threshold 2.0, types []); opt the
+        # instance into the legacy gate to exercise it (R-T9-PIPELINE-E2E).
+        aggregator._fast_path_threshold = 0.90
+        aggregator._fast_path_types = ["person"]
         batch_id = await aggregator.add_detection(
             camera_id=camera_id,
             detection_id=str(detection_id),
@@ -1149,7 +1213,12 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     batch_detections_before = mock_redis._lists.get(f"batch:{batch_id}:detections", [])
     assert len(batch_detections_before) > 0
 
-    # Step 3: Close batch - this deletes Redis keys and enqueues
+    # Step 3: Close batch - this deletes Redis keys and enqueues.
+    # Reset the stream-service singleton first so the xadd targets this
+    # test's mock (R-T9-PIPELINE-E2E).
+    import backend.services.redis_streams as _redis_streams
+
+    _redis_streams._analysis_stream_service = None
     batch_summary = await aggregator.close_batch(batch_id)
     assert batch_summary["camera_id"] == camera_id
     assert batch_summary["detection_count"] == 1
@@ -1159,11 +1228,23 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     # Detections list should be deleted too
     assert f"batch:{batch_id}:detections" not in mock_redis._lists
 
-    # Step 4: Verify queue item contains all needed data
-    queue_items = await mock_redis.peek_queue("analysis_queue")
-    assert len(queue_items) == 1
+    # Step 4: Verify the stream message contains all needed data.
+    # use_redis_streams ships enabled, so close_batch enqueues via
+    # AnalysisStreamService.add_batch → xadd("analysis:stream") with
+    # detection_ids JSON-encoded; the legacy analysis_queue LIST is only
+    # used with the flag off (batch_aggregator.py:928-954).
+    import json as _json
 
-    queue_item = queue_items[0]
+    from backend.services.redis_streams import ANALYSIS_STREAM_KEY
+
+    stream_entries = mock_redis.peek_stream(ANALYSIS_STREAM_KEY)
+    assert len(stream_entries) == 1
+
+    queue_item = {
+        "batch_id": stream_entries[0]["batch_id"],
+        "camera_id": stream_entries[0]["camera_id"],
+        "detection_ids": [int(d) for d in _json.loads(stream_entries[0]["detection_ids"])],
+    }
     assert queue_item["batch_id"] == batch_id
     assert queue_item["camera_id"] == camera_id
     # Detection IDs are stored as integers (normalized by BatchAggregator.add_detection)

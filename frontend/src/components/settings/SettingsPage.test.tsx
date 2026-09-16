@@ -496,5 +496,4 @@ describe('SettingsPage', () => {
       expect(screen.getByTestId('prompt-management')).toBeInTheDocument();
     });
   });
-
 });

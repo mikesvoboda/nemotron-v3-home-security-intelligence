@@ -3215,7 +3215,7 @@ def check_member_schedule(  # noqa: PLR0911
                 return current_minutes >= start_minutes or current_minutes <= end_minutes
             else:
                 return start_minutes <= current_minutes <= end_minutes
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             _prompts_logger.warning(f"Invalid schedule time format: {schedule_value!r}")
             return None
 

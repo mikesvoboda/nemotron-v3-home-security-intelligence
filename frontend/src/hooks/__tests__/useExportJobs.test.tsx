@@ -25,7 +25,7 @@ import {
   exportJobsQueryKeys,
 } from '../useExportJobs';
 
-import type { ExportJob, ExportJobStatus } from '../../types/export';
+import type { ExportJob } from '../../types/export';
 
 // ============================================================================
 // Mock useJobWebSocket
@@ -129,7 +129,7 @@ function createMockResponse(data: unknown, status = 200, ok = true): Response {
 
 const createMockExportJob = (overrides: Partial<ExportJob> = {}): ExportJob => ({
   id: 'job-123',
-  status: 'running' as ExportJobStatus,
+  status: 'running',
   export_type: 'events',
   export_format: 'csv',
   progress: {
@@ -261,7 +261,14 @@ describe('useExportJobsQuery', () => {
     mockFetch.mockResolvedValue(
       createMockResponse({
         items: [],
-        pagination: { total: 0, limit: 50, offset: 0, cursor: null, next_cursor: null, has_more: false },
+        pagination: {
+          total: 0,
+          limit: 50,
+          offset: 0,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
       })
     );
 
@@ -327,10 +334,9 @@ describe('useExportJobStatus', () => {
       status: 'running',
     });
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { enableWebSocket: true }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { enableWebSocket: true }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -362,10 +368,9 @@ describe('useExportJobStatus', () => {
     const mockJob = createMockExportJob({ id: 'job-123', status: 'completed' });
     mockFetch.mockResolvedValue(createMockResponse(mockJob));
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { pollInterval: 1000 }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { pollInterval: 1000 }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -383,10 +388,9 @@ describe('useExportJobStatus', () => {
     });
     mockFetch.mockResolvedValue(createMockResponse(mockJob));
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { pollInterval: 1000 }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { pollInterval: 1000 }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -412,10 +416,9 @@ describe('useExportJobStatus', () => {
       status: 'running',
     });
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { enableWebSocket: true }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { enableWebSocket: true }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -427,10 +430,9 @@ describe('useExportJobStatus', () => {
   });
 
   it('does not fetch when enabled is false', async () => {
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { enabled: false }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { enabled: false }), {
+      wrapper: createTestWrapper(),
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -444,10 +446,9 @@ describe('useExportJobStatus', () => {
 
     mockIsConnected = true;
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { enableWebSocket: true }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { enableWebSocket: true }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -460,10 +461,9 @@ describe('useExportJobStatus', () => {
     const mockJob = createMockExportJob({ id: 'job-123', status: 'running' });
     mockFetch.mockResolvedValue(createMockResponse(mockJob));
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { enableWebSocket: false }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { enableWebSocket: false }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -569,21 +569,22 @@ describe('useStartExportJob', () => {
   });
 
   it('tracks pending state', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    mockFetch.mockImplementation(() =>
-      new Promise((resolve) =>
-        setTimeout(
-          () =>
-            resolve(
-              createMockResponse({
-                job_id: 'new-job',
-                status: 'pending',
-                message: 'Started',
-              })
-            ),
-          100
+    mockFetch.mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve(
+                createMockResponse({
+                  job_id: 'new-job',
+                  status: 'pending',
+                  message: 'Started',
+                })
+              ),
+            100
+          )
         )
-      )
     );
 
     const { result } = renderHook(() => useStartExportJob(), {
@@ -799,10 +800,9 @@ describe('Integration: WebSocket + HTTP polling', () => {
     });
     mockFetch.mockResolvedValue(createMockResponse(mockJob));
 
-    const { result } = renderHook(
-      () => useExportJobStatus('job-123', { enableWebSocket: true }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => useExportJobStatus('job-123', { enableWebSocket: true }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

@@ -151,10 +151,9 @@ describe('useSceneChangesQuery', () => {
     });
 
     it('fetches scene changes from a specific camera when cameraId is provided', async () => {
-      const { result } = renderHook(
-        () => useSceneChangesQuery({ cameraId: 'cam-1' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSceneChangesQuery({ cameraId: 'cam-1' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -231,10 +230,9 @@ describe('useSceneChangesQuery', () => {
     });
 
     it('filters by change type', async () => {
-      const { result } = renderHook(
-        () => useSceneChangesQuery({ changeType: 'view_blocked' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSceneChangesQuery({ changeType: 'view_blocked' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -247,10 +245,9 @@ describe('useSceneChangesQuery', () => {
     });
 
     it('filters by time range', async () => {
-      const { result } = renderHook(
-        () => useSceneChangesQuery({ timeRange: '1h' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSceneChangesQuery({ timeRange: '1h' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

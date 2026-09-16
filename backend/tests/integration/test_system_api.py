@@ -548,8 +548,16 @@ async def test_readiness_endpoint_not_ready_when_pipeline_workers_stopped(client
 
 
 @pytest.mark.asyncio
-async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(client, mock_redis):
-    """Test that readiness endpoint returns not_ready when detection worker is in error state."""
+async def test_readiness_endpoint_not_ready_when_detection_worker_stopped(client, mock_redis):
+    """Readiness is not_ready when the detection worker is stopped.
+
+    Renamed + retargeted (ledger R-T9-READINESS): shipped
+    _are_critical_pipeline_workers_healthy (system.py:671-691, NEM-3901)
+    treats "error" as OPERATIONAL — it is a transient self-recovering state,
+    counted non-operational only for stopped/stopping/starting. The old test
+    asserted not_ready for "error", which passed only by outrunning that
+    rule; the honest non-operational fixture is "stopped".
+    """
     from unittest.mock import MagicMock
 
     from backend.api.routes import system as system_routes
@@ -561,12 +569,12 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
     try:
         # Clear the readiness cache to ensure fresh evaluation
         system_routes._readiness_cache = None
-        # Mock pipeline manager with detection worker in error state
+        # Mock pipeline manager with detection worker stopped
         mock_manager = MagicMock()
         mock_manager.get_status.return_value = {
             "running": True,
             "workers": {
-                "detection": {"state": "error", "items_processed": 100, "errors": 10},
+                "detection": {"state": "stopped", "items_processed": 0, "errors": 0},
                 "analysis": {"state": "running", "items_processed": 50},
             },
         }
@@ -584,7 +592,7 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
         assert response.status_code == 503
         data = response.json()
 
-        # Should NOT be ready when detection worker is in error state
+        # Should NOT be ready when detection worker is stopped
         assert data["ready"] is False
         assert data["status"] == "not_ready"
 
@@ -1883,7 +1891,9 @@ async def test_performance_endpoint_returns_metrics(client, mock_redis):
 
 @pytest.mark.asyncio
 async def test_performance_endpoint_without_collector(client, mock_redis):
-    """Test performance endpoint returns 503 when collector is not registered."""
+    """Shipped contract (system.py:2140): with no collector registered the
+    endpoint answers 200 with null field groups — NOT 503 (the route
+    docstring's 503 claim is stale; ledger R-T7-SYSTEM)."""
     from backend.api.routes import system as system_routes
 
     # Save original collector
@@ -1895,11 +1905,11 @@ async def test_performance_endpoint_without_collector(client, mock_redis):
 
         response = await client.get("/api/system/performance")
 
-        # Should return 503 Service Unavailable
-        assert response.status_code == 503
+        assert response.status_code == 200
         data = response.json()
-        assert "detail" in data
-        assert "not initialized" in data["detail"].lower()
+        assert data["gpu"] is None
+        assert data["ai_models"] == {}
+        assert data["containers"] == []
     finally:
         system_routes._performance_collector = original_collector
 

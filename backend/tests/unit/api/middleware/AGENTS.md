@@ -71,6 +71,7 @@ def app_with_timing_middleware(self):
 
     return app
 
+
 def test_response_time_header_added(app_with_timing_middleware):
     """Test that X-Response-Time header is added."""
     client = TestClient(app_with_timing_middleware)

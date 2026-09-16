@@ -236,7 +236,7 @@ export default function ObjectBaselineChart({
 
   return (
     <div
-      className={`flex flex-col lg:flex-row rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 ${className}`}
+      className={`flex flex-col rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 lg:flex-row ${className}`}
       data-testid="object-baseline-chart"
       aria-label="Object baseline statistics chart"
     >
@@ -259,7 +259,12 @@ export default function ObjectBaselineChart({
               >
                 <span>Metric: {METRIC_LABELS[selectedMetric]}</span>
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
               {metricOpen && (
@@ -295,7 +300,12 @@ export default function ObjectBaselineChart({
                 >
                   <span>Sort: {SORT_LABELS[sortBy]}</span>
                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
                 {sortOpen && (
@@ -335,7 +345,7 @@ export default function ObjectBaselineChart({
             return (
               <div
                 key={objectClass}
-                className={`group ${colorClass} ${colorClass.replace('bg-', 'border-l-4 border-')}`}
+                className={`group ${colorClass} ${colorClass.replace('bg-', 'border- border-l-4')}`}
                 data-testid={`object-group-${objectClass}`}
                 data-class={objectClass}
               >
@@ -352,7 +362,7 @@ export default function ObjectBaselineChart({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className={`h-5 rounded transition-all cursor-pointer hover:brightness-110 ${colorClass} ${
+                      className={`h-5 cursor-pointer rounded transition-all hover:brightness-110 ${colorClass} ${
                         selectedMetric === 'avg_hourly' || highlightedMetric === 'avg_hourly'
                           ? 'emphasized ring-2 ring-white/30'
                           : 'opacity-70'
@@ -366,14 +376,16 @@ export default function ObjectBaselineChart({
                       onBlur={handleBarLeave}
                       aria-label={`${formatClassName(objectClass)} average hourly: ${baseline.avg_hourly.toFixed(1)} per hour`}
                     />
-                    <span className="text-xs text-gray-400">{baseline.avg_hourly.toFixed(1)}/hr</span>
+                    <span className="text-xs text-gray-400">
+                      {baseline.avg_hourly.toFixed(1)}/hr
+                    </span>
                   </div>
 
                   {/* Peak Hour */}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className={`h-5 rounded transition-all cursor-pointer hover:brightness-110 bg-orange-500 ${
+                      className={`h-5 cursor-pointer rounded bg-orange-500 transition-all hover:brightness-110 ${
                         selectedMetric === 'peak_hour' || highlightedMetric === 'peak_hour'
                           ? 'emphasized ring-2 ring-white/30'
                           : 'opacity-50'
@@ -394,21 +406,26 @@ export default function ObjectBaselineChart({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className={`h-5 rounded transition-all cursor-pointer hover:brightness-110 bg-gray-500 ${
-                        selectedMetric === 'total_detections' || highlightedMetric === 'total_detections'
+                      className={`h-5 cursor-pointer rounded bg-gray-500 transition-all hover:brightness-110 ${
+                        selectedMetric === 'total_detections' ||
+                        highlightedMetric === 'total_detections'
                           ? 'emphasized ring-2 ring-white/30'
                           : 'opacity-50'
                       } ${highlightedMetric === 'total_detections' ? 'highlighted' : ''}`}
                       style={{ width: `${totalWidth}%`, minWidth: '20px' }}
                       data-testid={`metric-${objectClass}-total_detections`}
                       data-metric="total_detections"
-                      onMouseEnter={(e) => handleBarHover(e, objectClass, baseline, 'total_detections')}
+                      onMouseEnter={(e) =>
+                        handleBarHover(e, objectClass, baseline, 'total_detections')
+                      }
                       onMouseLeave={handleBarLeave}
                       onFocus={(e) => handleBarHover(e, objectClass, baseline, 'total_detections')}
                       onBlur={handleBarLeave}
                       aria-label={`${formatClassName(objectClass)} total detections: ${formatNumber(baseline.total_detections)}`}
                     />
-                    <span className="text-xs text-gray-400">{formatNumber(baseline.total_detections)}</span>
+                    <span className="text-xs text-gray-400">
+                      {formatNumber(baseline.total_detections)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -423,27 +440,35 @@ export default function ObjectBaselineChart({
         >
           <button
             type="button"
-            className="flex items-center gap-1 cursor-pointer hover:text-white"
+            className="flex cursor-pointer items-center gap-1 hover:text-white"
             data-testid="legend-item-avg_hourly"
-            onClick={() => setHighlightedMetric(highlightedMetric === 'avg_hourly' ? null : 'avg_hourly')}
+            onClick={() =>
+              setHighlightedMetric(highlightedMetric === 'avg_hourly' ? null : 'avg_hourly')
+            }
           >
             <div className="h-3 w-3 rounded bg-blue-500" />
             <span>Avg/Hour</span>
           </button>
           <button
             type="button"
-            className="flex items-center gap-1 cursor-pointer hover:text-white"
+            className="flex cursor-pointer items-center gap-1 hover:text-white"
             data-testid="legend-item-peak_hour"
-            onClick={() => setHighlightedMetric(highlightedMetric === 'peak_hour' ? null : 'peak_hour')}
+            onClick={() =>
+              setHighlightedMetric(highlightedMetric === 'peak_hour' ? null : 'peak_hour')
+            }
           >
             <div className="h-3 w-3 rounded bg-orange-500" />
             <span>Peak Hour</span>
           </button>
           <button
             type="button"
-            className="flex items-center gap-1 cursor-pointer hover:text-white"
+            className="flex cursor-pointer items-center gap-1 hover:text-white"
             data-testid="legend-item-total_detections"
-            onClick={() => setHighlightedMetric(highlightedMetric === 'total_detections' ? null : 'total_detections')}
+            onClick={() =>
+              setHighlightedMetric(
+                highlightedMetric === 'total_detections' ? null : 'total_detections'
+              )
+            }
           >
             <div className="h-3 w-3 rounded bg-gray-500" />
             <span>Total</span>
@@ -457,7 +482,11 @@ export default function ObjectBaselineChart({
         >
           <span className="font-medium">Object Types:</span>
           {chartData.entries.map(([objectClass]) => (
-            <div key={objectClass} className="flex items-center gap-1" title={formatClassName(objectClass)}>
+            <div
+              key={objectClass}
+              className="flex items-center gap-1"
+              title={formatClassName(objectClass)}
+            >
               <div className={`h-2 w-2 rounded-sm ${getColorClass(objectClass)}`} />
               {/* Class name hidden to avoid duplicate text - use title attribute for hover */}
             </div>
@@ -488,17 +517,24 @@ export default function ObjectBaselineChart({
             <div className="space-y-0.5 text-gray-300">
               {tooltip.metric === 'avg_hourly' && (
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Average Hourly: {tooltip.baseline.avg_hourly.toFixed(1)}</span>
+                  <span className="text-gray-400">
+                    Average Hourly: {tooltip.baseline.avg_hourly.toFixed(1)}
+                  </span>
                 </div>
               )}
               {tooltip.metric === 'peak_hour' && (
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Peak Hour: {formatHour(tooltip.baseline.peak_hour)} ({tooltip.baseline.peak_hour})</span>
+                  <span className="text-gray-400">
+                    Peak Hour: {formatHour(tooltip.baseline.peak_hour)} (
+                    {tooltip.baseline.peak_hour})
+                  </span>
                 </div>
               )}
               {tooltip.metric === 'total_detections' && (
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-400">Total Detections: {formatNumber(tooltip.baseline.total_detections)}</span>
+                  <span className="text-gray-400">
+                    Total Detections: {formatNumber(tooltip.baseline.total_detections)}
+                  </span>
                 </div>
               )}
             </div>

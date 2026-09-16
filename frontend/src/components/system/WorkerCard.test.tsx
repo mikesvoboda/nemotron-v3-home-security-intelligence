@@ -340,7 +340,12 @@ describe('WorkerCard', () => {
     it('restart button calls onRestart with worker name', async () => {
       const onRestart = vi.fn();
       const { user } = renderWithProviders(
-        <WorkerCard worker={mockWorker} restartHistory={[]} onRestart={onRestart} onStop={vi.fn()} />
+        <WorkerCard
+          worker={mockWorker}
+          restartHistory={[]}
+          onRestart={onRestart}
+          onStop={vi.fn()}
+        />
       );
 
       await user.click(screen.getByTestId('worker-action-restart-file_watcher'));

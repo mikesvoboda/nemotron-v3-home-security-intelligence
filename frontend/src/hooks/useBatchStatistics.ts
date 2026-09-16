@@ -20,10 +20,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useDetectionStream } from './useDetectionStream';
 import { fetchPipelineStatus } from '../services/api';
 
-import type {
-  PipelineStatusResponse,
-  BatchInfoResponse,
-} from '../types/generated';
+import type { PipelineStatusResponse, BatchInfoResponse } from '../types/generated';
 import type { DetectionBatchData } from '../types/websocket';
 
 // ============================================================================

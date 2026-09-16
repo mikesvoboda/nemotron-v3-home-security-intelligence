@@ -2157,7 +2157,7 @@ class EventBroadcaster:
             """Send message to a single client with format negotiation."""
             try:
                 client_format = self._client_formats.get(ws, SerializationFormat.JSON)
-                prepared_message, format_used = prepared_cache[client_format]
+                prepared_message, _format_used = prepared_cache[client_format]
 
                 # Send based on format
                 if isinstance(prepared_message, bytes):

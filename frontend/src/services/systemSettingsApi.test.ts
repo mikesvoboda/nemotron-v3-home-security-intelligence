@@ -123,13 +123,10 @@ describe('systemSettingsApi', () => {
 
       await updateSystemSetting('test_setting', { new: 'value' });
 
-      expect(mockFetchApi).toHaveBeenCalledWith(
-        '/api/v1/system-settings/test_setting',
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ value: { new: 'value' } }),
-        }
-      );
+      expect(mockFetchApi).toHaveBeenCalledWith('/api/v1/system-settings/test_setting', {
+        method: 'PATCH',
+        body: JSON.stringify({ value: { new: 'value' } }),
+      });
     });
 
     it('returns the updated setting', async () => {
@@ -168,12 +165,9 @@ describe('systemSettingsApi', () => {
 
       await deleteSystemSetting('test_setting');
 
-      expect(mockFetchApi).toHaveBeenCalledWith(
-        '/api/v1/system-settings/test_setting',
-        {
-          method: 'DELETE',
-        }
-      );
+      expect(mockFetchApi).toHaveBeenCalledWith('/api/v1/system-settings/test_setting', {
+        method: 'DELETE',
+      });
     });
 
     it('encodes special characters in key', async () => {
@@ -181,12 +175,9 @@ describe('systemSettingsApi', () => {
 
       await deleteSystemSetting('test/setting');
 
-      expect(mockFetchApi).toHaveBeenCalledWith(
-        '/api/v1/system-settings/test%2Fsetting',
-        {
-          method: 'DELETE',
-        }
-      );
+      expect(mockFetchApi).toHaveBeenCalledWith('/api/v1/system-settings/test%2Fsetting', {
+        method: 'DELETE',
+      });
     });
   });
 });

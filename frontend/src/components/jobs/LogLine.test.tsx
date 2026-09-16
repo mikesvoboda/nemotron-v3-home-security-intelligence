@@ -73,7 +73,7 @@ describe('LogLine', () => {
 
     it('applies default styling for unknown level', () => {
       // Casting to test unknown levels
-      const unknownLog: JobLogEntryResponse = { ...baseLog, level: 'TRACE' as string };
+      const unknownLog: JobLogEntryResponse = { ...baseLog, level: 'TRACE' };
       render(<LogLine log={unknownLog} />);
 
       const levelElement = screen.getByText('TRACE');

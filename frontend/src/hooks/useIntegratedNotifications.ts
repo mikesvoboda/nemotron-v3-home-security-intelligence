@@ -185,12 +185,7 @@ export function useIntegratedNotifications(
   } = options;
 
   // Get backend preferences
-  const {
-    preferences,
-    isLoading,
-    error,
-    updateMutation,
-  } = useNotificationPreferences();
+  const { preferences, isLoading, error, updateMutation } = useNotificationPreferences();
 
   // Extract preference values with defaults
   const isEnabled = preferences?.enabled ?? true;
@@ -233,15 +228,8 @@ export function useIntegratedNotifications(
         return;
       }
 
-      const {
-        camera,
-        riskLevel,
-        summary,
-        eventId,
-        onClick,
-        hasThreat,
-        isHighPriorityThreat,
-      } = alertOptions;
+      const { camera, riskLevel, summary, eventId, onClick, hasThreat, isHighPriorityThreat } =
+        alertOptions;
 
       // Check if this risk level is in the filters
       if (riskFilters.length > 0 && !riskFilters.includes(riskLevel)) {

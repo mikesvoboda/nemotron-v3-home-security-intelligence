@@ -39,12 +39,7 @@ import {
   useRetryDelivery,
 } from '../hooks/useWebhooks';
 
-import type {
-  Webhook,
-  WebhookCreate,
-  WebhookUpdate,
-  WebhookEventType,
-} from '../types/webhook';
+import type { Webhook, WebhookCreate, WebhookUpdate, WebhookEventType } from '../types/webhook';
 
 // ============================================================================
 // Types
@@ -189,7 +184,7 @@ function WebhooksPageContent() {
         if (modalMode === 'create') {
           await createWebhook(data as WebhookCreate);
         } else if (modalMode === 'edit' && selectedWebhook) {
-          await updateWebhook(selectedWebhook.id, data as WebhookUpdate);
+          await updateWebhook(selectedWebhook.id, data);
         }
         handleCloseModal();
       } catch (err) {
@@ -281,7 +276,9 @@ function WebhooksPageContent() {
             <Button
               variant="ghost"
               size="sm"
-              leftIcon={<RefreshCw className={`h-4 w-4 ${isRefetchingList ? 'animate-spin' : ''}`} />}
+              leftIcon={
+                <RefreshCw className={`h-4 w-4 ${isRefetchingList ? 'animate-spin' : ''}`} />
+              }
               onClick={handleRefresh}
               disabled={isRefetchingList || isRefetchingHealth}
             >
@@ -331,7 +328,7 @@ function WebhooksPageContent() {
               {modalMode === 'create' ? 'Create Webhook' : 'Edit Webhook'}
             </h2>
             <WebhookForm
-              webhook={modalMode === 'edit' ? selectedWebhook ?? undefined : undefined}
+              webhook={modalMode === 'edit' ? (selectedWebhook ?? undefined) : undefined}
               onSubmit={handleSubmit}
               onCancel={handleCloseModal}
               isSubmitting={isCreating || isUpdating}

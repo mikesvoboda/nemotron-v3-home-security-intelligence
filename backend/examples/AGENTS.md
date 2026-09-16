@@ -223,11 +223,14 @@ async def test_detection_queue_integration():
     await client.connect()
 
     # Simulate file watcher with backpressure handling
-    result = await client.add_to_queue_safe("detection_queue", {
-        "file_path": "/export/foscam/test/image.jpg",
-        "camera_id": "test_camera",
-        "media_type": "image"
-    })
+    result = await client.add_to_queue_safe(
+        "detection_queue",
+        {
+            "file_path": "/export/foscam/test/image.jpg",
+            "camera_id": "test_camera",
+            "media_type": "image",
+        },
+    )
     assert result.success is True
 
     # Simulate detector

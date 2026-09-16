@@ -18,6 +18,7 @@ Reference: NEM-2218
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -109,7 +110,7 @@ class TestConnectionPoolExhaustion:
                     async with get_session() as session2:
                         await session2.execute(text("SELECT 1"))
                     return True
-                except (SQLAlchemyTimeoutError, OperationalError, TimeoutError):
+                except SQLAlchemyTimeoutError, OperationalError, TimeoutError:
                     return False
 
             # Most should succeed via queuing, but system handles pressure gracefully
@@ -201,7 +202,7 @@ class TestDatabaseConnectionTimeout:
                 # Set timeout and try slow query
                 await session.execute(text("SET statement_timeout = '50ms'"))
                 await session.execute(text("SELECT pg_sleep(0.2)"))
-        except (OperationalError, DBAPIError):
+        except OperationalError, DBAPIError:
             # Expected timeout
             pass
 
@@ -216,37 +217,53 @@ class TestReconnectionAfterTemporaryUnavailability:
 
     @pytest.mark.asyncio
     async def test_reconnection_after_connection_lost(self, integration_db: str) -> None:
-        """Verify system can reconnect after connection is lost."""
-        # Simulate connection lost then recovered
-        call_count = 0
+        """A TERMINATED backend is genuinely survived by the next session.
 
-        async def connection_lost_then_recovered(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise InterfaceError(
-                    "Connection lost", {}, Exception("Server closed the connection")
-                )
-            # Second call succeeds - return valid mock result
-            from unittest.mock import MagicMock
+        M3 T7 (audit tautology list, the one item it queued for fixing):
+        the old body raised a mock InterfaceError, caught it, and ended on
+        ``assert True`` — it verified its own mock, and its comment claimed
+        "real reconnection is tested in other tests" while nothing on this
+        path executed any reconnection. Now the kill is REAL: PostgreSQL's
+        pg_terminate_backend ends our own backend, and the assertion is the
+        shipped recovery contract — the pool (pool_pre_ping per
+        backend/core/database) replaces the dead connection and a new
+        get_session() answers.
+        """
+        # Both sessions must be LIVE at kill time: the shipped pool is LIFO
+        # (pool_use_lifo, backend/core/database.py), so a released victim
+        # connection would be handed straight to the killer — and
+        # pg_terminate_backend would end the killer's OWN backend (observed
+        # on first draft: the killer's next query died instead of the victim).
+        #
+        # The victim's own teardown is expected collateral: get_session()
+        # commits on exit (database.py:679), and committing through a
+        # server-side-terminated backend raises for whoever holds it — the
+        # shipped handler logs and re-raises. Suppressing THAT is not
+        # softening the test: the contract under test is that the pool hands
+        # the NEXT session a live connection. Both kill assertions run
+        # outside the suppress, so a failed kill can never hide in it
+        # (terminated/victim_pid keep their falsy initial values).
+        victim_pid = 0
+        terminated = False
+        with contextlib.suppress(Exception):
+            async with get_session() as victim:
+                victim_pid = (await victim.execute(text("SELECT pg_backend_pid()"))).scalar_one()
 
-            mock_result = MagicMock()
-            mock_result.scalar = lambda: 1
-            return mock_result
+                async with get_session() as killer:
+                    terminated = (
+                        await killer.execute(
+                            text("SELECT pg_terminate_backend(:pid)").bindparams(pid=victim_pid)
+                        )
+                    ).scalar_one()
 
-        # First attempt should fail
-        try:
-            async with get_session() as session:
-                with patch.object(session, "execute", side_effect=connection_lost_then_recovered):
-                    await session.execute(text("SELECT 1"))
-            pytest.fail("Expected InterfaceError but query succeeded")
-        except InterfaceError:
-            pass
+        assert victim_pid and victim_pid > 0
+        assert terminated is True
 
-        # Second attempt should succeed (new session, simulated recovery)
-        # This test verifies the mock behavior, not actual reconnection
-        # Real reconnection is tested in other tests
-        assert True  # Test demonstrates error handling pattern
+        # Recovery contract: the pool must hand the next session a live
+        # connection even though the previous one was server-side terminated.
+        async with get_session() as session:
+            result = await session.execute(text("SELECT 1"))
+            assert result.scalar() == 1
 
     @pytest.mark.asyncio
     async def test_stale_connection_replaced_on_checkout(self, integration_db: str) -> None:

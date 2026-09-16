@@ -210,9 +210,7 @@ describe('TooltipContent', () => {
 
   it('renders color indicators for items', () => {
     const { container } = render(
-      <TooltipContent
-        items={[{ label: 'Person', value: 10, color: '#76B900' }]}
-      />
+      <TooltipContent items={[{ label: 'Person', value: 10, color: '#76B900' }]} />
     );
 
     const colorIndicator = container.querySelector('[style*="background-color"]');

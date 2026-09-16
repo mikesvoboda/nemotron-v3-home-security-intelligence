@@ -237,12 +237,9 @@ export default function ScheduledReportForm({
   }, [report]);
 
   // Handle field change
-  const handleChange = useCallback(
-    <K extends keyof FormState>(field: K, value: FormState[K]) => {
-      setState((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleChange = useCallback(<K extends keyof FormState>(field: K, value: FormState[K]) => {
+    setState((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   // Handle adding email recipient
   const handleAddEmail = useCallback(() => {
@@ -413,10 +410,7 @@ export default function ScheduledReportForm({
         {/* Day of Week (for weekly) */}
         {state.frequency === 'weekly' && (
           <div>
-            <label
-              htmlFor="report-day-of-week"
-              className="block text-sm font-medium text-gray-300"
-            >
+            <label htmlFor="report-day-of-week" className="block text-sm font-medium text-gray-300">
               Day of Week
             </label>
             <select

@@ -101,9 +101,7 @@ describe('EventStatsPanel', () => {
 
   describe('styling', () => {
     it('applies custom className', () => {
-      render(
-        <EventStatsPanel stats={mockStats} isLoading={false} className="custom-class" />
-      );
+      render(<EventStatsPanel stats={mockStats} isLoading={false} className="custom-class" />);
 
       const panel = screen.getByTestId('event-stats-panel');
       expect(panel).toHaveClass('custom-class');

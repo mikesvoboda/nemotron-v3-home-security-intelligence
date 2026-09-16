@@ -18,8 +18,8 @@ vi.mock('../services/api', async () => {
   return {
     ...actual,
     checkCameraSnapshot: vi.fn(),
-    getCameraSnapshotUrl: vi.fn((cameraId: string) =>
-      `http://localhost:8000/api/cameras/${cameraId}/snapshot`
+    getCameraSnapshotUrl: vi.fn(
+      (cameraId: string) => `http://localhost:8000/api/cameras/${cameraId}/snapshot`
     ),
   };
 });
@@ -54,10 +54,9 @@ describe('useCameraSnapshotStatus', () => {
     };
     mockCheckCameraSnapshot.mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     // Initially loading
     expect(result.current.isLoading).toBe(true);
@@ -81,10 +80,9 @@ describe('useCameraSnapshotStatus', () => {
     };
     mockCheckCameraSnapshot.mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('garage'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('garage'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -101,10 +99,9 @@ describe('useCameraSnapshotStatus', () => {
     };
     mockCheckCameraSnapshot.mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('test'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('test'), {
+      wrapper: createWrapper(),
+    });
 
     // URL should be available immediately (before loading completes)
     expect(result.current.snapshotUrl).toBe('http://localhost:8000/api/cameras/test/snapshot');
@@ -112,10 +109,9 @@ describe('useCameraSnapshotStatus', () => {
   });
 
   it('does not fetch when cameraId is undefined', () => {
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus(undefined),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus(undefined), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(mockCheckCameraSnapshot).not.toHaveBeenCalled();
@@ -123,10 +119,9 @@ describe('useCameraSnapshotStatus', () => {
   });
 
   it('does not fetch when disabled', () => {
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('front_door', { enabled: false }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('front_door', { enabled: false }), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(mockCheckCameraSnapshot).not.toHaveBeenCalled();
@@ -139,10 +134,9 @@ describe('useCameraSnapshotStatus', () => {
     };
     mockCheckCameraSnapshot.mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -157,10 +151,9 @@ describe('useCameraSnapshotStatus', () => {
   it('handles network errors', async () => {
     mockCheckCameraSnapshot.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     // Wait for error state with extended timeout (retry takes time)
     await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 3000 });
@@ -175,10 +168,9 @@ describe('useCameraSnapshotStatus', () => {
     };
     mockCheckCameraSnapshot.mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.isChecking).toBe(false);
@@ -187,10 +179,9 @@ describe('useCameraSnapshotStatus', () => {
   it('defaults isAvailable to false when no data', () => {
     mockCheckCameraSnapshot.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    const { result } = renderHook(
-      () => useCameraSnapshotStatus('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useCameraSnapshotStatus('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isAvailable).toBe(false);
   });

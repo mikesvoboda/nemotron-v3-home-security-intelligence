@@ -61,12 +61,7 @@ describe('AccessScheduleEditor', () => {
   });
 
   it('displays existing schedules', () => {
-    render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        schedules={mockSchedules}
-      />
-    );
+    render(<AccessScheduleEditor {...defaultProps} schedules={mockSchedules} />);
 
     expect(screen.getByTestId('schedule-item')).toBeInTheDocument();
     expect(screen.getByText('John Doe')).toBeInTheDocument();
@@ -209,12 +204,7 @@ describe('AccessScheduleEditor', () => {
   it('allows editing existing schedule', async () => {
     const user = userEvent.setup();
 
-    render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        schedules={mockSchedules}
-      />
-    );
+    render(<AccessScheduleEditor {...defaultProps} schedules={mockSchedules} />);
 
     // Click edit button on schedule item
     const editBtn = screen.getByRole('button', { name: 'Edit schedule' });
@@ -229,11 +219,7 @@ describe('AccessScheduleEditor', () => {
     const onChange = vi.fn();
 
     render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        schedules={mockSchedules}
-        onChange={onChange}
-      />
+      <AccessScheduleEditor {...defaultProps} schedules={mockSchedules} onChange={onChange} />
     );
 
     // Click delete button on schedule item
@@ -244,35 +230,20 @@ describe('AccessScheduleEditor', () => {
   });
 
   it('disables add button when no members available', () => {
-    render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        members={[]}
-      />
-    );
+    render(<AccessScheduleEditor {...defaultProps} members={[]} />);
 
     expect(screen.getByTestId('add-schedule-btn')).toBeDisabled();
   });
 
   it('displays time range correctly', () => {
-    render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        schedules={mockSchedules}
-      />
-    );
+    render(<AccessScheduleEditor {...defaultProps} schedules={mockSchedules} />);
 
     // Should show parsed time range
     expect(screen.getByText('09:00 - 17:00')).toBeInTheDocument();
   });
 
   it('displays day labels correctly for weekdays', () => {
-    render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        schedules={mockSchedules}
-      />
-    );
+    render(<AccessScheduleEditor {...defaultProps} schedules={mockSchedules} />);
 
     expect(screen.getByText('Weekdays')).toBeInTheDocument();
   });
@@ -302,13 +273,7 @@ describe('AccessScheduleEditor', () => {
   });
 
   it('disables all interactions when disabled prop is true', () => {
-    render(
-      <AccessScheduleEditor
-        {...defaultProps}
-        schedules={mockSchedules}
-        disabled={true}
-      />
-    );
+    render(<AccessScheduleEditor {...defaultProps} schedules={mockSchedules} disabled={true} />);
 
     const addBtn = screen.getByTestId('add-schedule-btn');
     expect(addBtn).toBeDisabled();

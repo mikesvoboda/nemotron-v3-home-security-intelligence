@@ -268,10 +268,7 @@ export default function RiskDistributionChart({
           />
           {/* Center label showing total */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span
-              className="text-2xl font-bold text-white"
-              data-testid="total-events"
-            >
+            <span className="text-2xl font-bold text-white" data-testid="total-events">
               {formatCount(totalEvents)}
             </span>
             <span className="text-xs text-gray-400">events</span>

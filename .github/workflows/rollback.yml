@@ -149,7 +149,7 @@ jobs:
         with:
           name: rollback-report
           path: rollback-report.md
-          retention-days: 90
+          retention-days: 30
 
       - name: Create rollback issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
@@ -279,7 +279,7 @@ jobs:
         with:
           name: progressive-deployment-strategy
           path: canary-strategy.md
-          retention-days: 90
+          retention-days: 30
 
   # Summary job for rollback status
   rollback-summary:

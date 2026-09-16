@@ -72,7 +72,7 @@ _The onboarding journey takes operators through system setup, then hands off to 
 ## What You Will Need
 
 - NVIDIA GPU with 8GB+ VRAM (RTX 3060 or better)
-- Python 3.14+, Node.js 20.19+
+- Python 3.14+, Node.js 24 LTS
 - Docker or Podman
 - Foscam cameras (or compatible FTP-uploading cameras)
 

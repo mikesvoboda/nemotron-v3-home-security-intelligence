@@ -8,10 +8,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import { useSeverityConfig } from './useSeverityConfig';
 import { fetchSeverityMetadata } from '../services/api';
-import {
-  DEFAULT_SEVERITY_DEFINITIONS,
-  DEFAULT_SEVERITY_THRESHOLDS,
-} from '../types/severity';
+import { DEFAULT_SEVERITY_DEFINITIONS, DEFAULT_SEVERITY_THRESHOLDS } from '../types/severity';
 
 import type { SeverityMetadata } from '../types/severity';
 
@@ -207,12 +204,9 @@ describe('useSeverityConfig', () => {
         wrapper: createWrapper(),
       });
 
-      await waitFor(
-        () => {
-          expect(result.current.isLoading).toBe(false);
-        },
-        ERROR_WAIT_TIMEOUT
-      );
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      }, ERROR_WAIT_TIMEOUT);
 
       expect(result.current.error).toBeInstanceOf(Error);
       expect(result.current.thresholds).toEqual(DEFAULT_SEVERITY_THRESHOLDS);
@@ -399,12 +393,9 @@ describe('useSeverityConfig', () => {
         wrapper: createWrapper(),
       });
 
-      await waitFor(
-        () => {
-          expect(result.current.isLoading).toBe(false);
-        },
-        ERROR_WAIT_TIMEOUT
-      );
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      }, ERROR_WAIT_TIMEOUT);
 
       expect(result.current.error).toBeInstanceOf(Error);
       expect(result.current.error?.message).toBe('Failed to fetch severity config');
@@ -417,12 +408,9 @@ describe('useSeverityConfig', () => {
         wrapper: createWrapper(),
       });
 
-      await waitFor(
-        () => {
-          expect(result.current.isLoading).toBe(false);
-        },
-        ERROR_WAIT_TIMEOUT
-      );
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      }, ERROR_WAIT_TIMEOUT);
 
       // Should use default thresholds
       expect(result.current.getRiskLevel(50)).toBe('medium');

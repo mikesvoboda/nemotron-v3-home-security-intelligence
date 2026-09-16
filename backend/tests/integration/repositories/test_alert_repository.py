@@ -8,6 +8,7 @@ Run with: uv run pytest backend/tests/integration/repositories/test_alert_reposi
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -15,6 +16,15 @@ import pytest
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Camera, Event
 from backend.repositories.alert_repository import AlertRepository, AlertRuleRepository
 from backend.tests.conftest import unique_id
+
+
+def unique_uuid() -> str:
+    """UUID string for UUID(as_uuid=False) model id columns (Alert/AlertRule).
+
+    unique_id() emits prefix_hex8 strings, which asyncpg rejects for UUID
+    columns; the models' real ids are UUIDs (uuid7 defaults).
+    """
+    return str(uuid.uuid4())
 
 
 @pytest.fixture
@@ -60,13 +70,14 @@ class TestAlertRepositoryBasicCRUD:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -101,13 +112,14 @@ class TestAlertRepositoryBasicCRUD:
                 camera_id=camera.id,
                 risk_score=50,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -130,7 +142,7 @@ class TestAlertRepositoryBasicCRUD:
         async with test_db() as session:
             repo = AlertRepository(session)
 
-            result = await repo.get_by_id("nonexistent_alert")
+            result = await repo.get_by_id(unique_uuid())
 
             assert result is None
 
@@ -152,13 +164,14 @@ class TestAlertRepositoryBasicCRUD:
                 camera_id=camera.id,
                 risk_score=60,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -199,13 +212,14 @@ class TestAlertRepositoryBasicCRUD:
                 camera_id=camera.id,
                 risk_score=70,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -240,7 +254,8 @@ class TestAlertRepositoryBasicCRUD:
                 camera_id=camera.id,
                 risk_score=80,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -251,7 +266,7 @@ class TestAlertRepositoryBasicCRUD:
             # Create alerts
             for i in range(3):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.MEDIUM,
                     status=AlertStatus.PENDING,
@@ -285,13 +300,15 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=70,
                 summary="Event 1",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             event2 = Event(
                 camera_id=camera.id,
                 risk_score=80,
                 summary="Event 2",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event1)
             session.add(event2)
@@ -299,21 +316,21 @@ class TestAlertRepositorySpecificMethods:
 
             # Create alerts for different events
             alert1 = Alert(
-                id=unique_id("alert1"),
+                id=unique_uuid(),
                 event_id=event1.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
                 dedup_key="test1",
             )
             alert2 = Alert(
-                id=unique_id("alert2"),
+                id=unique_uuid(),
                 event_id=event1.id,
                 severity=AlertSeverity.MEDIUM,
                 status=AlertStatus.PENDING,
                 dedup_key="test2",
             )
             alert3 = Alert(
-                id=unique_id("alert3"),
+                id=unique_uuid(),
                 event_id=event2.id,
                 severity=AlertSeverity.LOW,
                 status=AlertStatus.PENDING,
@@ -349,21 +366,22 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alerts with different statuses
             pending = Alert(
-                id=unique_id("pending"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
                 dedup_key="pending",
             )
             delivered = Alert(
-                id=unique_id("delivered"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.MEDIUM,
                 status=AlertStatus.DELIVERED,
@@ -397,21 +415,22 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=85,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alerts with different severities
             high = Alert(
-                id=unique_id("high"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
                 dedup_key="high",
             )
             low = Alert(
-                id=unique_id("low"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.LOW,
                 status=AlertStatus.PENDING,
@@ -445,14 +464,15 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=70,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alerts with same dedup key at different times
             old_alert = Alert(
-                id=unique_id("old"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
@@ -460,14 +480,14 @@ class TestAlertRepositorySpecificMethods:
                 created_at=datetime.now(UTC) - timedelta(hours=2),
             )
             recent_alert = Alert(
-                id=unique_id("recent"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
                 dedup_key="same-key",
             )
             different_alert = Alert(
-                id=unique_id("different"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
@@ -505,7 +525,8 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=65,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -513,7 +534,7 @@ class TestAlertRepositorySpecificMethods:
             # Create alerts
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.MEDIUM,
                     status=AlertStatus.PENDING,
@@ -544,14 +565,15 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=80,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create undelivered alert
             undelivered = Alert(
-                id=unique_id("undelivered"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
@@ -560,7 +582,7 @@ class TestAlertRepositorySpecificMethods:
             )
             # Create delivered alert
             delivered = Alert(
-                id=unique_id("delivered"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.MEDIUM,
                 status=AlertStatus.DELIVERED,
@@ -595,13 +617,14 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create pending alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -642,13 +665,14 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=70,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create delivered alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -686,13 +710,14 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=65,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create delivered alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -730,14 +755,15 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=80,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create recent alert
             alert = Alert(
-                id=unique_id("alert"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
@@ -767,14 +793,15 @@ class TestAlertRepositorySpecificMethods:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create old alert (outside cooldown)
             alert = Alert(
-                id=unique_id("alert"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,
@@ -797,7 +824,7 @@ class TestAlertRuleRepositoryBasicCRUD:
         async with test_db() as session:
             repo = AlertRuleRepository(session)
 
-            rule_id = unique_id("rule")
+            rule_id = unique_uuid()
             rule = AlertRule(
                 id=rule_id,
                 name="High Risk Detection",
@@ -821,7 +848,7 @@ class TestAlertRuleRepositoryBasicCRUD:
         async with test_db() as session:
             repo = AlertRuleRepository(session)
 
-            rule_id = unique_id("rule")
+            rule_id = unique_uuid()
             rule = AlertRule(
                 id=rule_id,
                 name="Test Rule",
@@ -843,7 +870,7 @@ class TestAlertRuleRepositoryBasicCRUD:
         async with test_db() as session:
             repo = AlertRuleRepository(session)
 
-            rule_id = unique_id("rule")
+            rule_id = unique_uuid()
             rule = AlertRule(
                 id=rule_id,
                 name="Original Name",
@@ -871,7 +898,7 @@ class TestAlertRuleRepositoryBasicCRUD:
         async with test_db() as session:
             repo = AlertRuleRepository(session)
 
-            rule_id = unique_id("rule")
+            rule_id = unique_uuid()
             rule = AlertRule(
                 id=rule_id,
                 name="To Delete",
@@ -899,13 +926,13 @@ class TestAlertRuleRepositorySpecificMethods:
 
             # Create enabled and disabled rules
             enabled = AlertRule(
-                id=unique_id("enabled"),
+                id=unique_uuid(),
                 name="Enabled Rule",
                 enabled=True,
                 severity=AlertSeverity.HIGH,
             )
             disabled = AlertRule(
-                id=unique_id("disabled"),
+                id=unique_uuid(),
                 name="Disabled Rule",
                 enabled=False,
                 severity=AlertSeverity.MEDIUM,
@@ -928,7 +955,7 @@ class TestAlertRuleRepositorySpecificMethods:
 
             rule_name = f"Unique Rule {unique_id('name')}"
             rule = AlertRule(
-                id=unique_id("rule"),
+                id=unique_uuid(),
                 name=rule_name,
                 enabled=True,
                 severity=AlertSeverity.HIGH,
@@ -959,13 +986,13 @@ class TestAlertRuleRepositorySpecificMethods:
 
             # Create rules with different severities
             high = AlertRule(
-                id=unique_id("high"),
+                id=unique_uuid(),
                 name="High Severity Rule",
                 enabled=True,
                 severity=AlertSeverity.HIGH,
             )
             low = AlertRule(
-                id=unique_id("low"),
+                id=unique_uuid(),
                 name="Low Severity Rule",
                 enabled=True,
                 severity=AlertSeverity.LOW,
@@ -986,7 +1013,7 @@ class TestAlertRuleRepositorySpecificMethods:
         async with test_db() as session:
             repo = AlertRuleRepository(session)
 
-            rule_id = unique_id("rule")
+            rule_id = unique_uuid()
             rule = AlertRule(
                 id=rule_id,
                 name="Test Rule",
@@ -1015,7 +1042,7 @@ class TestAlertRuleRepositorySpecificMethods:
         async with test_db() as session:
             repo = AlertRuleRepository(session)
 
-            result = await repo.set_enabled("nonexistent", True)
+            result = await repo.set_enabled(unique_uuid(), True)
 
             assert result is None
 
@@ -1027,7 +1054,7 @@ class TestAlertRuleRepositorySpecificMethods:
 
             # Create rule with empty camera_ids (applies to all)
             all_cameras_rule = AlertRule(
-                id=unique_id("all"),
+                id=unique_uuid(),
                 name="All Cameras Rule",
                 enabled=True,
                 severity=AlertSeverity.HIGH,
@@ -1051,7 +1078,7 @@ class TestAlertRuleRepositorySpecificMethods:
 
             # Create rule for specific camera
             specific_rule = AlertRule(
-                id=unique_id("specific"),
+                id=unique_uuid(),
                 name="Specific Camera Rule",
                 enabled=True,
                 severity=AlertSeverity.HIGH,
@@ -1059,7 +1086,7 @@ class TestAlertRuleRepositorySpecificMethods:
             )
             # Create rule for different camera
             other_rule = AlertRule(
-                id=unique_id("other"),
+                id=unique_uuid(),
                 name="Other Camera Rule",
                 enabled=True,
                 severity=AlertSeverity.MEDIUM,
@@ -1097,13 +1124,14 @@ class TestAlertRepositoryRelationshipLoading:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alert
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -1141,14 +1169,15 @@ class TestAlertRepositoryRelationshipLoading:
                 camera_id=camera.id,
                 risk_score=80,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create rule
             rule = AlertRule(
-                id=unique_id("rule"),
+                id=unique_uuid(),
                 name="Test Rule",
                 enabled=True,
                 severity=AlertSeverity.HIGH,
@@ -1156,7 +1185,7 @@ class TestAlertRepositoryRelationshipLoading:
             await rule_repo.create(rule)
 
             # Create alert with rule
-            alert_id = unique_id("alert")
+            alert_id = unique_uuid()
             alert = Alert(
                 id=alert_id,
                 event_id=event.id,
@@ -1186,7 +1215,7 @@ class TestAlertRepositoryErrorHandling:
         async with test_db() as session:
             repo = AlertRepository(session)
 
-            result = await repo.mark_delivered("nonexistent")
+            result = await repo.mark_delivered(unique_uuid())
 
             assert result is None
 
@@ -1196,7 +1225,7 @@ class TestAlertRepositoryErrorHandling:
         async with test_db() as session:
             repo = AlertRepository(session)
 
-            result = await repo.mark_acknowledged("nonexistent")
+            result = await repo.mark_acknowledged(unique_uuid())
 
             assert result is None
 
@@ -1206,7 +1235,7 @@ class TestAlertRepositoryErrorHandling:
         async with test_db() as session:
             repo = AlertRepository(session)
 
-            result = await repo.mark_dismissed("nonexistent")
+            result = await repo.mark_dismissed(unique_uuid())
 
             assert result is None
 
@@ -1216,7 +1245,7 @@ class TestAlertRepositoryErrorHandling:
         async with test_db() as session:
             repo = AlertRepository(session)
 
-            alerts = await repo.get_by_rule_id("nonexistent_rule")
+            alerts = await repo.get_by_rule_id(unique_uuid())
 
             assert len(alerts) == 0
 
@@ -1242,7 +1271,8 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -1251,7 +1281,7 @@ class TestAlertRepositoryPagination:
             alert_ids = []
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.HIGH,
                     status=AlertStatus.PENDING,
@@ -1295,14 +1325,15 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create rule
             rule = AlertRule(
-                id=unique_id("rule"),
+                id=unique_uuid(),
                 name="Test Rule",
                 enabled=True,
                 severity=AlertSeverity.HIGH,
@@ -1312,7 +1343,7 @@ class TestAlertRepositoryPagination:
             # Create 5 alerts for the rule
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     rule_id=rule.id,
                     severity=AlertSeverity.HIGH,
@@ -1351,7 +1382,8 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -1359,7 +1391,7 @@ class TestAlertRepositoryPagination:
             # Create 5 pending alerts
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.HIGH,
                     status=AlertStatus.PENDING,
@@ -1397,7 +1429,8 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -1405,7 +1438,7 @@ class TestAlertRepositoryPagination:
             # Create 5 critical alerts
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.CRITICAL,
                     status=AlertStatus.PENDING,
@@ -1443,7 +1476,8 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -1452,7 +1486,7 @@ class TestAlertRepositoryPagination:
             dedup_key = unique_id("dedup")
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.HIGH,
                     status=AlertStatus.PENDING,
@@ -1495,7 +1529,8 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
@@ -1505,7 +1540,7 @@ class TestAlertRepositoryPagination:
             alert_ids = []
             for i in range(5):
                 alert = Alert(
-                    id=unique_id(f"alert{i}"),
+                    id=unique_uuid(),
                     event_id=event.id,
                     severity=AlertSeverity.HIGH,
                     status=AlertStatus.PENDING,
@@ -1546,14 +1581,15 @@ class TestAlertRepositoryPagination:
                 camera_id=camera.id,
                 risk_score=75,
                 summary="Test event",
-                occurred_at=datetime.now(UTC),
+                started_at=datetime.now(UTC),
+                batch_id=unique_id("batch"),
             )
             session.add(event)
             await session.flush()
 
             # Create alert
             alert = Alert(
-                id=unique_id("alert"),
+                id=unique_uuid(),
                 event_id=event.id,
                 severity=AlertSeverity.HIGH,
                 status=AlertStatus.PENDING,

@@ -49,13 +49,15 @@ def build_model_specs() -> list[ModelSpec]:
     except ImportError:
         # Fallback when called outside the package (e.g. direct script execution)
         from pathlib import Path as _Path
+
         import yaml as _yaml
+
         _yml = _Path(__file__).parent.parent / "models.yml"
         _all = _yaml.safe_load(_yml.read_text())["models"]
         _downloadable = [
-            m for m in _all
-            if m.get("download_method") != "skip"
-            and (m.get("hf_repo") or m.get("download_method"))
+            m
+            for m in _all
+            if m.get("download_method") != "skip" and (m.get("hf_repo") or m.get("download_method"))
         ]
         return [
             ModelSpec(
@@ -364,7 +366,18 @@ def check_model_exists(model_path: Path, model_name: str) -> bool:
         return False
 
     # Check for common model file extensions
-    model_extensions = (".pt", ".pth", ".safetensors", ".bin", ".onnx", ".engine", ".gguf", ".pb", ".h5", ".keras")
+    model_extensions = (
+        ".pt",
+        ".pth",
+        ".safetensors",
+        ".bin",
+        ".onnx",
+        ".engine",
+        ".gguf",
+        ".pb",
+        ".h5",
+        ".keras",
+    )
     return any(list(model_dir.rglob(f"*{ext}")) for ext in model_extensions)
 
 
@@ -415,11 +428,12 @@ def download_nemotron_gguf(model_path: Path) -> bool:
     try:
         from huggingface_hub import hf_hub_download
 
+        # huggingface_hub 1.x removed local_dir_use_symlinks; with local_dir set
+        # files are always copied rather than symlinked (the old False behavior).
         downloaded = hf_hub_download(
             repo_id="unsloth/Nemotron-3-Nano-30B-A3B-GGUF",
             filename="Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
             local_dir=nemotron_dir,
-            local_dir_use_symlinks=False,
         )
         print(f"    Downloaded to: {downloaded}")
         return True
@@ -496,12 +510,11 @@ def download_brisque_weights(model_path: Path) -> bool:
         return True
 
     url = (
-        "https://github.com/photosynthesis-team/piq/"
-        "releases/download/v0.4.0/brisque_svm_weights.pt"
+        "https://github.com/photosynthesis-team/piq/releases/download/v0.4.0/brisque_svm_weights.pt"
     )
     print("    Downloading brisque_svm_weights.pt (~1MB)...")
     try:
-        urllib.request.urlretrieve(url, target)  # noqa: S310
+        urllib.request.urlretrieve(url, target)
         print("    Downloaded: brisque_svm_weights.pt")
         return True
     except Exception as e:
@@ -532,7 +545,11 @@ def download_tiktoken_encoding(model_path: Path) -> bool:
     import urllib.request
 
     url = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
-    cache_key = hashlib.sha1(url.encode()).hexdigest()  # noqa: S324
+    # SHA1 is intentional: it mirrors tiktoken's upstream file-cache naming
+    # (tiktoken looks this directory up by sha1(url).hexdigest()), so a
+    # stronger digest here would silently defeat the pre-populated cache.
+    # Not a security boundary - a cache filename, not a signature.
+    cache_key = hashlib.sha1(url.encode()).hexdigest()  # noqa: S324  # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1, weak-hash-sha1
 
     cache_dir = model_path / "model-zoo" / ".tiktoken_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -544,7 +561,7 @@ def download_tiktoken_encoding(model_path: Path) -> bool:
 
     print("    Downloading tiktoken cl100k_base (~1.7MB)...")
     try:
-        urllib.request.urlretrieve(url, target)  # noqa: S310
+        urllib.request.urlretrieve(url, target)
         print(f"    Downloaded: tiktoken cl100k_base → {cache_key[:12]}…")
         return True
     except Exception as e:
@@ -618,11 +635,11 @@ def download_osnet_reid(model_path: Path) -> bool:
         full_filename = "osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth"
 
         # Download the specific MSMT17-trained weights
+        # (huggingface_hub 1.x: local_dir always copies; local_dir_use_symlinks removed)
         downloaded = hf_hub_download(
             repo_id="kaiyangzhou/osnet",
             filename=full_filename,
             local_dir=osnet_dir,
-            local_dir_use_symlinks=False,
         )
 
         # Create symlink with shorter name for easier referencing
@@ -662,7 +679,7 @@ def download_stgcnpp(model_path: Path) -> bool:
     try:
         import urllib.request
 
-        urllib.request.urlretrieve(url, target)  # noqa: S310
+        urllib.request.urlretrieve(url, target)
         print("    Downloaded: stgcnpp_ntu60_xsub_hrnet_j.pth")
         return True
     except Exception as e:
@@ -769,10 +786,10 @@ def download_hf_model(model: ModelSpec, model_path: Path) -> bool:
 
     try:
         print(f"    Downloading from {model.hf_repo}...")
+        # (huggingface_hub 1.x: local_dir always copies; local_dir_use_symlinks removed)
         snapshot_download(
             repo_id=model.hf_repo,
             local_dir=str(model_dir),
-            local_dir_use_symlinks=False,
         )
         print(f"    + Downloaded to {model_dir}")
         return True
@@ -881,17 +898,14 @@ def _bootstrap_venv_and_import_hf() -> bool:
         return False
 
     # Step 3: Add venv site-packages to sys.path so we can import
-    import glob as glob_mod
-
-    site_pattern = str(venv_dir / "lib" / "python*" / "site-packages")
-    site_dirs = glob_mod.glob(site_pattern)
+    site_dirs = [str(p) for p in (venv_dir / "lib").glob("python*/site-packages")]
     for site_dir in site_dirs:
         if site_dir not in sys.path:
             sys.path.insert(0, site_dir)
 
     # Step 4: Try importing again
     try:
-        from huggingface_hub import snapshot_download  # noqa: F811
+        from huggingface_hub import snapshot_download
 
         HF_HUB_AVAILABLE = True
         # Update module-level reference so download_hf_model can use it
@@ -906,11 +920,12 @@ def prompt_and_download_models(config: dict) -> None:
     """Prompt user and download AI models.
 
     Args:
-        config: Configuration dictionary with 'ai_models_path', optional 'skip_download',
-                and optional 'auto_download' to select option 2 automatically.
+        config: Configuration dictionary with 'ai_models_path' and optional
+                'skip_download'. ('auto_download' is still set by setup.py callers
+                but is a no-op now that the interactive menu downloads all missing
+                models.)
     """
     skip_download = config.get("skip_download", False)
-    auto_download = config.get("auto_download", False)
 
     print()
     print("=" * 60)

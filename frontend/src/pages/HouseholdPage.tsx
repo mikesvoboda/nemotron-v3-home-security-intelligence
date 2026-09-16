@@ -116,7 +116,13 @@ interface VehicleFormData {
 /**
  * Badge component for displaying role and trust level.
  */
-function Badge({ children, variant }: { children: React.ReactNode; variant: 'role' | 'trust' | 'trusted' }) {
+function Badge({
+  children,
+  variant,
+}: {
+  children: React.ReactNode;
+  variant: 'role' | 'trust' | 'trusted';
+}) {
   const baseClasses = 'px-2 py-0.5 text-xs font-medium rounded-full';
   const variantClasses = {
     role: 'bg-blue-500/20 text-blue-400',
@@ -124,11 +130,7 @@ function Badge({ children, variant }: { children: React.ReactNode; variant: 'rol
     trusted: 'bg-green-500/20 text-green-400',
   };
 
-  return (
-    <span className={`${baseClasses} ${variantClasses[variant]}`}>
-      {children}
-    </span>
-  );
+  return <span className={`${baseClasses} ${variantClasses[variant]}`}>{children}</span>;
 }
 
 /**
@@ -171,8 +173,8 @@ function Modal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
-                <Dialog.Title className="text-lg font-semibold text-white mb-4">
+              <Dialog.Panel className="w-full max-w-md transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
+                <Dialog.Title className="mb-4 text-lg font-semibold text-white">
                   {title}
                 </Dialog.Title>
                 {children}
@@ -203,7 +205,7 @@ function DeleteConfirmDialog({
 }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Confirm Delete">
-      <p className="text-gray-300 mb-6">
+      <p className="mb-6 text-gray-300">
         Are you sure you want to delete <span className="font-medium text-white">{itemName}</span>?
         This action cannot be undone.
       </p>
@@ -211,7 +213,7 @@ function DeleteConfirmDialog({
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white"
           disabled={isDeleting}
         >
           Cancel
@@ -220,7 +222,7 @@ function DeleteConfirmDialog({
           type="button"
           onClick={() => void onConfirm()}
           disabled={isDeleting}
-          className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
         >
           {isDeleting ? 'Deleting...' : 'Confirm'}
         </button>
@@ -248,7 +250,9 @@ function MemberForm({
   initialData?: HouseholdMember;
   knownPersons?: KnownPerson[];
   knownPersonsLoading: boolean;
-  onSave: (data: HouseholdMemberCreate | { id: number; data: HouseholdMemberUpdate }) => void | Promise<void>;
+  onSave: (
+    data: HouseholdMemberCreate | { id: number; data: HouseholdMemberUpdate }
+  ) => void | Promise<void>;
   onLinkPerson?: (memberId: number, knownPersonId: number | null) => void | Promise<void>;
   onCancel: () => void;
   isSaving: boolean;
@@ -315,7 +319,7 @@ function MemberForm({
       <div className="space-y-4">
         {/* Name */}
         <div>
-          <label htmlFor="member-name" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="member-name" className="mb-1 block text-sm font-medium text-gray-300">
             Name
           </label>
           <input
@@ -326,24 +330,22 @@ function MemberForm({
             autoFocus
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
             placeholder="Enter name"
           />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-400">{errors.name}</p>
-          )}
+          {errors.name && <p className="mt-1 text-sm text-red-400">{errors.name}</p>}
         </div>
 
         {/* Role */}
         <div>
-          <label htmlFor="member-role" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="member-role" className="mb-1 block text-sm font-medium text-gray-300">
             Role
           </label>
           <select
             id="member-role"
             value={formData.role}
             onChange={(e) => setFormData({ ...formData, role: e.target.value as MemberRole })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           >
             {ROLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -355,14 +357,19 @@ function MemberForm({
 
         {/* Trust Level */}
         <div>
-          <label htmlFor="member-trust-level" className="block text-sm font-medium text-gray-300 mb-1">
+          <label
+            htmlFor="member-trust-level"
+            className="mb-1 block text-sm font-medium text-gray-300"
+          >
             Trust Level
           </label>
           <select
             id="member-trust-level"
             value={formData.trusted_level}
-            onChange={(e) => setFormData({ ...formData, trusted_level: e.target.value as TrustLevel })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            onChange={(e) =>
+              setFormData({ ...formData, trusted_level: e.target.value as TrustLevel })
+            }
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           >
             {TRUST_LEVEL_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -375,15 +382,23 @@ function MemberForm({
         {/* Linked Known Person (only shown in edit mode) */}
         {mode === 'edit' && (
           <div>
-            <label htmlFor="member-known-person" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="member-known-person"
+              className="mb-1 block text-sm font-medium text-gray-300"
+            >
               Linked Known Person
             </label>
             <select
               id="member-known-person"
               value={formData.known_person_id ?? ''}
-              onChange={(e) => setFormData({ ...formData, known_person_id: e.target.value ? Number(e.target.value) : null })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  known_person_id: e.target.value ? Number(e.target.value) : null,
+                })
+              }
               disabled={knownPersonsLoading}
-              className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50"
+              className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
             >
               <option value="">Not linked to any known person</option>
               {availableKnownPersons?.map((person) => (
@@ -400,7 +415,7 @@ function MemberForm({
 
         {/* Notes */}
         <div>
-          <label htmlFor="member-notes" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="member-notes" className="mb-1 block text-sm font-medium text-gray-300">
             Notes
           </label>
           <textarea
@@ -408,7 +423,7 @@ function MemberForm({
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             rows={3}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent resize-none"
+            className="w-full resize-none rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
             placeholder="Optional notes"
           />
         </div>
@@ -416,16 +431,16 @@ function MemberForm({
 
       {/* API Error Display */}
       {apiError && (
-        <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
           <p className="text-sm text-red-400">{apiError}</p>
         </div>
       )}
 
-      <div className="flex justify-end gap-3 mt-6">
+      <div className="mt-6 flex justify-end gap-3">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white"
           disabled={isSaving}
         >
           Cancel
@@ -433,7 +448,7 @@ function MemberForm({
         <button
           type="submit"
           disabled={isSaving}
-          className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50"
+          className="rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
         >
           {isSaving ? 'Saving...' : 'Save'}
         </button>
@@ -458,7 +473,9 @@ function VehicleForm({
   mode: ModalMode;
   initialData?: RegisteredVehicle;
   members: HouseholdMember[];
-  onSave: (data: RegisteredVehicleCreate | { id: number; data: RegisteredVehicleUpdate }) => void | Promise<void>;
+  onSave: (
+    data: RegisteredVehicleCreate | { id: number; data: RegisteredVehicleUpdate }
+  ) => void | Promise<void>;
   onCancel: () => void;
   isSaving: boolean;
   apiError?: string;
@@ -514,7 +531,10 @@ function VehicleForm({
       <div className="space-y-4">
         {/* Description */}
         <div>
-          <label htmlFor="vehicle-description" className="block text-sm font-medium text-gray-300 mb-1">
+          <label
+            htmlFor="vehicle-description"
+            className="mb-1 block text-sm font-medium text-gray-300"
+          >
             Description
           </label>
           <input
@@ -525,24 +545,24 @@ function VehicleForm({
             autoFocus
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
             placeholder="e.g., Silver Tesla Model 3"
           />
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-400">{errors.description}</p>
-          )}
+          {errors.description && <p className="mt-1 text-sm text-red-400">{errors.description}</p>}
         </div>
 
         {/* Vehicle Type */}
         <div>
-          <label htmlFor="vehicle-type" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="vehicle-type" className="mb-1 block text-sm font-medium text-gray-300">
             Vehicle Type
           </label>
           <select
             id="vehicle-type"
             value={formData.vehicle_type}
-            onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value as VehicleType })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            onChange={(e) =>
+              setFormData({ ...formData, vehicle_type: e.target.value as VehicleType })
+            }
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           >
             {VEHICLE_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -554,7 +574,10 @@ function VehicleForm({
 
         {/* License Plate */}
         <div>
-          <label htmlFor="vehicle-license-plate" className="block text-sm font-medium text-gray-300 mb-1">
+          <label
+            htmlFor="vehicle-license-plate"
+            className="mb-1 block text-sm font-medium text-gray-300"
+          >
             License Plate
           </label>
           <input
@@ -562,14 +585,14 @@ function VehicleForm({
             id="vehicle-license-plate"
             value={formData.license_plate}
             onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
             placeholder="ABC123 (optional)"
           />
         </div>
 
         {/* Color */}
         <div>
-          <label htmlFor="vehicle-color" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="vehicle-color" className="mb-1 block text-sm font-medium text-gray-300">
             Color
           </label>
           <input
@@ -577,21 +600,23 @@ function VehicleForm({
             id="vehicle-color"
             value={formData.color}
             onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
             placeholder="Silver (optional)"
           />
         </div>
 
         {/* Owner */}
         <div>
-          <label htmlFor="vehicle-owner" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="vehicle-owner" className="mb-1 block text-sm font-medium text-gray-300">
             Owner
           </label>
           <select
             id="vehicle-owner"
             value={formData.owner_id ?? ''}
-            onChange={(e) => setFormData({ ...formData, owner_id: e.target.value ? Number(e.target.value) : null })}
-            className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent"
+            onChange={(e) =>
+              setFormData({ ...formData, owner_id: e.target.value ? Number(e.target.value) : null })
+            }
+            className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900]"
           >
             <option value="">No owner assigned</option>
             {members.map((member) => (
@@ -609,7 +634,7 @@ function VehicleForm({
             id="vehicle-trusted"
             checked={formData.trusted}
             onChange={(e) => setFormData({ ...formData, trusted: e.target.checked })}
-            className="w-4 h-4 rounded border-gray-700 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
+            className="h-4 w-4 rounded border-gray-700 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-[#1A1A1A]"
           />
           <label htmlFor="vehicle-trusted" className="text-sm font-medium text-gray-300">
             Trusted Vehicle
@@ -619,16 +644,16 @@ function VehicleForm({
 
       {/* API Error Display */}
       {apiError && (
-        <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
           <p className="text-sm text-red-400">{apiError}</p>
         </div>
       )}
 
-      <div className="flex justify-end gap-3 mt-6">
+      <div className="mt-6 flex justify-end gap-3">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white"
           disabled={isSaving}
         >
           Cancel
@@ -636,7 +661,7 @@ function VehicleForm({
         <button
           type="submit"
           disabled={isSaving}
-          className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50"
+          className="rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
         >
           {isSaving ? 'Saving...' : 'Save'}
         </button>
@@ -666,10 +691,7 @@ export default function HouseholdPage() {
   } = useVehiclesQuery();
 
   // Fetch known persons for linking
-  const {
-    data: knownPersons,
-    isLoading: knownPersonsLoading,
-  } = useKnownPersonsQuery();
+  const { data: knownPersons, isLoading: knownPersonsLoading } = useKnownPersonsQuery();
 
   // Mutations
   const createMemberMutation = useCreateMember();
@@ -695,7 +717,11 @@ export default function HouseholdPage() {
   const [vehicleApiError, setVehicleApiError] = useState<string | undefined>();
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'member' | 'vehicle'; id: number; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'member' | 'vehicle';
+    id: number;
+    name: string;
+  } | null>(null);
 
   // Loading state
   const isLoading = membersLoading || vehiclesLoading;
@@ -851,7 +877,10 @@ export default function HouseholdPage() {
     return (
       <div className="min-h-screen bg-[#121212] p-6" data-testid="household-page">
         <div className="mx-auto max-w-[1400px]">
-          <div className="flex items-center justify-center min-h-[400px]" data-testid="loading-state">
+          <div
+            className="flex min-h-[400px] items-center justify-center"
+            data-testid="loading-state"
+          >
             <Loader2 className="h-8 w-8 animate-spin text-[#76B900]" />
             <span className="ml-2 text-gray-300">Loading...</span>
           </div>
@@ -866,10 +895,10 @@ export default function HouseholdPage() {
       <div className="min-h-screen bg-[#121212] p-6" data-testid="household-page">
         <div className="mx-auto max-w-[1400px]">
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-6">
-            <p className="text-red-400 mb-4">Error: {errorMessage}</p>
+            <p className="mb-4 text-red-400">Error: {errorMessage}</p>
             <button
               onClick={handleRetry}
-              className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
             >
               Retry
             </button>
@@ -889,13 +918,13 @@ export default function HouseholdPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Household Members</h1>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="mt-1 text-sm text-gray-400">
               Manage your household and registered transportation
             </p>
           </div>
           <button
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
             aria-label="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
@@ -905,18 +934,23 @@ export default function HouseholdPage() {
 
         {/* Members Section */}
         <section className="mb-8" aria-labelledby="members-heading">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Users className="h-5 w-5 text-[#76B900]" />
-              <h2 id="members-heading" className="text-lg font-semibold text-white">Members</h2>
-              <span className="px-2 py-0.5 text-xs font-medium bg-gray-700 text-gray-300 rounded-full" data-testid="member-count-badge">
+              <h2 id="members-heading" className="text-lg font-semibold text-white">
+                Members
+              </h2>
+              <span
+                className="rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300"
+                data-testid="member-count-badge"
+              >
                 {memberCount}
               </span>
             </div>
             <button
               onClick={handleOpenAddMember}
               aria-label="Add Member"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00]"
             >
               <Plus className="h-4 w-4" />
               Add Membe&#8203;r
@@ -925,9 +959,11 @@ export default function HouseholdPage() {
 
           {memberCount === 0 ? (
             <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center">
-              <Users className="h-12 w-12 mx-auto text-gray-600 mb-4" />
-              <p className="text-gray-400 mb-2">No members yet</p>
-              <p className="text-sm text-gray-500">Add your first household member to get started</p>
+              <Users className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+              <p className="mb-2 text-gray-400">No members yet</p>
+              <p className="text-sm text-gray-500">
+                Add your first household member to get started
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -941,10 +977,10 @@ export default function HouseholdPage() {
                     key={member.id}
                     className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="mb-3 flex items-start justify-between">
                       <div>
                         <h3 className="font-medium text-white">{member.name}</h3>
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
                           <Badge variant="role">{ROLE_LABELS[member.role]}</Badge>
                           <Badge variant="trust">{TRUST_LEVEL_LABELS[member.trusted_level]}</Badge>
                         </div>
@@ -952,14 +988,14 @@ export default function HouseholdPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleOpenEditMember(member)}
-                          className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                          className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
                           aria-label="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteMember(member)}
-                          className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+                          className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
                           aria-label="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -968,14 +1004,18 @@ export default function HouseholdPage() {
                     </div>
                     {/* Linked Known Person */}
                     {linkedKnownPerson && (
-                      <div className="flex items-center gap-2 text-xs text-[#76B900] mb-2" data-testid="linked-known-person">
+                      <div
+                        className="mb-2 flex items-center gap-2 text-xs text-[#76B900]"
+                        data-testid="linked-known-person"
+                      >
                         <User className="h-3.5 w-3.5" />
-                        <span>Linked: {linkedKnownPerson.name} ({linkedKnownPerson.embedding_count} faces)</span>
+                        <span>
+                          Linked: {linkedKnownPerson.name} ({linkedKnownPerson.embedding_count}{' '}
+                          faces)
+                        </span>
                       </div>
                     )}
-                    {member.notes && (
-                      <p className="text-sm text-gray-400 mt-2">{member.notes}</p>
-                    )}
+                    {member.notes && <p className="mt-2 text-sm text-gray-400">{member.notes}</p>}
                   </div>
                 );
               })}
@@ -985,18 +1025,20 @@ export default function HouseholdPage() {
 
         {/* Vehicles Section */}
         <section aria-labelledby="vehicles-heading">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Car className="h-5 w-5 text-blue-400" />
-              <h2 id="vehicles-heading" className="text-lg font-semibold text-white">Vehicles</h2>
-              <span className="px-2 py-0.5 text-xs font-medium bg-gray-700 text-gray-300 rounded-full">
+              <h2 id="vehicles-heading" className="text-lg font-semibold text-white">
+                Vehicles
+              </h2>
+              <span className="rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">
                 {vehicleCount}&#8203;
               </span>
             </div>
             <button
               onClick={handleOpenAddVehicle}
               aria-label="Add Vehicle"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00]"
             >
               <Plus className="h-4 w-4" />
               Add Vehicl&#8203;e
@@ -1005,8 +1047,8 @@ export default function HouseholdPage() {
 
           {vehicleCount === 0 ? (
             <div className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center">
-              <Car className="h-12 w-12 mx-auto text-gray-600 mb-4" />
-              <p className="text-gray-400 mb-2">No vehicles yet</p>
+              <Car className="mx-auto mb-4 h-12 w-12 text-gray-600" />
+              <p className="mb-2 text-gray-400">No vehicles yet</p>
               <p className="text-sm text-gray-500">Add your first vehicle to get started</p>
             </div>
           ) : (
@@ -1016,10 +1058,10 @@ export default function HouseholdPage() {
                   key={vehicle.id}
                   className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="mb-3 flex items-start justify-between">
                     <div>
                       <h3 className="font-medium text-white">{vehicle.description}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="mt-1 flex items-center gap-2">
                         {vehicle.license_plate && (
                           <span className="text-sm text-gray-400">{vehicle.license_plate}</span>
                         )}
@@ -1029,23 +1071,21 @@ export default function HouseholdPage() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEditVehicle(vehicle)}
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
                         aria-label="Edit"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteVehicle(vehicle)}
-                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
                         aria-label="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
-                  {vehicle.color && (
-                    <p className="text-sm text-gray-400">Color: {vehicle.color}</p>
-                  )}
+                  {vehicle.color && <p className="text-sm text-gray-400">Color: {vehicle.color}</p>}
                 </div>
               ))}
             </div>
@@ -1066,7 +1106,11 @@ export default function HouseholdPage() {
             onSave={handleSaveMember}
             onLinkPerson={handleLinkMemberToPerson}
             onCancel={handleCloseMemberModal}
-            isSaving={createMemberMutation.isPending || updateMemberMutation.isPending || linkMemberToPersonMutation.isPending}
+            isSaving={
+              createMemberMutation.isPending ||
+              updateMemberMutation.isPending ||
+              linkMemberToPersonMutation.isPending
+            }
             apiError={memberApiError}
           />
         </Modal>

@@ -87,9 +87,7 @@ describe('useRestartHistory', () => {
 
     vi.mocked(supervisorApi.fetchRestartHistory).mockResolvedValue(mockData);
 
-    const { result } = renderHook(() =>
-      useRestartHistory({ limit: 10, offset: 20 })
-    );
+    const { result } = renderHook(() => useRestartHistory({ limit: 10, offset: 20 }));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -124,9 +122,7 @@ describe('useRestartHistory', () => {
 
     vi.mocked(supervisorApi.fetchRestartHistory).mockResolvedValue(mockData);
 
-    const { result } = renderHook(() =>
-      useRestartHistory({ workerName: 'detection_worker' })
-    );
+    const { result } = renderHook(() => useRestartHistory({ workerName: 'detection_worker' }));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -164,9 +160,7 @@ describe('useRestartHistory', () => {
 
   it('handles error states', async () => {
     const errorMessage = 'Failed to fetch restart history';
-    vi.mocked(supervisorApi.fetchRestartHistory).mockRejectedValue(
-      new Error(errorMessage)
-    );
+    vi.mocked(supervisorApi.fetchRestartHistory).mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useRestartHistory());
 

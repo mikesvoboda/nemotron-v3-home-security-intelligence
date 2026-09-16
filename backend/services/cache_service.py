@@ -1024,7 +1024,7 @@ def cached_swr(
                     result = await func(*args, **kwargs)
                     await cache.set(key, result, ttl=ttl)
                     return result
-                except (RedisConnectionError, RedisTimeoutError, RedisError, RuntimeError):
+                except RedisConnectionError, RedisTimeoutError, RedisError, RuntimeError:
                     return await func(*args, **kwargs)
 
             try:

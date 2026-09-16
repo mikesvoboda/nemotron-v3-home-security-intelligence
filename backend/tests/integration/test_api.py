@@ -58,7 +58,7 @@ async def test_cors_middleware_allows_configured_origins(client):
     response = await client.get(
         "/",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "https://localhost:8444",
             "Access-Control-Request-Method": "GET",
         },
     )
@@ -66,7 +66,7 @@ async def test_cors_middleware_allows_configured_origins(client):
     assert response.status_code == 200
     # CORS headers should be present
     assert "access-control-allow-origin" in response.headers
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert response.headers["access-control-allow-origin"] == "https://localhost:8444"
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_cors_middleware_preflight_request(client):
     response = await client.options(
         "/",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "https://localhost:8444",
             "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": "content-type",
         },
@@ -196,7 +196,7 @@ async def test_404_endpoint_not_found(client):
 @pytest.mark.asyncio
 async def test_cors_credentials_flag(client):
     """Test that CORS middleware sets credentials flag correctly."""
-    response = await client.get("/", headers={"Origin": "http://localhost:3000"})
+    response = await client.get("/", headers={"Origin": "https://localhost:8444"})
 
     assert response.status_code == 200
     # Check that credentials are allowed

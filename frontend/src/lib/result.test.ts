@@ -482,7 +482,7 @@ describe('allTuple', () => {
   });
 
   it('preserves types in the resulting tuple', () => {
-    const result = allTuple([ok(42 as number), ok('test' as string)] as const);
+    const result = allTuple([ok(42), ok('test')] as const);
 
     if (isOk(result)) {
       // This is a compile-time type check

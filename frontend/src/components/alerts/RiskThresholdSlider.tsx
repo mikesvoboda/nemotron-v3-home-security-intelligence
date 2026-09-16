@@ -211,7 +211,9 @@ export default function RiskThresholdSlider({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={value ?? undefined}
-          aria-valuetext={value !== null ? `${value} - ${currentZone?.label ?? 'Unknown'}` : 'Not set'}
+          aria-valuetext={
+            value !== null ? `${value} - ${currentZone?.label ?? 'Unknown'}` : 'Not set'
+          }
         />
 
         {/* Custom thumb styling via CSS variables */}

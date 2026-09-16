@@ -225,15 +225,9 @@ function DeviationBadgeComponent({
   showValue = true,
   className,
 }: DeviationBadgeProps) {
-  const config = useMemo(
-    () => getDeviationConfig(deviation, severity),
-    [deviation, severity]
-  );
+  const config = useMemo(() => getDeviationConfig(deviation, severity), [deviation, severity]);
   const sizeClasses = useMemo(() => getSizeClasses(size), [size]);
-  const TrendIcon = useMemo(
-    () => getTrendIcon(deviation, severity),
-    [deviation, severity]
-  );
+  const TrendIcon = useMemo(() => getTrendIcon(deviation, severity), [deviation, severity]);
 
   // Build tooltip text
   const tooltipText = useMemo(() => {

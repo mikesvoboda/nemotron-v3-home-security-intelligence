@@ -76,10 +76,7 @@ from backend.tests.chaos.conftest import FaultInjector, FaultConfig, FaultType
 injector = FaultInjector()
 
 # Inject a fault
-injector.inject("yolo26", FaultConfig(
-    fault_type=FaultType.TIMEOUT,
-    delay_seconds=30.0
-))
+injector.inject("yolo26", FaultConfig(fault_type=FaultType.TIMEOUT, delay_seconds=30.0))
 
 # Check statistics
 stats = injector.get_stats("yolo26")
@@ -108,6 +105,7 @@ async def test_detection_timeout(yolo26_timeout):
     """Test with YOLO26 timing out (30s delay)."""
     # yolo26_timeout fixture automatically injects fault
     ...
+
 
 @pytest.mark.chaos
 async def test_detection_unavailable(yolo26_connection_error):
@@ -264,9 +262,7 @@ async def test_degradation_mode_transitions(self):
     manager = DegradationManager(failure_threshold=2)
 
     manager.register_service(
-        name="database",
-        health_check=AsyncMock(return_value=True),
-        critical=True
+        name="database", health_check=AsyncMock(return_value=True), critical=True
     )
 
     # Simulate failures
@@ -364,10 +360,7 @@ Some chaos tests involve timing-sensitive operations. If tests are flaky:
 @pytest.fixture
 def new_service_failure(fault_injector: FaultInjector):
     """Simulate new service failure."""
-    fault_injector.inject("service", FaultConfig(
-        FaultType.TIMEOUT,
-        delay_seconds=30.0
-    ))
+    fault_injector.inject("service", FaultConfig(FaultType.TIMEOUT, delay_seconds=30.0))
 
     # Mock the service call
     with patch("module.service_call", side_effect=TimeoutError()):

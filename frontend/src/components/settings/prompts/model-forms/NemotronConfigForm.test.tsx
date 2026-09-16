@@ -56,10 +56,7 @@ describe('NemotronConfigForm', () => {
 
     it('displays provided temperature value', () => {
       render(
-        <NemotronConfigForm
-          config={{ ...defaultConfig, temperature: 1.5 } as NemotronConfig}
-          onChange={vi.fn()}
-        />
+        <NemotronConfigForm config={{ ...defaultConfig, temperature: 1.5 }} onChange={vi.fn()} />
       );
 
       expect(screen.getByText(/Temperature: 1.5/i)).toBeInTheDocument();

@@ -131,7 +131,7 @@ describe('ExpandableDetailPanel', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(BASE_TIME);
 
-    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver = MockResizeObserver;
 
     Object.defineProperty(window, 'matchMedia', {
       writable: true,

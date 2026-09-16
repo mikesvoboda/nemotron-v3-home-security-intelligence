@@ -94,13 +94,11 @@ export default function DashboardPage() {
 
   // Scene change detection WebSocket hook (NEM-3575)
   // Provides real-time alerts for camera tampering/view changes
-  const {
-    activeCameraIds: sceneChangeActivityIds,
-    cameraActivity: sceneChangeCameraActivity,
-  } = useSceneChangeEvents({
-    showToasts: true, // Toast notifications handled by the hook
-    activityTimeoutMs: 30000, // Activity indicator visible for 30 seconds
-  });
+  const { activeCameraIds: sceneChangeActivityIds, cameraActivity: sceneChangeCameraActivity } =
+    useSceneChangeEvents({
+      showToasts: true, // Toast notifications handled by the hook
+      activityTimeoutMs: 30000, // Activity indicator visible for 30 seconds
+    });
 
   // Threat detection hook for weapon/dangerous object alerts (NEM-5024)
   // Provides real-time threat summary and management
@@ -335,39 +333,38 @@ export default function DashboardPage() {
   );
 
   // Handle "View Full Summary" click - fetch detail and open panel (NEM-5526)
-  const handleViewFullSummary = useCallback(
-    async (summary: Summary) => {
-      try {
-        const detail = await fetchSummaryDetail(summary.id);
-        setSelectedSummaryDetail(detail);
-        setIsDetailPanelOpen(true);
-      } catch (err) {
-        // If the detail endpoint fails, show the panel with basic summary data
-        console.error('Failed to fetch summary detail:', err);
-        const fallbackDetail: SummaryDetail = {
-          id: summary.id,
-          summaryType: summary.windowStart && summary.windowEnd
-            ? (new Date(summary.windowEnd).getTime() - new Date(summary.windowStart).getTime() <= 3600000 * 2
+  const handleViewFullSummary = useCallback(async (summary: Summary) => {
+    try {
+      const detail = await fetchSummaryDetail(summary.id);
+      setSelectedSummaryDetail(detail);
+      setIsDetailPanelOpen(true);
+    } catch (err) {
+      // If the detail endpoint fails, show the panel with basic summary data
+      console.error('Failed to fetch summary detail:', err);
+      const fallbackDetail: SummaryDetail = {
+        id: summary.id,
+        summaryType:
+          summary.windowStart && summary.windowEnd
+            ? new Date(summary.windowEnd).getTime() - new Date(summary.windowStart).getTime() <=
+              3600000 * 2
               ? 'hourly'
-              : 'daily')
+              : 'daily'
             : 'hourly',
-          content: summary.content,
-          eventCount: summary.eventCount,
-          windowStart: summary.windowStart,
-          windowEnd: summary.windowEnd,
-          generatedAt: summary.generatedAt,
-          timeline: [],
-          exportFormats: ['json', 'csv', 'pdf'],
-          focusAreas: summary.focusAreas,
-          maxRiskScore: summary.maxRiskScore,
-          dominantPatterns: summary.dominantPatterns,
-        };
-        setSelectedSummaryDetail(fallbackDetail);
-        setIsDetailPanelOpen(true);
-      }
-    },
-    []
-  );
+        content: summary.content,
+        eventCount: summary.eventCount,
+        windowStart: summary.windowStart,
+        windowEnd: summary.windowEnd,
+        generatedAt: summary.generatedAt,
+        timeline: [],
+        exportFormats: ['json', 'csv', 'pdf'],
+        focusAreas: summary.focusAreas,
+        maxRiskScore: summary.maxRiskScore,
+        dominantPatterns: summary.dominantPatterns,
+      };
+      setSelectedSummaryDetail(fallbackDetail);
+      setIsDetailPanelOpen(true);
+    }
+  }, []);
 
   // Handle closing the detail panel (NEM-5526)
   const handleCloseDetailPanel = useCallback(() => {

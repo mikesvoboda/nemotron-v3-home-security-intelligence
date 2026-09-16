@@ -129,16 +129,17 @@ const defaultCamerasReturn: ReturnType<typeof useCamerasQueryModule.useCamerasQu
   isPlaceholderData: false,
 };
 
-const defaultSceneChangesReturn: ReturnType<typeof useSceneChangesQueryModule.useSceneChangesQuery> =
-  {
-    sceneChanges: mockSceneChanges,
-    isLoading: false,
-    isRefetching: false,
-    error: null,
-    refetch: vi.fn().mockResolvedValue(undefined),
-    totalCount: 3,
-    unacknowledgedCount: 2,
-  };
+const defaultSceneChangesReturn: ReturnType<
+  typeof useSceneChangesQueryModule.useSceneChangesQuery
+> = {
+  sceneChanges: mockSceneChanges,
+  isLoading: false,
+  isRefetching: false,
+  error: null,
+  refetch: vi.fn().mockResolvedValue(undefined),
+  totalCount: 3,
+  unacknowledgedCount: 2,
+};
 
 // ============================================================================
 // Tests

@@ -186,7 +186,7 @@ function mockFetchSuccess<T>(data: T, status: number = 200): void {
     status,
     statusText: 'OK',
     json: () => Promise.resolve(data),
-  } as Response);
+  });
 }
 
 function mockFetchError(status: number, message: string): void {
@@ -195,7 +195,7 @@ function mockFetchError(status: number, message: string): void {
     status,
     statusText: 'Error',
     json: () => Promise.resolve({ detail: message }),
-  } as Response);
+  });
 }
 
 function mockFetchNetworkError(): void {

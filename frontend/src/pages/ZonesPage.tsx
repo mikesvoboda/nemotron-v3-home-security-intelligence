@@ -463,7 +463,9 @@ function ZonesPageComponent() {
   const [selectedLineZoneId, setSelectedLineZoneId] = useState<number | undefined>(undefined);
   const [trendsInterval, setTrendsInterval] = useState<'hour' | 'day'>('hour');
   const [selectedPolygonZoneId, setSelectedPolygonZoneId] = useState<number | undefined>(undefined);
-  const [loiteringModalZone, setLoiteringModalZone] = useState<{ id: number; name: string } | null>(null);
+  const [loiteringModalZone, setLoiteringModalZone] = useState<{ id: number; name: string } | null>(
+    null
+  );
 
   // Data fetching
   const { zones, cameras, isLoading, isRefetching, error, refetch } = useAllZones();
@@ -582,13 +584,16 @@ function ZonesPageComponent() {
   }, []);
 
   // Handle configure threshold - opens loitering config modal
-  const handleConfigureThreshold = useCallback((zoneId: number) => {
-    // Find the zone name for the modal
-    const zone = polygonZones.find((z) => z.id === zoneId);
-    if (zone) {
-      setLoiteringModalZone({ id: zoneId, name: zone.name });
-    }
-  }, [polygonZones]);
+  const handleConfigureThreshold = useCallback(
+    (zoneId: number) => {
+      // Find the zone name for the modal
+      const zone = polygonZones.find((z) => z.id === zoneId);
+      if (zone) {
+        setLoiteringModalZone({ id: zoneId, name: zone.name });
+      }
+    },
+    [polygonZones]
+  );
 
   // Handle close loitering modal
   const handleCloseLoiteringModal = useCallback(() => {
@@ -861,7 +866,8 @@ function ZonesPageComponent() {
                         onClick={() => handleLineZoneSelect(zone.id)}
                         className={clsx(
                           'cursor-pointer transition-all',
-                          selectedLineZoneId === zone.id && 'ring-2 ring-[#76B900] ring-offset-2 ring-offset-[#121212] rounded-lg'
+                          selectedLineZoneId === zone.id &&
+                            'rounded-lg ring-2 ring-[#76B900] ring-offset-2 ring-offset-[#121212]'
                         )}
                         role="button"
                         tabIndex={0}
@@ -886,10 +892,7 @@ function ZonesPageComponent() {
 
                 {/* Crossing Trends Chart */}
                 {selectedLineZoneId !== undefined && (
-                  <CrossingTrendsChart
-                    data={crossingTrendsData}
-                    isLoading={isTrendsLoading}
-                  />
+                  <CrossingTrendsChart data={crossingTrendsData} isLoading={isTrendsLoading} />
                 )}
 
                 {/* Help text when no zone selected */}
@@ -921,11 +924,17 @@ function ZonesPageComponent() {
 
                 {/* Polygon Zone Cards Grid */}
                 {isPolygonZonesLoading ? (
-                  <div className="flex min-h-[200px] items-center justify-center" data-testid="polygon-zones-loading">
+                  <div
+                    className="flex min-h-[200px] items-center justify-center"
+                    data-testid="polygon-zones-loading"
+                  >
                     <LoadingSpinner />
                   </div>
                 ) : polygonZones.length === 0 ? (
-                  <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6" data-testid="polygon-zones-empty">
+                  <div
+                    className="rounded-lg border border-gray-700 bg-gray-800/50 p-6"
+                    data-testid="polygon-zones-empty"
+                  >
                     <EmptyState
                       icon={MapPin}
                       title="No polygon zones configured"
@@ -944,7 +953,8 @@ function ZonesPageComponent() {
                         onClick={() => handlePolygonZoneSelect(zone.id)}
                         className={clsx(
                           'cursor-pointer transition-all',
-                          selectedPolygonZoneId === zone.id && 'ring-2 ring-blue-400 ring-offset-2 ring-offset-[#121212] rounded-lg'
+                          selectedPolygonZoneId === zone.id &&
+                            'rounded-lg ring-2 ring-blue-400 ring-offset-2 ring-offset-[#121212]'
                         )}
                         role="button"
                         tabIndex={0}
@@ -959,7 +969,9 @@ function ZonesPageComponent() {
                       >
                         <DwellStatisticsCard
                           zone={zone}
-                          statistics={selectedPolygonZoneId === zone.id ? dwellStatistics : undefined}
+                          statistics={
+                            selectedPolygonZoneId === zone.id ? dwellStatistics : undefined
+                          }
                           isLoading={selectedPolygonZoneId === zone.id && isDwellStatsLoading}
                           onConfigure={handleConfigureThreshold}
                         />
@@ -981,7 +993,10 @@ function ZonesPageComponent() {
 
                 {/* Help text when no polygon zone selected */}
                 {polygonZones.length > 0 && selectedPolygonZoneId === undefined && (
-                  <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6 text-center" data-testid="polygon-zone-help-text">
+                  <div
+                    className="rounded-lg border border-gray-700 bg-gray-800/50 p-6 text-center"
+                    data-testid="polygon-zone-help-text"
+                  >
                     <p className="text-sm text-gray-400">
                       Select a polygon zone above to view dwell time statistics.
                     </p>
@@ -1004,10 +1019,7 @@ function ZonesPageComponent() {
 
             {/* Comparison Tab Panel */}
             <Tab.Panel data-testid="zone-panel-comparison">
-              <ComparisonTab
-                zones={filteredZones}
-                isLoadingZones={isLoading}
-              />
+              <ComparisonTab zones={filteredZones} isLoadingZones={isLoading} />
             </Tab.Panel>
           </Tab.Panels>
         </Tab.Group>

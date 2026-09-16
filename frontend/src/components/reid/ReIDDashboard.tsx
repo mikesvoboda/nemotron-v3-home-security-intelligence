@@ -99,7 +99,9 @@ function ReIDEntityCard({
 
   // Get camera display names
   const camerasDisplay = (entity.cameras_seen ?? []).map(
-    (cameraId) => cameraNames.get(cameraId) || cameraId.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+    (cameraId) =>
+      cameraNames.get(cameraId) ||
+      cameraId.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   );
 
   // Format timestamp to relative time
@@ -307,11 +309,12 @@ function CameraJourneyTimeline({
                 <span className="font-medium text-white">
                   {getCameraName(appearance.camera_id, appearance.camera_name)}
                 </span>
-                {appearance.similarity_score !== null && appearance.similarity_score !== undefined && (
-                  <span className="rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs font-medium text-[#76B900]">
-                    {formatSimilarity(appearance.similarity_score)}
-                  </span>
-                )}
+                {appearance.similarity_score !== null &&
+                  appearance.similarity_score !== undefined && (
+                    <span className="rounded bg-[#76B900]/20 px-1.5 py-0.5 text-xs font-medium text-[#76B900]">
+                      {formatSimilarity(appearance.similarity_score)}
+                    </span>
+                  )}
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-400">
                 <span>
@@ -379,7 +382,10 @@ function CameraJourneyDiagram({
   };
 
   return (
-    <div data-testid="camera-journey-diagram" className="rounded-lg border border-gray-800 bg-black/30 p-4">
+    <div
+      data-testid="camera-journey-diagram"
+      className="rounded-lg border border-gray-800 bg-black/30 p-4"
+    >
       <div className="mb-3 flex items-center justify-between">
         <h4 className="flex items-center gap-2 text-sm font-semibold text-white">
           <Route className="h-4 w-4 text-[#76B900]" />
@@ -466,7 +472,10 @@ function ReIDDetailPanel({
   const appearances = entityDetail?.appearances ?? [];
 
   return (
-    <div data-testid="reid-detail-panel" className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
+    <div
+      data-testid="reid-detail-panel"
+      className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4"
+    >
       {/* Header */}
       <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4">
         <div className="flex items-center gap-3">
@@ -809,7 +818,7 @@ function ReIDDashboard() {
           {selectedEntity && (
             <div className="lg:w-[45%]">
               <ReIDDetailPanel
-                entity={selectedEntity as EntityWithHousehold}
+                entity={selectedEntity}
                 cameraNames={cameraNames}
                 onClose={() => setSelectedEntityId(null)}
               />

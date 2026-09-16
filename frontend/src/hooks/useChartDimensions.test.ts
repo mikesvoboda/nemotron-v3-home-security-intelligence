@@ -34,6 +34,7 @@ describe('useChartDimensions', () => {
 
     // Save originals
     originalResizeObserver = globalThis.ResizeObserver;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- save/restore idiom; call sites keep `this` on window
     originalMatchMedia = window.matchMedia;
 
     // Mock ResizeObserver with callback support using a class

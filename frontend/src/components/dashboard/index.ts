@@ -23,10 +23,7 @@ export { default as PipelineQueues } from './PipelineQueues';
 export { default as PipelineTelemetry } from './PipelineTelemetry';
 
 export { default as RiskDistributionChart } from './RiskDistributionChart';
-export type {
-  RiskDistributionChartProps,
-  RiskDistribution,
-} from './RiskDistributionChart';
+export type { RiskDistributionChartProps, RiskDistribution } from './RiskDistributionChart';
 export type { PipelineTelemetryProps } from './PipelineTelemetry';
 
 export { default as StatsRow } from './StatsRow';

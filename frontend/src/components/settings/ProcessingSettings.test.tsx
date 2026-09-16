@@ -10,7 +10,13 @@ vi.mock('../../services/api');
 
 // Mock the AnomalyConfigPanel component to avoid complexity in ProcessingSettings tests
 vi.mock('../analytics/AnomalyConfigPanel', () => ({
-  default: ({ config, onConfigUpdated }: { config: api.AnomalyConfig; onConfigUpdated?: (config: api.AnomalyConfig) => void }) => (
+  default: ({
+    config,
+    onConfigUpdated,
+  }: {
+    config: api.AnomalyConfig;
+    onConfigUpdated?: (config: api.AnomalyConfig) => void;
+  }) => (
     <div data-testid="anomaly-config-panel">
       <span data-testid="anomaly-threshold">{config.threshold_stdev}</span>
       <span data-testid="anomaly-min-samples">{config.min_samples}</span>

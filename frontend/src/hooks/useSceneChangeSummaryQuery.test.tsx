@@ -62,10 +62,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('fetches summary data successfully', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     // Initially loading
     expect(result.current.isLoading).toBe(true);
@@ -80,10 +79,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('returns correct acknowledgement breakdown', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -93,10 +91,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('parses lastChangeAt as Date', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -105,10 +102,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('returns type breakdown sorted by count', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -119,10 +115,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('returns mostCommonType', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -130,10 +125,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('returns avgSimilarityScore', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -141,10 +135,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('passes custom days parameter', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door', { days: 30 }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door', { days: 30 }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -162,10 +155,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('handles empty camera ID', () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery(''),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery(''), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(mockFetchSceneChangeSummary).not.toHaveBeenCalled();
@@ -174,10 +166,9 @@ describe('useSceneChangeSummaryQuery', () => {
   it('handles errors gracefully', async () => {
     mockFetchSceneChangeSummary.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     // Wait for error state with extended timeout (retry takes time)
     await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 3000 });
@@ -188,10 +179,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('provides refetch function', async () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -203,10 +193,9 @@ describe('useSceneChangeSummaryQuery', () => {
   });
 
   it('returns defaults when no data', () => {
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     // Before data loads
     expect(result.current.totalChanges).toBe(0);
@@ -235,10 +224,9 @@ describe('useSceneChangeSummaryQuery', () => {
     };
     mockFetchSceneChangeSummary.mockResolvedValue(emptySummary);
 
-    const { result } = renderHook(
-      () => useSceneChangeSummaryQuery('front_door'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSceneChangeSummaryQuery('front_door'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 

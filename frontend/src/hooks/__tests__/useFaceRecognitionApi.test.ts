@@ -301,7 +301,7 @@ describe('useCreateKnownPerson', () => {
           embedding_count: 0,
           created_at: '2024-01-03T00:00:00Z',
           updated_at: '2024-01-03T00:00:00Z',
-        } as KnownPerson);
+        });
       })
     );
   });
@@ -999,7 +999,7 @@ describe('usePersonAppearancesQuery', () => {
           return HttpResponse.json({
             appearances: [mockAppearance, mockAppearance2],
             total: 2,
-          } as PersonAppearancesResponse);
+          });
         }
         return HttpResponse.json({
           appearances: [],
@@ -1069,7 +1069,7 @@ describe('usePersonAppearancesQuery', () => {
         return HttpResponse.json({
           appearances: [mockAppearance],
           total: 1,
-        } as PersonAppearancesResponse);
+        });
       })
     );
 
@@ -1172,9 +1172,7 @@ describe('faceRecognitionQueryKeys', () => {
       'appearances',
       undefined,
     ]);
-    expect(
-      faceRecognitionQueryKeys.personAppearances(1, { start_date: '2024-01-01' })
-    ).toEqual([
+    expect(faceRecognitionQueryKeys.personAppearances(1, { start_date: '2024-01-01' })).toEqual([
       'face-recognition',
       'known-persons',
       1,

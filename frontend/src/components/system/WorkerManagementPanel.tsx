@@ -120,7 +120,9 @@ export const WorkerManagementPanel = memo(function WorkerManagementPanel({
           await refetch();
         }
       } catch (err) {
-        toast.error(`Failed to start worker: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        toast.error(
+          `Failed to start worker: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
       }
     },
     [apiStartWorker, refetch]
@@ -226,16 +228,16 @@ export const WorkerManagementPanel = memo(function WorkerManagementPanel({
   if (!data?.workers || data.workers.length === 0) {
     return (
       <div className="p-4" data-testid={testId}>
-        <div data-testid="supervisor-status-header" className="mb-4 flex items-center justify-between">
+        <div
+          data-testid="supervisor-status-header"
+          className="mb-4 flex items-center justify-between"
+        >
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-400">Worker Count</span>
             <span className="font-medium text-white">{data?.worker_count ?? 0}</span>
           </div>
         </div>
-        <div
-          className="py-8 text-center text-gray-500"
-          data-testid="no-workers-message"
-        >
+        <div className="py-8 text-center text-gray-500" data-testid="no-workers-message">
           No workers registered with the supervisor
         </div>
       </div>
@@ -245,11 +247,16 @@ export const WorkerManagementPanel = memo(function WorkerManagementPanel({
   return (
     <div className="p-4" data-testid={testId}>
       {/* Supervisor Status Header */}
-      <div data-testid="supervisor-status-header" className="mb-4 flex items-center justify-between">
+      <div
+        data-testid="supervisor-status-header"
+        className="mb-4 flex items-center justify-between"
+      >
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-400">Worker Count</span>
-            <span className="font-medium text-white" data-testid="worker-count">{data.worker_count}</span>
+            <span className="font-medium text-white" data-testid="worker-count">
+              {data.worker_count}
+            </span>
           </div>
           <div
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -402,7 +409,8 @@ export const WorkerManagementPanel = memo(function WorkerManagementPanel({
               {confirmDialog.action === 'stop' ? 'Stop' : 'Restart'} Worker
             </h3>
             <p className="mt-2 text-sm text-gray-400">
-              Are you sure you want to {confirmDialog.action} worker &quot;{confirmDialog.workerName}&quot;?
+              Are you sure you want to {confirmDialog.action} worker &quot;
+              {confirmDialog.workerName}&quot;?
               {confirmDialog.action === 'stop' && ' This will interrupt any ongoing work.'}
             </p>
             <div className="mt-4 flex justify-end gap-3">

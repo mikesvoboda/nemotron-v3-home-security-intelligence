@@ -137,7 +137,10 @@ export default function ClassFrequencyChart({
   // Loading state
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4" data-testid="class-frequency-loading">
+      <div
+        className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4"
+        data-testid="class-frequency-loading"
+      >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">Object Class Distribution</h3>
         </div>
@@ -240,10 +243,7 @@ export default function ClassFrequencyChart({
         >
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span
-                className="h-3 w-3 rounded-sm"
-                style={{ backgroundColor: tooltip.color }}
-              />
+              <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: tooltip.color }} />
               <span className="font-semibold text-white">
                 {formatClassName(tooltip.objectClass)}
               </span>

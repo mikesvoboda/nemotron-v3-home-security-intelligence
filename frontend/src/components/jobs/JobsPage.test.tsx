@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import JobsPage from './JobsPage';
 import * as api from '../../services/api';
 
-import type { JobResponse, JobStatusEnum, JobSearchResponse } from '../../services/api';
+import type { JobResponse, JobSearchResponse } from '../../services/api';
 
 // Mock API module
 vi.mock('../../services/api');
@@ -43,7 +43,7 @@ describe('JobsPage', () => {
     {
       job_id: 'job-001',
       job_type: 'export',
-      status: 'running' as JobStatusEnum,
+      status: 'running',
       progress: 45,
       message: 'Exporting events: 450/1000',
       created_at: '2024-01-15T10:30:00Z',
@@ -55,7 +55,7 @@ describe('JobsPage', () => {
     {
       job_id: 'job-002',
       job_type: 'export',
-      status: 'completed' as JobStatusEnum,
+      status: 'completed',
       progress: 100,
       message: 'Export completed',
       created_at: '2024-01-15T09:00:00Z',
@@ -67,7 +67,7 @@ describe('JobsPage', () => {
     {
       job_id: 'job-003',
       job_type: 'cleanup',
-      status: 'failed' as JobStatusEnum,
+      status: 'failed',
       progress: 30,
       message: 'Cleanup failed',
       created_at: '2024-01-15T08:00:00Z',
@@ -79,7 +79,7 @@ describe('JobsPage', () => {
     {
       job_id: 'job-004',
       job_type: 'export',
-      status: 'pending' as JobStatusEnum,
+      status: 'pending',
       progress: 0,
       message: 'Waiting to start',
       created_at: '2024-01-15T11:00:00Z',

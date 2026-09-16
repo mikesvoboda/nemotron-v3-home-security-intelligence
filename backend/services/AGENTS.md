@@ -566,9 +566,9 @@ async with manager.load("yolo11-face") as model:
 # Model automatically unloaded and CUDA cache cleared
 
 # Utility functions
-get_model_config(name)       # Get config for model
-get_enabled_models()         # List enabled models
-get_available_models()       # List verified working models
+get_model_config(name)  # Get config for model
+get_enabled_models()  # List enabled models
+get_available_models()  # List verified working models
 get_total_vram_if_loaded(names)  # Calculate VRAM usage
 ```
 
@@ -1091,13 +1091,12 @@ try:
 except CircuitOpenError as e:
     # Return 503 with Retry-After header
     raise HTTPException(
-        status_code=503,
-        headers={"Retry-After": str(int(e.recovery_time_remaining))}
+        status_code=503, headers={"Retry-After": str(int(e.recovery_time_remaining))}
     )
 
 # Manual control
-breaker.reset()        # Reset to CLOSED
-breaker.force_open()   # Force to OPEN (for maintenance)
+breaker.reset()  # Reset to CLOSED
+breaker.force_open()  # Force to OPEN (for maintenance)
 
 # Get status
 status = breaker.get_status()
@@ -1387,7 +1386,7 @@ Container Missing/Stopped/Unhealthy
 ```python
 # Exponential backoff: 5s, 10s, 20s, 40s, 80s, 160s, 300s (cap)
 def calculate_backoff(failure_count, base=5.0, max_backoff=300.0):
-    return min(base * (2 ** failure_count), max_backoff)
+    return min(base * (2**failure_count), max_backoff)
 ```
 
 **Category-Specific Defaults:**
@@ -1548,9 +1547,7 @@ from backend.services.prompt_parser import (
 
 # Find where to insert a suggestion
 insert_idx, insert_type = find_insertion_point(
-    prompt,
-    target_section="Camera & Time Context",
-    insertion_point="append"
+    prompt, target_section="Camera & Time Context", insertion_point="append"
 )
 
 # Detect variable style in prompt
@@ -1568,7 +1565,7 @@ modified_prompt = apply_suggestion_to_prompt(
     target_section="Camera & Time Context",
     insertion_point="append",
     proposed_label="Time Since Last Event",
-    proposed_variable="time_since_last_event"
+    proposed_variable="time_since_last_event",
 )
 ```
 
@@ -1824,6 +1821,7 @@ from backend.services.health_service_registry import (
     get_health_registry_optional,
 )
 
+
 # FastAPI dependency
 @app.get("/health")
 async def get_health(
@@ -1831,6 +1829,7 @@ async def get_health(
 ):
     statuses = registry.get_worker_statuses()
     return {"workers": [s.__dict__ for s in statuses]}
+
 
 # Get registry from DI container
 container = get_container()
@@ -2214,13 +2213,17 @@ if not result.is_valid:
 truncated_text = counter.truncate_to_fit(text, max_tokens, suffix="...[truncated]")
 
 # Estimate enrichment token counts
-token_counts = counter.estimate_enrichment_tokens({
-    "zone_analysis": zone_text,
-    "reid_context": reid_text,
-})
+token_counts = counter.estimate_enrichment_tokens(
+    {
+        "zone_analysis": zone_text,
+        "reid_context": reid_text,
+    }
+)
 
 # Get context budget
-budget = counter.get_context_budget()  # Returns dict with context_window, max_output_tokens, available_for_prompt
+budget = (
+    counter.get_context_budget()
+)  # Returns dict with context_window, max_output_tokens, available_for_prompt
 ```
 
 ### clip_generator.py
@@ -2256,10 +2259,7 @@ generator = get_clip_generator()
 
 # Generate clip from video
 clip_path = await generator.generate_clip_from_video(
-    event,
-    video_path="/path/to/video.mp4",
-    pre_seconds=5,
-    post_seconds=5
+    event, video_path="/path/to/video.mp4", pre_seconds=5, post_seconds=5
 )
 
 # Generate clip from images
@@ -2267,7 +2267,7 @@ clip_path = await generator.generate_clip_from_images(
     event,
     image_paths=["/path/to/img1.jpg", "/path/to/img2.jpg"],
     fps=2,
-    output_format="mp4"  # or "gif"
+    output_format="mp4",  # or "gif"
 )
 
 # Generate clip automatically (chooses best method)
@@ -2275,7 +2275,7 @@ clip_path = await generator.generate_clip_for_event(
     event,
     video_path="/path/to/video.mp4",  # Optional
     image_paths=[...],  # Optional
-    fps=2
+    fps=2,
 )
 
 # Query clips
@@ -2355,8 +2355,7 @@ if service.is_service_available(AIService.NEMOTRON):
     result = await analyzer.analyze(...)
 else:
     result = service.get_fallback_risk_analysis(
-        camera_name="front_door",
-        object_types=["person", "vehicle"]
+        camera_name="front_door", object_types=["person", "vehicle"]
     )
 
 # Get degradation status
@@ -2544,6 +2543,7 @@ class ModelLoaderBase(ABC, Generic[T]):
 ```python
 from backend.services.model_loader_base import ModelLoaderBase
 
+
 class CLIPLoader(ModelLoaderBase[dict]):
     @property
     def model_name(self) -> str:
@@ -2555,6 +2555,7 @@ class CLIPLoader(ModelLoaderBase[dict]):
 
     async def load(self, device: str = "cuda") -> dict:
         from transformers import CLIPModel, CLIPProcessor
+
         model = CLIPModel.from_pretrained(self.model_path)
         processor = CLIPProcessor.from_pretrained(self.model_path)
         if device.startswith("cuda"):
@@ -2943,16 +2944,14 @@ The `motion_sensitivity` parameter (0.0 to 1.0) controls detection threshold:
 from backend.services.frame_extractor import FrameExtractor
 
 extractor = FrameExtractor(
-    redis_client=redis,
-    motion_sensitivity=0.7,
-    frame_save_dir="/tmp/claude/rtsp_frames"
+    redis_client=redis, motion_sensitivity=0.7, frame_save_dir="/tmp/claude/rtsp_frames"
 )
 
 # Process a frame (main entry point)
 file_path = await extractor.extract_frame(
     camera_id="front_door",
     frame=np_frame,  # numpy array (BGR format)
-    timestamp=datetime.now()
+    timestamp=datetime.now(),
 )
 
 if file_path:
@@ -2996,7 +2995,7 @@ await extractor.queue_detection("front_door", file_path, timestamp)
     "rtsp_urls": [
         {"profile": "mainStream", "url": "rtsp://192.168.1.100:554/Streaming/Channels/101"}
     ],
-    "capabilities": {"video": True, "ptz": True, "events": False}
+    "capabilities": {"video": True, "ptz": True, "events": False},
 }
 ```
 
@@ -3017,8 +3016,8 @@ capabilities = await service.get_capabilities(camera_id="front_door")
 await service.execute_ptz_command(
     camera_id="front_door",
     command="pan",  # pan, tilt, zoom, stop
-    value=0.5,      # -1.0 to 1.0
-    speed=0.3       # 0.0 to 1.0
+    value=0.5,  # -1.0 to 1.0
+    speed=0.3,  # 0.0 to 1.0
 )
 
 # Get PTZ presets
@@ -3031,7 +3030,7 @@ await service.goto_preset(camera_id="front_door", preset_token="preset_1")
 rtsp_url = await service.get_rtsp_url_from_device(
     device_url="http://192.168.1.100:80/onvif/device_service",
     username="admin",
-    password="secret"  # pragma: allowlist secret
+    password="secret",  # pragma: allowlist secret
 )
 ```
 
@@ -3255,7 +3254,10 @@ from backend.services.nemotron_streaming import call_llm_streaming, analyze_batc
 from backend.services.pipeline_workers import PipelineWorkerManager
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.performance_collector import PerformanceCollector
-from backend.services.pipeline_quality_audit_service import PipelineQualityAuditService, get_audit_service
+from backend.services.pipeline_quality_audit_service import (
+    PipelineQualityAuditService,
+    get_audit_service,
+)
 
 # For container orchestrator (import directly)
 from backend.services.container_orchestrator import ContainerOrchestrator
@@ -3296,12 +3298,14 @@ from backend.services.audit_logger import audit_logger
 ```python
 # Mock Model Zoo for tests
 from backend.services.model_zoo import reset_model_zoo, reset_model_manager
+
 reset_model_zoo()
 reset_model_manager()
 
 # Mock HTTP clients
 from backend.services.florence_client import reset_florence_client
 from backend.services.clip_client import reset_clip_client
+
 reset_florence_client()
 reset_clip_client()
 ```

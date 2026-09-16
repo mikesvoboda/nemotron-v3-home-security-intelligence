@@ -95,7 +95,7 @@ describe('expectValidEvent', () => {
     const event = eventFactory({ risk_level: 'high' });
     expect(() => expectValidEvent(event)).not.toThrow();
 
-    const invalidEvent = eventFactory({ risk_level: 'invalid' as any });
+    const invalidEvent = eventFactory({ risk_level: 'invalid' });
     expect(() => expectValidEvent(invalidEvent)).toThrow();
   });
 

@@ -60,6 +60,7 @@ async def concurrent_operation(worker_id: int) -> bool:
         await session.commit()
         return True
 
+
 tasks = [concurrent_operation(i) for i in range(10)]
 results = await asyncio.gather(*tasks)
 ```
@@ -104,12 +105,14 @@ async def transaction_1():
         await asyncio.sleep(0.05)  # Create race condition window
         await session.execute(select(B).with_for_update())
 
+
 async def transaction_2():
     async with get_session() as session:
         # Lock resource B, then A (opposite order)
         await session.execute(select(B).with_for_update())
         await asyncio.sleep(0.05)
         await session.execute(select(A).with_for_update())
+
 
 # One will succeed, one will detect deadlock
 await asyncio.gather(transaction_1(), transaction_2())

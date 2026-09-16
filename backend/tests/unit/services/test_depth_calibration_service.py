@@ -242,7 +242,7 @@ class TestValidateCalibrationData:
                 CalibrationPoint(depth_value=1.5, distance_feet=10.0),
             ],
         )
-        with pytest.raises(InvalidCalibrationError, match="depth value.*out of range"):
+        with pytest.raises(InvalidCalibrationError, match=r"depth value.*out of range"):
             validate_calibration_data(data_high)
 
         # Depth < 0
@@ -252,7 +252,7 @@ class TestValidateCalibrationData:
                 CalibrationPoint(depth_value=-0.1, distance_feet=10.0),
             ],
         )
-        with pytest.raises(InvalidCalibrationError, match="depth value.*out of range"):
+        with pytest.raises(InvalidCalibrationError, match=r"depth value.*out of range"):
             validate_calibration_data(data_low)
 
     def test_validate_duplicate_depth_values_raises(self) -> None:

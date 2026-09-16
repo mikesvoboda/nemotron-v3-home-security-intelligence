@@ -24,7 +24,16 @@ export interface ConfidenceIndicatorsProps {
   mode?: 'inline' | 'detailed';
 }
 
-type IndicatorValue = 'good' | 'none' | 'full' | 'fair' | 'minor' | 'partial' | 'poor' | 'significant' | 'minimal';
+type IndicatorValue =
+  | 'good'
+  | 'none'
+  | 'full'
+  | 'fair'
+  | 'minor'
+  | 'partial'
+  | 'poor'
+  | 'significant'
+  | 'minimal';
 
 /**
  * Get icon for indicator value
@@ -118,10 +127,7 @@ function Indicator({
   }
 
   return (
-    <div
-      data-testid="confidence-indicator"
-      className="flex items-center justify-between py-1.5"
-    >
+    <div data-testid="confidence-indicator" className="flex items-center justify-between py-1.5">
       <div className="flex items-center gap-2 text-gray-400">
         {getCategoryIcon(category)}
         <span className="text-xs">{categoryConfig.label}</span>
@@ -161,11 +167,7 @@ export default function ConfidenceIndicators({
           value={confidenceFactors.detection_quality}
           mode={mode}
         />
-        <Indicator
-          category="weather_impact"
-          value={confidenceFactors.weather_impact}
-          mode={mode}
-        />
+        <Indicator category="weather_impact" value={confidenceFactors.weather_impact} mode={mode} />
         <Indicator
           category="enrichment_coverage"
           value={confidenceFactors.enrichment_coverage}
@@ -190,11 +192,7 @@ export default function ConfidenceIndicators({
           value={confidenceFactors.detection_quality}
           mode={mode}
         />
-        <Indicator
-          category="weather_impact"
-          value={confidenceFactors.weather_impact}
-          mode={mode}
-        />
+        <Indicator category="weather_impact" value={confidenceFactors.weather_impact} mode={mode} />
         <Indicator
           category="enrichment_coverage"
           value={confidenceFactors.enrichment_coverage}

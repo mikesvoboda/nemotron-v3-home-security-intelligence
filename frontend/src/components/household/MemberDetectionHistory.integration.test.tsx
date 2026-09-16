@@ -58,7 +58,7 @@ const mockDetections = [
     event_id: 103,
     camera_name: 'Side Gate',
     detected_at: '2025-01-31T13:00:00Z',
-    confidence: 0.90,
+    confidence: 0.9,
     linked_at: '2025-01-31T13:05:00Z',
     event_summary: 'Person at side gate',
     event_risk_score: 25,
@@ -461,10 +461,7 @@ describe.skip('MemberDetectionHistory - Unlink Flow', () => {
 
     server.use(
       http.delete('/api/household/members/:memberId/detections/:detectionId', () => {
-        return HttpResponse.json(
-          { detail: 'Detection link not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Detection link not found' }, { status: 404 });
       })
     );
 
@@ -577,10 +574,7 @@ describe.skip('MemberDetectionHistory - Error States', () => {
   test('500 error shows error message', async () => {
     server.use(
       http.get('/api/household/members/:memberId/detections', () => {
-        return HttpResponse.json(
-          { detail: 'Internal server error' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Internal server error' }, { status: 500 });
       })
     );
 

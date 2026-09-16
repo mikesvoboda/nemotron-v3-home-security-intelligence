@@ -171,6 +171,13 @@ async def client_with_cache(
         return cache_service
 
     with (
+        # This fixture builds its own client, so it must carry the shared
+        # conftest's NEM-5312 SetupGuard bypass too — without it every
+        # non-whitelisted /api/events route answers 503 (ledger R-T9-SETUPGUARD).
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
         patch("backend.main.init_db", AsyncMock(return_value=None)),
         patch("backend.main.close_db", AsyncMock(return_value=None)),
         patch("backend.main.init_redis", AsyncMock(return_value=real_redis)),

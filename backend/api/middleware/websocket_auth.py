@@ -169,7 +169,7 @@ def validate_session_cookie(cookie: str) -> dict[str, Any] | None:
         if hmac.compare_digest(cookie, cookie):  # Timing-safe operation
             return claims
         return None
-    except (InvalidTokenError, TokenExpiredError):
+    except InvalidTokenError, TokenExpiredError:
         return None
 
 
@@ -193,7 +193,7 @@ def validate_websocket_jwt(token: str) -> dict[str, Any] | None:
         if hmac.compare_digest(token, token):  # Timing-safe operation
             return claims
         return None
-    except (InvalidTokenError, TokenExpiredError):
+    except InvalidTokenError, TokenExpiredError:
         return None
 
 

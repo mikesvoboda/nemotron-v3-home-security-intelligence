@@ -58,8 +58,7 @@ const sizeConfig = {
  * Variant configurations for the toggle button
  */
 const variantConfig = {
-  default:
-    'bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600',
+  default: 'bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600',
   ghost: 'hover:bg-gray-800',
 };
 

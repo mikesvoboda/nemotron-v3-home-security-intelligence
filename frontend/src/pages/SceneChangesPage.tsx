@@ -401,18 +401,21 @@ const SceneChangeItem = memo(function SceneChangeItem({
       data-testid={`scene-change-item-${sceneChange.id}`}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           {/* Camera name and timestamp */}
-          <div className="flex items-center gap-3 mb-2">
-            <Camera className="h-4 w-4 text-gray-400 flex-shrink-0" aria-hidden="true" />
+          <div className="mb-2 flex items-center gap-3">
+            <Camera className="h-4 w-4 flex-shrink-0 text-gray-400" aria-hidden="true" />
             <span className="text-sm font-medium text-white">{sceneChange.camera_name}</span>
-            <span className="text-xs text-gray-500" title={formatTimestamp(sceneChange.detected_at)}>
+            <span
+              className="text-xs text-gray-500"
+              title={formatTimestamp(sceneChange.detected_at)}
+            >
               {formatRelativeTime(sceneChange.detected_at)}
             </span>
           </div>
 
           {/* Change type and details */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-wrap items-center gap-3">
             <span
               className={clsx(
                 'flex items-center gap-1 rounded px-2 py-1 text-xs font-medium',
@@ -425,7 +428,9 @@ const SceneChangeItem = memo(function SceneChangeItem({
             </span>
             <span className="text-xs text-gray-500">
               Similarity:{' '}
-              <span className="text-gray-400">{formatSimilarity(sceneChange.similarity_score)}</span>
+              <span className="text-gray-400">
+                {formatSimilarity(sceneChange.similarity_score)}
+              </span>
               <span className="ml-1 text-gray-600">(lower = more different)</span>
             </span>
             {sceneChange.acknowledged && (
@@ -500,7 +505,12 @@ function SceneChangesList({
   }
 
   return (
-    <div className="space-y-3" data-testid="scene-changes-list" role="list" aria-label="Scene changes">
+    <div
+      className="space-y-3"
+      data-testid="scene-changes-list"
+      role="list"
+      aria-label="Scene changes"
+    >
       {sceneChanges.map((sceneChange) => (
         <SceneChangeItem
           key={`${sceneChange.camera_id}-${sceneChange.id}`}
@@ -529,11 +539,7 @@ function SceneChangesPageComponent() {
   const [acknowledgingIds, setAcknowledgingIds] = useState<Set<number>>(new Set());
 
   // Data fetching
-  const {
-    cameras,
-    isLoading: isCamerasLoading,
-    error: camerasError,
-  } = useCamerasQuery();
+  const { cameras, isLoading: isCamerasLoading, error: camerasError } = useCamerasQuery();
 
   const {
     sceneChanges,
@@ -552,10 +558,7 @@ function SceneChangesPageComponent() {
   });
 
   // Real-time scene change events via WebSocket (NEM-3575)
-  const {
-    recentEvents: realtimeEvents,
-    isConnected: isWsConnected,
-  } = useSceneChangeEvents({
+  const { recentEvents: realtimeEvents, isConnected: isWsConnected } = useSceneChangeEvents({
     enabled: !isCamerasLoading,
     showToasts: false, // Toasts are handled globally by the dashboard
   });
@@ -673,20 +676,16 @@ function SceneChangesPageComponent() {
         {realtimeEvents.length > 0 && (
           <div className="mb-6" data-testid="realtime-scene-changes">
             <div className="mb-3 flex items-center gap-2">
-              <Radio className={clsx('h-4 w-4', isWsConnected ? 'text-green-400' : 'text-gray-500')} />
+              <Radio
+                className={clsx('h-4 w-4', isWsConnected ? 'text-green-400' : 'text-gray-500')}
+              />
               <h2 className="text-sm font-semibold text-white">Real-time Events</h2>
               <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
                 {realtimeEvents.length} recent
               </span>
-              {!isWsConnected && (
-                <span className="text-xs text-yellow-500">Reconnecting...</span>
-              )}
+              {!isWsConnected && <span className="text-xs text-yellow-500">Reconnecting...</span>}
             </div>
-            <SceneChangeHistory
-              events={realtimeEvents}
-              maxItems={5}
-              showEmptyState={false}
-            />
+            <SceneChangeHistory events={realtimeEvents} maxItems={5} showEmptyState={false} />
           </div>
         )}
 
@@ -710,8 +709,8 @@ function SceneChangesPageComponent() {
         <div className="mt-6 rounded-lg border border-gray-800 bg-gray-900/30 p-4 text-xs text-gray-500">
           <p>
             Scene changes are detected when the camera view significantly differs from the baseline.
-            Low similarity scores indicate potential tampering, camera movement, or view obstructions.
-            Review and acknowledge changes to keep your monitoring logs organized.
+            Low similarity scores indicate potential tampering, camera movement, or view
+            obstructions. Review and acknowledge changes to keep your monitoring logs organized.
           </p>
         </div>
       </div>

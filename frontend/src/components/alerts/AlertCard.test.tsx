@@ -60,10 +60,10 @@ describe('AlertCard', () => {
     risk_score: 75,
     summary: 'Person detected near entrance',
     dedup_key: 'front_door:person',
-    onAcknowledge: vi.fn() as unknown as AlertCardProps['onAcknowledge'],
-    onDismiss: vi.fn() as unknown as AlertCardProps['onDismiss'],
-    onSnooze: vi.fn() as unknown as AlertCardProps['onSnooze'],
-    onViewEvent: vi.fn() as unknown as AlertCardProps['onViewEvent'],
+    onAcknowledge: vi.fn(),
+    onDismiss: vi.fn(),
+    onSnooze: vi.fn(),
+    onViewEvent: vi.fn(),
   };
 
   describe('Rendering', () => {
@@ -281,9 +281,7 @@ describe('AlertCard', () => {
       const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
       await user.click(acknowledgeBtn);
 
-      expect(mockOnAcknowledge).toHaveBeenCalledWith(
-        expect.objectContaining({ versionId: 42 })
-      );
+      expect(mockOnAcknowledge).toHaveBeenCalledWith(expect.objectContaining({ versionId: 42 }));
     });
 
     it('includes version_id in dismiss callback params', async () => {
@@ -295,9 +293,7 @@ describe('AlertCard', () => {
       const dismissBtn = screen.getByRole('button', { name: /dismiss/i });
       await user.click(dismissBtn);
 
-      expect(mockOnDismiss).toHaveBeenCalledWith(
-        expect.objectContaining({ versionId: 99 })
-      );
+      expect(mockOnDismiss).toHaveBeenCalledWith(expect.objectContaining({ versionId: 99 }));
     });
   });
 

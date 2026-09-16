@@ -68,23 +68,20 @@ export function useWorkerActions(): UseWorkerActionsResult {
   /**
    * Wrapper to handle loading state and errors for API calls.
    */
-  const executeAction = useCallback(
-    async <T>(action: () => Promise<T>): Promise<T> => {
-      setIsLoading(true);
-      setError(null);
+  const executeAction = useCallback(async <T>(action: () => Promise<T>): Promise<T> => {
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        const result = await action();
-        setIsLoading(false);
-        return result;
-      } catch (err) {
-        setIsLoading(false);
-        setError(err instanceof Error ? err : new Error(String(err)));
-        throw err;
-      }
-    },
-    []
-  );
+    try {
+      const result = await action();
+      setIsLoading(false);
+      return result;
+    } catch (err) {
+      setIsLoading(false);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      throw err;
+    }
+  }, []);
 
   const startWorker = useCallback(
     async (name: string): Promise<WorkerControlResponse> => {

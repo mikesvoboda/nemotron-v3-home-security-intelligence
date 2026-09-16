@@ -11,7 +11,6 @@ import type {
 } from '../../hooks/useQueueMetricsWebSocket';
 import type { QueueStatusPayload, PipelineThroughputPayload } from '../../types/websocket-events';
 
-
 // Mock the useQueueMetricsWebSocket hook
 vi.mock('../../hooks/useQueueMetricsWebSocket', () => ({
   useQueueMetricsWebSocket: vi.fn(),
@@ -63,9 +62,7 @@ describe('QueueMetricsPanel', () => {
     totalWorkers: 3,
     isWarning: false,
     isCritical: false,
-    getQueueByName: vi.fn((name: string) =>
-      mockQueueStatus.queues.find((q) => q.name === name)
-    ),
+    getQueueByName: vi.fn((name: string) => mockQueueStatus.queues.find((q) => q.name === name)),
     clearHistory: vi.fn(),
   };
 

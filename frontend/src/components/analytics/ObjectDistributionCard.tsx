@@ -184,9 +184,7 @@ export default function ObjectDistributionCard({ dateRange }: ObjectDistribution
             </div>
           ))}
           {chartData.length > 5 && (
-            <div className="text-xs text-gray-500">
-              +{chartData.length - 5} more types
-            </div>
+            <div className="text-xs text-gray-500">+{chartData.length - 5} more types</div>
           )}
         </div>
       </div>

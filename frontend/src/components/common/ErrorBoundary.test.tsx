@@ -278,6 +278,7 @@ describe('ErrorBoundary', () => {
 
     it('opens GitHub issue URL when Report Issue is clicked', () => {
       const openMock = vi.fn();
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- save/restore idiom; call sites keep `this` on window
       const originalOpen = window.open;
       window.open = openMock;
 
@@ -309,6 +310,7 @@ describe('ErrorBoundary', () => {
 
     it('includes error details in the GitHub issue URL', () => {
       const openMock = vi.fn();
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- save/restore idiom; call sites keep `this` on window
       const originalOpen = window.open;
       window.open = openMock;
 

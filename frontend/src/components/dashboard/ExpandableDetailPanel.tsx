@@ -255,7 +255,9 @@ export function ExpandableDetailPanel({
   const typeLabel = isHourly ? 'Hourly Summary' : 'Daily Summary';
 
   // Format time window
-  const windowStart = detail.windowStart ? format(parseISO(detail.windowStart), 'MMM d, h:mm a') : '';
+  const windowStart = detail.windowStart
+    ? format(parseISO(detail.windowStart), 'MMM d, h:mm a')
+    : '';
   const windowEnd = detail.windowEnd ? format(parseISO(detail.windowEnd), 'h:mm a') : '';
   const generatedAgo = detail.generatedAt
     ? formatDistanceToNow(parseISO(detail.generatedAt), { addSuffix: true })
@@ -318,7 +320,7 @@ export function ExpandableDetailPanel({
               Summary
             </h3>
             <div
-              className="rounded-lg bg-gray-800/50 p-4 text-gray-300 leading-relaxed"
+              className="rounded-lg bg-gray-800/50 p-4 leading-relaxed text-gray-300"
               data-testid="detail-narrative"
             >
               {detail.content}

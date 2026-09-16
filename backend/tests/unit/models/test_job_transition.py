@@ -111,8 +111,10 @@ class TestJobTransitionModelInitialization:
             to_status="running",
         )
 
-        # In-memory model won't have UUID generated yet
-        # This is verified in integration tests
+        # In-memory model won't have UUID generated yet (M3 T7, audit 3.3:
+        # this boundary was documented but never asserted):
+        assert transition.id is None
+        # The post-flush generation itself is verified in integration tests.
 
 
 # =============================================================================

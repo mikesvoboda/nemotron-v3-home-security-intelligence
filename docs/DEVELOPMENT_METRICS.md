@@ -711,7 +711,6 @@ flowchart TB
 | `dependency-audit.yml`         | Dependency vulnerability audits        |
 | `vulnerability-management.yml` | Daily vulnerability scanning           |
 | `weekly-audit.yml`             | Weekly security audit                  |
-| `ai-code-review.yml`           | AI-powered code review                 |
 
 #### Performance (5 workflows)
 

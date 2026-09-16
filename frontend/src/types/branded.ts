@@ -251,7 +251,7 @@ export function createBatchId(id: string): BatchId {
 export function unwrapStringId<T extends CameraId | ZoneId | AlertRuleId | EntityId | BatchId>(
   id: T
 ): string {
-  return id as unknown as string;
+  return id;
 }
 
 /**
@@ -262,7 +262,7 @@ export function unwrapStringId<T extends CameraId | ZoneId | AlertRuleId | Entit
  * @returns The underlying number value
  */
 export function unwrapNumberId<T extends EventId | DetectionId>(id: T): number {
-  return id as unknown as number;
+  return id;
 }
 
 /**

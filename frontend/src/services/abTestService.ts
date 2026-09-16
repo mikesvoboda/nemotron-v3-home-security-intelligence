@@ -178,7 +178,7 @@ async function testPromptApi(
       try {
         const errorBody: unknown = await response.json();
         if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-          errorMessage = String((errorBody as { detail: unknown }).detail);
+          errorMessage = String(errorBody.detail);
         }
       } catch {
         // If response body is not JSON, use status text
@@ -228,16 +228,12 @@ export const abTestService: ABTestService = {
 
     // Run both prompts in parallel using Promise.all
     const [originalPromise, modifiedPromise] = [
-      testPromptApi(eventId, originalPrompt, modelConfig).catch(
-        (err: unknown): ErrorResult => ({
-          error: err,
-        })
-      ),
-      testPromptApi(eventId, modifiedPrompt, modelConfig).catch(
-        (err: unknown): ErrorResult => ({
-          error: err,
-        })
-      ),
+      testPromptApi(eventId, originalPrompt, modelConfig).catch((err: unknown): ErrorResult => ({
+        error: err,
+      })),
+      testPromptApi(eventId, modifiedPrompt, modelConfig).catch((err: unknown): ErrorResult => ({
+        error: err,
+      })),
     ];
 
     const [originalSettled, modifiedSettled]: [SettledResult, SettledResult] = await Promise.all([

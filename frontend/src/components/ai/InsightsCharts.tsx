@@ -100,7 +100,9 @@ function transformToLegendItems(detectionData: DetectionClassData[]): ChartLegen
   return detectionData.map((item, index) => ({
     name: item.name,
     value: item.count,
-    color: DETECTION_HEX_COLORS[DETECTION_TREMOR_COLORS[index % DETECTION_TREMOR_COLORS.length]] || '#6b7280',
+    color:
+      DETECTION_HEX_COLORS[DETECTION_TREMOR_COLORS[index % DETECTION_TREMOR_COLORS.length]] ||
+      '#6b7280',
   }));
 }
 

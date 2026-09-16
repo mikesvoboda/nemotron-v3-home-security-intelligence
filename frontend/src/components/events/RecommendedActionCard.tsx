@@ -38,9 +38,7 @@ export default function RecommendedActionCard({
       data-testid="recommended-action-card"
       className={clsx(
         'rounded-lg border p-4',
-        isReviewed
-          ? 'border-gray-600 bg-gray-800/50'
-          : 'border-amber-500/40 bg-amber-500/10',
+        isReviewed ? 'border-gray-600 bg-gray-800/50' : 'border-amber-500/40 bg-amber-500/10',
         className
       )}
     >
@@ -51,35 +49,24 @@ export default function RecommendedActionCard({
             isReviewed ? 'bg-gray-700 text-gray-400' : 'bg-amber-500/20 text-amber-400'
           )}
         >
-          {isReviewed ? (
-            <CheckCircle className="h-5 w-5" />
-          ) : (
-            <AlertCircle className="h-5 w-5" />
-          )}
+          {isReviewed ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <h4
             className={clsx(
-              'text-sm font-semibold uppercase tracking-wide mb-1',
+              'mb-1 text-sm font-semibold uppercase tracking-wide',
               isReviewed ? 'text-gray-400' : 'text-amber-400'
             )}
           >
             Recommended Action
           </h4>
-          <p
-            className={clsx(
-              'text-sm',
-              isReviewed ? 'text-gray-300' : 'text-white'
-            )}
-          >
+          <p className={clsx('text-sm', isReviewed ? 'text-gray-300' : 'text-white')}>
             {recommendedAction}
           </p>
         </div>
 
-        {!isReviewed && (
-          <ArrowRight className="h-5 w-5 flex-shrink-0 text-amber-400" />
-        )}
+        {!isReviewed && <ArrowRight className="h-5 w-5 flex-shrink-0 text-amber-400" />}
       </div>
     </div>
   );

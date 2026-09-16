@@ -23,10 +23,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
-import {
-  useSettingsApi,
-  type FeatureSettings,
-} from '../../hooks/useSettingsApi';
+import { useSettingsApi, type FeatureSettings } from '../../hooks/useSettingsApi';
 
 export interface FeatureTogglesPanelProps {
   /** Optional className for styling */
@@ -129,9 +126,7 @@ export default function FeatureTogglesPanel({ className }: FeatureTogglesPanelPr
           <ToggleLeft className="h-5 w-5 text-[#76B900]" />
           Feature Toggles
         </Title>
-        <Text className="mb-4 text-gray-400">
-          Enable or disable AI processing features
-        </Text>
+        <Text className="mb-4 text-gray-400">Enable or disable AI processing features</Text>
         <div className="space-y-4" data-testid="feature-toggles-loading">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
@@ -190,9 +185,7 @@ export default function FeatureTogglesPanel({ className }: FeatureTogglesPanelPr
             <ToggleLeft className="h-5 w-5 text-[#76B900]" />
             Feature Toggles
           </Title>
-          <Text className="mt-1 text-gray-400">
-            Enable or disable AI processing features
-          </Text>
+          <Text className="mt-1 text-gray-400">Enable or disable AI processing features</Text>
         </div>
         <span className="text-sm text-gray-500" data-testid="feature-toggles-summary">
           {enabledCount}/{FEATURE_TOGGLE_CONFIGS.length} enabled

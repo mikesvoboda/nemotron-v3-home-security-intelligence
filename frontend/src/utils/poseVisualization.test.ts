@@ -22,7 +22,6 @@ import {
   normalizedToCanvas,
   parseRawKeypoints,
   validateKeypoints,
-  type CocoKeypointName,
   type Keypoint,
   type PoseAlert,
   type PoseColorScheme,
@@ -543,7 +542,7 @@ describe('poseVisualization utilities', () => {
     it('returns -1 for invalid names', () => {
       // TypeScript prevents invalid names at compile time,
       // but we can test the function behavior
-      expect(getKeypointIndex('nose' as CocoKeypointName)).toBe(0);
+      expect(getKeypointIndex('nose')).toBe(0);
     });
 
     it('all keypoint names have unique indices', () => {

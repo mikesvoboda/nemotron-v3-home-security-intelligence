@@ -60,9 +60,7 @@ describe('CameraAnomalyTimeline', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockAnomaliesResponse
-    );
+    (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockResolvedValue(mockAnomaliesResponse);
   });
 
   afterEach(() => {
@@ -71,9 +69,7 @@ describe('CameraAnomalyTimeline', () => {
 
   describe('loading state', () => {
     it('displays loading spinner while fetching', () => {
-      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       renderWithProviders(<CameraAnomalyTimeline cameraId={mockCameraId} />);
 
@@ -81,9 +77,7 @@ describe('CameraAnomalyTimeline', () => {
     });
 
     it('shows title during loading when showHeader is true', () => {
-      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(
-        new Promise(() => {})
-      );
+      (api.fetchCameraAnomalies as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
       renderWithProviders(<CameraAnomalyTimeline cameraId={mockCameraId} showHeader />);
 
@@ -268,9 +262,7 @@ describe('CameraAnomalyTimeline', () => {
     });
 
     it('hides header when showHeader is false', async () => {
-      renderWithProviders(
-        <CameraAnomalyTimeline cameraId={mockCameraId} showHeader={false} />
-      );
+      renderWithProviders(<CameraAnomalyTimeline cameraId={mockCameraId} showHeader={false} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('camera-anomaly-timeline')).toBeInTheDocument();

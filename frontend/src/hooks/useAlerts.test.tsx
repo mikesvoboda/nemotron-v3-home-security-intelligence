@@ -12,11 +12,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 
-import {
-  useAcknowledgeAlert,
-  useDismissAlert,
-  useAlertMutations,
-} from './useAlerts';
+import { useAcknowledgeAlert, useDismissAlert, useAlertMutations } from './useAlerts';
 
 import type { AlertResponse } from '../services/api';
 import type { ReactNode } from 'react';
@@ -285,10 +281,7 @@ describe('useAlerts', () => {
 
       server.use(
         http.post(`/api/alerts/${alertId}/dismiss`, () => {
-          return HttpResponse.json(
-            { detail: 'Alert was modified concurrently' },
-            { status: 409 }
-          );
+          return HttpResponse.json({ detail: 'Alert was modified concurrently' }, { status: 409 });
         })
       );
 

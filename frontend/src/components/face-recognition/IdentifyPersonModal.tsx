@@ -230,9 +230,9 @@ export default function IdentifyPersonModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-lg transform rounded-lg bg-[#1A1A1A] border border-gray-700 p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-lg transform rounded-lg border border-gray-700 bg-[#1A1A1A] p-6 shadow-xl transition-all">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title
                     id="identify-person-modal-title"
                     className="text-lg font-semibold text-white"
@@ -244,7 +244,7 @@ export default function IdentifyPersonModal({
                     onClick={handleCancel}
                     disabled={identifyMutation.isPending}
                     aria-label="Close"
-                    className="p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                    className="p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -255,9 +255,9 @@ export default function IdentifyPersonModal({
                   <img
                     src={previewUrl}
                     alt="Face preview"
-                    className="w-24 h-24 object-cover rounded-lg border border-gray-700"
+                    className="h-24 w-24 rounded-lg border border-gray-700 object-cover"
                   />
-                  <div className="text-sm text-gray-300 space-y-1">
+                  <div className="space-y-1 text-sm text-gray-300">
                     <div>Unknown face detected at:</div>
                     <div>
                       Camera: <span className="text-white">{cameraName}</span>
@@ -272,14 +272,14 @@ export default function IdentifyPersonModal({
                 <div className="mb-4">
                   <span
                     id="person-selection-label"
-                    className="block text-sm font-medium text-gray-300 mb-2"
+                    className="mb-2 block text-sm font-medium text-gray-300"
                   >
                     Select matching person:
                   </span>
 
                   {/* Search Input */}
                   <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                     <input
                       type="text"
                       value={searchQuery}
@@ -287,7 +287,7 @@ export default function IdentifyPersonModal({
                       placeholder="Search persons..."
                       disabled={identifyMutation.isPending}
                       aria-label="Search persons"
-                      className="w-full pl-10 pr-10 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50"
+                      className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-10 text-white placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#76B900] disabled:opacity-50"
                     />
                     {searchQuery && (
                       <button
@@ -295,7 +295,7 @@ export default function IdentifyPersonModal({
                         onClick={handleClearSearch}
                         disabled={identifyMutation.isPending}
                         aria-label="Clear search"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -304,12 +304,12 @@ export default function IdentifyPersonModal({
 
                   {/* Loading state */}
                   {knownPersonsQuery.isLoading && (
-                    <div className="text-gray-400 text-sm py-4 text-center">Loading persons...</div>
+                    <div className="py-4 text-center text-sm text-gray-400">Loading persons...</div>
                   )}
 
                   {/* Error state */}
                   {knownPersonsQuery.isError && (
-                    <div className="text-red-400 text-sm py-4 text-center">
+                    <div className="py-4 text-center text-sm text-red-400">
                       {knownPersonsQuery.error instanceof Error
                         ? knownPersonsQuery.error.message
                         : 'Failed to load known persons'}
@@ -320,7 +320,7 @@ export default function IdentifyPersonModal({
                   {!knownPersonsQuery.isLoading &&
                     !knownPersonsQuery.isError &&
                     (knownPersonsQuery.data?.length ?? 0) === 0 && (
-                      <div className="text-gray-400 text-sm py-4 text-center">
+                      <div className="py-4 text-center text-sm text-gray-400">
                         No known persons. Add a person first before identifying faces.
                       </div>
                     )}
@@ -330,7 +330,7 @@ export default function IdentifyPersonModal({
                     !knownPersonsQuery.isError &&
                     (knownPersonsQuery.data?.length ?? 0) > 0 &&
                     filteredPersons.length === 0 && (
-                      <div className="text-gray-400 text-sm py-4 text-center">
+                      <div className="py-4 text-center text-sm text-gray-400">
                         No persons found matching &quot;{searchQuery}&quot;
                       </div>
                     )}
@@ -343,7 +343,7 @@ export default function IdentifyPersonModal({
                         role="radiogroup"
                         aria-labelledby="person-selection-label"
                         aria-label="Select matching person"
-                        className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto p-1"
+                        className="grid max-h-48 grid-cols-4 gap-3 overflow-y-auto p-1"
                       >
                         {filteredPersons.map((person) => (
                           <PersonCard
@@ -361,14 +361,14 @@ export default function IdentifyPersonModal({
                 {/* Enrollment Checkbox */}
                 {showEnrollmentOption && (
                   <div className="mb-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex cursor-pointer items-center gap-2">
                       <input
                         type="checkbox"
                         checked={enrollFace}
                         onChange={(e) => setEnrollFace(e.target.checked)}
                         disabled={identifyMutation.isPending}
                         aria-label="Also enroll this face"
-                        className="w-4 h-4 rounded border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-0 disabled:opacity-50"
+                        className="h-4 w-4 rounded border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900] focus:ring-offset-0 disabled:opacity-50"
                       />
                       <span className="text-sm text-gray-300">
                         Also enroll this face (quality: {qualityScore.toFixed(2)})
@@ -383,7 +383,7 @@ export default function IdentifyPersonModal({
                     type="button"
                     onClick={handleCancel}
                     disabled={identifyMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:text-white disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -391,7 +391,7 @@ export default function IdentifyPersonModal({
                     type="button"
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    className="px-4 py-2 text-sm font-medium bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5a8f00] disabled:opacity-50"
                   >
                     {identifyMutation.isPending && (
                       <Loader2 className="h-4 w-4 animate-spin" data-testid="loading-spinner" />
@@ -447,32 +447,25 @@ function PersonCard({ person, isSelected, onSelect, disabled }: PersonCardProps)
       aria-checked={isSelected}
       aria-label={person.name}
       tabIndex={disabled ? -1 : 0}
-      className={`
-        flex flex-col items-center p-2 rounded-lg border cursor-pointer transition-colors
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${
-          isSelected
-            ? 'border-[#76B900] bg-[#76B900]/10'
-            : 'border-gray-700 hover:border-gray-600 bg-[#121212]'
-        }
-      `}
+      className={`flex cursor-pointer flex-col items-center rounded-lg border p-2 transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${
+        isSelected
+          ? 'border-[#76B900] bg-[#76B900]/10'
+          : 'border-gray-700 bg-[#121212] hover:border-gray-600'
+      } `}
     >
       {/* Person Avatar/Initial */}
-      <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-lg font-medium text-white mb-1">
+      <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-gray-700 text-lg font-medium text-white">
         {person.name.charAt(0).toUpperCase()}
       </div>
 
       {/* Person Name */}
-      <span className="text-xs text-center text-white truncate w-full">{person.name}</span>
+      <span className="w-full truncate text-center text-xs text-white">{person.name}</span>
 
       {/* Selection Indicator */}
       <div
-        className={`
-          w-4 h-4 rounded-full border-2 mt-1 flex items-center justify-center
-          ${isSelected ? 'border-[#76B900] bg-[#76B900]' : 'border-gray-500'}
-        `}
+        className={`mt-1 flex h-4 w-4 items-center justify-center rounded-full border-2 ${isSelected ? 'border-[#76B900] bg-[#76B900]' : 'border-gray-500'} `}
       >
-        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+        {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
       </div>
     </div>
   );

@@ -92,7 +92,9 @@ describe('CameraBaselinePanel', () => {
       vi.mocked(api.fetchCameraBaseline).mockImplementation(() => new Promise(() => {}));
       vi.mocked(api.fetchCameraActivityBaseline).mockImplementation(() => new Promise(() => {}));
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       expect(screen.getByText(/loading baseline/i)).toBeInTheDocument();
     });
@@ -100,7 +102,9 @@ describe('CameraBaselinePanel', () => {
 
   describe('data display', () => {
     it('renders camera name in header', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(mockCameraName)).toBeInTheDocument();
@@ -108,7 +112,9 @@ describe('CameraBaselinePanel', () => {
     });
 
     it('renders ActivityHeatmap component with fetched data', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/weekly activity pattern/i)).toBeInTheDocument();
@@ -122,7 +128,9 @@ describe('CameraBaselinePanel', () => {
         entries: mockActivityBaseline.entries.slice(0, 50), // Partial data
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/learning/i)).toBeInTheDocument();
@@ -130,7 +138,9 @@ describe('CameraBaselinePanel', () => {
     });
 
     it('displays current deviation status when available', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/slightly above normal/i)).toBeInTheDocument();
@@ -138,7 +148,9 @@ describe('CameraBaselinePanel', () => {
     });
 
     it('displays deviation score', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/1.8/)).toBeInTheDocument();
@@ -146,7 +158,9 @@ describe('CameraBaselinePanel', () => {
     });
 
     it('displays contributing factors', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/person_count_elevated/i)).toBeInTheDocument();
@@ -168,7 +182,9 @@ describe('CameraBaselinePanel', () => {
         learning_complete: false,
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/no baseline data/i)).toBeInTheDocument();
@@ -181,7 +197,9 @@ describe('CameraBaselinePanel', () => {
       vi.mocked(api.fetchCameraBaseline).mockRejectedValue(new Error('Network error'));
       vi.mocked(api.fetchCameraActivityBaseline).mockRejectedValue(new Error('Network error'));
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(
         () => {
@@ -194,7 +212,9 @@ describe('CameraBaselinePanel', () => {
 
   describe('data points display', () => {
     it('displays total data points', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/720/)).toBeInTheDocument();
@@ -202,7 +222,9 @@ describe('CameraBaselinePanel', () => {
     });
 
     it('displays baseline established date', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         // Should display "Since" label with a date
@@ -222,7 +244,9 @@ describe('CameraBaselinePanel', () => {
         },
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/far below normal/i)).toBeInTheDocument();
@@ -239,7 +263,9 @@ describe('CameraBaselinePanel', () => {
         },
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/below normal/i)).toBeInTheDocument();
@@ -256,7 +282,9 @@ describe('CameraBaselinePanel', () => {
         },
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/^normal$/i)).toBeInTheDocument();
@@ -273,7 +301,9 @@ describe('CameraBaselinePanel', () => {
         },
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/above normal/i)).toBeInTheDocument();
@@ -290,7 +320,9 @@ describe('CameraBaselinePanel', () => {
         },
       });
 
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByText(/far above normal/i)).toBeInTheDocument();
@@ -300,7 +332,9 @@ describe('CameraBaselinePanel', () => {
 
   describe('test data id attributes', () => {
     it('has testid for main container', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('camera-baseline-panel')).toBeInTheDocument();
@@ -308,7 +342,9 @@ describe('CameraBaselinePanel', () => {
     });
 
     it('has testid for deviation status', async () => {
-      renderWithProviders(<CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />);
+      renderWithProviders(
+        <CameraBaselinePanel cameraId={mockCameraId} cameraName={mockCameraName} />
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId('deviation-status')).toBeInTheDocument();

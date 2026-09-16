@@ -184,9 +184,11 @@ function isPrometheusAlertPayload(data: unknown): data is PrometheusAlertPayload
  * Type guard for prometheus.alert WebSocket messages.
  * Supports both { type, data } and { type, payload } formats.
  */
-function isPrometheusAlertMessage(
-  value: unknown
-): value is { type: 'prometheus.alert'; data?: PrometheusAlertPayload; payload?: PrometheusAlertPayload } {
+function isPrometheusAlertMessage(value: unknown): value is {
+  type: 'prometheus.alert';
+  data?: PrometheusAlertPayload;
+  payload?: PrometheusAlertPayload;
+} {
   if (!value || typeof value !== 'object') {
     return false;
   }

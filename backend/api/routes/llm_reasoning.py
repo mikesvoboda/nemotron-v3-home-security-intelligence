@@ -64,7 +64,7 @@ def _parse_json_response(raw_response: str) -> dict[str, Any] | None:
     """Parse raw LLM response when it's structured JSON."""
     try:
         parsed = json.loads(raw_response)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return None
     if isinstance(parsed, dict):
         return parsed

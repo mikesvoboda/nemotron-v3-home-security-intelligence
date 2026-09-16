@@ -805,6 +805,13 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     os.environ["API_KEY_ENABLED"] = "true"
     os.environ["API_KEYS"] = f'["{test_api_key}"]'
 
+    # Pin JWT_SECRET empty: these tests exercise the API-key-only auth path,
+    # whose rejection close code is 1008 (WS_1008_POLICY_VIOLATION). With a
+    # JWT_SECRET set (hybrid auth, NEM-5312/5322) the middleware intentionally
+    # closes with 4001 instead — that is the other documented close code.
+    original_jwt_secret = os.environ.get("JWT_SECRET")
+    os.environ["JWT_SECRET"] = ""
+
     # Clear settings cache to pick up new environment variables
     get_settings.cache_clear()
 
@@ -823,6 +830,11 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         yield client
 
     # Restore original environment
+    if original_jwt_secret is not None:
+        os.environ["JWT_SECRET"] = original_jwt_secret
+    else:
+        os.environ.pop("JWT_SECRET", None)
+
     if original_api_key_enabled is not None:
         os.environ["API_KEY_ENABLED"] = original_api_key_enabled
     else:
@@ -1120,9 +1132,12 @@ class TestWebSocketAuthenticationUnit:
         mock_ws.accept = AsyncMock()  # Must be AsyncMock since we now call accept()
         mock_ws.close = AsyncMock()
 
-        # Enable auth
+        # Enable auth. Pin JWT_SECRET empty: the API-key-only path closes with
+        # 1008 (WS_1008_POLICY_VIOLATION); hybrid auth (JWT_SECRET set) closes
+        # with 4001 by design (NEM-5312/5322).
         os.environ["API_KEY_ENABLED"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
+        os.environ["JWT_SECRET"] = ""
         get_settings.cache_clear()
 
         result = await authenticate_websocket(mock_ws)
@@ -1134,6 +1149,7 @@ class TestWebSocketAuthenticationUnit:
         # Cleanup
         os.environ.pop("API_KEY_ENABLED", None)
         os.environ.pop("API_KEYS", None)
+        os.environ.pop("JWT_SECRET", None)
         get_settings.cache_clear()
 
 

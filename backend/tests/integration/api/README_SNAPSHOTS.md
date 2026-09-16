@@ -49,10 +49,7 @@ The `extract_schema()` utility (defined in `backend/tests/conftest.py`) converts
     "name": "Test Camera",
     "active": True,
     "tags": ["indoor", "front"],
-    "metadata": {
-        "location": "front_door",
-        "floor": 1
-    }
+    "metadata": {"location": "front_door", "floor": 1},
 }
 ```
 
@@ -64,10 +61,7 @@ The `extract_schema()` utility (defined in `backend/tests/conftest.py`) converts
     "name": "str",
     "active": "bool",
     "tags": ["str"],
-    "metadata": {
-        "location": "str",
-        "floor": "int"
-    }
+    "metadata": {"location": "str", "floor": "int"},
 }
 ```
 
@@ -115,17 +109,20 @@ async def test_create_resource_schema(client, snapshot):
     assert response.status_code == 201
     assert extract_schema(response.json()) == snapshot
 
+
 # Error response
 async def test_resource_not_found_schema(client, snapshot):
     response = await client.get("/api/resource/999999")
     assert response.status_code == 404
     assert extract_schema(response.json()) == snapshot
 
+
 # Empty collection
 async def test_list_empty_resources_schema(client, snapshot):
     response = await client.get("/api/resource")
     assert response.status_code == 200
     assert extract_schema(response.json()) == snapshot
+
 
 # Cross-endpoint consistency
 async def test_resource_schema_consistency(client, snapshot):

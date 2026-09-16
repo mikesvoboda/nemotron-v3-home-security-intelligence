@@ -17,9 +17,16 @@ from backend.services.audit import AuditService
 pytestmark = pytest.mark.integration
 
 
+# The old gate keyed on the "CI" env var, which the local gate (scripts/
+# validate.sh) never sets — so these 5 DB-backed tests skipped on every run
+# even though a real PostgreSQL was always reachable, silently shrinking the
+# gate's coverage. Honest gate: skip only when no test database is reachable,
+# mirroring integration conftest's own resolution (TEST_DATABASE_URL or
+# DATABASE_URL, conftest.py:309). Under the gate both are set (wave L/M
+# protocol), so these tests now actually run. Ledger R-T9-CIAUDIT.
 @pytest.mark.skipif(
-    "CI" not in os.environ,
-    reason="Database tests require PostgreSQL - run in CI or with TEST_DATABASE_URL set",
+    not (os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")),
+    reason="Database tests require a reachable PostgreSQL (TEST_DATABASE_URL/DATABASE_URL unset)",
 )
 class TestAuditServiceDatabase:
     """Integration tests for AuditService with real database."""

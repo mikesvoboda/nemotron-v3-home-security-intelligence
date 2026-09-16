@@ -73,6 +73,7 @@ scripts/
   check-api-compatibility.sh         # API backward compatibility check
   check-api-contracts.sh             # API contract validation
   check-branch-name.sh               # Git branch naming convention check
+  check-version-consistency.sh       # All runtime versions must agree with .nvmrc/.python-version
   check-validation-drift.py          # Detect validation rule drift between schemas
   pre-push-rebase.sh                 # Auto-rebase before push
   pre-push-tests.sh                  # Run tests before push
@@ -124,7 +125,7 @@ scripts/
 
 **What it does:**
 
-1. Checks prerequisites (Python 3.14+, Node.js 20.19+/22.12+, Docker, NVIDIA drivers)
+1. Checks prerequisites (Python 3.14+, Node.js 24 LTS, 22.12+ accepted, Docker, NVIDIA drivers)
 2. Checks for uv package manager (mandatory)
 3. Creates Python virtual environment (`.venv`) using uv
 4. Installs backend dependencies from `pyproject.toml` using `uv sync --extra dev`
@@ -295,6 +296,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 
 ### Testing Scripts
 
+<!-- TODO(m3-static-census): the two bullets below were re-anchored to the
+D14 split (2026-09-13), and a third census item is open — the block still
+claims "pytest with 95% coverage" while validate.sh gates combined
+unit+integration coverage at 80 (validate.sh :295-325 comment block +
+coverage combine --fail-under=80) and test-runner.sh's own docstring says
+"80% coverage enforcement". Fold into the M3 static-census fix list; docs
+text only, no behavior. -->
+
 #### validate.sh
 
 **Purpose:** Full project validation (linting, type checking, tests).
@@ -310,6 +319,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ./scripts/validate.sh              # Full validation
 ./scripts/validate.sh --backend    # Backend only
 ./scripts/validate.sh --frontend   # Frontend only
+./scripts/validate.sh --fast       # Change-scoped advisory tier (<=10 min, no coverage)
 ./scripts/validate.sh --help       # Show help
 ```
 
@@ -504,6 +514,35 @@ python scripts/audit-test-durations.py <results-dir>
 - Comments: `# cancelled`, `# timeout`, `# mocked`, `# patched`
 
 ### Security Scripts
+
+#### check-version-consistency.sh
+
+**Purpose:** Fail the build when any runtime-version declaration drifts from the source-of-truth files.
+
+**Source of truth:** `.nvmrc` (Node major), `.python-version` (Python X.Y), `pyproject.toml` `requires-python` (must equal `.python-version`).
+
+**What it does:**
+
+1. Reads `.nvmrc` and `.python-version` (missing truth file = hard fail)
+2. Checks ci.yml `python-version` matrix labels + `PYTHON_VERSION` env against `.python-version` (the 3.11-label-vs-3.14-reality bug class)
+3. Checks every workflow's `setup-python`/`NODE_VERSION`/`node-version` literals against truth — deliberate off-runtime tooling pins must be in the script's `PYTHON_ALLOWLIST`
+4. Checks both Dockerfiles' `FROM python:`/`FROM node:` bases, `frontend/package.json` engines, and any hardcoded `REQUIRED_NODE_MAJOR` in validate.sh
+
+**Usage:**
+
+```bash
+./scripts/check-version-consistency.sh              # check repo root (default)
+./scripts/check-version-consistency.sh /path/to/repo  # check a tree copy (tests use this)
+```
+
+**Exit codes:**
+
+| Code | Meaning                                                            |
+| ---- | ------------------------------------------------------------------ |
+| 0    | All declarations agree with the truth files                        |
+| 1    | Drift found (one FAIL line per finding) or a truth file is missing |
+
+Wired as a pre-commit hook (`always_run`) and the `Version Consistency` CI job, which the CI Gate requires. Tests: `backend/tests/unit/scripts/test_check_version_consistency.py`.
 
 #### check-trivyignore-expiry.sh
 

@@ -169,9 +169,7 @@ describe('ActiveDwellersPanel', () => {
     });
 
     it('should not display dweller list when loading', () => {
-      render(
-        <ActiveDwellersPanel dwellers={[createMockDweller()]} isLoading={true} />
-      );
+      render(<ActiveDwellersPanel dwellers={[createMockDweller()]} isLoading={true} />);
 
       expect(screen.queryByTestId('dweller-list')).not.toBeInTheDocument();
     });

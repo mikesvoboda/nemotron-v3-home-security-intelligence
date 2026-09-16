@@ -167,7 +167,10 @@ function DwellStatisticsCardComponent({
           </div>
         </>
       ) : (
-        <div className="mb-4 flex min-h-[80px] items-center justify-center" data-testid="no-data-state">
+        <div
+          className="mb-4 flex min-h-[80px] items-center justify-center"
+          data-testid="no-data-state"
+        >
           <span className="text-sm text-gray-400">No statistics available</span>
         </div>
       )}

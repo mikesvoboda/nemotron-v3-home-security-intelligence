@@ -674,7 +674,7 @@ class TestCLIPLoaderLoad:
                 result = await loader.load(device="cpu")
                 assert "model" in result
                 assert loader._model is not None
-            except (ImportError, RuntimeError):
+            except ImportError, RuntimeError:
                 # Acceptable: torch unavailable prevents device handling
                 pass
 

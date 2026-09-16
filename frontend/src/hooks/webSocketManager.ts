@@ -300,9 +300,7 @@ class WebSocketManager {
 
     // Extract message type for logging (don't log full payload for privacy)
     const messageType =
-      typeof data === 'object' && data !== null && 'type' in data
-        ? (data as { type: unknown }).type
-        : 'unknown';
+      typeof data === 'object' && data !== null && 'type' in data ? data.type : 'unknown';
 
     // Prepare message with configured serialization format (NEM-3737)
     const prepared = prepareWebSocketMessage(data, connection.serializationFormat);
@@ -670,12 +668,10 @@ class WebSocketManager {
             // Extract message_id and type for logging
             const messageId =
               typeof data === 'object' && data !== null && 'message_id' in data
-                ? (data as { message_id: unknown }).message_id
+                ? data.message_id
                 : undefined;
             const messageType =
-              typeof data === 'object' && data !== null && 'type' in data
-                ? (data as { type: unknown }).type
-                : 'unknown';
+              typeof data === 'object' && data !== null && 'type' in data ? data.type : 'unknown';
             const timestamp =
               typeof data === 'object' && data !== null && 'timestamp' in data
                 ? (data as { timestamp: number }).timestamp

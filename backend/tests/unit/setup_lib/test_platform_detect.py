@@ -193,8 +193,8 @@ class TestDetectPackageManager:
         from setup_lib.platform_detect import detect_package_manager
 
         with patch("shutil.which") as mock_which:
-            mock_which.side_effect = (
-                lambda cmd: "C:\\Windows\\winget.exe" if cmd == "winget" else None
+            mock_which.side_effect = lambda cmd: (
+                "C:\\Windows\\winget.exe" if cmd == "winget" else None
             )
             result = detect_package_manager()
             assert result == "winget"
@@ -289,8 +289,8 @@ VERSION_ID=43
             patch("platform.system", return_value="Windows"),
             patch("shutil.which") as mock_which,
         ):
-            mock_which.side_effect = (
-                lambda cmd: "C:\\Windows\\winget.exe" if cmd == "winget" else None
+            mock_which.side_effect = lambda cmd: (
+                "C:\\Windows\\winget.exe" if cmd == "winget" else None
             )
             result = get_platform_info()
 

@@ -7,11 +7,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  useSystemSetting,
-  useSystemSettings,
-  systemSettingQueryKeys,
-} from './useSystemSetting';
+import { useSystemSetting, useSystemSettings, systemSettingQueryKeys } from './useSystemSetting';
 
 // Mock the API module
 vi.mock('../services/systemSettingsApi', () => ({
@@ -38,11 +34,7 @@ describe('useSystemSetting', () => {
 
   const createWrapper = () => {
     return function Wrapper({ children }: { children: React.ReactNode }) {
-      return React.createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        children
-      );
+      return React.createElement(QueryClientProvider, { client: queryClient }, children);
     };
   };
 
@@ -83,10 +75,9 @@ describe('useSystemSetting', () => {
       };
       mockFetchSystemSetting.mockResolvedValueOnce(mockSetting);
 
-      const { result } = renderHook(
-        () => useSystemSetting({ key: 'test_setting' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSystemSetting({ key: 'test_setting' }), {
+        wrapper: createWrapper(),
+      });
 
       // Initially loading
       expect(result.current.isLoading).toBe(true);
@@ -111,10 +102,9 @@ describe('useSystemSetting', () => {
     });
 
     it('does not fetch when key is empty', () => {
-      const { result } = renderHook(
-        () => useSystemSetting({ key: '' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSystemSetting({ key: '' }), {
+        wrapper: createWrapper(),
+      });
 
       expect(result.current.isLoading).toBe(false);
       expect(mockFetchSystemSetting).not.toHaveBeenCalled();
@@ -124,10 +114,9 @@ describe('useSystemSetting', () => {
       const error = new Error('404 Not Found');
       mockFetchSystemSetting.mockRejectedValueOnce(error);
 
-      const { result } = renderHook(
-        () => useSystemSetting({ key: 'nonexistent' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSystemSetting({ key: 'nonexistent' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -152,10 +141,9 @@ describe('useSystemSetting', () => {
       };
       mockUpdateSystemSetting.mockResolvedValueOnce(updatedSetting);
 
-      const { result } = renderHook(
-        () => useSystemSetting({ key: 'test_setting' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSystemSetting({ key: 'test_setting' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -180,10 +168,9 @@ describe('useSystemSetting', () => {
       mockFetchSystemSetting.mockResolvedValueOnce(mockSetting);
       mockDeleteSystemSetting.mockResolvedValueOnce(undefined);
 
-      const { result } = renderHook(
-        () => useSystemSetting({ key: 'test_setting' }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSystemSetting({ key: 'test_setting' }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

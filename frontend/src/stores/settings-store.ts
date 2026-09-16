@@ -169,10 +169,7 @@ type ImmerSetState<T> = (
  * Creates an Immer-enhanced setState function
  */
 function createImmerSet<T>(
-  set: (
-    partial: T | Partial<T> | ((state: T) => T | Partial<T>),
-    replace?: boolean
-  ) => void,
+  set: (partial: T | Partial<T> | ((state: T) => T | Partial<T>), replace?: boolean) => void,
   get: () => T
 ): ImmerSetState<T> {
   return (partial, replace) => {
@@ -263,7 +260,10 @@ export const useSettingsStore = create<SettingsStore>()(
         // Create Immer-enhanced set function
         const immerSet = createImmerSet<SettingsStore>(
           set as (
-            partial: SettingsStore | Partial<SettingsStore> | ((state: SettingsStore) => SettingsStore | Partial<SettingsStore>),
+            partial:
+              | SettingsStore
+              | Partial<SettingsStore>
+              | ((state: SettingsStore) => SettingsStore | Partial<SettingsStore>),
             replace?: boolean
           ) => void,
           get
@@ -376,10 +376,10 @@ export const useSettingsStore = create<SettingsStore>()(
               } catch {
                 // Ignore cleanup errors
               }
-              return v1State as SettingsStore;
+              return v1State;
             }
             // Return fresh defaults if no V1 data
-            return { ...DEFAULT_SETTINGS_STATE } as SettingsStore;
+            return { ...DEFAULT_SETTINGS_STATE };
           }
 
           // For current version, merge with defaults to handle new fields
@@ -403,7 +403,7 @@ export const useSettingsStore = create<SettingsStore>()(
                 ...state.ambientStatus?.favicon,
               },
             },
-          } as SettingsStore;
+          };
         },
         partialize: (state) => ({
           ambientStatus: state.ambientStatus,

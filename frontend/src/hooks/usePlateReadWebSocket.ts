@@ -115,7 +115,9 @@ export interface UsePlateReadWebSocketReturn {
 /**
  * Type guard to check if a message is a plate read message
  */
-function isPlateReadMessage(data: unknown): data is { type: string; data: PlateReadDetectedPayload } {
+function isPlateReadMessage(
+  data: unknown
+): data is { type: string; data: PlateReadDetectedPayload } {
   if (!data || typeof data !== 'object') {
     return false;
   }

@@ -84,9 +84,7 @@ function formatTrustLevel(trusted: boolean, ownerTrustLevel?: TrustLevel): strin
  */
 function buildTooltipText(match: VehicleMatch | null, showDetails: boolean): string {
   if (!match) {
-    return showDetails
-      ? 'Not registered in household vehicles'
-      : 'Unknown vehicle';
+    return showDetails ? 'Not registered in household vehicles' : 'Unknown vehicle';
   }
 
   const parts: string[] = [];
@@ -131,10 +129,7 @@ function VehicleMatchBadgeComponent({
   const { match, isLoading } = useVehicleMatchQuery(plateText);
 
   const sizeClasses = useMemo(() => getSizeClasses(size), [size]);
-  const tooltipText = useMemo(
-    () => buildTooltipText(match, showDetails),
-    [match, showDetails]
-  );
+  const tooltipText = useMemo(() => buildTooltipText(match, showDetails), [match, showDetails]);
 
   const isKnown = match !== null;
 
@@ -155,7 +150,7 @@ function VehicleMatchBadgeComponent({
       <span
         className={clsx(
           'inline-flex items-center rounded-full border font-medium',
-          'bg-gray-500/10 text-gray-500 dark:text-gray-400 border-gray-500/30',
+          'border-gray-500/30 bg-gray-500/10 text-gray-500 dark:text-gray-400',
           sizeClasses.badge,
           className
         )}

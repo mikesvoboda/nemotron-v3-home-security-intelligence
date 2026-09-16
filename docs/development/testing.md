@@ -632,6 +632,33 @@ with patch("httpx.AsyncClient") as mock_http:
     mock_http.return_value.__aenter__.return_value = mock_client
 ```
 
+#### Mock specs are mandatory where the role is known (M3 T9)
+
+A bare `MagicMock()`/`AsyncMock()` accepts ANY attribute — when production later
+reads a renamed or removed one, the mock silently invents it and the test stays
+green on a lie. The rules the six M3 hot-file sweeps established:
+
+- **Mock stands in for a shipped object → `spec=` that class.** Sessions
+  `spec=AsyncSession`, engines `spec=AsyncEngine`, ORM results `spec=Result`,
+  settings doubles `create_autospec(Settings, instance=True)`, HTTP replies
+  `spec=httpx.Response(status_code=200)` (instance-spec — `status_code` is not
+  on the class dir). Child stubs on a spec'd parent (`mock_session.commit =
+AsyncMock()`) are fine; a whole invented object shape is not.
+- **Patching a shipped function → `patch("backend.…", autospec=True)`.**
+  Signature drift then raises at call time. Two exceptions: `autospec` +
+  `new=` is a TypeError (use `as m; m.return_value = …` instead), and a target
+  already patched by a generator fixture's live patch cannot be re-patched
+  with `autospec` inside the test (mock introspects the outer mock —
+  InvalidSpecError; keep the outer one and skip the inner).
+- **Pydantic v2 trap:** `MagicMock(spec=Settings)` does NOT enforce model-field
+  names (fields aren't on the class dir) — it silently permits typos. Use
+  `create_autospec(Settings, instance=True)` for real enforcement.
+- **Spec failures are findings, not obstacles.** When a spec surfaces an
+  AttributeError, fix the stub to carry the fields production actually reads
+  (see the init_db `use_pgbouncer` fix in commit `66bc45af`), or document the
+  mock as a deliberate pre-existing lie to fix forward — never over-spec-and-
+  delete or `spec_set=None` it away.
+
 ### Integration Test Patterns
 
 Integration tests verify that multiple components work together correctly.

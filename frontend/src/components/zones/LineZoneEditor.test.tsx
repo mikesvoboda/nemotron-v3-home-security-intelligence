@@ -60,17 +60,13 @@ describe('LineZoneEditor', () => {
     it('displays drawing instructions when in drawing mode', () => {
       render(<LineZoneEditor {...defaultProps} />);
 
-      expect(
-        screen.getByText(/click to set the start point/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/click to set the start point/i)).toBeInTheDocument();
     });
 
     it('does not show instructions when not drawing', () => {
       render(<LineZoneEditor {...defaultProps} isDrawing={false} />);
 
-      expect(
-        screen.queryByText(/click to set the start point/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/click to set the start point/i)).not.toBeInTheDocument();
     });
 
     it('applies cursor-crosshair class when drawing', () => {
@@ -128,9 +124,7 @@ describe('LineZoneEditor', () => {
 
       // Instructions should update after first point
       await waitFor(() => {
-        expect(
-          screen.getByText(/click to set the end point/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/click to set the end point/i)).toBeInTheDocument();
       });
     });
 
@@ -229,9 +223,7 @@ describe('LineZoneEditor', () => {
 
       // Should reset to initial instructions
       await waitFor(() => {
-        expect(
-          screen.getByText(/click to set the start point/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/click to set the start point/i)).toBeInTheDocument();
       });
     });
   });
@@ -239,17 +231,17 @@ describe('LineZoneEditor', () => {
   describe('Existing Line Display', () => {
     it('creates SVG element when image loads with existing lines', async () => {
       const existingLines: [Point, Point][] = [
-        [[0.1, 0.2], [0.5, 0.6]],
-        [[0.3, 0.4], [0.8, 0.9]],
+        [
+          [0.1, 0.2],
+          [0.5, 0.6],
+        ],
+        [
+          [0.3, 0.4],
+          [0.8, 0.9],
+        ],
       ];
 
-      render(
-        <LineZoneEditor
-          {...defaultProps}
-          isDrawing={false}
-          existingLines={existingLines}
-        />
-      );
+      render(<LineZoneEditor {...defaultProps} isDrawing={false} existingLines={existingLines} />);
 
       // Simulate image load
       const img = screen.getByAltText('Camera snapshot');
@@ -264,15 +256,14 @@ describe('LineZoneEditor', () => {
 
     it('receives existingLines prop correctly', () => {
       const existingLines: [Point, Point][] = [
-        [[0.1, 0.2], [0.5, 0.6]],
+        [
+          [0.1, 0.2],
+          [0.5, 0.6],
+        ],
       ];
 
       const { container } = render(
-        <LineZoneEditor
-          {...defaultProps}
-          isDrawing={false}
-          existingLines={existingLines}
-        />
+        <LineZoneEditor {...defaultProps} isDrawing={false} existingLines={existingLines} />
       );
 
       // Component should render without errors with existingLines
@@ -281,7 +272,10 @@ describe('LineZoneEditor', () => {
 
     it('accepts onLineSelect callback', () => {
       const existingLines: [Point, Point][] = [
-        [[0.1, 0.2], [0.5, 0.6]],
+        [
+          [0.1, 0.2],
+          [0.5, 0.6],
+        ],
       ];
       const mockOnLineSelect = vi.fn();
 
@@ -353,10 +347,7 @@ describe('LineZoneEditor', () => {
       render(<LineZoneEditor {...defaultProps} />);
 
       const container = screen.getByRole('application');
-      expect(container).toHaveAttribute(
-        'aria-label',
-        expect.stringMatching(/tripwire/i)
-      );
+      expect(container).toHaveAttribute('aria-label', expect.stringMatching(/tripwire/i));
     });
   });
 });

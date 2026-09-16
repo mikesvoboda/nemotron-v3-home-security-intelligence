@@ -46,11 +46,7 @@ export type { FileOperationsPanelProps } from './FileOperationsPanel';
 
 // Host System panel (NEM-3835)
 export { default as HostSystemPanel } from './HostSystemPanel';
-export type {
-  HostSystemPanelProps,
-  HostSystemMetrics,
-  SystemStats,
-} from './HostSystemPanel';
+export type { HostSystemPanelProps, HostSystemMetrics, SystemStats } from './HostSystemPanel';
 
 // Containers panel (NEM-3836)
 export { default as ContainersPanel } from './ContainersPanel';
@@ -62,7 +58,10 @@ export type {
 } from './ContainersPanel';
 
 // Worker Status panel (NEM-3127, NEM-3402)
-export { default as WorkerStatusPanel, WorkerStatusPanel as WorkerStatusPanelNamed } from './WorkerStatusPanel';
+export {
+  default as WorkerStatusPanel,
+  WorkerStatusPanel as WorkerStatusPanelNamed,
+} from './WorkerStatusPanel';
 export type { WorkerStatusPanelProps } from './WorkerStatusPanel';
 
 // Queue Metrics panel (NEM-3637)

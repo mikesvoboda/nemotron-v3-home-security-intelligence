@@ -135,10 +135,12 @@ function MetricRow({
     (direction === 'decrease' && !increaseIsGood);
 
   // Color class based on whether change is good or bad
-  const colorClass = direction === 'stable' ? 'text-gray-400' : isGoodChange ? 'text-emerald-400' : 'text-red-400';
+  const colorClass =
+    direction === 'stable' ? 'text-gray-400' : isGoodChange ? 'text-emerald-400' : 'text-red-400';
 
   // Arrow icon based on direction
-  const ArrowIcon = direction === 'increase' ? ArrowUp : direction === 'decrease' ? ArrowDown : Minus;
+  const ArrowIcon =
+    direction === 'increase' ? ArrowUp : direction === 'decrease' ? ArrowDown : Minus;
 
   return (
     <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-4">
@@ -156,10 +158,7 @@ function MetricRow({
           </div>
           <div className="text-gray-500">vs</div>
           <div>
-            <span
-              className="text-lg text-gray-400"
-              data-testid={`${testIdPrefix}-last-week`}
-            >
+            <span className="text-lg text-gray-400" data-testid={`${testIdPrefix}-last-week`}>
               {formatValue(lastWeek)}
             </span>
             <span className="ml-1 text-xs text-gray-500">last week</span>
@@ -173,10 +172,7 @@ function MetricRow({
         data-testid={`${testIdPrefix}-indicator`}
       >
         <ArrowIcon className="h-5 w-5" />
-        <span
-          className="text-lg font-semibold"
-          data-testid={`${testIdPrefix}-change`}
-        >
+        <span className="text-lg font-semibold" data-testid={`${testIdPrefix}-change`}>
           {Math.abs(percentChange).toFixed(1)}%
         </span>
       </div>

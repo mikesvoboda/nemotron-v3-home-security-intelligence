@@ -455,7 +455,12 @@ describe('ThreatBoundingBox', () => {
       const manyThreats = Array.from({ length: 20 }, (_, i) =>
         createThreat({
           class_name: `threat_${i}`,
-          bbox: [(i * 90) % 1800, (i * 50) % 1000, ((i * 90) % 1800) + 100, ((i * 50) % 1000) + 100],
+          bbox: [
+            (i * 90) % 1800,
+            (i * 50) % 1000,
+            ((i * 90) % 1800) + 100,
+            ((i * 50) % 1000) + 100,
+          ],
         })
       );
       render(<ThreatBoundingBox threats={manyThreats} imageWidth={1920} imageHeight={1080} />);

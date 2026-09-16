@@ -310,8 +310,7 @@ export function createConsistencyCheck(
   consistencyRiskScore: number | null,
   consistencyDiff: number | null
 ): ConsistencyCheck {
-  const passed =
-    consistencyDiff === null || Math.abs(consistencyDiff) <= CONSISTENCY_THRESHOLD;
+  const passed = consistencyDiff === null || Math.abs(consistencyDiff) <= CONSISTENCY_THRESHOLD;
 
   return {
     riskScore: consistencyRiskScore,

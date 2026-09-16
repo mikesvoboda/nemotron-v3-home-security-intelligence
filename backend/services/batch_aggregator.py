@@ -61,7 +61,7 @@ def _parse_pipeline_ts(value: str) -> float:
     """Parse a pipeline timestamp that may be a Unix float or ISO 8601 string."""
     try:
         return float(value)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
@@ -369,14 +369,15 @@ class BatchAggregator:
             raise RuntimeError("Redis client not initialized")
 
         client = self._redis._client
-        # LRANGE 0 -1 gets all elements
-        items: list[str] = await client.lrange(key, 0, -1)  # type: ignore[misc]
+        # LRANGE 0 -1 gets all elements (redis-py returns bytes or str depending on
+        # decode_responses; int() below accepts both)
+        items: list[bytes | str] = await client.lrange(key, 0, -1)  # type: ignore[union-attr]  # _client narrowed above
         # Convert string values back to integers
         result = []
         for item in items:
             try:
                 result.append(int(item))
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 # Skip invalid entries
                 logger.warning(f"Invalid detection ID in batch list: {sanitize_log_value(item)}")
         return result
@@ -709,7 +710,7 @@ class BatchAggregator:
                 # e.g., "\"abc123\"" -> "abc123"
                 try:
                     batch_id_str = json.loads(batch_id_str)
-                except (json.JSONDecodeError, TypeError):
+                except json.JSONDecodeError, TypeError:
                     # Value might not be JSON-encoded, use as-is.
                     # RedisClient.set() JSON-serializes values, but older data might not be.
                     # See: NEM-2540 for rationale
@@ -753,12 +754,12 @@ class BatchAggregator:
                 # JSON-deserialize since RedisClient.set() JSON-serializes values
                 try:
                     started_at_str = json.loads(started_at_str)
-                except (json.JSONDecodeError, TypeError):
+                except json.JSONDecodeError, TypeError:
                     # Value might not be JSON-encoded - use as-is. See: NEM-2540
                     pass
                 try:
                     last_activity_str = json.loads(last_activity_str) if last_activity_str else None
-                except (json.JSONDecodeError, TypeError):
+                except json.JSONDecodeError, TypeError:
                     # Value might not be JSON-encoded - use as-is. See: NEM-2540
                     pass
 
@@ -1058,7 +1059,9 @@ class BatchAggregator:
 
             # Get detection IDs from the batch
             detections_key = f"batch:{batch_id}:detections"
-            raw_detections: list[bytes] = await self._redis._client.lrange(  # type: ignore[misc,union-attr]
+            # redis-py lrange returns bytes or str depending on decode_responses;
+            # the loop below handles both.
+            raw_detections: list[bytes | str] = await self._redis._client.lrange(  # type: ignore[union-attr]  # _client guarded upstream
                 detections_key, 0, -1
             )
 

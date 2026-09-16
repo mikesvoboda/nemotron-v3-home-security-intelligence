@@ -401,7 +401,7 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
           maxAttempts: mergedConfig.maxRetries,
           delay,
           url,
-          resolve: resolve as (value: unknown) => void,
+          resolve: resolve,
           reject,
           timerId: null,
           cancelled: false,

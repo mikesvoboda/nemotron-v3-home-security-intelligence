@@ -153,12 +153,7 @@ export interface UseSnoozeEventReturn {
  * ```
  */
 export function useSnoozeEvent(options: UseSnoozeEventOptions = {}): UseSnoozeEventReturn {
-  const {
-    onSuccess,
-    onError,
-    invalidateQueries = true,
-    enableOptimisticUpdates = true,
-  } = options;
+  const { onSuccess, onError, invalidateQueries = true, enableOptimisticUpdates = true } = options;
 
   const snoozeMutation = useMutation({
     mutationFn: ({ eventId, seconds }: { eventId: number; seconds: number }) =>
@@ -201,8 +196,18 @@ export function useSnoozeEvent(options: UseSnoozeEventOptions = {}): UseSnoozeEv
     onSuccess: (data, { eventId, seconds }, _context, { client }) => {
       // 5. On success: update cache with actual server response
       if (enableOptimisticUpdates) {
-        applyOptimisticSnoozeUpdate(client, eventsQueryKeys.all, eventId, data.snooze_until ?? null);
-        applyOptimisticSnoozeUpdate(client, alertsQueryKeys.all, eventId, data.snooze_until ?? null);
+        applyOptimisticSnoozeUpdate(
+          client,
+          eventsQueryKeys.all,
+          eventId,
+          data.snooze_until ?? null
+        );
+        applyOptimisticSnoozeUpdate(
+          client,
+          alertsQueryKeys.all,
+          eventId,
+          data.snooze_until ?? null
+        );
       }
       onSuccess?.(data, eventId, seconds);
     },
@@ -253,8 +258,18 @@ export function useSnoozeEvent(options: UseSnoozeEventOptions = {}): UseSnoozeEv
     onSuccess: (data, eventId, _context, { client }) => {
       // 5. On success: update cache with actual server response
       if (enableOptimisticUpdates) {
-        applyOptimisticSnoozeUpdate(client, eventsQueryKeys.all, eventId, data.snooze_until ?? null);
-        applyOptimisticSnoozeUpdate(client, alertsQueryKeys.all, eventId, data.snooze_until ?? null);
+        applyOptimisticSnoozeUpdate(
+          client,
+          eventsQueryKeys.all,
+          eventId,
+          data.snooze_until ?? null
+        );
+        applyOptimisticSnoozeUpdate(
+          client,
+          alertsQueryKeys.all,
+          eventId,
+          data.snooze_until ?? null
+        );
       }
       // For unsnooze, pass 0 seconds to indicate clearing
       onSuccess?.(data, eventId, 0);

@@ -49,9 +49,7 @@ describe('PlateSearchBar', () => {
     });
 
     it('renders custom placeholder', () => {
-      renderWithProviders(
-        <PlateSearchBar {...defaultProps} placeholder="Custom placeholder" />
-      );
+      renderWithProviders(<PlateSearchBar {...defaultProps} placeholder="Custom placeholder" />);
 
       expect(screen.getByPlaceholderText('Custom placeholder')).toBeInTheDocument();
     });
@@ -145,20 +143,13 @@ describe('PlateSearchBar', () => {
     });
 
     it('shows Active badge when filters are active', () => {
-      renderWithProviders(
-        <PlateSearchBar
-          {...defaultProps}
-          filters={{ camera_id: 'cam-1' }}
-        />
-      );
+      renderWithProviders(<PlateSearchBar {...defaultProps} filters={{ camera_id: 'cam-1' }} />);
 
       expect(screen.getByText('Active')).toBeInTheDocument();
     });
 
     it('shows Active badge when search text is present', () => {
-      renderWithProviders(
-        <PlateSearchBar {...defaultProps} searchText="ABC" />
-      );
+      renderWithProviders(<PlateSearchBar {...defaultProps} searchText="ABC" />);
 
       expect(screen.getByText('Active')).toBeInTheDocument();
     });

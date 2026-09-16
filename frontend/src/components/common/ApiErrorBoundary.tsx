@@ -1,4 +1,3 @@
-
 /**
  * ApiErrorBoundary - Centralized error boundary for API errors (NEM-3179)
  *
@@ -349,10 +348,7 @@ export class ApiErrorBoundary extends Component<ApiErrorBoundaryProps, ApiErrorB
       component: this.props.componentName,
       isApiError: error instanceof ApiError,
       status: error instanceof ApiError ? error.status : undefined,
-      errorCode:
-        error instanceof ApiError
-          ? (error.problemDetails?.error_code as string | undefined)
-          : undefined,
+      errorCode: error instanceof ApiError ? error.problemDetails?.error_code : undefined,
     });
 
     // Call optional error callback

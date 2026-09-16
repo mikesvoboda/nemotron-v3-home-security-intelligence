@@ -163,11 +163,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
   // Render based on state
   return (
     <div
-      className={clsx(
-        'relative overflow-hidden rounded-lg bg-black',
-        'aspect-video',
-        className
-      )}
+      className={clsx('relative overflow-hidden rounded-lg bg-black', 'aspect-video', className)}
       data-testid="rtsp-preview-player"
     >
       {/* Video Element */}
@@ -189,13 +185,13 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
           className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900"
           data-testid="idle-overlay"
         >
-          <VideoOff className="h-12 w-12 text-gray-500 mb-4" />
-          <p className="text-text-secondary mb-4">Preview not started</p>
+          <VideoOff className="mb-4 h-12 w-12 text-gray-500" />
+          <p className="mb-4 text-text-secondary">Preview not started</p>
           <button
             onClick={handleStart}
             className={clsx(
               'inline-flex items-center gap-2 rounded-lg px-4 py-2',
-              'bg-primary text-gray-900 font-medium',
+              'bg-primary font-medium text-gray-900',
               'transition-all hover:bg-primary-400',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-gray-900'
             )}
@@ -213,7 +209,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
           className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900"
           data-testid="connecting-overlay"
         >
-          <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+          <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
           <p className="text-text-secondary">Connecting to camera...</p>
         </div>
       )}
@@ -224,14 +220,14 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
           className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900"
           data-testid="error-overlay"
         >
-          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <p className="text-red-500 font-medium mb-2">Connection Failed</p>
-          <p className="text-red-400 text-sm mb-4 max-w-[80%] text-center">{error}</p>
+          <AlertCircle className="mb-4 h-12 w-12 text-red-500" />
+          <p className="mb-2 font-medium text-red-500">Connection Failed</p>
+          <p className="mb-4 max-w-[80%] text-center text-sm text-red-400">{error}</p>
           <button
             onClick={handleRetry}
             className={clsx(
               'inline-flex items-center gap-2 rounded-lg px-4 py-2',
-              'bg-red-700 text-white font-medium',
+              'bg-red-700 font-medium text-white',
               'transition-all hover:bg-red-600',
               'focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900'
             )}
@@ -246,15 +242,15 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
       {/* Connected State - Status Bar */}
       {state === 'connected' && (
         <div
-          className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3"
+          className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3"
           data-testid="status-bar"
         >
           <div className="flex items-center justify-between">
             {/* Live indicator */}
             <div className="flex items-center gap-2">
               <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500" />
               </span>
               <span className="text-sm font-medium text-white">LIVE</span>
             </div>
@@ -297,7 +293,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
                 onClick={handleStop}
                 className={clsx(
                   'text-sm text-red-400 hover:text-red-300',
-                  'focus:outline-none focus:underline'
+                  'focus:underline focus:outline-none'
                 )}
                 data-testid="stop-preview-button"
               >
@@ -312,7 +308,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
       {state === 'connected' && hasPtz && cameraId && showPtzControls && (
         <div
           className={clsx(
-            'absolute right-3 bottom-16',
+            'absolute bottom-16 right-3',
             'transition-all duration-200 ease-in-out',
             'animate-in fade-in slide-in-from-right-2'
           )}
@@ -323,7 +319,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
             <button
               onClick={togglePtzControls}
               className={clsx(
-                'absolute -top-2 -right-2 z-10',
+                'absolute -right-2 -top-2 z-10',
                 'flex items-center justify-center',
                 'h-6 w-6 rounded-full',
                 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white',
@@ -337,12 +333,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
             </button>
 
             {/* PTZ Controls */}
-            <PTZControls
-              cameraId={cameraId}
-              compact
-              ptzSupported
-              className="shadow-lg"
-            />
+            <PTZControls cameraId={cameraId} compact ptzSupported className="shadow-lg" />
           </div>
         </div>
       )}
@@ -353,13 +344,13 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
           className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900"
           data-testid="stopped-overlay"
         >
-          <VideoOff className="h-12 w-12 text-gray-500 mb-4" />
-          <p className="text-text-secondary mb-4">Preview stopped</p>
+          <VideoOff className="mb-4 h-12 w-12 text-gray-500" />
+          <p className="mb-4 text-text-secondary">Preview stopped</p>
           <button
             onClick={handleStart}
             className={clsx(
               'inline-flex items-center gap-2 rounded-lg px-4 py-2',
-              'bg-primary text-gray-900 font-medium',
+              'bg-primary font-medium text-gray-900',
               'transition-all hover:bg-primary-400',
               'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-gray-900'
             )}

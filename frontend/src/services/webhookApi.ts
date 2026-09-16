@@ -89,7 +89,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     try {
       const errorBody: unknown = await response.json();
       if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
-        errorMessage = String((errorBody as { detail: unknown }).detail);
+        errorMessage = String(errorBody.detail);
         errorData = errorBody;
       } else if (typeof errorBody === 'string') {
         errorMessage = errorBody;
@@ -137,10 +137,7 @@ async function fetchWebhookApi<T>(endpoint: string, options?: RequestInit): Prom
     if (error instanceof WebhookApiError) {
       throw error;
     }
-    throw new WebhookApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new WebhookApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 

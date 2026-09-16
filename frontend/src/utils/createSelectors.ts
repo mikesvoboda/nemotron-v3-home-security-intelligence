@@ -81,7 +81,7 @@ export function createSelectors<S extends UseBoundStore<StoreApi<object>>>(
 
   // Extend the store with the use object
   const storeWithSelectors = store as WithSelectors<S>;
-  storeWithSelectors.use = use as WithSelectors<S>['use'];
+  storeWithSelectors.use = use;
 
   return storeWithSelectors;
 }

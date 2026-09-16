@@ -874,7 +874,13 @@ class TestDLQ401:
         )
 
         with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
-            response = await client.post("/api/dlq/requeue/dlq:detection")
+            # Explicit empty header: the shared client bakes TEST_API_KEY as a
+            # default header, so an omitted header carries a WRONG key instead
+            # of no key → shipped branch is "Invalid API key", not "API key
+            # required" (routes/dlq.py:72-76; R-T9-INBOUND2 family).
+            response = await client.post(
+                "/api/dlq/requeue/dlq:detection", headers={"X-API-Key": ""}
+            )
             # Should return 401 because API key is required but not provided
             assert response.status_code == 401
             data = response.json()

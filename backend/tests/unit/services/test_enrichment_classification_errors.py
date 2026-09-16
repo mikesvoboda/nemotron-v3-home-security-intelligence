@@ -25,6 +25,7 @@ from backend.services.enrichment_pipeline import (
     BoundingBox,
     DetectionInput,
     EnrichmentPipeline,
+    ErrorCategory,
 )
 
 
@@ -653,8 +654,11 @@ class TestStructuredLoggingContext:
         finally:
             logger.removeHandler(handler)
 
-        # The structured logging should include detection_type and error context
-        # This tests that the implementation uses extra={} in logger calls
+        # M3 T7 (audit 3.3): the handler above captured the structured
+        # extras but nothing consumed them. The shipped ConnectError branch
+        # (enrichment_pipeline.py, _classify_person_clothing) logs exactly:
+        assert captured_extra.get("detection_type") == "person"
+        assert captured_extra.get("error_category") == ErrorCategory.SERVICE_UNAVAILABLE.value
 
     @pytest.mark.asyncio
     async def test_vehicle_error_includes_detection_context(
@@ -690,6 +694,12 @@ class TestStructuredLoggingContext:
             await enrichment_pipeline._classify_vehicle_types([vehicle_detection], test_image)
         finally:
             logger.removeHandler(handler)
+
+        # M3 T7 (audit 3.3): captured-but-unasserted extras, now asserted
+        # against the shipped TimeoutError branch (detection_type "vehicle",
+        # error_category TIMEOUT):
+        assert captured_extra.get("detection_type") == "vehicle"
+        assert captured_extra.get("error_category") == ErrorCategory.TIMEOUT.value
 
     @pytest.mark.asyncio
     async def test_pet_error_includes_detection_context(
@@ -729,6 +739,11 @@ class TestStructuredLoggingContext:
             await enrichment_pipeline._classify_pets([animal_detection], test_image)
         finally:
             logger.removeHandler(handler)
+
+        # M3 T7 (audit 3.3): HTTP 500 hits the shipped 5xx branch —
+        # detection_type "animal", error_category SERVER_ERROR:
+        assert captured_extra.get("detection_type") == "animal"
+        assert captured_extra.get("error_category") == ErrorCategory.SERVER_ERROR.value
 
 
 # =============================================================================

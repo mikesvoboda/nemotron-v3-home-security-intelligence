@@ -104,9 +104,7 @@ function createTestQueryClient(): QueryClient {
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 // ============================================================================
@@ -375,9 +373,7 @@ describe('UnknownStrangersPanel', () => {
     });
 
     it('applies custom className when provided', () => {
-      renderWithProviders(
-        <UnknownStrangersPanel {...defaultProps} className="custom-class" />
-      );
+      renderWithProviders(<UnknownStrangersPanel {...defaultProps} className="custom-class" />);
 
       const panel = screen.getByTestId('unknown-strangers-panel');
       expect(panel).toHaveClass('custom-class');

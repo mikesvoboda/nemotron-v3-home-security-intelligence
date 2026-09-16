@@ -81,12 +81,7 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
   } | null>(null);
 
   // Query for current config (using shared hook for consistent cache keys)
-  const {
-    data: config,
-    isLoading,
-    isError,
-    error,
-  } = useBaselineConfigQuery(cameraId);
+  const { data: config, isLoading, isError, error } = useBaselineConfigQuery(cameraId);
 
   // Mutation for updating config
   const updateMutation = useMutation({
@@ -192,10 +187,7 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
   // Loading state
   if (isLoading) {
     return (
-      <div
-        data-testid="baseline-tuning-panel"
-        className="flex items-center justify-center p-8"
-      >
+      <div data-testid="baseline-tuning-panel" className="flex items-center justify-center p-8">
         <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         <span className="ml-2 text-gray-400">Loading baseline configuration...</span>
       </div>
@@ -228,9 +220,7 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white">Baseline Tuning</h3>
         <div className="flex items-center gap-2">
-          {hasChanges && (
-            <span className="text-sm text-yellow-400">Unsaved changes</span>
-          )}
+          {hasChanges && <span className="text-sm text-yellow-400">Unsaved changes</span>}
           <button
             onClick={handleSave}
             disabled={!hasChanges || updateMutation.isPending}
@@ -267,9 +257,7 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
       <div className="mb-6 rounded-lg border border-gray-700 bg-gray-800/30 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm font-medium text-gray-300">
-              Settings Mode
-            </span>
+            <span className="text-sm font-medium text-gray-300">Settings Mode</span>
             <p className="text-xs text-gray-500">
               {overrideGlobal
                 ? 'Custom Override - Using per-camera settings'
@@ -338,10 +326,7 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
 
       {/* Minimum samples input */}
       <div className="mb-6 rounded-lg border border-gray-700 bg-gray-800/30 p-4">
-        <label
-          htmlFor="min-samples-input"
-          className="mb-2 block text-sm font-medium text-gray-300"
-        >
+        <label htmlFor="min-samples-input" className="mb-2 block text-sm font-medium text-gray-300">
           Minimum Samples
         </label>
         <div className="flex items-center gap-3">
@@ -391,8 +376,8 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
           Reset Baseline
         </button>
         <p className="mt-2 text-xs text-gray-500">
-          This will delete all learned baseline data for this camera. The system will need
-          to re-learn activity patterns.
+          This will delete all learned baseline data for this camera. The system will need to
+          re-learn activity patterns.
         </p>
       </div>
 
@@ -402,9 +387,8 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
           <div className="w-full max-w-md rounded-lg border border-gray-700 bg-[#1F1F1F] p-6 shadow-xl">
             <h3 className="mb-2 text-lg font-semibold text-white">Confirm Reset</h3>
             <p className="mb-4 text-sm text-gray-400">
-              Are you sure you want to reset all baseline data for this camera? This action
-              cannot be undone. The system will need to re-learn activity patterns from
-              new detections.
+              Are you sure you want to reset all baseline data for this camera? This action cannot
+              be undone. The system will need to re-learn activity patterns from new detections.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -419,9 +403,7 @@ export default function BaselineTuningPanel({ cameraId }: BaselineTuningPanelPro
                 className="flex items-center gap-2 rounded bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
                 aria-label="Confirm"
               >
-                {resetMutation.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
+                {resetMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Confirm
               </button>
             </div>

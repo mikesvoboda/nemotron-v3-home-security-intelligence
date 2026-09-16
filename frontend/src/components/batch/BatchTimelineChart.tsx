@@ -65,10 +65,7 @@ export default function BatchTimelineChart({
       <div className="space-y-3">
         {activeBatches.map((batch) => {
           // Calculate progress percentage
-          const progressPercent = Math.min(
-            100,
-            (batch.age_seconds / batchWindowSeconds) * 100
-          );
+          const progressPercent = Math.min(100, (batch.age_seconds / batchWindowSeconds) * 100);
 
           // Determine color based on age
           const isNearTimeout = progressPercent > 80;
@@ -82,24 +79,14 @@ export default function BatchTimelineChart({
               {/* Header row */}
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Text className="font-mono text-sm text-white">
-                    {batch.batch_id}
-                  </Text>
-                  <Badge
-                    color="blue"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
+                  <Text className="font-mono text-sm text-white">{batch.batch_id}</Text>
+                  <Badge color="blue" size="sm" className="flex items-center gap-1">
                     <Camera className="h-3 w-3" />
                     {batch.camera_id}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge
-                    color="violet"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
+                  <Badge color="violet" size="sm" className="flex items-center gap-1">
                     <Hash className="h-3 w-3" />
                     {batch.detection_count}
                   </Badge>
@@ -115,11 +102,7 @@ export default function BatchTimelineChart({
                 <div
                   className={clsx(
                     'h-full transition-all duration-500',
-                    isNearTimeout
-                      ? 'bg-red-500'
-                      : isMidway
-                        ? 'bg-yellow-500'
-                        : 'bg-[#76B900]'
+                    isNearTimeout ? 'bg-red-500' : isMidway ? 'bg-yellow-500' : 'bg-[#76B900]'
                   )}
                   style={{ width: `${progressPercent}%` }}
                 />
@@ -127,12 +110,8 @@ export default function BatchTimelineChart({
 
               {/* Age info */}
               <div className="mt-1 flex justify-between">
-                <Text className="text-xs text-gray-500">
-                  Age: {Math.round(batch.age_seconds)}s
-                </Text>
-                <Text className="text-xs text-gray-500">
-                  Window: {batchWindowSeconds}s
-                </Text>
+                <Text className="text-xs text-gray-500">Age: {Math.round(batch.age_seconds)}s</Text>
+                <Text className="text-xs text-gray-500">Window: {batchWindowSeconds}s</Text>
               </div>
             </div>
           );

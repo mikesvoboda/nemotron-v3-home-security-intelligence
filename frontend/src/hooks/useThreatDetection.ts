@@ -96,10 +96,7 @@ const DEFAULT_MAX_THREATS = 50;
 export function useThreatDetection(
   options: UseThreatDetectionOptions = {}
 ): UseThreatDetectionReturn {
-  const {
-    expirationMs = DEFAULT_EXPIRATION_MS,
-    maxThreats = DEFAULT_MAX_THREATS,
-  } = options;
+  const { expirationMs = DEFAULT_EXPIRATION_MS, maxThreats = DEFAULT_MAX_THREATS } = options;
 
   // State for active threats
   const [threats, setThreats] = useState<TrackedThreat[]>([]);
@@ -118,41 +115,40 @@ export function useThreatDetection(
   const expirationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Add a new threat
-  const addThreat = useCallback((threat: ThreatDetection) => {
-    // Don't add if already dismissed (use ref to avoid stale closure)
-    if (threat.id !== undefined && dismissedIdsRef.current.has(threat.id)) {
-      return;
-    }
+  const addThreat = useCallback(
+    (threat: ThreatDetection) => {
+      // Don't add if already dismissed (use ref to avoid stale closure)
+      if (threat.id !== undefined && dismissedIdsRef.current.has(threat.id)) {
+        return;
+      }
 
-    setThreats((prev) => {
-      // Check for duplicates by ID
-      if (threat.id !== undefined) {
-        const exists = prev.some((t) => t.id === threat.id);
-        if (exists) {
-          // Update existing threat
-          return prev.map((t) =>
-            t.id === threat.id
-              ? { ...threat, _addedAt: Date.now() }
-              : t
-          );
+      setThreats((prev) => {
+        // Check for duplicates by ID
+        if (threat.id !== undefined) {
+          const exists = prev.some((t) => t.id === threat.id);
+          if (exists) {
+            // Update existing threat
+            return prev.map((t) => (t.id === threat.id ? { ...threat, _addedAt: Date.now() } : t));
+          }
         }
-      }
 
-      // Add new threat
-      const newThreat: TrackedThreat = {
-        ...threat,
-        _addedAt: Date.now(),
-      };
+        // Add new threat
+        const newThreat: TrackedThreat = {
+          ...threat,
+          _addedAt: Date.now(),
+        };
 
-      // Maintain max threats limit
-      const updated = [newThreat, ...prev];
-      if (updated.length > maxThreats) {
-        return updated.slice(0, maxThreats);
-      }
+        // Maintain max threats limit
+        const updated = [newThreat, ...prev];
+        if (updated.length > maxThreats) {
+          return updated.slice(0, maxThreats);
+        }
 
-      return updated;
-    });
-  }, [maxThreats]);
+        return updated;
+      });
+    },
+    [maxThreats]
+  );
 
   // Remove a specific threat by ID
   const removeThreat = useCallback((threatId: number) => {
@@ -165,14 +161,17 @@ export function useThreatDetection(
   }, []);
 
   // Dismiss a threat (removes it and prevents re-adding)
-  const dismissThreat = useCallback((threatId: number) => {
-    setDismissedIds((prev) => {
-      const next = new Set(prev);
-      next.add(threatId);
-      return next;
-    });
-    removeThreat(threatId);
-  }, [removeThreat]);
+  const dismissThreat = useCallback(
+    (threatId: number) => {
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        next.add(threatId);
+        return next;
+      });
+      removeThreat(threatId);
+    },
+    [removeThreat]
+  );
 
   // Clear dismissed IDs
   const clearDismissed = useCallback(() => {
@@ -216,10 +215,7 @@ export function useThreatDetection(
     }
 
     // Strip internal tracking fields for the summary
-    const cleanThreats: ThreatDetection[] = threats.map(
-
-      ({ _addedAt, ...threat }) => threat
-    );
+    const cleanThreats: ThreatDetection[] = threats.map(({ _addedAt, ...threat }) => threat);
 
     return createThreatSummary(cleanThreats);
   }, [threats]);

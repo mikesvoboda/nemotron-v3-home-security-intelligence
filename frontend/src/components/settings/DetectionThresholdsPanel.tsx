@@ -2,7 +2,11 @@ import { Card, Title, Text, Button } from '@tremor/react';
 import { AlertCircle, Eye, Save, RotateCcw } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
-import { useSettingsQuery, useUpdateSettings, type DetectionSettings } from '../../hooks/useSettingsApi';
+import {
+  useSettingsQuery,
+  useUpdateSettings,
+  type DetectionSettings,
+} from '../../hooks/useSettingsApi';
 
 export interface DetectionThresholdsPanelProps {
   className?: string;
@@ -128,7 +132,7 @@ export default function DetectionThresholdsPanel({ className }: DetectionThresho
                 <Text className="font-medium text-gray-300">Minimum Confidence</Text>
               </div>
               <span
-                className="text-lg font-semibold text-white font-mono"
+                className="font-mono text-lg font-semibold text-white"
                 data-testid="confidence-value"
               >
                 {(editedThresholds.confidence_threshold * 100).toFixed(0)}%
@@ -164,7 +168,7 @@ export default function DetectionThresholdsPanel({ className }: DetectionThresho
                 <Text className="font-medium text-gray-300">Fast Path Threshold</Text>
               </div>
               <span
-                className="text-lg font-semibold text-white font-mono"
+                className="font-mono text-lg font-semibold text-white"
                 data-testid="fast-path-value"
               >
                 {(editedThresholds.fast_path_threshold * 100).toFixed(0)}%

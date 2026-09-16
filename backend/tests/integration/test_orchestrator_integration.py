@@ -69,7 +69,7 @@ def _docker_available() -> bool:
             client.ping()
             client.close()
             return True
-        except (DockerException, Exception):
+        except DockerException, Exception:
             return False
 
     # Use a thread with timeout to prevent hanging on unresponsive Docker
@@ -77,7 +77,7 @@ def _docker_available() -> bool:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(_check_docker)
             return future.result(timeout=10)  # 10 second timeout
-    except (concurrent.futures.TimeoutError, Exception):
+    except concurrent.futures.TimeoutError, Exception:
         return False
 
 
@@ -167,11 +167,11 @@ async def test_container(docker_client: DockerClient):
         if container:
             try:
                 container.stop(timeout=1)
-            except (NotFound, APIError):
+            except NotFound, APIError:
                 pass
             try:
                 container.remove(force=True)
-            except (NotFound, APIError):
+            except NotFound, APIError:
                 pass
 
         base_client.close()
@@ -226,11 +226,11 @@ async def multiple_test_containers(docker_client: DockerClient):
         for container, _ in containers:
             try:
                 container.stop(timeout=1)
-            except (NotFound, APIError):
+            except NotFound, APIError:
                 pass
             try:
                 container.remove(force=True)
-            except (NotFound, APIError):
+            except NotFound, APIError:
                 pass
 
         base_client.close()
@@ -652,7 +652,13 @@ async def test_api_list_services(
         return orchestrator
 
     # Patch the app state
-    with patch.object(app.state, "orchestrator", orchestrator, create=True):
+    with (
+        patch.object(app.state, "orchestrator", orchestrator, create=True),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
@@ -727,6 +733,10 @@ async def test_api_restart_service(
     with (
         patch.object(docker_client, "restart_container", new_callable=AM, return_value=True),
         patch.object(app.state, "orchestrator", orchestrator, create=True),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -791,7 +801,13 @@ async def test_api_enable_disabled_service(
 
     from backend.main import app
 
-    with patch.object(app.state, "orchestrator", orchestrator, create=True):
+    with (
+        patch.object(app.state, "orchestrator", orchestrator, create=True),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
@@ -854,7 +870,13 @@ async def test_api_disable_service(
 
     from backend.main import app
 
-    with patch.object(app.state, "orchestrator", orchestrator, create=True):
+    with (
+        patch.object(app.state, "orchestrator", orchestrator, create=True),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
@@ -923,6 +945,10 @@ async def test_api_start_stopped_service(
     with (
         patch.object(docker_client, "start_container", new_callable=AM, return_value=True),
         patch.object(app.state, "orchestrator", orchestrator, create=True),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -970,7 +996,13 @@ async def test_api_service_not_found(
 
     from backend.main import app
 
-    with patch.object(app.state, "orchestrator", orchestrator, create=True):
+    with (
+        patch.object(app.state, "orchestrator", orchestrator, create=True),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            AsyncMock(return_value=True),
+        ),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",

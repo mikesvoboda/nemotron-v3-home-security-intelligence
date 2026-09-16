@@ -154,11 +154,7 @@ export function useCameraSnapshotStatus(
   cameraId: string | undefined,
   options: UseCameraSnapshotStatusOptions = {}
 ): UseCameraSnapshotStatusReturn {
-  const {
-    enabled = true,
-    staleTime = DEFAULT_STALE_TIME,
-    refetchInterval = false,
-  } = options;
+  const { enabled = true, staleTime = DEFAULT_STALE_TIME, refetchInterval = false } = options;
 
   // Always compute the URL so it's available even when query is disabled
   const snapshotUrl = cameraId ? getCameraSnapshotUrl(cameraId) : '';

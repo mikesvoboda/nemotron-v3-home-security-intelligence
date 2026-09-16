@@ -18,6 +18,24 @@ import PromptPlayground from '../PromptPlayground';
 
 // Mock the API functions
 vi.mock('../../../services/api', () => ({
+  // Required by the useRoutePrefetch -> routePrefetching/useCamerasQuery import
+  // chain (module-eval references); omitting any of them crashes the whole
+  // graph at import time under vitest.
+  fetchCameras: vi.fn(() => Promise.resolve([])),
+  fetchCamera: vi.fn(() => Promise.resolve({})),
+  createCamera: vi.fn(() => Promise.resolve({})),
+  updateCamera: vi.fn(() => Promise.resolve({})),
+  deleteCamera: vi.fn(() => Promise.resolve({})),
+  fetchFullHealth: vi.fn(() => Promise.resolve({})),
+  fetchNotificationPreferences: vi.fn(() => Promise.resolve([])),
+  // fetchEvents: PromptPlayground imports it directly (:51) for the test-prompt
+  // event picker; strict vi.mock factories must define every imported export.
+  fetchEvents: vi.fn(() =>
+    Promise.resolve({
+      items: [{ id: 101, camera_id: 'cam1', risk_score: 45, started_at: '2024-01-01T00:00:00Z' }],
+      pagination: { total: 1, limit: 5, offset: 0, has_more: false },
+    })
+  ),
   fetchAllPrompts: vi.fn(() =>
     Promise.resolve({
       prompts: {

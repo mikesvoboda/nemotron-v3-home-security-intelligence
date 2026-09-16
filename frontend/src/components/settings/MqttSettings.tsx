@@ -80,7 +80,11 @@ export function MqttSettings() {
     if (!brokerConfig?.broker_host?.trim()) {
       newErrors.broker_host = 'Broker host is required';
     }
-    if (!brokerConfig?.broker_port || brokerConfig.broker_port < 1 || brokerConfig.broker_port > 65535) {
+    if (
+      !brokerConfig?.broker_port ||
+      brokerConfig.broker_port < 1 ||
+      brokerConfig.broker_port > 65535
+    ) {
       newErrors.broker_port = 'Port must be between 1 and 65535';
     }
     if (!brokerConfig?.topic_prefix?.trim()) {
@@ -92,7 +96,10 @@ export function MqttSettings() {
   };
 
   // Handlers
-  const handleBrokerChange = (field: keyof MqttBrokerConfig, value: string | number | boolean | null) => {
+  const handleBrokerChange = (
+    field: keyof MqttBrokerConfig,
+    value: string | number | boolean | null
+  ) => {
     if (!brokerConfig) return;
     setBrokerConfig({ ...brokerConfig, [field]: value });
     setHasChanges(true);

@@ -96,9 +96,13 @@ Images are loaded as pytest fixtures for integration tests:
 ```python
 from pathlib import Path
 
+
 @pytest.fixture
 def test_image_path():
-    return Path(__file__).parent / "fixtures" / "images" / "pipeline_test" / "test_person_porch_1.jpg"
+    return (
+        Path(__file__).parent / "fixtures" / "images" / "pipeline_test" / "test_person_porch_1.jpg"
+    )
+
 
 async def test_detection(test_image_path):
     result = await detection_service.process_image(test_image_path)

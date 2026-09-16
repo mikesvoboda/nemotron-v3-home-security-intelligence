@@ -365,7 +365,8 @@ describe('LoiteringConfigModal', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve(createMockConfig({ threshold_seconds: 300, alert_enabled: true })),
+          json: () =>
+            Promise.resolve(createMockConfig({ threshold_seconds: 300, alert_enabled: true })),
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -384,9 +385,7 @@ describe('LoiteringConfigModal', () => {
       await user.click(screen.getByTestId('save-button'));
 
       await waitFor(() => {
-        const patchCall = mockFetch.mock.calls.find(
-          (call) => call[1]?.method === 'PATCH'
-        );
+        const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
         expect(patchCall).toBeDefined();
         const body = JSON.parse(patchCall![1].body as string);
         expect(body).toEqual({

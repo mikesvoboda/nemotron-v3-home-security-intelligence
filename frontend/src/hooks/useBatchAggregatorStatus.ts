@@ -17,7 +17,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 
 import { fetchPipelineStatus } from '../services/api';
 
-
 import type { PipelineStatusResponse, BatchInfoResponse } from '../types/generated';
 
 // ============================================================================

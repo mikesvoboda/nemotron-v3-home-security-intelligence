@@ -100,10 +100,7 @@ export default function RiskDistributionMini({
           return (
             <div
               key={level}
-              className={clsx(
-                'h-full transition-all duration-300',
-                riskBarColors[level]
-              )}
+              className={clsx('h-full transition-all duration-300', riskBarColors[level])}
               style={{ flex: flexValue }}
               data-testid={`risk-bar-${level}`}
               aria-label={label}
