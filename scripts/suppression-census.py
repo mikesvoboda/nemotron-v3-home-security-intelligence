@@ -36,7 +36,8 @@ Count definitions (fixtures in scripts/test_suppression_census.py pin each):
 Usage:
     ./scripts/suppression-census.py            # JSON to stdout
     ./scripts/suppression-census.py --expect JSON  # exit 1 on any category mismatch (CI)
-    ./scripts/suppression-census.py --root DIR # census another tree (fixtures)
+    ./scripts/suppression-census.py --locations    # full inventory, WP1.2's key
+    ./scripts/suppression-census.py --root DIR     # census another tree (fixtures)
 """
 
 from __future__ import annotations
@@ -221,6 +222,164 @@ def count_coverage_omit(root: Path) -> int:
     )
 
 
+def _rel(root: Path, p: Path) -> str:
+    return p.relative_to(root).as_posix()
+
+
+def _collection_allowlist_locations(root: Path) -> list[dict]:
+    path = root / "scripts/collection-sanity-allowlist.txt"
+    out = []
+    for line in path.read_text().splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        # Format: <path>  # <tracking-ref> — the comment is the reason field.
+        file_part, _, ref = s.partition("#")
+        out.append({"id": file_part.strip(), "reason": ref.strip()})
+    return out
+
+
+def _flake_allowlist_locations(root: Path) -> list[dict]:
+    import yaml
+
+    data = yaml.safe_load((root / ".github/flake-allowlist.yml").read_text())
+    return [
+        {"id": str(e.get("id", "")), "reason": str(e.get("note", "") or "")}
+        for e in ((data or {}).get("flakes") or [])
+    ]
+
+
+def _frontend_quarantine_locations(root: Path) -> list[dict]:
+    text = (root / "frontend/vite.config.ts").read_text()
+    for m in _VITE_EXCLUDE_RE.finditer(text):
+        body = m.group(1)
+        if "configDefaults.exclude" not in body:
+            continue
+        entries = re.findall(r"'([^']+)'", body)
+        return [{"id": e, "reason": ""} for e in entries if "**" not in e]
+    return []
+
+
+def _decorator_reason(dec: ast.expr) -> str:
+    """The reason= kwarg of a decorator call, '' for bare or reason-less forms."""
+    if isinstance(dec, ast.Call):
+        for kw in dec.keywords:
+            if kw.arg == "reason" and isinstance(kw.value, ast.Constant):
+                return str(kw.value.value)
+    return ""
+
+
+def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> list[dict]:
+    """file::test_name ids — line-number-drift-proof keys for the registry."""
+    out = []
+    for path in tree_files:
+        try:
+            tree = ast.parse(path.read_text())
+        except SyntaxError, OSError:
+            continue
+        for node in ast.walk(tree):
+            for dec in getattr(node, "decorator_list", []):
+                name = _decorator_name(dec)
+                if name in {f"pytest.mark.{marker}", f"mark.{marker}"}:
+                    out.append(
+                        {
+                            "id": f"{_rel(root, path)}::{getattr(node, 'name', '?')}",
+                            "reason": _decorator_reason(dec),
+                        }
+                    )
+    return out
+
+
+def _skip_imperative_locations(tree_files: list[Path], root: Path) -> list[dict]:
+    out = []
+    for path in tree_files:
+        try:
+            tree = ast.parse(path.read_text())
+        except SyntaxError, OSError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and _call_name(node.func) in (
+                "pytest.skip",
+                "_pytest.skipping.skip",
+            ):
+                reason = (
+                    str(node.args[0].value)
+                    if node.args and isinstance(node.args[0], ast.Constant)
+                    else ""
+                )
+                out.append({"id": f"{_rel(root, path)}:{node.lineno}", "reason": reason})
+    return out
+
+
+# it.skip("title", …) / test.skip(`title`, …) — the title is the stable key;
+# a title-less call site falls back to line:column so two sites never collide.
+_FRONTEND_SUPPRESSION_CALL_RE = re.compile(
+    r"\.(skip|only|todo)\s*\(?\s*(?:`([^`]*)`|'([^']*)'|\"([^\"]*)\")?"
+)
+
+
+def _frontend_modifier_locations(root: Path) -> dict[str, list[dict]]:
+    buckets: dict[str, list[dict]] = {"skip": [], "only": [], "todo": []}
+    for path in _frontend_test_files(root):
+        text = path.read_text()
+        for m in _FRONTEND_SUPPRESSION_CALL_RE.finditer(text):
+            kind, btick, s1, s2 = m.groups()
+            title = next((t for t in (btick, s1, s2) if t is not None), None)
+            line = text.count("\n", 0, m.start()) + 1
+            col = m.start() - (text.rfind("\n", 0, m.start()) + 1) + 1
+            ident = title if title else f"{line}:{col}"
+            buckets[kind].append({"id": f"{_rel(root, path)}::{ident}", "reason": ""})
+    return buckets
+
+
+def _excluded_tree_locations(root: Path) -> list[dict]:
+    text = (root / "scripts/validate.sh").read_text()
+    names = set()
+    for m in re.finditer(r"--ignore=(\S+)", text):
+        tail = m.group(1).rstrip("\\").strip("'\"")
+        parts = [p for p in tail.split("/") if p]
+        if parts:
+            names.add(parts[-1].rstrip("\\"))
+    return [{"id": n, "reason": ""} for n in sorted(names)]
+
+
+def _coverage_omit_locations(root: Path) -> list[dict]:
+    text = (root / "pyproject.toml").read_text()
+    m = re.search(r"\[tool\.coverage\.run\].*?omit\s*=\s*\[(.*?)\]", text, re.DOTALL)
+    if not m:
+        return []
+    entries = re.findall(r'"([^"]+)"', m.group(1))
+    return [
+        {"id": e, "reason": ""}
+        for e in entries
+        if "*" not in e
+        and e != "backend/main.py"
+        and e.startswith("backend/")
+        and not e.startswith("backend/tests")
+    ]
+
+
+def locations(root: Path) -> dict[str, list[dict]]:
+    """The full INVENTORY (WP1.2): every counted suppression, individually
+    addressable. Count keys match census(); registry entries key on `id`."""
+    backend_tests = sorted((root / "backend/tests").rglob("*.py"))
+    fe = _frontend_modifier_locations(root)
+    return {
+        "collection_allowlist": _collection_allowlist_locations(root),
+        "flake_allowlist": _flake_allowlist_locations(root),
+        "frontend_quarantine": _frontend_quarantine_locations(root),
+        "pytest_skip": _decorator_locations(backend_tests, root, "skip"),
+        "pytest_skipif": _decorator_locations(backend_tests, root, "skipif"),
+        "pytest_xfail": _decorator_locations(backend_tests, root, "xfail"),
+        "pytest_skip_imperative": _skip_imperative_locations(backend_tests, root),
+        "frontend_skip": fe["skip"],
+        "frontend_only": fe["only"],
+        "frontend_todo": fe["todo"],
+        "excluded_test_trees": _excluded_tree_locations(root),
+        "coverage_omit": _coverage_omit_locations(root),
+    }
+
+
 def census(root: Path) -> dict[str, int]:
     backend_tests = sorted((root / "backend/tests").rglob("*.py"))
     skip, only, todo = count_frontend_modifiers(root)
@@ -249,7 +408,16 @@ def main() -> int:
         "--expect",
         help="JSON object of category->count; exit 1 on any mismatch (CI stability/staleness check)",
     )
+    parser.add_argument(
+        "--locations",
+        action="store_true",
+        help="Emit the full inventory (category -> [{id, reason}]) instead of counts (WP1.2 registry key)",
+    )
     args = parser.parse_args()
+
+    if args.locations:
+        print(json.dumps(locations(Path(args.root)), indent=2, sort_keys=True))
+        return 0
 
     result = census(Path(args.root))
     print(json.dumps(result, indent=2, sort_keys=True))

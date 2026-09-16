@@ -131,6 +131,76 @@ def test_expect_flag_bites(tmp_path):
     assert "pytest_skip" in r.stderr
 
 
+def run_locations(root: Path) -> dict[str, list[dict]]:
+    r = subprocess.run(
+        [sys.executable, str(CENSUS), "--root", str(root), "--locations"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode == 0, f"census --locations failed: {r.stderr[-400:]}"
+    return json.loads(r.stdout)
+
+
+EXPECTED_LOCATIONS = {
+    # WP1.2 needs the census to be an INVENTORY, not just a tally — a registry
+    # entry must key on a location, and its reason text drives the
+    # environment-probe vs TODO classification. These ids pin the identity
+    # rules: decorators key file::name (line-number-drift-proof), imperative
+    # skips and frontend modifiers file:lineno (no stable enclosing name to
+    # key on), reasons are extracted where the syntax carries one.
+    "pytest_skip": [
+        {"id": "backend/tests/unit/test_a.py::test_one", "reason": "x"},
+        {
+            "id": "backend/tests/unit/test_a.py::test_three",
+            "reason": "bare-idiom spelling must count",
+        },
+    ],
+    "pytest_skipif": [{"id": "backend/tests/unit/test_a.py::test_two", "reason": "y"}],
+    "pytest_xfail": [{"id": "backend/tests/unit/test_b.py::test_four", "reason": ""}],
+    "pytest_skip_imperative": [
+        {"id": "backend/tests/unit/test_a.py:5", "reason": "nope"},
+        {"id": "backend/tests/unit/test_b.py:4", "reason": ""},
+    ],
+    "collection_allowlist": [
+        {"id": "path/a.py", "reason": "TRACK-1"},
+        {"id": "path/b.py", "reason": "TRACK-2"},
+    ],
+    "flake_allowlist": [{"id": "t_one", "reason": ""}],
+    "frontend_quarantine": [
+        {"id": "src/a.test.tsx", "reason": ""},
+        {"id": "src/b.test.tsx", "reason": ""},
+        {"id": "src/c.test.ts", "reason": ""},
+    ],
+    # frontend suppression ids key on the test title (two .skip sites on the
+    # SAME line must not collide); title-less call sites fall back to line:col
+    "frontend_skip": [
+        {"id": "frontend/src/a.test.tsx::y", "reason": ""},
+        {"id": "frontend/src/a.test.tsx::z", "reason": ""},
+    ],
+    "frontend_only": [{"id": "frontend/src/b.test.ts::solo", "reason": ""}],
+    "frontend_todo": [{"id": "frontend/src/b.test.ts::later", "reason": ""}],
+    "excluded_test_trees": [
+        {"id": "benchmarks", "reason": ""},
+        {"id": "e2e", "reason": ""},
+        {"id": "load", "reason": ""},
+    ],
+    "coverage_omit": [
+        {"id": "backend/api/routes/one.py", "reason": ""},
+        {"id": "backend/services/two.py", "reason": ""},
+    ],
+}
+
+
+def test_locations_inventory(tmp_path):
+    """WP1.2 seam: every counted suppression, locatable and classifiable."""
+    root = build_fixture(tmp_path)
+    got = run_locations(root)
+    for cat, want in EXPECTED_LOCATIONS.items():
+        assert got.get(cat) == want, f"{cat}: got {got.get(cat)!r} want {want!r}"
+    assert sum(len(v) for v in got.values()) == sum(EXPECTED.values())
+
+
 def test_counts_only_move_with_the_suppression(tmp_path):
     """Removing a suppression lowers exactly one category (ratchet monotonicity)."""
     root = build_fixture(tmp_path)
