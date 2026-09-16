@@ -93,12 +93,25 @@ jobs:
         run: uv run --no-project python scripts/check-test-collection.py backend frontend
       - name: Flake allowlist hygiene
         run: uv run --no-project python scripts/check-flake-allowlist.py
+      # WP1.1: the escape-hatch census, measured on every CI run. The
+      # --expect literal is the ratchet's seed value: the exact baseline the
+      # spec records AND that this tree reproduces (verified equal to a
+      # census of origin/main itself, and stable across consecutive runs).
+      # CI failing here means either the census drifted from the measured
+      # tree or a suppression changed without the baseline being adjudicated
+      # — WP1.3's ratchet turns this from a stability check into a
+      # counts-may-only-fall gate.
+      - name: Suppression census (baseline stable)
+        run: >-
+          uv run python scripts/suppression-census.py --expect
+          '{"collection_allowlist":6,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":94,"pytest_skipif":63,"pytest_xfail":4}'
       # WP0.7: the two gates above are themselves tested; the suites sit
       # outside testpaths on purpose (no self-collection) — run explicitly.
       # A regression in either gate script fails here (scripts/test_*.py).
       # WP0.9 added the coverage-diff gate's own tests to the same list;
       # the pre-push timeout checker's contract tests joined after its
-      # chaos-comment repair (a gate with no CI is a gate that rots).
+      # chaos-comment repair; the WP1.1 census tests joined with the census
+      # itself (a gate with no CI is a gate that rots).
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
@@ -107,6 +120,7 @@ jobs:
           scripts/test_check_coverage_diff.py
           scripts/test_check_gate_changed_files.py
           scripts/test_check_test_timeouts.py
+          scripts/test_suppression_census.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).

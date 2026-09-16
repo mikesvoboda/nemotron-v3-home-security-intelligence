@@ -3418,3 +3418,38 @@ coverage-baseline.json at origin/main), skipping diff". test*check_coverage*
 diff.py 7 cases + new changed-files 4 cases green together (11 passed).
 Wiring: changed-files test joined the collection-sanity anti-rot list in the
 parser-fix commit; the coverage-diff file has been on it since WP0.9.
+
+## WP1.1 MEASUREMENT — escape-hatch census: every spec baseline reproduces exactly (2026-09-16)
+
+MEASURE (against main, per the WP): a detached worktree of origin/main
+(dbd65324) censused to {collection_allowlist 6, flake_allowlist 0,
+frontend_quarantine 16, pytest_skip 32, pytest_skipif 63, pytest_xfail 4,
+pytest_skip_imperative 94, frontend_skip 54, frontend_only 0, frontend_todo
+0, excluded_test_trees 4, coverage_omit 5} — EVERY spec escape-hatch number
+reproduces exactly. No baseline adjudication needed: the tree moved
+(22+ WP0 commits) but no suppression did. Output also verified byte-stable
+across consecutive runs (the done-when) and equal between main and HEAD.
+
+CENSUS: scripts/suppression-census.py, 12 categories, JSON to stdout,
+--expect JSON exits 1 naming each MISMATCHed category. Definitions the spec's
+raw grep counts papered over, each pinned by a fixture decoy: the vite
+quarantine is the exclude array that SPREADS configDefaults.exclude (three
+exclude arrays exist; a decoy optimizeDeps one does not count) and its
+glob-tree entries (tests/e2e/**, tests/contract/**) are structural, not
+quarantines; frontend .skip/.only/.todo counts the VITEST tree only
+(frontend/src) — Playwright e2e suppression is the excluded-trees
+category's job (decoy spec file must not count, else the baseline reads 232);
+decorator spellings (@pytest.mark.skip and bare @mark.skip, called or bare)
+all count; coverage_omit counts concrete backend/ production modules only
+(wildcards are plumbing; backend/main.py is app wiring exercised as the ASGI
+app in integration — the spec's 5 is the modules under the suppression
+comments).
+
+DECIDE (mechanism, not numbers): the census is the ratchet's measuring stick,
+so its own tests join the collection-sanity anti-rot list AND a --expect step
+pins the measured baseline in ci.yml — a suppression that moves a number must
+first adjudicate the baseline. Two definition bugs found and killed by fixture
+decoys before green: regex search hit the optimizeDeps exclude array
+(quarantine read 1); .skip counted the Playwright tree (skip read 232). Both
+boundaries now have fixture cases that fail if someone "simplifies" them back
+away.
