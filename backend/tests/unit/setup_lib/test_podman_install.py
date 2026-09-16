@@ -356,6 +356,7 @@ class TestPromptAndInstallPodman:
             patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
             patch("setup_lib.podman_install.configure_rootless_cgroups"),
             patch("setup_lib.podman_install._install_podman5_dependencies"),
+            patch("setup_lib.podman_install._install_host_tools"),
             patch("setup_lib.podman_install._verify_podman_operational"),
             patch("builtins.print"),
         ):
@@ -407,6 +408,14 @@ class TestPromptAndInstallPodman:
             patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
             patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
             patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            # The fresh-install success path runs these after installing
+            # (podman_install.py: _install_host_tools / _verify_podman_operational).
+            # Unpatched, the "unit" test executes real `sudo apt-get install -y
+            # ffmpeg` and `podman --version` subprocesses on the runner — the
+            # Test Performance Audit gate caught it at 23.57s. Same mock pattern
+            # test_podman_already_installed above uses for its branch.
+            patch("setup_lib.podman_install._install_host_tools"),
+            patch("setup_lib.podman_install._verify_podman_operational"),
             patch("builtins.print"),
         ):
             result = prompt_and_install_podman()
@@ -459,6 +468,10 @@ class TestPromptAndInstallPodman:
             patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
             patch("setup_lib.podman_install.configure_rootless_cgroups"),
             patch("setup_lib.podman_install.init_podman_machine", return_value=True) as mock_init,
+            # Fresh-install post path (host tools / operational check) must not
+            # run real subprocesses here either — see test_user_accepts_install_success.
+            patch("setup_lib.podman_install._install_host_tools"),
+            patch("setup_lib.podman_install._verify_podman_operational"),
             patch("builtins.print"),
         ):
             result = prompt_and_install_podman()
@@ -516,6 +529,7 @@ class TestPromptAndInstallPodman:
             patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
             patch("setup_lib.podman_install.configure_rootless_cgroups"),
             patch("setup_lib.podman_install._install_podman5_dependencies"),
+            patch("setup_lib.podman_install._install_host_tools"),
             patch("setup_lib.podman_install._verify_podman_operational"),
         ):
             result = prompt_and_install_podman(config={"auto_install": True})
@@ -547,6 +561,9 @@ class TestPromptAndInstallPodman:
             patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
             patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
             patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            # Same post-install subprocess leak as the success tests above.
+            patch("setup_lib.podman_install._install_host_tools"),
+            patch("setup_lib.podman_install._verify_podman_operational"),
             patch("builtins.print"),
         ):
             result = prompt_and_install_podman(config={"auto_install": True})
@@ -590,6 +607,13 @@ class TestPromptAndInstallPodman:
                 patch("builtins.input", return_value=response),
                 patch("setup_lib.podman_install._do_install_podman", return_value=True),
                 patch("setup_lib.podman_install.configure_rootless_cgroups"),
+                # Success post-path: same real-subprocess leak class as the
+                # audit offender (version check, host tools, operational check).
+                patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
+                patch("setup_lib.podman_install._install_host_tools"),
+                patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
+                patch("setup_lib.podman_install._verify_podman_operational"),
+                patch("builtins.print"),
             ):
                 result = prompt_and_install_podman()
                 assert result is True, f"Failed for response: {response}"
