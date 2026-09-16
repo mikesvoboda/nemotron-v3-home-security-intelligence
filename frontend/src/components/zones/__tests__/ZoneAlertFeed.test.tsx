@@ -6,7 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AlertPriority, TrustViolationType } from '../../../types/zoneAlert';
 import { AnomalyType, AnomalySeverity } from '../../../types/zoneAnomaly';
@@ -74,6 +74,13 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('ZoneAlertFeed', () => {
+  // Reference instant for mock alert timestamps (defined 1h/2h before it, so
+  // always on its calendar day). The time-grouping test freezes the wall clock
+  // here; other tests keep real timers (userEvent v14 needs them). Previously
+  // mocks used Date.now(), so CI runs between 00:00 and 01:00 UTC classified
+  // hour-old alerts as "Yesterday" and the "Today" grouping assertion failed.
+  const FROZEN_NOW = new Date('2025-09-15T14:00:00Z');
+
   // Create mock data
   const mockAnomaly: ZoneAnomaly = {
     id: 'anomaly-1',
@@ -91,9 +98,9 @@ describe('ZoneAlertFeed', () => {
     acknowledged: false,
     acknowledged_at: null,
     acknowledged_by: null,
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    updated_at: new Date(Date.now() - 3600000).toISOString(),
+    timestamp: new Date(FROZEN_NOW.getTime() - 3600000).toISOString(),
+    created_at: new Date(FROZEN_NOW.getTime() - 3600000).toISOString(),
+    updated_at: new Date(FROZEN_NOW.getTime() - 3600000).toISOString(),
   };
 
   const mockViolation: TrustViolation = {
@@ -111,9 +118,9 @@ describe('ZoneAlertFeed', () => {
     acknowledged: false,
     acknowledged_at: null,
     acknowledged_by: null,
-    timestamp: new Date(Date.now() - 7200000).toISOString(),
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-    updated_at: new Date(Date.now() - 7200000).toISOString(),
+    timestamp: new Date(FROZEN_NOW.getTime() - 7200000).toISOString(),
+    created_at: new Date(FROZEN_NOW.getTime() - 7200000).toISOString(),
+    updated_at: new Date(FROZEN_NOW.getTime() - 7200000).toISOString(),
   };
 
   const mockAnomalyAlert: UnifiedZoneAlert = {
@@ -128,7 +135,7 @@ describe('ZoneAlertFeed', () => {
     thumbnail_url: null,
     acknowledged: false,
     acknowledged_at: null,
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    timestamp: new Date(FROZEN_NOW.getTime() - 3600000).toISOString(),
     originalAlert: mockAnomaly,
   };
 
@@ -144,7 +151,7 @@ describe('ZoneAlertFeed', () => {
     thumbnail_url: null,
     acknowledged: false,
     acknowledged_at: null,
-    timestamp: new Date(Date.now() - 7200000).toISOString(),
+    timestamp: new Date(FROZEN_NOW.getTime() - 7200000).toISOString(),
     originalAlert: mockViolation,
   };
 
@@ -152,6 +159,10 @@ describe('ZoneAlertFeed', () => {
     vi.clearAllMocks();
     // Reset mock hook return to default
     mockHookReturn = createMockHookReturn();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders loading state initially', () => {
@@ -352,6 +363,10 @@ describe('ZoneAlertFeed', () => {
   });
 
   it('groups alerts by time by default', () => {
+    // Wall clock frozen to the mock timestamps' reference day so "Today"
+    // grouping is deterministic at any real-world hour (see FROZEN_NOW).
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
     mockHookReturn = createMockHookReturn({
       alerts: [mockAnomalyAlert, mockViolationAlert],
       totalCount: 2,
