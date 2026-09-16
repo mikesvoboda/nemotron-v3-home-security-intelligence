@@ -2963,3 +2963,29 @@ that FAILS on disagreement. What landed:
 
 Meta point: the gate caught a bug in its own first draft (truth-equal pins
 flagged as drift) before commit — dogfooding works.
+
+## WP0.1 MEASUREMENT — repaired pre-push gate against feat/phase2 @2764c854 (2026-09-16)
+
+Hook = `scripts/pre-push-tests.sh` after the pipefail/RC repair (`set -eo pipefail`;
+runner output to full logs, no `| head` in any verdict path; backend import-check
+fallback now fires ONLY on pytest rc 5; frontend tsc fallback ONLY on npm rc 127).
+Gate test: `scripts/test_pre_push_gate.sh` — 11 cases, all green (red first: 11
+assertion failures against the old script, including 2 real `git push` blocks).
+
+| Job                   | Result on this tree | Wall       | Notes                                                                                                                                     |
+| --------------------- | ------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 API types contract  | PASSED              | 7.8s solo  | bites: injected 1-line drift into `frontend/src/types/generated/api.ts` → hook rc=1, job FAILED; restored                                 |
+| 2 backend smoke       | PASSED              | 11.8s solo | **109 selected = 109 run, 0 skipped** (zero-env-skip property holds); serial rc identical to `-n 8` rc                                    |
+| 3 frontend smoke      | PASSED              | 13.6s solo | **first genuine run in vitest-4 history** — old jest-only flags made vitest exit at CLI parse, every historical "pass" was tsc pretending |
+| hook total (parallel) | rc=0                | **14.5s**  | piped-through (git-like) stdout; no fd leak                                                                                               |
+
+**Real failures surfaced: 0.** Consistent with SPEC "the test suite is green"; the
+lie was never about the suite, it was about the verdict channel.
+
+**Defects found by repairing (all fixed in the WP0.1 commit):**
+
+1. `| head` masked verdicts (the SPEC-named bug, both jobs) — pipefail + full-logs.
+2. `pytest | head -50` + pipefail would SIGPIPE-killed green runs at >50 lines (rc 141) — truncation moved to the DISPLAY side.
+3. jest flags `--testPathPattern`/`--passWithNoTests` → vitest 4 parse error → vacuous tsc fallback (npm mangles `App\.(test|spec)` to `App/.(test|spec)`; exact path `src/App.test.tsx` used, loud-fail on rename).
+4. NEW leak, older than this WP and found by measuring: `( sleep 60 ) &` watchers can't be reaped — bash's `$!` for `( … ) &` is a transient wrapper pid (proved by /proc probe; the watcher reparents to init), so EVERY historical run left a `sleep 60` orphan, and with inherited stdout each push blocked ~60s on EOF (measured hook wall = 60.0s pre-fix vs 14.5s post). Replaced by a self-exec under `timeout --kill-after=10s 60s` (hung run → rc 124 → push blocked; zero leftovers proven).
+5. Import-check fallback converted genuine failures (rc 1) to passes via `import backend.main` — pinned by gate test cases [2]/[6].

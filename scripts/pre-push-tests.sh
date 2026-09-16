@@ -12,7 +12,11 @@
 # Skip: SKIP=parallel-tests git push
 # Force full tests: FULL_TESTS=1 git push
 
-set -e
+# WP0.1: pipefail is the fix for `if cmd | head -N`, which tested head's exit status
+# and let jobs 2+3 report success unconditionally. Every other pipe in this script
+# already carries `|| true`, so pipefail cannot break tolerated failures. Same
+# pattern as ci.yml's vitest shards (ci.yml:1344-1352).
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -47,17 +51,24 @@ trap cleanup EXIT
 
 cd "$PROJECT_ROOT"
 
-# Global timeout - kill everything after 60 seconds
-TIMEOUT_PID=""
-(
-    sleep 60
-    echo -e "${RED}⏱️  Pre-push timeout (60s) - killing tests${NC}" >&2
-    pkill -P $$ 2>/dev/null || true
-) &
-TIMEOUT_PID=$!
+# Global failsafe: a hung runner must FAIL the push (exit 124), not hang it.
+# WP0.1: the old form was a background `( sleep 60; … ) &` watcher, and it leaked:
+# for `( … ) &` bash returns a transient WRAPPER pid in $!, the real subshell
+# reparents to init almost immediately, and cleanup therefore can neither reap the
+# sleep nor kill the watcher (measured: EVERY run left a `sleep 60` behind; when
+# that sleep inherited the hook's stdout, git's output capture blocked 60s on EOF
+# after the hook had already exited — every push paid the toll). A self-exec under
+# `timeout` has no watcher, no sleep, and nothing to reap; on expiry there are no
+# exit-code files, so even the legacy default-to-fail path agrees it is red.
+# (Known limitation, unchanged from the old watcher: on real expiry the pytest/node
+# grandchildren are orphaned to completion — the old pkill -P only reached the
+# three job subshells too. Widening that is WP2.4's wiring job, not WP0.1's.)
+if [ -z "${PREPUSH_TIMEOUT_ARMED:-}" ] && command -v timeout >/dev/null 2>&1; then
+    export PREPUSH_TIMEOUT_ARMED=1
+    exec timeout --kill-after=10s 60s "$SCRIPT_DIR/pre-push-tests.sh" "$@"
+fi
 
-# Cleanup timeout on exit
-trap 'kill $TIMEOUT_PID 2>/dev/null || true; cleanup' EXIT
+trap cleanup EXIT
 
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}          FAST PRE-PUSH SMOKE TESTS (~45 seconds)              ${NC}"
@@ -76,40 +87,63 @@ echo ""
 API_PID=$!
 
 # Job 2: Backend smoke tests - just critical path, no coverage
+# WP0.1: the old `pytest ... | head -50` tested head's exit status, so a failing
+# suite still wrote "0" to the exit file. The full output now goes to the log and
+# the DISPLAYED tail is truncated separately — piping the runner into head also
+# kills it via SIGPIPE once output exceeds the cap (head exits, pipefail reports
+# 141 on a green run). The import-check fallback fires ONLY on pytest rc 5
+# ("no tests collected") — a genuine test failure (rc 1) can never be excused
+# by a passing `import backend.main` again.
 (
+    set +e   # verdicts are read explicitly via RC below
     redis-cli -n 15 FLUSHDB > /dev/null 2>&1 || true
-    # Run only smoke-tagged tests or a small subset of critical tests
-    if uv run pytest backend/tests/unit/api/ -q --tb=line -x \
+    uv run pytest backend/tests/unit/api/ -q --tb=line -x \
         --ignore=backend/tests/unit/api/schemas/ \
         -k "test_health or test_root or test_cameras_list or test_events_list" \
-        --timeout=30 -n 8 2>&1 | head -50 > "$BACKEND_LOG"; then
-        echo "0" > "$BACKEND_EXIT_FILE"
-    else
-        # If specific tests not found, just run a quick import check
+        --timeout=30 -n 8 > "$BACKEND_LOG" 2>&1
+    BE_RC=$?
+    if [ "$BE_RC" -eq 5 ]; then
+        echo "[pre-push] smoke selection collected no tests (pytest rc 5); falling back to import check" >> "$BACKEND_LOG"
         if uv run python -c "from backend.main import app; print('Backend imports OK')" >> "$BACKEND_LOG" 2>&1; then
             echo "0" > "$BACKEND_EXIT_FILE"
         else
             echo "1" > "$BACKEND_EXIT_FILE"
         fi
+    elif [ "$BE_RC" -eq 0 ]; then
+        echo "0" > "$BACKEND_EXIT_FILE"
+    else
+        echo "1" > "$BACKEND_EXIT_FILE"
     fi
 ) &
 BACKEND_PID=$!
 
-# Job 3: Frontend smoke tests - just verify build and critical components
+# Job 3: Frontend smoke tests - App render suite via vitest positional filter.
+# WP0.1: the old call passed jest-only flags (--testPathPattern/--passWithNoTests)
+# that vitest 4 rejects at CLI parse time — it exited non-zero WITHOUT running any
+# test, every run fell into the tsc fallback, and a compile check pretended to be
+# component smoke tests. (npm test already runs `vitest run`; --run here is
+# belt-and-braces for a watch-mode hang.) tsc remains ONLY as the launch-failure
+# fallback (npm rc 127); a real test failure can never be excused by tsc.
+# The filter is an exact path because vitest 4 positionals are substring matchers:
+# a regex arrives through npm mangled (`App\.(test|spec)` reaches vitest as the
+# literal `App/.(test|spec)`) and silently selects zero files. If this file is
+# ever renamed the smoke MUST fail loudly, not pass vacuously.
 (
+    set +e   # verdicts are read explicitly via RC below
     cd "$PROJECT_ROOT/frontend"
-    # Run only smoke tests (App renders, router works)
-    if npm test -- --run --reporter=dot \
-        --testPathPattern="App\.(test|spec)" \
-        --passWithNoTests 2>&1 | head -30 > "$FRONTEND_LOG"; then
-        echo "0" > "$FRONTEND_EXIT_FILE"
-    else
-        # Fallback: just verify TypeScript compiles
-        if npx tsc --noEmit --skipLibCheck 2>&1 | head -20 >> "$FRONTEND_LOG"; then
+    npm test -- --run --reporter=dot src/App.test.tsx > "$FRONTEND_LOG" 2>&1
+    FE_RC=$?
+    if [ "$FE_RC" -eq 127 ]; then
+        echo "[pre-push] vitest could not launch (npm rc 127); falling back to tsc" >> "$FRONTEND_LOG"
+        if npx tsc --noEmit --skipLibCheck >> "$FRONTEND_LOG" 2>&1; then
             echo "0" > "$FRONTEND_EXIT_FILE"
         else
             echo "1" > "$FRONTEND_EXIT_FILE"
         fi
+    elif [ "$FE_RC" -eq 0 ]; then
+        echo "0" > "$FRONTEND_EXIT_FILE"
+    else
+        echo "1" > "$FRONTEND_EXIT_FILE"
     fi
 ) &
 FRONTEND_PID=$!
@@ -121,13 +155,13 @@ echo "  [2] Backend smoke tests (critical endpoints)"
 echo "  [3] Frontend smoke tests (App renders)"
 echo ""
 
-# Wait for all jobs (with timeout protection)
+# Wait for all jobs. No timeout bookkeeping anymore: the self-exec above runs the
+# whole script under `timeout`, so a hung run dies 124 and the push is blocked.
+# Missing exit-code files below default a job to FAILED (legacy safety net, now
+# load-bearing for the case where the OOM killer takes a single job subshell).
 wait $API_PID 2>/dev/null || true
 wait $BACKEND_PID 2>/dev/null || true
 wait $FRONTEND_PID 2>/dev/null || true
-
-# Kill timeout watcher
-kill $TIMEOUT_PID 2>/dev/null || true
 
 # Read exit codes
 API_EXIT=$(cat "$API_EXIT_FILE" 2>/dev/null || echo "1")
