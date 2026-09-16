@@ -46,13 +46,62 @@ def isolated_cwd(tmp_path: Path, monkeypatch):
     return tmp_path
 
 
-def get_diff_fn():
+def get_gate_module():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("ctcg", SCRIPT_PATH)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.check_coverage_diff
+    return mod
+
+
+def get_diff_fn():
+    return get_gate_module().check_coverage_diff
+
+
+# ---------------------------------------------------------------------------
+# Self-reference contract (WP0.6 CI truth, PR #6549 second run): with the
+# parser repaired, the gate flagged the very TEST files it had demanded —
+# useDateRangeState.test.ts / useHouseholdApi.test.ts are themselves
+# frontend/src/hooks/*.ts and find_test_file has nothing to resolve for a
+# test. A gate that demands tests-for-tests makes adding the requested test
+# a NEW gate failure: unreachable while get_changed_files was blind, red
+# the moment anyone obeyed it. Test files (by the repo's own conventions)
+# carry no test requirement.
+# ---------------------------------------------------------------------------
+
+
+def test_test_files_carry_no_test_requirement(tmp_path, monkeypatch):
+    mod = get_gate_module()
+    monkeypatch.chdir(tmp_path)
+
+    hook_test = tmp_path / "frontend/src/hooks"
+    hook_test.mkdir(parents=True)
+    (hook_test / "useThing.test.ts").write_text("export {}\n")
+
+    change = mod.FileChange("frontend/src/hooks/useThing.test.ts", "added", 100, 0)
+    assert mod.check_file_requirements(change) is None, (
+        "a *.test.ts under a required directory must not itself demand tests"
+    )
+
+
+def test_test_files_carry_no_test_requirement_component(tmp_path, monkeypatch):
+    mod = get_gate_module()
+    monkeypatch.chdir(tmp_path)
+
+    comp = tmp_path / "frontend/src/components"
+    comp.mkdir(parents=True)
+    (comp / "Widget.test.tsx").write_text("export {}\n")
+
+    change = mod.FileChange("frontend/src/components/Widget.test.tsx", "added", 50, 0)
+    assert mod.check_file_requirements(change) is None
+
+    # And the rule does not bite the real subject: the component itself
+    # still carries its requirement.
+    (comp / "Widget.tsx").write_text("export {}\n")
+    subject = mod.FileChange("frontend/src/components/Widget.tsx", "added", 50, 0)
+    req = mod.check_file_requirements(subject)
+    assert req is not None and req.has_tests is False
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ Usage:
 
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -194,6 +195,23 @@ def find_test_file(source_file: str) -> str | None:
     return None
 
 
+_TEST_FILE_MARKER = re.compile(
+    r"(^|/)(test_[^/]+|[^/]+[._](test|spec)\.(tsx?|jsx?))$|(^|/)(tests?|__tests__)/"
+)
+
+
+def _is_test_file(path: str) -> bool:
+    """Whether a path IS a test (test files carry no test requirement).
+
+    WP0.6 CI truth: once get_changed_files actually parsed, the gate flagged
+    the very test files it had demanded — a *.test.ts under frontend/src/
+    hooks/ matches the Hook requirement, and find_test_file has nothing to
+    resolve for it. The gate then fails a PR for OBEYING it. Test sources
+    are exempt by kind, the same way deleted files are.
+    """
+    return bool(_TEST_FILE_MARKER.search(path))
+
+
 def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
     """Check if a changed file has test requirements.
 
@@ -207,6 +225,9 @@ def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
 
     # Only check added/modified files with substantial changes
     if file_change.status == "deleted" or (file_change.additions + file_change.deletions) < 5:
+        return None
+
+    if _is_test_file(file_path):
         return None
 
     # Match against requirement patterns
