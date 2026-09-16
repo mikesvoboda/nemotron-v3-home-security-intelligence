@@ -300,9 +300,15 @@ def test_deleted_test_file_is_not_selected(repo, tmp_path):
     assert "backend/tests/unit/services/test_metrics.py" in lines
 
 
-def test_contract_policy_files_define_tests():
-    """Fast-tier contract: every file the contracts directory-policy can
-    contribute must DEFINE tests.
+def test_in_tier_test_files_define_tests():
+    """Fast-tier contract: every file the tier's RUN list can contain must
+    DEFINE tests. Two contributor classes, both pinned:
+
+    1. the contracts directory-policy (any backend/api/** change contributes
+       all of backend/tests/contracts/), and
+    2. the f4 top-level class of the pre-push tier filter
+       (^backend/tests/test_[^/]*\\.py$ — unmarked top-level files are
+       unit-like, kept in-tier by WP2.4's f4 ruling).
 
     Red-first evidence (WP2.5 measured run 2026-09-16): probing
     backend/api/routes/alerts.py made the directory policy contribute
@@ -312,14 +318,18 @@ def test_contract_policy_files_define_tests():
     "harmless under an advisory tier"; WP2.1 promoted the selector to a
     GATE, and the stub outlived the ruling. The registry classified it
     `retired` (delete-by-expiry, R-M2-COLLECTION-FINDINGS) — the queued
-    remediation is delete, so this guard pins the post-state: a retired
-    file may not ride the policy into every API-touching push.
+    remediation is delete, so this guard pins the post-state. The same
+    census found the class-2 twin: backend/tests/test_utils.py, a shared
+    helper module wearing a test_ name (registry: "rename queued M2") —
+    any edit to it would have CANNOT-RUN'd the push that made it.
     """
     import re
 
     repo = Path(__file__).resolve().parent.parent
-    contrib = sorted((repo / "backend/tests/contracts").glob("test_*.py"))
-    assert contrib, "contracts tier vanished — this guard would pass vacuously"
+    contrib = sorted((repo / "backend/tests/contracts").glob("test_*.py")) + sorted(
+        (repo / "backend/tests").glob("test_*.py")
+    )
+    assert contrib, "in-tier test corpus vanished — this guard would pass vacuously"
     # Mirror fast-backend-runner.sh detector 1 verbatim:
     #   grep -qE '^[[:space:]]*(async[[:space:]]+)?def[[:space:]]+test_|^[[:space:]]*class[[:space:]]+Test'
     defines = re.compile(r"^\s*(async\s+)?def\s+test_|^\s*class\s+Test", re.M)
@@ -328,4 +338,4 @@ def test_contract_policy_files_define_tests():
         for p in contrib
         if not defines.search(p.read_text(encoding="utf-8"))
     ]
-    assert not missing, f"zero-test files ride the contracts directory-policy: {missing}"
+    assert not missing, f"zero-test files ride the fast tier's run list: {missing}"

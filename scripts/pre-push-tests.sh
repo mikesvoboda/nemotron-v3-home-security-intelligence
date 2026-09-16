@@ -193,7 +193,9 @@ fi
         FS_RC=$?
         # Tier filter: unit + contracts + UNMARKED top-level test files (f4,
         # review 2026-09-16: fast_select's changed-test self-selection would
-        # otherwise be silently dropped for backend/tests/test_utils.py —
+        # otherwise be silently dropped for a top-level unit-like test — the
+        # class test_db_isolation.py is in, and the class the misnamed
+        # test_utils.py helper occupied until its 2026-09-16 rename) —
         # a gate that won't run the tests the diff rewrote breaks the tier's
         # own promise; those files carry no tier marker, so they are unit-like).
         # integration/security/chaos stay out by tier definition — they have

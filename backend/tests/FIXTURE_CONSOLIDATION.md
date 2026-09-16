@@ -8,7 +8,7 @@ This document summarizes the test fixture consolidation performed to eliminate d
 
 ### 1. Created Shared Test Utilities Module
 
-**File:** `backend/tests/test_utils.py`
+**File:** `backend/tests/testing_utils.py`
 
 Consolidated shared utility functions to avoid duplication:
 
@@ -46,7 +46,7 @@ Consolidated shared utility functions to avoid duplication:
 **Changes:**
 
 - Removed duplicate `_check_tcp_connection()` implementation
-- Now imports `wait_for_postgres_container()` and `wait_for_redis_container()` from `test_utils`
+- Now imports `wait_for_postgres_container()` and `wait_for_redis_container()` from `testing_utils` (was `test_utils` until 2026-09-16)
 - Updated `_check_local_postgres()` and `_check_local_redis()` to use shared `check_tcp_connection()`
 
 **Impact:**
@@ -168,17 +168,17 @@ All existing tests continue to pass with the consolidation:
 
 - **Contract tests**: No changes needed - `mock_db_session` and `mock_redis_client` are automatically available via pytest's fixture discovery
 - **Integration tests**: No changes needed - worker isolation remains intact
-- **New tests**: Can import shared utilities from `backend.tests.test_utils` instead of duplicating helper functions
+- **New tests**: Can import shared utilities from `backend.tests.testing_utils` instead of duplicating helper functions
 
 ### For Fixture Maintainers
 
 - **Adding new mock fixtures**: Add to `backend/tests/conftest.py` for shared access
 - **Domain-specific fixtures**: Add to appropriate subdirectory conftest.py (integration/, chaos/, contracts/, etc.)
-- **Utility functions**: Add to `backend/tests/test_utils.py` if used across multiple test types
+- **Utility functions**: Add to `backend/tests/testing_utils.py` if used across multiple test types
 
 ## Files Modified
 
-1. `backend/tests/test_utils.py` - NEW (shared utilities module)
+1. `backend/tests/testing_utils.py` - NEW (shared utilities module)
 2. `backend/tests/conftest.py` - Updated helper functions to use shared utilities
 3. `backend/tests/contracts/conftest.py` - Removed duplicate fixtures, updated documentation
 4. `backend/tests/integration/conftest.py` - Updated to use shared utilities

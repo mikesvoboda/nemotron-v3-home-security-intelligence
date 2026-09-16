@@ -18,7 +18,7 @@ included test_schemathesis_contracts, a zero-test stub since DELETED
 2026-09-16 under R-M2-COLLECTION-FINDINGS' queued revive-or-delete).
 Policy contributions must DEFINE tests: the fast tier is a gate and
 fast-backend-runner detector 1 CANNOT-RUNs a zero-test file - pinned by
-scripts/test_fast_select.py::test_contract_policy_files_define_tests.
+scripts/test_fast_select.py::test_in_tier_test_files_define_tests.
 
 Usage: fast_select.py --base REF [--list-out FILE] [--why]
 Stdout: human report ending in machine lines:

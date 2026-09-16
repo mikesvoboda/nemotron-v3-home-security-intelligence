@@ -63,7 +63,7 @@ Previously, mock_db_session and mock_redis_client were duplicated in:
 - backend/tests/conftest.py (comprehensive versions)
 - backend/tests/contracts/conftest.py (basic versions - REMOVED)
 
-Shared utility functions have been extracted to backend/tests/test_utils.py:
+Shared utility functions have been extracted to backend/tests/testing_utils.py:
 - check_tcp_connection
 - wait_for_postgres_container
 - wait_for_redis_container
