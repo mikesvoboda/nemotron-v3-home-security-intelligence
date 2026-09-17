@@ -136,6 +136,10 @@ jobs:
           scripts/test_fast_select.py
           scripts/test_fast_runners_manifest.py
           scripts/test_precommit_config.py
+          # WP4.1: the autospec sweep's own tests joined the same doctrine —
+          # a gate/tool with no CI is a tool that rots (and whose refusal
+          # rules silently stop being true).
+          scripts/test_autospec_sweep.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
