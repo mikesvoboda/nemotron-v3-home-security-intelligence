@@ -4511,3 +4511,35 @@ merge-multiple-clobber proof); consumers audited: coverage merge glob +
 Codecov union (unit shards prove the path), audit `**/*.xml` glob +
 missing-data-fails invariant intact. After-numbers (expect longest job
 ~12 min, wall follows) from the triggered run.
+
+## WP3.7 AFTER-NUMBERS: LONGEST JOB 24.8 -> 13.1 MIN, WALL 26.0 -> 15.7 (`35181735529`)
+
+| metric (before → after)            | value                        |
+| ---------------------------------- | ---------------------------- |
+| API job compute                    | 1437s → 784s + 733s (shards) |
+| shard balance (split 2)            | 784 vs 733s = +/-3.4%        |
+| API path completion from run start | +24.8 → +14.1 min            |
+| longest single CI job              | 1437s → 784s (13.1 min)      |
+| run wall clock                     | 26.0 → 15.7 min              |
+| run queue-sum                      | 1.4 → 2.7 min (background)   |
+
+The split landed better than the +/-6% prediction and the wall clock
+dropped 10.3 min — the long pole WAS the tail, as the path-timing
+diagnosis said. Coverage-merge and audit artifacts confirmed per-shard
+(coverage-integration-api-{1,2}, test-results-integration-api-{1,2} all
+present; Merge Integration Coverage green — the glob-union path works).
+
+AUDIT STILL RED, SAME CLASS, MEMBERSHIP ROTATES: this run flagged ONE
+integration case (test_system_api::test_severity_endpoint_threshold_ordering
+11.37s vs 10.0 limit = 10.0s fixture ceiling + ~1.4s call — the known
+fixture-billing class), while last run's unit-tier member (5.25s) was
+clean this time. Rotation across tiers/runs with a stable class is what
+amplified-overhead-as-test-time predicts; strengthens owner option (a)
+(audit the call time the flake-tracker artifact already carries). No
+threshold touched, no allowlist widened — STOP-AND-ASK packet stands.
+
+Phase 3 is now closed except WP3.6 (owner-deferred trust boundary).
+Phase 4 (WP4.1 autospec sweep) is the next work package; Phase 3's
+Done-when (measured wall-clock reduction, queue reported separately) is
+met: 31.2 → 26.0 (WP3.5) → 15.7 (WP3.7) min, queue sums 260.1 → 1.4 →
+2.7 min reported throughout.
