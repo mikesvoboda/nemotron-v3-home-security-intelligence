@@ -57,7 +57,7 @@ class TestFrameExtractorInit:
         from backend.services.frame_extractor import FrameExtractor
 
         mock_redis = Mock()
-        with patch("cv2.createBackgroundSubtractorMOG2") as mock_mog2:
+        with patch("cv2.createBackgroundSubtractorMOG2", autospec=True) as mock_mog2:
             mock_subtractor = Mock()
             mock_mog2.return_value = mock_subtractor
 
@@ -113,7 +113,7 @@ class TestFrameExtractorMotionDetection:
         frame1 = np.zeros((480, 640, 3), dtype=np.uint8)
         frame2 = np.ones((480, 640, 3), dtype=np.uint8) * 255
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             # Mock significant motion
             mock_apply.return_value = np.ones((480, 640), dtype=np.uint8) * 255
 
@@ -131,7 +131,7 @@ class TestFrameExtractorMotionDetection:
         # Simulate significant motion (50% of frame changed)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             # Create mask with 50% white pixels (motion detected)
             mask = np.zeros((480, 640), dtype=np.uint8)
             mask[:240, :] = 255  # Half the frame has motion
@@ -150,7 +150,7 @@ class TestFrameExtractorMotionDetection:
 
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             # No motion - all black mask
             mock_apply.return_value = np.zeros((480, 640), dtype=np.uint8)
 
@@ -167,7 +167,7 @@ class TestFrameExtractorMotionDetection:
 
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             # Small amount of motion (5% of frame)
             mask = np.zeros((480, 640), dtype=np.uint8)
             mask[:24, :] = 255  # Only 5% of frame
@@ -187,7 +187,7 @@ class TestFrameExtractorMotionDetection:
 
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             # Very small amount of motion (1% of frame)
             mask = np.zeros((480, 640), dtype=np.uint8)
             mask[:5, :] = 255  # Only 1% of frame
@@ -207,7 +207,7 @@ class TestFrameExtractorMotionDetection:
 
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             mock_apply.return_value = np.zeros((480, 640), dtype=np.uint8)
 
             extractor.detect_motion(frame, camera_id="camera1")
@@ -226,7 +226,7 @@ class TestFrameExtractorMotionDetection:
         frame1 = np.zeros((480, 640, 3), dtype=np.uint8)
         frame2 = np.ones((480, 640, 3), dtype=np.uint8) * 255
 
-        with patch("cv2.createBackgroundSubtractorMOG2") as mock_mog2_factory:
+        with patch("cv2.createBackgroundSubtractorMOG2", autospec=True) as mock_mog2_factory:
             mock_subtractor1 = Mock()
             mock_subtractor2 = Mock()
             mock_mog2_factory.side_effect = [mock_subtractor1, mock_subtractor2]
@@ -260,7 +260,7 @@ class TestFrameExtractorSaveFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = True
             file_path = extractor.save_frame("camera1", frame, timestamp)
 
@@ -279,7 +279,7 @@ class TestFrameExtractorSaveFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime(2025, 1, 29, 12, 30, 45, 123456)
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = True
             file_path = extractor.save_frame("camera1", frame, timestamp)
 
@@ -298,7 +298,7 @@ class TestFrameExtractorSaveFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime(2025, 1, 29, 12, 30, 45, 123456)
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = True
             file_path = extractor.save_frame("camera1", frame, timestamp)
 
@@ -315,7 +315,7 @@ class TestFrameExtractorSaveFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = True
             file_path = extractor.save_frame("camera1", frame, timestamp)
 
@@ -331,7 +331,7 @@ class TestFrameExtractorSaveFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = True
             extractor.save_frame("camera1", frame, timestamp)
 
@@ -350,7 +350,7 @@ class TestFrameExtractorSaveFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = False  # Simulate write failure
 
             with pytest.raises(RuntimeError, match="Failed to save frame"):
@@ -472,7 +472,7 @@ class TestFrameExtractorExtractFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = False  # No motion
 
             result = await extractor.extract_frame("camera1", frame, timestamp)
@@ -490,8 +490,8 @@ class TestFrameExtractorExtractFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
-            with patch.object(extractor, "save_frame") as mock_save:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
+            with patch.object(extractor, "save_frame", autospec=True) as mock_save:
                 mock_detect.return_value = True  # Motion detected
                 mock_save.return_value = str(tmp_path / "frame.jpg")
 
@@ -510,8 +510,8 @@ class TestFrameExtractorExtractFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
-            with patch.object(extractor, "save_frame") as mock_save:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
+            with patch.object(extractor, "save_frame", autospec=True) as mock_save:
                 mock_detect.return_value = False  # No motion
 
                 result = await extractor.extract_frame("camera1", frame, timestamp)
@@ -530,9 +530,9 @@ class TestFrameExtractorExtractFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
-            with patch.object(extractor, "save_frame") as mock_save:
-                with patch.object(extractor, "queue_detection") as mock_queue:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
+            with patch.object(extractor, "save_frame", autospec=True) as mock_save:
+                with patch.object(extractor, "queue_detection", autospec=True) as mock_queue:
                     mock_detect.return_value = True
                     mock_save.return_value = str(tmp_path / "frame.jpg")
 
@@ -553,9 +553,9 @@ class TestFrameExtractorExtractFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
-            with patch.object(extractor, "save_frame") as mock_save:
-                with patch.object(extractor, "queue_detection"):
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
+            with patch.object(extractor, "save_frame", autospec=True) as mock_save:
+                with patch.object(extractor, "queue_detection", autospec=True):
                     mock_detect.return_value = True
                     mock_save.return_value = str(tmp_path / "frame.jpg")
 
@@ -574,7 +574,7 @@ class TestFrameExtractorExtractFrame:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = False
 
             result = await extractor.extract_frame("camera1", frame, timestamp)
@@ -595,7 +595,7 @@ class TestFrameExtractorEdgeCases:
         # Empty frame
         frame = np.zeros((0, 0, 3), dtype=np.uint8)
 
-        with patch.object(extractor._bg_subtractor, "apply") as mock_apply:
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
             mock_apply.return_value = np.zeros((0, 0), dtype=np.uint8)
 
             # Should not crash

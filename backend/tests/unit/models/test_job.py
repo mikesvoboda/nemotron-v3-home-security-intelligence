@@ -144,7 +144,7 @@ class TestJobStateTransitions:
         job = Job(id="test-job", job_type="export", status=JobStatus.QUEUED.value)
         assert job.started_at is None
 
-        with patch("backend.models.job.datetime") as mock_dt:
+        with patch("backend.models.job.datetime", autospec=True) as mock_dt:
             mock_now = datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC)
             mock_dt.now.return_value = mock_now
 
@@ -158,7 +158,7 @@ class TestJobStateTransitions:
         job = Job(id="test-job", job_type="export", status=JobStatus.RUNNING.value)
         result_data = {"count": 500}
 
-        with patch("backend.models.job.datetime") as mock_dt:
+        with patch("backend.models.job.datetime", autospec=True) as mock_dt:
             mock_now = datetime(2025, 1, 15, 10, 5, 0, tzinfo=UTC)
             mock_dt.now.return_value = mock_now
 
@@ -186,7 +186,7 @@ class TestJobStateTransitions:
         error_msg = "Database connection failed"
         traceback = "Traceback (most recent call last):\n  ..."
 
-        with patch("backend.models.job.datetime") as mock_dt:
+        with patch("backend.models.job.datetime", autospec=True) as mock_dt:
             mock_now = datetime(2025, 1, 15, 10, 5, 0, tzinfo=UTC)
             mock_dt.now.return_value = mock_now
 
@@ -214,7 +214,7 @@ class TestJobStateTransitions:
         """Test cancelling a queued job."""
         job = Job(id="test-job", job_type="export", status=JobStatus.QUEUED.value)
 
-        with patch("backend.models.job.datetime") as mock_dt:
+        with patch("backend.models.job.datetime", autospec=True) as mock_dt:
             mock_now = datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC)
             mock_dt.now.return_value = mock_now
 

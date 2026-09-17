@@ -27,11 +27,11 @@ class TestPhaseStop:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run") as mock_compose,
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases._run_sudo"),
-            patch("setup_lib.deploy_phases.check_port_available", return_value=True),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True),
+            patch("setup_lib.deploy_phases.check_port_available", return_value=True, autospec=True),
+            patch("time.sleep", autospec=True),
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -56,11 +56,11 @@ class TestPhaseStop:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run"),
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases._run_sudo"),
-            patch("setup_lib.deploy_phases.check_port_available", return_value=True),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True),
+            patch("setup_lib.deploy_phases.check_port_available", return_value=True, autospec=True),
+            patch("time.sleep", autospec=True),
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -86,11 +86,11 @@ class TestPhaseStop:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run"),
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases._run_sudo"),
-            patch("setup_lib.deploy_phases.check_port_available", return_value=True),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True),
+            patch("setup_lib.deploy_phases.check_port_available", return_value=True, autospec=True),
+            patch("time.sleep", autospec=True),
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -115,11 +115,11 @@ class TestPhaseStop:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run"),
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases._run_sudo"),
-            patch("setup_lib.deploy_phases.check_port_available", return_value=True),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True),
+            patch("setup_lib.deploy_phases.check_port_available", return_value=True, autospec=True),
+            patch("time.sleep", autospec=True),
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -143,11 +143,13 @@ class TestPhaseStop:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run"),
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases._run_sudo"),
-            patch("setup_lib.deploy_phases.check_port_available", return_value=False),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True),
+            patch(
+                "setup_lib.deploy_phases.check_port_available", return_value=False, autospec=True
+            ),
+            patch("time.sleep", autospec=True),
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -205,8 +207,10 @@ class TestPhaseBuild:
             return True
 
         with (
-            patch("subprocess.run", side_effect=mock_subprocess_run),
-            patch("setup_lib.deploy_phases.compose_run", side_effect=mock_compose_run),
+            patch("subprocess.run", side_effect=mock_subprocess_run, autospec=True),
+            patch(
+                "setup_lib.deploy_phases.compose_run", side_effect=mock_compose_run, autospec=True
+            ),
         ):
             result = phase_build(config)
 
@@ -225,8 +229,8 @@ class TestPhaseBuild:
         )
 
         with (
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases.compose_run") as mock_compose,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="built\n", stderr=""
@@ -252,8 +256,8 @@ class TestPhaseBuild:
         )
 
         with (
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.deploy_phases.compose_run") as mock_compose,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="built\n", stderr=""
@@ -282,7 +286,7 @@ class TestPhaseBuild:
             env={},
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=1, stdout="", stderr="build error"
             )
@@ -334,9 +338,11 @@ class TestPhaseExport:
 
         with (
             patch(
-                "setup_lib.deploy_phases._get_compose_image", return_value="test-ai-gateway:latest"
+                "setup_lib.deploy_phases._get_compose_image",
+                return_value="test-ai-gateway:latest",
+                autospec=True,
             ),
-            patch("subprocess.Popen", return_value=mock_proc) as mock_popen,
+            patch("subprocess.Popen", return_value=mock_proc, autospec=True) as mock_popen,
         ):
             result = phase_export(config)
 
@@ -356,7 +362,7 @@ class TestPhaseExport:
             env={"AI_MODELS_PATH": str(tmp_path)},
         )
 
-        with patch("setup_lib.deploy_phases._get_compose_image", return_value=None):
+        with patch("setup_lib.deploy_phases._get_compose_image", return_value=None, autospec=True):
             result = phase_export(config)
 
         assert result.success is False
@@ -378,9 +384,11 @@ class TestPhaseInfrastructure:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run") as mock_compose,
-            patch("setup_lib.deploy_phases._is_service_installed", return_value=False),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+            patch(
+                "setup_lib.deploy_phases._is_service_installed", return_value=False, autospec=True
+            ),
+            patch("time.sleep", autospec=True),
         ):
             mock_compose.return_value = True
 
@@ -405,10 +413,10 @@ class TestPhaseInfrastructure:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run", return_value=True),
-            patch("setup_lib.deploy_phases._is_service_installed") as mock_installed,
-            patch("setup_lib.deploy_phases._run_sudo") as mock_sudo,
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True),
+            patch("setup_lib.deploy_phases._is_service_installed", autospec=True) as mock_installed,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True) as mock_sudo,
+            patch("time.sleep", autospec=True),
         ):
             mock_installed.side_effect = lambda name: name == DCGM_SERVICE_NAME
             mock_sudo.return_value = subprocess.CompletedProcess(
@@ -432,10 +440,12 @@ class TestPhaseInfrastructure:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run", return_value=True),
-            patch("setup_lib.deploy_phases._is_service_installed", return_value=False),
-            patch("setup_lib.deploy_phases._run_sudo") as mock_sudo,
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True),
+            patch(
+                "setup_lib.deploy_phases._is_service_installed", return_value=False, autospec=True
+            ),
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True) as mock_sudo,
+            patch("time.sleep", autospec=True),
         ):
             phase_infrastructure(config)
 
@@ -458,9 +468,11 @@ class TestPhaseInfrastructure:
         config._export_process = mock_proc
 
         with (
-            patch("setup_lib.deploy_phases.compose_run", return_value=True),
-            patch("setup_lib.deploy_phases._is_service_installed", return_value=False),
-            patch("time.sleep"),
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True),
+            patch(
+                "setup_lib.deploy_phases._is_service_installed", return_value=False, autospec=True
+            ),
+            patch("time.sleep", autospec=True),
         ):
             phase_infrastructure(config)
 
@@ -476,7 +488,7 @@ class TestPhaseInfrastructure:
             compose_cmd=["podman", "compose"],
         )
 
-        with patch("setup_lib.deploy_phases.compose_run", return_value=False):
+        with patch("setup_lib.deploy_phases.compose_run", return_value=False, autospec=True):
             result = phase_infrastructure(config)
 
             assert result.success is False
@@ -495,7 +507,7 @@ class TestPhaseApplication:
             compose_cmd=["podman", "compose"],
         )
 
-        with patch("setup_lib.deploy_phases.compose_run") as mock_compose:
+        with patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose:
             mock_compose.return_value = True
 
             result = phase_application(config)
@@ -517,10 +529,12 @@ class TestPhaseApplication:
         )
 
         with (
-            patch("setup_lib.deploy_phases.compose_run", return_value=False),
-            patch("setup_lib.deploy_phases._check_gpu_available", return_value=True),
-            patch("setup_lib.deploy_phases._wait_container_running", return_value=False),
-            patch("builtins.print"),
+            patch("setup_lib.deploy_phases.compose_run", return_value=False, autospec=True),
+            patch("setup_lib.deploy_phases._check_gpu_available", return_value=True, autospec=True),
+            patch(
+                "setup_lib.deploy_phases._wait_container_running", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = phase_application(config)
 
@@ -564,10 +578,18 @@ class TestPhaseHealthCheck:
             raise Exception("not ready")
 
         with (
-            patch("setup_lib.deploy_phases.urllib.request.urlopen", side_effect=mock_urlopen),
-            patch("setup_lib.deploy_phases.poll_endpoint", return_value=False),
-            patch("setup_lib.deploy_phases.generate_password", return_value="test-password-123"),
-            patch("subprocess.run") as mock_run,
+            patch(
+                "setup_lib.deploy_phases.urllib.request.urlopen",
+                side_effect=mock_urlopen,
+                autospec=True,
+            ),
+            patch("setup_lib.deploy_phases.poll_endpoint", return_value=False, autospec=True),
+            patch(
+                "setup_lib.deploy_phases.generate_password",
+                return_value="test-password-123",
+                autospec=True,
+            ),
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -605,9 +627,13 @@ class TestPhaseHealthCheck:
             raise Exception("not ready")
 
         with (
-            patch("setup_lib.deploy_phases.urllib.request.urlopen", side_effect=mock_urlopen),
-            patch("setup_lib.deploy_phases.poll_endpoint", return_value=False),
-            patch("subprocess.run") as mock_run,
+            patch(
+                "setup_lib.deploy_phases.urllib.request.urlopen",
+                side_effect=mock_urlopen,
+                autospec=True,
+            ),
+            patch("setup_lib.deploy_phases.poll_endpoint", return_value=False, autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -640,8 +666,16 @@ class TestPhaseHealthCheck:
             return register_response
 
         with (
-            patch("setup_lib.deploy_phases.urllib.request.urlopen", side_effect=mock_urlopen),
-            patch("setup_lib.deploy_phases.generate_password", return_value="secure-pw-123"),
+            patch(
+                "setup_lib.deploy_phases.urllib.request.urlopen",
+                side_effect=mock_urlopen,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.deploy_phases.generate_password",
+                return_value="secure-pw-123",
+                autospec=True,
+            ),
         ):
             _auto_register_admin(config)
 
@@ -668,17 +702,19 @@ class TestPhaseHealthCheck:
             patch(
                 "setup_lib.deploy_phases.urllib.request.urlopen",
                 side_effect=urllib.error.URLError("skip"),
+                autospec=True,
             ),
-            patch("setup_lib.deploy_phases.poll_endpoint", return_value=True),
+            patch("setup_lib.deploy_phases.poll_endpoint", return_value=True, autospec=True),
             patch(
                 "setup_lib.deploy_phases.check_service_health",
                 return_value={
                     "status": "healthy",
                     "response_time_ms": 42,
                 },
+                autospec=True,
             ),
-            patch("setup_lib.deploy_phases.compose_run"),
-            patch("setup_lib.deploy_phases.subprocess.run") as mock_run,
+            patch("setup_lib.deploy_phases.compose_run", autospec=True),
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -706,9 +742,10 @@ class TestPhaseHealthCheck:
             patch(
                 "setup_lib.deploy_phases.urllib.request.urlopen",
                 side_effect=urllib.error.URLError("skip"),
+                autospec=True,
             ),
-            patch("setup_lib.deploy_phases.poll_endpoint", return_value=False),
-            patch("subprocess.run") as mock_run,
+            patch("setup_lib.deploy_phases.poll_endpoint", return_value=False, autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""

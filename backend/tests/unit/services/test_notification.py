@@ -288,7 +288,7 @@ class TestNotificationServiceEmail:
     @pytest.mark.asyncio
     async def test_send_email_success(self, service, mock_alert):
         """Test successful email sending."""
-        with patch.object(service, "_send_email_sync") as mock_send:
+        with patch.object(service, "_send_email_sync", autospec=True) as mock_send:
             mock_send.return_value = None
 
             result = await service.send_email(mock_alert)
@@ -320,7 +320,7 @@ class TestNotificationServiceEmail:
     @pytest.mark.asyncio
     async def test_send_email_custom_recipients(self, service, mock_alert):
         """Test email with custom recipients."""
-        with patch.object(service, "_send_email_sync") as mock_send:
+        with patch.object(service, "_send_email_sync", autospec=True) as mock_send:
             mock_send.return_value = None
 
             result = await service.send_email(
@@ -336,7 +336,7 @@ class TestNotificationServiceEmail:
         """Test email failure on SMTP error."""
         import smtplib
 
-        with patch.object(service, "_send_email_sync") as mock_send:
+        with patch.object(service, "_send_email_sync", autospec=True) as mock_send:
             mock_send.side_effect = smtplib.SMTPException("Connection failed")
 
             result = await service.send_email(mock_alert)
@@ -372,10 +372,11 @@ class TestNotificationServiceWebhook:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(mock_alert)
@@ -403,10 +404,11 @@ class TestNotificationServiceWebhook:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://custom.example.com/hook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(
@@ -429,10 +431,11 @@ class TestNotificationServiceWebhook:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(mock_alert)
@@ -449,10 +452,11 @@ class TestNotificationServiceWebhook:
         mock_client.post.side_effect = httpx.TimeoutException("Connection timed out")
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(mock_alert)
@@ -499,8 +503,8 @@ class TestNotificationServiceDeliverAlert:
     async def test_deliver_alert_all_channels(self, service, mock_alert):
         """Test delivery through all configured channels."""
         with (
-            patch.object(service, "send_email") as mock_email,
-            patch.object(service, "send_webhook") as mock_webhook,
+            patch.object(service, "send_email", autospec=True) as mock_email,
+            patch.object(service, "send_webhook", autospec=True) as mock_webhook,
         ):
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
@@ -523,7 +527,7 @@ class TestNotificationServiceDeliverAlert:
     @pytest.mark.asyncio
     async def test_deliver_alert_specific_channels(self, service, mock_alert):
         """Test delivery to specific channels only."""
-        with patch.object(service, "send_email") as mock_email:
+        with patch.object(service, "send_email", autospec=True) as mock_email:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
@@ -541,7 +545,7 @@ class TestNotificationServiceDeliverAlert:
         """Test delivery uses alert's configured channels."""
         mock_alert.channels = ["email"]  # Only email configured on alert
 
-        with patch.object(service, "send_email") as mock_email:
+        with patch.object(service, "send_email", autospec=True) as mock_email:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
@@ -557,8 +561,8 @@ class TestNotificationServiceDeliverAlert:
     async def test_deliver_alert_partial_failure(self, service, mock_alert):
         """Test delivery with one channel failing."""
         with (
-            patch.object(service, "send_email") as mock_email,
-            patch.object(service, "send_webhook") as mock_webhook,
+            patch.object(service, "send_email", autospec=True) as mock_email,
+            patch.object(service, "send_webhook", autospec=True) as mock_webhook,
         ):
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
@@ -633,10 +637,11 @@ class TestNotificationServiceCleanup:
         mock_client.post.return_value = mock_response
 
         with (
-            patch("httpx.AsyncClient", return_value=mock_client),
+            patch("httpx.AsyncClient", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             # Use the service to create HTTP client
@@ -654,7 +659,7 @@ class TestNotificationServiceEmailErrors:
         """Test email failure on SMTP authentication error (lines 222-229)."""
         import smtplib
 
-        with patch.object(service, "_send_email_sync") as mock_send:
+        with patch.object(service, "_send_email_sync", autospec=True) as mock_send:
             mock_send.side_effect = smtplib.SMTPAuthenticationError(535, b"Authentication failed")
 
             result = await service.send_email(mock_alert)
@@ -666,7 +671,7 @@ class TestNotificationServiceEmailErrors:
     @pytest.mark.asyncio
     async def test_send_email_generic_exception(self, service, mock_alert):
         """Test email failure on generic exception (lines 238-245)."""
-        with patch.object(service, "_send_email_sync") as mock_send:
+        with patch.object(service, "_send_email_sync", autospec=True) as mock_send:
             mock_send.side_effect = RuntimeError("Unexpected error occurred")
 
             result = await service.send_email(mock_alert)
@@ -691,7 +696,7 @@ class TestNotificationServiceEmailErrors:
         msg["To"] = "test@example.com"
         msg.attach(MIMEText("<p>Test</p>", "html"))
 
-        with patch("smtplib.SMTP") as mock_smtp_class:
+        with patch("smtplib.SMTP", autospec=True) as mock_smtp_class:
             mock_smtp_instance = MagicMock()
             mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
             mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
@@ -722,7 +727,7 @@ class TestNotificationServiceEmailErrors:
         msg["To"] = "test@example.com"
         msg.attach(MIMEText("<p>Test</p>", "html"))
 
-        with patch("smtplib.SMTP") as mock_smtp_class:
+        with patch("smtplib.SMTP", autospec=True) as mock_smtp_class:
             mock_smtp_instance = MagicMock()
             mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
             mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
@@ -753,7 +758,7 @@ class TestNotificationServiceEmailErrors:
         msg["To"] = "test@example.com"
         msg.attach(MIMEText("<p>Test</p>", "html"))
 
-        with patch("smtplib.SMTP") as mock_smtp_class:
+        with patch("smtplib.SMTP", autospec=True) as mock_smtp_class:
             mock_smtp_instance = MagicMock()
             mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
             mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
@@ -777,10 +782,11 @@ class TestNotificationServiceWebhookErrors:
         mock_client.post.side_effect = httpx.RequestError("Connection refused")
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(mock_alert)
@@ -797,10 +803,11 @@ class TestNotificationServiceWebhookErrors:
         mock_client.post.side_effect = RuntimeError("Unexpected network error")
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(mock_alert)
@@ -873,7 +880,7 @@ class TestNotificationServiceEdgeCases:
         service = NotificationService(mock_settings)
 
         # Mock is_push_configured to return True to cover line 160
-        with patch.object(service, "is_push_configured", return_value=True):
+        with patch.object(service, "is_push_configured", return_value=True, autospec=True):
             channels = service.get_available_channels()
 
             assert NotificationChannel.PUSH in channels
@@ -896,7 +903,7 @@ class TestNotificationServiceEdgeCases:
         """Test delivery with mix of valid and invalid channel names."""
         mock_alert.channels = ["email", "invalid_channel"]
 
-        with patch.object(service, "send_email") as mock_email:
+        with patch.object(service, "send_email", autospec=True) as mock_email:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
@@ -1056,7 +1063,7 @@ class TestNotificationServicePriorityEmail:
         """Test that send_email accepts and uses is_high_priority parameter."""
         mock_alert.is_high_priority = True
 
-        with patch.object(service, "_send_email_sync") as mock_send:
+        with patch.object(service, "_send_email_sync", autospec=True) as mock_send:
             mock_send.return_value = None
 
             result = await service.send_email(mock_alert, is_high_priority=True)
@@ -1124,10 +1131,11 @@ class TestNotificationServicePriorityWebhook:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
                 "backend.services.notification.validate_webhook_url_for_request",
                 return_value="https://example.com/webhook",
+                autospec=True,
             ),
         ):
             result = await service.send_webhook(mock_alert, is_high_priority=True)
@@ -1153,8 +1161,8 @@ class TestNotificationServiceDeliverAlertWithPriority:
         mock_alert.is_high_priority = True
 
         with (
-            patch.object(service, "send_email") as mock_email,
-            patch.object(service, "send_webhook") as mock_webhook,
+            patch.object(service, "send_email", autospec=True) as mock_email,
+            patch.object(service, "send_webhook", autospec=True) as mock_webhook,
         ):
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
@@ -1186,8 +1194,8 @@ class TestNotificationServiceDeliverAlertWithPriority:
         mock_alert.is_high_priority = True
 
         with (
-            patch.object(service, "send_email") as mock_email,
-            patch.object(service, "send_webhook") as mock_webhook,
+            patch.object(service, "send_email", autospec=True) as mock_email,
+            patch.object(service, "send_webhook", autospec=True) as mock_webhook,
         ):
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
@@ -1219,8 +1227,8 @@ class TestNotificationServiceDeliverAlertWithPriority:
         mock_alert.is_high_priority = True
 
         with (
-            patch.object(service, "send_email") as mock_email,
-            patch.object(service, "send_webhook") as mock_webhook,
+            patch.object(service, "send_email", autospec=True) as mock_email,
+            patch.object(service, "send_webhook", autospec=True) as mock_webhook,
         ):
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,

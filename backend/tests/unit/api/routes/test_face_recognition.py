@@ -53,7 +53,7 @@ class TestGetPersonAppearances:
         ]
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=(mock_appearances, 2))
@@ -85,7 +85,7 @@ class TestGetPersonAppearances:
         end = datetime(2025, 1, 31, 23, 59, 59, tzinfo=UTC)
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=([], 0))
@@ -115,7 +115,7 @@ class TestGetPersonAppearances:
         mock_db = AsyncMock()
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=([], 0))
@@ -141,7 +141,7 @@ class TestGetPersonAppearances:
         mock_db = AsyncMock()
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=([], 0))
@@ -171,7 +171,7 @@ class TestGetPersonAppearances:
         mock_db = AsyncMock()
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=None)
@@ -222,7 +222,7 @@ class TestGetPersonAppearances:
         ]
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=(mock_appearances, 3))
@@ -245,7 +245,7 @@ class TestGetPersonAppearances:
         mock_db = AsyncMock()
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=([], 0))
@@ -278,7 +278,7 @@ class TestGetPersonAppearances:
         ]
 
         with patch(
-            "backend.api.routes.face_recognition.get_face_recognition_service"
+            "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_person_appearances = AsyncMock(return_value=(mock_appearances, 1))
@@ -654,7 +654,8 @@ class TestEnrollFromDetection:
 
         # Mock the face embedding extraction
         with patch(
-            "backend.api.routes.face_recognition.extract_face_embedding_from_detection"
+            "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
+            autospec=True,
         ) as mock_extract:
             mock_extract.return_value = (mock_embedding, mock_quality_score)
 
@@ -666,7 +667,7 @@ class TestEnrollFromDetection:
             mock_face_embedding.source_image_path = mock_detection.file_path
 
             with patch(
-                "backend.api.routes.face_recognition.get_face_recognition_service"
+                "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
             ) as mock_get_service:
                 mock_service = MagicMock()
                 mock_service.add_face_embedding = AsyncMock(return_value=mock_face_embedding)
@@ -718,7 +719,8 @@ class TestEnrollFromDetection:
         request_data = EnrollFromDetectionRequest(detection_id="100")
 
         with patch(
-            "backend.api.routes.face_recognition.extract_face_embedding_from_detection"
+            "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
+            autospec=True,
         ) as mock_extract:
             mock_extract.return_value = (mock_embedding, mock_quality_score)
 
@@ -729,7 +731,7 @@ class TestEnrollFromDetection:
             mock_face_embedding.source_image_path = mock_detection.file_path
 
             with patch(
-                "backend.api.routes.face_recognition.get_face_recognition_service"
+                "backend.api.routes.face_recognition.get_face_recognition_service", autospec=True
             ) as mock_get_service:
                 mock_service = MagicMock()
                 mock_service.add_face_embedding = AsyncMock(return_value=mock_face_embedding)
@@ -783,7 +785,8 @@ class TestEnrollFromDetection:
         request_data = EnrollFromDetectionRequest(detection_id="100")
 
         with patch(
-            "backend.api.routes.face_recognition.extract_face_embedding_from_detection"
+            "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
+            autospec=True,
         ) as mock_extract:
             mock_extract.return_value = (mock_embedding, mock_quality_score)
 
@@ -891,7 +894,8 @@ class TestEnrollFromDetection:
         request_data = EnrollFromDetectionRequest(detection_id="100")
 
         with patch(
-            "backend.api.routes.face_recognition.extract_face_embedding_from_detection"
+            "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
+            autospec=True,
         ) as mock_extract:
             # No face found in detection
             mock_extract.return_value = (None, None)
@@ -971,7 +975,8 @@ class TestEnrollFromDetection:
         request_data = EnrollFromDetectionRequest(detection_id="100")
 
         with patch(
-            "backend.api.routes.face_recognition.extract_face_embedding_from_detection"
+            "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
+            autospec=True,
         ) as mock_extract:
             mock_extract.side_effect = RuntimeError("Model not available")
 
@@ -1071,6 +1076,7 @@ class TestIdentifyFaceEvent:
         with patch(
             "backend.api.routes.face_recognition.get_face_recognition_service",
             return_value=mock_service,
+            autospec=True,
         ):
             result = await identify_face_event(
                 event_id=100,
@@ -1110,6 +1116,7 @@ class TestIdentifyFaceEvent:
         with patch(
             "backend.api.routes.face_recognition.get_face_recognition_service",
             return_value=mock_service,
+            autospec=True,
         ):
             result = await identify_face_event(
                 event_id=100,
@@ -1142,6 +1149,7 @@ class TestIdentifyFaceEvent:
         with patch(
             "backend.api.routes.face_recognition.get_face_recognition_service",
             return_value=mock_service,
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await identify_face_event(
@@ -1174,6 +1182,7 @@ class TestIdentifyFaceEvent:
         with patch(
             "backend.api.routes.face_recognition.get_face_recognition_service",
             return_value=mock_service,
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await identify_face_event(
@@ -1206,6 +1215,7 @@ class TestIdentifyFaceEvent:
         with patch(
             "backend.api.routes.face_recognition.get_face_recognition_service",
             return_value=mock_service,
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await identify_face_event(
@@ -1503,8 +1513,8 @@ class TestCompareFaces:
 
         # Mock PIL Image and CLIP client - these are imported inside the function
         with (
-            patch("PIL.Image.open") as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+            patch("PIL.Image.open", autospec=True) as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
         ):
             # Mock PIL Image.open
             mock_image = MagicMock()
@@ -1541,8 +1551,8 @@ class TestCompareFaces:
         file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
 
         with (
-            patch("PIL.Image.open") as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+            patch("PIL.Image.open", autospec=True) as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
         ):
             mock_image = MagicMock()
             mock_image.convert.return_value = mock_image
@@ -1595,8 +1605,8 @@ class TestCompareFaces:
         file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
 
         with (
-            patch("PIL.Image.open") as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+            patch("PIL.Image.open", autospec=True) as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
         ):
             mock_image = MagicMock()
             mock_image.convert.return_value = mock_image
@@ -1628,8 +1638,8 @@ class TestCompareFaces:
         file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
 
         with (
-            patch("PIL.Image.open") as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+            patch("PIL.Image.open", autospec=True) as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
         ):
             mock_image = MagicMock()
             mock_image.convert.return_value = mock_image

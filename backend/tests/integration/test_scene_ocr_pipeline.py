@@ -169,7 +169,7 @@ class TestSceneOCRPipeline:
         )
 
         with patch(
-            "backend.services.enrichment_pipeline.get_scene_ocr_service"
+            "backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock(spec=SceneOCRService)
             mock_service._run_full_frame_ocr = AsyncMock(
@@ -246,7 +246,7 @@ class TestSceneOCRPipeline:
         )
 
         with patch(
-            "backend.services.enrichment_pipeline.get_scene_ocr_service"
+            "backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock(spec=SceneOCRService)
             mock_service._run_full_frame_ocr = AsyncMock(return_value=[])
@@ -304,7 +304,7 @@ class TestSceneOCRPipeline:
     ) -> None:
         """Test that scene OCR is not called when disabled."""
         with patch(
-            "backend.services.enrichment_pipeline.get_scene_ocr_service"
+            "backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock(spec=SceneOCRService)
             mock_service.process_frame = AsyncMock()
@@ -350,7 +350,7 @@ class TestSceneOCRPipeline:
     ) -> None:
         """Test that scene OCR failure is handled gracefully."""
         with patch(
-            "backend.services.enrichment_pipeline.get_scene_ocr_service"
+            "backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock(spec=SceneOCRService)
             mock_service._run_full_frame_ocr = AsyncMock(
@@ -429,7 +429,7 @@ class TestSceneOCRPromptFormatting:
         )
 
         with patch(
-            "backend.services.enrichment_pipeline.get_scene_ocr_service"
+            "backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock(spec=SceneOCRService)
             mock_service._run_full_frame_ocr = AsyncMock(return_value=[])

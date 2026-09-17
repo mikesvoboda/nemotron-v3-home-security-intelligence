@@ -580,7 +580,9 @@ class TestTrackMetrics:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        with patch("backend.services.track_service.record_track_created") as mock_record_created:
+        with patch(
+            "backend.services.track_service.record_track_created", autospec=True
+        ) as mock_record_created:
             await service.create_or_update_track(
                 track_id=42,
                 camera_id="front_door",
@@ -607,7 +609,9 @@ class TestTrackMetrics:
         mock_result.scalar_one_or_none.return_value = mock_track
         mock_session.execute.return_value = mock_result
 
-        with patch("backend.services.track_service.record_track_created") as mock_record_created:
+        with patch(
+            "backend.services.track_service.record_track_created", autospec=True
+        ) as mock_record_created:
             await service.create_or_update_track(
                 track_id=42,
                 camera_id="front_door",
@@ -632,8 +636,12 @@ class TestTrackMetrics:
         mock_session.execute.return_value = mock_result
 
         with (
-            patch("backend.services.track_service.record_track_lost") as mock_record_lost,
-            patch("backend.services.track_service.observe_track_duration") as mock_observe_duration,
+            patch(
+                "backend.services.track_service.record_track_lost", autospec=True
+            ) as mock_record_lost,
+            patch(
+                "backend.services.track_service.observe_track_duration", autospec=True
+            ) as mock_observe_duration,
         ):
             result = await service.mark_track_lost(
                 track_id=42,
@@ -661,7 +669,9 @@ class TestTrackMetrics:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        with patch("backend.services.track_service.record_track_lost") as mock_record_lost:
+        with patch(
+            "backend.services.track_service.record_track_lost", autospec=True
+        ) as mock_record_lost:
             result = await service.mark_track_lost(
                 track_id=999,
                 camera_id="front_door",
@@ -677,7 +687,9 @@ class TestTrackMetrics:
 
         service = TrackService(mock_session)
 
-        with patch("backend.services.track_service.record_track_reidentified") as mock_record_reid:
+        with patch(
+            "backend.services.track_service.record_track_reidentified", autospec=True
+        ) as mock_record_reid:
             service.record_reidentification("front_door")
             mock_record_reid.assert_called_once_with("front_door")
 
@@ -693,7 +705,9 @@ class TestTrackMetrics:
         mock_result.scalar_one.return_value = 5
         mock_session.execute.return_value = mock_result
 
-        with patch("backend.services.track_service.set_active_track_count") as mock_set_count:
+        with patch(
+            "backend.services.track_service.set_active_track_count", autospec=True
+        ) as mock_set_count:
             count = await service.get_active_track_count("front_door")
 
             assert count == 5
@@ -715,7 +729,9 @@ class TestTrackMetrics:
 
         camera_ids = ["front_door", "back_yard", "driveway"]
 
-        with patch("backend.services.track_service.set_active_track_count") as mock_set_count:
+        with patch(
+            "backend.services.track_service.set_active_track_count", autospec=True
+        ) as mock_set_count:
             result = await service.update_active_track_counts(camera_ids)
 
             assert result == {

@@ -46,7 +46,7 @@ class TestVideoProcessorInit:
         output_dir = tmp_path / "new_thumbnails"
         assert not output_dir.exists()
 
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             processor = VideoProcessor(output_dir=str(output_dir))
 
         assert output_dir.exists()
@@ -57,7 +57,7 @@ class TestVideoProcessorInit:
         output_dir = tmp_path / "thumbnails"
         output_dir.mkdir()
 
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             processor = VideoProcessor(output_dir=str(output_dir))
 
         assert processor.output_dir == output_dir
@@ -68,8 +68,12 @@ class TestVideoProcessorInit:
         output_dir = "/nonexistent/path/that/cannot/be/created"
 
         with (
-            patch.object(VideoProcessor, "_check_ffmpeg_available"),
-            patch("pathlib.Path.mkdir", side_effect=PermissionError("Permission denied")),
+            patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True),
+            patch(
+                "pathlib.Path.mkdir",
+                side_effect=PermissionError("Permission denied"),
+                autospec=True,
+            ),
             pytest.raises(PermissionError),
         ):
             VideoProcessor(output_dir=output_dir)
@@ -88,7 +92,7 @@ class TestFFmpegAvailability:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             processor = VideoProcessor(output_dir=str(tmp_path))
 
         # Should be called twice - once for ffmpeg, once for ffprobe
@@ -97,14 +101,18 @@ class TestFFmpegAvailability:
 
     def test_check_ffmpeg_not_found(self, tmp_path: Path) -> None:
         """Test handling when ffmpeg is not installed."""
-        with patch("subprocess.run", side_effect=FileNotFoundError("ffmpeg not found")):
+        with patch(
+            "subprocess.run", side_effect=FileNotFoundError("ffmpeg not found"), autospec=True
+        ):
             # Should not raise - just logs warning
             processor = VideoProcessor(output_dir=str(tmp_path))
             assert processor is not None
 
     def test_check_ffmpeg_timeout(self, tmp_path: Path) -> None:
         """Test handling when ffmpeg check times out."""
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ffmpeg", 5)):
+        with patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("ffmpeg", 5), autospec=True
+        ):
             # Should not raise - just logs warning
             processor = VideoProcessor(output_dir=str(tmp_path))
             assert processor is not None
@@ -114,6 +122,7 @@ class TestFFmpegAvailability:
         with patch(
             "subprocess.run",
             side_effect=subprocess.CalledProcessError(1, "ffmpeg", stderr="Error"),
+            autospec=True,
         ):
             # Should not raise - just logs warning
             processor = VideoProcessor(output_dir=str(tmp_path))
@@ -131,7 +140,7 @@ class TestGetVideoMetadata:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     @pytest.fixture
@@ -179,7 +188,7 @@ class TestGetVideoMetadata:
         mock_result.stdout = json.dumps(sample_ffprobe_output)
         mock_result.stderr = ""
 
-        with patch("asyncio.to_thread", return_value=mock_result):
+        with patch("asyncio.to_thread", return_value=mock_result, autospec=True):
             metadata = await video_processor.get_video_metadata(str(video_path))
 
         assert metadata["duration"] == 120.5
@@ -202,7 +211,7 @@ class TestGetVideoMetadata:
         mock_result.stderr = "ffprobe error: invalid file"
 
         with (
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
             pytest.raises(VideoProcessingError, match="ffprobe failed"),
         ):
             await video_processor.get_video_metadata(str(video_path))
@@ -227,7 +236,7 @@ class TestGetVideoMetadata:
         mock_result.stderr = ""
 
         with (
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
             pytest.raises(VideoProcessingError, match="No video stream found"),
         ):
             await video_processor.get_video_metadata(str(video_path))
@@ -246,7 +255,7 @@ class TestGetVideoMetadata:
         mock_result.stderr = ""
 
         with (
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
             pytest.raises(VideoProcessingError, match="Failed to parse ffprobe output"),
         ):
             await video_processor.get_video_metadata(str(video_path))
@@ -263,6 +272,7 @@ class TestGetVideoMetadata:
             patch(
                 "asyncio.to_thread",
                 side_effect=subprocess.TimeoutExpired("ffprobe", 30),
+                autospec=True,
             ),
             pytest.raises(VideoProcessingError, match="ffprobe timed out"),
         ):
@@ -277,7 +287,7 @@ class TestGetVideoMetadata:
         video_path.write_bytes(b"fake content")
 
         with (
-            patch("asyncio.to_thread", side_effect=RuntimeError("Unexpected error")),
+            patch("asyncio.to_thread", side_effect=RuntimeError("Unexpected error"), autospec=True),
             pytest.raises(VideoProcessingError, match="Failed to get video metadata"),
         ):
             await video_processor.get_video_metadata(str(video_path))
@@ -294,7 +304,7 @@ class TestExtractThumbnail:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     @pytest.mark.asyncio
@@ -324,7 +334,7 @@ class TestExtractThumbnail:
             Path(output_path).write_bytes(b"fake jpeg data")
             return mock_result
 
-        with patch("asyncio.to_thread", side_effect=mock_to_thread):
+        with patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True):
             result = await video_processor.extract_thumbnail(
                 str(video_path), output_path=output_path, timestamp=5.0
             )
@@ -352,8 +362,10 @@ class TestExtractThumbnail:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_thumbnail(str(video_path))
 
@@ -381,8 +393,9 @@ class TestExtractThumbnail:
                 video_processor,
                 "get_video_metadata",
                 side_effect=VideoProcessingError("Metadata failed"),
+                autospec=True,
             ),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_thumbnail(str(video_path))
 
@@ -405,8 +418,9 @@ class TestExtractThumbnail:
                 video_processor,
                 "get_video_metadata",
                 return_value={"duration": 10.0},
+                autospec=True,
             ),
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
         ):
             result = await video_processor.extract_thumbnail(str(video_path))
 
@@ -428,8 +442,9 @@ class TestExtractThumbnail:
                 video_processor,
                 "get_video_metadata",
                 return_value={"duration": 10.0},
+                autospec=True,
             ),
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
         ):
             result = await video_processor.extract_thumbnail(str(video_path))
 
@@ -469,7 +484,7 @@ class TestExtractThumbnail:
             # Then timeout on ffmpeg call
             raise subprocess.TimeoutExpired("ffmpeg", 30)
 
-        with patch("asyncio.to_thread", side_effect=mock_to_thread):
+        with patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True):
             result = await video_processor.extract_thumbnail(str(video_path))
 
         assert result is None
@@ -487,6 +502,7 @@ class TestExtractThumbnail:
                 video_processor,
                 "get_video_metadata",
                 side_effect=RuntimeError("Unexpected"),
+                autospec=True,
             ),
         ):
             result = await video_processor.extract_thumbnail(str(video_path))
@@ -512,7 +528,7 @@ class TestExtractThumbnail:
             Path(output_path).write_bytes(b"fake jpeg")
             return mock_result
 
-        with patch("asyncio.to_thread", side_effect=mock_to_thread):
+        with patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True):
             result = await video_processor.extract_thumbnail(
                 str(video_path),
                 output_path=output_path,
@@ -536,7 +552,7 @@ class TestExtractFramesForDetection:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     @pytest.mark.asyncio
@@ -569,8 +585,10 @@ class TestExtractFramesForDetection:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection(
                 str(video_path), interval_seconds=2.0, max_frames=5
@@ -591,7 +609,9 @@ class TestExtractFramesForDetection:
 
         mock_metadata = {"duration": 0}
 
-        with patch.object(video_processor, "get_video_metadata", return_value=mock_metadata):
+        with patch.object(
+            video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+        ):
             result = await video_processor.extract_frames_for_detection(str(video_path))
 
         assert result == []
@@ -617,8 +637,10 @@ class TestExtractFramesForDetection:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection(str(video_path))
 
@@ -647,8 +669,10 @@ class TestExtractFramesForDetection:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection(
                 str(video_path), size=(640, 480)
@@ -672,8 +696,10 @@ class TestExtractFramesForDetection:
         mock_result.stderr = "ffmpeg error"
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection(str(video_path))
 
@@ -692,6 +718,7 @@ class TestExtractFramesForDetection:
             video_processor,
             "get_video_metadata",
             side_effect=VideoProcessingError("Metadata failed"),
+            autospec=True,
         ):
             result = await video_processor.extract_frames_for_detection(str(video_path))
 
@@ -708,10 +735,13 @@ class TestExtractFramesForDetection:
         mock_metadata = {"duration": 10.0}
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
             patch(
                 "asyncio.to_thread",
                 side_effect=subprocess.TimeoutExpired("ffmpeg", 30),
+                autospec=True,
             ),
         ):
             result = await video_processor.extract_frames_for_detection(str(video_path))
@@ -729,8 +759,10 @@ class TestExtractFramesForDetection:
         mock_metadata = {"duration": 10.0}
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=RuntimeError("Unexpected")),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=RuntimeError("Unexpected"), autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection(str(video_path))
 
@@ -759,8 +791,10 @@ class TestExtractFramesForDetection:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection(
                 str(video_path), max_frames=10
@@ -781,7 +815,7 @@ class TestCleanupOperations:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     def test_cleanup_extracted_frames_success(self, video_processor: VideoProcessor) -> None:
@@ -809,7 +843,9 @@ class TestCleanupOperations:
         frames_dir = video_processor.output_dir / f"{video_stem}_frames"
         frames_dir.mkdir(parents=True)
 
-        with patch("shutil.rmtree", side_effect=PermissionError("Permission denied")):
+        with patch(
+            "shutil.rmtree", side_effect=PermissionError("Permission denied"), autospec=True
+        ):
             result = video_processor.cleanup_extracted_frames(f"/path/to/{video_stem}.mp4")
 
         assert result is False
@@ -826,7 +862,7 @@ class TestDetectionMethods:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     @pytest.mark.asyncio
@@ -840,7 +876,7 @@ class TestDetectionMethods:
         expected_output = str(video_processor.output_dir / "123_video_thumb.jpg")
 
         with patch.object(
-            video_processor, "extract_thumbnail", return_value=expected_output
+            video_processor, "extract_thumbnail", return_value=expected_output, autospec=True
         ) as mock_extract:
             result = await video_processor.extract_thumbnail_for_detection(
                 str(video_path), detection_id="123"
@@ -861,7 +897,9 @@ class TestDetectionMethods:
 
         expected_output = str(video_processor.output_dir / "456_video_thumb.jpg")
 
-        with patch.object(video_processor, "extract_thumbnail", return_value=expected_output):
+        with patch.object(
+            video_processor, "extract_thumbnail", return_value=expected_output, autospec=True
+        ):
             result = await video_processor.extract_thumbnail_for_detection(
                 str(video_path), detection_id=456
             )
@@ -901,7 +939,9 @@ class TestDetectionMethods:
         thumbnail_path = video_processor.output_dir / "123_video_thumb.jpg"
         thumbnail_path.write_bytes(b"fake thumbnail")
 
-        with patch.object(Path, "unlink", side_effect=PermissionError("Permission denied")):
+        with patch.object(
+            Path, "unlink", side_effect=PermissionError("Permission denied"), autospec=True
+        ):
             result = video_processor.delete_thumbnail("123")
 
         assert result is False
@@ -918,7 +958,7 @@ class TestMimeType:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     def test_get_mime_type_mp4(self, video_processor: VideoProcessor) -> None:
@@ -1090,7 +1130,7 @@ class TestBatchFrameExtraction:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     @pytest.mark.asyncio
@@ -1119,8 +1159,10 @@ class TestBatchFrameExtraction:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection_batch(
                 str(video_path), interval_seconds=2.0, max_frames=5
@@ -1155,8 +1197,10 @@ class TestBatchFrameExtraction:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             await video_processor.extract_frames_for_detection_batch(
                 str(video_path), interval_seconds=3.0, max_frames=5
@@ -1184,7 +1228,9 @@ class TestBatchFrameExtraction:
 
         mock_metadata = {"duration": 0}
 
-        with patch.object(video_processor, "get_video_metadata", return_value=mock_metadata):
+        with patch.object(
+            video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+        ):
             result = await video_processor.extract_frames_for_detection_batch(str(video_path))
 
         assert result == []
@@ -1211,8 +1257,10 @@ class TestBatchFrameExtraction:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection_batch(
                 str(video_path), max_frames=10
@@ -1234,8 +1282,10 @@ class TestBatchFrameExtraction:
         mock_result.stderr = "ffmpeg error"
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", return_value=mock_result),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", return_value=mock_result, autospec=True),
         ):
             result = await video_processor.extract_frames_for_detection_batch(str(video_path))
 
@@ -1265,8 +1315,10 @@ class TestBatchFrameExtraction:
             return mock_result
 
         with (
-            patch.object(video_processor, "get_video_metadata", return_value=mock_metadata),
-            patch("asyncio.to_thread", side_effect=mock_to_thread),
+            patch.object(
+                video_processor, "get_video_metadata", return_value=mock_metadata, autospec=True
+            ),
+            patch("asyncio.to_thread", side_effect=mock_to_thread, autospec=True),
         ):
             await video_processor.extract_frames_for_detection_batch(
                 str(video_path), size=(640, 480)
@@ -1283,7 +1335,7 @@ class TestVideoProcessorSecurityIntegration:
     @pytest.fixture
     def video_processor(self, tmp_path: Path) -> VideoProcessor:
         """Create VideoProcessor with mocked ffmpeg check."""
-        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+        with patch.object(VideoProcessor, "_check_ffmpeg_available", autospec=True):
             return VideoProcessor(output_dir=str(tmp_path))
 
     @pytest.mark.asyncio

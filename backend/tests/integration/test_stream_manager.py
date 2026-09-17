@@ -59,7 +59,7 @@ def mock_redis_client():
 @pytest.fixture
 def mock_video_capture():
     """Create mock OpenCV VideoCapture for integration tests."""
-    with patch("cv2.VideoCapture") as mock_cv2:
+    with patch("cv2.VideoCapture", autospec=True) as mock_cv2:
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = True
         mock_cap.read.return_value = (True, MagicMock())

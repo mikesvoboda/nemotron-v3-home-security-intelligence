@@ -73,7 +73,9 @@ class TestPipelineStateEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -96,7 +98,9 @@ class TestPipelineStateEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -122,7 +126,9 @@ class TestPipelineStateEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -141,7 +147,9 @@ class TestPipelineStateEndpoint:
         self, debug_settings: Settings
     ) -> None:
         """Verify graceful handling when Redis is unavailable."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = _mock_redis_none
             try:
                 async with authenticated_client() as client:
@@ -165,7 +173,9 @@ class TestPipelineStateEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -187,7 +197,9 @@ class TestLogLevelEndpoint:
     @pytest.mark.asyncio
     async def test_set_log_level_to_debug(self, debug_settings: Settings) -> None:
         """Verify log level can be set to DEBUG."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             async with authenticated_client() as client:
                 response = await client.post(
                     "/api/debug/log-level",
@@ -202,7 +214,9 @@ class TestLogLevelEndpoint:
     @pytest.mark.asyncio
     async def test_set_log_level_to_info(self, debug_settings: Settings) -> None:
         """Verify log level can be set to INFO."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             async with authenticated_client() as client:
                 response = await client.post(
                     "/api/debug/log-level",
@@ -216,7 +230,9 @@ class TestLogLevelEndpoint:
     @pytest.mark.asyncio
     async def test_set_log_level_invalid_level_returns_400(self, debug_settings: Settings) -> None:
         """Verify invalid log level returns 400 error."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             async with authenticated_client() as client:
                 response = await client.post(
                     "/api/debug/log-level",
@@ -233,7 +249,9 @@ class TestLogLevelEndpoint:
     @pytest.mark.asyncio
     async def test_set_log_level_case_insensitive(self, debug_settings: Settings) -> None:
         """Verify log level is case-insensitive."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             async with authenticated_client() as client:
                 response = await client.post(
                     "/api/debug/log-level",
@@ -247,7 +265,9 @@ class TestLogLevelEndpoint:
     @pytest.mark.asyncio
     async def test_get_current_log_level(self, debug_settings: Settings) -> None:
         """Verify current log level can be retrieved."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             async with authenticated_client() as client:
                 response = await client.get("/api/debug/log-level")
 
@@ -259,7 +279,9 @@ class TestLogLevelEndpoint:
     @pytest.mark.asyncio
     async def test_set_log_level_affects_loggers(self, debug_settings: Settings) -> None:
         """Verify setting log level affects actual loggers."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             async with authenticated_client() as client:
                 # Set to WARNING
                 await client.post(
@@ -287,7 +309,9 @@ class TestDebugEndpointSecurity:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -333,7 +357,9 @@ class TestPipelineErrorsEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -379,7 +405,9 @@ class TestPipelineErrorsEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -422,7 +450,9 @@ class TestPipelineErrorsEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -461,7 +491,9 @@ class TestPipelineErrorsEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -484,7 +516,9 @@ class TestPipelineErrorsEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:
@@ -502,7 +536,9 @@ class TestPipelineErrorsEndpoint:
         self, debug_settings: Settings
     ) -> None:
         """Verify graceful handling when Redis is unavailable."""
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = _mock_redis_none
             try:
                 async with authenticated_client() as client:
@@ -537,7 +573,9 @@ class TestPipelineErrorsEndpoint:
         async def mock_redis_dependency():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_dependency
             try:
                 async with authenticated_client() as client:

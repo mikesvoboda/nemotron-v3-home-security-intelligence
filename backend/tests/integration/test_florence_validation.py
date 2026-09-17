@@ -206,6 +206,7 @@ class TestBusNotMisclassifiedAsPoliceCarIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -339,6 +340,7 @@ class TestPromptIncludesValidationNotesIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -497,6 +499,7 @@ class TestPersonVehicleMismatchIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -586,6 +589,7 @@ class TestCrossValidationEdgeCases:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -643,6 +647,7 @@ class TestCrossValidationEdgeCases:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -704,6 +709,7 @@ class TestCrossValidationEdgeCases:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,

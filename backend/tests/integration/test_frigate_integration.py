@@ -198,7 +198,7 @@ class TestFrigateServiceInitialization:
         frigate_settings: FrigateSettings,
     ) -> None:
         """Test service logs initialization with settings."""
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             FrigateIntegrationService(
                 mqtt_client=mock_mqtt_client,
                 settings=frigate_settings,
@@ -326,7 +326,7 @@ class TestFrigateEventProcessing:
         sample_frigate_event: dict,
     ) -> None:
         """Test that service processes 'new' event type."""
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should log the detection
@@ -343,7 +343,7 @@ class TestFrigateEventProcessing:
         """Test that service processes 'end' event type."""
         sample_frigate_event["type"] = "end"
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should log the detection
@@ -358,7 +358,7 @@ class TestFrigateEventProcessing:
         """Test that service ignores 'update' event type."""
         sample_frigate_event["type"] = "update"
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should not log detection (only debug/warning if any)
@@ -379,7 +379,7 @@ class TestFrigateEventProcessing:
         # Set confidence below threshold
         sample_frigate_event["after"]["score"] = 0.3
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should log debug message about threshold
@@ -397,7 +397,7 @@ class TestFrigateEventProcessing:
         # Process same event twice
         await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Second call should not log detection (already processed)
@@ -440,7 +440,7 @@ class TestFrigateEventProcessing:
         """Test that invalid event payload is handled gracefully."""
         invalid_payload = {"invalid": "data", "missing": "required_fields"}
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", invalid_payload)
 
             # Should log error
@@ -456,11 +456,12 @@ class TestFrigateEventProcessing:
     ) -> None:
         """Test that exceptions during event processing are caught."""
         with (
-            patch("backend.services.frigate_integration.logger") as mock_logger,
+            patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger,
             patch.object(
                 FrigateEvent,
                 "model_validate",
                 side_effect=Exception("Simulated error"),
+                autospec=True,
             ),
         ):
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
@@ -792,7 +793,7 @@ class TestFrigateDatabaseIntegration:
         When NEM-5159 is implemented, this should be updated to verify
         database insertion.
         """
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Verify logging includes expected fields
@@ -864,7 +865,7 @@ class TestFrigateErrorHandling:
         }
 
         # Should process without error
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/test_camera/events", minimal_event)
 
             mock_logger.info.assert_called()
@@ -878,7 +879,7 @@ class TestFrigateErrorHandling:
         """Test that zero-confidence detections are filtered."""
         sample_frigate_event["after"]["score"] = 0.0
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should log debug about threshold
@@ -893,7 +894,7 @@ class TestFrigateErrorHandling:
         """Test that detections exactly at threshold are not filtered."""
         sample_frigate_event["after"]["score"] = 0.5  # Exactly at min_confidence
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should process (not filtered)
@@ -914,7 +915,7 @@ class TestFrigateErrorHandling:
         sample_frigate_event["after"]["current_zones"] = []
         sample_frigate_event["after"]["entered_zones"] = []
 
-        with patch("backend.services.frigate_integration.logger") as mock_logger:
+        with patch("backend.services.frigate_integration.logger", autospec=True) as mock_logger:
             await frigate_service._on_event("frigate/front_door/events", sample_frigate_event)
 
             # Should still process
@@ -929,6 +930,6 @@ class TestFrigateErrorHandling:
         """Test that camera names with unicode characters are handled."""
         sample_frigate_event["after"]["camera"] = "camera_名前_123"
 
-        with patch("backend.services.frigate_integration.logger"):
+        with patch("backend.services.frigate_integration.logger", autospec=True):
             # Should not raise exception
             await frigate_service._on_event("frigate/camera_名前_123/events", sample_frigate_event)

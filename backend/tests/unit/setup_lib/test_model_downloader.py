@@ -10,7 +10,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 if TYPE_CHECKING:
     from setup_lib.model_downloader import ModelSpec
@@ -151,10 +151,12 @@ class TestCheckModelExists:
         """Should return True when model dir has .safetensors files."""
         from setup_lib.model_downloader import check_model_exists
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "rglob") as mock_rglob:
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "rglob", autospec=True) as mock_rglob:
                 # Simulate finding safetensors files for .safetensors extension
-                def rglob_side_effect(pattern: str) -> list[Path]:
+                def rglob_side_effect(
+                    self, pattern: str
+                ) -> list[Path]:  # autospec: self is the Path instance
                     if ".safetensors" in pattern:
                         return [Path("model.safetensors")]
                     return []
@@ -168,10 +170,12 @@ class TestCheckModelExists:
         """Should return True when model dir has .pt files."""
         from setup_lib.model_downloader import check_model_exists
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "rglob") as mock_rglob:
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "rglob", autospec=True) as mock_rglob:
                 # Simulate finding .pt files
-                def rglob_side_effect(pattern: str) -> list[Path]:
+                def rglob_side_effect(
+                    self, pattern: str
+                ) -> list[Path]:  # autospec: self is the Path instance
                     if ".pt" in pattern and ".pth" not in pattern:
                         return [Path("model.pt")]
                     return []
@@ -185,10 +189,12 @@ class TestCheckModelExists:
         """Should return True when model dir has .bin files."""
         from setup_lib.model_downloader import check_model_exists
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "rglob") as mock_rglob:
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "rglob", autospec=True) as mock_rglob:
                 # Simulate finding .bin files
-                def rglob_side_effect(pattern: str) -> list[Path]:
+                def rglob_side_effect(
+                    self, pattern: str
+                ) -> list[Path]:  # autospec: self is the Path instance
                     if ".bin" in pattern:
                         return [Path("pytorch_model.bin")]
                     return []
@@ -202,10 +208,12 @@ class TestCheckModelExists:
         """Should return True when model dir has .onnx files."""
         from setup_lib.model_downloader import check_model_exists
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "rglob") as mock_rglob:
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "rglob", autospec=True) as mock_rglob:
                 # Simulate finding .onnx files
-                def rglob_side_effect(pattern: str) -> list[Path]:
+                def rglob_side_effect(
+                    self, pattern: str
+                ) -> list[Path]:  # autospec: self is the Path instance
                     if ".onnx" in pattern:
                         return [Path("model.onnx")]
                     return []
@@ -219,7 +227,7 @@ class TestCheckModelExists:
         """Should return False when model directory doesn't exist."""
         from setup_lib.model_downloader import check_model_exists
 
-        with patch.object(Path, "exists", return_value=False):
+        with patch.object(Path, "exists", return_value=False, autospec=True):
             result = check_model_exists(Path("/ai"), "test-model")
             assert result is False
 
@@ -227,8 +235,8 @@ class TestCheckModelExists:
         """Should return False when directory exists but has no model files."""
         from setup_lib.model_downloader import check_model_exists
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "rglob") as mock_rglob:
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "rglob", autospec=True) as mock_rglob:
                 # No model files found
                 mock_rglob.return_value = []
 
@@ -269,9 +277,9 @@ class TestDownloadHfModel:
 
         with (
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.snapshot_download") as mock_download,
-            patch.object(Path, "mkdir"),
-            patch("builtins.print"),
+            patch("setup_lib.model_downloader.snapshot_download", autospec=True) as mock_download,
+            patch.object(Path, "mkdir", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             mock_download.return_value = "/path/to/model"
 
@@ -298,9 +306,10 @@ class TestDownloadHfModel:
             patch(
                 "setup_lib.model_downloader.snapshot_download",
                 side_effect=Exception("Network error"),
+                autospec=True,
             ),
-            patch.object(Path, "mkdir"),
-            patch("builtins.print"),
+            patch.object(Path, "mkdir", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = download_hf_model(model, Path("/ai"))
 
@@ -321,7 +330,7 @@ class TestDownloadHfModel:
 
         with (
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", False),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = download_hf_model(model, Path("/ai"))
 
@@ -342,7 +351,7 @@ class TestDownloadHfModel:
 
         with (
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = download_hf_model(model, Path("/ai"))
 
@@ -363,13 +372,15 @@ class TestDownloadHfModel:
 
         with (
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.snapshot_download"),
-            patch.object(Path, "mkdir") as mock_mkdir,
-            patch("builtins.print"),
+            patch("setup_lib.model_downloader.snapshot_download", autospec=True),
+            patch.object(Path, "mkdir", autospec=True) as mock_mkdir,
+            patch("builtins.print", autospec=True),
         ):
             download_hf_model(model, Path("/ai"))
 
-            mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+            # autospec patches Path.mkdir at class level, so the instance is
+            # recorded as the first positional arg; ANY stands in for it.
+            mock_mkdir.assert_called_once_with(ANY, parents=True, exist_ok=True)
 
     def test_download_uses_correct_args(self) -> None:
         """Should pass correct arguments to snapshot_download."""
@@ -386,9 +397,9 @@ class TestDownloadHfModel:
 
         with (
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.snapshot_download") as mock_download,
-            patch.object(Path, "mkdir"),
-            patch("builtins.print"),
+            patch("setup_lib.model_downloader.snapshot_download", autospec=True) as mock_download,
+            patch.object(Path, "mkdir", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             download_hf_model(model, Path("/ai"))
 
@@ -412,8 +423,8 @@ class TestRunDownloadScript:
         mock_result.returncode = 0
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch("subprocess.run", return_value=mock_result),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             result = run_download_script("download-model-zoo.py")
 
@@ -424,8 +435,8 @@ class TestRunDownloadScript:
         from setup_lib.model_downloader import run_download_script
 
         with (
-            patch.object(Path, "exists", return_value=False),
-            patch("builtins.print"),
+            patch.object(Path, "exists", return_value=False, autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = run_download_script("nonexistent-script.py")
 
@@ -436,12 +447,13 @@ class TestRunDownloadScript:
         from setup_lib.model_downloader import run_download_script
 
         with (
-            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
             patch(
                 "subprocess.run",
                 side_effect=subprocess.CalledProcessError(1, "cmd"),
+                autospec=True,
             ),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = run_download_script("download-model-zoo.py")
 
@@ -452,9 +464,9 @@ class TestRunDownloadScript:
         from setup_lib.model_downloader import run_download_script
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch("subprocess.run", side_effect=FileNotFoundError),
-            patch("builtins.print"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("subprocess.run", side_effect=FileNotFoundError, autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = run_download_script("download-model-zoo.py")
 
@@ -468,8 +480,8 @@ class TestRunDownloadScript:
         mock_result.returncode = 0
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch("subprocess.run", return_value=mock_result) as mock_run,
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run,
             patch("sys.executable", "/usr/bin/python3"),
         ):
             run_download_script("download-model-zoo.py", ["--all", "--force"])
@@ -486,8 +498,8 @@ class TestRunDownloadScript:
         mock_result.returncode = 0
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch("subprocess.run", return_value=mock_result) as mock_run,
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run,
             patch("sys.executable", "/custom/python3"),
         ):
             run_download_script("download-model-zoo.py")
@@ -509,7 +521,9 @@ class TestCalculateDownloadSize:
             ModelSpec("model3", "", 1, 300, "Test 3", False),
         ]
 
-        with patch("setup_lib.model_downloader.check_model_exists", return_value=False):
+        with patch(
+            "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+        ):
             result = calculate_download_size(models, Path("/ai"))
 
             assert result == 600
@@ -523,7 +537,9 @@ class TestCalculateDownloadSize:
             ModelSpec("model2", "", 1, 200, "Test 2", False),
         ]
 
-        with patch("setup_lib.model_downloader.check_model_exists", return_value=True):
+        with patch(
+            "setup_lib.model_downloader.check_model_exists", return_value=True, autospec=True
+        ):
             result = calculate_download_size(models, Path("/ai"))
 
             assert result == 0
@@ -544,6 +560,7 @@ class TestCalculateDownloadSize:
         with patch(
             "setup_lib.model_downloader.check_model_exists",
             side_effect=check_exists_side_effect,
+            autospec=True,
         ):
             result = calculate_download_size(models, Path("/ai"))
 
@@ -576,9 +593,11 @@ class TestPromptAndDownloadModels:
         mock_ai_path.exists.return_value = True
 
         with (
-            patch("setup_lib.model_downloader.Path", return_value=mock_ai_path),
-            patch("setup_lib.model_downloader.check_model_exists", return_value=True),
-            patch("builtins.print"),
+            patch("setup_lib.model_downloader.Path", return_value=mock_ai_path, autospec=True),
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=True, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
@@ -589,9 +608,11 @@ class TestPromptAndDownloadModels:
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=True),
-            patch("builtins.print") as mock_print,
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=True, autospec=True
+            ),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch.object(Path, "exists", return_value=True, autospec=True),
         ):
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
@@ -604,10 +625,12 @@ class TestPromptAndDownloadModels:
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print") as mock_print,
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)  # 100GB free
 
@@ -630,21 +653,53 @@ class TestPromptAndDownloadModels:
             return True
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch(
+                "setup_lib.model_downloader.download_hf_model",
+                side_effect=mock_download,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -659,9 +714,11 @@ class TestPromptAndDownloadModels:
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=True),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=True, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
         ):
             prompt_and_download_models({})
 
@@ -681,8 +738,8 @@ class TestPromptAndDownloadModels:
         mock_ai_path.__truediv__ = MagicMock(return_value=mock_model_zoo)
 
         with (
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.model_downloader.Path", return_value=mock_ai_path),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch("setup_lib.model_downloader.Path", return_value=mock_ai_path, autospec=True),
         ):
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
@@ -695,21 +752,49 @@ class TestPromptAndDownloadModels:
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print") as mock_print,
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", return_value=True),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch("setup_lib.model_downloader.download_hf_model", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             # Only 1GB free, need much more for models
             mock_disk.return_value = MagicMock(free=1 * 1024**3)
@@ -725,17 +810,35 @@ class TestPromptAndDownloadModels:
         from setup_lib.model_downloader import prompt_and_download_models
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", False),
-            patch("setup_lib.model_downloader._bootstrap_venv_and_import_hf", return_value=False),
-            patch("subprocess.run") as mock_run,
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
+            patch(
+                "setup_lib.model_downloader._bootstrap_venv_and_import_hf",
+                return_value=False,
+                autospec=True,
+            ),
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
             mock_run.return_value = MagicMock(returncode=0)
@@ -760,21 +863,53 @@ class TestPromptAndDownloadModels:
             return call_count[0] % 2 == 0
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print") as mock_print,
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=False),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch(
+                "setup_lib.model_downloader.download_hf_model",
+                side_effect=mock_download,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=False,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -807,21 +942,53 @@ class TestPromptAndDownloadModels:
         }
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch(
+                "setup_lib.model_downloader.download_hf_model",
+                side_effect=mock_download,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -861,21 +1028,53 @@ class TestPromptAndDownloadModels:
         }
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch(
+                "setup_lib.model_downloader.download_hf_model",
+                side_effect=mock_download,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -910,21 +1109,52 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.check_model_exists",
                 side_effect=mock_check_exists,
+                autospec=True,
             ),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch(
+                "setup_lib.model_downloader.download_hf_model",
+                side_effect=mock_download,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 
@@ -944,21 +1174,53 @@ class TestPromptAndDownloadModels:
             return True
 
         with (
-            patch("setup_lib.model_downloader.check_model_exists", return_value=False),
-            patch("builtins.print"),
-            patch.object(Path, "exists", return_value=True),
-            patch("shutil.disk_usage") as mock_disk,
+            patch(
+                "setup_lib.model_downloader.check_model_exists", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch("shutil.disk_usage", autospec=True) as mock_disk,
             patch("setup_lib.model_downloader.HF_HUB_AVAILABLE", True),
-            patch("setup_lib.model_downloader.download_hf_model", side_effect=mock_download),
-            patch("setup_lib.model_downloader.download_nemotron_gguf", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo26_models", return_value=True),
-            patch("setup_lib.model_downloader.download_yolov8n_pose", return_value=True),
-            patch("setup_lib.model_downloader.download_osnet_reid", return_value=True),
-            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True),
-            patch("setup_lib.model_downloader.download_yolo_world", return_value=True),
-            patch("setup_lib.model_downloader.download_marqo_fashionsiglip", return_value=True),
-            patch("setup_lib.model_downloader.download_brisque_weights", return_value=True),
-            patch("setup_lib.model_downloader.download_tiktoken_encoding", return_value=True),
+            patch(
+                "setup_lib.model_downloader.download_hf_model",
+                side_effect=mock_download,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_nemotron_gguf",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolo26_models",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
+            ),
+            patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
+            patch(
+                "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.model_downloader.download_marqo_fashionsiglip",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_brisque_weights",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.model_downloader.download_tiktoken_encoding",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             mock_disk.return_value = MagicMock(free=100 * 1024**3)
 

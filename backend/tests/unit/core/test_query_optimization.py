@@ -54,7 +54,7 @@ class TestEventsExportJoinedload:
         mock_db.commit = AsyncMock()
 
         # Mock the AuditService
-        with patch("backend.api.routes.events.AuditService") as mock_audit:
+        with patch("backend.api.routes.events.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
 
             # Mock request
@@ -437,7 +437,7 @@ class TestExportEventsErrorHandling:
         mock_db.execute.return_value = mock_result
         mock_db.commit = AsyncMock()
 
-        with patch("backend.api.routes.events.AuditService") as mock_audit:
+        with patch("backend.api.routes.events.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
 
             mock_request = MagicMock()

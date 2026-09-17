@@ -443,7 +443,7 @@ class TestBatchAggregatorThreatBypassIntegration:
         aggregator = BatchAggregator(redis_client=mock_redis)
 
         # Add detection with gun threat
-        with patch.object(aggregator, "_process_threat_fast_path") as mock_fast_path:
+        with patch.object(aggregator, "_process_threat_fast_path", autospec=True) as mock_fast_path:
             mock_fast_path.return_value = None
 
             batch_id = await aggregator.add_detection(
@@ -498,7 +498,9 @@ class TestBatchAggregatorThreatBypassIntegration:
 
         aggregator = BatchAggregator(redis_client=mock_redis)
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch-normal123"
 
             batch_id = await aggregator.add_detection(
@@ -534,7 +536,9 @@ class TestAlertRuleEngineIntegrationWithThreatMonitor:
         """Test that threat alert triggers outbound webhook notification."""
         from backend.services.threat_monitor_service import ThreatMonitorService
 
-        with patch("backend.services.threat_monitor_service.get_webhook_service") as mock_webhook:
+        with patch(
+            "backend.services.threat_monitor_service.get_webhook_service", autospec=True
+        ) as mock_webhook:
             mock_service = AsyncMock()
             mock_service.trigger_webhooks_for_event = AsyncMock()
             mock_webhook.return_value = mock_service

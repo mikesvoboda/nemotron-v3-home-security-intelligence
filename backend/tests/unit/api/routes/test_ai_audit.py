@@ -230,7 +230,11 @@ def client(
     app.dependency_overrides[get_job_tracker_dep] = override_get_job_tracker
 
     with (
-        patch("backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service),
+        patch(
+            "backend.api.routes.ai_audit.get_audit_service",
+            return_value=mock_audit_service,
+            autospec=True,
+        ),
         TestClient(app) as test_client,
     ):
         yield test_client
@@ -413,7 +417,11 @@ class TestEvaluateEventEndpoint:
         mock_audit_service.run_full_evaluation.return_value = mock_updated_audit
 
         with (
-            patch("backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service),
+            patch(
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
+            ),
             patch.object(AuditService, "log_action", new_callable=AsyncMock) as mock_log_action,
             TestClient(app) as test_client,
         ):
@@ -462,7 +470,11 @@ class TestEvaluateEventEndpoint:
         mock_audit_service.run_full_evaluation.return_value = mock_updated_audit
 
         with (
-            patch("backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service),
+            patch(
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
+            ),
             patch.object(AuditService, "log_action", new_callable=AsyncMock) as mock_log_action,
             TestClient(app) as test_client,
         ):
@@ -1481,9 +1493,13 @@ class TestBatchAuditJobBackgroundTask:
         mock_session.refresh = AsyncMock()
         mock_session.add = MagicMock()
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,
@@ -1545,9 +1561,13 @@ class TestBatchAuditJobBackgroundTask:
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,
@@ -1603,9 +1623,13 @@ class TestBatchAuditJobBackgroundTask:
         mock_session.refresh = AsyncMock()
         mock_session.add = MagicMock()
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,
@@ -1654,9 +1678,13 @@ class TestBatchAuditJobBackgroundTask:
 
         mock_session.execute = AsyncMock(side_effect=execute_side_effect)
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,
@@ -1709,9 +1737,13 @@ class TestBatchAuditJobBackgroundTask:
 
         mock_session.execute = AsyncMock(side_effect=execute_side_effect)
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,
@@ -1769,9 +1801,13 @@ class TestBatchAuditJobBackgroundTask:
 
         mock_session.execute = AsyncMock(side_effect=execute_side_effect)
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,
@@ -1804,6 +1840,7 @@ class TestBatchAuditJobBackgroundTask:
         with patch(
             "backend.api.routes.ai_audit.get_session",
             side_effect=Exception("Database connection failed"),
+            autospec=True,
         ):
             await _run_batch_audit_job(
                 job_id=job_id,
@@ -1860,9 +1897,13 @@ class TestBatchAuditJobBackgroundTask:
 
         mock_session.execute = AsyncMock(side_effect=execute_side_effect)
 
-        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+        with patch(
+            "backend.api.routes.ai_audit.get_session", return_value=mock_session, autospec=True
+        ):
             with patch(
-                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+                "backend.api.routes.ai_audit.get_audit_service",
+                return_value=mock_audit_service,
+                autospec=True,
             ):
                 await _run_batch_audit_job(
                     job_id=job_id,

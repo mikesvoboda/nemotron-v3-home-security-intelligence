@@ -64,8 +64,14 @@ def enrichment_client(mock_settings: MagicMock) -> EnrichmentClient:
     mock_health_client.aclose = AsyncMock()
 
     with (
-        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
-        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+        patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch(
+            "httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client], autospec=True
+        ),
     ):
         client = EnrichmentClient()
         # Ensure the mocked clients are properly attached

@@ -583,7 +583,7 @@ class TestMqttTestEndpoint:
 
         app.dependency_overrides[get_db] = mock_db_override
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock_instance = MagicMock()
             mock_socket.return_value = mock_sock_instance
 
@@ -616,7 +616,7 @@ class TestMqttTestEndpoint:
 
         app.dependency_overrides[get_db] = mock_db_override
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock_instance = MagicMock()
             mock_socket.return_value = mock_sock_instance
 
@@ -710,7 +710,7 @@ class TestMqttReconnectEndpoint:
 
         app.dependency_overrides[get_db] = mock_db_override
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock_instance = MagicMock()
             mock_socket.return_value = mock_sock_instance
 

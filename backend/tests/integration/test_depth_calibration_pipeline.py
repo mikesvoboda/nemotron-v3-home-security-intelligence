@@ -371,6 +371,7 @@ class TestContextEnricherDepthIntegration:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             context = await enricher.enrich(

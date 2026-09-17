@@ -84,7 +84,9 @@ class TestSelectVariant:
         self, experiment: PromptExperiment
     ) -> None:
         """Test that control is returned when random > traffic_split."""
-        with patch("backend.evaluation.ab_experiment_runner.random.random", return_value=0.5):
+        with patch(
+            "backend.evaluation.ab_experiment_runner.random.random", return_value=0.5, autospec=True
+        ):
             result = select_variant(experiment)
 
         assert result == "control_key"
@@ -93,7 +95,11 @@ class TestSelectVariant:
         self, experiment: PromptExperiment
     ) -> None:
         """Test that variant is returned when random < traffic_split."""
-        with patch("backend.evaluation.ab_experiment_runner.random.random", return_value=0.05):
+        with patch(
+            "backend.evaluation.ab_experiment_runner.random.random",
+            return_value=0.05,
+            autospec=True,
+        ):
             result = select_variant(experiment)
 
         assert result == "variant_key"
@@ -101,7 +107,9 @@ class TestSelectVariant:
     def test_select_variant_boundary_at_split(self, experiment: PromptExperiment) -> None:
         """Test boundary condition when random equals traffic_split."""
         # At exactly the split value, should return control (not <)
-        with patch("backend.evaluation.ab_experiment_runner.random.random", return_value=0.1):
+        with patch(
+            "backend.evaluation.ab_experiment_runner.random.random", return_value=0.1, autospec=True
+        ):
             result = select_variant(experiment)
 
         assert result == "control_key"
@@ -110,7 +118,9 @@ class TestSelectVariant:
         self, fifty_fifty_experiment: PromptExperiment
     ) -> None:
         """Test 50/50 split returns variant when random < 0.5."""
-        with patch("backend.evaluation.ab_experiment_runner.random.random", return_value=0.3):
+        with patch(
+            "backend.evaluation.ab_experiment_runner.random.random", return_value=0.3, autospec=True
+        ):
             result = select_variant(fifty_fifty_experiment)
 
         assert result == "variant_key"
@@ -119,7 +129,9 @@ class TestSelectVariant:
         self, fifty_fifty_experiment: PromptExperiment
     ) -> None:
         """Test 50/50 split returns control when random >= 0.5."""
-        with patch("backend.evaluation.ab_experiment_runner.random.random", return_value=0.7):
+        with patch(
+            "backend.evaluation.ab_experiment_runner.random.random", return_value=0.7, autospec=True
+        ):
             result = select_variant(fifty_fifty_experiment)
 
         assert result == "control_key"
@@ -139,6 +151,7 @@ class TestSelectVariant:
             with patch(
                 "backend.evaluation.ab_experiment_runner.random.random",
                 return_value=random_val,
+                autospec=True,
             ):
                 result = select_variant(experiment)
                 assert result == "control_key"
@@ -158,6 +171,7 @@ class TestSelectVariant:
             with patch(
                 "backend.evaluation.ab_experiment_runner.random.random",
                 return_value=random_val,
+                autospec=True,
             ):
                 result = select_variant(experiment)
                 assert result == "variant_key"

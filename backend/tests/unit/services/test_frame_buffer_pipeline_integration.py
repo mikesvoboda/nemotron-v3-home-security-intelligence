@@ -49,6 +49,7 @@ class TestDetectorClientFrameBufferIntegration:
         with patch(
             "backend.services.detector_client.get_baseline_service",
             return_value=mock_service,
+            autospec=True,
         ):
             yield mock_service
 
@@ -98,10 +99,12 @@ class TestDetectorClientFrameBufferIntegration:
         }
 
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
-            patch("httpx.AsyncClient.post") as mock_post,
-            patch.object(client, "_validate_image_for_detection_async", return_value=True),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data, autospec=True),
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+            patch.object(
+                client, "_validate_image_for_detection_async", return_value=True, autospec=True
+            ),
         ):
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -146,10 +149,12 @@ class TestDetectorClientFrameBufferIntegration:
         }
 
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
-            patch("httpx.AsyncClient.post") as mock_post,
-            patch.object(client, "_validate_image_for_detection_async", return_value=True),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data, autospec=True),
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+            patch.object(
+                client, "_validate_image_for_detection_async", return_value=True, autospec=True
+            ),
         ):
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -188,10 +193,12 @@ class TestDetectorClientFrameBufferIntegration:
         before_time = datetime.now(UTC)
 
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
-            patch("httpx.AsyncClient.post") as mock_post,
-            patch.object(client, "_validate_image_for_detection_async", return_value=True),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data, autospec=True),
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+            patch.object(
+                client, "_validate_image_for_detection_async", return_value=True, autospec=True
+            ),
         ):
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -223,7 +230,7 @@ class TestDetectorClientFrameBufferIntegration:
         image_path = "/export/foscam/front_door/nonexistent.jpg"
         camera_id = "front_door"
 
-        with patch("pathlib.Path.exists", return_value=False):
+        with patch("pathlib.Path.exists", return_value=False, autospec=True):
             result = await client.detect_objects(
                 image_path=image_path,
                 camera_id=camera_id,
@@ -249,8 +256,10 @@ class TestDetectorClientFrameBufferIntegration:
         camera_id = "front_door"
 
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch.object(client, "_validate_image_for_detection_async", return_value=False),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch.object(
+                client, "_validate_image_for_detection_async", return_value=False, autospec=True
+            ),
         ):
             result = await client.detect_objects(
                 image_path=image_path,
@@ -284,10 +293,12 @@ class TestDetectorClientFrameBufferIntegration:
             mock_image_data = f"frame_data_{i}".encode()
 
             with (
-                patch("pathlib.Path.exists", return_value=True),
-                patch("pathlib.Path.read_bytes", return_value=mock_image_data),
-                patch("httpx.AsyncClient.post") as mock_post,
-                patch.object(client, "_validate_image_for_detection_async", return_value=True),
+                patch("pathlib.Path.exists", return_value=True, autospec=True),
+                patch("pathlib.Path.read_bytes", return_value=mock_image_data, autospec=True),
+                patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+                patch.object(
+                    client, "_validate_image_for_detection_async", return_value=True, autospec=True
+                ),
             ):
                 mock_response = MagicMock()
                 mock_response.status_code = 200
@@ -324,13 +335,14 @@ class TestDetectorClientFrameBufferIntegration:
                 mock_image_data = f"{camera_id}_frame_{i}".encode()
 
                 with (
-                    patch("pathlib.Path.exists", return_value=True),
-                    patch("pathlib.Path.read_bytes", return_value=mock_image_data),
-                    patch("httpx.AsyncClient.post") as mock_post,
+                    patch("pathlib.Path.exists", return_value=True, autospec=True),
+                    patch("pathlib.Path.read_bytes", return_value=mock_image_data, autospec=True),
+                    patch("httpx.AsyncClient.post", autospec=True) as mock_post,
                     patch.object(
                         client,
                         "_validate_image_for_detection_async",
                         return_value=True,
+                        autospec=True,
                     ),
                 ):
                     mock_response = MagicMock()
@@ -376,10 +388,10 @@ class TestEnrichmentPipelineFrameBufferAccess:
 
         # Create enrichment pipeline with the same buffer
         with (
-            patch("backend.services.enrichment_pipeline.get_model_manager"),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(frame_buffer=buffer)
 
@@ -428,10 +440,10 @@ class TestFrameBufferSingletonIntegration:
 
         # Create enrichment pipeline with same buffer
         with (
-            patch("backend.services.enrichment_pipeline.get_model_manager"),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(frame_buffer=shared_buffer)
 

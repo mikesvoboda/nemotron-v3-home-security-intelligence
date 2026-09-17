@@ -337,7 +337,9 @@ class TestLoginEndpoint:
         )
 
         # Mock verify_password to return False
-        with patch("backend.api.routes.auth.AuthService.verify_password", return_value=False):
+        with patch(
+            "backend.api.routes.auth.AuthService.verify_password", return_value=False, autospec=True
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 await login(request=request, response=mock_response, db=mock_db)
 

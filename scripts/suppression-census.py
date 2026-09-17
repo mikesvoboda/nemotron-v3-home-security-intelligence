@@ -32,6 +32,11 @@ Count definitions (fixtures in scripts/test_suppression_census.py pin each):
                          untested module — the spec's 5 counts the modules
                          listed under the "need tests"/"requires testing"
                          comments)
+  unspecced_patch        convertible-but-unspecced mock.patch sites under
+                         backend/tests (WP4.2). Measured by
+                         scripts/check-mock-spec.py, which reuses autospec-
+                         sweep's classifier — one definition of "convertible"
+                         for sweep, gate, census, and ratchet.
 
 Usage:
     ./scripts/suppression-census.py            # JSON to stdout
@@ -64,6 +69,7 @@ CATEGORIES = [
     "frontend_todo",
     "excluded_test_trees",
     "coverage_omit",
+    "unspecced_patch",
 ]
 
 
@@ -406,6 +412,26 @@ def _excluded_tree_locations(root: Path) -> list[dict]:
     return [{"id": n, "reason": ""} for n in sorted(names)]
 
 
+def _unspecced_patch_locations(root: Path) -> list[dict]:
+    """WP4.2: convertible-but-unspecced mock-patch sites under
+    backend/tests. The MEASURER is scripts/check-mock-spec.py (it owns the
+    id minting and reuses autospec-sweep's classifier) -- the census only
+    imports it, so gate and census can never disagree about the count."""
+    import importlib.util
+
+    gate = root / "scripts/check-mock-spec.py"
+    if not gate.exists():
+        # fixture trees (ratchet tests) carry no scripts/ copy — the MEASURER
+        # is versioned code, not tree data; only what it walks (root/backend/
+        # tests) comes from root.
+        gate = Path(__file__).resolve().parent / "check-mock-spec.py"
+    spec = importlib.util.spec_from_file_location("check_mock_spec_census_reuse", gate)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.sites_for_root(root)
+
+
 def _coverage_omit_locations(root: Path) -> list[dict]:
     text = (root / "pyproject.toml").read_text()
     m = re.search(r"\[tool\.coverage\.run\].*?omit\s*=\s*\[(.*?)\]", text, re.DOTALL)
@@ -440,6 +466,7 @@ def locations(root: Path) -> dict[str, list[dict]]:
         "frontend_todo": fe["todo"],
         "excluded_test_trees": _excluded_tree_locations(root),
         "coverage_omit": _coverage_omit_locations(root),
+        "unspecced_patch": _unspecced_patch_locations(root),
     }
 
 
@@ -459,6 +486,7 @@ def census(root: Path) -> dict[str, int]:
         "frontend_todo": todo,
         "excluded_test_trees": count_excluded_test_trees(root),
         "coverage_omit": count_coverage_omit(root),
+        "unspecced_patch": len(_unspecced_patch_locations(root)),
     }
 
 

@@ -43,7 +43,9 @@ class TestDetectorClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 
@@ -55,7 +57,9 @@ class TestDetectorClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/"
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 
@@ -67,7 +71,9 @@ class TestDetectorClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 
@@ -79,7 +85,9 @@ class TestDetectorClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = None
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 
@@ -91,7 +99,9 @@ class TestDetectorClientGatewayRouting:
         del _base_mock_settings.ai_gateway_url
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 
@@ -103,7 +113,9 @@ class TestDetectorClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/v1"
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 
@@ -115,7 +127,9 @@ class TestDetectorClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.detector_client.get_settings", return_value=_base_mock_settings
+            "backend.services.detector_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = DetectorClient()
 

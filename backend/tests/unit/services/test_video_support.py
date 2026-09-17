@@ -34,7 +34,7 @@ def disable_redis_streams():
 
     These tests use the legacy list-based queue (add_to_queue_safe) which is simpler to mock.
     """
-    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+    with patch("backend.services.file_watcher.get_settings", autospec=True) as mock_settings:
         settings = MagicMock()
         settings.use_redis_streams = False
         settings.file_watcher_max_concurrent_queue = 20
@@ -238,30 +238,25 @@ class TestFileWatcherVideoProcessing:
 
         from backend.services.file_watcher import FileWatcher
 
-        # Mock settings to avoid DATABASE_URL validation error
-        mock_settings = MagicMock()
-        mock_settings.foscam_base_path = str(temp_camera_root)
-        # Mock rate limiting settings to avoid MagicMock comparison errors
-        mock_settings.file_watcher_max_concurrent_queue = 10
-        mock_settings.file_watcher_queue_delay_ms = 0  # No delay in tests
-        mock_settings.file_watcher_polling = False
-        mock_settings.file_watcher_polling_interval = 1.0
+        # Settings come from the autouse disable_redis_streams fixture,
+        # which patches backend.services.file_watcher.get_settings with
+        # MagicMock values. Re-patching the same target here was
+        # redundant, and under autospec mock refuses to spec an attribute
+        # it has already mocked out (InvalidSpecError). camera_root is
+        # passed explicitly so settings.foscam_base_path is never read.
 
         # Mock DedupeService to avoid additional settings calls
         mock_dedupe_service = MagicMock()
         mock_dedupe_service.is_duplicate_and_mark = AsyncMock(return_value=(False, None))
 
-        with patch("backend.services.file_watcher.get_settings", return_value=mock_settings):
-            watcher = FileWatcher(
-                camera_root=str(temp_camera_root),
-                redis_client=mock_redis_client,
-                debounce_delay=0.1,
-                dedupe_service=mock_dedupe_service,
-            )
-        # Initialize the semaphore for tests (normally done in start())
-        watcher._queue_semaphore = asyncio.Semaphore(
-            mock_settings.file_watcher_max_concurrent_queue
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+            dedupe_service=mock_dedupe_service,
         )
+        # Initialize the semaphore for tests (normally done in start())
+        watcher._queue_semaphore = asyncio.Semaphore(watcher._max_concurrent_queue)
         # Disable stability time for tests
         watcher.stability_time = 0
         return watcher
@@ -355,7 +350,9 @@ class TestFileWatcherVideoProcessing:
 
         event = FileCreatedEvent(str(video_path))
 
-        with patch.object(file_watcher._event_handler, "_schedule_async_task") as mock_schedule:
+        with patch.object(
+            file_watcher._event_handler, "_schedule_async_task", autospec=True
+        ) as mock_schedule:
             file_watcher._event_handler.on_created(event)
             mock_schedule.assert_called_once_with(str(video_path))
 
@@ -582,7 +579,7 @@ class TestVideoStreamingEndpoint:
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         with (
-            patch("os.path.exists", return_value=False),
+            patch("os.path.exists", return_value=False, autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await detections_routes.stream_detection_video(
@@ -676,7 +673,7 @@ class TestVideoThumbnailEndpoint:
         image_data = b"\xff\xd8\xff\xe0fake_jpeg_data"
 
         with (
-            patch("os.path.exists", return_value=True),
+            patch("os.path.exists", return_value=True, autospec=True),
             patch("builtins.open", mock_open(read_data=image_data)),
         ):
             result = await detections_routes.get_video_thumbnail(detection_id=1, db=mock_db_session)

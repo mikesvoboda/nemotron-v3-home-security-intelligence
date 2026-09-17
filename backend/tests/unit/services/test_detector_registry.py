@@ -206,7 +206,7 @@ class TestDetectorRegistryHealth:
             )
         )
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_response = MagicMock()
@@ -232,7 +232,7 @@ class TestDetectorRegistryHealth:
             )
         )
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_client.get.side_effect = Exception("Connection refused")
@@ -262,7 +262,7 @@ class TestDetectorRegistryHealth:
             )
         )
 
-        with patch("httpx.AsyncClient") as mock_client_class:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             mock_response = MagicMock()
@@ -320,7 +320,7 @@ class TestDetectorRegistrySwitching:
         )
         registry.set_active("yolo26")
 
-        with patch.object(registry, "check_health") as mock_health:
+        with patch.object(registry, "check_health", autospec=True) as mock_health:
             mock_health.return_value = DetectorStatus(
                 detector_type="yolov8",
                 healthy=True,
@@ -352,7 +352,7 @@ class TestDetectorRegistrySwitching:
         )
         registry.set_active("yolo26")
 
-        with patch.object(registry, "check_health") as mock_health:
+        with patch.object(registry, "check_health", autospec=True) as mock_health:
             mock_health.return_value = DetectorStatus(
                 detector_type="yolov8",
                 healthy=False,
@@ -386,7 +386,7 @@ class TestDetectorRegistrySwitching:
         )
         registry.set_active("yolo26")
 
-        with patch.object(registry, "check_health") as mock_health:
+        with patch.object(registry, "check_health", autospec=True) as mock_health:
             await registry.switch_detector("yolov8", force=True)
 
             mock_health.assert_not_called()

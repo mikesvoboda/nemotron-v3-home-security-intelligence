@@ -46,7 +46,9 @@ class TestRTSPTestService:
         password = "secret123"  # nosemgrep: hardcoded-password # pragma: allowlist secret
 
         # Mock successful connection
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.side_effect = lambda prop: {
@@ -93,7 +95,9 @@ class TestRTSPTestService:
             return MagicMock()
 
         with patch(
-            "backend.services.rtsp_test_service.cv2.VideoCapture", side_effect=slow_connection
+            "backend.services.rtsp_test_service.cv2.VideoCapture",
+            side_effect=slow_connection,
+            autospec=True,
         ):
             result = await service.test_connection(rtsp_url=url)
 
@@ -116,7 +120,9 @@ class TestRTSPTestService:
         password = "wrong_password"  # nosemgrep: hardcoded-password # pragma: allowlist secret
 
         # Mock authentication failure
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = False
             mock_cap.return_value = mock_instance
@@ -170,7 +176,9 @@ class TestRTSPTestService:
         url = "rtsp://192.168.1.100:554/stream1"
 
         # Mock full-featured camera
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.side_effect = lambda prop: {
@@ -193,7 +201,9 @@ class TestRTSPTestService:
         """Test connection to RTSP URL with custom port."""
         url = "rtsp://192.168.1.100:8554/stream1"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.return_value = 1920  # Some default value
@@ -208,7 +218,9 @@ class TestRTSPTestService:
         """Test connection to RTSP URL with complex path."""
         url = "rtsp://192.168.1.100:554/Streaming/Channels/101"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.return_value = 1920
@@ -223,7 +235,9 @@ class TestRTSPTestService:
         """Test secure RTSP (rtsps://) connection."""
         url = "rtsps://192.168.1.100:322/stream1"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.return_value = 1920
@@ -238,7 +252,9 @@ class TestRTSPTestService:
         """Test handling of network unreachable errors."""
         url = "rtsp://192.168.99.99:554/stream1"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = False
             mock_cap.return_value = mock_instance
@@ -257,7 +273,9 @@ class TestRTSPTestService:
         """Test handling of stream not found errors (404-equivalent)."""
         url = "rtsp://192.168.1.100:554/nonexistent_stream"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = False
             mock_cap.return_value = mock_instance
@@ -277,7 +295,9 @@ class TestRTSPTestService:
         """
         url = "rtsp://192.168.1.100:554/stream1"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.return_value = 1920
@@ -294,7 +314,9 @@ class TestRTSPTestService:
         """Test that resources are cleaned up even when errors occur."""
         url = "rtsp://192.168.1.100:554/stream1"
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.read.side_effect = Exception("Camera error")
@@ -313,7 +335,9 @@ class TestRTSPTestService:
         """
         url = "rtsp://admin:password123@192.168.1.100:554/stream1"  # pragma: allowlist secret
 
-        with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
+        with patch(
+            "backend.services.rtsp_test_service.cv2.VideoCapture", autospec=True
+        ) as mock_cap:
             mock_instance = MagicMock()
             mock_instance.isOpened.return_value = True
             mock_instance.get.return_value = 1920

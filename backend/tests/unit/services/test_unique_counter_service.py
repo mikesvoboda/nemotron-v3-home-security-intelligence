@@ -49,7 +49,11 @@ def mock_settings():
 @pytest.fixture
 def counter_service(mock_redis_client, mock_settings):
     """Create UniqueCounterService with mocked dependencies."""
-    with patch("backend.services.unique_counter_service.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.unique_counter_service.get_settings",
+        return_value=mock_settings,
+        autospec=True,
+    ):
         service = UniqueCounterService(mock_redis_client)
         return service
 
@@ -346,7 +350,11 @@ async def test_get_cardinality_stats_hourly(counter_service, mock_redis_client):
 
 def test_build_key_daily(counter_service):
     """Test building a daily key."""
-    with patch("backend.services.unique_counter_service._get_time_key", return_value="2024-01-15"):
+    with patch(
+        "backend.services.unique_counter_service._get_time_key",
+        return_value="2024-01-15",
+        autospec=True,
+    ):
         key = counter_service._build_key("cameras", "daily")
 
     assert key == "nemotron:hll:cameras:2024-01-15"
@@ -355,7 +363,9 @@ def test_build_key_daily(counter_service):
 def test_build_key_hourly(counter_service):
     """Test building an hourly key."""
     with patch(
-        "backend.services.unique_counter_service._get_time_key", return_value="2024-01-15-14"
+        "backend.services.unique_counter_service._get_time_key",
+        return_value="2024-01-15-14",
+        autospec=True,
     ):
         key = counter_service._build_key("events", "hourly")
 

@@ -31,7 +31,9 @@ class TestAnalyzerServiceFacade:
         """Test that get_context_enricher creates and caches the enricher."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.context_enricher.get_context_enricher") as mock_get:
+        with patch(
+            "backend.services.context_enricher.get_context_enricher", autospec=True
+        ) as mock_get:
             mock_enricher = MagicMock()
             mock_get.return_value = mock_enricher
 
@@ -58,7 +60,9 @@ class TestAnalyzerServiceFacade:
         """Test that get_household_matcher creates and caches the matcher."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.household_matcher.get_household_matcher") as mock_get:
+        with patch(
+            "backend.services.household_matcher.get_household_matcher", autospec=True
+        ) as mock_get:
             mock_matcher = MagicMock()
             mock_get.return_value = mock_matcher
 
@@ -74,7 +78,9 @@ class TestAnalyzerServiceFacade:
         """Test that get_enrichment_pipeline creates and caches the pipeline."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.enrichment_pipeline.get_enrichment_pipeline") as mock_get:
+        with patch(
+            "backend.services.enrichment_pipeline.get_enrichment_pipeline", autospec=True
+        ) as mock_get:
             mock_pipeline = MagicMock()
             mock_get.return_value = mock_pipeline
 
@@ -91,7 +97,7 @@ class TestAnalyzerServiceFacade:
         """Test that get_cache_service creates and caches the service."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.cache_service.get_cache_service") as mock_get:
+        with patch("backend.services.cache_service.get_cache_service", autospec=True) as mock_get:
             mock_cache = AsyncMock()
             mock_get.return_value = mock_cache
 
@@ -107,7 +113,9 @@ class TestAnalyzerServiceFacade:
         """Test that get_inference_semaphore creates and caches the semaphore."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.inference_semaphore.get_inference_semaphore") as mock_get:
+        with patch(
+            "backend.services.inference_semaphore.get_inference_semaphore", autospec=True
+        ) as mock_get:
             mock_semaphore = asyncio.Semaphore(4)
             mock_get.return_value = mock_semaphore
 
@@ -123,7 +131,7 @@ class TestAnalyzerServiceFacade:
         """Test that get_cost_tracker creates and caches the tracker."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.cost_tracker.get_cost_tracker") as mock_get:
+        with patch("backend.services.cost_tracker.get_cost_tracker", autospec=True) as mock_get:
             mock_tracker = MagicMock()
             mock_get.return_value = mock_tracker
 
@@ -139,7 +147,9 @@ class TestAnalyzerServiceFacade:
         """Test that get_prompt_auto_tuner creates and caches the tuner."""
         facade = AnalyzerServiceFacade()
 
-        with patch("backend.services.prompt_auto_tuner.get_prompt_auto_tuner") as mock_get:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_prompt_auto_tuner", autospec=True
+        ) as mock_get:
             mock_tuner = MagicMock()
             mock_get.return_value = mock_tuner
 
@@ -159,7 +169,9 @@ class TestAnalyzerServiceFacade:
         detection_ids = [1, 2, 3]
         mock_detections = [MagicMock() for _ in range(3)]
 
-        with patch("backend.services.batch_fetch.batch_fetch_detections") as mock_fetch:
+        with patch(
+            "backend.services.batch_fetch.batch_fetch_detections", autospec=True
+        ) as mock_fetch:
             mock_fetch.return_value = mock_detections
 
             result = await facade.fetch_detections(mock_session, detection_ids)

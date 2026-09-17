@@ -20,7 +20,7 @@ class TestIsPodmanInstalled:
         """Should return True when podman is found in PATH."""
         from setup_lib.podman_install import is_podman_installed
 
-        with patch("shutil.which", return_value="/usr/bin/podman"):
+        with patch("shutil.which", return_value="/usr/bin/podman", autospec=True):
             result = is_podman_installed()
             assert result is True
 
@@ -28,7 +28,7 @@ class TestIsPodmanInstalled:
         """Should return False when podman is not in PATH."""
         from setup_lib.podman_install import is_podman_installed
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = is_podman_installed()
             assert result is False
 
@@ -36,7 +36,7 @@ class TestIsPodmanInstalled:
         """Should call shutil.which with 'podman'."""
         from setup_lib.podman_install import is_podman_installed
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.return_value = None
             is_podman_installed()
             mock_which.assert_called_once_with("podman")
@@ -53,7 +53,7 @@ class TestGetPodmanVersion:
         mock_result.returncode = 0
         mock_result.stdout = "podman version 5.3.1"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_podman_version()
             assert version == "5.3.1"
 
@@ -65,7 +65,7 @@ class TestGetPodmanVersion:
         mock_result.returncode = 0
         mock_result.stdout = "podman version 5.3.1-dev"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_podman_version()
             assert version == "5.3.1-dev"
 
@@ -73,7 +73,7 @@ class TestGetPodmanVersion:
         """Should return None when podman is not installed."""
         from setup_lib.podman_install import get_podman_version
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             version = get_podman_version()
             assert version is None
 
@@ -85,7 +85,7 @@ class TestGetPodmanVersion:
         mock_result.returncode = 1
         mock_result.stdout = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_podman_version()
             assert version is None
 
@@ -97,7 +97,7 @@ class TestGetPodmanVersion:
         mock_result.returncode = 0
         mock_result.stdout = "unexpected output"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_podman_version()
             assert version is None
 
@@ -201,7 +201,7 @@ class TestInstallPodman:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = install_podman(platform_info)
             assert result is True
             mock_run.assert_called_once_with(
@@ -226,7 +226,7 @@ class TestInstallPodman:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = install_podman(platform_info)
             assert result is False
 
@@ -255,7 +255,7 @@ class TestInstallPodman:
             "is_wsl": False,
         }
 
-        with patch("subprocess.run", side_effect=OSError("Permission denied")):
+        with patch("subprocess.run", side_effect=OSError("Permission denied"), autospec=True):
             result = install_podman(platform_info)
             assert result is False
 
@@ -270,7 +270,7 @@ class TestInitPodmanMachine:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = init_podman_machine()
             assert result is True
             # Should call podman machine init and start
@@ -291,7 +291,7 @@ class TestInitPodmanMachine:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = init_podman_machine()
             assert result is False
 
@@ -304,7 +304,7 @@ class TestInitPodmanMachine:
         start_result = MagicMock()
         start_result.returncode = 1
 
-        with patch("subprocess.run", side_effect=[init_result, start_result]):
+        with patch("subprocess.run", side_effect=[init_result, start_result], autospec=True):
             result = init_podman_machine()
             assert result is False
 
@@ -312,7 +312,7 @@ class TestInitPodmanMachine:
         """Should return False and handle exceptions."""
         from setup_lib.podman_install import init_podman_machine
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             result = init_podman_machine()
             assert result is False
 
@@ -327,7 +327,7 @@ class TestInitPodmanMachine:
         start_result = MagicMock()
         start_result.returncode = 0
 
-        with patch("subprocess.run", side_effect=[init_result, start_result]):
+        with patch("subprocess.run", side_effect=[init_result, start_result], autospec=True):
             # Should try to start anyway
             result = init_podman_machine()
             # Depending on implementation, this could be True or False
@@ -350,15 +350,25 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-            patch("setup_lib.podman_install.is_podman_installed", return_value=True),
-            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
-            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
-            patch("setup_lib.podman_install.configure_rootless_cgroups"),
-            patch("setup_lib.podman_install._install_podman5_dependencies"),
-            patch("setup_lib.podman_install._install_host_tools"),
-            patch("setup_lib.podman_install._verify_podman_operational"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.is_podman_installed", return_value=True, autospec=True),
+            patch(
+                "setup_lib.podman_install.get_podman_version", return_value="5.3.1", autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.is_podman_compose_installed",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", autospec=True),
+            patch("setup_lib.podman_install._install_podman5_dependencies", autospec=True),
+            patch("setup_lib.podman_install._install_host_tools", autospec=True),
+            patch("setup_lib.podman_install._verify_podman_operational", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -375,9 +385,15 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-            patch("builtins.input", return_value="n"),
+            patch(
+                "setup_lib.podman_install.is_podman_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is False
@@ -397,26 +413,38 @@ class TestPromptAndInstallPodman:
             patch(
                 "setup_lib.podman_install.is_podman_installed",
                 side_effect=[False, True],
+                autospec=True,
             ),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
             patch(
                 "setup_lib.podman_install.get_install_command",
                 return_value=["dnf", "install", "-y", "podman"],
+                autospec=True,
             ),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.podman_install.install_podman", return_value=True),
-            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
-            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
-            patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("setup_lib.podman_install.install_podman", return_value=True, autospec=True),
+            patch(
+                "setup_lib.podman_install.get_podman_version", return_value="5.3.1", autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.is_podman_compose_installed",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", autospec=True),
             # The fresh-install success path runs these after installing
             # (podman_install.py: _install_host_tools / _verify_podman_operational).
             # Unpatched, the "unit" test executes real `sudo apt-get install -y
             # ffmpeg` and `podman --version` subprocesses on the runner — the
             # Test Performance Audit gate caught it at 23.57s. Same mock pattern
             # test_podman_already_installed above uses for its branch.
-            patch("setup_lib.podman_install._install_host_tools"),
-            patch("setup_lib.podman_install._verify_podman_operational"),
-            patch("builtins.print"),
+            patch("setup_lib.podman_install._install_host_tools", autospec=True),
+            patch("setup_lib.podman_install._verify_podman_operational", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -433,10 +461,16 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.podman_install.install_podman", return_value=False),
+            patch(
+                "setup_lib.podman_install.is_podman_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("setup_lib.podman_install.install_podman", return_value=False, autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is False
@@ -456,23 +490,37 @@ class TestPromptAndInstallPodman:
             patch(
                 "setup_lib.podman_install.is_podman_installed",
                 side_effect=[False, True],
+                autospec=True,
             ),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
             patch(
                 "setup_lib.podman_install.get_install_command",
                 return_value=["winget", "install", "-e", "--id", "RedHat.Podman"],
+                autospec=True,
             ),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.podman_install.install_podman", return_value=True),
-            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
-            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
-            patch("setup_lib.podman_install.configure_rootless_cgroups"),
-            patch("setup_lib.podman_install.init_podman_machine", return_value=True) as mock_init,
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("setup_lib.podman_install.install_podman", return_value=True, autospec=True),
+            patch(
+                "setup_lib.podman_install.get_podman_version", return_value="5.3.1", autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.is_podman_compose_installed",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", autospec=True),
+            patch(
+                "setup_lib.podman_install.init_podman_machine", return_value=True, autospec=True
+            ) as mock_init,
             # Fresh-install post path (host tools / operational check) must not
             # run real subprocesses here either — see test_user_accepts_install_success.
-            patch("setup_lib.podman_install._install_host_tools"),
-            patch("setup_lib.podman_install._verify_podman_operational"),
-            patch("builtins.print"),
+            patch("setup_lib.podman_install._install_host_tools", autospec=True),
+            patch("setup_lib.podman_install._verify_podman_operational", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is True
@@ -490,11 +538,19 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.podman_install.install_podman", return_value=True),
-            patch("setup_lib.podman_install.init_podman_machine", return_value=False),
+            patch(
+                "setup_lib.podman_install.is_podman_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("setup_lib.podman_install.install_podman", return_value=True, autospec=True),
+            patch(
+                "setup_lib.podman_install.init_podman_machine", return_value=False, autospec=True
+            ),
         ):
             result = prompt_and_install_podman()
             assert result is False
@@ -504,8 +560,10 @@ class TestPromptAndInstallPodman:
         from setup_lib.podman_install import prompt_and_install_podman
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
-            patch("setup_lib.podman_install.get_platform_info", return_value=None),
+            patch(
+                "setup_lib.podman_install.is_podman_installed", return_value=False, autospec=True
+            ),
+            patch("setup_lib.podman_install.get_platform_info", return_value=None, autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is False
@@ -523,14 +581,24 @@ class TestPromptAndInstallPodman:
 
         # Test that function signature accepts config parameter
         with (
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-            patch("setup_lib.podman_install.is_podman_installed", return_value=True),
-            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
-            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
-            patch("setup_lib.podman_install.configure_rootless_cgroups"),
-            patch("setup_lib.podman_install._install_podman5_dependencies"),
-            patch("setup_lib.podman_install._install_host_tools"),
-            patch("setup_lib.podman_install._verify_podman_operational"),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.is_podman_installed", return_value=True, autospec=True),
+            patch(
+                "setup_lib.podman_install.get_podman_version", return_value="5.3.1", autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.is_podman_compose_installed",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", autospec=True),
+            patch("setup_lib.podman_install._install_podman5_dependencies", autospec=True),
+            patch("setup_lib.podman_install._install_host_tools", autospec=True),
+            patch("setup_lib.podman_install._verify_podman_operational", autospec=True),
         ):
             result = prompt_and_install_podman(config={"auto_install": True})
             assert result is True
@@ -550,21 +618,33 @@ class TestPromptAndInstallPodman:
             patch(
                 "setup_lib.podman_install.is_podman_installed",
                 side_effect=[False, True],
+                autospec=True,
             ),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
             patch(
                 "setup_lib.podman_install.get_install_command",
                 return_value=["sudo", "dnf", "install", "-y", "podman"],
+                autospec=True,
             ),
-            patch("builtins.input") as mock_input,
-            patch("setup_lib.podman_install.install_podman", return_value=True),
-            patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
-            patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
-            patch("setup_lib.podman_install.configure_rootless_cgroups"),
+            patch("builtins.input", autospec=True) as mock_input,
+            patch("setup_lib.podman_install.install_podman", return_value=True, autospec=True),
+            patch(
+                "setup_lib.podman_install.get_podman_version", return_value="5.3.1", autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.is_podman_compose_installed",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("setup_lib.podman_install.configure_rootless_cgroups", autospec=True),
             # Same post-install subprocess leak as the success tests above.
-            patch("setup_lib.podman_install._install_host_tools"),
-            patch("setup_lib.podman_install._verify_podman_operational"),
-            patch("builtins.print"),
+            patch("setup_lib.podman_install._install_host_tools", autospec=True),
+            patch("setup_lib.podman_install._verify_podman_operational", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_podman(config={"auto_install": True})
             assert result is True
@@ -582,9 +662,15 @@ class TestPromptAndInstallPodman:
         }
 
         with (
-            patch("setup_lib.podman_install.is_podman_installed", return_value=False),
-            patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-            patch("builtins.input", return_value=""),
+            patch(
+                "setup_lib.podman_install.is_podman_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.podman_install.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("builtins.input", return_value="", autospec=True),
         ):
             result = prompt_and_install_podman()
             assert result is False
@@ -602,18 +688,36 @@ class TestPromptAndInstallPodman:
 
         for response in ["Y", "yes", "YES", "Yes"]:
             with (
-                patch("setup_lib.podman_install.is_podman_installed", return_value=False),
-                patch("setup_lib.podman_install.get_platform_info", return_value=platform_info),
-                patch("builtins.input", return_value=response),
-                patch("setup_lib.podman_install._do_install_podman", return_value=True),
-                patch("setup_lib.podman_install.configure_rootless_cgroups"),
+                patch(
+                    "setup_lib.podman_install.is_podman_installed",
+                    return_value=False,
+                    autospec=True,
+                ),
+                patch(
+                    "setup_lib.podman_install.get_platform_info",
+                    return_value=platform_info,
+                    autospec=True,
+                ),
+                patch("builtins.input", return_value=response, autospec=True),
+                patch(
+                    "setup_lib.podman_install._do_install_podman", return_value=True, autospec=True
+                ),
+                patch("setup_lib.podman_install.configure_rootless_cgroups", autospec=True),
                 # Success post-path: same real-subprocess leak class as the
                 # audit offender (version check, host tools, operational check).
-                patch("setup_lib.podman_install.get_podman_version", return_value="5.3.1"),
-                patch("setup_lib.podman_install._install_host_tools"),
-                patch("setup_lib.podman_install.is_podman_compose_installed", return_value=True),
-                patch("setup_lib.podman_install._verify_podman_operational"),
-                patch("builtins.print"),
+                patch(
+                    "setup_lib.podman_install.get_podman_version",
+                    return_value="5.3.1",
+                    autospec=True,
+                ),
+                patch("setup_lib.podman_install._install_host_tools", autospec=True),
+                patch(
+                    "setup_lib.podman_install.is_podman_compose_installed",
+                    return_value=True,
+                    autospec=True,
+                ),
+                patch("setup_lib.podman_install._verify_podman_operational", autospec=True),
+                patch("builtins.print", autospec=True),
             ):
                 result = prompt_and_install_podman()
                 assert result is True, f"Failed for response: {response}"

@@ -77,7 +77,11 @@ class TestIdempotencyMiddlewareInit:
         app = FastAPI()
         mock_settings.idempotency_ttl_seconds = 86400
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
             assert middleware.ttl == 86400
 
@@ -85,7 +89,11 @@ class TestIdempotencyMiddlewareInit:
         """Test custom TTL configuration."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, ttl=3600)
             assert middleware.ttl == 3600
 
@@ -93,7 +101,11 @@ class TestIdempotencyMiddlewareInit:
         """Test custom Redis key prefix."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, key_prefix="custom_idem")
             assert middleware.key_prefix == "custom_idem"
 
@@ -101,7 +113,11 @@ class TestIdempotencyMiddlewareInit:
         """Test default Redis key prefix."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
             assert middleware.key_prefix == "idempotency"
 
@@ -118,7 +134,11 @@ class TestIdempotencyMiddlewareDispatch:
         async def get_test():
             return {"status": "ok"}
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             # Create mock request
@@ -135,7 +155,9 @@ class TestIdempotencyMiddlewareDispatch:
                 return Response(content=b'{"status": "ok"}', media_type="application/json")
 
             # Patch get_redis_optional to return our mock
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -156,7 +178,11 @@ class TestIdempotencyMiddlewareDispatch:
         async def post_test():
             return {"status": "created"}
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -181,7 +207,11 @@ class TestIdempotencyMiddlewareDispatch:
         """Test that on cache miss, request is processed and response is cached."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, ttl=3600)
 
             mock_request = MagicMock(spec=Request)
@@ -208,7 +238,9 @@ class TestIdempotencyMiddlewareDispatch:
                     media_type="application/json",
                 )
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -231,7 +263,11 @@ class TestIdempotencyMiddlewareDispatch:
         """Test that on cache hit, cached response is returned without processing."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -258,7 +294,9 @@ class TestIdempotencyMiddlewareDispatch:
                 call_next_called = True
                 return Response(content=b"should not be called")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -279,7 +317,11 @@ class TestIdempotencyMiddlewareDispatch:
         """Test that different request body with same key returns 422."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -308,7 +350,9 @@ class TestIdempotencyMiddlewareDispatch:
                 call_next_called = True
                 return Response(content=b"should not be called")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -331,7 +375,11 @@ class TestIdempotencyMiddlewareDispatch:
         """Test that PUT requests support idempotency."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -350,7 +398,9 @@ class TestIdempotencyMiddlewareDispatch:
                     media_type="application/json",
                 )
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -367,7 +417,11 @@ class TestIdempotencyMiddlewareDispatch:
         """Test that DELETE requests support idempotency."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -382,7 +436,9 @@ class TestIdempotencyMiddlewareDispatch:
             async def mock_call_next(request):
                 return Response(content=b"", status_code=204)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -399,7 +455,11 @@ class TestIdempotencyMiddlewareDispatch:
         """Test that PATCH requests support idempotency."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -418,7 +478,9 @@ class TestIdempotencyMiddlewareDispatch:
                     media_type="application/json",
                 )
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -439,7 +501,11 @@ class TestIdempotencyMiddlewareErrorHandling:
         """Test that requests pass through when Redis is unavailable."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -456,7 +522,9 @@ class TestIdempotencyMiddlewareErrorHandling:
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
             # Simulate Redis being unavailable
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield None  # Redis unavailable
@@ -474,7 +542,11 @@ class TestIdempotencyMiddlewareErrorHandling:
         """Test that Redis errors on cache lookup pass through to normal processing."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -494,7 +566,9 @@ class TestIdempotencyMiddlewareErrorHandling:
                 call_next_called = True
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -514,7 +588,11 @@ class TestIdempotencyMiddlewareErrorHandling:
         """Test that Redis errors on cache set don't affect the response."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -530,7 +608,9 @@ class TestIdempotencyMiddlewareErrorHandling:
             async def mock_call_next(request):
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -547,7 +627,11 @@ class TestIdempotencyMiddlewareErrorHandling:
         """Test that invalid JSON in cache doesn't break the request."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -567,7 +651,9 @@ class TestIdempotencyMiddlewareErrorHandling:
                 call_next_called = True
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -588,7 +674,11 @@ class TestIdempotencyMiddlewareRedisKey:
         """Test that cache key includes configured prefix."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, key_prefix="idem")
 
             key = middleware._make_cache_key("test-idempotency-key")
@@ -598,7 +688,11 @@ class TestIdempotencyMiddlewareRedisKey:
         """Test that cache key includes the idempotency key."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, key_prefix="idempotency")
 
             idempotency_key = "unique-request-key-abc123"
@@ -609,7 +703,11 @@ class TestIdempotencyMiddlewareRedisKey:
         """Test that same idempotency key produces same cache key."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             key1 = middleware._make_cache_key("same-key")
@@ -620,7 +718,11 @@ class TestIdempotencyMiddlewareRedisKey:
         """Test that different idempotency keys produce different cache keys."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             key1 = middleware._make_cache_key("key-a")
@@ -636,7 +738,11 @@ class TestIdempotencyMiddlewareCacheData:
         """Test that cached data includes response status code."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -651,7 +757,9 @@ class TestIdempotencyMiddlewareCacheData:
             async def mock_call_next(request):
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -671,7 +779,11 @@ class TestIdempotencyMiddlewareCacheData:
         """Test that cached data includes response content."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -688,7 +800,9 @@ class TestIdempotencyMiddlewareCacheData:
             async def mock_call_next(request):
                 return Response(content=response_content, status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -707,7 +821,11 @@ class TestIdempotencyMiddlewareCacheData:
         """Test that cached data includes request fingerprint for collision detection."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             request_body = b'{"name": "camera1"}'
@@ -724,7 +842,9 @@ class TestIdempotencyMiddlewareCacheData:
             async def mock_call_next(request):
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -750,7 +870,11 @@ class TestIdempotencyMiddlewareTTLConfiguration:
         app = FastAPI()
         mock_settings.idempotency_ttl_seconds = 7200  # 2 hours
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
             assert middleware.ttl == 7200
 
@@ -760,7 +884,11 @@ class TestIdempotencyMiddlewareTTLConfiguration:
         app = FastAPI()
         mock_settings.idempotency_ttl_seconds = 7200
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, ttl=1800)  # Explicit 30 minutes
             assert middleware.ttl == 1800
 
@@ -777,7 +905,11 @@ class TestIdempotencyMiddlewareLogging:
 
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -799,7 +931,9 @@ class TestIdempotencyMiddlewareLogging:
             async def mock_call_next(request):
                 return Response(content=b"")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -816,7 +950,11 @@ class TestIdempotencyMiddlewareLogging:
         """Test that fingerprint mismatch is logged as warning."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -837,7 +975,9 @@ class TestIdempotencyMiddlewareLogging:
             async def mock_call_next(request):
                 return Response(content=b"")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -925,7 +1065,11 @@ class TestIdempotencyMiddlewareChunking:
         app = FastAPI()
         mock_settings.idempotency_max_payload_size = 10485760  # 10MB
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
             assert middleware.max_payload_size == 10485760
 
@@ -933,7 +1077,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test custom max payload size parameter."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, max_payload_size=5242880)  # 5MB
             assert middleware.max_payload_size == 5242880
 
@@ -942,7 +1090,11 @@ class TestIdempotencyMiddlewareChunking:
         app = FastAPI()
         mock_settings.idempotency_chunk_size = 65536  # 64KB
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
             assert middleware.chunk_size == 65536
 
@@ -950,7 +1102,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test custom chunk size parameter."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, chunk_size=131072)  # 128KB
             assert middleware.chunk_size == 131072
 
@@ -958,7 +1114,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test chunks key generation for chunked responses."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, key_prefix="idem")
             chunks_key = middleware._make_chunks_key("test-key-123")
             assert chunks_key == "idem:chunks:test-key-123"
@@ -968,7 +1128,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test that responses exceeding max_payload_size are not cached."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, max_payload_size=100)  # Very small limit
 
             mock_request = MagicMock(spec=Request)
@@ -994,7 +1158,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test replaying a cached chunked response."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1032,7 +1200,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test error handling when replaying chunked response fails."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1061,7 +1233,11 @@ class TestIdempotencyMiddlewareChunking:
         """Test cache hit handling for chunked responses."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1106,7 +1282,11 @@ class TestIdempotencyMiddlewareStreamingResponse:
         """Test caching a streaming response with chunked storage."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, chunk_size=10, max_payload_size=100)
 
             mock_request = MagicMock(spec=Request)
@@ -1150,7 +1330,11 @@ class TestIdempotencyMiddlewareStreamingResponse:
         """Test streaming response that exceeds max_payload_size is not cached."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, chunk_size=10, max_payload_size=10)
 
             mock_request = MagicMock(spec=Request)
@@ -1190,7 +1374,11 @@ class TestIdempotencyMiddlewareStreamingResponse:
         """Test that streaming response errors trigger cleanup."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app, chunk_size=10)
 
             mock_request = MagicMock(spec=Request)
@@ -1231,7 +1419,11 @@ class TestIdempotencyMiddlewareBinaryContent:
         """Test caching binary content (base64 encoded)."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1269,7 +1461,11 @@ class TestIdempotencyMiddlewareBinaryContent:
         """Test replaying cached binary response."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1305,7 +1501,11 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
         """Test that invalid key format returns 400."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1316,7 +1516,9 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
             async def mock_call_next(request):
                 return Response(content=b"should not be called")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -1334,7 +1536,11 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
         """Test that overly long key returns 400."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1346,7 +1552,9 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
             async def mock_call_next(request):
                 return Response(content=b"should not be called")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -1364,7 +1572,11 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
         """Test that empty key skips idempotency processing and proceeds normally."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1375,7 +1587,9 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
             async def mock_call_next(request):
                 return Response(content=b"normal response", status_code=200)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -1392,7 +1606,11 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
         """Test that request body read errors fall back to normal processing."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1408,7 +1626,9 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
                 call_next_called = True
                 return Response(content=b'{"id": "cam-123"}', status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -1426,10 +1646,16 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
         """Test _get_redis_client handles exceptions gracefully."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def failing_redis():
                     raise Exception("Redis connection failed")
@@ -1445,7 +1671,11 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
         """Test that unknown response types are handled gracefully."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             mock_request = MagicMock(spec=Request)
@@ -1464,7 +1694,9 @@ class TestIdempotencyMiddlewareDispatchEdgeCases:
                     delattr(response, "body")
                 return response
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -1488,7 +1720,11 @@ class TestIdempotencyMiddlewareIntegrationScenarios:
         """Test complete flow: cache miss, then cache hit with replay."""
         app = FastAPI()
 
-        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.idempotency.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             middleware = IdempotencyMiddleware(app)
 
             # First request - cache miss
@@ -1507,7 +1743,9 @@ class TestIdempotencyMiddlewareIntegrationScenarios:
             async def mock_call_next(request):
                 return Response(content=response_body, status_code=201)
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client
@@ -1544,7 +1782,9 @@ class TestIdempotencyMiddlewareIntegrationScenarios:
                 call_next_called = True
                 return Response(content=b"should not be called")
 
-            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+            with patch(
+                "backend.api.middleware.idempotency.get_redis_optional", autospec=True
+            ) as mock_get_redis:
 
                 async def get_redis():
                     yield mock_redis_client

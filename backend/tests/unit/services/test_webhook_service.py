@@ -1152,7 +1152,7 @@ async def test_send_request_basic(webhook_service, sample_webhook):
     # Arrange
     payload = {"test": "data"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1190,7 +1190,7 @@ async def test_send_request_with_bearer_auth(webhook_service):
     )
     payload = {"test": "data"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1231,7 +1231,7 @@ async def test_send_request_with_basic_auth(webhook_service):
     )
     payload = {"test": "data"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1273,7 +1273,7 @@ async def test_send_request_with_custom_header_auth(webhook_service):
     )
     payload = {"test": "data"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1310,7 +1310,7 @@ async def test_send_request_with_custom_headers(webhook_service):
     )
     payload = {"test": "data"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1336,7 +1336,7 @@ async def test_send_request_with_signature(webhook_service, sample_webhook):
     # Arrange
     payload = {"test": "data"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1472,7 +1472,7 @@ async def test_trigger_webhook_background_success(mock_db_session):
     # Arrange
     event_data = {"alert_id": "test"}
 
-    with patch("backend.services.webhook_service.get_webhook_service") as mock_get:
+    with patch("backend.services.webhook_service.get_webhook_service", autospec=True) as mock_get:
         mock_service = MagicMock()
         mock_service.trigger_webhooks_for_event = AsyncMock(return_value=[])
         mock_get.return_value = mock_service
@@ -1500,7 +1500,7 @@ async def test_trigger_webhook_background_handles_exception(mock_db_session):
     # Arrange
     event_data = {"alert_id": "test"}
 
-    with patch("backend.services.webhook_service.get_webhook_service") as mock_get:
+    with patch("backend.services.webhook_service.get_webhook_service", autospec=True) as mock_get:
         mock_service = MagicMock()
         mock_service.trigger_webhooks_for_event = AsyncMock(side_effect=Exception("Database error"))
         mock_get.return_value = mock_service

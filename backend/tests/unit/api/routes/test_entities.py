@@ -542,6 +542,7 @@ class TestGetRedisClient:
         with patch(
             "backend.api.routes.entities.get_redis_optional",
             return_value=mock_get_redis(),
+            autospec=True,
         ):
             result = await _get_redis_client()
 
@@ -559,6 +560,7 @@ class TestGetRedisClient:
         with patch(
             "backend.api.routes.entities.get_redis_optional",
             return_value=mock_get_redis(),
+            autospec=True,
         ):
             result = await _get_redis_client()
 
@@ -582,6 +584,7 @@ class TestGetRedisClient:
         with patch(
             "backend.api.routes.entities.get_redis_optional",
             return_value=EmptyAsyncGenerator(),
+            autospec=True,
         ):
             result = await _get_redis_client()
 

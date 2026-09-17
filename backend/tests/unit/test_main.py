@@ -175,7 +175,7 @@ class TestInstallSignalHandlers:
 
         mock_loop.add_signal_handler = capture_handler
 
-        with patch("asyncio.get_running_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop, autospec=True):
             install_signal_handlers()
 
         assert signal.SIGTERM in captured_handlers
@@ -193,7 +193,7 @@ class TestInstallSignalHandlers:
 
         mock_loop.add_signal_handler = capture_handler
 
-        with patch("asyncio.get_running_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop, autospec=True):
             install_signal_handlers()
 
         assert signal.SIGINT in captured_handlers
@@ -211,7 +211,7 @@ class TestInstallSignalHandlers:
 
         mock_loop.add_signal_handler = capture_handler
 
-        with patch("asyncio.get_running_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop, autospec=True):
             install_signal_handlers()
 
         # Get the shutdown event
@@ -220,7 +220,7 @@ class TestInstallSignalHandlers:
 
         # Call the SIGTERM handler - the logger is imported inside the function
         # so we patch at the source module
-        with patch("backend.core.logging.get_logger"):
+        with patch("backend.core.logging.get_logger", autospec=True):
             captured_handlers[signal.SIGTERM]()
 
         # Event should be set
@@ -240,7 +240,7 @@ class TestInstallSignalHandlers:
 
         mock_loop.add_signal_handler = count_handler
 
-        with patch("asyncio.get_running_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop, autospec=True):
             install_signal_handlers()
             install_signal_handlers()
             install_signal_handlers()
@@ -258,7 +258,7 @@ class TestInstallSignalHandlers:
             "Signals not supported on Windows"
         )
 
-        with patch("asyncio.get_running_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop, autospec=True):
             # Should not raise
             install_signal_handlers()
 
@@ -267,7 +267,11 @@ class TestInstallSignalHandlers:
         """Test that RuntimeError is handled gracefully (e.g., not main thread)."""
         from backend.main import install_signal_handlers
 
-        with patch("asyncio.get_running_loop", side_effect=RuntimeError("no running event loop")):
+        with patch(
+            "asyncio.get_running_loop",
+            side_effect=RuntimeError("no running event loop"),
+            autospec=True,
+        ):
             # Should not raise
             install_signal_handlers()
 
@@ -305,7 +309,7 @@ class TestResetSignalHandlers:
 
         mock_loop.add_signal_handler = count_handler
 
-        with patch("asyncio.get_running_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop, autospec=True):
             install_signal_handlers()
             assert call_count == 2  # SIGTERM and SIGINT
 

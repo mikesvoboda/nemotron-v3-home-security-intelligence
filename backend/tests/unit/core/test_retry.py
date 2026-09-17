@@ -340,7 +340,7 @@ class TestRetryLogging:
         async def failing_func() -> str:
             raise transient_error
 
-        with patch("backend.core.retry.logger") as mock_logger:
+        with patch("backend.core.retry.logger", autospec=True) as mock_logger:
             with pytest.raises(ExternalServiceError):
                 await failing_func()
 
@@ -362,7 +362,7 @@ class TestRetryLogging:
                 raise transient_error
             return "success"
 
-        with patch("backend.core.retry.logger") as mock_logger:
+        with patch("backend.core.retry.logger", autospec=True) as mock_logger:
             result = await eventually_succeeds()
 
             assert result == "success"
@@ -398,7 +398,7 @@ class TestRetryMetrics:
                 raise transient_error
             return "success"
 
-        with patch("backend.core.retry.RETRY_ATTEMPTS_TOTAL") as mock_counter:
+        with patch("backend.core.retry.RETRY_ATTEMPTS_TOTAL", autospec=True) as mock_counter:
             mock_labels = MagicMock()
             mock_counter.labels.return_value = mock_labels
 

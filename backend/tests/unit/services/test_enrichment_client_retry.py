@@ -67,7 +67,9 @@ def sample_image() -> Image.Image:
 @pytest.fixture
 def client(mock_settings: MagicMock) -> EnrichmentClient:
     """Create an EnrichmentClient with mocked settings."""
-    with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.enrichment_client.get_settings", return_value=mock_settings, autospec=True
+    ):
         return EnrichmentClient()
 
 
@@ -75,7 +77,9 @@ def client(mock_settings: MagicMock) -> EnrichmentClient:
 def client_with_custom_retries(mock_settings: MagicMock) -> EnrichmentClient:
     """Create an EnrichmentClient with custom retry count."""
     mock_settings.enrichment_max_retries = 5
-    with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.enrichment_client.get_settings", return_value=mock_settings, autospec=True
+    ):
         return EnrichmentClient()
 
 
@@ -140,10 +144,10 @@ class TestEnrichmentClientRetryVehicle:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
             patch(
-                "backend.services.enrichment_client.increment_enrichment_retry"
+                "backend.services.enrichment_client.increment_enrichment_retry", autospec=True
             ) as mock_retry_metric,
         ):
             result = await client.classify_vehicle(sample_image)
@@ -188,9 +192,9 @@ class TestEnrichmentClientRetryVehicle:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.classify_vehicle(sample_image)
 
@@ -210,8 +214,10 @@ class TestEnrichmentClientRetryVehicle:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("backend.services.enrichment_client.record_pipeline_error") as mock_record,
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch(
+                "backend.services.enrichment_client.record_pipeline_error", autospec=True
+            ) as mock_record,
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError) as exc_info:
                 await client.classify_vehicle(sample_image)
@@ -248,7 +254,7 @@ class TestEnrichmentClientRetryVehicle:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("backend.services.enrichment_client.record_pipeline_error"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
         ):
             result = await client.classify_vehicle(sample_image)
 
@@ -299,9 +305,9 @@ class TestEnrichmentClientRetryPet:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.classify_pet(sample_image)
 
@@ -321,8 +327,8 @@ class TestEnrichmentClientRetryPet:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_pet(sample_image)
@@ -373,9 +379,9 @@ class TestEnrichmentClientRetryClothing:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.classify_clothing(sample_image)
 
@@ -408,9 +414,9 @@ class TestEnrichmentClientExponentialBackoff:
         client._http_client = mock_http_client
 
         with (
-            patch("asyncio.sleep", side_effect=capture_sleep),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("asyncio.sleep", side_effect=capture_sleep, autospec=True),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
@@ -429,7 +435,11 @@ class TestEnrichmentClientExponentialBackoff:
         """Test that backoff delay is capped at 30 seconds."""
         # Create client with many retries to test cap
         mock_settings.enrichment_max_retries = 10
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
 
         sample_image = Image.new("RGB", (100, 100), color="red")
@@ -444,9 +454,9 @@ class TestEnrichmentClientExponentialBackoff:
         client._http_client = mock_http_client
 
         with (
-            patch("asyncio.sleep", side_effect=capture_sleep),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("asyncio.sleep", side_effect=capture_sleep, autospec=True),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
@@ -497,10 +507,10 @@ class TestEnrichmentClientRetryMetrics:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
             patch(
-                "backend.services.enrichment_client.increment_enrichment_retry"
+                "backend.services.enrichment_client.increment_enrichment_retry", autospec=True
             ) as mock_retry_metric,
         ):
             await client.classify_vehicle(sample_image)
@@ -541,10 +551,10 @@ class TestEnrichmentClientRetryMetrics:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
             patch(
-                "backend.services.enrichment_client.increment_enrichment_retry"
+                "backend.services.enrichment_client.increment_enrichment_retry", autospec=True
             ) as mock_retry_metric,
         ):
             await client.classify_pet(sample_image)
@@ -601,9 +611,9 @@ class TestEnrichmentClientRetryServerErrors:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.classify_vehicle(sample_image)
 
@@ -653,9 +663,9 @@ class TestEnrichmentClientRetryServerErrors:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.classify_clothing(sample_image)
 
@@ -702,9 +712,9 @@ class TestEnrichmentClientRetryDepth:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.estimate_depth(sample_image)
 
@@ -724,8 +734,8 @@ class TestEnrichmentClientRetryDepth:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.estimate_depth(sample_image)
@@ -774,9 +784,9 @@ class TestEnrichmentClientRetryDistance:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.estimate_object_distance(sample_image, bbox)
 
@@ -799,8 +809,8 @@ class TestEnrichmentClientRetryDistance:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.estimate_object_distance(sample_image, bbox)
@@ -849,9 +859,9 @@ class TestEnrichmentClientRetryPose:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.analyze_pose(sample_image)
 
@@ -871,8 +881,8 @@ class TestEnrichmentClientRetryPose:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.analyze_pose(sample_image)
@@ -923,9 +933,9 @@ class TestEnrichmentClientRetryAction:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.observe_ai_request_duration"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.observe_ai_request_duration", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             result = await client.classify_action(frames)
 
@@ -948,8 +958,8 @@ class TestEnrichmentClientRetryAction:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.services.enrichment_client.record_pipeline_error"),
-            patch("backend.services.enrichment_client.increment_enrichment_retry"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
+            patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True),
         ):
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_action(frames)
@@ -979,7 +989,7 @@ class TestEnrichmentClientRetryAction:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("backend.services.enrichment_client.record_pipeline_error"),
+            patch("backend.services.enrichment_client.record_pipeline_error", autospec=True),
         ):
             result = await client.classify_action(frames)
 

@@ -67,7 +67,9 @@ def mock_get_settings_for_reid():
     )
     mock_settings.redis_url = "redis://localhost:6379/15"
 
-    with patch("backend.services.reid_service.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.reid_service.get_settings", return_value=mock_settings, autospec=True
+    ):
         yield mock_settings
 
 
@@ -497,7 +499,7 @@ class TestReIdentificationServiceInit:
         service = ReIdentificationService(clip_client=mock_client)
         assert service.clip_client is mock_client
 
-    @patch("backend.services.reid_service.get_clip_client")
+    @patch("backend.services.reid_service.get_clip_client", autospec=True)
     def test_clip_client_property_gets_global_client(self, mock_get_client: MagicMock) -> None:
         """Test clip_client property gets global client when none provided."""
         mock_global_client = MagicMock()
@@ -557,7 +559,7 @@ class TestGenerateEmbedding:
         service = ReIdentificationService(clip_client=mock_client)
         image = Image.new("RGB", (100, 100), color="green")
 
-        with patch("backend.services.reid_service.logger") as mock_logger:
+        with patch("backend.services.reid_service.logger", autospec=True) as mock_logger:
             embedding = await service.generate_embedding(image, model={"some": "model"})
 
             mock_logger.warning.assert_called()
@@ -2374,7 +2376,7 @@ class TestReIDRetryLogging:
         )
         image = Image.new("RGB", (100, 100), color="magenta")
 
-        with patch("backend.services.reid_service.logger") as mock_logger:
+        with patch("backend.services.reid_service.logger", autospec=True) as mock_logger:
             await service.generate_embedding(image)
 
             # Should have logged a warning for the retry
@@ -2615,7 +2617,7 @@ class TestStoreEmbeddingWithHybridStorage:
             detection_id="det_error",
         )
 
-        with patch("backend.services.reid_service.logger") as mock_logger:
+        with patch("backend.services.reid_service.logger", autospec=True) as mock_logger:
             result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=True)
 
             # Should return None due to error
@@ -3135,7 +3137,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.record_reid_attempt") as mock_record_attempt:
+        with patch(
+            "backend.services.reid_service.record_reid_attempt", autospec=True
+        ) as mock_record_attempt:
             await service.find_matching_entities(
                 mock_redis, embedding, entity_type="person", camera_id="test_cam"
             )
@@ -3155,7 +3159,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.record_reid_attempt") as mock_record_attempt:
+        with patch(
+            "backend.services.reid_service.record_reid_attempt", autospec=True
+        ) as mock_record_attempt:
             await service.find_matching_entities(mock_redis, embedding, entity_type="vehicle")
 
             mock_record_attempt.assert_called_once_with("vehicle", "unknown")
@@ -3171,7 +3177,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.observe_reid_match_duration") as mock_observe:
+        with patch(
+            "backend.services.reid_service.observe_reid_match_duration", autospec=True
+        ) as mock_observe:
             await service.find_matching_entities(
                 mock_redis, embedding, entity_type="person", camera_id="cam1"
             )
@@ -3205,7 +3213,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.record_reid_match") as mock_record_match:
+        with patch(
+            "backend.services.reid_service.record_reid_match", autospec=True
+        ) as mock_record_match:
             matches = await service.find_matching_entities(
                 mock_redis,
                 query_embedding,
@@ -3244,7 +3254,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff:
+        with patch(
+            "backend.services.reid_service.record_cross_camera_handoff", autospec=True
+        ) as mock_handoff:
             matches = await service.find_matching_entities(
                 mock_redis,
                 query_embedding,
@@ -3282,7 +3294,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff:
+        with patch(
+            "backend.services.reid_service.record_cross_camera_handoff", autospec=True
+        ) as mock_handoff:
             await service.find_matching_entities(
                 mock_redis,
                 query_embedding,
@@ -3316,7 +3330,9 @@ class TestReIDServiceMetrics:
         service = ReIdentificationService()
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
-        with patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff:
+        with patch(
+            "backend.services.reid_service.record_cross_camera_handoff", autospec=True
+        ) as mock_handoff:
             # No camera_id provided - should use "unknown"
             await service.find_matching_entities(
                 mock_redis,
@@ -3351,10 +3367,16 @@ class TestReIDServiceMetrics:
         query_embedding = [0.5] * EMBEDDING_DIMENSION
 
         with (
-            patch("backend.services.reid_service.record_reid_attempt") as mock_attempt,
-            patch("backend.services.reid_service.record_reid_match") as mock_match,
-            patch("backend.services.reid_service.observe_reid_match_duration") as mock_duration,
-            patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff,
+            patch(
+                "backend.services.reid_service.record_reid_attempt", autospec=True
+            ) as mock_attempt,
+            patch("backend.services.reid_service.record_reid_match", autospec=True) as mock_match,
+            patch(
+                "backend.services.reid_service.observe_reid_match_duration", autospec=True
+            ) as mock_duration,
+            patch(
+                "backend.services.reid_service.record_cross_camera_handoff", autospec=True
+            ) as mock_handoff,
         ):
             await service.find_matching_entities(
                 mock_redis,

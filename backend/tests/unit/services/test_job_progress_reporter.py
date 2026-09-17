@@ -153,6 +153,7 @@ class TestJobProgressReporterInitialization:
         with patch(
             "backend.services.websocket_emitter.get_websocket_emitter",
             return_value=mock_emitter,
+            autospec=True,
         ):
             reporter = await JobProgressReporter.create(
                 job_id=job_id,
@@ -177,6 +178,7 @@ class TestJobProgressReporterInitialization:
         with patch(
             "backend.services.websocket_emitter.get_websocket_emitter",
             return_value=mock_emitter,
+            autospec=True,
         ):
             reporter = await create_job_progress_reporter(
                 job_id=job_id,
@@ -780,6 +782,7 @@ class TestConcurrency:
         with patch(
             "backend.services.websocket_emitter.get_websocket_emitter",
             return_value=mock_emitter,
+            autospec=True,
         ):
             await reporter.start()
 

@@ -27,7 +27,7 @@ class TestTrendServiceTimeBucketing:
         mock_db = AsyncMock()
 
         # Mock the repository to return events
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             # Create mock events spanning 1 hour
@@ -54,7 +54,7 @@ class TestTrendServiceTimeBucketing:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             # Create mock events spanning 24 hours
@@ -85,7 +85,7 @@ class TestTrendServiceBaselineCalculation:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             # Create events with known risk scores
@@ -168,7 +168,7 @@ class TestTrendServiceHighRiskCount:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             now = datetime.now(UTC)
@@ -199,7 +199,7 @@ class TestTrendServiceEdgeCases:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_in_date_range = AsyncMock(return_value=[])
 
@@ -219,7 +219,7 @@ class TestTrendServiceEdgeCases:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             now = datetime.now(UTC)
@@ -244,7 +244,7 @@ class TestTrendServiceEdgeCases:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             now = datetime.now(UTC)
@@ -270,7 +270,7 @@ class TestTrendServiceEdgeCases:
 
         mock_db = AsyncMock()
 
-        with patch("backend.services.trend_service.EventRepository") as MockRepo:
+        with patch("backend.services.trend_service.EventRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             # Only current window events, no historical baseline data

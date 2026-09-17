@@ -169,7 +169,7 @@ def mock_no_gpu_access():
         del sys.modules["pynvml"]
 
     # Also mock shutil.which to return None for nvidia-smi
-    with patch("shutil.which", return_value=None):
+    with patch("shutil.which", return_value=None, autospec=True):
         yield
 
     # Restore
@@ -207,7 +207,7 @@ def mock_database_session():
     """Mock database session."""
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock(spec=AsyncSession)
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -337,7 +337,9 @@ def test_get_current_stats_handles_pynvml_errors(mock_pynvml):
     monitor = GPUMonitor()
 
     # Simulate pynvml error
-    with patch.object(monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error")):
+    with patch.object(
+        monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error"), autospec=True
+    ):
         stats = monitor.get_current_stats()
 
         # Should fall back to mock data with simulated values
@@ -388,7 +390,7 @@ def test_nvidia_smi_stats_parsing():
     mock_result.returncode = 0
     mock_result.stdout = "39, 29.61, 35, 175, 24576, NVIDIA RTX A5500"
 
-    with patch("subprocess.run", return_value=mock_result):
+    with patch("subprocess.run", return_value=mock_result, autospec=True):
         stats = monitor._get_gpu_stats_nvidia_smi()
 
         assert stats["temperature"] == 39.0
@@ -411,7 +413,7 @@ def test_nvidia_smi_handles_na_values():
     mock_result.returncode = 0
     mock_result.stdout = "[N/A], [N/A], 35, 175, 24576, NVIDIA RTX A5500"
 
-    with patch("subprocess.run", return_value=mock_result):
+    with patch("subprocess.run", return_value=mock_result, autospec=True):
         stats = monitor._get_gpu_stats_nvidia_smi()
 
         assert stats["temperature"] is None
@@ -430,7 +432,9 @@ def test_nvidia_smi_timeout_handling():
     monitor._gpu_name = "Test GPU"
 
     with (
-        patch("subprocess.run", side_effect=subprocess.TimeoutExpired("nvidia-smi", 5)),
+        patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("nvidia-smi", 5), autospec=True
+        ),
         pytest.raises(RuntimeError, match="nvidia-smi timed out"),
     ):
         monitor._get_gpu_stats_nvidia_smi()
@@ -794,7 +798,7 @@ async def test_get_stats_from_db(mock_pynvml):
         )
     ]
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -816,7 +820,7 @@ async def test_get_stats_from_db_handles_error(mock_pynvml):
     """Test that get_stats_from_db handles database errors gracefully."""
     monitor = GPUMonitor()
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.side_effect = Exception("Database error")
         mock_get_session.return_value = mock_session
@@ -1130,7 +1134,7 @@ async def test_get_gpu_stats_from_ai_containers_yolo26_only(mock_pynvml):
 
     yolo26_response = {"vram_used_gb": 3.5, "device": "cuda:0"}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1170,7 +1174,7 @@ async def test_get_gpu_stats_from_ai_containers_with_gpu_metrics(mock_pynvml):
         "power_watts": 150.0,
     }
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1205,7 +1209,7 @@ async def test_get_gpu_stats_from_ai_containers_partial_metrics(mock_pynvml):
         "power_watts": 100.0,
     }
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1228,7 +1232,7 @@ async def test_get_gpu_stats_from_ai_containers_all_fail(mock_pynvml):
     """Test getting GPU stats when all AI containers fail."""
     monitor = GPUMonitor()
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1248,7 +1252,7 @@ async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
     """
     monitor = GPUMonitor()
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1270,7 +1274,7 @@ async def test_get_gpu_stats_from_ai_containers_exception(mock_pynvml):
     """Test getting GPU stats when AI container query raises exception."""
     monitor = GPUMonitor()
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         # Make the entire client context manager fail
         mock_client_class.return_value.__aenter__.side_effect = Exception("Client error")
 
@@ -1309,7 +1313,9 @@ async def test_get_current_stats_async_ai_container_fallback():
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=ai_stats):
+    with patch.object(
+        monitor, "_get_gpu_stats_from_ai_containers", return_value=ai_stats, autospec=True
+    ):
         stats = await monitor.get_current_stats_async()
 
         assert stats["gpu_name"] == "NVIDIA GPU (via AI Containers)"
@@ -1326,7 +1332,9 @@ async def test_get_current_stats_async_mock_fallback():
     monitor = GPUMonitor()
 
     # Mock AI containers returning None
-    with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=None):
+    with patch.object(
+        monitor, "_get_gpu_stats_from_ai_containers", return_value=None, autospec=True
+    ):
         stats = await monitor.get_current_stats_async()
 
         # Mock provides simulated values now
@@ -1340,7 +1348,9 @@ async def test_get_current_stats_async_exception_fallback(mock_pynvml):
     monitor = GPUMonitor()
 
     # Make _get_gpu_stats_real raise exception
-    with patch.object(monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error")):
+    with patch.object(
+        monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error"), autospec=True
+    ):
         stats = await monitor.get_current_stats_async()
 
         # Mock provides simulated values now
@@ -1364,7 +1374,9 @@ async def test_poll_loop_handles_exception_in_iteration(mock_pynvml, mock_databa
             raise Exception("Simulated poll error")
         return monitor._get_gpu_stats_mock()
 
-    with patch.object(monitor, "get_current_stats_async", side_effect=get_stats_with_error):
+    with patch.object(
+        monitor, "get_current_stats_async", side_effect=get_stats_with_error, autospec=True
+    ):
         await monitor.start()
         await asyncio.sleep(0.15)  # Let it run for a few iterations
         await monitor.stop()
@@ -1383,7 +1395,11 @@ def test_get_gpu_stats_real_reraises_exception(mock_pynvml):
     # Make the import of pynvml inside _get_gpu_stats_real fail
     # This simulates an unexpected error inside the function
     with (
-        patch("builtins.__import__", side_effect=RuntimeError("Unexpected import error")),
+        patch(
+            "builtins.__import__",
+            side_effect=RuntimeError("Unexpected import error"),
+            autospec=True,
+        ),
         pytest.raises(RuntimeError, match="Unexpected import error"),
     ):
         monitor._get_gpu_stats_real()
@@ -1407,7 +1423,7 @@ async def test_calculate_inference_fps_with_detections(mock_pynvml):
     monitor = GPUMonitor()
 
     # Mock the database query to return a detection count
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -1431,7 +1447,7 @@ async def test_calculate_inference_fps_no_detections(mock_pynvml):
     """Test inference FPS calculation when there are no recent detections."""
     monitor = GPUMonitor()
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -1453,7 +1469,7 @@ async def test_calculate_inference_fps_null_result(mock_pynvml):
     """Test inference FPS calculation when query returns None."""
     monitor = GPUMonitor()
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -1475,7 +1491,7 @@ async def test_calculate_inference_fps_database_error(mock_pynvml):
     """Test inference FPS calculation handles database errors gracefully."""
     monitor = GPUMonitor()
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -1498,7 +1514,7 @@ async def test_store_stats_includes_inference_fps(mock_pynvml, mock_database_ses
     stats = monitor.get_current_stats()
 
     # Mock the inference FPS calculation
-    with patch.object(monitor, "_calculate_inference_fps", return_value=5.5):
+    with patch.object(monitor, "_calculate_inference_fps", return_value=5.5, autospec=True):
         await monitor._store_stats(stats)
 
         # Verify that the GPUStats model was created with inference_fps
@@ -1513,7 +1529,9 @@ async def test_poll_loop_calculates_inference_fps(mock_pynvml, mock_database_ses
     """Test that poll loop calculates inference FPS on each iteration."""
     monitor = GPUMonitor(poll_interval=0.05)
 
-    with patch.object(monitor, "_calculate_inference_fps", return_value=3.0) as mock_calc:
+    with patch.object(
+        monitor, "_calculate_inference_fps", return_value=3.0, autospec=True
+    ) as mock_calc:
         await monitor.start()
         await asyncio.sleep(0.12)  # Let it run for ~2 polls
         await monitor.stop()
@@ -1556,7 +1574,7 @@ async def test_ai_container_query_uses_configured_timeout(mock_pynvml):
     """Test that AI container HTTP client uses the configured timeout."""
     monitor = GPUMonitor(http_timeout=7.5)
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1580,7 +1598,7 @@ async def test_ai_container_query_timeout_handling(mock_pynvml):
     """Test that AI container query handles HTTP timeout gracefully."""
     monitor = GPUMonitor(http_timeout=0.1)  # Very short timeout
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
@@ -1594,7 +1612,7 @@ async def test_ai_container_query_timeout_handling(mock_pynvml):
         assert stats is None
 
 
-@patch("backend.services.gpu_monitor.get_settings")
+@patch("backend.services.gpu_monitor.get_settings", autospec=True)
 def test_gpu_monitor_http_timeout_from_settings(mock_get_settings, mock_pynvml):
     """Test that GPUMonitor reads HTTP timeout from settings when not provided."""
     mock_settings = MagicMock()
@@ -1654,7 +1672,7 @@ async def test_store_stats_error_logging_includes_context(mock_pynvml, caplog):
     stats = monitor.get_current_stats()
 
     with (
-        patch("backend.services.gpu_monitor.get_session") as mock_get_session,
+        patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session,
         caplog.at_level(logging.ERROR),
     ):
         mock_session = AsyncMock()
@@ -1707,7 +1725,9 @@ async def test_poll_loop_error_logging_includes_context(mock_pynvml, mock_databa
         raise Exception("Simulated poll error")
 
     with (
-        patch.object(monitor, "get_current_stats_async", side_effect=get_stats_error),
+        patch.object(
+            monitor, "get_current_stats_async", side_effect=get_stats_error, autospec=True
+        ),
         caplog.at_level(logging.ERROR),
     ):
         await monitor.start()
@@ -1789,7 +1809,7 @@ async def test_check_memory_pressure_normal(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats, autospec=True):
         level = await monitor.check_memory_pressure()
 
     assert level == MemoryPressureLevel.NORMAL
@@ -1818,7 +1838,7 @@ async def test_check_memory_pressure_warning(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats, autospec=True):
         level = await monitor.check_memory_pressure()
 
     assert level == MemoryPressureLevel.WARNING
@@ -1847,7 +1867,7 @@ async def test_check_memory_pressure_critical(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats, autospec=True):
         level = await monitor.check_memory_pressure()
 
     assert level == MemoryPressureLevel.CRITICAL
@@ -1876,7 +1896,7 @@ async def test_check_memory_pressure_missing_memory_stats(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats, autospec=True):
         level = await monitor.check_memory_pressure()
 
     assert level == MemoryPressureLevel.NORMAL
@@ -1905,7 +1925,7 @@ async def test_check_memory_pressure_zero_total_memory(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats):
+    with patch.object(monitor, "get_current_stats_async", return_value=mock_stats, autospec=True):
         level = await monitor.check_memory_pressure()
 
     assert level == MemoryPressureLevel.NORMAL
@@ -1923,7 +1943,9 @@ async def test_check_memory_pressure_error_returns_normal(mock_pynvml):
 
     monitor = GPUMonitor()
 
-    with patch.object(monitor, "get_current_stats_async", side_effect=Exception("GPU stats error")):
+    with patch.object(
+        monitor, "get_current_stats_async", side_effect=Exception("GPU stats error"), autospec=True
+    ):
         level = await monitor.check_memory_pressure()
 
     assert level == MemoryPressureLevel.NORMAL
@@ -1969,11 +1991,15 @@ async def test_memory_pressure_callback_on_level_change(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_normal_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_normal_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     # Now trigger warning
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_warning_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     assert callback_invoked is True
@@ -2009,7 +2035,9 @@ async def test_memory_pressure_callback_async_support(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_critical_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_critical_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     assert callback_invoked is True
@@ -2043,7 +2071,9 @@ async def test_memory_pressure_callback_error_handling(mock_pynvml, caplog):
     }
 
     with (
-        patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats),
+        patch.object(
+            monitor, "get_current_stats_async", return_value=mock_warning_stats, autospec=True
+        ),
         caplog.at_level(logging.ERROR),
     ):
         level = await monitor.check_memory_pressure()
@@ -2078,7 +2108,9 @@ async def test_memory_pressure_metrics(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_warning_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     metrics = monitor.get_memory_pressure_metrics()
@@ -2094,7 +2126,9 @@ async def test_memory_pressure_metrics(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_critical_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_critical_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     metrics = monitor.get_memory_pressure_metrics()
@@ -2130,14 +2164,18 @@ async def test_memory_pressure_no_callback_on_same_level(mock_pynvml):
         "recorded_at": datetime.now(UTC),
     }
 
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_warning_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     # Should have been called once (transition from NORMAL to WARNING)
     assert callback_count == 1
 
     # Call again with same WARNING level
-    with patch.object(monitor, "get_current_stats_async", return_value=mock_warning_stats):
+    with patch.object(
+        monitor, "get_current_stats_async", return_value=mock_warning_stats, autospec=True
+    ):
         await monitor.check_memory_pressure()
 
     # Should still be 1 (no level change)
@@ -2186,7 +2224,7 @@ async def test_get_stats_from_db_with_time_filter(mock_pynvml):
         ),
     ]
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -2231,7 +2269,7 @@ async def test_get_stats_from_db_with_limit(mock_pynvml):
         for i in range(5)
     ]
 
-    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+    with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
@@ -2302,7 +2340,7 @@ def test_nvidia_smi_subprocess_error():
     )
 
     with (
-        patch("subprocess.run", return_value=mock_result),
+        patch("subprocess.run", return_value=mock_result, autospec=True),
         pytest.raises(RuntimeError, match="nvidia-smi returned error"),
     ):
         monitor._get_gpu_stats_nvidia_smi()
@@ -2325,7 +2363,7 @@ def test_nvidia_smi_unexpected_output_format():
     mock_result.stdout = "39, 29.61"  # Only 2 fields instead of expected 5+
 
     with (
-        patch("subprocess.run", return_value=mock_result),
+        patch("subprocess.run", return_value=mock_result, autospec=True),
         pytest.raises(RuntimeError, match="Unexpected nvidia-smi output format"),
     ):
         monitor._get_gpu_stats_nvidia_smi()
@@ -2379,6 +2417,7 @@ async def test_nvidia_smi_async_timeout():
         patch(
             "backend.core.async_utils.async_subprocess_run",
             side_effect=subprocess.TimeoutExpired("nvidia-smi", 5.0),
+            autospec=True,
         ),
         pytest.raises(RuntimeError, match="nvidia-smi timed out"),
     ):
@@ -2398,7 +2437,7 @@ def test_nvidia_smi_generic_exception():
     monitor._gpu_name = "Test GPU"
 
     with (
-        patch("subprocess.run", side_effect=OSError("Permission denied")),
+        patch("subprocess.run", side_effect=OSError("Permission denied"), autospec=True),
         pytest.raises(RuntimeError, match="Failed to get GPU stats via nvidia-smi"),
     ):
         monitor._get_gpu_stats_nvidia_smi()
@@ -2421,6 +2460,7 @@ async def test_nvidia_smi_async_generic_exception():
         patch(
             "backend.core.async_utils.async_subprocess_run",
             side_effect=OSError("Permission denied"),
+            autospec=True,
         ),
         pytest.raises(RuntimeError, match="Failed to get GPU stats via nvidia-smi"),
     ):
@@ -2440,8 +2480,8 @@ def test_check_nvidia_smi_found_and_working(mock_pynvml_not_available):
     mock_result.stderr = ""
 
     with (
-        patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-        patch("subprocess.run", return_value=mock_result),
+        patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+        patch("subprocess.run", return_value=mock_result, autospec=True),
     ):
         monitor = GPUMonitor()
 
@@ -2466,7 +2506,7 @@ def test_nvidia_smi_parsing_all_na_values():
     mock_result.returncode = 0
     mock_result.stdout = "[N/A], [N/A], [N/A], [N/A], [N/A], Test GPU"
 
-    with patch("subprocess.run", return_value=mock_result):
+    with patch("subprocess.run", return_value=mock_result, autospec=True):
         stats = monitor._get_gpu_stats_nvidia_smi()
 
         assert stats["temperature"] is None
@@ -2522,8 +2562,8 @@ def test_nvidia_smi_check_subprocess_error(mock_pynvml_not_available):
     mock_result.stderr = "Error message"
 
     with (
-        patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-        patch("subprocess.run", return_value=mock_result),
+        patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+        patch("subprocess.run", return_value=mock_result, autospec=True),
     ):
         monitor = GPUMonitor()
 
@@ -2539,7 +2579,7 @@ async def test_get_current_stats_async_with_nvidia_smi_error(mock_pynvml_not_ava
     When: get_current_stats_async() is called
     Then: Falls back to AI containers or mock data
     """
-    with patch("shutil.which", return_value="/usr/bin/nvidia-smi"):
+    with patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True):
         monitor = GPUMonitor()
         monitor._nvidia_smi_available = True
 
@@ -2548,9 +2588,12 @@ async def test_get_current_stats_async_with_nvidia_smi_error(mock_pynvml_not_ava
             monitor,
             "_get_gpu_stats_nvidia_smi_async",
             side_effect=RuntimeError("nvidia-smi failed"),
+            autospec=True,
         ):
             # Mock AI containers returning None
-            with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=None):
+            with patch.object(
+                monitor, "_get_gpu_stats_from_ai_containers", return_value=None, autospec=True
+            ):
                 stats = await monitor.get_current_stats_async()
 
                 # Should fall back to mock
@@ -2564,13 +2607,16 @@ def test_get_current_stats_with_nvidia_smi_error(mock_pynvml_not_available):
     When: get_current_stats() is called
     Then: Falls back to mock data
     """
-    with patch("shutil.which", return_value="/usr/bin/nvidia-smi"):
+    with patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True):
         monitor = GPUMonitor()
         monitor._nvidia_smi_available = True
 
         # Make nvidia-smi fail
         with patch.object(
-            monitor, "_get_gpu_stats_nvidia_smi", side_effect=RuntimeError("nvidia-smi failed")
+            monitor,
+            "_get_gpu_stats_nvidia_smi",
+            side_effect=RuntimeError("nvidia-smi failed"),
+            autospec=True,
         ):
             stats = monitor.get_current_stats()
 
@@ -2590,7 +2636,7 @@ async def test_get_gpu_stats_from_ai_containers_with_gpu_utilization_only():
 
     yolo26_response = {"gpu_utilization": 75.0}
 
-    with patch("httpx.AsyncClient") as mock_client_class:
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 

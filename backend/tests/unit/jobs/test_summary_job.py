@@ -97,7 +97,11 @@ class TestSummaryJobInitialization:
         """Test job initializes with default values."""
         from backend.jobs.summary_job import DEFAULT_TIMEOUT_SECONDS, SummaryJob
 
-        with patch("backend.jobs.summary_job.get_summary_generator", return_value=mock_generator):
+        with patch(
+            "backend.jobs.summary_job.get_summary_generator",
+            return_value=mock_generator,
+            autospec=True,
+        ):
             job = SummaryJob()
 
         assert job._timeout == DEFAULT_TIMEOUT_SECONDS
@@ -208,7 +212,7 @@ class TestTimeoutHandling:
 
         job = SummaryJob(generator=mock_generator, timeout=0.1)
 
-        with patch("backend.jobs.summary_job.logger") as mock_logger:
+        with patch("backend.jobs.summary_job.logger", autospec=True) as mock_logger:
             with pytest.raises(TimeoutError):
                 await job.run()
 
@@ -229,7 +233,7 @@ class TestCacheInvalidation:
         """Test that cache is invalidated after summary generation."""
         from backend.jobs.summary_job import SummaryJob
 
-        with patch("backend.jobs.summary_job.CacheService") as MockCacheService:
+        with patch("backend.jobs.summary_job.CacheService", autospec=True) as MockCacheService:
             mock_cache = MagicMock()
             mock_cache.invalidate = AsyncMock(return_value=True)
             MockCacheService.return_value = mock_cache
@@ -249,7 +253,7 @@ class TestCacheInvalidation:
         """Test that cache invalidation failure doesn't stop the job."""
         from backend.jobs.summary_job import SummaryJob
 
-        with patch("backend.jobs.summary_job.CacheService") as MockCacheService:
+        with patch("backend.jobs.summary_job.CacheService", autospec=True) as MockCacheService:
             mock_cache = MagicMock()
             mock_cache.invalidate = AsyncMock(side_effect=Exception("Redis error"))
             MockCacheService.return_value = mock_cache
@@ -376,7 +380,7 @@ class TestErrorHandling:
 
         job = SummaryJob(generator=mock_generator)
 
-        with patch("backend.jobs.summary_job.logger") as mock_logger:
+        with patch("backend.jobs.summary_job.logger", autospec=True) as mock_logger:
             with pytest.raises(Exception):
                 await job.run()
 
@@ -470,7 +474,11 @@ class TestSummaryJobScheduler:
         """Test run_once method for manual triggering."""
         from backend.jobs.summary_job import SummaryJobScheduler
 
-        with patch("backend.jobs.summary_job.get_summary_generator", return_value=mock_generator):
+        with patch(
+            "backend.jobs.summary_job.get_summary_generator",
+            return_value=mock_generator,
+            autospec=True,
+        ):
             scheduler = SummaryJobScheduler()
             result = await scheduler.run_once()
 

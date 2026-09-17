@@ -278,6 +278,7 @@ class TestVisionExtractorIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=mock_vision_extractor,
+            autospec=True,
         ):
             kwargs = minimal_enrichment_kwargs()
             kwargs["vision_extraction_enabled"] = True
@@ -358,6 +359,7 @@ class TestVisionExtractorIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=failing_extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -633,6 +635,7 @@ class TestFullPipelineIntegration:
             with patch(
                 "backend.services.enrichment_pipeline.get_vision_extractor",
                 return_value=mock_vision_extractor,
+                autospec=True,
             ):
                 pipeline = EnrichmentPipeline(
                     model_manager=mock_model_manager,
@@ -687,6 +690,7 @@ class TestFullPipelineIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=mock_vision_extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -766,6 +770,7 @@ class TestFullPipelineIntegration:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=mock_vision_extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -995,6 +1000,7 @@ class TestPipelineEdgeCases:
         with patch(
             "backend.services.enrichment_pipeline.get_vision_extractor",
             return_value=mock_vision_extractor,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -1036,10 +1042,12 @@ class TestPipelineEdgeCases:
             patch(
                 "backend.services.enrichment_pipeline.get_vision_extractor",
                 return_value=failing_vision,
+                autospec=True,
             ),
             patch(
                 "backend.services.enrichment_pipeline.get_scene_change_detector",
                 return_value=failing_scene,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(

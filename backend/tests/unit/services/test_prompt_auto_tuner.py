@@ -161,7 +161,9 @@ class TestGetTuningContext:
         """Test returns empty string when no recommendations are available."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=[])
             mock_get_audit.return_value = mock_service
@@ -179,7 +181,9 @@ class TestGetTuningContext:
         """Test includes AUTO-TUNING header when recommendations exist."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=sample_recommendations)
             mock_get_audit.return_value = mock_service
@@ -199,7 +203,9 @@ class TestGetTuningContext:
         """Test groups missing_context recommendations correctly."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=sample_recommendations)
             mock_get_audit.return_value = mock_service
@@ -219,7 +225,9 @@ class TestGetTuningContext:
         """Test limits missing_context recommendations to top 3."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=sample_recommendations)
             mock_get_audit.return_value = mock_service
@@ -242,7 +250,9 @@ class TestGetTuningContext:
         """Test groups format_suggestions correctly."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=sample_recommendations)
             mock_get_audit.return_value = mock_service
@@ -263,7 +273,9 @@ class TestGetTuningContext:
         """Test limits format_suggestions to top 2."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=sample_recommendations)
             mock_get_audit.return_value = mock_service
@@ -285,7 +297,9 @@ class TestGetTuningContext:
         """Test uses default days=14 and min_priority=MEDIUM for filtering."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=[])
             mock_get_audit.return_value = mock_service
@@ -306,7 +320,9 @@ class TestGetTuningContext:
         """Test allows custom days parameter."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=[])
             mock_get_audit.return_value = mock_service
@@ -331,7 +347,9 @@ class TestGetTuningContext:
             r for r in sample_recommendations if r["priority"] in ("high", "medium")
         ]
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=filtered_recommendations)
             mock_get_audit.return_value = mock_service
@@ -360,7 +378,9 @@ class TestGetTuningContext:
             },
         ]
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=recommendations)
             mock_get_audit.return_value = mock_service
@@ -391,7 +411,9 @@ class TestGetTuningContext:
             },
         ]
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=recommendations)
             mock_get_audit.return_value = mock_service
@@ -413,7 +435,9 @@ class TestGetTuningContext:
         """Test handles errors from audit service gracefully."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(side_effect=Exception("Database error"))
             mock_get_audit.return_value = mock_service
@@ -486,7 +510,9 @@ class TestPriorityFiltering:
         """Test filtering to include only high priority recommendations."""
         from backend.services.prompt_auto_tuner import PromptAutoTuner
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             # Return all recommendations - tuner should filter by priority internally
             mock_service.get_recommendations = AsyncMock(return_value=sample_recommendations)
@@ -539,7 +565,9 @@ class TestRecommendationIntegration:
             },
         ]
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=recommendations)
             mock_get_audit.return_value = mock_service
@@ -569,7 +597,9 @@ class TestRecommendationIntegration:
             },
         ]
 
-        with patch("backend.services.prompt_auto_tuner.get_audit_service") as mock_get_audit:
+        with patch(
+            "backend.services.prompt_auto_tuner.get_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=recommendations)
             mock_get_audit.return_value = mock_service

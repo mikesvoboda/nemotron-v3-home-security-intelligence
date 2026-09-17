@@ -374,7 +374,9 @@ class TestEvaluateEvent:
             consistency_score=3.5,
         )
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.run_full_evaluation = AsyncMock(return_value=evaluated_audit)
             mock_get_service.return_value = mock_service
@@ -402,7 +404,9 @@ class TestEvaluateEvent:
 
         mock_db_session.execute.side_effect = [mock_event_result, mock_audit_result]
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.run_full_evaluation = AsyncMock()
             mock_get_service.return_value = mock_service
@@ -429,7 +433,9 @@ class TestEvaluateEvent:
 
         mock_db_session.execute.side_effect = [mock_event_result, mock_audit_result]
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.run_full_evaluation = AsyncMock(return_value=sample_audit)
             mock_get_service.return_value = mock_service
@@ -513,7 +519,9 @@ class TestGetAuditStats:
             ],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
             mock_get_service.return_value = mock_service
@@ -541,7 +549,9 @@ class TestGetAuditStats:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
             mock_get_service.return_value = mock_service
@@ -566,7 +576,9 @@ class TestGetAuditStats:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
             mock_get_service.return_value = mock_service
@@ -600,7 +612,9 @@ class TestGetAuditStats:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
             mock_get_service.return_value = mock_service
@@ -644,7 +658,9 @@ class TestGetModelLeaderboard:
             },
         ]
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_leaderboard = AsyncMock(return_value=mock_entries)
             mock_get_service.return_value = mock_service
@@ -662,7 +678,9 @@ class TestGetModelLeaderboard:
         """Test leaderboard with custom days parameter."""
         mock_entries = []
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_leaderboard = AsyncMock(return_value=mock_entries)
             mock_get_service.return_value = mock_service
@@ -678,7 +696,9 @@ class TestGetModelLeaderboard:
 
     def test_get_leaderboard_empty(self, client: TestClient) -> None:
         """Test leaderboard with no data."""
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_leaderboard = AsyncMock(return_value=[])
             mock_get_service.return_value = mock_service
@@ -742,7 +762,9 @@ class TestGetRecommendations:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=mock_recommendations)
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
@@ -770,7 +792,9 @@ class TestGetRecommendations:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=[])
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
@@ -796,7 +820,9 @@ class TestGetRecommendations:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_recommendations = AsyncMock(return_value=[])
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
@@ -863,7 +889,9 @@ class TestTriggerBatchAudit:
 
         mock_db_session.execute.side_effect = [mock_result, audit_result]
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.run_full_evaluation = AsyncMock(return_value=audit)
             mock_get_service.return_value = mock_service
@@ -918,7 +946,9 @@ class TestTriggerBatchAudit:
 
         mock_db_session.execute.side_effect = [mock_result, audit_result]
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.create_partial_audit = MagicMock(return_value=new_audit)
             mock_service.run_full_evaluation = AsyncMock(return_value=new_audit)
@@ -944,7 +974,9 @@ class TestTriggerBatchAudit:
         mock_result.scalars.return_value.all.return_value = []
         mock_db_session.execute.return_value = mock_result
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_get_service.return_value = mock_service
 
@@ -968,7 +1000,9 @@ class TestTriggerBatchAudit:
         mock_result.scalars.return_value.all.return_value = []
         mock_db_session.execute.return_value = mock_result
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_get_service.return_value = mock_service
 
@@ -1023,7 +1057,7 @@ class TestTriggerBatchAudit:
         mock_result.scalars.return_value.all.return_value = []
         mock_db_session.execute.return_value = mock_result
 
-        with patch("backend.api.routes.ai_audit.get_audit_service"):
+        with patch("backend.api.routes.ai_audit.get_audit_service", autospec=True):
             response = client.post(
                 "/api/ai-audit/batch",
                 json={"limit": 10},
@@ -1122,7 +1156,9 @@ class TestEdgeCases:
             "audits_by_day": [],
         }
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_stats = AsyncMock(return_value=mock_stats)
             mock_get_service.return_value = mock_service
@@ -1146,7 +1182,9 @@ class TestEdgeCases:
             },
         ]
 
-        with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.ai_audit.get_audit_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_leaderboard = AsyncMock(return_value=mock_entries)
             mock_get_service.return_value = mock_service
@@ -1194,7 +1232,9 @@ class TestParametrized:
                 "model_contribution_rates": {},
                 "audits_by_day": [],
             }
-            with patch("backend.api.routes.ai_audit.get_audit_service") as mock_get_service:
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", autospec=True
+            ) as mock_get_service:
                 mock_service = MagicMock()
                 mock_service.get_stats = AsyncMock(return_value=mock_stats)
                 mock_get_service.return_value = mock_service
@@ -1229,7 +1269,7 @@ class TestParametrized:
             mock_result.scalars.return_value.all.return_value = []
             mock_db_session.execute.return_value = mock_result
 
-            with patch("backend.api.routes.ai_audit.get_audit_service"):
+            with patch("backend.api.routes.ai_audit.get_audit_service", autospec=True):
                 response = client.post(
                     "/api/ai-audit/batch",
                     json={"limit": limit},
@@ -1266,7 +1306,7 @@ class TestParametrized:
             mock_result.scalars.return_value.all.return_value = []
             mock_db_session.execute.return_value = mock_result
 
-            with patch("backend.api.routes.ai_audit.get_audit_service"):
+            with patch("backend.api.routes.ai_audit.get_audit_service", autospec=True):
                 payload = {"limit": 10}
                 if min_risk_score is not None:
                     payload["min_risk_score"] = min_risk_score

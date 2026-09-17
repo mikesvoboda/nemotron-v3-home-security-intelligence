@@ -55,7 +55,9 @@ class TestResyncHandler:
         connection_id = "test-conn-1"
 
         with patch(
-            "backend.api.routes.websocket.get_message_buffer", return_value=mock_message_buffer
+            "backend.api.routes.websocket.get_message_buffer",
+            return_value=mock_message_buffer,
+            autospec=True,
         ):
             await handle_resync_with_replay(mock_websocket, message, connection_id)
 
@@ -95,7 +97,9 @@ class TestResyncHandler:
         message = WebSocketMessage(type="resync", data={"channel": "events", "last_sequence": 5})
 
         with patch(
-            "backend.api.routes.websocket.get_message_buffer", return_value=mock_message_buffer
+            "backend.api.routes.websocket.get_message_buffer",
+            return_value=mock_message_buffer,
+            autospec=True,
         ):
             await handle_resync_with_replay(mock_websocket, message, "test-conn-1")
 
@@ -126,7 +130,9 @@ class TestResyncHandler:
         message = WebSocketMessage(type="resync", data={"channel": "events", "last_sequence": 100})
 
         with patch(
-            "backend.api.routes.websocket.get_message_buffer", return_value=mock_message_buffer
+            "backend.api.routes.websocket.get_message_buffer",
+            return_value=mock_message_buffer,
+            autospec=True,
         ):
             await handle_resync_with_replay(mock_websocket, message, "test-conn-1")
 
@@ -157,7 +163,9 @@ class TestResyncHandler:
         message = WebSocketMessage(type="resync", data={"channel": "events", "last_sequence": 10})
 
         with patch(
-            "backend.api.routes.websocket.get_message_buffer", return_value=mock_message_buffer
+            "backend.api.routes.websocket.get_message_buffer",
+            return_value=mock_message_buffer,
+            autospec=True,
         ):
             await handle_resync_with_replay(mock_websocket, message, "test-conn-1")
 
@@ -187,7 +195,9 @@ class TestResyncHandler:
         message = WebSocketMessage(type="resync", data={"channel": "events"})
 
         with patch(
-            "backend.api.routes.websocket.get_message_buffer", return_value=mock_message_buffer
+            "backend.api.routes.websocket.get_message_buffer",
+            return_value=mock_message_buffer,
+            autospec=True,
         ):
             await handle_resync_with_replay(mock_websocket, message, "test-conn-1")
 

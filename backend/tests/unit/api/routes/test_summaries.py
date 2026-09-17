@@ -104,8 +104,8 @@ class TestGetLatestSummaries:
 
         # Mock database response
         with (
-            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
-            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+            patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository", autospec=True) as MockEventRepo,
         ):
             mock_repo = MockRepo.return_value
 
@@ -140,7 +140,9 @@ class TestGetLatestSummaries:
             mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -178,7 +180,7 @@ class TestGetLatestSummaries:
         mock_cache.get.return_value = None
 
         # Mock database response with no summaries
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -208,8 +210,8 @@ class TestGetLatestSummaries:
 
         # Mock database response with only hourly
         with (
-            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
-            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+            patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository", autospec=True) as MockEventRepo,
         ):
             mock_repo = MockRepo.return_value
 
@@ -234,7 +236,9 @@ class TestGetLatestSummaries:
             mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -264,8 +268,8 @@ class TestGetLatestSummaries:
 
         # Mock database response with only daily
         with (
-            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
-            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+            patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository", autospec=True) as MockEventRepo,
         ):
             mock_repo = MockRepo.return_value
 
@@ -290,7 +294,9 @@ class TestGetLatestSummaries:
             mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -319,7 +325,7 @@ class TestGetLatestSummaries:
         mock_cache.get.side_effect = Exception("Redis connection failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -347,7 +353,7 @@ class TestGetLatestSummaries:
         mock_cache.set.side_effect = Exception("Redis write failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -431,8 +437,8 @@ class TestGetHourlySummary:
 
         # Mock database response
         with (
-            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
-            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+            patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository", autospec=True) as MockEventRepo,
         ):
             mock_repo = MockRepo.return_value
 
@@ -452,7 +458,9 @@ class TestGetHourlySummary:
             mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -490,7 +498,7 @@ class TestGetHourlySummary:
         mock_cache.get.return_value = None
 
         # Mock database response with no summary
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_by_type = AsyncMock(return_value=None)
 
@@ -516,7 +524,7 @@ class TestGetHourlySummary:
         mock_cache.get.side_effect = Exception("Redis connection failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_by_type = AsyncMock(return_value=None)
 
@@ -538,7 +546,7 @@ class TestGetHourlySummary:
         mock_cache.set.side_effect = Exception("Redis write failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_by_type = AsyncMock(return_value=None)
 
@@ -616,8 +624,8 @@ class TestGetDailySummary:
 
         # Mock database response
         with (
-            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
-            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+            patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository", autospec=True) as MockEventRepo,
         ):
             mock_repo = MockRepo.return_value
 
@@ -637,7 +645,9 @@ class TestGetDailySummary:
             mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -675,7 +685,7 @@ class TestGetDailySummary:
         mock_cache.get.return_value = None
 
         # Mock database response with no summary
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_by_type = AsyncMock(return_value=None)
 
@@ -701,7 +711,7 @@ class TestGetDailySummary:
         mock_cache.get.side_effect = Exception("Redis connection failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_by_type = AsyncMock(return_value=None)
 
@@ -723,7 +733,7 @@ class TestGetDailySummary:
         mock_cache.set.side_effect = Exception("Redis write failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_latest_by_type = AsyncMock(return_value=None)
 
@@ -772,7 +782,9 @@ class TestHelperFunctions:
         mock_summary.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
 
         # Mock summary parser
-        with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+        with patch(
+            "backend.api.routes.summaries.parse_summary_content", autospec=True
+        ) as mock_parse:
             from backend.services.summary_parser import BulletPoint, StructuredSummary
 
             mock_parse.return_value = StructuredSummary(
@@ -819,7 +831,9 @@ class TestHelperFunctions:
         mock_summary.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
 
         # Mock summary parser returning empty structured data
-        with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+        with patch(
+            "backend.api.routes.summaries.parse_summary_content", autospec=True
+        ) as mock_parse:
             from backend.services.summary_parser import StructuredSummary
 
             mock_parse.return_value = StructuredSummary(

@@ -470,8 +470,13 @@ class TestRecreateService:
     ) -> None:
         """Test successful service restart."""
         with (
-            patch.object(gpu_config_service, "_get_compose_command", return_value="podman-compose"),
-            patch("asyncio.create_subprocess_exec") as mock_exec,
+            patch.object(
+                gpu_config_service,
+                "_get_compose_command",
+                return_value="podman-compose",
+                autospec=True,
+            ),
+            patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec,
         ):
             # Mock successful subprocess
             mock_process = AsyncMock()
@@ -491,8 +496,13 @@ class TestRecreateService:
     ) -> None:
         """Test failed service restart."""
         with (
-            patch.object(gpu_config_service, "_get_compose_command", return_value="podman-compose"),
-            patch("asyncio.create_subprocess_exec") as mock_exec,
+            patch.object(
+                gpu_config_service,
+                "_get_compose_command",
+                return_value="podman-compose",
+                autospec=True,
+            ),
+            patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec,
         ):
             # Mock failed subprocess
             mock_process = AsyncMock()
@@ -510,7 +520,9 @@ class TestRecreateService:
         gpu_config_service: GpuConfigService,
     ) -> None:
         """Test restart when no compose command is available."""
-        with patch.object(gpu_config_service, "_get_compose_command", return_value=None):
+        with patch.object(
+            gpu_config_service, "_get_compose_command", return_value=None, autospec=True
+        ):
             result = await gpu_config_service._recreate_service("ai-yolo26")
 
             assert result is False
@@ -522,9 +534,14 @@ class TestRecreateService:
     ) -> None:
         """Test restart timeout handling."""
         with (
-            patch.object(gpu_config_service, "_get_compose_command", return_value="podman-compose"),
-            patch("asyncio.create_subprocess_exec") as mock_exec,
-            patch("asyncio.wait_for", side_effect=TimeoutError),
+            patch.object(
+                gpu_config_service,
+                "_get_compose_command",
+                return_value="podman-compose",
+                autospec=True,
+            ),
+            patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec,
+            patch("asyncio.wait_for", side_effect=TimeoutError, autospec=True),
         ):
             mock_process = AsyncMock()
             mock_process.kill = AsyncMock()
@@ -551,7 +568,7 @@ class TestGetComposeCommand:
         gpu_config_service: GpuConfigService,
     ) -> None:
         """Test when podman-compose is available."""
-        with patch("asyncio.create_subprocess_exec") as mock_exec:
+        with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
             mock_process = AsyncMock()
             mock_process.returncode = 0
             mock_process.wait = AsyncMock()
@@ -578,7 +595,7 @@ class TestGetComposeCommand:
             mock_process.wait = AsyncMock()
             return mock_process
 
-        with patch("asyncio.create_subprocess_exec", side_effect=mock_exec):
+        with patch("asyncio.create_subprocess_exec", side_effect=mock_exec, autospec=True):
             # First call raises FileNotFoundError, second succeeds
             result = await gpu_config_service._get_compose_command()
 
@@ -591,7 +608,7 @@ class TestGetComposeCommand:
         gpu_config_service: GpuConfigService,
     ) -> None:
         """Test when no compose command is available."""
-        with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError):
+        with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError, autospec=True):
             result = await gpu_config_service._get_compose_command()
 
             assert result is None
@@ -630,7 +647,7 @@ class TestApplyGpuConfig:
         """Test successful GPU config application."""
         # Mock successful restart
         with patch.object(
-            gpu_config_service, "_recreate_service", return_value=True
+            gpu_config_service, "_recreate_service", return_value=True, autospec=True
         ) as mock_restart:
             result = await gpu_config_service.apply_gpu_config(sample_assignments)
 
@@ -655,7 +672,9 @@ class TestApplyGpuConfig:
             # First service succeeds, second fails
             return call_count == 1
 
-        with patch.object(gpu_config_service, "_recreate_service", side_effect=mock_restart):
+        with patch.object(
+            gpu_config_service, "_recreate_service", side_effect=mock_restart, autospec=True
+        ):
             result = await gpu_config_service.apply_gpu_config(sample_assignments)
 
             assert result.success is False
@@ -674,7 +693,9 @@ class TestApplyGpuConfig:
         sample_assignments: dict[str, GpuAssignment],
     ) -> None:
         """Test that operation status is persisted to Redis."""
-        with patch.object(gpu_config_service, "_recreate_service", return_value=True):
+        with patch.object(
+            gpu_config_service, "_recreate_service", return_value=True, autospec=True
+        ):
             await gpu_config_service.apply_gpu_config(sample_assignments)
 
             # Redis.set should have been called multiple times for status updates
@@ -691,6 +712,7 @@ class TestApplyGpuConfig:
             gpu_config_service,
             "_generate_override_file",
             side_effect=Exception("File write failed"),
+            autospec=True,
         ):
             result = await gpu_config_service.apply_gpu_config(sample_assignments)
 
@@ -894,7 +916,9 @@ class TestGpuConfigServiceIntegration:
         tmp_path: Path,
     ) -> None:
         """Test complete apply workflow from empty to configured."""
-        with patch.object(gpu_config_service, "_recreate_service", return_value=True):
+        with patch.object(
+            gpu_config_service, "_recreate_service", return_value=True, autospec=True
+        ):
             # Apply initial configuration
             result = await gpu_config_service.apply_gpu_config(sample_assignments)
 
@@ -920,7 +944,9 @@ class TestGpuConfigServiceIntegration:
         sample_assignments: dict[str, GpuAssignment],
     ) -> None:
         """Test incremental configuration changes."""
-        with patch.object(gpu_config_service, "_recreate_service", return_value=True):
+        with patch.object(
+            gpu_config_service, "_recreate_service", return_value=True, autospec=True
+        ):
             # Apply initial configuration
             result1 = await gpu_config_service.apply_gpu_config(sample_assignments)
             assert result1.success is True

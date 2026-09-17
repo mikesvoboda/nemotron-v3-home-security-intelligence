@@ -113,8 +113,9 @@ class TestDetectComposeCommand:
             patch(
                 "shutil.which",
                 side_effect=lambda cmd: "/usr/bin/podman" if cmd == "podman" else None,
+                autospec=True,
             ),
-            patch("subprocess.run") as mock_run,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="podman compose version 1.0", stderr=""
@@ -136,8 +137,8 @@ class TestDetectComposeCommand:
             return None
 
         with (
-            patch("shutil.which", side_effect=which_side_effect),
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", side_effect=which_side_effect, autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             # First call (podman compose version) fails, second (podman-compose --version) succeeds
             mock_run.side_effect = [
@@ -155,7 +156,7 @@ class TestDetectComposeCommand:
         """Should raise RuntimeError when no compose command is available."""
         from setup_lib.deploy import detect_compose_command
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             with pytest.raises(RuntimeError, match="No compose command found"):
                 detect_compose_command()
 
@@ -172,7 +173,7 @@ class TestComposeRun:
             compose_cmd=["podman", "compose"],
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="output", stderr=""
             )
@@ -194,7 +195,7 @@ class TestComposeRun:
             compose_cmd=["podman", "compose"],
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
             )
@@ -212,7 +213,7 @@ class TestComposeRun:
             compose_cmd=["podman", "compose"],
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=1, stdout="", stderr="error"
             )
@@ -233,7 +234,7 @@ class TestComposeRun:
             verbose=True,
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
             )
@@ -252,7 +253,7 @@ class TestComposeRun:
             compose_cmd=["nonexistent"],
         )
 
-        with patch("subprocess.run", side_effect=FileNotFoundError()):
+        with patch("subprocess.run", side_effect=FileNotFoundError(), autospec=True):
             result = compose_run(config, "ps")
 
             assert result is False
@@ -266,7 +267,7 @@ class TestComposeRun:
             compose_cmd=["nonexistent"],
         )
 
-        with patch("subprocess.run", side_effect=FileNotFoundError()):
+        with patch("subprocess.run", side_effect=FileNotFoundError(), autospec=True):
             result = compose_run(config, "ps", capture=True)
 
             assert isinstance(result, subprocess.CompletedProcess)
@@ -282,7 +283,7 @@ class TestComposeRun:
             env={"CUSTOM_VAR": "value"},
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
             )

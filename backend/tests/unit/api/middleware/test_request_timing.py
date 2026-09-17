@@ -262,7 +262,9 @@ class TestRequestTimingMiddlewareConfiguration:
 
     def test_threshold_from_settings(self):
         """Test that threshold can be loaded from settings."""
-        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.request_timing.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(slow_request_threshold_ms=250)
 
             app = FastAPI()
@@ -342,7 +344,9 @@ class TestRequestTimingMiddlewareDirectDispatch:
         async def mock_call_next(request):
             return mock_response
 
-        with patch("backend.api.middleware.request_timing.time.perf_counter") as mock_perf:
+        with patch(
+            "backend.api.middleware.request_timing.time.perf_counter", autospec=True
+        ) as mock_perf:
             mock_perf.side_effect = [1.0, 1.05]  # 50ms difference
 
             response = await middleware.dispatch(mock_request, mock_call_next)
@@ -475,7 +479,9 @@ class TestRequestTimingMiddlewareErrorHandling:
 
     def test_settings_unavailable_uses_fallback_with_debug_log(self, caplog):
         """Test that when settings are unavailable, fallback is used and logged at DEBUG."""
-        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.request_timing.get_settings", autospec=True
+        ) as mock_settings:
             # Simulate settings fetch failure
             mock_settings.side_effect = RuntimeError("Settings unavailable")
 
@@ -501,7 +507,9 @@ class TestRequestTimingMiddlewareErrorHandling:
     def test_settings_unavailable_logs_error_message(self, caplog):
         """Test that settings unavailable log includes the error message."""
         error_message = "Connection refused to config server"
-        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.request_timing.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.side_effect = ConnectionError(error_message)
 
             app = FastAPI()
@@ -620,7 +628,9 @@ class TestRequestTimingMiddlewareErrorHandling:
         Both capture exception details in structured extra fields.
         """
         # Init exception handling - logs at DEBUG (expected scenario)
-        with patch("backend.api.middleware.request_timing.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.request_timing.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.side_effect = RuntimeError("Test error")
             app = FastAPI()
             middleware = RequestTimingMiddleware(app)

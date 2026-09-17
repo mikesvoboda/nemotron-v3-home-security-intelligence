@@ -3,7 +3,7 @@
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from PIL import Image, ImageFont
@@ -92,6 +92,7 @@ def test_get_system_font_env_var_override(temp_output_dir):
         patch(
             "backend.services.thumbnail_generator.ImageFont.truetype",
             return_value=mock_font,
+            autospec=True,
         ) as mock_truetype,
     ):
         font = get_system_font(size=14)
@@ -110,10 +111,12 @@ def test_get_system_font_env_var_invalid_falls_back():
         patch(
             "backend.services.thumbnail_generator.ImageFont.truetype",
             side_effect=Exception("Font not found"),
+            autospec=True,
         ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.load_default",
             return_value=default_font,
+            autospec=True,
         ),
     ):
         font = get_system_font(size=14)
@@ -149,10 +152,15 @@ def test_get_system_font_tries_platform_fonts_first():
 
     with (
         patch.dict(os.environ, {}, clear=False),
-        patch("backend.services.thumbnail_generator.platform.system", return_value="Darwin"),
+        patch(
+            "backend.services.thumbnail_generator.platform.system",
+            return_value="Darwin",
+            autospec=True,
+        ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.truetype",
             side_effect=track_calls,
+            autospec=True,
         ),
     ):
         # Clear env var if set
@@ -173,10 +181,12 @@ def test_get_system_font_fallback_to_default():
         patch(
             "backend.services.thumbnail_generator.ImageFont.truetype",
             side_effect=Exception("Font not found"),
+            autospec=True,
         ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.load_default",
             return_value=default_font,
+            autospec=True,
         ) as mock_default,
     ):
         os.environ.pop("THUMBNAIL_FONT_PATH", None)
@@ -200,14 +210,20 @@ def test_get_system_font_tries_all_platforms_as_fallback():
 
     with (
         patch.dict(os.environ, {}, clear=False),
-        patch("backend.services.thumbnail_generator.platform.system", return_value="Linux"),
+        patch(
+            "backend.services.thumbnail_generator.platform.system",
+            return_value="Linux",
+            autospec=True,
+        ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.truetype",
             side_effect=count_calls,
+            autospec=True,
         ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.load_default",
             return_value=default_font,
+            autospec=True,
         ),
     ):
         os.environ.pop("THUMBNAIL_FONT_PATH", None)
@@ -226,14 +242,17 @@ def test_get_system_font_unknown_platform():
         patch(
             "backend.services.thumbnail_generator.platform.system",
             return_value="UnknownOS",
+            autospec=True,
         ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.truetype",
             side_effect=Exception("Font not found"),
+            autospec=True,
         ),
         patch(
             "backend.services.thumbnail_generator.ImageFont.load_default",
             return_value=default_font,
+            autospec=True,
         ),
     ):
         os.environ.pop("THUMBNAIL_FONT_PATH", None)
@@ -267,13 +286,15 @@ def test_thumbnail_generator_init_with_existing_dir(temp_output_dir):
 
 def test_thumbnail_generator_init_default_path():
     """Test that default output path is data/thumbnails."""
-    with patch.object(Path, "mkdir") as mock_mkdir:
+    with patch.object(Path, "mkdir", autospec=True) as mock_mkdir:
         generator = ThumbnailGenerator()
 
         assert generator.output_dir == Path("data/thumbnails")
         # Verify mkdir was called with correct args (may be called multiple times
-        # if get_settings() also triggers Path operations)
-        mock_mkdir.assert_any_call(parents=True, exist_ok=True)
+        # if get_settings() also triggers Path operations). autospec patches the
+        # class-level function, so the instance itself is recorded as the first
+        # positional argument — ANY stands in for it.
+        mock_mkdir.assert_any_call(ANY, parents=True, exist_ok=True)
 
 
 # Test: Generate Thumbnail
@@ -345,7 +366,9 @@ def test_generate_thumbnail_permission_error(
     thumbnail_generator, temp_test_image, sample_detections
 ):
     """Test thumbnail generation with permission error on save."""
-    with patch.object(Image.Image, "save", side_effect=PermissionError("Permission denied")):
+    with patch.object(
+        Image.Image, "save", side_effect=PermissionError("Permission denied"), autospec=True
+    ):
         output_path = thumbnail_generator.generate_thumbnail(
             image_path=temp_test_image,
             detections=sample_detections,
@@ -541,7 +564,9 @@ def test_draw_bounding_boxes_uses_get_system_font(thumbnail_generator):
     mock_font = ImageFont.load_default()
 
     with patch(
-        "backend.services.thumbnail_generator.get_system_font", return_value=mock_font
+        "backend.services.thumbnail_generator.get_system_font",
+        return_value=mock_font,
+        autospec=True,
     ) as mock_get_font:
         result = thumbnail_generator.draw_bounding_boxes(img, detections)
 
@@ -669,7 +694,9 @@ def test_delete_thumbnail_permission_error(thumbnail_generator, temp_test_image)
     )
 
     # Mock unlink to raise permission error
-    with patch.object(Path, "unlink", side_effect=PermissionError("Permission denied")):
+    with patch.object(
+        Path, "unlink", side_effect=PermissionError("Permission denied"), autospec=True
+    ):
         result = thumbnail_generator.delete_thumbnail(detection_id)
 
         # Should return False and log error
@@ -918,6 +945,7 @@ def test_generate_thumbnail_general_exception(thumbnail_generator, temp_test_ima
     with patch(
         "backend.services.thumbnail_generator.Image.open",
         side_effect=RuntimeError("Unexpected error"),
+        autospec=True,
     ):
         output_path = thumbnail_generator.generate_thumbnail(
             image_path=temp_test_image,
@@ -935,7 +963,9 @@ def test_ensure_output_dir_failure(temp_output_dir):
 
     # Mock mkdir to raise PermissionError
     with (
-        patch.object(Path, "mkdir", side_effect=PermissionError("Cannot create directory")),
+        patch.object(
+            Path, "mkdir", side_effect=PermissionError("Cannot create directory"), autospec=True
+        ),
         pytest.raises(PermissionError),
     ):
         ThumbnailGenerator(output_dir=str(output_path))
@@ -958,7 +988,11 @@ def test_draw_bounding_boxes_with_alternative_font(thumbnail_generator):
     # Mock get_system_font to return default font (simulating all font paths failing)
     default_font = ImageFont.load_default()
 
-    with patch("backend.services.thumbnail_generator.get_system_font", return_value=default_font):
+    with patch(
+        "backend.services.thumbnail_generator.get_system_font",
+        return_value=default_font,
+        autospec=True,
+    ):
         result = thumbnail_generator.draw_bounding_boxes(img, detections)
 
         # Should fall back to default font and still work

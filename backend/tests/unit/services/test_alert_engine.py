@@ -1302,7 +1302,9 @@ class TestEvaluateEvent:
         engine = AlertRuleEngine(mock_session)
 
         # Patch _evaluate_rule to raise an exception
-        with patch.object(engine, "_evaluate_rule", side_effect=ValueError("Test error")):
+        with patch.object(
+            engine, "_evaluate_rule", side_effect=ValueError("Test error"), autospec=True
+        ):
             result = await engine.evaluate_event(sample_event, sample_detections)
 
         assert len(result.triggered_rules) == 0
@@ -1862,7 +1864,7 @@ class TestZoneIdCondition:
 
         engine = AlertRuleEngine(mock_session)
 
-        with patch("backend.services.alert_engine.logger") as mock_logger:
+        with patch("backend.services.alert_engine.logger", autospec=True) as mock_logger:
             matches, _conditions, _ = await engine._evaluate_rule(
                 rule, sample_event, sample_detections, datetime.now(UTC)
             )

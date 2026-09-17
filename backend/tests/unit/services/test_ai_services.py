@@ -339,7 +339,9 @@ class TestYOLOWorldService:
         """get_all_security_prompts should return combined prompts."""
         service = YOLOWorldService()
 
-        with patch("backend.services.yolo_world_loader.get_all_security_prompts") as mock_get:
+        with patch(
+            "backend.services.yolo_world_loader.get_all_security_prompts", autospec=True
+        ) as mock_get:
             mock_get.return_value = ["person", "car", "dog"]
 
             prompts = service.get_all_security_prompts()
@@ -351,7 +353,9 @@ class TestYOLOWorldService:
         """get_threat_prompts should return threat-related prompts."""
         service = YOLOWorldService()
 
-        with patch("backend.services.yolo_world_loader.get_threat_prompts") as mock_get:
+        with patch(
+            "backend.services.yolo_world_loader.get_threat_prompts", autospec=True
+        ) as mock_get:
             mock_get.return_value = ["knife", "crowbar"]
 
             prompts = service.get_threat_prompts()
@@ -363,7 +367,9 @@ class TestYOLOWorldService:
         """get_delivery_prompts should return delivery-related prompts."""
         service = YOLOWorldService()
 
-        with patch("backend.services.yolo_world_loader.get_delivery_prompts") as mock_get:
+        with patch(
+            "backend.services.yolo_world_loader.get_delivery_prompts", autospec=True
+        ) as mock_get:
             mock_get.return_value = ["package", "box"]
 
             prompts = service.get_delivery_prompts()

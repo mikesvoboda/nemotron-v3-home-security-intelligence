@@ -104,7 +104,9 @@ class TestPerformanceCollectorInit:
 
     def test_init_without_pynvml(self) -> None:
         """Test initialization when pynvml is not available."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -114,7 +116,9 @@ class TestPerformanceCollectorInit:
 
     def test_init_pynvml_not_available(self) -> None:
         """Test that pynvml unavailable doesn't crash init."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -130,7 +134,9 @@ class TestGetHttpClient:
     @pytest.mark.asyncio
     async def test_get_http_client_creates_client(self) -> None:
         """Test that _get_http_client creates a client."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -142,7 +148,9 @@ class TestGetHttpClient:
     @pytest.mark.asyncio
     async def test_get_http_client_reuses_client(self) -> None:
         """Test that _get_http_client reuses existing client."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -158,7 +166,9 @@ class TestCollectGpuPynvml:
 
     def test_collect_gpu_pynvml_unavailable(self) -> None:
         """Test GPU collection when pynvml is not available."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -182,7 +192,9 @@ class TestCollectGpuFallback:
 
         Regression test for NEM-1266: int_from_float validation error.
         """
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -199,7 +211,7 @@ class TestCollectGpuFallback:
                 "status": "healthy",
             }
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -217,7 +229,9 @@ class TestCollectGpuFallback:
     @pytest.mark.asyncio
     async def test_collect_gpu_fallback_handles_int_values(self) -> None:
         """Test that GPU fallback works when API returns int values."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -234,7 +248,7 @@ class TestCollectGpuFallback:
                 "status": "healthy",
             }
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -248,7 +262,9 @@ class TestCollectGpuFallback:
     @pytest.mark.asyncio
     async def test_collect_gpu_fallback_handles_missing_values(self) -> None:
         """Test that GPU fallback uses default values when fields are missing."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -264,7 +280,7 @@ class TestCollectGpuFallback:
                 "status": "healthy",
             }
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -278,12 +294,14 @@ class TestCollectGpuFallback:
     @pytest.mark.asyncio
     async def test_collect_gpu_fallback_returns_none_on_error(self) -> None:
         """Test that GPU fallback returns None on HTTP error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.side_effect = Exception("Connection refused")
                 mock_get_client.return_value = mock_client
@@ -295,7 +313,9 @@ class TestCollectGpuFallback:
     @pytest.mark.asyncio
     async def test_collect_gpu_fallback_returns_none_on_non_200(self) -> None:
         """Test that GPU fallback returns None on non-200 status."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -303,7 +323,7 @@ class TestCollectGpuFallback:
             mock_response = MagicMock()
             mock_response.status_code = 500
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -325,7 +345,9 @@ class TestCollectGpuMetrics:
 
         Regression test for NEM-1266: int_from_float validation error.
         """
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -343,7 +365,7 @@ class TestCollectGpuMetrics:
                 "status": "healthy",
             }
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -370,10 +392,14 @@ class TestCollectHostMetrics:
     @pytest.mark.asyncio
     async def test_collect_host_metrics_success(self) -> None:
         """Test successful host metrics collection."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+            with patch(
+                "backend.services.performance_collector.psutil", autospec=True
+            ) as mock_psutil:
                 # Mock CPU percent
                 mock_psutil.cpu_percent.return_value = 45.5
 
@@ -402,10 +428,14 @@ class TestCollectHostMetrics:
     @pytest.mark.asyncio
     async def test_collect_host_metrics_cpu_failure(self) -> None:
         """Test host metrics collection when CPU measurement fails."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+            with patch(
+                "backend.services.performance_collector.psutil", autospec=True
+            ) as mock_psutil:
                 # Mock CPU percent to raise exception
                 mock_psutil.cpu_percent.side_effect = Exception("Permission denied")
 
@@ -433,10 +463,14 @@ class TestCollectHostMetrics:
     @pytest.mark.asyncio
     async def test_collect_host_metrics_all_failures(self) -> None:
         """Test host metrics collection when all measurements fail."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+            with patch(
+                "backend.services.performance_collector.psutil", autospec=True
+            ) as mock_psutil:
                 # All psutil calls fail
                 mock_psutil.cpu_percent.side_effect = Exception("Permission denied")
                 mock_psutil.virtual_memory.side_effect = Exception("Permission denied")
@@ -466,11 +500,14 @@ class TestCollectPostgresqlMetrics:
     @pytest.mark.asyncio
     async def test_collect_postgresql_metrics_session_factory_none(self) -> None:
         """Test PostgreSQL metrics when session factory is None."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             with patch(
-                "backend.services.performance_collector.PerformanceCollector.collect_postgresql_metrics"
+                "backend.services.performance_collector.PerformanceCollector.collect_postgresql_metrics",
+                autospec=True,
             ) as mock_method:
                 # Simulate the session factory being None
                 from backend.api.schemas.performance import DatabaseMetrics
@@ -501,10 +538,12 @@ class TestCollectRedisMetrics:
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_not_connected(self) -> None:
         """Test Redis metrics when client is not connected."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.redis.init_redis") as mock_init_redis:
+            with patch("backend.core.redis.init_redis", autospec=True) as mock_init_redis:
                 # Mock Redis client that raises RuntimeError on _ensure_connected
                 mock_client = MagicMock()
                 mock_client._ensure_connected.side_effect = RuntimeError(
@@ -522,10 +561,12 @@ class TestCollectRedisMetrics:
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_success(self) -> None:
         """Test successful Redis metrics collection."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.redis.init_redis") as mock_init_redis:
+            with patch("backend.core.redis.init_redis", autospec=True) as mock_init_redis:
                 # Mock Redis client with successful info() call
                 mock_raw_client = MagicMock()
                 mock_raw_client.info = MagicMock(
@@ -576,7 +617,9 @@ class TestCollectContainerHealth:
     @pytest.mark.asyncio
     async def test_collect_container_health_backend_always_healthy(self) -> None:
         """Test that backend is always marked as healthy."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(
                 frontend_url="http://frontend:8080",
                 yolo26_url="http://ai-yolo26:8095",
@@ -587,9 +630,9 @@ class TestCollectContainerHealth:
 
             # Mock all internal methods to return unhealthy
             with (
-                patch.object(collector, "_check_service_health") as mock_service,
-                patch.object(collector, "_check_postgres_health") as mock_pg,
-                patch.object(collector, "_check_redis_health") as mock_redis,
+                patch.object(collector, "_check_service_health", autospec=True) as mock_service,
+                patch.object(collector, "_check_postgres_health", autospec=True) as mock_pg,
+                patch.object(collector, "_check_redis_health", autospec=True) as mock_redis,
             ):
                 from backend.api.schemas.performance import ContainerMetrics
 
@@ -613,7 +656,9 @@ class TestCollectContainerHealth:
     @pytest.mark.asyncio
     async def test_check_service_health_success(self) -> None:
         """Test successful HTTP health check."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             import httpx
@@ -624,7 +669,7 @@ class TestCollectContainerHealth:
             mock_response = MagicMock()
             mock_response.status_code = 200
 
-            with patch("httpx.AsyncClient.get", return_value=mock_response):
+            with patch("httpx.AsyncClient.get", return_value=mock_response, autospec=True):
                 client = httpx.AsyncClient()
                 result = await collector._check_service_health(
                     client, "test-service", "http://test:8000/health"
@@ -637,7 +682,9 @@ class TestCollectContainerHealth:
     @pytest.mark.asyncio
     async def test_check_service_health_unhealthy_status(self) -> None:
         """Test HTTP health check with non-200 status."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             import httpx
@@ -648,7 +695,7 @@ class TestCollectContainerHealth:
             mock_response = MagicMock()
             mock_response.status_code = 500
 
-            with patch("httpx.AsyncClient.get", return_value=mock_response):
+            with patch("httpx.AsyncClient.get", return_value=mock_response, autospec=True):
                 client = httpx.AsyncClient()
                 result = await collector._check_service_health(
                     client, "test-service", "http://test:8000/health"
@@ -661,7 +708,9 @@ class TestCollectContainerHealth:
     @pytest.mark.asyncio
     async def test_check_service_health_connection_error(self) -> None:
         """Test HTTP health check with connection error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             import httpx
@@ -669,7 +718,9 @@ class TestCollectContainerHealth:
             collector = PerformanceCollector()
 
             with patch(
-                "httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")
+                "httpx.AsyncClient.get",
+                side_effect=httpx.ConnectError("Connection refused"),
+                autospec=True,
             ):
                 client = httpx.AsyncClient()
                 result = await collector._check_service_health(
@@ -684,14 +735,20 @@ class TestCollectContainerHealth:
     @pytest.mark.asyncio
     async def test_check_service_health_timeout(self) -> None:
         """Test HTTP health check with timeout."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             import httpx
 
             collector = PerformanceCollector()
 
-            with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
+            with patch(
+                "httpx.AsyncClient.get",
+                side_effect=httpx.TimeoutException("Timeout"),
+                autospec=True,
+            ):
                 client = httpx.AsyncClient()
                 result = await collector._check_service_health(
                     client, "test-service", "http://test:8000/health"
@@ -713,7 +770,9 @@ class TestAlertGeneration:
 
     def test_check_gpu_alerts_no_alerts(self) -> None:
         """Test no alerts when GPU metrics are within thresholds."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import GpuMetrics
@@ -733,7 +792,9 @@ class TestAlertGeneration:
 
     def test_check_gpu_alerts_temperature_warning(self) -> None:
         """Test warning alert for high GPU temperature."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import GpuMetrics
@@ -755,7 +816,9 @@ class TestAlertGeneration:
 
     def test_check_gpu_alerts_temperature_critical(self) -> None:
         """Test critical alert for very high GPU temperature."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import GpuMetrics
@@ -777,7 +840,9 @@ class TestAlertGeneration:
 
     def test_check_host_alerts_no_alerts(self) -> None:
         """Test no alerts when host metrics are within thresholds."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import HostMetrics
@@ -796,7 +861,9 @@ class TestAlertGeneration:
 
     def test_check_host_alerts_cpu_critical(self) -> None:
         """Test critical alert for very high CPU usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import HostMetrics
@@ -825,7 +892,9 @@ class TestCollectYolo26Metrics:
     @pytest.mark.asyncio
     async def test_collect_yolo26_metrics_healthy(self) -> None:
         """Test successful YOLO26 metrics collection."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -839,7 +908,7 @@ class TestCollectYolo26Metrics:
                 "device": "cuda:0",
             }
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -855,7 +924,9 @@ class TestCollectYolo26Metrics:
     @pytest.mark.asyncio
     async def test_collect_yolo26_metrics_unhealthy_status(self) -> None:
         """Test YOLO26 metrics with unhealthy status."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
@@ -869,7 +940,7 @@ class TestCollectYolo26Metrics:
                 "device": "cuda:0",
             }
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -882,12 +953,14 @@ class TestCollectYolo26Metrics:
     @pytest.mark.asyncio
     async def test_collect_yolo26_metrics_connection_error(self) -> None:
         """Test YOLO26 metrics returns unreachable on connection error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.side_effect = Exception("Connection refused")
                 mock_get_client.return_value = mock_client
@@ -910,7 +983,9 @@ class TestCollectNemotronMetrics:
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_healthy(self) -> None:
         """Test successful Nemotron metrics collection."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
 
             collector = PerformanceCollector()
@@ -923,7 +998,7 @@ class TestCollectNemotronMetrics:
                 {"state": 0, "n_ctx": 8192},  # Idle slot
             ]
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -939,7 +1014,9 @@ class TestCollectNemotronMetrics:
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_all_active(self) -> None:
         """Test Nemotron metrics when all slots are active."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
 
             collector = PerformanceCollector()
@@ -951,7 +1028,7 @@ class TestCollectNemotronMetrics:
                 {"state": 2, "n_ctx": 4096},
             ]
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -966,7 +1043,9 @@ class TestCollectNemotronMetrics:
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_empty_slots(self) -> None:
         """Test Nemotron metrics with empty slots array."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
 
             collector = PerformanceCollector()
@@ -975,7 +1054,7 @@ class TestCollectNemotronMetrics:
             mock_response.status_code = 200
             mock_response.json.return_value = []
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
@@ -991,12 +1070,14 @@ class TestCollectNemotronMetrics:
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_connection_error(self) -> None:
         """Test Nemotron metrics returns unreachable on connection error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
 
             collector = PerformanceCollector()
 
-            with patch.object(collector, "_get_http_client") as mock_get_client:
+            with patch.object(collector, "_get_http_client", autospec=True) as mock_get_client:
                 mock_client = AsyncMock()
                 mock_client.get.side_effect = Exception("Connection refused")
                 mock_get_client.return_value = mock_client
@@ -1020,7 +1101,9 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_get_detections_per_minute_with_data(self) -> None:
         """Test detections per minute calculation with data."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1039,7 +1122,9 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_get_detections_per_minute_no_data(self) -> None:
         """Test detections per minute returns 0.0 when no data."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1057,7 +1142,9 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_get_detections_per_minute_handles_error(self) -> None:
         """Test detections per minute returns 0.0 on error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1073,7 +1160,9 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_get_events_per_minute_with_data(self) -> None:
         """Test events per minute calculation with data."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1092,7 +1181,9 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_get_events_per_minute_no_data(self) -> None:
         """Test events per minute returns 0.0 when no data."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1110,7 +1201,9 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_get_events_per_minute_handles_error(self) -> None:
         """Test events per minute returns 0.0 on error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1126,11 +1219,15 @@ class TestThroughputCalculation:
     @pytest.mark.asyncio
     async def test_collect_inference_metrics_includes_throughput(self) -> None:
         """Test that collect_inference_metrics includes real throughput values."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             # Mock the pipeline tracker (imported inside collect_inference_metrics)
-            with patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker:
+            with patch(
+                "backend.core.metrics.get_pipeline_latency_tracker", autospec=True
+            ) as mock_tracker:
                 mock_tracker_instance = MagicMock()
                 mock_tracker_instance.get_stage_stats.return_value = {
                     "avg_ms": 100.0,
@@ -1147,6 +1244,7 @@ class TestThroughputCalculation:
                 with patch(
                     "backend.core.database.get_session",
                     return_value=mock_session,
+                    autospec=True,
                 ):
                     collector = PerformanceCollector()
 
@@ -1159,10 +1257,16 @@ class TestThroughputCalculation:
 
                     with (
                         patch.object(
-                            collector, "_get_detections_per_minute", side_effect=mock_get_detections
+                            collector,
+                            "_get_detections_per_minute",
+                            side_effect=mock_get_detections,
+                            autospec=True,
                         ),
                         patch.object(
-                            collector, "_get_events_per_minute", side_effect=mock_get_events
+                            collector,
+                            "_get_events_per_minute",
+                            side_effect=mock_get_events,
+                            autospec=True,
                         ),
                     ):
                         result = await collector.collect_inference_metrics()
@@ -1182,7 +1286,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_gpu_alerts_vram_warning(self) -> None:
         """Test warning alert for high GPU VRAM usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import GpuMetrics
@@ -1204,7 +1310,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_gpu_alerts_vram_critical(self) -> None:
         """Test critical alert for very high GPU VRAM usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import GpuMetrics
@@ -1226,7 +1334,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_gpu_alerts_multiple(self) -> None:
         """Test multiple alerts when both temperature and VRAM are high."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import GpuMetrics
@@ -1248,7 +1358,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_host_alerts_ram_critical(self) -> None:
         """Test critical alert for high RAM usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import HostMetrics
@@ -1267,7 +1379,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_host_alerts_disk_critical(self) -> None:
         """Test critical alert for high disk usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import HostMetrics
@@ -1286,7 +1400,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_postgresql_alerts_connections_warning(self) -> None:
         """Test warning alert for high PostgreSQL connections."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import DatabaseMetrics
@@ -1310,7 +1426,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_postgresql_alerts_connections_critical(self) -> None:
         """Test critical alert for very high PostgreSQL connections."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import DatabaseMetrics
@@ -1330,7 +1448,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_postgresql_alerts_cache_hit_critical(self) -> None:
         """Test critical alert for low PostgreSQL cache hit ratio."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import DatabaseMetrics
@@ -1350,7 +1470,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_postgresql_alerts_zero_max_connections(self) -> None:
         """Test PostgreSQL alerts when max_connections is 0 (edge case)."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import DatabaseMetrics
@@ -1370,7 +1492,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_redis_alerts_memory_warning(self) -> None:
         """Test warning alert for high Redis memory usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import RedisMetrics
@@ -1390,7 +1514,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_redis_alerts_memory_critical(self) -> None:
         """Test critical alert for very high Redis memory usage."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import RedisMetrics
@@ -1410,7 +1536,9 @@ class TestAlertGenerationEdgeCases:
 
     def test_check_redis_alerts_hit_ratio_critical(self) -> None:
         """Test critical alert for low Redis hit ratio."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import RedisMetrics
@@ -1440,10 +1568,12 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_postgres_health_success(self) -> None:
         """Test successful PostgreSQL health check."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.database.get_session_factory") as mock_factory:
+            with patch("backend.core.database.get_session_factory", autospec=True) as mock_factory:
                 mock_session = AsyncMock()
                 mock_session.__aenter__.return_value = mock_session
                 mock_session.__aexit__.return_value = None
@@ -1461,10 +1591,12 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_postgres_health_failure(self) -> None:
         """Test PostgreSQL health check failure."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.database.get_session_factory") as mock_factory:
+            with patch("backend.core.database.get_session_factory", autospec=True) as mock_factory:
                 mock_factory.return_value = None
 
                 collector = PerformanceCollector()
@@ -1477,10 +1609,12 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_postgres_health_exception(self) -> None:
         """Test PostgreSQL health check with exception."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.database.get_session_factory") as mock_factory:
+            with patch("backend.core.database.get_session_factory", autospec=True) as mock_factory:
                 mock_session = AsyncMock()
                 mock_session.__aenter__.side_effect = Exception("DB error")
                 mock_factory.return_value = lambda: mock_session
@@ -1494,10 +1628,12 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_redis_health_success(self) -> None:
         """Test successful Redis health check."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.redis.init_redis") as mock_init:
+            with patch("backend.core.redis.init_redis", autospec=True) as mock_init:
                 mock_raw_client = AsyncMock()
                 mock_raw_client.ping = AsyncMock()
 
@@ -1516,10 +1652,12 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_redis_health_none_client(self) -> None:
         """Test Redis health check when client is None."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.redis.init_redis") as mock_init:
+            with patch("backend.core.redis.init_redis", autospec=True) as mock_init:
                 mock_init.return_value = None
 
                 collector = PerformanceCollector()
@@ -1532,10 +1670,12 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_redis_health_exception(self) -> None:
         """Test Redis health check with exception."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.redis.init_redis") as mock_init:
+            with patch("backend.core.redis.init_redis", autospec=True) as mock_init:
                 mock_init.side_effect = Exception("Redis error")
 
                 collector = PerformanceCollector()
@@ -1556,7 +1696,9 @@ class TestResourceCleanup:
     @pytest.mark.asyncio
     async def test_close_with_http_client(self) -> None:
         """Test close method closes HTTP client."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1570,7 +1712,9 @@ class TestResourceCleanup:
     @pytest.mark.asyncio
     async def test_close_without_http_client(self) -> None:
         """Test close method when no HTTP client exists."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1582,7 +1726,9 @@ class TestResourceCleanup:
     @pytest.mark.asyncio
     async def test_close_with_closed_http_client(self) -> None:
         """Test close method when HTTP client already closed."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1597,14 +1743,16 @@ class TestResourceCleanup:
     @pytest.mark.asyncio
     async def test_close_with_pynvml(self) -> None:
         """Test close method shuts down pynvml if available."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
             collector._pynvml_available = True
 
             # pynvml is imported inside close() method, so patch at import level
-            with patch("pynvml.nvmlShutdown") as mock_shutdown:
+            with patch("pynvml.nvmlShutdown", autospec=True) as mock_shutdown:
                 await collector.close()
 
                 mock_shutdown.assert_called_once()
@@ -1612,14 +1760,18 @@ class TestResourceCleanup:
     @pytest.mark.asyncio
     async def test_close_with_pynvml_error(self) -> None:
         """Test close method handles pynvml shutdown error gracefully."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
             collector._pynvml_available = True
 
             # pynvml is imported inside close() method, so patch at import level
-            with patch("pynvml.nvmlShutdown", side_effect=Exception("Shutdown error")):
+            with patch(
+                "pynvml.nvmlShutdown", side_effect=Exception("Shutdown error"), autospec=True
+            ):
                 # Should not raise
                 await collector.close()
 
@@ -1635,7 +1787,9 @@ class TestCollectAll:
     @pytest.mark.asyncio
     async def test_collect_all_with_all_metrics(self) -> None:
         """Test collect_all returns complete performance update."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import (
@@ -1707,17 +1861,41 @@ class TestCollectAll:
             )
 
             with (
-                patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
-                patch.object(collector, "collect_yolo26_metrics", return_value=yolo26_metrics),
-                patch.object(collector, "collect_nemotron_metrics", return_value=nemotron_metrics),
-                patch.object(collector, "collect_host_metrics", return_value=host_metrics),
                 patch.object(
-                    collector, "collect_postgresql_metrics", return_value=postgresql_metrics
+                    collector, "collect_gpu_metrics", return_value=gpu_metrics, autospec=True
                 ),
-                patch.object(collector, "collect_redis_metrics", return_value=redis_metrics),
-                patch.object(collector, "collect_container_health", return_value=container_metrics),
                 patch.object(
-                    collector, "collect_inference_metrics", return_value=inference_metrics
+                    collector, "collect_yolo26_metrics", return_value=yolo26_metrics, autospec=True
+                ),
+                patch.object(
+                    collector,
+                    "collect_nemotron_metrics",
+                    return_value=nemotron_metrics,
+                    autospec=True,
+                ),
+                patch.object(
+                    collector, "collect_host_metrics", return_value=host_metrics, autospec=True
+                ),
+                patch.object(
+                    collector,
+                    "collect_postgresql_metrics",
+                    return_value=postgresql_metrics,
+                    autospec=True,
+                ),
+                patch.object(
+                    collector, "collect_redis_metrics", return_value=redis_metrics, autospec=True
+                ),
+                patch.object(
+                    collector,
+                    "collect_container_health",
+                    return_value=container_metrics,
+                    autospec=True,
+                ),
+                patch.object(
+                    collector,
+                    "collect_inference_metrics",
+                    return_value=inference_metrics,
+                    autospec=True,
                 ),
             ):
                 result = await collector.collect_all()
@@ -1737,21 +1915,29 @@ class TestCollectAll:
     @pytest.mark.asyncio
     async def test_collect_all_with_missing_metrics(self) -> None:
         """Test collect_all handles missing metrics gracefully."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
 
             # Mock all collector methods to return None
             with (
-                patch.object(collector, "collect_gpu_metrics", return_value=None),
-                patch.object(collector, "collect_yolo26_metrics", return_value=None),
-                patch.object(collector, "collect_nemotron_metrics", return_value=None),
-                patch.object(collector, "collect_host_metrics", return_value=None),
-                patch.object(collector, "collect_postgresql_metrics", return_value=None),
-                patch.object(collector, "collect_redis_metrics", return_value=None),
-                patch.object(collector, "collect_container_health", return_value=[]),
-                patch.object(collector, "collect_inference_metrics", return_value=None),
+                patch.object(collector, "collect_gpu_metrics", return_value=None, autospec=True),
+                patch.object(collector, "collect_yolo26_metrics", return_value=None, autospec=True),
+                patch.object(
+                    collector, "collect_nemotron_metrics", return_value=None, autospec=True
+                ),
+                patch.object(collector, "collect_host_metrics", return_value=None, autospec=True),
+                patch.object(
+                    collector, "collect_postgresql_metrics", return_value=None, autospec=True
+                ),
+                patch.object(collector, "collect_redis_metrics", return_value=None, autospec=True),
+                patch.object(collector, "collect_container_health", return_value=[], autospec=True),
+                patch.object(
+                    collector, "collect_inference_metrics", return_value=None, autospec=True
+                ),
             ):
                 result = await collector.collect_all()
 
@@ -1768,7 +1954,9 @@ class TestCollectAll:
     @pytest.mark.asyncio
     async def test_collect_all_generates_alerts(self) -> None:
         """Test collect_all generates alerts for threshold violations."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             from backend.api.schemas.performance import (
@@ -1815,16 +2003,29 @@ class TestCollectAll:
             )
 
             with (
-                patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
-                patch.object(collector, "collect_yolo26_metrics", return_value=None),
-                patch.object(collector, "collect_nemotron_metrics", return_value=None),
-                patch.object(collector, "collect_host_metrics", return_value=host_metrics),
                 patch.object(
-                    collector, "collect_postgresql_metrics", return_value=postgresql_metrics
+                    collector, "collect_gpu_metrics", return_value=gpu_metrics, autospec=True
                 ),
-                patch.object(collector, "collect_redis_metrics", return_value=redis_metrics),
-                patch.object(collector, "collect_container_health", return_value=[]),
-                patch.object(collector, "collect_inference_metrics", return_value=None),
+                patch.object(collector, "collect_yolo26_metrics", return_value=None, autospec=True),
+                patch.object(
+                    collector, "collect_nemotron_metrics", return_value=None, autospec=True
+                ),
+                patch.object(
+                    collector, "collect_host_metrics", return_value=host_metrics, autospec=True
+                ),
+                patch.object(
+                    collector,
+                    "collect_postgresql_metrics",
+                    return_value=postgresql_metrics,
+                    autospec=True,
+                ),
+                patch.object(
+                    collector, "collect_redis_metrics", return_value=redis_metrics, autospec=True
+                ),
+                patch.object(collector, "collect_container_health", return_value=[], autospec=True),
+                patch.object(
+                    collector, "collect_inference_metrics", return_value=None, autospec=True
+                ),
             ):
                 result = await collector.collect_all()
 
@@ -1845,32 +2046,40 @@ class TestCollectGpuPynvmlSuccess:
 
     def test_collect_gpu_pynvml_success(self) -> None:
         """Test successful GPU metrics collection via pynvml."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             # Mock pynvml module and its functions
-            with patch("pynvml.nvmlInit") as mock_init:
+            with patch("pynvml.nvmlInit", autospec=True) as mock_init:
                 mock_init.return_value = None
 
                 collector = PerformanceCollector()
                 collector._pynvml_available = True
 
-                with patch("pynvml.nvmlDeviceGetHandleByIndex") as mock_get_handle:
+                with patch("pynvml.nvmlDeviceGetHandleByIndex", autospec=True) as mock_get_handle:
                     mock_handle = MagicMock()
                     mock_get_handle.return_value = mock_handle
 
                     with (
-                        patch("pynvml.nvmlDeviceGetName", return_value=b"NVIDIA RTX A5500"),
+                        patch(
+                            "pynvml.nvmlDeviceGetName",
+                            return_value=b"NVIDIA RTX A5500",
+                            autospec=True,
+                        ),
                         patch(
                             "pynvml.nvmlDeviceGetUtilizationRates",
                             return_value=MagicMock(gpu=50, memory=60),
+                            autospec=True,
                         ),
                         patch(
                             "pynvml.nvmlDeviceGetMemoryInfo",
                             return_value=MagicMock(used=10 * 1024**3, total=24 * 1024**3),
+                            autospec=True,
                         ),
-                        patch("pynvml.nvmlDeviceGetTemperature", return_value=65),
-                        patch("pynvml.nvmlDeviceGetPowerUsage", return_value=150000),
+                        patch("pynvml.nvmlDeviceGetTemperature", return_value=65, autospec=True),
+                        patch("pynvml.nvmlDeviceGetPowerUsage", return_value=150000, autospec=True),
                         patch(
                             "pynvml.NVML_TEMPERATURE_GPU",
                             0,
@@ -1888,13 +2097,15 @@ class TestCollectGpuPynvmlSuccess:
 
     def test_collect_gpu_pynvml_bytes_name(self) -> None:
         """Test GPU name is decoded from bytes if needed."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
             collector._pynvml_available = True
 
-            with patch("pynvml.nvmlDeviceGetHandleByIndex") as mock_get_handle:
+            with patch("pynvml.nvmlDeviceGetHandleByIndex", autospec=True) as mock_get_handle:
                 mock_handle = MagicMock()
                 mock_get_handle.return_value = mock_handle
 
@@ -1902,17 +2113,20 @@ class TestCollectGpuPynvmlSuccess:
                     patch(
                         "pynvml.nvmlDeviceGetName",
                         return_value=b"NVIDIA GeForce RTX 3090",
+                        autospec=True,
                     ),
                     patch(
                         "pynvml.nvmlDeviceGetUtilizationRates",
                         return_value=MagicMock(gpu=40, memory=50),
+                        autospec=True,
                     ),
                     patch(
                         "pynvml.nvmlDeviceGetMemoryInfo",
                         return_value=MagicMock(used=8 * 1024**3, total=24 * 1024**3),
+                        autospec=True,
                     ),
-                    patch("pynvml.nvmlDeviceGetTemperature", return_value=60),
-                    patch("pynvml.nvmlDeviceGetPowerUsage", return_value=200000),
+                    patch("pynvml.nvmlDeviceGetTemperature", return_value=60, autospec=True),
+                    patch("pynvml.nvmlDeviceGetPowerUsage", return_value=200000, autospec=True),
                     patch("pynvml.NVML_TEMPERATURE_GPU", 0),
                 ):
                     result = collector._collect_gpu_pynvml()
@@ -1923,7 +2137,9 @@ class TestCollectGpuPynvmlSuccess:
 
     def test_collect_gpu_pynvml_error_handling(self) -> None:
         """Test pynvml collection handles errors gracefully."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             collector = PerformanceCollector()
@@ -1932,6 +2148,7 @@ class TestCollectGpuPynvmlSuccess:
             with patch(
                 "pynvml.nvmlDeviceGetHandleByIndex",
                 side_effect=Exception("NVML error"),
+                autospec=True,
             ):
                 result = collector._collect_gpu_pynvml()
 
@@ -1949,12 +2166,15 @@ class TestCollectInferenceMetricsErrors:
     @pytest.mark.asyncio
     async def test_collect_inference_metrics_tracker_error(self) -> None:
         """Test inference metrics returns None on tracker error."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             with patch(
                 "backend.core.metrics.get_pipeline_latency_tracker",
                 side_effect=Exception("Tracker error"),
+                autospec=True,
             ):
                 collector = PerformanceCollector()
                 result = await collector.collect_inference_metrics()
@@ -1964,10 +2184,14 @@ class TestCollectInferenceMetricsErrors:
     @pytest.mark.asyncio
     async def test_collect_inference_metrics_missing_stats(self) -> None:
         """Test inference metrics handles missing stats gracefully."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker:
+            with patch(
+                "backend.core.metrics.get_pipeline_latency_tracker", autospec=True
+            ) as mock_tracker:
                 mock_tracker_instance = MagicMock()
                 # Return empty dicts for stats
                 mock_tracker_instance.get_stage_stats.return_value = {}
@@ -1977,7 +2201,9 @@ class TestCollectInferenceMetricsErrors:
                 mock_session.__aenter__.return_value = mock_session
                 mock_session.__aexit__.return_value = None
 
-                with patch("backend.core.database.get_session", return_value=mock_session):
+                with patch(
+                    "backend.core.database.get_session", return_value=mock_session, autospec=True
+                ):
                     collector = PerformanceCollector()
 
                     async def mock_get_detections(session):
@@ -1988,10 +2214,16 @@ class TestCollectInferenceMetricsErrors:
 
                     with (
                         patch.object(
-                            collector, "_get_detections_per_minute", side_effect=mock_get_detections
+                            collector,
+                            "_get_detections_per_minute",
+                            side_effect=mock_get_detections,
+                            autospec=True,
                         ),
                         patch.object(
-                            collector, "_get_events_per_minute", side_effect=mock_get_events
+                            collector,
+                            "_get_events_per_minute",
+                            side_effect=mock_get_events,
+                            autospec=True,
                         ),
                     ):
                         result = await collector.collect_inference_metrics()
@@ -2013,10 +2245,14 @@ class TestCollectHostMetricsEdgeCases:
     @pytest.mark.asyncio
     async def test_collect_host_metrics_memory_failure(self) -> None:
         """Test host metrics when memory measurement fails."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+            with patch(
+                "backend.services.performance_collector.psutil", autospec=True
+            ) as mock_psutil:
                 mock_psutil.cpu_percent.return_value = 45.0
 
                 # Mock memory failure
@@ -2040,10 +2276,14 @@ class TestCollectHostMetricsEdgeCases:
     @pytest.mark.asyncio
     async def test_collect_host_metrics_disk_failure(self) -> None:
         """Test host metrics when disk measurement fails."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
-            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+            with patch(
+                "backend.services.performance_collector.psutil", autospec=True
+            ) as mock_psutil:
                 mock_psutil.cpu_percent.return_value = 45.0
 
                 # Mock memory
@@ -2076,10 +2316,12 @@ class TestCollectPostgresqlMetricsEdgeCases:
     @pytest.mark.asyncio
     async def test_collect_postgresql_metrics_connection_count_error(self) -> None:
         """Test PostgreSQL metrics when connection count query fails."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(database_pool_size=10, database_pool_overflow=20)
 
-            with patch("backend.core.database.get_session_factory") as mock_factory:
+            with patch("backend.core.database.get_session_factory", autospec=True) as mock_factory:
                 mock_session = AsyncMock()
                 mock_session.__aenter__.return_value = mock_session
                 mock_session.__aexit__.return_value = None
@@ -2109,10 +2351,12 @@ class TestCollectPostgresqlMetricsEdgeCases:
     @pytest.mark.asyncio
     async def test_collect_postgresql_metrics_cache_hit_error(self) -> None:
         """Test PostgreSQL metrics when cache hit query fails."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(database_pool_size=10, database_pool_overflow=20)
 
-            with patch("backend.core.database.get_session_factory") as mock_factory:
+            with patch("backend.core.database.get_session_factory", autospec=True) as mock_factory:
                 mock_session = AsyncMock()
                 mock_session.__aenter__.return_value = mock_session
                 mock_session.__aexit__.return_value = None
@@ -2141,10 +2385,12 @@ class TestCollectPostgresqlMetricsEdgeCases:
     @pytest.mark.asyncio
     async def test_collect_postgresql_metrics_transaction_count_error(self) -> None:
         """Test PostgreSQL metrics when transaction count query fails."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(database_pool_size=10, database_pool_overflow=20)
 
-            with patch("backend.core.database.get_session_factory") as mock_factory:
+            with patch("backend.core.database.get_session_factory", autospec=True) as mock_factory:
                 mock_session = AsyncMock()
                 mock_session.__aenter__.return_value = mock_session
                 mock_session.__aexit__.return_value = None
@@ -2173,12 +2419,15 @@ class TestCollectPostgresqlMetricsEdgeCases:
     @pytest.mark.asyncio
     async def test_collect_postgresql_metrics_exception(self) -> None:
         """Test PostgreSQL metrics returns unreachable on exception."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with patch(
+            "backend.services.performance_collector.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             with patch(
                 "backend.core.database.get_session_factory",
                 side_effect=Exception("Database error"),
+                autospec=True,
             ):
                 collector = PerformanceCollector()
                 result = await collector.collect_postgresql_metrics()

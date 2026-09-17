@@ -255,7 +255,9 @@ class TestSceneOCRMetricsIntegration:
     @pytest.fixture
     def mock_scene_ocr_service(self):
         """Create a mock scene OCR service to test metric recording."""
-        with patch("backend.services.scene_ocr_service.httpx.AsyncClient") as mock_client:
+        with patch(
+            "backend.services.scene_ocr_service.httpx.AsyncClient", autospec=True
+        ) as mock_client:
             yield mock_client
 
     def test_metrics_recorded_for_valid_source_labels(self) -> None:

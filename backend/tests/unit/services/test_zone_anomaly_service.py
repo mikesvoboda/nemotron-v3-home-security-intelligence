@@ -415,7 +415,9 @@ class TestCheckDetection:
 
         mock_session = AsyncMock()
 
-        with patch.object(service._baseline_service, "get_baseline", return_value=None):
+        with patch.object(
+            service._baseline_service, "get_baseline", return_value=None, autospec=True
+        ):
             result = await service.check_detection(detection, zone, session=mock_session)
             assert result is None
 
@@ -438,7 +440,9 @@ class TestCheckDetection:
 
         mock_session = AsyncMock()
 
-        with patch.object(service._baseline_service, "get_baseline", return_value=mock_baseline):
+        with patch.object(
+            service._baseline_service, "get_baseline", return_value=mock_baseline, autospec=True
+        ):
             result = await service.check_detection(detection, zone, session=mock_session)
             assert result is None
 
@@ -471,7 +475,9 @@ class TestCheckDetection:
 
         mock_session = AsyncMock()
 
-        with patch.object(service._baseline_service, "get_baseline", return_value=mock_baseline):
+        with patch.object(
+            service._baseline_service, "get_baseline", return_value=mock_baseline, autospec=True
+        ):
             with patch.object(service, "_persist_and_emit", new_callable=AsyncMock):
                 result = await service.check_detection(detection, zone, session=mock_session)
                 assert result is not None
@@ -512,7 +518,7 @@ class TestEmitWebSocketEvent:
         anomaly.thumbnail_url = "/thumbnails/det_123.jpg"
         anomaly.timestamp = datetime(2026, 1, 21, 3, 15, 0, tzinfo=UTC)
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await service._emit_websocket_event(anomaly)
@@ -556,7 +562,7 @@ class TestEmitWebSocketEvent:
             yield mock_redis
 
         with patch("backend.services.zone_anomaly_service.get_redis", mock_get_redis):
-            with patch("backend.core.config.get_settings") as mock_settings:
+            with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value.redis_event_channel = "security_events"
 
                 await service._emit_websocket_event(anomaly)
@@ -587,7 +593,7 @@ class TestEmitWebSocketEvent:
         anomaly.thumbnail_url = None
         anomaly.timestamp = datetime(2026, 1, 21, 3, 15, 0, tzinfo=UTC)
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await service._emit_websocket_event(anomaly)
@@ -626,7 +632,7 @@ class TestPersistAndEmit:
 
         mock_session = AsyncMock()
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await service._persist_and_emit(anomaly, session=mock_session)
@@ -660,8 +666,12 @@ class TestPersistAndEmit:
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
 
-        with patch("backend.services.zone_anomaly_service.get_session", return_value=mock_session):
-            with patch("backend.core.config.get_settings") as mock_settings:
+        with patch(
+            "backend.services.zone_anomaly_service.get_session",
+            return_value=mock_session,
+            autospec=True,
+        ):
+            with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value.redis_event_channel = "security_events"
 
                 await service._persist_and_emit(anomaly)
@@ -1045,7 +1055,9 @@ class TestAdditionalCoverage:
 
         mock_session = AsyncMock()
 
-        with patch.object(service._baseline_service, "get_baseline", return_value=mock_baseline):
+        with patch.object(
+            service._baseline_service, "get_baseline", return_value=mock_baseline, autospec=True
+        ):
             result = await service.check_detection(detection, zone, session=mock_session)
             # All values are normal, should return None
             assert result is None

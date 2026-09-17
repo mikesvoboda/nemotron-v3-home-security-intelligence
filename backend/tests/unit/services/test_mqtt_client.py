@@ -98,9 +98,9 @@ def mock_aiomqtt_client():
 def mock_prometheus_metrics():
     """Mock Prometheus metrics."""
     with (
-        patch("backend.services.mqtt_client.Counter") as mock_counter,
-        patch("backend.services.mqtt_client.Histogram") as mock_histogram,
-        patch("backend.services.mqtt_client.Gauge") as mock_gauge,
+        patch("backend.services.mqtt_client.Counter", autospec=True) as mock_counter,
+        patch("backend.services.mqtt_client.Histogram", autospec=True) as mock_histogram,
+        patch("backend.services.mqtt_client.Gauge", autospec=True) as mock_gauge,
     ):
         # Create mock metric instances
         mock_counter_instance = MagicMock()
@@ -252,7 +252,11 @@ async def test_connect_success(mqtt_client, mock_aiomqtt_client, mqtt_settings):
 
     ACCEPTANCE: connect() must establish connection and set connected=True.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         assert mqtt_client.connected is True
@@ -272,7 +276,7 @@ async def test_connect_failure_retry(mqtt_client, mqtt_settings):
         raise ConnectionError("Connection refused")
 
     with (
-        patch("backend.services.mqtt_client.aiomqtt.Client") as mock_client_class,
+        patch("backend.services.mqtt_client.aiomqtt.Client", autospec=True) as mock_client_class,
         patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
     ):
         mock_client_class.return_value.__aenter__.side_effect = mock_connect_fail
@@ -298,7 +302,11 @@ async def test_disconnect_graceful(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: disconnect() must clean up resources and set connected=False.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
         assert mqtt_client.connected is True
 
@@ -323,7 +331,11 @@ async def test_auto_reconnect(mqtt_client, mock_aiomqtt_client):
             raise ConnectionError("Connection lost")
         # Second attempt succeeds
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         mock_aiomqtt_client.publish.side_effect = mock_publish_with_disconnect
 
         await mqtt_client.connect()
@@ -342,7 +354,11 @@ async def test_connect_is_idempotent(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: Double-connect should not cause errors or duplicate connections.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
         await mqtt_client.connect()  # Should be safe
 
@@ -371,7 +387,11 @@ async def test_publish_message_success(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: publish() should send message with configured QoS level.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         topic = "events/camera/front_door"
@@ -395,7 +415,11 @@ async def test_publish_with_qos_levels(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: publish() should support QoS 0 (at most once), 1 (at least once), 2 (exactly once).
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         topic = "events/test"
@@ -420,7 +444,11 @@ async def test_publish_with_retain(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: publish() should support retain flag for last will messages.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         topic = "status/system"
@@ -448,7 +476,11 @@ async def test_publish_failure_retry(mqtt_client, mock_aiomqtt_client):
         # Third attempt succeeds
 
     with (
-        patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client),
+        patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ),
         patch("asyncio.sleep", new_callable=AsyncMock),
     ):
         mock_aiomqtt_client.publish.side_effect = mock_publish_fail
@@ -478,7 +510,11 @@ async def test_publish_json_serialization(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: publish() should serialize dict payloads to JSON.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         payload = {"nested": {"data": [1, 2, 3]}, "timestamp": "2026-02-01T00:00:00Z"}
@@ -512,7 +548,11 @@ async def test_subscribe_topic(mqtt_client, mock_aiomqtt_client):
         nonlocal callback_invoked
         callback_invoked = True
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         topic = "commands/zone/arm"
@@ -545,7 +585,11 @@ async def test_subscribe_starts_message_pump(mqtt_client, mock_aiomqtt_client):
 
     assert mqtt_client._message_task is None  # no pump before subscribe
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
         await mqtt_client.subscribe("commands/pump-probe", cb)
 
@@ -567,7 +611,11 @@ async def test_subscribe_wildcard(mqtt_client, mock_aiomqtt_client):
     async def test_callback(topic: str, payload: dict):
         pass
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Single-level wildcard
@@ -589,7 +637,11 @@ async def test_unsubscribe(mqtt_client, mock_aiomqtt_client):
     async def test_callback(topic: str, payload: dict):
         pass
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         topic = "commands/test"
@@ -624,7 +676,11 @@ async def test_message_callback_invoked(mqtt_client, mock_aiomqtt_client):
 
     mock_aiomqtt_client.messages = mock_messages()
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
         await mqtt_client.subscribe("commands/zone/1/arm", test_callback)
 
@@ -646,7 +702,11 @@ async def test_health_check_connected(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: health_check() should return True for active connections.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         result = await mqtt_client.health_check()
@@ -673,7 +733,11 @@ async def test_health_check_with_ping(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: health_check() should optionally ping broker to verify connection is alive.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Mock ping/pong
@@ -696,7 +760,11 @@ async def test_connection_metrics_recorded(
 
     ACCEPTANCE: Connection success/failure should increment hsi_mqtt_connections_total counter.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Verify metrics were recorded
@@ -711,7 +779,11 @@ async def test_publish_metrics_recorded(mqtt_client, mock_aiomqtt_client, mock_p
 
     ACCEPTANCE: publish() should record hsi_mqtt_publish_duration_seconds histogram.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
         await mqtt_client.publish("test/topic", {"data": "test"})
 
@@ -728,8 +800,8 @@ async def test_error_metrics_recorded(mqtt_client, mqtt_settings):
     ACCEPTANCE: Connection/publish errors should increment hsi_mqtt_errors_total counter.
     """
     with (
-        patch("backend.services.mqtt_client.aiomqtt.Client") as mock_client_class,
-        patch("backend.services.mqtt_client.Counter") as mock_counter,
+        patch("backend.services.mqtt_client.aiomqtt.Client", autospec=True) as mock_client_class,
+        patch("backend.services.mqtt_client.Counter", autospec=True) as mock_counter,
     ):
         mock_counter_instance = MagicMock()
         mock_counter_instance.labels.return_value.inc = MagicMock()
@@ -755,7 +827,11 @@ async def test_event_broadcaster_integration_pattern(mqtt_client, mock_aiomqtt_c
 
     ACCEPTANCE: Client should support publishing events from event_broadcaster.py.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Simulate event broadcaster pattern
@@ -781,7 +857,11 @@ async def test_multiple_topics_publish(mqtt_client, mock_aiomqtt_client):
 
     ACCEPTANCE: Client should handle various topic structures from design doc.
     """
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Test various topic patterns from design doc
@@ -812,7 +892,11 @@ async def test_command_subscription_pattern(mqtt_client, mock_aiomqtt_client):
     async def handle_zone_command(topic: str, payload: dict):
         command_received.append({"topic": topic, "payload": payload})
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Subscribe to command topics
@@ -834,7 +918,11 @@ async def test_graceful_shutdown_with_active_subscriptions(mqtt_client, mock_aio
     async def test_callback(topic: str, payload: dict):
         pass
 
-    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+    with patch(
+        "backend.services.mqtt_client.aiomqtt.Client",
+        return_value=mock_aiomqtt_client,
+        autospec=True,
+    ):
         await mqtt_client.connect()
 
         # Add multiple subscriptions

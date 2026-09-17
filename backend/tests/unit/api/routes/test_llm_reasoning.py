@@ -391,6 +391,7 @@ class TestGetLLMReasoningEndpoint:
         with patch(
             "backend.api.routes.llm_reasoning.get_event_or_404",
             return_value=mock_event,
+            autospec=True,
         ):
             try:
                 async with AsyncClient(
@@ -427,6 +428,7 @@ class TestGetLLMReasoningEndpoint:
         with patch(
             "backend.api.routes.llm_reasoning.get_event_or_404",
             side_effect=HTTPException(status_code=404, detail="Event not found"),
+            autospec=True,
         ):
             try:
                 async with AsyncClient(
@@ -462,6 +464,7 @@ class TestGetLLMReasoningEndpoint:
         with patch(
             "backend.api.routes.llm_reasoning.get_event_or_404",
             return_value=mock_event,
+            autospec=True,
         ):
             try:
                 async with AsyncClient(
@@ -510,6 +513,7 @@ class TestGetLLMReasoningEndpoint:
         with patch(
             "backend.api.routes.llm_reasoning.get_event_or_404",
             return_value=mock_event,
+            autospec=True,
         ):
             try:
                 async with AsyncClient(

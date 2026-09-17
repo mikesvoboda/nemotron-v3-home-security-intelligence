@@ -86,7 +86,9 @@ class TestGetConfigDeprecationHeader:
         mock_settings = create_mock_settings()
         app = create_test_app()
 
-        with patch("backend.api.routes.system.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.system.get_settings", return_value=mock_settings, autospec=True
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -107,7 +109,9 @@ class TestGetConfigDeprecationHeader:
         mock_settings = create_mock_settings()
         app = create_test_app()
 
-        with patch("backend.api.routes.system.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.system.get_settings", return_value=mock_settings, autospec=True
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -156,8 +160,14 @@ class TestPatchConfigDeprecationHeader:
         app.dependency_overrides[verify_api_key] = lambda: None
 
         with (
-            patch("backend.api.routes.system.get_settings", return_value=mock_settings),
-            patch("backend.api.routes.system._runtime_env_path", return_value=runtime_env),
+            patch(
+                "backend.api.routes.system.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "backend.api.routes.system._runtime_env_path",
+                return_value=runtime_env,
+                autospec=True,
+            ),
             patch("backend.api.routes.system.AuditService.log_action", new_callable=AsyncMock),
         ):
             async with AsyncClient(

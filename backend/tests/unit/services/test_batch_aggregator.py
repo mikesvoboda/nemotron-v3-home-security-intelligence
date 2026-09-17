@@ -175,7 +175,7 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
     # Mock generate_batch_id to return a predictable value
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch-abc12345"
 
         batch_id = await batch_aggregator.add_detection(camera_id, detection_id, file_path)
@@ -231,7 +231,7 @@ async def test_create_batch_id_uses_camera_batch_key(batch_aggregator, mock_redi
     mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
     # Mock generate_batch_id to return a predictable value
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch-test4567"
 
         await batch_aggregator.add_detection(camera_id, detection_id, file_path)
@@ -535,7 +535,7 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
 @pytest.mark.asyncio
 async def test_batch_aggregator_uses_config(mock_redis_instance):
     """Test that BatchAggregator uses configuration values."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 120
         mock_settings.return_value.batch_idle_timeout_seconds = 45
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -557,7 +557,7 @@ async def test_add_detection_concurrent_cameras(batch_aggregator, mock_redis_ins
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         # Generate unique batch IDs
         batch_ids = ["batch_001", "batch_002"]
         mock_gen.return_value = batch_ids[0]
@@ -818,7 +818,7 @@ async def test_check_batch_timeouts_uses_scan_iter_with_count(
 @pytest.mark.asyncio
 async def test_should_use_fast_path_high_confidence_person(mock_redis_instance):
     """Test that high-confidence person detection triggers fast path."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -834,7 +834,7 @@ async def test_should_use_fast_path_high_confidence_person(mock_redis_instance):
 @pytest.mark.asyncio
 async def test_should_use_fast_path_low_confidence_person(mock_redis_instance):
     """Test that low-confidence person detection does not trigger fast path."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -850,7 +850,7 @@ async def test_should_use_fast_path_low_confidence_person(mock_redis_instance):
 @pytest.mark.asyncio
 async def test_should_use_fast_path_non_critical_object(mock_redis_instance):
     """Test that non-critical object types do not trigger fast path."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -866,7 +866,7 @@ async def test_should_use_fast_path_non_critical_object(mock_redis_instance):
 @pytest.mark.asyncio
 async def test_should_use_fast_path_none_values(mock_redis_instance):
     """Test that None values do not trigger fast path."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -883,7 +883,7 @@ async def test_should_use_fast_path_none_values(mock_redis_instance):
 @pytest.mark.asyncio
 async def test_should_use_fast_path_case_insensitive(mock_redis_instance):
     """Test that object type matching is case-insensitive."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -948,7 +948,7 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
     batch_aggregator._fast_path_threshold = 0.90
     batch_aggregator._fast_path_types = ["person"]
 
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch_normal"
 
         batch_id = await batch_aggregator.add_detection(
@@ -976,7 +976,9 @@ async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_i
     batch_aggregator._analyzer = None
 
     # Mock the NemotronAnalyzer class - it's imported inside _process_fast_path
-    with patch("backend.services.nemotron_analyzer.NemotronAnalyzer") as MockAnalyzer:
+    with patch(
+        "backend.services.nemotron_analyzer.NemotronAnalyzer", autospec=True
+    ) as MockAnalyzer:
         mock_analyzer_instance = AsyncMock(spec=NemotronAnalyzer)
         mock_analyzer_instance.analyze_detection_fast_path = AsyncMock()
         MockAnalyzer.return_value = mock_analyzer_instance
@@ -1027,7 +1029,7 @@ async def test_add_detection_without_confidence_skips_fast_path(
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch_no_confidence"
 
         batch_id = await batch_aggregator.add_detection(
@@ -1382,7 +1384,7 @@ async def test_add_detection_stores_pipeline_start_time(batch_aggregator, mock_r
 
     mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch_with_time"
 
         batch_id = await batch_aggregator.add_detection(
@@ -1417,7 +1419,7 @@ async def test_add_detection_without_pipeline_start_time(batch_aggregator, mock_
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch_no_time"
 
         batch_id = await batch_aggregator.add_detection(
@@ -1570,7 +1572,7 @@ async def test_add_detection_handles_partial_redis_failure(batch_aggregator, moc
     mock_redis_instance.set = failing_set
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+    with patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen:
         mock_gen.return_value = "batch_partial_fail"
 
         # This should handle the partial failure gracefully
@@ -1694,6 +1696,7 @@ async def test_should_apply_backpressure_handles_exception(batch_aggregator):
     with patch(
         "backend.services.batch_aggregator.get_memory_pressure_level",
         side_effect=Exception("GPU monitor error"),
+        autospec=True,
     ):
         # Should return False on exception (no backpressure)
         result = await batch_aggregator.should_apply_backpressure()
@@ -1709,6 +1712,7 @@ async def test_should_apply_backpressure_critical_pressure(batch_aggregator):
     with patch(
         "backend.services.batch_aggregator.get_memory_pressure_level",
         return_value=MemoryPressureLevel.CRITICAL,
+        autospec=True,
     ):
         # Should return True for CRITICAL pressure
         result = await batch_aggregator.should_apply_backpressure()
@@ -1724,6 +1728,7 @@ async def test_should_apply_backpressure_normal_pressure(batch_aggregator):
     with patch(
         "backend.services.batch_aggregator.get_memory_pressure_level",
         return_value=MemoryPressureLevel.NORMAL,
+        autospec=True,
     ):
         # Should return False for NORMAL pressure
         result = await batch_aggregator.should_apply_backpressure()
@@ -2228,7 +2233,9 @@ class TestBatchAggregatorProperties:
         mock_redis_instance,
     ) -> None:
         """Property: Fast path decision is deterministic for same inputs."""
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = 90
             mock_settings.return_value.batch_idle_timeout_seconds = 30
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2256,7 +2263,9 @@ class TestBatchAggregatorProperties:
         mock_redis_instance,
     ) -> None:
         """Property: Fast path is only triggered when confidence >= threshold."""
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = 90
             mock_settings.return_value.batch_idle_timeout_seconds = 30
             mock_settings.return_value.fast_path_confidence_threshold = threshold
@@ -2287,7 +2296,9 @@ class TestBatchAggregatorProperties:
         mock_redis_instance,
     ) -> None:
         """Property: Object type matching for fast path is case-insensitive."""
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = 90
             mock_settings.return_value.batch_idle_timeout_seconds = 30
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2339,7 +2350,9 @@ class TestBatchAggregatorProperties:
         mock_redis_instance.get.return_value = None
         mock_redis_instance._client.rpush.return_value = 1
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "test_batch"
 
             batch_id = await aggregator.add_detection(
@@ -2400,7 +2413,9 @@ class TestBatchAggregatorProperties:
         mock_redis_instance,
     ) -> None:
         """Property: Configured timeout values are properly stored."""
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = batch_window
             mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2557,7 +2572,9 @@ class TestBatchAggregatorProperties:
 
         A batch should timeout if elapsed_seconds > window_seconds.
         """
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = window_seconds
             mock_settings.return_value.batch_idle_timeout_seconds = 30
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2597,7 +2614,9 @@ class TestBatchAggregatorProperties:
 
         A batch should timeout if idle_seconds > idle_timeout.
         """
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = 90
             mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2643,7 +2662,9 @@ class TestBatchAggregatorProperties:
         - confidence >= threshold
         - object_type in fast_path_types
         """
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = 90
             mock_settings.return_value.batch_idle_timeout_seconds = 30
             mock_settings.return_value.fast_path_confidence_threshold = confidence_threshold
@@ -2705,7 +2726,9 @@ class TestBatchAggregatorProperties:
         For idle timeout to be useful, it should be less than the batch window.
         Otherwise, the window timeout would always trigger first.
         """
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = batch_window
             mock_settings.return_value.batch_idle_timeout_seconds = idle_timeout
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2740,7 +2763,9 @@ class TestBatchAggregatorProperties:
 
         Duration = current_time - start_time (in seconds).
         """
-        with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        with patch(
+            "backend.services.batch_aggregator.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.batch_window_seconds = window
             mock_settings.return_value.batch_idle_timeout_seconds = 30
             mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2925,7 +2950,7 @@ async def test_check_batch_timeouts_handles_bytes_and_json_combined(
 @pytest.mark.asyncio
 async def test_batch_max_detections_config_default(mock_redis_instance):
     """Test that batch_max_detections has correct default value (500)."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2940,7 +2965,7 @@ async def test_batch_max_detections_config_default(mock_redis_instance):
 @pytest.mark.asyncio
 async def test_batch_max_detections_config_custom(mock_redis_instance):
     """Test that batch_max_detections can be configured to custom value."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2965,7 +2990,7 @@ async def test_add_detection_closes_batch_when_max_reached(mock_redis_instance):
     camera_id = "front_door"
     existing_batch_id = "batch_old"
 
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -2990,7 +3015,9 @@ async def test_add_detection_closes_batch_when_max_reached(mock_redis_instance):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch_new"
 
             # Add detection which should trigger batch split
@@ -3013,7 +3040,7 @@ async def test_add_detection_no_split_when_under_limit(mock_redis_instance):
     camera_id = "front_door"
     existing_batch_id = "batch_123"
 
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -3054,7 +3081,7 @@ async def test_batch_split_logs_info_message(mock_redis_instance, caplog):
     camera_id = "front_door"
     existing_batch_id = "batch_old"
 
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -3077,7 +3104,9 @@ async def test_batch_split_logs_info_message(mock_redis_instance, caplog):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch_new"
 
             with caplog.at_level(logging.INFO):
@@ -3100,7 +3129,7 @@ async def test_batch_split_records_metric(mock_redis_instance):
     camera_id = "front_door"
     existing_batch_id = "batch_old"
 
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -3123,10 +3152,14 @@ async def test_batch_split_records_metric(mock_redis_instance):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch_new"
 
-            with patch("backend.services.batch_aggregator.record_batch_max_reached") as mock_metric:
+            with patch(
+                "backend.services.batch_aggregator.record_batch_max_reached", autospec=True
+            ) as mock_metric:
                 await aggregator.add_detection(
                     camera_id=camera_id,
                     detection_id=6,
@@ -3143,7 +3176,7 @@ async def test_batch_split_preserves_detection_order(mock_redis_instance):
     camera_id = "front_door"
     existing_batch_id = "batch_old"
 
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -3167,7 +3200,9 @@ async def test_batch_split_preserves_detection_order(mock_redis_instance):
         # Old batch has detections 1-5
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch_new"
 
             await aggregator.add_detection(
@@ -3192,7 +3227,7 @@ async def test_new_batch_after_split_accepts_detections(mock_redis_instance):
     existing_batch_id = "batch_old"
     new_batch_id = "batch_new"
 
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -3235,7 +3270,9 @@ async def test_new_batch_after_split_accepts_detections(mock_redis_instance):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = new_batch_id
 
             batch_id = await aggregator.add_detection(
@@ -3260,7 +3297,7 @@ def test_batch_should_split_when_at_or_above_limit(
     mock_redis_instance,
 ) -> None:
     """Property: Batch should split when current_size >= max_detections."""
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.90
@@ -3917,7 +3954,9 @@ class TestAddDetectionWithThreatBypass:
 
         mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch_normal_threat"
 
             batch_id = await batch_aggregator.add_detection(
@@ -3960,7 +3999,9 @@ class TestProcessThreatFastPath:
         confidence = 0.90
 
         # Mock the ThreatMonitorService
-        with patch("backend.services.threat_monitor_service.ThreatMonitorService") as MockService:
+        with patch(
+            "backend.services.threat_monitor_service.ThreatMonitorService", autospec=True
+        ) as MockService:
             mock_service_instance = AsyncMock()
             mock_service_instance.process_threat_detection = AsyncMock(return_value=MagicMock())
             MockService.return_value = mock_service_instance
@@ -3992,7 +4033,9 @@ class TestProcessThreatFastPath:
         confidence = 0.85
 
         # Mock the ThreatMonitorService to raise an error
-        with patch("backend.services.threat_monitor_service.ThreatMonitorService") as MockService:
+        with patch(
+            "backend.services.threat_monitor_service.ThreatMonitorService", autospec=True
+        ) as MockService:
             mock_service_instance = AsyncMock()
             mock_service_instance.process_threat_detection = AsyncMock(
                 side_effect=Exception("Database error")
@@ -4209,7 +4252,7 @@ class TestAddDetectionWithSmokeFireBypass:
         mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
         with (
-            patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen,
+            patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen,
             patch.object(
                 batch_aggregator,
                 "_process_smoke_fire_fast_path",
@@ -4278,7 +4321,7 @@ class TestAddDetectionWithSmokeFireBypass:
         mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
         with (
-            patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen,
+            patch("backend.services.batch_aggregator.generate_batch_id", autospec=True) as mock_gen,
             patch.object(
                 batch_aggregator,
                 "_process_smoke_fire_fast_path",
@@ -4350,7 +4393,9 @@ class TestAddDetectionWithSmokeFireBypass:
 
         mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
-        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        with patch(
+            "backend.services.batch_aggregator.generate_batch_id", autospec=True
+        ) as mock_gen:
             mock_gen.return_value = "batch_normal_fire"
 
             batch_id = await batch_aggregator.add_detection(
@@ -4395,7 +4440,7 @@ class TestProcessSmokeFireFastPath:
 
         # Mock the SmokeFireConsecutiveService
         with patch(
-            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService"
+            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService", autospec=True
         ) as MockService:
             mock_service_instance = AsyncMock()
             mock_service_instance.process_smoke_fire_detection = AsyncMock(return_value=MagicMock())
@@ -4429,7 +4474,7 @@ class TestProcessSmokeFireFastPath:
 
         # Mock the SmokeFireConsecutiveService to raise an error
         with patch(
-            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService"
+            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService", autospec=True
         ) as MockService:
             mock_service_instance = AsyncMock()
             mock_service_instance.process_smoke_fire_detection = AsyncMock(
@@ -4460,7 +4505,7 @@ class TestProcessSmokeFireFastPath:
         confidence = 0.88
 
         with patch(
-            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService"
+            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService", autospec=True
         ) as MockService:
             mock_service_instance = AsyncMock()
             mock_service_instance.process_smoke_fire_detection = AsyncMock(return_value=MagicMock())

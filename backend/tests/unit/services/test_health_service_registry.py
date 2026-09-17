@@ -348,7 +348,7 @@ class TestDIContainerIntegration:
         """get_health_registry should retrieve registry from container."""
         mock_registry = MagicMock()
 
-        with patch("backend.core.container.get_container") as mock_get:
+        with patch("backend.core.container.get_container", autospec=True) as mock_get:
             mock_container = MagicMock()
             mock_container.get_async = AsyncMock(return_value=mock_registry)
             mock_get.return_value = mock_container
@@ -358,7 +358,7 @@ class TestDIContainerIntegration:
 
     def test_get_health_registry_optional_returns_none_when_not_available(self) -> None:
         """get_health_registry_optional should return None when not available."""
-        with patch("backend.core.container.get_container") as mock_get:
+        with patch("backend.core.container.get_container", autospec=True) as mock_get:
             mock_container = MagicMock()
             mock_container._registrations = {}
             mock_get.return_value = mock_container
@@ -370,7 +370,7 @@ class TestDIContainerIntegration:
         """get_health_registry_optional should return instance when available."""
         mock_registry = MagicMock()
 
-        with patch("backend.core.container.get_container") as mock_get:
+        with patch("backend.core.container.get_container", autospec=True) as mock_get:
             mock_container = MagicMock()
             mock_registration = MagicMock()
             mock_registration.instance = mock_registry

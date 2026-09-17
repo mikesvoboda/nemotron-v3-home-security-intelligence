@@ -4319,3 +4319,441 @@ did not recur at 3fcffd8d -- n=1 boundary jitter: no fix, no
 SLOW_TEST_PATTERNS widening (allowlist-for-green is explicitly not-taken);
 its own row if it recurs. CI Gate (Required Checks) fails only as the
 rollup of this audit.
+
+## PHASE 3 CACHE + CONCURRENCY REPAIRS WP3.2/WP3.3/WP3.4 (2026-09-17, post-merge branch feat/phase3 off b062a031)
+
+WP3.2 (0562622d): build-backend-deps' cache-suffix "backend-deps" wrote its
+uv pre-warm to a namespace zero of the 13 downstream backend jobs read
+(grep: exactly one cache-suffix across all 9 workflow files). DECIDE: drop
+at the producer, not mirror onto 13 consumers (one shared namespace, no
+future-copy risk). MEASURE before (Jobs API steps, run 35170392538):
+Set up uv 1-2s/14 jobs; uv sync --frozen median 14s/22 installs — honest
+framing: wall-clock upside SMALL; the fix is the pre-warm being consumed at
+all. After-numbers from the triggered run, queue reported separately.
+
+WP3.3 (54cb68ab): frontend-tests' actions/cache step restored ROOT
+node_modules + ~/.npm before `npm ci` in frontend/ -- doubly dead at
+3fcffd8d: npm ci deletes/reinstalls its own target unconditionally, and the
+cached path is the WRONG tree (root package.json = commitlint/prettier set;
+no root package-lock.json is committed; CI checkouts never had the path, so
+16 junk cache entries/run, ~2-6s/shard overhead). setup-node cache: 'npm'
+(the working one) stays. Done-when: next run's shard setup unchanged-or-
+better (Install-with-retry was 11-20s).
+
+WP3.4 (396df6f1): trivy/sast/gitleaks/dependency-audit/agents-md had NO
+concurrency block (all five verified missing at b062a031), so stale runs
+of superseded pushes kept competing for the WP3.1-measured 20-job ceiling
+(9 runs land per push). ci.yml:10-12 pattern copied; safety: none serialize
+stateful work and none file external state on PR events (Linear steps live
+in ci.yml only). First-observed-cancel on the next push = done. NOTE: an
+earlier draft of that commit claimed a main-gated Linear step inside
+dependency-audit -- false (no Linear step in that file; audit-summary is a
+step-summary table), caught in self-review and amended before push.
+
+ALL THREE are ci.yml/workflow edits = the CI-only class: no local replay
+harness exists for Actions behavior; verification is YAML safe_load +
+structural asserts (34 jobs parse; concurrency blocks top-level with
+cancel-in-progress) now, and the pushed run's Jobs API (same protocol as
+the before-numbers) when it settles.
+
+## TEST PERFORMANCE AUDIT INTEGRATION FAILURES ARE FIXTURE-ATTRIBUTED, NOT TESTS (2026-09-17, PRE-EXISTING class; STOP-AND-ASK packet -- gate semantics touch WP0.5 owner ruling)
+
+MEASURE (full forensics on the 6550/main audit reds -- both red at
+03:07Z, different shards, zero code delta: 6550 = workflow YAML+docs only):
+
+1. What actually exceeds 10.0s is the clean_tables FIXTURE, not tests. CI
+   durations table (job 105055840438): teardowns at 10.02/10.03/10.04/
+   10.05/10.09s -- the fixture's own asyncio.wait_for(timeout=10.0) CEILING
+   (conftest ~:1165); its timeout warning is logger-only, invisible for
+   passing tests. Tracker-vs-junit join (same artifacts): calls are
+   0.01-0.22s while junit totals hit 18.79s -- a 100% fixture-attributed
+   "test exceeded time limit".
+2. Environment-amplified, not seed/order: SAME shard, SAME seed
+   1832612646 -> 835s on CI vs 184s local (rc=0, 359 passed). Three CI
+   runs three seeds: green 3775116578 / red 1832612646 / red 3289037533,
+   different test sets; main-head red alone in the API shard
+   (test_get_detection_success 10.04s). CPU-load replay 92->123s
+   (amplifies, not to CI magnitude); cgroup io.max write permission-denied
+   in sandbox, so runner-storage stall is consistent-but-not-locally-proven
+   -- honest limit.
+3. RETRO-CORRECTION: the 04a86cc9 red (test*audit_stats_with_invalid_date*
+   range 10.70s) was logged earlier as "n=1 boundary jitter, no fix no
+   allowlist" -- it is the SAME class (fixture teardown at ceiling read as
+   test duration), which recurred twice more this window. Record corrected.
+4. Structural pairing defect: fixture timeout (10.0s) == integration
+   threshold (10.0s), so ANY teardown that reaches its ceiling lands AT the
+   audit threshold; junit time= bills setup+call+teardown to one "test".
+
+OWNER DECISION REQUIRED (audit semantics = WP0.5 ruling; stop-and-ask):
+(a) audit measures CALL time where available (flake-tracker artifact
+carries it; junit fallback otherwise) -- same thresholds, attribution
+fix, fixture slowness then gets its own explicit signal;
+(b) keep junit totals, lower the fixture's internal timeout so ceiling
+hits are impossible (10->5s) -- REJECTED-AS-MINE because it launders
+the number (fixture gives up earlier = test "faster"); owner may still
+choose it;
+(c) treat fixture-dominated junit time as ground truth and FIX the
+fixture's CI-path cost (lock-wait or runner-storage sensitivity --
+deeper investigation, no cheap lever found).
+NOT TAKEN: threshold edits, SLOW_TEST_PATTERNS widening, fixture timeout
+lowering, audit semantics change -- all owner or laundering territory.
+#6550 (WP3.2/3.3/3.4, all pre-merge-green otherwise: 64 pass) stays OPEN
+red on this pre-existing gate; main is red on it independently.
+
+## WP3.2/3.3 AFTER-NUMBERS (2026-09-17, run 35175054058 = the commit's own push, same Jobs-API protocol)
+
+WP3.2 (cache-suffix dropped): Set up uv n=15 median 2s (1-2) vs before
+n=14 median 2s (1-2) -- unchanged, as predicted: the step never paid to
+discover its namespace; uv sync --frozen n=23 median 14s (10-21) vs before
+14s (11-21) -- statistically identical at this resolution. HONEST VERDICT:
+the wall-clock win is NOT observable at run resolution; what changed is
+TOPOLOGY -- the pre-warm is now written where 13 consumers look (verified
+by diff), so cold-start runs after cache eviction hit warm instead of
+cold. A gate fix whose win is conditional-on-eviction is still the fix;
+the before-measurement said "SMALL upside" and the after-number says
+"zero upside on a warm day" -- same finding, now with both tails recorded.
+
+WP3.3 (dead node_modules restore removed): the deleted step's measured
+cost on the before-run: median 1.0s, range 0-3s, ~32s total per run across
+shards -- SMALL, as claimed ("pure waste", and waste is waste). Install-
+with-retry (npm ci) median 15s -> 19s (ranges overlap: 11-20 -> 12-21,
+n=16). NOT attributed to the removal: the step only ever restored ~/.npm
+(entries never contained node_modules -- wrong path; see commit body) and
+setup-node's cache: 'npm' still restores ~/.npm, so the plausible
+mechanism (one fewer warm-cache hand) is real but n=1 run; reported
+honestly rather than smoothed. Re-check on the NEXT push: if the median
+stays ~19s, note as the cost side of the cleanup; if it falls back, it was
+queue-day noise.
+
+## WP3.5 FAN-OUT REDUCED UNDER THE MEASURED 20 (`ec08f6e9`)
+
+MEASURE (run 35175054058, Jobs API, queue/compute separated): the 57-job
+run peaked at 26 concurrent test jobs vs the WP3.1 ceiling ~20. Vitest
+shards queue-med 573s vs compute-med ~204s (3x), E2E queue-med 386s vs
+compute ~66s (6x), Backend Unit queue 508s. Aggregate queue:compute ~1.4:1
+— the fan-out is the wall clock.
+
+DECIDE: Vitest 16→8, E2E 6→3. Peak wave 26→15, under the cap, so matrix
+first-waves land without stagger. Per-shard compute doubles (~204→~410s,
+~66→~140s — playwright CI workers=4 already parallelizes within a shard);
+Vitest timeout 10→20 min stays a runaway guard. Backend Unit left 4-way:
+its queue is lint-ordered and 4→2 buys nothing the wave already covers.
+The plan's other candidate — the 4-way trivy-scan matrix — was already
+deleted at WP0.3 (ci.yml:2324 comment); recorded, not re-listed. Artifact
+rename `-of-16`→`-of-8` verified safe (merge job globs
+`frontend-coverage-shard-*-node-*`); ci-gate reads summary jobs only.
+
+MEASURE-again: the push at `ec08f6e9` changes ci.yml, which trips
+detect-changes' workflow filter → should-run-all → the FULL fan-out runs,
+so after-numbers come from that run, same protocol. Expected signature:
+Vitest/E2E shard queues collapse toward the 16–90s background level while
+per-shard compute doubles; if queues do NOT collapse, the 20-ceiling is
+not what bound this fan-out and this row carries that finding instead.
+
+## WP3.5 AFTER-NUMBERS: THE DECIDE HELD (`35178314774`, head `65ec9afb`)
+
+MEASURE-again, same Jobs-API protocol, queue/compute separated:
+
+| family (before→after)       | n    | queue-med     | compute-med   |
+| --------------------------- | ---- | ------------- | ------------- |
+| Vitest shards 16→8          | 16→8 | 573s → **2s** | 204s → 348s   |
+| E2E shards 6→3              | 6→3  | 386s → **2s** | 66s → 63s     |
+| Backend Unit (unchanged)    | 4    | 508s → 2s     | 190s → 206s   |
+| Integration API (unchanged) | 1    | 16s → 3s      | 1467s → 1437s |
+
+Run-level: wall 31.2 → 26.0 min; **queue sum 260.1 → 1.4 min** (the whole
+point); Vitest-path completion +22.2 → +10.1 min from run start; E2E
++17.8 → +4.5. Peak _running_ concurrency went UP (15→18) — the honest
+reading: before, queueing starved the box; now the granted slots actually
+do work. The predicted signature (queues collapse to the 16–90s
+background; per-shard compute doubles) arrived sharper than predicted —
+2s background, compute 204→348s (sub-doubling; xdist-free vitest
+sequential files amortize fixed per-file startup across more files).
+
+Confounds recorded: this run had the 20-ceiling to itself (stale runs
+manually cancelled first, single run in flight), while the before-run
+competed with 8 sibling workflow runs — the queue-sum drop is the
+fan-out fix AND the no-competing-runs day; the WP3.1 wave analysis says
+fan-out is the larger term, and the 573s→2s per-shard result is the
+direct confirmation. Integration Services compute 946→368s is the same
+fixture-ceiling class breathing easier, not a WP3.5 effect.
+
+AUDIT STILL RED, MEMBERSHIP CHANGED — forensics packet data-point: the
+after-run's audit flagged ONE test, a UNIT case
+(`test_crop_to_bbox_error_returns_none`, 5.25s vs 4.0s limit; second at
+3.55s warned). Local replay: call 0.01s, setup 0.03s — same CI-only
+billing amplification, but the unit tier has no `clean_tables` fixture,
+so the ceiling mechanism there is NOT the integration pairing; the
+overhead-billed-as-test-time problem is broader than the conftest
+fixture. Owner packet (a) — audit the CALL time where artifacts carry
+it — covers this class at both tiers; recorded, gate semantics untouched.
+
+WP3.7 precondition now TRUE: queueing no longer confounds the API job
+(1437s compute, 3s queue) — it is the DAG long pole (+24.8 min done) and
+its rebalance is the next commit.
+
+## WP3.7 INTEGRATION-API JOB SPLIT 2-WAY (`3bc419da`)
+
+Precondition held: WP3.5's after-run (35178314774) shows the API job at
+1437s compute / 3s queue, completing +24.8 min — pure compute, now the
+sole long pole (everything else <= +10.1). DECIDE: matrix shard [1,2] +
+`--splits 2 --group N` (pytest-split, the unit tier's own mechanism)
+rather than a hand-cut -k: the selection's trailing bare `test_api`
+substring-matches several modules, so a hand partition risks a silent
+seam double-count or gap. pytest-split partitions the collected list
+mechanically: verified locally 442+441=883 exact count, deterministic
+sort-before-chunk. Honest limit: no CI-persisted per-test durations
+exist (`.test_durations` never uploaded — grep; durations_plugin.py is
+local-analysis only), so balancing rides `duration_based_chunks` — same
+fallback the 4-way unit shards have always used (+/-6% record).
+Artifacts/flaky-jsonl shard-suffixed (unit-tier convention,
+merge-multiple-clobber proof); consumers audited: coverage merge glob +
+Codecov union (unit shards prove the path), audit `**/*.xml` glob +
+missing-data-fails invariant intact. After-numbers (expect longest job
+~12 min, wall follows) from the triggered run.
+
+## WP3.7 AFTER-NUMBERS: LONGEST JOB 24.8 -> 13.1 MIN, WALL 26.0 -> 15.7 (`35181735529`)
+
+| metric (before → after)            | value                        |
+| ---------------------------------- | ---------------------------- |
+| API job compute                    | 1437s → 784s + 733s (shards) |
+| shard balance (split 2)            | 784 vs 733s = +/-3.4%        |
+| API path completion from run start | +24.8 → +14.1 min            |
+| longest single CI job              | 1437s → 784s (13.1 min)      |
+| run wall clock                     | 26.0 → 15.7 min              |
+| run queue-sum                      | 1.4 → 2.7 min (background)   |
+
+The split landed better than the +/-6% prediction and the wall clock
+dropped 10.3 min — the long pole WAS the tail, as the path-timing
+diagnosis said. Coverage-merge and audit artifacts confirmed per-shard
+(coverage-integration-api-{1,2}, test-results-integration-api-{1,2} all
+present; Merge Integration Coverage green — the glob-union path works).
+
+AUDIT STILL RED, SAME CLASS, MEMBERSHIP ROTATES: this run flagged ONE
+integration case (test_system_api::test_severity_endpoint_threshold_ordering
+11.37s vs 10.0 limit = 10.0s fixture ceiling + ~1.4s call — the known
+fixture-billing class), while last run's unit-tier member (5.25s) was
+clean this time. Rotation across tiers/runs with a stable class is what
+amplified-overhead-as-test-time predicts; strengthens owner option (a)
+(audit the call time the flake-tracker artifact already carries). No
+threshold touched, no allowlist widened — STOP-AND-ASK packet stands.
+
+Phase 3 is now closed except WP3.6 (owner-deferred trust boundary).
+Phase 4 (WP4.1 autospec sweep) is the next work package; Phase 3's
+Done-when (measured wall-clock reduction, queue reported separately) is
+met: 31.2 → 26.0 (WP3.5) → 15.7 (WP3.7) min, queue sums 260.1 → 1.4 →
+2.7 min reported throughout.
+
+## WP4.1 AUTOSPEC SWEEP — TOOL + 20 BATCHES, 4 PRODUCTION DEFECTS (`51e84e82`..`f3d9bcdd`; integration `4e9a9e83`..`a51fa206`)
+
+Pre-sweep census (the tool IS the census; AST over backend/tests):
+sites=7,513 speced=190 skipped-na=953 -> adoption 2.5%. The spec's
+grep-era baseline (7,493/190) is the same verdict with a different
+denominator; the AST count is the one that governs (it's what the sweep
+acts on, and CI can reproduce it).
+
+| family (batch)                                              | sites | converted | first-red  | class of reds                                 |
+| ----------------------------------------------------------- | ----- | --------- | ---------- | --------------------------------------------- |
+| 0 tool+tests+CI wiring                                      | —     | —         | 11 red TDD | refusal tests (can't pass vacuously)          |
+| 1 unit/api/middleware                                       | 191   | 191       | 0          | —                                             |
+| 2 unit/core                                                 | 662   | 662       | 1          | vacuous test (real repair)                    |
+| 3 unit/services                                             | 2,873 | 2,720     | 156        | all four classes below (kept 2,860)           |
+| 4 unit/api/routes                                           | 1,154 | 1,154     | 3F+14E     | nested (14) + non-callable (3); kept 1,136    |
+| 5 unit/setup_lib                                            | 1,091 | 1,091     | 5          | arg-shift                                     |
+| 6 unit/routes                                               | 234   | 222       | 32         | nested get_settings autouse; kept 202         |
+| 7 unit/api top-level                                        | 78    | 78        | 0          | —                                             |
+| 8 unit/ top-level                                           | 96    | 96        | 0          | — (whole unit tier green)                     |
+| 9-15 config/models/jobs/scripts/eval/api-helpers/middleware | 83    | 83        | 0          | —                                             |
+| 16 tests/security                                           | 16    | 16        | 0          | — (CI later 52E: annotation hazard, class 4b) |
+| 17 integration top-level                                    | 497   | 497->269  | ~16%-dead  | class 5 conftest-poison chain                 |
+| 18 integration/services                                     | 60    | 59        | 1F         | class 1 at module granularity                 |
+| 19 integration/api/routes                                   | 4     | 4         | 0          | —                                             |
+| + annotation repairs (3 prod, 1 test)                       | —     | —         | CI-only    | class 4b on 3.14.2, invisible 3.14.4          |
+
+DEFECT COUNT (PLAN MEASURE): **4 production defects** — (1) ONVIFCamera
+constructed with (self, device_url) where onvif-zeep wants
+(host, port, user, passwd) at 5 sites in onvif_service.py; the TypeError
+was swallowed by debug-level except handlers, so rtsp_urls/capabilities
+were silently NEVER populated in shipped behavior. Fixed in `dd845630`
+with a TDD contract test (red-verified against HEAD's production).
+(2,3,4) THE ANNOTATION HAZARD, found only on CI: three production
+modules annotated params with names imported only under
+`if TYPE_CHECKING`, UNQUOTED — gpu_monitor `_calculate_inference_fps
+(session: AsyncSession)`, nemotron_streaming `call_llm_streaming
+(enriched_context: EnrichedContext|None)`, detector_client
+`__init__(frame_buffer: FrameBuffer|None)`. PEP 649 evaluates those
+annotations ON DEMAND against module globals; CI's Python 3.14.2 mock
+calls inspect.signature WITHOUT annotation_format, so the evaluation
+RAISES (NameError) at create_autospec — 52 security errors + 12 unit
+shard failures on CI. The sandbox's 3.14.4 stdlib mock passes
+annotation_format=Format.FORWARDREF (mock.py:123), tolerating it, so
+every local run said green while CI burned. Fixed with `from __future__
+import annotations` (PEP 563) per module — quoted params are NOT
+durable here, the repo's own ruff UP037 strips them (proved: the first
+fix attempt was undone by the commit hook). Fourth member telemetry's
+crash sits inside third-party OTel annotations, so it is repaired
+test-side: Resource autospec'd after every target that specs it
+(`a51fa206`; fresh-interpreter permutations pin the order rule).
+The version skew — `.python-version` says "3.14", CI resolves 3.14.2,
+the sandbox image carries 3.14.4 — is the reason local green stopped
+meaning CI green for introspection-dependent code; WP4.2's gate should
+pin or reproduce the runner interpreter.
+Everything else the sweep surfaced was a LYING TEST: 1 vacuous test
+(batch 2, asserted a mock's own return value), arg-shift asserts that
+were untestable-lies under plain mocks (batch 5), nested/redundant
+re-patches (batches 3/4/6 — the inner patch was redundant even before
+the sweep; autospec's refusal is what made the redundancy visible).
+
+FAILURE TAXONOMY (reusable — feeds WP4.2's gate design):
+
+1. NESTED/REDUNDANT AUTOSPEC — an outer fixture/autouse already patched
+   the target; mock refuses to spec an attr that is currently a Mock.
+   Fix: drop the inner autospec (outer keeps enforcement) or delete the
+   inner patch where it was same-object redundant anyway.
+2. ARG-SHIFT — autospec patches the class-level function, so calls
+   record the instance as args[0]; `call_args[0][0]` / `assert_any_call
+(kwonly)` asserts and arity-tight side_effects must shift by one.
+   Verified empirically, not inferred.
+3. NON-CALLABLE TARGET — autospec is semantically inapplicable to
+   lazy-import placeholders (YOLO=None) and attr-fabricating objects
+   (sqlalchemy func/\_FunctionGenerator: dir()-spec has no `count`,
+   production's func.count dies ON THE MOCK). Revert with rationale.
+4. PRODUCTION DRIFT — the mock was lying in a way that hid a real
+   production bug. This is the one the sweep exists for. Two members:
+   (a) the ONVIF constructor-signature defect; (b) the ANNOTATION
+   HAZARD — unquoted TYPE_CHECKING-only annotation names break
+   inspect.signature on Python 3.14.2 (CI) while 3.14.4 (sandbox)
+   tolerates it via mock's FORWARDREF; three production modules fixed
+   with PEP 563 (`757be8f8` `0f0496d0` `abeb01cf`), one test-side OTel
+   ordering repair (`a51fa206`). CI-vs-sandbox interpreter skew is now
+   a KNOWN failure domain: local green != CI green for anything that
+   introspects annotations.
+5. CONFTEST-POISONS-CONFTEST-POISONS-TESTS (integration tier) — an
+   autospec'd conftest patch makes late `from x import y` bindings copy
+   the autospec WRAPPER (FunctionType with .mock, not a Mock), which
+   then defeats every later create_autospec of that bound attr. The
+   conftest must stay the PLAIN outermost patcher.
+
+DECIDE: unit tiers ran green on both seeds (90210, 4242) after per-batch
+repairs; final whole-tree census 6,773/7,095 speced = 95.5% of sites
+(unit 6,425/6,481 = 99.1%, security 16/16 = 100%, integration
+332/561 = 59.2%, the lower tier ceiling being the fixture-surface
+policy, documented per-site) — the 56-site residual is documented in-test reverts, each
+with its class rationale in a comment (routes 32 nested + api/routes 17
+and services 7). The residual is NOT a coverage gap to chase: it is the
+taxonomy's proof, kept on purpose.
+
+INTEGRATION (separate commits): the sweep exposed the class-1 trap in a
+form the unit tree never showed — a conftest-poisons-conftest-poisons-
+tests chain. The sweep added autospec to the integration conftest's own
+lifecycle patches (`core.redis.init_redis`/`close_redis` in mock_redis).
+backend.main binds `from backend.core.redis import init_redis` at its
+FIRST import, which lands inside a mid-session fixture window — so main
+copied the autospec WRAPPER (a FunctionType carrying .mock, not itself a
+Mock) as its init_redis. Every later test-level autospec of that bound
+attr then dies in create_autospec's inner Mock. Fix policy applied: the
+conftest lifecycle/fixture-surface patches stay PLAIN (they are the
+outermost patchers; autospec there buys nothing and poisons late
+importers), and test-body patches of the fixture-shared surface
+(lifecycle `main.*`/`core.redis.*`, get_settings accessors, httpx.AsyncClient
+where a shared fixture patches it) drop the sweep's autospec — 228
+reverts at the integration top level (497 converted -> 269 kept =
+54.1%), every one an overlap the conftest creates, not an author-chosen
+weakening. Tier totals with services (59/60, one class-1 revert:
+mock_transformers replaces sys.modules[torch], so patching torch.load
+specs a Mock's attr) and api/routes (4/4): 332/561 = 59.2% — the
+fixture-free surface:
+route-local `get_db`/`check\_\*\_health`, frigate logger, smtplib.SMTP,
+OnvifService, shadow metrics, Path.exists/glob, and the
+AsyncClient.post sites in the analyzer/replay files (no shared fixture
+touches them — the blanket sweep of that target was over-conservative
+and is restored). Lower integration ceiling by design: the tier's
+shared-fixture surface is where class 1 always bites; a WP4.2 gate
+should encode "fixture-surface targets exempt", not demand these.
+
+benchmarks/chaos/e2e stay UNSWEPT by decision, recorded: their pre-sweep
+baseline in this sandbox is 34F+5E (no live GPU/camera services) — a
+sweep cannot be validated against a tier that doesn't pass before it.
+security (green in-sandbox) was swept; integration ran against the live
+gate-postgres/gate-redis boot.
+
+GATE COLLATERAL (one commit, `44e7438b`): Collection Sanity pairs
+suppression-registry entries to census sites by file:line; batch 5's
+insertions relocated the test_ssl_certs.py "cryptography not installed"
+skip 880->927 (count 93 unchanged — nothing licensed), turning a live
+entry stale + its site unregistered. Re-key, not widen. Batch 17 causes
+the identical shift at test_preview_api.py 428->472, so that re-key
+rides in batch 17's commit (cause-matched, count still 93).
+
+CENSUS RECONCILIATION (numbers a ledger reader will diff): pre-sweep
+7,513/190/953; HEAD 7,095/6,773/1,365 (95.5%). The na jump +412 is ONE
+tool change, not drift: batch 1's first --fix run hit mock's hard
+"cannot use autospec and new_callable together", so classify() moved
+412 new_callable sites convertible->na (`f10e0699`; tool diff is that
+one clause — the b0 tool rerun on the b0 tree still says 7,513). The
+sites slide 7,513->7,095 is repairs changing patch FORM: b2's vacuous-
+test repair +1 (7,102), batches 3-7's deletions of same-object-redundant
+inner patches -7 (7,095 by b7, stable since). speced is monotone up;
+sites move only where a patch was deleted or split — census honesty is
+per-head, the batch commits each carry their own conversion count.
+
+CI-BEFORE BASELINE for the integration batches: CI's own integration
+matrix on the last pre-sweep head (f3d9bcdd) is green (Services,
+Models, WebSocket done; API shards running) — the sweep's before-state
+for the tier, on the real runner pool.
+
+## WP4.2 UNSPECCED-MOCK GATE — RATCHET CATEGORY `unspecced_patch`, SEED 322 (rides the WP1.3 machinery, this commit)
+
+MEASURE (the gate IS the measurement — scripts/check-mock-spec.py,
+classifier imported from autospec-sweep.py so gate/sweep/census/ratchet can
+never disagree about "convertible"): whole-tree unspecced-but-convertible
+sites = 322 (unit 56 + integration 229 + benchmarks 23 + chaos 4 + e2e 10),
+re-derived live at this head; `--count` == census == CI --expect literal,
+pinned by test_real_tree_category_is_seeded_and_green.
+
+DECIDE: the gate rides the WP1.3 ratchet exactly as the PLAN demanded
+("wire into the WP1.3 ratchet rather than building a parallel mechanism") —
+one new census category, enforcement unchanged in ratchet-check.py:
+UNREGISTERED + RATCHET unspecced_patch name a new site's id, counts may
+only fall, an increase needs registry rows AND the hand-raised baseline in
+the same commit. Seed adjudication (registry-gen rules, so the 322 rows are
+machine-mintable, --check green): the 285 unit+integration reverts are
+`todo` tracking R-WP4.1-SWEEP-RESIDUAL (the WP4.1 ledger entry adjudicated
+each one's class; todo keeps the ratchet's teeth — kept on purpose is not
+adjudicated-permanent); the 37 sites in the unswept tiers are `scoped`,
+inheriting their tier's existing excluded_test_trees deferral rather than a
+new ruling. ids are `file::scope::kN`, NOT file:line — WP4.1's own gate
+collateral twice saw file:line registry ids rot under batch edits
+(ssl_certs 880->927, preview_api 428->472); a same-scope insertion
+renumbers later kNs and the ratchet surfaces it as STALE+UNREGISTERED
+together, loudly, never silently. The cost is stated where it is paid.
+
+Layering: the pre-commit hook (--staged) checks only ADDED lines of the
+staged diff — the tree legitimately carries 322 licensed sites, so a
+whole-file scan would block every commit touching one; the CI ratchet
+(whole tree) is the completeness layer. The na forms the sweep refuses
+(new=/new_callable=/patch.dict/bare-name/non-str) are deliberately NOT
+sites — licensing them would double-register what the sweep adjudicates.
+
+TDD record: 9 tests in scripts/test_check_mock_spec.py, red-first (the two
+ratchet-connection tests failed before census wiring; 7 measurer/staged-path
+tests pinned the id shape and the added-lines fast path). The PLAN's
+done-when pinned twice: end-to-end through ratchet-check on a minted
+fixture tree (add a plain patch() -> rc=1 naming test_sneaked::k1), and as
+a LIVE hook block — staging an unspecced patch on this branch made the
+real git hook refuse the commit, naming the site id and the licensing path.
+E2E proof of the hook's teeth, not a mocked claim.
+
+Fixture-tree seam: the census's unspecced_patch importer falls back to the
+versioned gate script when root carries no scripts/ copy — the MEASURER is
+code, only what it walks comes from the fixture root (ratchet/census fixture
+tests mint state without shipping a scripts tree). The census fixture's
+EXPECTED dict gained "unspecced_patch": 0 — honest, the fixture carries no
+convertible patch()s.
+
+Collateral: ci.yml's --expect literal grew the 13th category (verified
+rc=0 against the live census); the gate's tests joined ci.yml's anti-rot
+list ("a gate with no CI is a gate that rots"); the registry header now
+documents the kN id shape; suppression-registry.yml regenerated (+322 rows,
+semantic diff for the existing 12 categories = zero, verified before
+writing).

@@ -40,6 +40,8 @@ Retry Logic (NEM-1343):
     - Only retries transient failures (connection, timeout, HTTP 5xx)
 """
 
+from __future__ import annotations
+
 __all__ = [
     # Constants
     "DETECTOR_CONNECT_TIMEOUT",

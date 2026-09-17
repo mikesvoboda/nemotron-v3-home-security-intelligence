@@ -117,7 +117,7 @@ class TestSeverityThresholds:
         )
 
         with (
-            patch("backend.api.routes.system._write_runtime_env") as mock_write,
+            patch("backend.api.routes.system._write_runtime_env", autospec=True) as mock_write,
             patch("backend.api.routes.system.get_settings") as mock_get_settings,
         ):
             # Mock the settings return
@@ -137,8 +137,9 @@ class TestSeverityThresholds:
                 patch(
                     "backend.services.severity.get_severity_service",
                     return_value=mock_service,
+                    autospec=True,
                 ),
-                patch("backend.services.severity.reset_severity_service"),
+                patch("backend.services.severity.reset_severity_service", autospec=True),
                 patch("backend.api.routes.system.AuditService.log_action", new=AsyncMock()),
             ):
                 result = await update_severity_thresholds(
@@ -169,9 +170,11 @@ class TestGetStorageStats:
     ) -> None:
         """Test successful storage stats retrieval."""
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.shutil.disk_usage") as mock_disk_usage,
-            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
+            patch("backend.api.routes.system.shutil.disk_usage", autospec=True) as mock_disk_usage,
+            patch(
+                "backend.api.routes.system._get_directory_stats", autospec=True
+            ) as mock_dir_stats,
         ):
             # Mock disk usage
             mock_disk_usage.return_value = MagicMock(
@@ -204,12 +207,15 @@ class TestGetStorageStats:
     ) -> None:
         """Test that disk errors return zeros instead of failing."""
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
             patch(
                 "backend.api.routes.system.shutil.disk_usage",
                 side_effect=OSError("Permission denied"),
+                autospec=True,
             ),
-            patch("backend.api.routes.system._get_directory_stats") as mock_dir_stats,
+            patch(
+                "backend.api.routes.system._get_directory_stats", autospec=True
+            ) as mock_dir_stats,
         ):
             mock_dir_stats.return_value = (0, 0)
 
@@ -238,10 +244,10 @@ class TestGetHealthEndpoint:
     ) -> None:
         """Test health endpoint returns 200 when all services healthy."""
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
+            patch("backend.api.routes.system.check_database_health", autospec=True) as mock_db,
+            patch("backend.api.routes.system.check_redis_health", autospec=True) as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health", autospec=True) as mock_ai,
             patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
         ):
             # Mock all services as healthy
@@ -273,10 +279,10 @@ class TestGetHealthEndpoint:
     ) -> None:
         """Test health endpoint returns 503 when database is unhealthy."""
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
+            patch("backend.api.routes.system.check_database_health", autospec=True) as mock_db,
+            patch("backend.api.routes.system.check_redis_health", autospec=True) as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health", autospec=True) as mock_ai,
             patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
         ):
             # Database unhealthy
@@ -305,10 +311,10 @@ class TestGetHealthEndpoint:
     ) -> None:
         """Test health endpoint returns 503 degraded when AI services down."""
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
+            patch("backend.api.routes.system.check_database_health", autospec=True) as mock_db,
+            patch("backend.api.routes.system.check_redis_health", autospec=True) as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health", autospec=True) as mock_ai,
             patch("backend.api.routes.system._emit_health_status_changes", new=AsyncMock()),
         ):
             # AI services unhealthy
@@ -351,10 +357,10 @@ class TestGetReadinessEndpoint:
         }
 
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
+            patch("backend.api.routes.system.check_database_health", autospec=True) as mock_db,
+            patch("backend.api.routes.system.check_redis_health", autospec=True) as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health", autospec=True) as mock_ai,
         ):
             mock_db.return_value = HealthCheckServiceStatus(
                 status="healthy", message="Connected", details=None
@@ -390,10 +396,10 @@ class TestGetReadinessEndpoint:
         }
 
         with (
-            patch("backend.api.routes.system.get_db", return_value=isolated_db),
-            patch("backend.api.routes.system.check_database_health") as mock_db,
-            patch("backend.api.routes.system.check_redis_health") as mock_redis,
-            patch("backend.api.routes.system.check_ai_services_health") as mock_ai,
+            patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True),
+            patch("backend.api.routes.system.check_database_health", autospec=True) as mock_db,
+            patch("backend.api.routes.system.check_redis_health", autospec=True) as mock_redis,
+            patch("backend.api.routes.system.check_ai_services_health", autospec=True) as mock_ai,
         ):
             mock_db.return_value = HealthCheckServiceStatus(
                 status="healthy", message="Connected", details=None
@@ -427,7 +433,7 @@ class TestGetStatsEndpoint:
         mock_settings: Settings,
     ) -> None:
         """Test successful stats retrieval."""
-        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
+        with patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True):
             response = await async_client.get("/api/system/stats")
 
             assert response.status_code == 200
@@ -451,7 +457,7 @@ class TestGetGPUStatsEndpoint:
         mock_settings: Settings,
     ) -> None:
         """Test GPU stats endpoint when no data available."""
-        with patch("backend.api.routes.system.get_db", return_value=isolated_db):
+        with patch("backend.api.routes.system.get_db", return_value=isolated_db, autospec=True):
             response = await async_client.get("/api/system/gpu")
 
             assert response.status_code == 200

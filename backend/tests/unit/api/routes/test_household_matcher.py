@@ -34,7 +34,7 @@ class TestMatchPerson:
         request = PersonMatchRequest(embedding=[0.1] * 512)
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_person.return_value = mock_match
@@ -58,7 +58,7 @@ class TestMatchPerson:
         request = PersonMatchRequest(embedding=[0.5] * 512)
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_person.return_value = None
@@ -100,7 +100,7 @@ class TestMatchPerson:
         request = PersonMatchRequest(embedding=[0.1])  # Minimal valid embedding
 
         # Mock the numpy conversion to simulate empty check
-        with patch("backend.api.routes.household_matcher.np.array") as mock_array:
+        with patch("backend.api.routes.household_matcher.np.array", autospec=True) as mock_array:
             mock_array.return_value = np.array([], dtype=np.float32)
             # This test actually needs to test the schema validation
             # The route check is for len(embedding) == 0 after assignment
@@ -137,7 +137,7 @@ class TestMatchVehicle:
         )
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_vehicle.return_value = mock_match
@@ -173,7 +173,7 @@ class TestMatchVehicle:
         )
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_vehicle.return_value = mock_match
@@ -198,7 +198,7 @@ class TestMatchVehicle:
         )
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_vehicle.return_value = None
@@ -267,7 +267,7 @@ class TestMatchBatch:
         )
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_detections.return_value = (
@@ -301,7 +301,7 @@ class TestMatchBatch:
         )
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = AsyncMock()
             mock_matcher.match_detections.return_value = ({}, {})
@@ -334,7 +334,7 @@ class TestGetMatcherConfig:
         mock_db.execute.side_effect = [mock_embedding_count, mock_vehicle_count]
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = MagicMock()
             mock_matcher.similarity_threshold = 0.85
@@ -362,7 +362,7 @@ class TestGetMatcherConfig:
         mock_db.execute.side_effect = [mock_embedding_count, mock_vehicle_count]
 
         with patch(
-            "backend.api.routes.household_matcher.get_household_matcher"
+            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
         ) as mock_get_matcher:
             mock_matcher = MagicMock()
             mock_matcher.similarity_threshold = 0.85

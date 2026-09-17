@@ -82,7 +82,7 @@ class TestWebSocketCookieAuth:
 
         # Mock session validation to return valid user
         with patch(
-            "backend.api.middleware.websocket_auth.validate_session_cookie"
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
@@ -112,7 +112,7 @@ class TestWebSocketCookieAuth:
         mock_websocket.close = AsyncMock()
 
         with patch(
-            "backend.api.middleware.websocket_auth.validate_session_cookie"
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
             mock_validate.return_value = None  # Invalid cookie
 
@@ -140,7 +140,7 @@ class TestWebSocketCookieAuth:
         mock_websocket.close = AsyncMock()
 
         with patch(
-            "backend.api.middleware.websocket_auth.validate_session_cookie"
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 0}  # Expired
 
@@ -176,7 +176,9 @@ class TestWebSocketQueryParamAuth:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "user_123", "exp": 9999999999}
 
             result = await authenticate_websocket_jwt(mock_websocket)
@@ -203,7 +205,9 @@ class TestWebSocketQueryParamAuth:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = None  # Invalid JWT
 
             result = await authenticate_websocket_jwt(mock_websocket)
@@ -228,7 +232,9 @@ class TestWebSocketQueryParamAuth:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "user_123", "exp": 0}  # Expired
 
             result = await authenticate_websocket_jwt(mock_websocket)
@@ -265,7 +271,9 @@ class TestWebSocketFirstMessageAuth:
         )
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "user_123", "exp": 9999999999}
 
             result = await authenticate_websocket_first_message(mock_websocket, timeout=5.0)
@@ -316,7 +324,9 @@ class TestWebSocketFirstMessageAuth:
         )
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = None  # Invalid token
 
             result = await authenticate_websocket_first_message(mock_websocket, timeout=5.0)
@@ -351,8 +361,12 @@ class TestWebSocketAuthPriority:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_cookie:
-            with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_jwt:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
+        ) as mock_cookie:
+            with patch(
+                "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+            ) as mock_jwt:
                 mock_cookie.return_value = {"user_id": "user_from_cookie", "exp": 9999999999}
                 mock_jwt.return_value = {"sub": "user_from_jwt", "exp": 9999999999}
 
@@ -383,8 +397,12 @@ class TestWebSocketAuthPriority:
         )
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_cookie:
-            with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_jwt:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
+        ) as mock_cookie:
+            with patch(
+                "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+            ) as mock_jwt:
                 mock_cookie.return_value = None  # No cookie
                 mock_jwt.return_value = {"sub": "user_from_message", "exp": 9999999999}
 
@@ -419,7 +437,9 @@ class TestWebSocketTokenRefresh:
         mock_websocket = MagicMock(spec=WebSocket)
         refresh_message = '{"type": "token_refresh", "token": "new_valid_jwt_token"}'
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "user_123", "exp": 9999999999}
 
             result, new_creds = await handle_token_refresh(mock_websocket, refresh_message)
@@ -442,7 +462,9 @@ class TestWebSocketTokenRefresh:
         mock_websocket.close = AsyncMock()
         refresh_message = '{"type": "token_refresh", "token": "invalid_new_token"}'
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = None  # Invalid token
 
             result, new_creds = await handle_token_refresh(mock_websocket, refresh_message)
@@ -477,7 +499,9 @@ class TestWebSocketAuthCloseCodes:
         mock_websocket.receive_text = AsyncMock(return_value='{"type": "auth", "token": "invalid"}')
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = None  # Auth failure
 
             result, method = await verify_websocket_auth(mock_websocket)
@@ -503,7 +527,9 @@ class TestWebSocketAuthCloseCodes:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "user_123", "exp": 0}  # Expired
 
             result, method = await verify_websocket_auth(mock_websocket)
@@ -570,9 +596,13 @@ class TestWebSocketAuthHelpers:
         # This test verifies the function uses constant-time comparison
         # Implementation should use hmac.compare_digest()
         # We need to mock decode_token since the cookie isn't a real JWT
-        with patch("backend.api.middleware.websocket_auth.decode_token") as mock_decode:
+        with patch(
+            "backend.api.middleware.websocket_auth.decode_token", autospec=True
+        ) as mock_decode:
             with patch(
-                "backend.api.middleware.websocket_auth.hmac.compare_digest", return_value=True
+                "backend.api.middleware.websocket_auth.hmac.compare_digest",
+                return_value=True,
+                autospec=True,
             ) as mock_compare:
                 mock_decode.return_value = {"user_id": "test", "exp": 9999999999}
                 result = validate_session_cookie(valid_cookie)
@@ -588,9 +618,13 @@ class TestWebSocketAuthHelpers:
         valid_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.valid"
 
         # We need to mock decode_token since this isn't a real JWT
-        with patch("backend.api.middleware.websocket_auth.decode_token") as mock_decode:
+        with patch(
+            "backend.api.middleware.websocket_auth.decode_token", autospec=True
+        ) as mock_decode:
             with patch(
-                "backend.api.middleware.websocket_auth.hmac.compare_digest", return_value=True
+                "backend.api.middleware.websocket_auth.hmac.compare_digest",
+                return_value=True,
+                autospec=True,
             ) as mock_compare:
                 mock_decode.return_value = {"sub": "user_123", "exp": 9999999999}
                 result = validate_websocket_jwt(valid_jwt)

@@ -215,6 +215,7 @@ class TestMetricsErrorHandling:
         with patch(
             "backend.api.routes.metrics.get_metrics_response",
             side_effect=RuntimeError("Registry error"),
+            autospec=True,
         ):
             # Use raise_server_exceptions=False to get HTTP response instead of exception
             async with AsyncClient(
@@ -233,6 +234,7 @@ class TestMetricsErrorHandling:
         with patch(
             "backend.api.routes.metrics.get_metrics_response",
             return_value=b"",
+            autospec=True,
         ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),

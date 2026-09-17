@@ -91,10 +91,11 @@ class TestDetectorClientCorrelation(TestCorrelationHeaderPropagation):
             return mock_response
 
         with (
-            patch("httpx.AsyncClient.post", side_effect=capture_post),
+            patch("httpx.AsyncClient.post", side_effect=capture_post, autospec=True),
             patch(
                 "backend.services.detector_client.get_baseline_service",
                 return_value=mock_baseline_service,
+                autospec=True,
             ),
         ):
             await detector_client._send_detection_request(
@@ -140,13 +141,19 @@ class TestDetectorClientCorrelation(TestCorrelationHeaderPropagation):
             return mock_response
 
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
-            patch("httpx.AsyncClient.post", side_effect=capture_post),
-            patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data, autospec=True),
+            patch("httpx.AsyncClient.post", side_effect=capture_post, autospec=True),
+            patch.object(
+                detector_client,
+                "_validate_image_for_detection_async",
+                return_value=True,
+                autospec=True,
+            ),
             patch(
                 "backend.services.detector_client.get_baseline_service",
                 return_value=mock_baseline_service,
+                autospec=True,
             ),
         ):
             await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -170,7 +177,7 @@ class TestDetectorClientCorrelation(TestCorrelationHeaderPropagation):
             mock_response.json.return_value = {"status": "healthy"}
             return mock_response
 
-        with patch("httpx.AsyncClient.get", side_effect=capture_get):
+        with patch("httpx.AsyncClient.get", side_effect=capture_get, autospec=True):
             await detector_client.health_check()
 
         # Verify correlation headers are included in health check
@@ -185,7 +192,7 @@ class TestDetectorClientCorrelation(TestCorrelationHeaderPropagation):
         from backend.services.detector_client import DetectorClient
 
         # Create client with mocked API key setting
-        with patch("backend.services.detector_client.get_settings") as mock_settings:
+        with patch("backend.services.detector_client.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.yolo26_url = "http://test:9001"
             mock_settings.return_value.detection_confidence_threshold = 0.5
             mock_settings.return_value.yolo26_api_key = "test-api-key"  # pragma: allowlist secret
@@ -208,10 +215,11 @@ class TestDetectorClientCorrelation(TestCorrelationHeaderPropagation):
             return mock_response
 
         with (
-            patch("httpx.AsyncClient.post", side_effect=capture_post),
+            patch("httpx.AsyncClient.post", side_effect=capture_post, autospec=True),
             patch(
                 "backend.services.detector_client.get_baseline_service",
                 return_value=mock_baseline_service,
+                autospec=True,
             ),
         ):
             await client._send_detection_request(
@@ -287,8 +295,14 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         from backend.services.severity import reset_severity_service
 
         with (
-            patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-            patch("backend.services.severity.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
+            ),
         ):
             reset_severity_service()
             analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
@@ -317,7 +331,7 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
             }
             return mock_response
 
-        with patch("httpx.AsyncClient.post", side_effect=capture_post):
+        with patch("httpx.AsyncClient.post", side_effect=capture_post, autospec=True):
             await analyzer._call_llm(
                 camera_name="Test Camera",
                 start_time="2025-01-01T00:00:00",
@@ -345,7 +359,7 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
             mock_response.status_code = 200
             return mock_response
 
-        with patch("httpx.AsyncClient.get", side_effect=capture_get):
+        with patch("httpx.AsyncClient.get", side_effect=capture_get, autospec=True):
             await analyzer.health_check()
 
         # Verify correlation headers are present
@@ -393,10 +407,20 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         mock_settings.priority_medium_labels = ["vehicle", "animal"]
 
         with (
-            patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-            patch("backend.services.severity.get_settings", return_value=mock_settings),
-            patch("backend.services.token_counter.get_settings", return_value=mock_settings),
-            patch("backend.core.config.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "backend.services.token_counter.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
         ):
             from backend.services.token_counter import reset_token_counter
 
@@ -423,7 +447,7 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
             }
             return mock_response
 
-        with patch("httpx.AsyncClient.post", side_effect=capture_post):
+        with patch("httpx.AsyncClient.post", side_effect=capture_post, autospec=True):
             await analyzer._call_llm(
                 camera_name="Test Camera",
                 start_time="2025-01-01T00:00:00",

@@ -703,8 +703,9 @@ class TestAddEmbedding:
             patch(
                 "backend.api.routes.household.get_reid_service",
                 return_value=mock_reid_service,
+                autospec=True,
             ),
-            patch("backend.api.routes.household.Image") as mock_pil,
+            patch("backend.api.routes.household.Image", autospec=True) as mock_pil,
         ):
             mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
             mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
@@ -910,7 +911,7 @@ class TestAddEmbedding:
 
         embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.9)
 
-        with patch("backend.api.routes.household.Image") as mock_pil:
+        with patch("backend.api.routes.household.Image", autospec=True) as mock_pil:
             mock_pil.open.side_effect = FileNotFoundError("Image file not found")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -975,8 +976,9 @@ class TestAddEmbedding:
             patch(
                 "backend.api.routes.household.get_reid_service",
                 return_value=mock_reid_service,
+                autospec=True,
             ),
-            patch("backend.api.routes.household.Image") as mock_pil,
+            patch("backend.api.routes.household.Image", autospec=True) as mock_pil,
         ):
             mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
             mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
@@ -1052,8 +1054,9 @@ class TestAddEmbedding:
             patch(
                 "backend.api.routes.household.get_reid_service",
                 return_value=mock_reid_service,
+                autospec=True,
             ),
-            patch("backend.api.routes.household.Image") as mock_pil,
+            patch("backend.api.routes.household.Image", autospec=True) as mock_pil,
         ):
             mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
             mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)

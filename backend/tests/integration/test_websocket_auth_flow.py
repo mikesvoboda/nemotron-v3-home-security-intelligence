@@ -202,7 +202,10 @@ def _apply_common_lifespan_patches(stack, mocks):
 
     # Background service patches
     stack.enter_context(
-        patch("backend.main.get_system_broadcaster", return_value=mocks["system_broadcaster"])
+        patch(
+            "backend.main.get_system_broadcaster",
+            return_value=mocks["system_broadcaster"],
+        )
     )
     stack.enter_context(patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"]))
     stack.enter_context(patch("backend.main.CleanupService", return_value=mocks["cleanup_service"]))
@@ -222,7 +225,10 @@ def _apply_common_lifespan_patches(stack, mocks):
     )
     stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
     stack.enter_context(
-        patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"])
+        patch(
+            "backend.main.ServiceHealthMonitor",
+            return_value=mocks["service_health_monitor"],
+        )
     )
     stack.enter_context(
         patch(
@@ -233,16 +239,25 @@ def _apply_common_lifespan_patches(stack, mocks):
 
     # Services added after the initial fixtures
     stack.enter_context(
-        patch("backend.main.get_worker_supervisor", return_value=mocks["worker_supervisor"])
+        patch(
+            "backend.main.get_worker_supervisor",
+            return_value=mocks["worker_supervisor"],
+        )
     )
     stack.enter_context(patch("backend.main.get_container", return_value=mocks["container"]))
     stack.enter_context(patch("backend.main.wire_services", AsyncMock()))
     stack.enter_context(patch("backend.main.init_job_tracker_websocket", AsyncMock()))
     stack.enter_context(
-        patch("backend.main.PerformanceCollector", return_value=mocks["performance_collector"])
+        patch(
+            "backend.main.PerformanceCollector",
+            return_value=mocks["performance_collector"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.BackgroundEvaluator", return_value=mocks["background_evaluator"])
+        patch(
+            "backend.main.BackgroundEvaluator",
+            return_value=mocks["background_evaluator"],
+        )
     )
     stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
     stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
@@ -256,16 +271,28 @@ def _apply_common_lifespan_patches(stack, mocks):
     stack.enter_context(patch("backend.main.register_workers", MagicMock()))
     stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
     stack.enter_context(
-        patch("backend.main.create_detection_worker", return_value=mocks["detection_worker"])
+        patch(
+            "backend.main.create_detection_worker",
+            return_value=mocks["detection_worker"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.create_analysis_worker", return_value=mocks["analysis_worker"])
+        patch(
+            "backend.main.create_analysis_worker",
+            return_value=mocks["analysis_worker"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.create_timeout_worker", return_value=mocks["timeout_worker"])
+        patch(
+            "backend.main.create_timeout_worker",
+            return_value=mocks["timeout_worker"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.create_metrics_worker", return_value=mocks["metrics_worker"])
+        patch(
+            "backend.main.create_metrics_worker",
+            return_value=mocks["metrics_worker"],
+        )
     )
 
 
@@ -349,7 +376,7 @@ class TestWebSocketEventsAuthFlow:
         """
         # Generate valid session cookie
         with patch(
-            "backend.api.middleware.websocket_auth.validate_session_cookie"
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
@@ -375,7 +402,9 @@ class TestWebSocketEventsAuthFlow:
         - Validate JWT signature and expiration
         - Accept connection and receive events
         """
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "user_123", "exp": 9999999999}
 
             with auth_client.websocket_connect(
@@ -461,7 +490,9 @@ class TestWebSocketTokenRefreshFlow:
         - Connection remains active
         - Can continue receiving events
         """
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             # First token is valid
             mock_validate.return_value = {"sub": "user_123", "exp": 9999999999}
 
@@ -548,7 +579,7 @@ class TestWebSocketSessionInvalidation:
         - Connection closes with code 4002 (token expired)
         """
         with patch(
-            "backend.api.middleware.websocket_auth.validate_session_cookie"
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
             # Initially valid session
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
@@ -626,7 +657,9 @@ class TestWebSocketSystemAuthFlow:
         - Receive system status updates
         - Auth is validated before accepting connection
         """
-        with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = {"sub": "admin_user", "exp": 9999999999}
 
             with system_auth_client.websocket_connect(
@@ -694,7 +727,7 @@ class TestWebSocketDetectionsAuthFlow:
         - Subscribe to detection.* events automatically
         """
         with patch(
-            "backend.api.middleware.websocket_auth.validate_session_cookie"
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
         ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
@@ -771,8 +804,12 @@ class TestWebSocketAuthPriorityIntegration:
         - Connection uses cookie credentials
         - Query param JWT is ignored
         """
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_cookie:
-            with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_jwt:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie", autospec=True
+        ) as mock_cookie:
+            with patch(
+                "backend.api.middleware.websocket_auth.validate_websocket_jwt", autospec=True
+            ) as mock_jwt:
                 # Both return valid credentials
                 mock_cookie.return_value = {"user_id": "cookie_user", "exp": 9999999999}
                 mock_jwt.return_value = {"sub": "jwt_user", "exp": 9999999999}

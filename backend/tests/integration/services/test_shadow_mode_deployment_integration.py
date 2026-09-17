@@ -179,18 +179,22 @@ class TestParallelPromptExecutionFlow:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -242,18 +246,22 @@ class TestParallelPromptExecutionFlow:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -326,25 +334,30 @@ class TestRiskDistributionComparisonMetrics:
             patch(
                 "backend.core.metrics.record_shadow_comparison",
                 side_effect=lambda m: metric_calls["comparison"].append(m),
+                autospec=True,
             ),
             patch(
                 "backend.core.metrics.record_shadow_risk_score",
                 side_effect=lambda v, s: metric_calls["risk_score"].append((v, s)),
+                autospec=True,
             ),
             patch(
                 "backend.core.metrics.record_shadow_risk_score_diff",
                 side_effect=lambda d: metric_calls["diff"].append(d),
+                autospec=True,
             ),
             patch(
                 "backend.core.metrics.record_shadow_risk_level_shift",
                 side_effect=lambda d: metric_calls["shift"].append(d),
+                autospec=True,
             ),
             patch(
                 "backend.core.metrics.record_shadow_latency_diff",
                 side_effect=lambda d: metric_calls["latency"].append(d),
+                autospec=True,
             ),
-            patch("backend.core.metrics.record_shadow_comparison_error"),
-            patch("backend.core.metrics.record_shadow_latency_warning"),
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
         ):
             record_shadow_mode_comparison(result)
 
@@ -406,16 +419,17 @@ class TestRiskDistributionComparisonMetrics:
         shift_calls = []
 
         with (
-            patch("backend.core.metrics.record_shadow_comparison"),
-            patch("backend.core.metrics.record_shadow_risk_score"),
-            patch("backend.core.metrics.record_shadow_risk_score_diff"),
+            patch("backend.core.metrics.record_shadow_comparison", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True),
             patch(
                 "backend.core.metrics.record_shadow_risk_level_shift",
                 side_effect=lambda d: shift_calls.append(d),
+                autospec=True,
             ),
-            patch("backend.core.metrics.record_shadow_latency_diff"),
-            patch("backend.core.metrics.record_shadow_comparison_error"),
-            patch("backend.core.metrics.record_shadow_latency_warning"),
+            patch("backend.core.metrics.record_shadow_latency_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
         ):
             for result in results:
                 record_shadow_mode_comparison(result)
@@ -478,7 +492,7 @@ class TestStatisticsTrackingIntegration:
             ),
         ]
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             for result in results:
                 tracker.record(result)
 
@@ -524,13 +538,13 @@ class TestStatisticsTrackingIntegration:
                 "backend.core.metrics.record_shadow_comparison",
                 mock_record_comparison,
             ),
-            patch("backend.core.metrics.record_shadow_risk_score"),
-            patch("backend.core.metrics.record_shadow_risk_score_diff"),
-            patch("backend.core.metrics.record_shadow_risk_level_shift"),
-            patch("backend.core.metrics.record_shadow_latency_diff"),
-            patch("backend.core.metrics.record_shadow_comparison_error"),
-            patch("backend.core.metrics.record_shadow_latency_warning"),
-            patch("backend.core.metrics.update_shadow_avg_risk_score"),
+            patch("backend.core.metrics.record_shadow_risk_score", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_level_shift", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
+            patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True),
         ):
             record_and_track_shadow_comparison(result)
 
@@ -591,12 +605,12 @@ class TestLatencyWarningIntegration:
             warning_recorded = True
 
         with (
-            patch("backend.core.metrics.record_shadow_comparison"),
-            patch("backend.core.metrics.record_shadow_risk_score"),
-            patch("backend.core.metrics.record_shadow_risk_score_diff"),
-            patch("backend.core.metrics.record_shadow_risk_level_shift"),
-            patch("backend.core.metrics.record_shadow_latency_diff"),
-            patch("backend.core.metrics.record_shadow_comparison_error"),
+            patch("backend.core.metrics.record_shadow_comparison", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_level_shift", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
             patch("backend.core.metrics.record_shadow_latency_warning", mock_warning),
         ):
             record_shadow_mode_comparison(result)
@@ -627,18 +641,22 @@ class TestEndToEndShadowModeFlow:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -698,14 +716,14 @@ class TestEndToEndShadowModeFlow:
 
             # 6. Record and track the comparison
             with (
-                patch("backend.core.metrics.record_shadow_comparison"),
-                patch("backend.core.metrics.record_shadow_risk_score"),
-                patch("backend.core.metrics.record_shadow_risk_score_diff"),
-                patch("backend.core.metrics.record_shadow_risk_level_shift"),
-                patch("backend.core.metrics.record_shadow_latency_diff"),
-                patch("backend.core.metrics.record_shadow_comparison_error"),
-                patch("backend.core.metrics.record_shadow_latency_warning"),
-                patch("backend.core.metrics.update_shadow_avg_risk_score"),
+                patch("backend.core.metrics.record_shadow_comparison", autospec=True),
+                patch("backend.core.metrics.record_shadow_risk_score", autospec=True),
+                patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True),
+                patch("backend.core.metrics.record_shadow_risk_level_shift", autospec=True),
+                patch("backend.core.metrics.record_shadow_latency_diff", autospec=True),
+                patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+                patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
+                patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True),
             ):
                 record_and_track_shadow_comparison(comparison_result)
 
@@ -742,7 +760,7 @@ class TestEndToEndShadowModeFlow:
                 timestamp=datetime.now(UTC).isoformat(),
             )
 
-            with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+            with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
                 tracker.record(result)
 
         stats = tracker.get_stats()

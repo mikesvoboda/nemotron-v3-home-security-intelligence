@@ -86,7 +86,7 @@ def client(mock_db_session: AsyncMock, mock_settings) -> TestClient:
     app.dependency_overrides[get_db] = override_get_db
 
     with (
-        patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+        patch("backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True),
         TestClient(app) as test_client,
     ):
         yield test_client
@@ -122,7 +122,7 @@ class TestRequireAdminAccess:
         """Test that admin access is allowed when admin_enabled=True."""
         from unittest.mock import patch
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.admin_enabled = True
             # Should not raise
             require_admin_access()
@@ -133,7 +133,7 @@ class TestRequireAdminAccess:
 
         from fastapi import HTTPException
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.admin_enabled = False
             with pytest.raises(HTTPException) as exc_info:
                 require_admin_access()
@@ -145,7 +145,7 @@ class TestRequireAdminAccess:
         from unittest.mock import patch
 
         # Admin enabled with debug=False should still work
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.admin_enabled = True
             mock_settings.return_value.debug = False
             # Should not raise - admin_enabled is the only check
@@ -158,7 +158,7 @@ class TestRequireAdminAccess:
 
         from fastapi import HTTPException
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.admin_enabled = False
             mock_settings.return_value.debug = True  # debug=True should not override
             with pytest.raises(HTTPException) as exc_info:
@@ -353,7 +353,9 @@ class TestClearData:
         mock_result.scalars.return_value.all.return_value = []
         mock_db_session.execute.return_value = mock_result
 
-        with patch("backend.api.routes.admin.get_db_audit_service") as mock_get_audit:
+        with patch(
+            "backend.api.routes.admin.get_db_audit_service", autospec=True
+        ) as mock_get_audit:
             mock_audit = MagicMock()
             mock_audit.log_action = AsyncMock()
             mock_get_audit.return_value = mock_audit
@@ -560,7 +562,9 @@ class TestAdminUserManagement:
         app.dependency_overrides[get_current_admin_user] = override_get_current_admin_user
 
         with (
-            patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+            ),
             TestClient(app) as test_client,
         ):
             yield test_client
@@ -595,7 +599,9 @@ class TestAdminUserManagement:
         app.dependency_overrides[get_current_admin_user] = override_get_current_admin_user
 
         with (
-            patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+            ),
             TestClient(app) as test_client,
         ):
             yield test_client
@@ -704,7 +710,9 @@ class TestAdminUserManagement:
         app.dependency_overrides[get_current_admin_user] = override_get_current_admin_user
 
         with (
-            patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+            ),
             TestClient(app) as test_client,
         ):
             # Try to delete self (using the admin's own ID)

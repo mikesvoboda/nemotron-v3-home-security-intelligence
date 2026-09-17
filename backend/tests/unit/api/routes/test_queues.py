@@ -214,6 +214,7 @@ class TestGetQueuesStatusEmpty:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -250,6 +251,7 @@ class TestGetQueuesStatusEmpty:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -305,6 +307,7 @@ class TestGetQueuesStatusNormal:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -341,6 +344,7 @@ class TestGetQueuesStatusNormal:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -388,6 +392,7 @@ class TestGetQueuesStatusWarning:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -427,6 +432,7 @@ class TestGetQueuesStatusWarning:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -455,6 +461,7 @@ class TestGetQueuesStatusWarning:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -500,6 +507,7 @@ class TestGetQueuesStatusCritical:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -536,6 +544,7 @@ class TestGetQueuesStatusCritical:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -566,6 +575,7 @@ class TestGetQueuesStatusCritical:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -601,6 +611,7 @@ class TestGetQueuesStatusMultipleQueues:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -635,6 +646,7 @@ class TestGetQueuesStatusMultipleQueues:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -676,6 +688,7 @@ class TestGetQueuesStatusEdgeCases:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -705,6 +718,7 @@ class TestGetQueuesStatusEdgeCases:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -741,6 +755,7 @@ class TestGetQueuesStatusEdgeCases:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -775,6 +790,7 @@ class TestGetQueuesStatusEdgeCases:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -810,6 +826,7 @@ class TestGetQueuesStatusEdgeCases:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -856,6 +873,7 @@ class TestQueuesStatusResponseSchema:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -909,6 +927,7 @@ class TestQueuesStatusResponseSchema:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 
@@ -943,6 +962,7 @@ class TestQueuesStatusResponseSchema:
         with patch(
             "backend.api.routes.queues.get_queue_status_service",
             return_value=mock_queue_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/queues/status")
 

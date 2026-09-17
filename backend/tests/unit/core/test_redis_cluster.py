@@ -145,8 +145,14 @@ class TestRedisClusterClient:
     async def test_connect_success(self, mock_settings, mock_cluster_connection):
         """Test successful cluster connection."""
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient(cluster_nodes=["redis-node1:6379", "redis-node2:6379"])
             await client.connect()
@@ -160,8 +166,14 @@ class TestRedisClusterClient:
     async def test_disconnect(self, mock_settings, mock_cluster_connection):
         """Test cluster disconnection."""
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient(cluster_nodes=["redis-node1:6379", "redis-node2:6379"])
             await client.connect()
@@ -173,7 +185,9 @@ class TestRedisClusterClient:
     @pytest.mark.asyncio
     async def test_ensure_connected_raises(self, mock_settings):
         """Test _ensure_connected raises when not connected."""
-        with patch("backend.core.redis_cluster.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+        ):
             client = RedisClusterClient()
 
         with pytest.raises(RuntimeError, match="Redis Cluster not connected"):
@@ -185,8 +199,14 @@ class TestRedisClusterClient:
         mock_cluster_connection.get.return_value = '{"key": "value"}'
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -207,8 +227,14 @@ class TestRedisClusterClient:
         mock_cluster_connection.delete.return_value = 2
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -225,8 +251,14 @@ class TestRedisClusterClient:
         mock_cluster_connection.llen.return_value = 5
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -247,8 +279,14 @@ class TestRedisClusterClient:
         mock_cluster_connection.publish.return_value = 3
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -271,8 +309,14 @@ class TestRedisClusterClient:
         }
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -291,8 +335,14 @@ class TestRedisClusterClient:
         mock_cluster_connection.cluster_info.side_effect = Exception("Connection lost")
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -310,8 +360,14 @@ class TestRedisClusterClient:
         mock_cluster_connection.cluster_keyslot.return_value = 12345
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client = RedisClusterClient()
             await client.connect()
@@ -332,7 +388,9 @@ class TestGetRedisCluster:
         """Test get_redis_cluster raises when cluster is disabled."""
         mock_settings.redis_cluster_enabled = False
 
-        with patch("backend.core.redis_cluster.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(RuntimeError, match="Redis Cluster mode not enabled"):
                 await get_redis_cluster()
 
@@ -346,8 +404,14 @@ class TestGetRedisCluster:
         cluster_module._cluster_init_lock = None
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             client1 = await get_redis_cluster()
             client2 = await get_redis_cluster()
@@ -382,8 +446,14 @@ class TestCloseRedisCluster:
         cluster_module._cluster_init_lock = None
 
         with (
-            patch("backend.core.redis_cluster.get_settings", return_value=mock_settings),
-            patch("redis.asyncio.cluster.RedisCluster", return_value=mock_cluster_connection),
+            patch(
+                "backend.core.redis_cluster.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "redis.asyncio.cluster.RedisCluster",
+                return_value=mock_cluster_connection,
+                autospec=True,
+            ),
         ):
             await get_redis_cluster()
             assert cluster_module._cluster_client is not None

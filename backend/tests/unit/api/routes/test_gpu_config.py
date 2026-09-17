@@ -143,7 +143,7 @@ def reset_apply_state():
 class TestListGpus:
     """Tests for GET /api/system/gpus endpoint."""
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_list_gpus_returns_empty_list_when_no_gpus(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
@@ -160,7 +160,7 @@ class TestListGpus:
         assert isinstance(data["gpus"], list)
         assert len(data["gpus"]) == 0
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_list_gpus_returns_detected_gpus(
         self, mock_get_service: MagicMock, client: TestClient, sample_gpus: list[GpuDeviceDataclass]
     ) -> None:
@@ -191,7 +191,7 @@ class TestListGpus:
         assert gpu1["vram_used_mb"] == 329
         assert gpu1["compute_capability"] == "8.6"
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_list_gpus_handles_detection_service_errors(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
@@ -206,7 +206,7 @@ class TestListGpus:
         assert response.status_code == 200
         assert response.json()["gpus"] == []
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_list_gpus_validates_response_schema(
         self, mock_get_service: MagicMock, client: TestClient, sample_gpus: list[GpuDeviceDataclass]
     ) -> None:
@@ -377,7 +377,7 @@ class TestGetGpuConfig:
 class TestUpdateGpuConfig:
     """Tests for PUT /api/system/gpu-config endpoint."""
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_update_gpu_config_validates_required_fields(
         self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -421,7 +421,7 @@ class TestUpdateGpuConfig:
         assert response.status_code == 200
         assert response.json()["success"] is True
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_update_gpu_config_rejects_invalid_gpu_indices(
         self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -476,7 +476,7 @@ class TestUpdateGpuConfig:
         assert len(data["warnings"]) > 0
         assert any("non-existent GPU 2" in w for w in data["warnings"])
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_update_gpu_config_returns_vram_warnings_when_over_budget(
         self,
         mock_get_service: MagicMock,
@@ -527,7 +527,7 @@ class TestUpdateGpuConfig:
         assert any("over budget" in w.lower() for w in data["warnings"])
         assert any("GPU 1" in w for w in data["warnings"])
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_update_gpu_config_saves_to_database_correctly(
         self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -571,7 +571,7 @@ class TestUpdateGpuConfig:
         # Verify commit was called
         mock_db_session.commit.assert_called_once()
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_update_gpu_config_handles_database_errors(
         self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -599,7 +599,7 @@ class TestUpdateGpuConfig:
 class TestApplyGpuConfig:
     """Tests for POST /api/system/gpu-config/apply endpoint."""
 
-    @patch("backend.api.routes.gpu_config.GpuConfigService")
+    @patch("backend.api.routes.gpu_config.GpuConfigService", autospec=True)
     def test_apply_gpu_config_returns_success_response(
         self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -634,7 +634,7 @@ class TestApplyGpuConfig:
         assert "warnings" in data
         assert len(data["restarted_services"]) >= 1
 
-    @patch("backend.api.routes.gpu_config.GpuConfigService")
+    @patch("backend.api.routes.gpu_config.GpuConfigService", autospec=True)
     def test_apply_gpu_config_handles_restart_failures(
         self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -665,7 +665,7 @@ class TestApplyGpuConfig:
         assert response.status_code == 500
         assert "Failed to apply GPU configuration" in response.json()["detail"]
 
-    @patch("backend.api.routes.gpu_config.GpuConfigService")
+    @patch("backend.api.routes.gpu_config.GpuConfigService", autospec=True)
     def test_apply_gpu_config_rejects_concurrent_applies(
         self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -718,7 +718,11 @@ class TestApplyGpuConfig:
         stale_client = MagicMock()
         stale_client.get = AsyncMock(side_effect=RuntimeError("Event loop is closed"))
 
-        with patch("backend.api.routes.gpu_config._get_redis_client", return_value=stale_client):
+        with patch(
+            "backend.api.routes.gpu_config._get_redis_client",
+            return_value=stale_client,
+            autospec=True,
+        ):
             response = client.post("/api/system/gpu-config/apply")
 
         assert response.status_code == 503
@@ -793,7 +797,7 @@ class TestGetGpuConfigStatus:
 class TestDetectGpus:
     """Tests for POST /api/system/gpu-config/detect endpoint."""
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_detect_gpus_triggers_gpu_rescan(
         self,
         mock_get_service: MagicMock,
@@ -820,7 +824,7 @@ class TestDetectGpus:
         # Verify detection service was called
         mock_service.detect_gpus.assert_called_once()
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_detect_gpus_updates_database(
         self,
         mock_get_service: MagicMock,
@@ -843,7 +847,7 @@ class TestDetectGpus:
         # Verify database commit was called
         mock_db_session.commit.assert_called_once()
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_detect_gpus_handles_detection_failures(
         self, mock_get_service: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
@@ -867,7 +871,7 @@ class TestDetectGpus:
 class TestPreviewGpuConfig:
     """Tests for GET /api/system/gpu-config/preview endpoint."""
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_preview_gpu_config_returns_preview_for_strategy(
         self, mock_get_service: MagicMock, client: TestClient, sample_gpus: list[GpuDeviceDataclass]
     ) -> None:
@@ -886,7 +890,7 @@ class TestPreviewGpuConfig:
         assert isinstance(data["proposed_assignments"], list)
         assert len(data["proposed_assignments"]) >= 3  # At least 3 AI services
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_preview_gpu_config_validates_strategy_parameter(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
@@ -897,7 +901,7 @@ class TestPreviewGpuConfig:
         assert response.status_code == 422  # Validation error
         assert "Field required" in response.text or "required" in response.text.lower()
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_preview_gpu_config_for_each_strategy(
         self, mock_get_service: MagicMock, client: TestClient, sample_gpus: list[GpuDeviceDataclass]
     ) -> None:
@@ -922,7 +926,7 @@ class TestPreviewGpuConfig:
             assert data["strategy"] == strategy
             assert len(data["proposed_assignments"]) >= 3
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_preview_gpu_config_returns_warnings_when_appropriate(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:
@@ -950,7 +954,7 @@ class TestPreviewGpuConfig:
         assert len(data["warnings"]) > 0
         assert any("isolation" in w.lower() for w in data["warnings"])
 
-    @patch("backend.api.routes.gpu_config.get_gpu_detection_service")
+    @patch("backend.api.routes.gpu_config.get_gpu_detection_service", autospec=True)
     def test_preview_gpu_config_handles_no_gpus_detected(
         self, mock_get_service: MagicMock, client: TestClient
     ) -> None:

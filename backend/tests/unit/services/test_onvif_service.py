@@ -65,7 +65,7 @@ def mock_onvif_camera():
 @pytest.fixture
 def mock_wsdiscovery():
     """Create a mock WSDiscovery client for device discovery."""
-    with patch("backend.services.onvif_service.WSDiscovery") as mock:
+    with patch("backend.services.onvif_service.WSDiscovery", autospec=True) as mock:
         discovery = MagicMock()
         mock.return_value = discovery
         yield discovery
@@ -74,7 +74,7 @@ def mock_wsdiscovery():
 @pytest.fixture
 def mock_onvif_camera_class():
     """Create a mock ONVIFCamera class from onvif library."""
-    with patch("backend.services.onvif_service.ONVIFCamera") as mock:
+    with patch("backend.services.onvif_service.ONVIFCamera", autospec=True) as mock:
         yield mock
 
 
@@ -96,7 +96,12 @@ class TestDiscoverDevices:
 
     @pytest.mark.asyncio
     async def test_discover_devices_returns_list(
-        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera
+        self,
+        mock_session,
+        mock_redis,
+        mock_wsdiscovery,
+        mock_onvif_camera,
+        mock_onvif_camera_class,
     ):
         """Test discover_devices returns list of discovered devices."""
         # Mock WS-Discovery to return devices
@@ -126,7 +131,7 @@ class TestDiscoverDevices:
 
     @pytest.mark.asyncio
     async def test_discover_devices_filters_non_onvif(
-        self, mock_session, mock_redis, mock_wsdiscovery
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
     ):
         """Test discover_devices filters out non-ONVIF devices."""
         # Create a mix of ONVIF and non-ONVIF devices
@@ -225,7 +230,7 @@ class TestDiscoverDevices:
 
     @pytest.mark.asyncio
     async def test_discover_devices_extracts_manufacturer_from_scopes(
-        self, mock_session, mock_redis, mock_wsdiscovery
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
     ):
         """Test extracting manufacturer and model from device scopes.
 
@@ -473,6 +478,37 @@ class TestGetCapabilities:
         assert result["firmware_version"] == "1.0.0"
         assert "ptz_supported" in result
         assert "media_supported" in result
+
+    @pytest.mark.asyncio
+    async def test_get_capabilities_constructs_camera_with_host_port_credentials(
+        self, mock_session, mock_redis, mock_onvif_camera_class
+    ):
+        """ONVIFCamera must be built as onvif-zeep defines it: (host, port, user, passwd).
+
+        WP4.1 autospec finding: production passed the device URL as a single
+        argument, which onvif-zeep 0.2.12 rejects with TypeError — swallowed
+        by the debug-level except, so capabilities silently never populated.
+        The unqualified mock accepted the wrong shape; autospec made it loud.
+        This pins the constructor contract so a regression fails here, not in
+        a swallowed log line.
+        """
+        mock_camera_model = MagicMock()
+        mock_camera_model.folder_path = "http://192.168.1.100:8080/onvif/device_service"
+        mock_camera_model.rtsp_username = "admin"
+        mock_camera_model.rtsp_password = "secret123"  # pragma: allowlist secret
+        mock_session.execute.return_value.scalar_one_or_none.return_value = mock_camera_model
+
+        mock_onvif_instance = MagicMock()
+        mock_onvif_camera_class.return_value = mock_onvif_instance
+        device_info = MagicMock()
+        mock_onvif_instance.devicemgmt.GetDeviceInformation.return_value = device_info
+        capabilities = MagicMock()
+        mock_onvif_instance.devicemgmt.GetCapabilities.return_value = capabilities
+
+        service = OnvifService(mock_session, mock_redis)
+        await service.get_capabilities(camera_id="front_door")
+
+        mock_onvif_camera_class.assert_called_once_with("192.168.1.100", 8080, "admin", "secret123")
 
     @pytest.mark.asyncio
     async def test_get_capabilities_camera_not_found(self, mock_session, mock_redis):

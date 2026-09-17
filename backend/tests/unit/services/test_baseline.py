@@ -376,7 +376,7 @@ class TestUpdateBaselineAutoSession:
         timestamp = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
 
         # Mock get_session to track if it's called
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -436,7 +436,7 @@ class TestGetActivityRate:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -494,7 +494,7 @@ class TestGetClassFrequency:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -520,7 +520,7 @@ class TestIsAnomalousAutoSession:
         service = BaselineService()
         timestamp = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
 
             # Class baseline
@@ -725,7 +725,7 @@ class TestGetCameraBaselineSummaryAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
 
             # Activity baselines
@@ -841,7 +841,7 @@ class TestGetHourlyPatternsAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_scalars = MagicMock()
@@ -951,7 +951,7 @@ class TestGetDailyPatternsAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_scalars = MagicMock()
@@ -1042,7 +1042,7 @@ class TestGetObjectBaselinesAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_scalars = MagicMock()
@@ -1186,7 +1186,7 @@ class TestGetCurrentDeviationAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -1335,7 +1335,7 @@ class TestGetBaselineEstablishedDateAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar.return_value = None
@@ -1453,7 +1453,7 @@ class TestGetActivityBaselinesRawAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_scalars = MagicMock()
@@ -1525,7 +1525,7 @@ class TestGetClassBaselinesRawAutoSession:
 
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_scalars = MagicMock()
@@ -1832,7 +1832,7 @@ class TestEdgeCases:
         timestamp = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
 
         # Mock get_session to track if it was called
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -1857,7 +1857,7 @@ class TestEdgeCases:
         """Test get_activity_rate without session creates its own."""
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -1878,7 +1878,7 @@ class TestEdgeCases:
         """Test get_class_frequency without session creates its own."""
         service = BaselineService()
 
-        with patch("backend.services.baseline.get_session") as mock_get_session:
+        with patch("backend.services.baseline.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None

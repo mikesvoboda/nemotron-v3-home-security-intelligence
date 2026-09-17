@@ -367,7 +367,7 @@ class TestProcessDetection:
         zone.priority = 1
         zone.coordinates = [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5], [0.0, 0.5]]
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             events = await service.process_detection(detection, zones=[zone])
@@ -406,7 +406,7 @@ class TestProcessDetection:
         detection1.bbox_width = 100
         detection1.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone
@@ -462,7 +462,7 @@ class TestProcessDetection:
         detection1.bbox_width = 100
         detection1.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone
@@ -519,7 +519,7 @@ class TestProcessDetection:
             det.bbox_height = 100
             return det
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone
@@ -575,7 +575,7 @@ class TestProcessDetection:
         detection1.bbox_width = 100
         detection1.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone 1
@@ -647,7 +647,7 @@ class TestGetEntityZone:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             await service.process_detection(detection, zones=[zone])
 
@@ -681,7 +681,7 @@ class TestGetZoneOccupants:
         zone.priority = 1
         zone.coordinates = [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5], [0.0, 0.5]]
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Add two entities to zone
@@ -740,7 +740,7 @@ class TestGetEntityDwellTime:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             await service.process_detection(detection, zones=[zone])
 
@@ -783,7 +783,7 @@ class TestClearEntity:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             await service.process_detection(detection, zones=[zone])
 
@@ -824,7 +824,7 @@ class TestClearAll:
         zone.priority = 1
         zone.coordinates = [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5], [0.0, 0.5]]
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Add two entities
@@ -880,7 +880,9 @@ class TestEmitWebSocketEvent:
             },
         }
 
-        with patch("backend.services.zone_crossing_service.get_settings") as mock_settings:
+        with patch(
+            "backend.services.zone_crossing_service.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             await service._emit_websocket_event(event)
 
@@ -901,7 +903,7 @@ class TestEmitWebSocketEvent:
         event = {"type": "zone.enter", "data": {}}
 
         with patch("backend.services.zone_crossing_service.get_redis", mock_get_redis):
-            with patch("backend.core.config.get_settings") as mock_settings:
+            with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value.redis_event_channel = "hsi:events"
                 await service._emit_websocket_event(event)
 
@@ -918,7 +920,7 @@ class TestEmitWebSocketEvent:
 
         event = {"type": "zone.enter", "data": {}}
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             # Should not raise
             await service._emit_websocket_event(event)
@@ -995,7 +997,7 @@ class TestEdgeCases:
         zone.priority = 1
         zone.coordinates = [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5], [0.0, 0.5]]
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             events = await service.process_detection(detection, zones=[zone])
 
@@ -1038,7 +1040,7 @@ class TestEdgeCases:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             events = await service.process_detection(detection, zones=[zone_low, zone_high])
 
@@ -1073,7 +1075,7 @@ class TestEdgeCases:
         detection1.bbox_width = 100
         detection1.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter
@@ -1136,7 +1138,7 @@ class TestEdgeCases:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             events = await service.process_detection(detection, zones=[zone])
 
@@ -1178,7 +1180,7 @@ class TestEventSchema:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             events = await service.process_detection(detection, zones=[zone])
 
@@ -1222,7 +1224,7 @@ class TestEventSchema:
         detection1.bbox_width = 100
         detection1.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone
@@ -1274,7 +1276,7 @@ class TestEventSchema:
         detection1.bbox_width = 100
         detection1.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone
@@ -1337,7 +1339,7 @@ class TestAdditionalCoverage:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             # No image dimensions provided - should use defaults
             events = await service.process_detection(detection, zones=[zone])
@@ -1370,7 +1372,7 @@ class TestAdditionalCoverage:
         zone.id = "zone-abc"
         zone.name = "Front Yard"
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             event = await service._emit_zone_enter(
                 zone=zone,
@@ -1396,7 +1398,7 @@ class TestAdditionalCoverage:
         zone.id = "zone-abc"
         zone.name = "Front Yard"
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             event = await service._emit_zone_exit(
                 zone=zone,
@@ -1423,7 +1425,7 @@ class TestAdditionalCoverage:
         zone.id = "zone-abc"
         zone.name = "Front Yard"
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             event = await service._emit_zone_dwell(
                 zone=zone,
@@ -1505,7 +1507,7 @@ class TestAdditionalCoverage:
             det.bbox_height = 100
             return det
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
 
             # Enter zone and emit dwell event
@@ -1559,7 +1561,7 @@ class TestAdditionalCoverage:
         detection.bbox_width = 100
         detection.bbox_height = 100
 
-        with patch("backend.core.config.get_settings") as mock_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_event_channel = "hsi:events"
             # Should handle missing zone gracefully
             events = await service.process_detection(detection, zones=[zone])
@@ -1590,12 +1592,12 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
             patch(
-                "backend.services.zone_crossing_service.record_zone_crossing"
+                "backend.services.zone_crossing_service.record_zone_crossing", autospec=True
             ) as mock_record_crossing,
             patch(
-                "backend.services.zone_crossing_service.set_zone_occupancy"
+                "backend.services.zone_crossing_service.set_zone_occupancy", autospec=True
             ) as mock_set_occupancy,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1628,15 +1630,15 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
             patch(
-                "backend.services.zone_crossing_service.record_zone_crossing"
+                "backend.services.zone_crossing_service.record_zone_crossing", autospec=True
             ) as mock_record_crossing,
             patch(
-                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+                "backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.zone_crossing_service.set_zone_occupancy"
+                "backend.services.zone_crossing_service.set_zone_occupancy", autospec=True
             ) as mock_set_occupancy,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1674,14 +1676,14 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
             patch(
-                "backend.services.zone_crossing_service.record_zone_crossing"
+                "backend.services.zone_crossing_service.record_zone_crossing", autospec=True
             ) as mock_record_crossing,
             patch(
-                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+                "backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True
             ) as mock_observe_dwell,
-            patch("backend.services.zone_crossing_service.set_zone_occupancy"),
+            patch("backend.services.zone_crossing_service.set_zone_occupancy", autospec=True),
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
             await service._emit_zone_exit(
@@ -1712,12 +1714,12 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
-            patch("backend.services.zone_crossing_service.record_zone_crossing"),
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing", autospec=True),
             patch(
-                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+                "backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True
             ) as mock_observe_dwell,
-            patch("backend.services.zone_crossing_service.set_zone_occupancy"),
+            patch("backend.services.zone_crossing_service.set_zone_occupancy", autospec=True),
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
             await service._emit_zone_exit(
@@ -1746,9 +1748,9 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
             patch(
-                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+                "backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True
             ) as mock_observe_dwell,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1780,9 +1782,9 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
             patch(
-                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+                "backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True
             ) as mock_observe_dwell,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1815,10 +1817,10 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
-            patch("backend.services.zone_crossing_service.record_zone_crossing"),
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing", autospec=True),
             patch(
-                "backend.services.zone_crossing_service.set_zone_occupancy"
+                "backend.services.zone_crossing_service.set_zone_occupancy", autospec=True
             ) as mock_set_occupancy,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1851,11 +1853,11 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
-            patch("backend.services.zone_crossing_service.record_zone_crossing"),
-            patch("backend.services.zone_crossing_service.observe_zone_dwell_time"),
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing", autospec=True),
+            patch("backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True),
             patch(
-                "backend.services.zone_crossing_service.set_zone_occupancy"
+                "backend.services.zone_crossing_service.set_zone_occupancy", autospec=True
             ) as mock_set_occupancy,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1886,11 +1888,11 @@ class TestZoneCrossingMetrics:
         zone.name = "Test Zone"
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
-            patch("backend.services.zone_crossing_service.record_zone_crossing"),
-            patch("backend.services.zone_crossing_service.observe_zone_dwell_time"),
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing", autospec=True),
+            patch("backend.services.zone_crossing_service.observe_zone_dwell_time", autospec=True),
             patch(
-                "backend.services.zone_crossing_service.set_zone_occupancy"
+                "backend.services.zone_crossing_service.set_zone_occupancy", autospec=True
             ) as mock_set_occupancy,
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"
@@ -1957,18 +1959,21 @@ class TestZoneCrossingMetrics:
             dwell_calls.append(kwargs)
 
         with (
-            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.core.config.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.services.zone_crossing_service.record_zone_crossing",
                 side_effect=capture_crossing,
+                autospec=True,
             ),
             patch(
                 "backend.services.zone_crossing_service.set_zone_occupancy",
                 side_effect=capture_occupancy,
+                autospec=True,
             ),
             patch(
                 "backend.services.zone_crossing_service.observe_zone_dwell_time",
                 side_effect=capture_dwell,
+                autospec=True,
             ),
         ):
             mock_settings.return_value.redis_event_channel = "hsi:events"

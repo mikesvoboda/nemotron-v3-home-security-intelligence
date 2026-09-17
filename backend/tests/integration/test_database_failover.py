@@ -152,7 +152,9 @@ class TestDatabaseConnectionTimeout:
     async def test_connection_timeout_raises_operational_error(self) -> None:
         """Verify OperationalError is raised on connection timeout."""
         # Simulate connection timeout
-        with patch("sqlalchemy.ext.asyncio.create_async_engine") as mock_create_engine:
+        with patch(
+            "sqlalchemy.ext.asyncio.create_async_engine", autospec=True
+        ) as mock_create_engine:
             mock_engine = MagicMock()
             mock_create_engine.return_value = mock_engine
             mock_engine.begin.side_effect = OperationalError(
@@ -306,7 +308,7 @@ class TestTransactionRollbackOnConnectionFailure:
         camera_id = unique_id("commit_fail_cam")
 
         # Simulate commit failure
-        with patch("sqlalchemy.ext.asyncio.AsyncSession.commit") as mock_commit:
+        with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", autospec=True) as mock_commit:
             mock_commit.side_effect = OperationalError(
                 "statement", {}, Exception("Connection lost during commit")
             )
@@ -346,7 +348,7 @@ class TestTransactionRollbackOnConnectionFailure:
                 await session.flush()
 
                 # Simulate connection failure before commit
-                with patch.object(session, "commit") as mock_commit:
+                with patch.object(session, "commit", autospec=True) as mock_commit:
                     mock_commit.side_effect = InterfaceError(
                         "Connection lost", {}, Exception("Server closed connection")
                     )
@@ -435,6 +437,7 @@ class TestGracefulDegradationDatabaseUnreachable:
                     side_effect=OperationalError(
                         "statement", {}, Exception("FATAL: database is not available")
                     ),
+                    autospec=True,
                 ):
                     await session.execute(text("SELECT 1"))
             pytest.fail("Expected OperationalError but query succeeded")
@@ -507,7 +510,7 @@ class TestConnectionRecoveryAfterFailure:
             # Success on retry
             return MagicMock(scalars=lambda: MagicMock(all=lambda: []))
 
-        with patch("sqlalchemy.ext.asyncio.AsyncSession.execute") as mock_execute:
+        with patch("sqlalchemy.ext.asyncio.AsyncSession.execute", autospec=True) as mock_execute:
             mock_execute.side_effect = deadlock_then_success
 
             # First attempt should fail
@@ -542,7 +545,9 @@ class TestConnectionRecoveryAfterFailure:
         # First attempt should fail
         try:
             async with get_session() as session:
-                with patch.object(session, "execute", side_effect=reset_then_success):
+                with patch.object(
+                    session, "execute", side_effect=reset_then_success, autospec=True
+                ):
                     await session.execute(text("SELECT 1"))
             pytest.fail("Expected connection reset error")
         except OperationalError as e:

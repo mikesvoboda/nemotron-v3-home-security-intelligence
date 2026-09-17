@@ -657,7 +657,7 @@ class TestRunLLMTest:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client, autospec=True):
             result = await service._run_llm_test("System prompt", "User context")
 
             assert result["risk_score"] == 75
@@ -677,7 +677,7 @@ class TestRunLLMTest:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client, autospec=True):
             result = await service._run_llm_test("System prompt", "User context")
 
             assert "raw_response" in result
@@ -695,7 +695,7 @@ class TestRunLLMTest:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client, autospec=True):
             result = await service._run_llm_test("System prompt", "User context")
 
             assert "error" in result
@@ -722,7 +722,7 @@ class TestRunLLMTest:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client, autospec=True):
             result = await service._run_llm_test("System prompt", "User context")
 
             assert "error" in result
@@ -740,7 +740,7 @@ class TestRunLLMTest:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("httpx.AsyncClient", return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client, autospec=True):
             result = await service._run_llm_test("System prompt", "User context")
 
             assert "error" in result
@@ -776,6 +776,7 @@ class TestImportPromptsErrorHandling:
             service,
             "update_prompt_for_model",
             side_effect=Exception("Database error"),
+            autospec=True,
         ):
             import_data = {
                 "nemotron": {"system_prompt": "Test prompt"},
@@ -818,7 +819,9 @@ class TestImportPromptsErrorHandling:
 
         from unittest.mock import patch
 
-        with patch.object(service, "update_prompt_for_model", side_effect=mock_update):
+        with patch.object(
+            service, "update_prompt_for_model", side_effect=mock_update, autospec=True
+        ):
             import_data = {
                 "nemotron": {"system_prompt": "Valid prompt"},
                 "florence2": {"queries": ["Will fail"]},

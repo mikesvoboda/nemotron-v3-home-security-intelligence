@@ -326,7 +326,9 @@ class TestYoloWorldPackageDetection:
             "class_id": 0,
         }
 
-        with patch.object(service, "_run_yolo_world_detection", return_value=[mock_detection]):
+        with patch.object(
+            service, "_run_yolo_world_detection", return_value=[mock_detection], autospec=True
+        ):
             result = await service.detect_packages(mock_yolo_world_model, MagicMock())
 
         assert len(result.detections) == 1
@@ -347,7 +349,9 @@ class TestYoloWorldPackageDetection:
             "class_id": 1,
         }
 
-        with patch.object(service, "_run_yolo_world_detection", return_value=[mock_detection]):
+        with patch.object(
+            service, "_run_yolo_world_detection", return_value=[mock_detection], autospec=True
+        ):
             result = await service.detect_packages(mock_yolo_world_model, MagicMock())
 
         assert len(result.detections) == 1
@@ -368,7 +372,9 @@ class TestYoloWorldPackageDetection:
             "class_id": 2,
         }
 
-        with patch.object(service, "_run_yolo_world_detection", return_value=[mock_detection]):
+        with patch.object(
+            service, "_run_yolo_world_detection", return_value=[mock_detection], autospec=True
+        ):
             result = await service.detect_packages(mock_yolo_world_model, MagicMock())
 
         assert "bbox" in result.detections[0]
@@ -392,7 +398,9 @@ class TestYoloWorldPackageDetection:
             "class_id": 3,
         }
 
-        with patch.object(service, "_run_yolo_world_detection", return_value=[mock_detection]):
+        with patch.object(
+            service, "_run_yolo_world_detection", return_value=[mock_detection], autospec=True
+        ):
             result = await service.detect_packages(mock_yolo_world_model, MagicMock())
 
         assert "confidence" in result.detections[0]
@@ -420,7 +428,9 @@ class TestYoloWorldPackageDetection:
             },
         ]
 
-        with patch.object(service, "_run_yolo_world_detection", return_value=mock_detections):
+        with patch.object(
+            service, "_run_yolo_world_detection", return_value=mock_detections, autospec=True
+        ):
             result = await service.detect_packages(mock_yolo_world_model, MagicMock())
 
         # Should only include the detection above threshold
@@ -434,7 +444,7 @@ class TestYoloWorldPackageDetection:
 
         service = PackageTrackingService()
 
-        with patch.object(service, "_run_yolo_world_detection", return_value=[]):
+        with patch.object(service, "_run_yolo_world_detection", return_value=[], autospec=True):
             result = await service.detect_packages(mock_yolo_world_model, MagicMock())
 
         assert len(result.detections) == 0

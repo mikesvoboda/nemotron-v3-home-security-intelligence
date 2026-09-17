@@ -4,6 +4,8 @@ This module provides streaming methods for the NemotronAnalyzer class
 to enable progressive LLM response updates during long inference times.
 """
 
+from __future__ import annotations
+
 import json
 import time
 from collections.abc import AsyncGenerator

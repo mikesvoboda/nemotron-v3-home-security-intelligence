@@ -514,7 +514,7 @@ class TestALPRServiceRecognition:
 
         service = get_alpr_service(db_session)
 
-        with patch("backend.services.alpr_service._PlateOCRHolder.get") as mock_get:
+        with patch("backend.services.alpr_service._PlateOCRHolder.get", autospec=True) as mock_get:
             mock_ocr = mock_plate_ocr()
             mock_ocr.load_model()
             mock_get.return_value = mock_ocr
@@ -545,7 +545,7 @@ class TestALPRServiceRecognition:
 
         service = get_alpr_service(db_session)
 
-        with patch("backend.services.alpr_service._PlateOCRHolder.get") as mock_get:
+        with patch("backend.services.alpr_service._PlateOCRHolder.get", autospec=True) as mock_get:
             mock_ocr = mock_plate_ocr()
             mock_ocr.load_model()
             mock_get.return_value = mock_ocr

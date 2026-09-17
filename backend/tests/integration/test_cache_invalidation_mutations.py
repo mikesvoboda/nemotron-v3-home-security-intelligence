@@ -207,7 +207,10 @@ async def client_with_cache(
         patch("backend.main.close_db", AsyncMock(return_value=None)),
         patch("backend.main.init_redis", AsyncMock(return_value=real_redis)),
         patch("backend.main.close_redis", AsyncMock(return_value=None)),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch(
+            "backend.main.get_system_broadcaster",
+            return_value=mock_system_broadcaster,
+        ),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
         patch("backend.main.FileWatcher", mock_file_watcher_class),
@@ -215,7 +218,10 @@ async def client_with_cache(
         patch("backend.main.stop_pipeline_manager", AsyncMock()),
         patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
         patch("backend.main.stop_broadcaster", AsyncMock()),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
+        patch(
+            "backend.main.ServiceHealthMonitor",
+            return_value=mock_service_health_monitor,
+        ),
         patch("backend.api.routes.system._file_watcher", mock_file_watcher_for_routes),
         patch("backend.api.routes.system._cleanup_service", mock_cleanup_service),
         patch("backend.api.dependencies.get_cache_service_dep", get_cache_service_override),

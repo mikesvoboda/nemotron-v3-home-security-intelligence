@@ -148,7 +148,7 @@ class TestLogError:
 
         exc = DatabaseError("Connection failed")
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             log_error(exc)
 
             mock_logger.error.assert_called_once()
@@ -162,7 +162,7 @@ class TestLogError:
 
         exc = ExternalServiceError("API timeout", service_name="payment_gateway")
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             log_error(exc, operation="process_payment", request_id="req-456")
 
             call_args = mock_logger.error.call_args
@@ -178,7 +178,7 @@ class TestLogError:
 
         exc = ValidationError("Invalid email format")
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             log_error(exc)
 
             # 400 errors should use warning level
@@ -191,7 +191,7 @@ class TestLogError:
 
         exc = DatabaseError("Query failed")
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             log_error(exc, include_traceback=True)
 
             call_args = mock_logger.error.call_args
@@ -210,7 +210,7 @@ class TestLogWithContext:
         """Test that log_with_context adds structured fields."""
         from backend.core.error_context import log_with_context
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             log_with_context(
                 "info",
                 "Processing started",
@@ -227,7 +227,7 @@ class TestLogWithContext:
         """Test that sensitive values are sanitized."""
         from backend.core.error_context import log_with_context
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             log_with_context(
                 "debug",
                 "Request received",

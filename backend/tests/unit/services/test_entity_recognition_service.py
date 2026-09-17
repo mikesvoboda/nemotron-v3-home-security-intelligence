@@ -307,11 +307,13 @@ class TestEntityRecognitionService:
                 service,
                 "get_face_stats",
                 return_value=PersonStats(known=3, unknown=2),
+                autospec=True,
             ) as mock_face,
             patch.object(
                 service,
                 "get_vehicle_stats",
                 return_value=VehicleStats(known=1, unknown=4),
+                autospec=True,
             ) as mock_vehicle,
         ):
             window_start = datetime(2026, 2, 3, 10, 0, 0, tzinfo=UTC)
@@ -344,6 +346,7 @@ class TestEntityRecognitionService:
                 window_start=datetime.now(UTC),
                 window_end=datetime.now(UTC),
             ),
+            autospec=True,
         ) as mock_summary:
             await service.get_hourly_stats(mock_session)
 

@@ -24,7 +24,9 @@ async def test_system_broadcaster_connect(isolated_db):
     mock_websocket = AsyncMock()
 
     # Mock the system status gathering to avoid database calls
-    with patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}):
+    with patch.object(
+        broadcaster, "_get_system_status", return_value={"test": "data"}, autospec=True
+    ):
         await broadcaster.connect(mock_websocket)
 
     # WebSocket should be accepted and added to connections
@@ -219,7 +221,9 @@ async def test_system_broadcaster_connect_handles_error(isolated_db):
     mock_websocket.send_json.side_effect = ConnectionError("Send failed")
 
     # Mock the system status gathering
-    with patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}):
+    with patch.object(
+        broadcaster, "_get_system_status", return_value={"test": "data"}, autospec=True
+    ):
         # Should not raise, just log error
         await broadcaster.connect(mock_websocket)
 
@@ -233,7 +237,7 @@ async def test_system_broadcaster_get_latest_gpu_stats_error():
     broadcaster = SystemBroadcaster()
 
     # Mock get_session to raise error with specific exception type
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
         mock_session.side_effect = ConnectionError("Database error")
 
         gpu_stats = await broadcaster._get_latest_gpu_stats()
@@ -250,7 +254,7 @@ async def test_system_broadcaster_get_camera_stats_error():
     broadcaster = SystemBroadcaster()
 
     # Mock get_session to raise error with specific exception type
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
         mock_session.side_effect = ConnectionError("Database error")
 
         camera_stats = await broadcaster._get_camera_stats()
@@ -354,7 +358,7 @@ async def test_system_broadcaster_listen_restarts_with_fresh_connection():
     broadcaster._pubsub_listening = True
 
     # Mock _reset_pubsub_connection to verify it's called
-    with patch.object(broadcaster, "_reset_pubsub_connection") as mock_reset:
+    with patch.object(broadcaster, "_reset_pubsub_connection", autospec=True) as mock_reset:
         # Make reset set a new pubsub
         async def set_pubsub():
             broadcaster._pubsub = mock_pubsub
@@ -620,7 +624,9 @@ async def test_system_broadcaster_listen_for_updates_reconnection_failure():
     async def reset_fail():
         broadcaster._pubsub = None
 
-    with patch.object(broadcaster, "_reset_pubsub_connection", side_effect=reset_fail):
+    with patch.object(
+        broadcaster, "_reset_pubsub_connection", side_effect=reset_fail, autospec=True
+    ):
         await broadcaster._listen_for_updates()
         await asyncio.sleep(0.1)  # mocked, short wait for test
 
@@ -634,7 +640,7 @@ async def test_system_broadcaster_get_health_status_unhealthy(isolated_db):
     broadcaster = SystemBroadcaster()
 
     # Mock get_session to raise error (database down) with specific exception type
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
         mock_session.side_effect = ConnectionError("Database connection failed")
 
         health_status = await broadcaster._get_health_status()
@@ -662,8 +668,10 @@ async def test_system_broadcaster_broadcast_loop_execution(isolated_db):
         broadcaster._running = False
 
     with (
-        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast),
-        patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}),
+        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast, autospec=True),
+        patch.object(
+            broadcaster, "_get_system_status", return_value={"test": "data"}, autospec=True
+        ),
     ):
         await broadcaster._broadcast_loop(interval=0.1)
 

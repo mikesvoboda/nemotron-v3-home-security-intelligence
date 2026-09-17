@@ -323,7 +323,7 @@ class TestDetectionWorkerStreamPath:
         mock_stream_service.claim_stale_messages = AsyncMock(return_value=[])
 
         with (
-            patch("backend.services.pipeline_workers.get_settings") as mock_settings,
+            patch("backend.services.pipeline_workers.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.services.pipeline_workers.get_detection_stream_service",
                 AsyncMock(return_value=mock_stream_service),
@@ -382,12 +382,13 @@ class TestDetectionWorkerStreamPath:
         mock_aggregator.add_detection = AsyncMock(return_value="batch_1")
 
         with (
-            patch("backend.services.pipeline_workers.get_settings") as mock_settings,
+            patch("backend.services.pipeline_workers.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.services.pipeline_workers.get_detection_stream_service",
                 return_value=mock_stream_service,
+                autospec=True,
             ),
-            patch("backend.services.pipeline_workers.get_session") as mock_session,
+            patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_session,
         ):
             mock_settings.return_value.use_redis_streams = True
             mock_session.return_value.__aenter__ = AsyncMock(return_value=AsyncMock())
@@ -431,7 +432,7 @@ class TestAnalysisWorkerStreamPath:
         mock_stream_service._max_delivery_count = 3
 
         with (
-            patch("backend.services.pipeline_workers.get_settings") as mock_settings,
+            patch("backend.services.pipeline_workers.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.services.pipeline_workers.get_analysis_stream_service",
                 AsyncMock(return_value=mock_stream_service),
@@ -467,10 +468,11 @@ class TestFileWatcherStreamPath:
         mock_stream_service.add_detection = AsyncMock(return_value="msg-1")
 
         with (
-            patch("backend.services.file_watcher.get_settings") as mock_settings,
+            patch("backend.services.file_watcher.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.services.file_watcher.get_detection_stream_service",
                 return_value=mock_stream_service,
+                autospec=True,
             ),
         ):
             mock_settings.return_value.use_redis_streams = True
@@ -519,10 +521,11 @@ class TestBatchAggregatorStreamPath:
         mock_stream_service.add_batch = AsyncMock(return_value="msg-1")
 
         with (
-            patch("backend.services.batch_aggregator.get_settings") as mock_settings,
+            patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.services.batch_aggregator.get_analysis_stream_service",
                 return_value=mock_stream_service,
+                autospec=True,
             ),
         ):
             mock_settings.return_value.batch_window_seconds = 90

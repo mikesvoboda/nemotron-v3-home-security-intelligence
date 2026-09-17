@@ -68,7 +68,7 @@ def mock_redis_client():
 @pytest.fixture
 def mock_video_capture():
     """Create mock OpenCV VideoCapture."""
-    with patch("cv2.VideoCapture") as mock_cv2:
+    with patch("cv2.VideoCapture", autospec=True) as mock_cv2:
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = True
         mock_cap.read.return_value = (True, MagicMock())  # (success, frame)
@@ -185,7 +185,9 @@ async def test_start_without_event_loop_raises_error(mock_redis_client):
     """
     manager = StreamManager(redis_client=mock_redis_client)
 
-    with patch("asyncio.get_running_loop", side_effect=RuntimeError("No running loop")):
+    with patch(
+        "asyncio.get_running_loop", side_effect=RuntimeError("No running loop"), autospec=True
+    ):
         with pytest.raises(RuntimeError, match="async context"):
             await manager.start()
 
@@ -565,7 +567,9 @@ async def test_stream_failure_triggers_reconnection(mock_redis_client):
             await original_sleep(delay)
 
     # Patch sleep in the stream_manager module to speed up test
-    with patch("backend.services.stream_manager.asyncio.sleep", side_effect=fast_sleep):
+    with patch(
+        "backend.services.stream_manager.asyncio.sleep", side_effect=fast_sleep, autospec=True
+    ):
         await manager.add_stream("camera1", "rtsp://example.com/stream1")
 
         # Wait for connection loop to execute and retry
@@ -598,7 +602,9 @@ async def test_reconnection_uses_exponential_backoff(mock_redis_client):
         await original_sleep(0.01)
 
     # Patch sleep in the stream_manager module
-    with patch("backend.services.stream_manager.asyncio.sleep", side_effect=mock_sleep):
+    with patch(
+        "backend.services.stream_manager.asyncio.sleep", side_effect=mock_sleep, autospec=True
+    ):
         await manager.add_stream("camera1", "rtsp://example.com/stream1")
 
         # Wait for multiple reconnection attempts using original sleep

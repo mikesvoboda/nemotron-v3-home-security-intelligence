@@ -72,7 +72,7 @@ async def test_health_check_success(go2rtc_client):
     - 200 status code returns True
     - Validates go2rtc service is reachable
     """
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {"version": "1.8.3"}
@@ -96,7 +96,9 @@ async def test_health_check_connection_error(go2rtc_client):
     - No exception propagated to caller
     - Allows graceful degradation to snapshot fallback
     """
-    with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused"), autospec=True
+    ):
         result = await go2rtc_client.health_check()
 
         assert result is False
@@ -111,7 +113,11 @@ async def test_health_check_timeout(go2rtc_client):
     - Timeout error returns False
     - No blocking wait beyond configured timeout
     """
-    with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Request timeout")):
+    with patch(
+        "httpx.AsyncClient.get",
+        side_effect=httpx.TimeoutException("Request timeout"),
+        autospec=True,
+    ):
         result = await go2rtc_client.health_check()
 
         assert result is False
@@ -126,7 +132,7 @@ async def test_health_check_http_error(go2rtc_client):
     - 500 or 503 status code returns False
     - Service degradation detected properly
     """
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 503
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -153,7 +159,7 @@ async def test_register_stream_success(go2rtc_client, sample_camera_config, samp
     - WebRTC URL returned for frontend connection
     - Stream ID generated and tracked
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = sample_go2rtc_response
@@ -192,7 +198,7 @@ async def test_register_stream_returns_webrtc_url(go2rtc_client, sample_camera_c
     - URL includes stream ID as query parameter
     - URL format: http://localhost:8555/api/ws?src={stream_id}
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -221,7 +227,7 @@ async def test_register_stream_credential_handling(go2rtc_client, sample_camera_
     - Password encrypted in API response (never returned to frontend)
     - RTSP URL with credentials sent only to go2rtc backend
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -255,7 +261,7 @@ async def test_register_stream_no_credentials(go2rtc_client, sample_camera_confi
     - RTSP URL sent without credentials if not provided
     - Stream registration succeeds for public cameras
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -288,7 +294,11 @@ async def test_register_stream_go2rtc_unavailable(go2rtc_client, sample_camera_c
     - Error message indicates service unavailability
     - Allows API to return 503 with fallback to snapshot
     """
-    with patch("httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")):
+    with patch(
+        "httpx.AsyncClient.post",
+        side_effect=httpx.ConnectError("Connection refused"),
+        autospec=True,
+    ):
         with pytest.raises(Go2RTCUnavailableError) as exc_info:
             await go2rtc_client.register_stream(
                 camera_id=sample_camera_config["camera_id"],
@@ -307,7 +317,11 @@ async def test_register_stream_timeout(go2rtc_client, sample_camera_config):
     - Raises Go2RTCUnavailableError on timeout
     - Timeout respects configured client timeout (2s)
     """
-    with patch("httpx.AsyncClient.post", side_effect=httpx.TimeoutException("Request timeout")):
+    with patch(
+        "httpx.AsyncClient.post",
+        side_effect=httpx.TimeoutException("Request timeout"),
+        autospec=True,
+    ):
         with pytest.raises(Go2RTCUnavailableError) as exc_info:
             await go2rtc_client.register_stream(
                 camera_id=sample_camera_config["camera_id"],
@@ -346,7 +360,7 @@ async def test_register_stream_generates_unique_stream_id(go2rtc_client, sample_
     - Stream ID includes timestamp or random suffix for uniqueness
     - Format: camera_{camera_id}_{unique_suffix}
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -380,7 +394,7 @@ async def test_unregister_stream_success(go2rtc_client):
     """
     stream_id = "camera_test_12345"
 
-    with patch("httpx.AsyncClient.delete") as mock_delete:
+    with patch("httpx.AsyncClient.delete", autospec=True) as mock_delete:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_delete.return_value = mock_response
@@ -404,7 +418,7 @@ async def test_unregister_stream_not_found(go2rtc_client):
     """
     stream_id = "nonexistent_stream"
 
-    with patch("httpx.AsyncClient.delete") as mock_delete:
+    with patch("httpx.AsyncClient.delete", autospec=True) as mock_delete:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
         mock_delete.return_value = mock_response
@@ -426,7 +440,11 @@ async def test_unregister_stream_go2rtc_unavailable(go2rtc_client):
     """
     stream_id = "camera_test_12345"
 
-    with patch("httpx.AsyncClient.delete", side_effect=httpx.ConnectError("Connection refused")):
+    with patch(
+        "httpx.AsyncClient.delete",
+        side_effect=httpx.ConnectError("Connection refused"),
+        autospec=True,
+    ):
         # Should not raise exception (best-effort cleanup)
         await go2rtc_client.unregister_stream(stream_id)
 
@@ -444,7 +462,7 @@ async def test_register_stream_includes_expiry_time(go2rtc_client, sample_camera
     - Frontend can display countdown timer
     - Design doc specifies 5-minute session expiry
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -475,7 +493,7 @@ async def test_register_stream_password_not_logged(go2rtc_client, sample_camera_
     - No password in API response
     - Security requirement from design doc
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -514,7 +532,7 @@ async def test_register_stream_error_message_format(go2rtc_client, sample_camera
     - Include camera_id for context
     - Actionable guidance for common issues
     """
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 400
         mock_response.json.return_value = {"error": "Invalid stream configuration"}

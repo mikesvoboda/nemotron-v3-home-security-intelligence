@@ -535,7 +535,7 @@ async def test_detect_faces_uses_thread_pool(temp_test_image, mock_yolo_face_mod
         )
     ]
 
-    with patch("asyncio.to_thread") as mock_to_thread:
+    with patch("asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = [([0.2, 0.2, 0.8, 0.8], 0.89)]
 
         faces = await detect_faces(
@@ -567,12 +567,14 @@ async def test_detect_faces_records_metrics(temp_test_image, mock_yolo_face_mode
     ]
 
     with (
-        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
         patch(
-            "backend.services.face_detector.observe_face_embedding_duration"
+            "backend.services.face_detector.record_face_detection", autospec=True
+        ) as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration", autospec=True
         ) as mock_observe_duration,
         patch(
-            "backend.services.face_detector.observe_face_recognition_confidence"
+            "backend.services.face_detector.observe_face_recognition_confidence", autospec=True
         ) as mock_observe_confidence,
     ):
         faces = await detect_faces(
@@ -628,12 +630,14 @@ async def test_detect_faces_metrics_with_multiple_faces(temp_test_image):
     mock_model.predict.return_value = [mock_result]
 
     with (
-        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
         patch(
-            "backend.services.face_detector.observe_face_embedding_duration"
+            "backend.services.face_detector.record_face_detection", autospec=True
+        ) as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration", autospec=True
         ) as mock_observe_duration,
         patch(
-            "backend.services.face_detector.observe_face_recognition_confidence"
+            "backend.services.face_detector.observe_face_recognition_confidence", autospec=True
         ) as mock_observe_confidence,
     ):
         faces = await detect_faces(
@@ -672,9 +676,11 @@ async def test_detect_faces_metrics_default_camera_id(temp_test_image, mock_yolo
     ]
 
     with (
-        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
-        patch("backend.services.face_detector.observe_face_embedding_duration"),
-        patch("backend.services.face_detector.observe_face_recognition_confidence"),
+        patch(
+            "backend.services.face_detector.record_face_detection", autospec=True
+        ) as mock_record_detection,
+        patch("backend.services.face_detector.observe_face_embedding_duration", autospec=True),
+        patch("backend.services.face_detector.observe_face_recognition_confidence", autospec=True),
     ):
         faces = await detect_faces(
             model=mock_yolo_face_model,
@@ -694,12 +700,14 @@ async def test_detect_faces_no_metrics_on_empty_detections():
     mock_model = MagicMock()
 
     with (
-        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
         patch(
-            "backend.services.face_detector.observe_face_embedding_duration"
+            "backend.services.face_detector.record_face_detection", autospec=True
+        ) as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration", autospec=True
         ) as mock_observe_duration,
         patch(
-            "backend.services.face_detector.observe_face_recognition_confidence"
+            "backend.services.face_detector.observe_face_recognition_confidence", autospec=True
         ) as mock_observe_confidence,
     ):
         faces = await detect_faces(
@@ -737,12 +745,14 @@ async def test_detect_faces_no_metrics_on_no_faces_found(temp_test_image):
     mock_model.predict.return_value = [mock_result]
 
     with (
-        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
         patch(
-            "backend.services.face_detector.observe_face_embedding_duration"
+            "backend.services.face_detector.record_face_detection", autospec=True
+        ) as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration", autospec=True
         ) as mock_observe_duration,
         patch(
-            "backend.services.face_detector.observe_face_recognition_confidence"
+            "backend.services.face_detector.observe_face_recognition_confidence", autospec=True
         ) as mock_observe_confidence,
     ):
         faces = await detect_faces(

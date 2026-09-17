@@ -831,7 +831,9 @@ class TestAPIWorkflowIntegration:
         frontend would use them.
         """
         # Mock the config service to use temp directory
-        with patch("backend.api.routes.gpu_config.GpuConfigService") as mock_config_service_class:
+        with patch(
+            "backend.api.routes.gpu_config.GpuConfigService", autospec=True
+        ) as mock_config_service_class:
             mock_service = MagicMock()
             mock_service.write_config_files = AsyncMock(
                 return_value=(

@@ -197,9 +197,9 @@ class TestWebhookSSRFProtection:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
-                "backend.services.notification.validate_webhook_url_for_request"
+                "backend.services.notification.validate_webhook_url_for_request", autospec=True
             ) as mock_validate,
         ):
             mock_validate.return_value = "https://hooks.slack.com/services/T123/B456"
@@ -226,9 +226,9 @@ class TestWebhookSSRFDevelopmentMode:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service_dev, "_get_http_client", return_value=mock_client),
+            patch.object(service_dev, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
-                "backend.services.notification.validate_webhook_url_for_request"
+                "backend.services.notification.validate_webhook_url_for_request", autospec=True
             ) as mock_validate,
         ):
             mock_validate.return_value = "http://localhost:8000/webhook"
@@ -250,9 +250,9 @@ class TestWebhookSSRFDevelopmentMode:
         mock_client.post.return_value = mock_response
 
         with (
-            patch.object(service_dev, "_get_http_client", return_value=mock_client),
+            patch.object(service_dev, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
-                "backend.services.notification.validate_webhook_url_for_request"
+                "backend.services.notification.validate_webhook_url_for_request", autospec=True
             ) as mock_validate,
         ):
             mock_validate.return_value = "http://127.0.0.1:8000/webhook"
@@ -287,7 +287,7 @@ class TestWebhookSSRFDNSRebinding:
         """Test that hostnames resolving to private IPs are blocked."""
         # This tests the DNS rebinding attack scenario
         with patch(
-            "backend.services.notification.validate_webhook_url_for_request"
+            "backend.services.notification.validate_webhook_url_for_request", autospec=True
         ) as mock_validate:
             mock_validate.side_effect = SSRFValidationError(
                 "Hostname 'evil.com' resolves to private IP: 10.0.0.1"
@@ -302,7 +302,7 @@ class TestWebhookSSRFDNSRebinding:
     async def test_dns_resolving_to_metadata_ip_blocked(self, service, mock_alert):
         """Test that hostnames resolving to metadata IPs are blocked."""
         with patch(
-            "backend.services.notification.validate_webhook_url_for_request"
+            "backend.services.notification.validate_webhook_url_for_request", autospec=True
         ) as mock_validate:
             mock_validate.side_effect = SSRFValidationError(
                 "Hostname 'evil.com' resolves to blocked IP: 169.254.169.254"
@@ -370,9 +370,9 @@ class TestWebhookSSRFValidationIntegration:
         mock_client.post.return_value = AsyncMock(status_code=200, text="OK")
 
         with (
-            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch.object(service, "_get_http_client", return_value=mock_client, autospec=True),
             patch(
-                "backend.services.notification.validate_webhook_url_for_request"
+                "backend.services.notification.validate_webhook_url_for_request", autospec=True
             ) as mock_validate,
         ):
             mock_validate.return_value = "https://example.com/webhook"
@@ -389,7 +389,7 @@ class TestWebhookSSRFValidationIntegration:
         """Test that validation failure prevents HTTP request from being made."""
         mock_client = AsyncMock()
 
-        with patch.object(service, "_get_http_client", return_value=mock_client):
+        with patch.object(service, "_get_http_client", return_value=mock_client, autospec=True):
             # Use a private IP URL that should be blocked
             result = await service.send_webhook(mock_alert, webhook_url="https://10.0.0.1/webhook")
 

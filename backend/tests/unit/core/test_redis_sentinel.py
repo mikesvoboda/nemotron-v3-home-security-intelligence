@@ -128,7 +128,7 @@ class TestSentinelClientInit:
 
     def test_init_with_defaults(self, mock_settings):
         """Test initialization with default settings."""
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             client = SentinelClient()
 
             assert client._master_name == "mymaster"
@@ -144,7 +144,7 @@ class TestSentinelClientInit:
 
     def test_init_with_custom_values(self, mock_settings):
         """Test initialization with custom values."""
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             client = SentinelClient(
                 sentinel_hosts=[("custom1", 26379), ("custom2", 26379)],
                 master_name="custom_master",
@@ -163,7 +163,7 @@ class TestSentinelClientInit:
         mock_secret.get_secret_value.return_value = "secret_from_secretstr"
         mock_settings.redis_password = mock_secret
 
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             client = SentinelClient()
 
             assert client._password == "secret_from_secretstr"  # pragma: allowlist secret
@@ -181,8 +181,8 @@ class TestSentinelClientConnection:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -201,8 +201,8 @@ class TestSentinelClientConnection:
         mock_sentinel.master_for.return_value = mock_master
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
 
@@ -220,8 +220,8 @@ class TestSentinelClientConnection:
         mock_sentinel.slave_for.return_value = mock_slave
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -238,8 +238,8 @@ class TestSentinelClientConnection:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -264,8 +264,8 @@ class TestSentinelClientOperations:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -275,7 +275,7 @@ class TestSentinelClientOperations:
 
     def test_get_master_when_not_connected(self, mock_settings):
         """Test get_master raises RuntimeError when not connected."""
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             client = SentinelClient()
 
             with pytest.raises(RuntimeError, match="not connected"):
@@ -290,8 +290,8 @@ class TestSentinelClientOperations:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -301,7 +301,7 @@ class TestSentinelClientOperations:
 
     def test_get_slave_when_not_connected(self, mock_settings):
         """Test get_slave raises RuntimeError when not connected."""
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             client = SentinelClient()
 
             with pytest.raises(RuntimeError, match="not connected"):
@@ -320,8 +320,8 @@ class TestSentinelClientHealthCheck:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -342,8 +342,8 @@ class TestSentinelClientHealthCheck:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             client = SentinelClient()
             await client.connect()
@@ -375,7 +375,7 @@ class TestGetSentinelRedis:
         mock_settings = MagicMock()
         mock_settings.redis_use_sentinel = False
 
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             with pytest.raises(RuntimeError, match="Sentinel mode not enabled"):
                 await get_sentinel_redis()
 
@@ -388,8 +388,8 @@ class TestGetSentinelRedis:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             master = await get_sentinel_redis()
 
@@ -404,8 +404,10 @@ class TestGetSentinelRedis:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel) as mock_cls,
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch(
+                "backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True
+            ) as mock_cls,
         ):
             # Call twice
             await get_sentinel_redis()
@@ -430,7 +432,7 @@ class TestGetSentinelRedisSlave:
         mock_settings = MagicMock()
         mock_settings.redis_use_sentinel = False
 
-        with patch("backend.core.redis.get_settings", return_value=mock_settings):
+        with patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True):
             with pytest.raises(RuntimeError, match="Sentinel mode not enabled"):
                 await get_sentinel_redis_slave()
 
@@ -443,8 +445,8 @@ class TestGetSentinelRedisSlave:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             slave = await get_sentinel_redis_slave()
 
@@ -463,8 +465,8 @@ class TestCloseSentinel:
         mock_sentinel.slave_for.return_value = mock_slave_redis
 
         with (
-            patch("backend.core.redis.get_settings", return_value=mock_settings),
-            patch("backend.core.redis.Sentinel", return_value=mock_sentinel),
+            patch("backend.core.redis.get_settings", return_value=mock_settings, autospec=True),
+            patch("backend.core.redis.Sentinel", return_value=mock_sentinel, autospec=True),
         ):
             # Initialize client
             await get_sentinel_redis()

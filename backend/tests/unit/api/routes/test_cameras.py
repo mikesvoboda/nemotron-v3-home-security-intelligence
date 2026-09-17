@@ -262,7 +262,9 @@ class TestGetCamera:
         mock_camera.stream_profile = None
         mock_camera.motion_sensitivity = 0.5
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
             result = await get_camera("front_door", db=mock_db)
 
         # NEM-3597: Now returns CameraResponse instead of Camera
@@ -282,6 +284,7 @@ class TestGetCamera:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_camera("nonexistent", db=mock_db)
@@ -325,7 +328,7 @@ class TestCreateCamera:
 
         mock_db.refresh = mock_refresh
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
             result = await create_camera(
                 camera_data=camera_data,
@@ -462,7 +465,7 @@ class TestCreateCamera:
 
         mock_db.refresh = mock_refresh
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             # First commit fails (audit log failure)
             mock_audit.log_action = AsyncMock()
             mock_db.commit.side_effect = [Exception("Audit log error"), None]
@@ -517,7 +520,7 @@ class TestCreateCamera:
         # Mock cache invalidation failure
         mock_cache.invalidate_cameras.side_effect = Exception("Cache error")
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
             result = await create_camera(
                 camera_data=camera_data,
@@ -568,8 +571,12 @@ class TestUpdateCamera:
         mock_db.refresh = AsyncMock()
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.AuditService") as mock_audit,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit,
         ):
             mock_audit.log_action = AsyncMock()
             result = await update_camera(
@@ -605,6 +612,7 @@ class TestUpdateCamera:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await update_camera(
@@ -652,8 +660,10 @@ class TestUpdateCamera:
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
                 mock_audit.log_action = AsyncMock()
                 result = await update_camera(
                     camera_id="front_door",
@@ -704,8 +714,10 @@ class TestUpdateCamera:
         mock_db.rollback = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
                 mock_audit.log_action = AsyncMock()
                 # First commit fails (audit log failure)
                 mock_db.commit.side_effect = [Exception("Audit error"), None]
@@ -747,8 +759,10 @@ class TestDeleteCamera:
         mock_db.delete = AsyncMock()
         mock_db.commit = AsyncMock()
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
                 mock_audit.log_action = AsyncMock()
                 result = await delete_camera(
                     camera_id="front_door",
@@ -778,6 +792,7 @@ class TestDeleteCamera:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_camera(
@@ -810,8 +825,10 @@ class TestDeleteCamera:
         mock_db.commit = AsyncMock()
         mock_db.rollback = AsyncMock()
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
                 mock_audit.log_action = AsyncMock()
                 # First commit fails (audit log failure)
                 mock_db.commit.side_effect = [Exception("Audit error"), None]
@@ -848,8 +865,10 @@ class TestDeleteCamera:
         # Mock cache invalidation failure
         mock_cache.invalidate_cameras.side_effect = Exception("Cache error")
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
                 mock_audit.log_action = AsyncMock()
                 result = await delete_camera(
                     camera_id="front_door",
@@ -882,11 +901,17 @@ class TestGetCameraSnapshot:
 
         # Create a temporary directory structure
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
@@ -935,6 +960,7 @@ class TestGetCameraSnapshot:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_camera_snapshot(
@@ -958,11 +984,13 @@ class TestGetCameraSnapshot:
         mock_camera.id = "front_door"
         mock_camera.folder_path = "/export/foscam/front_door"
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-                with patch("backend.api.routes.cameras.Path") as mock_path:
+                with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                     mock_camera_dir = MagicMock()
                     mock_camera_dir.exists.return_value = False
                     mock_camera_dir.resolve.return_value = mock_camera_dir
@@ -997,11 +1025,17 @@ class TestGetCameraSnapshot:
         mock_camera.folder_path = "/export/foscam/front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
@@ -1047,11 +1081,13 @@ class TestGetCameraSnapshot:
         mock_camera.id = "malicious"
         mock_camera.folder_path = "/cameras/../../../etc"
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-                with patch("backend.api.routes.cameras.Path") as mock_path:
+                with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                     mock_camera_dir = MagicMock()
                     # Resolve shows it's trying to access outside directory
                     mock_camera_dir.resolve.return_value = Path("/etc")
@@ -1084,11 +1120,13 @@ class TestGetCameraSnapshot:
         mock_camera.id = "front_door"
         mock_camera.folder_path = "/old/path/../../../etc/passwd"
 
-        with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch(
+            "backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-                with patch("backend.api.routes.cameras.Path") as mock_path:
+                with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                     base_root = Path("/export/foscam")
 
                     # Camera dir outside base
@@ -1130,10 +1168,10 @@ class TestValidateCameraPaths:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-            with patch("backend.api.routes.cameras.Path") as mock_path:
+            with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                 mock_camera_path = MagicMock()
                 mock_camera_path.exists.return_value = True
                 mock_camera_path.is_dir.return_value = True
@@ -1170,10 +1208,10 @@ class TestValidateCameraPaths:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-            with patch("backend.api.routes.cameras.Path") as mock_path:
+            with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                 # Mock for camera path that's outside base
                 mock_camera_path = MagicMock()
                 mock_camera_path.resolve.return_value = Path("/other/path/front_door")
@@ -1214,10 +1252,10 @@ class TestValidateCameraPaths:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-            with patch("backend.api.routes.cameras.Path") as mock_path:
+            with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                 mock_camera_path = MagicMock()
                 mock_camera_path.exists.return_value = False
 
@@ -1248,10 +1286,10 @@ class TestValidateCameraPaths:
         mock_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
-            with patch("backend.api.routes.cameras.Path") as mock_path:
+            with patch("backend.api.routes.cameras.Path", autospec=True) as mock_path:
                 mock_camera_path = MagicMock()
                 mock_camera_path.exists.return_value = True
                 mock_camera_path.is_dir.return_value = True
@@ -1285,11 +1323,17 @@ class TestGetCameraSnapshotVideoFallback:
         mock_camera.folder_path = "/export/foscam/front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
@@ -1331,12 +1375,20 @@ class TestGetCameraSnapshotVideoFallback:
         mock_camera.folder_path = "/export/foscam/front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras._extract_frame_from_video") as mock_extract,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch(
+                "backend.api.routes.cameras._extract_frame_from_video", autospec=True
+            ) as mock_extract,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
@@ -1405,11 +1457,17 @@ class TestGetCameraSnapshotVideoFallback:
         mock_camera.folder_path = "/export/foscam/front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
@@ -1453,12 +1511,20 @@ class TestGetCameraSnapshotVideoFallback:
         mock_camera.folder_path = "/export/foscam/front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras._extract_frame_from_video") as mock_extract,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch(
+                "backend.api.routes.cameras._extract_frame_from_video", autospec=True
+            ) as mock_extract,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
@@ -1551,7 +1617,7 @@ class TestCameraSnapshotHelpers:
         video_path = tmp_path / "test.mkv"
         output_path = tmp_path / "output" / "snapshot.jpg"
 
-        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+        with patch("backend.api.routes.cameras.asyncio.to_thread", autospec=True) as mock_thread:
             # Mock successful ffmpeg execution
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -1574,7 +1640,7 @@ class TestCameraSnapshotHelpers:
         video_path = tmp_path / "test.mkv"
         output_path = tmp_path / "output" / "snapshot.jpg"
 
-        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+        with patch("backend.api.routes.cameras.asyncio.to_thread", autospec=True) as mock_thread:
             # Mock failed ffmpeg execution
             mock_result = MagicMock()
             mock_result.returncode = 1
@@ -1595,7 +1661,7 @@ class TestCameraSnapshotHelpers:
         video_path = tmp_path / "test.mkv"
         output_path = tmp_path / "output" / "snapshot.jpg"
 
-        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+        with patch("backend.api.routes.cameras.asyncio.to_thread", autospec=True) as mock_thread:
             mock_thread.side_effect = subprocess.TimeoutExpired("ffmpeg", 30)
 
             result = await _extract_frame_from_video(video_path, output_path)
@@ -1610,7 +1676,7 @@ class TestCameraSnapshotHelpers:
         video_path = tmp_path / "test.mkv"
         output_path = tmp_path / "output" / "snapshot.jpg"
 
-        with patch("backend.api.routes.cameras.asyncio.to_thread") as mock_thread:
+        with patch("backend.api.routes.cameras.asyncio.to_thread", autospec=True) as mock_thread:
             mock_thread.side_effect = FileNotFoundError("ffmpeg not found")
 
             result = await _extract_frame_from_video(video_path, output_path)
@@ -1662,7 +1728,7 @@ class TestRefreshCameraSnapshot:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
             pytest.raises(HTTPException) as exc_info,
         ):
             mock_settings.return_value.foscam_base_path = str(tmp_path)
@@ -1698,7 +1764,7 @@ class TestRefreshCameraSnapshot:
         mock_result.scalar_one_or_none.return_value = mock_camera
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await refresh_camera_snapshot(
@@ -1740,7 +1806,7 @@ class TestRefreshCameraSnapshot:
         mock_result.scalar_one_or_none.return_value = mock_camera
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.cameras.get_settings") as mock_settings:
+        with patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await refresh_camera_snapshot(
@@ -1776,7 +1842,7 @@ class TestRefreshCameraSnapshot:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
             pytest.raises(HTTPException) as exc_info,
         ):
             mock_settings.return_value.foscam_base_path = str(tmp_path)
@@ -1817,8 +1883,10 @@ class TestRefreshCameraSnapshot:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._extract_frame_from_video") as mock_extract,
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._extract_frame_from_video", autospec=True
+            ) as mock_extract,
         ):
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
@@ -1866,10 +1934,11 @@ class TestRefreshCameraSnapshot:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
             patch(
                 "backend.api.routes.cameras._extract_frame_from_video",
                 return_value=False,
+                autospec=True,
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
@@ -1901,11 +1970,17 @@ class TestSnapshotCacheTTLConfiguration:
         custom_ttl = 1800  # 30 minutes
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             # Configure settings with custom TTL
             mock_settings_instance = MagicMock()
@@ -1954,11 +2029,17 @@ class TestSnapshotCacheTTLConfiguration:
         short_ttl = 60  # 1 minute
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             # Configure settings with short TTL
             mock_settings_instance = MagicMock()
@@ -2014,11 +2095,17 @@ class TestSnapshotCacheTTLConfiguration:
         long_ttl = 86400
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.get_settings") as mock_settings,
-            patch("backend.api.routes.cameras._get_snapshot_cache_path") as mock_cache_path,
-            patch("backend.api.routes.cameras._is_cache_valid") as mock_is_valid,
-            patch("backend.api.routes.cameras.Path") as mock_path,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch("backend.api.routes.cameras.get_settings", autospec=True) as mock_settings,
+            patch(
+                "backend.api.routes.cameras._get_snapshot_cache_path", autospec=True
+            ) as mock_cache_path,
+            patch("backend.api.routes.cameras._is_cache_valid", autospec=True) as mock_is_valid,
+            patch("backend.api.routes.cameras.Path", autospec=True) as mock_path,
         ):
             # Configure settings with maximum TTL
             mock_settings_instance = MagicMock()

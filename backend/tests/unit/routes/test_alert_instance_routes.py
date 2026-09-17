@@ -180,6 +180,7 @@ class TestAcknowledgeAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
 
@@ -205,6 +206,7 @@ class TestAcknowledgeAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
 
@@ -287,6 +289,7 @@ class TestAcknowledgeAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
 
@@ -311,6 +314,7 @@ class TestAcknowledgeAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             side_effect=RuntimeError("Broadcaster not initialized"),
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/acknowledge")
 
@@ -343,6 +347,7 @@ class TestDismissAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/dismiss")
 
@@ -367,6 +372,7 @@ class TestDismissAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/dismiss")
 
@@ -389,6 +395,7 @@ class TestDismissAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/dismiss")
 
@@ -444,6 +451,7 @@ class TestDismissAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             return_value=mock_broadcaster,
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/dismiss")
 
@@ -468,6 +476,7 @@ class TestDismissAlert:
         with patch(
             "backend.api.routes.alerts.EventBroadcaster.get_instance",
             side_effect=RuntimeError("Broadcaster not initialized"),
+            autospec=True,
         ):
             response = client.post(f"/api/alerts/{sample_alert.id}/dismiss")
 

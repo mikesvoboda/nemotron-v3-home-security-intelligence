@@ -235,7 +235,7 @@ class TestIsIPTrusted:
         """Test that invalid trusted IP entries log a warning."""
         trusted = ["invalid_cidr", "also-not-valid", "127.0.0.1"]
 
-        with patch("backend.api.middleware.rate_limit.logger") as mock_logger:
+        with patch("backend.api.middleware.rate_limit.logger", autospec=True) as mock_logger:
             result = _is_ip_trusted("127.0.0.1", trusted)
 
             # Function should still return True (valid IP found)
@@ -256,7 +256,7 @@ class TestIsIPTrusted:
         """Test that malformed CIDR notation logs a warning."""
         trusted = ["192.168.1.0/33", "10.0.0.0/8"]  # /33 is invalid
 
-        with patch("backend.api.middleware.rate_limit.logger") as mock_logger:
+        with patch("backend.api.middleware.rate_limit.logger", autospec=True) as mock_logger:
             result = _is_ip_trusted("10.0.0.1", trusted)
 
             # Function should still return True (valid IP found in second entry)
@@ -329,7 +329,9 @@ class TestGetClientIP:
         mock_request.client.host = "10.0.0.1"
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -342,7 +344,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -355,7 +359,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -368,7 +374,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50, 70.41.3.18, 150.172.238.178"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -381,7 +389,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Real-IP": "198.51.100.42"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -393,7 +403,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Real-IP": "198.51.100.42"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -411,7 +423,9 @@ class TestGetClientIP:
         }
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -423,7 +437,9 @@ class TestGetClientIP:
         mock_request.client = None
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -435,7 +451,9 @@ class TestGetClientIP:
         mock_websocket.client.host = "172.16.0.5"
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_websocket)
 
@@ -447,7 +465,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -462,7 +482,11 @@ class TestGetClientIP:
         mock_request.client.host = "10.0.0.1"
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
 
-        with patch("backend.api.middleware.rate_limit.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             ip = get_client_ip(mock_request)
 
         assert ip == "203.0.113.50"
@@ -480,7 +504,9 @@ class TestGetClientIP:
         mock_request.headers = {"X-Forwarded-For": "10.0.0.1"}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -1271,7 +1297,9 @@ class TestEdgeCases:
         mock_request.client.host = "10.0.0.1"
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 
@@ -1285,7 +1313,9 @@ class TestEdgeCases:
         mock_request.headers = {"X-Forwarded-For": "  203.0.113.50  "}
 
         with patch(
-            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+            "backend.api.middleware.rate_limit.get_settings",
+            return_value=mock_settings_for_ip,
+            autospec=True,
         ):
             ip = get_client_ip(mock_request)
 

@@ -50,7 +50,7 @@ def mock_redis_client():
 @pytest.fixture
 def mock_redis_pool():
     """Mock Redis connection pool."""
-    with patch("backend.core.redis.ConnectionPool") as mock_pool_class:
+    with patch("backend.core.redis.ConnectionPool", autospec=True) as mock_pool_class:
         mock_pool_instance = AsyncMock()
         mock_pool_instance.disconnect = AsyncMock()
         mock_pool_class.from_url.return_value = mock_pool_instance
@@ -60,7 +60,7 @@ def mock_redis_pool():
 @pytest.fixture
 async def redis_client(mock_redis_pool, mock_redis_client):
     """Create a Redis client with mocked connection."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(redis_url="redis://localhost:6379/0")
         await client.connect()
         yield client

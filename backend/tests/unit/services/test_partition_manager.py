@@ -265,7 +265,7 @@ class TestPartitionManager:
         config = PartitionConfig("detections", "detected_at", "monthly")
 
         # Mock datetime to be in December
-        with patch("backend.services.partition_manager.datetime") as mock_datetime:
+        with patch("backend.services.partition_manager.datetime", autospec=True) as mock_datetime:
             mock_datetime.now.return_value = datetime(2026, 12, 15, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -369,12 +369,15 @@ class TestPartitionManager:
         mock_context.__aexit__.return_value = None
 
         with (
-            patch.object(manager, "_check_table_is_partitioned", return_value=True),
-            patch.object(manager, "_check_partition_exists", return_value=False) as mock_check,
-            patch.object(manager, "_create_partition") as mock_create,
+            patch.object(manager, "_check_table_is_partitioned", return_value=True, autospec=True),
+            patch.object(
+                manager, "_check_partition_exists", return_value=False, autospec=True
+            ) as mock_check,
+            patch.object(manager, "_create_partition", autospec=True) as mock_create,
             patch(
                 "backend.services.partition_manager.get_session",
                 return_value=mock_context,
+                autospec=True,
             ),
         ):
             result = await manager.ensure_partitions()
@@ -402,12 +405,15 @@ class TestPartitionManager:
         mock_context.__aexit__.return_value = None
 
         with (
-            patch.object(manager, "_check_table_is_partitioned", return_value=True),
-            patch.object(manager, "_check_partition_exists", return_value=True) as mock_check,
-            patch.object(manager, "_create_partition") as mock_create,
+            patch.object(manager, "_check_table_is_partitioned", return_value=True, autospec=True),
+            patch.object(
+                manager, "_check_partition_exists", return_value=True, autospec=True
+            ) as mock_check,
+            patch.object(manager, "_create_partition", autospec=True) as mock_create,
             patch(
                 "backend.services.partition_manager.get_session",
                 return_value=mock_context,
+                autospec=True,
             ),
         ):
             await manager.ensure_partitions()
@@ -442,9 +448,13 @@ class TestPartitionManager:
         mock_session = AsyncMock()
 
         with (
-            patch.object(manager, "_list_partitions", return_value=[old_partition]) as mock_list,
-            patch.object(manager, "_drop_partition") as mock_drop,
-            patch("backend.services.partition_manager.get_session") as mock_get_session,
+            patch.object(
+                manager, "_list_partitions", return_value=[old_partition], autospec=True
+            ) as mock_list,
+            patch.object(manager, "_drop_partition", autospec=True) as mock_drop,
+            patch(
+                "backend.services.partition_manager.get_session", autospec=True
+            ) as mock_get_session,
         ):
             mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -484,9 +494,13 @@ class TestPartitionManager:
         mock_session = AsyncMock()
 
         with (
-            patch.object(manager, "_list_partitions", return_value=[recent_partition]),
-            patch.object(manager, "_drop_partition") as mock_drop,
-            patch("backend.services.partition_manager.get_session") as mock_get_session,
+            patch.object(
+                manager, "_list_partitions", return_value=[recent_partition], autospec=True
+            ),
+            patch.object(manager, "_drop_partition", autospec=True) as mock_drop,
+            patch(
+                "backend.services.partition_manager.get_session", autospec=True
+            ) as mock_get_session,
         ):
             mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -522,8 +536,10 @@ class TestPartitionManager:
         mock_session = AsyncMock()
 
         with (
-            patch.object(manager, "_list_partitions", return_value=[partition]),
-            patch("backend.services.partition_manager.get_session") as mock_get_session,
+            patch.object(manager, "_list_partitions", return_value=[partition], autospec=True),
+            patch(
+                "backend.services.partition_manager.get_session", autospec=True
+            ) as mock_get_session,
         ):
             mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -1061,11 +1077,12 @@ class TestErrorHandling:
         mock_context.__aexit__.return_value = None
 
         with (
-            patch.object(manager, "_check_table_is_partitioned", return_value=False),
-            patch.object(manager, "_create_partition") as mock_create,
+            patch.object(manager, "_check_table_is_partitioned", return_value=False, autospec=True),
+            patch.object(manager, "_create_partition", autospec=True) as mock_create,
             patch(
                 "backend.services.partition_manager.get_session",
                 return_value=mock_context,
+                autospec=True,
             ),
         ):
             result = await manager.ensure_partitions()
@@ -1088,16 +1105,18 @@ class TestErrorHandling:
         mock_context.__aexit__.return_value = None
 
         with (
-            patch.object(manager, "_check_table_is_partitioned", return_value=True),
-            patch.object(manager, "_check_partition_exists", return_value=False),
+            patch.object(manager, "_check_table_is_partitioned", return_value=True, autospec=True),
+            patch.object(manager, "_check_partition_exists", return_value=False, autospec=True),
             patch.object(
                 manager,
                 "_create_partition",
                 side_effect=Exception("Database error"),
+                autospec=True,
             ) as mock_create,
             patch(
                 "backend.services.partition_manager.get_session",
                 return_value=mock_context,
+                autospec=True,
             ),
         ):
             result = await manager.ensure_partitions()
@@ -1132,13 +1151,16 @@ class TestErrorHandling:
         mock_session = AsyncMock()
 
         with (
-            patch.object(manager, "_list_partitions", return_value=[old_partition]),
+            patch.object(manager, "_list_partitions", return_value=[old_partition], autospec=True),
             patch.object(
                 manager,
                 "_drop_partition",
                 side_effect=Exception("Cannot drop partition"),
+                autospec=True,
             ) as mock_drop,
-            patch("backend.services.partition_manager.get_session") as mock_get_session,
+            patch(
+                "backend.services.partition_manager.get_session", autospec=True
+            ) as mock_get_session,
         ):
             mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -1182,9 +1204,13 @@ class TestRunMaintenance:
         }
 
         with (
-            patch.object(manager, "ensure_partitions", return_value=created_partitions),
-            patch.object(manager, "cleanup_old_partitions", return_value=dropped_partitions),
-            patch.object(manager, "get_partition_stats", return_value=stats),
+            patch.object(
+                manager, "ensure_partitions", return_value=created_partitions, autospec=True
+            ),
+            patch.object(
+                manager, "cleanup_old_partitions", return_value=dropped_partitions, autospec=True
+            ),
+            patch.object(manager, "get_partition_stats", return_value=stats, autospec=True),
         ):
             result = await manager.run_maintenance()
 
@@ -1203,9 +1229,11 @@ class TestRunMaintenance:
         manager = PartitionManager(configs=[config])
 
         with (
-            patch.object(manager, "ensure_partitions", return_value=[]),
-            patch.object(manager, "cleanup_old_partitions", return_value=[]),
-            patch.object(manager, "get_partition_stats", return_value={"detections": []}),
+            patch.object(manager, "ensure_partitions", return_value=[], autospec=True),
+            patch.object(manager, "cleanup_old_partitions", return_value=[], autospec=True),
+            patch.object(
+                manager, "get_partition_stats", return_value={"detections": []}, autospec=True
+            ),
         ):
             result = await manager.run_maintenance()
 

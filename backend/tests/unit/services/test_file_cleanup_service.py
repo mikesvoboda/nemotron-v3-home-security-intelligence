@@ -678,10 +678,12 @@ class TestFileCleanupServiceDeleteSingleFile:
         service = FileCleanupService()
 
         # Mock Path.exists() to return True but unlink() to fail
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "stat") as mock_stat:
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "stat", autospec=True) as mock_stat:
                 mock_stat.return_value = MagicMock(st_size=1024)
-                with patch.object(Path, "unlink", side_effect=PermissionError("Permission denied")):
+                with patch.object(
+                    Path, "unlink", side_effect=PermissionError("Permission denied"), autospec=True
+                ):
                     deleted, error, bytes_freed = service._delete_single_file(
                         Path("/protected/file.jpg")
                     )

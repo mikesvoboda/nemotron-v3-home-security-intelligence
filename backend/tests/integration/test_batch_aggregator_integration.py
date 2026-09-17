@@ -205,7 +205,9 @@ async def test_batch_window_timeout_with_mocked_time(batch_aggregator, mock_redi
     # Start at time 1000.0
     start_time = 1000.0
 
-    with patch("backend.services.batch_aggregator.time.time", return_value=start_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=start_time, autospec=True
+    ):
         batch_id = await batch_aggregator.add_detection(camera_id, 1, file_path)
 
     # Verify batch was created
@@ -213,11 +215,15 @@ async def test_batch_window_timeout_with_mocked_time(batch_aggregator, mock_redi
     assert mock_redis_client._test_storage.get(f"batch:{camera_id}:current") == batch_id
 
     # Add activity at 70 seconds to reset idle timer (keeps batch alive via idle timeout)
-    with patch("backend.services.batch_aggregator.time.time", return_value=start_time + 70):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=start_time + 70, autospec=True
+    ):
         await batch_aggregator.add_detection(camera_id, 2, file_path)
 
     # Check at 89 seconds from start (19s since last activity, under 30s idle)
-    with patch("backend.services.batch_aggregator.time.time", return_value=start_time + 89):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=start_time + 89, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Batch should NOT be closed yet (window is 90s, we're at 89s)
@@ -226,7 +232,9 @@ async def test_batch_window_timeout_with_mocked_time(batch_aggregator, mock_redi
 
     # Check at 91 seconds from start (21s since last activity, under 30s idle)
     # But window timeout (91s >= 90s) should trigger
-    with patch("backend.services.batch_aggregator.time.time", return_value=start_time + 91):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=start_time + 91, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Batch should be closed due to window timeout (not idle timeout)
@@ -250,18 +258,24 @@ async def test_batch_idle_timeout_with_mocked_time(batch_aggregator, mock_redis_
     # Start at time 1000.0
     current_time = 1000.0
 
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time, autospec=True
+    ):
         batch_id = await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
     # Simulate time passing - 25 seconds (not yet idle timeout)
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 25):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 25, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Batch should NOT be closed yet
     assert batch_id not in closed_batches
 
     # Simulate time passing - 35 seconds (idle timeout exceeded)
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 35):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 35, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Batch should be closed now
@@ -280,22 +294,30 @@ async def test_batch_activity_resets_idle_timeout(batch_aggregator, mock_redis_c
     # Start at time 1000.0
     current_time = 1000.0
 
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time, autospec=True
+    ):
         batch_id = await batch_aggregator.add_detection(camera_id, 1, file_path)
 
     # Add activity at 20 seconds (before 30s idle timeout)
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 20):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 20, autospec=True
+    ):
         await batch_aggregator.add_detection(camera_id, 2, file_path)
 
     # Check at 45 seconds from start (but only 25s from last activity)
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 45):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 45, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Batch should NOT be closed - activity reset the idle timer
     assert batch_id not in closed_batches
 
     # Check at 55 seconds from start (35s from last activity)
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 55):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 55, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Now batch should be closed due to idle timeout
@@ -313,15 +335,21 @@ async def test_multiple_cameras_independent_timeouts(batch_aggregator, mock_redi
     camera2 = unique_id("camera2")
 
     # Create batch for camera 1
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time, autospec=True
+    ):
         batch_id_1 = await batch_aggregator.add_detection(camera1, 1, f"/path/{camera1}/1.jpg")
 
     # Create batch for camera 2 at +20s
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 20):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 20, autospec=True
+    ):
         batch_id_2 = await batch_aggregator.add_detection(camera2, 2, f"/path/{camera2}/2.jpg")
 
     # Check at +35s - camera1 should timeout (35s idle), camera2 should NOT (15s idle)
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 35):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time + 35, autospec=True
+    ):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
     assert batch_id_1 in closed_batches
@@ -342,7 +370,9 @@ async def test_batch_close_cleans_up_redis_keys(batch_aggregator, mock_redis_cli
     current_time = 1000.0
 
     # Create batch and add detection
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time, autospec=True
+    ):
         batch_id = await batch_aggregator.add_detection(camera_id, 1, file_path)
         await batch_aggregator.add_detection(camera_id, 2, file_path)
 
@@ -357,7 +387,11 @@ async def test_batch_close_cleans_up_redis_keys(batch_aggregator, mock_redis_cli
     assert len(lists[f"batch:{batch_id}:detections"]) == 2
 
     # Close batch manually
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 100):
+    with patch(
+        "backend.services.batch_aggregator.time.time",
+        return_value=current_time + 100,
+        autospec=True,
+    ):
         summary = await batch_aggregator.close_batch(batch_id)
 
     # Verify keys were cleaned up
@@ -394,7 +428,9 @@ async def test_batch_timeout_check_handles_missing_batch_data(batch_aggregator, 
     # No started_at, last_activity, or detections keys
 
     current_time = 1000.0
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time, autospec=True
+    ):
         # Should not raise - should handle gracefully
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -412,7 +448,9 @@ async def test_concurrent_detections_same_camera(batch_aggregator, mock_redis_cl
     camera_id = unique_id("multi_detect")
     current_time = 1000.0
 
-    with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
+    with patch(
+        "backend.services.batch_aggregator.time.time", return_value=current_time, autospec=True
+    ):
         batch_id_1 = await batch_aggregator.add_detection(camera_id, 1, f"/path/{camera_id}/1.jpg")
         batch_id_2 = await batch_aggregator.add_detection(camera_id, 2, f"/path/{camera_id}/2.jpg")
         batch_id_3 = await batch_aggregator.add_detection(camera_id, 3, f"/path/{camera_id}/3.jpg")

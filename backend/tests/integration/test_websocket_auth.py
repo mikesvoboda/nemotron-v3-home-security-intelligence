@@ -190,7 +190,10 @@ def _apply_common_lifespan_patches(stack, mocks, mock_init_db, mock_close_db):
 
     # Background service mocks
     stack.enter_context(
-        patch("backend.main.get_system_broadcaster", return_value=mocks["system_broadcaster"])
+        patch(
+            "backend.main.get_system_broadcaster",
+            return_value=mocks["system_broadcaster"],
+        )
     )
     stack.enter_context(patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"]))
     stack.enter_context(patch("backend.main.CleanupService", return_value=mocks["cleanup_service"]))
@@ -210,7 +213,10 @@ def _apply_common_lifespan_patches(stack, mocks, mock_init_db, mock_close_db):
     )
     stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
     stack.enter_context(
-        patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"])
+        patch(
+            "backend.main.ServiceHealthMonitor",
+            return_value=mocks["service_health_monitor"],
+        )
     )
     stack.enter_context(
         patch(
@@ -221,16 +227,25 @@ def _apply_common_lifespan_patches(stack, mocks, mock_init_db, mock_close_db):
 
     # New services added after initial fixtures
     stack.enter_context(
-        patch("backend.main.get_worker_supervisor", return_value=mocks["worker_supervisor"])
+        patch(
+            "backend.main.get_worker_supervisor",
+            return_value=mocks["worker_supervisor"],
+        )
     )
     stack.enter_context(patch("backend.main.get_container", return_value=mocks["container"]))
     stack.enter_context(patch("backend.main.wire_services", AsyncMock()))
     stack.enter_context(patch("backend.main.init_job_tracker_websocket", AsyncMock()))
     stack.enter_context(
-        patch("backend.main.PerformanceCollector", return_value=mocks["performance_collector"])
+        patch(
+            "backend.main.PerformanceCollector",
+            return_value=mocks["performance_collector"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.BackgroundEvaluator", return_value=mocks["background_evaluator"])
+        patch(
+            "backend.main.BackgroundEvaluator",
+            return_value=mocks["background_evaluator"],
+        )
     )
     stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
     stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
@@ -244,16 +259,28 @@ def _apply_common_lifespan_patches(stack, mocks, mock_init_db, mock_close_db):
     stack.enter_context(patch("backend.main.register_workers", MagicMock()))
     stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
     stack.enter_context(
-        patch("backend.main.create_detection_worker", return_value=mocks["detection_worker"])
+        patch(
+            "backend.main.create_detection_worker",
+            return_value=mocks["detection_worker"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.create_analysis_worker", return_value=mocks["analysis_worker"])
+        patch(
+            "backend.main.create_analysis_worker",
+            return_value=mocks["analysis_worker"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.create_timeout_worker", return_value=mocks["timeout_worker"])
+        patch(
+            "backend.main.create_timeout_worker",
+            return_value=mocks["timeout_worker"],
+        )
     )
     stack.enter_context(
-        patch("backend.main.create_metrics_worker", return_value=mocks["metrics_worker"])
+        patch(
+            "backend.main.create_metrics_worker",
+            return_value=mocks["metrics_worker"],
+        )
     )
 
 

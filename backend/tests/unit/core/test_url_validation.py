@@ -309,7 +309,7 @@ class TestValidateWebhookUrl:
 
     def test_dns_resolution_validates_ips(self):
         """Test that DNS-resolved IPs are validated."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             mock_resolve.return_value = ["10.0.0.1"]  # Private IP
             with pytest.raises(SSRFValidationError) as exc_info:
                 validate_webhook_url("https://evil.example.com/webhook", resolve_dns=True)
@@ -317,14 +317,14 @@ class TestValidateWebhookUrl:
 
     def test_dns_resolution_catches_metadata_redirect(self):
         """Test that DNS resolving to metadata IP is blocked."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             mock_resolve.return_value = ["169.254.169.254"]
             with pytest.raises(SSRFValidationError):
                 validate_webhook_url("https://evil.example.com/webhook", resolve_dns=True)
 
     def test_skip_dns_resolution(self):
         """Test that DNS resolution can be skipped for schema validation."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             mock_resolve.return_value = ["10.0.0.1"]
             # Should NOT raise because resolve_dns=False
             url = validate_webhook_url(
@@ -340,14 +340,14 @@ class TestValidateWebhookUrlForRequest:
 
     def test_always_resolves_dns(self):
         """Test that this function always resolves DNS."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             mock_resolve.return_value = ["93.184.216.34"]  # example.com
             validate_webhook_url_for_request("https://example.com/webhook")
             mock_resolve.assert_called_once()
 
     def test_blocks_dns_rebinding(self):
         """Test that DNS rebinding attacks are blocked at request time."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             # Simulate DNS rebinding: hostname now resolves to private IP
             mock_resolve.return_value = ["192.168.1.1"]
             with pytest.raises(SSRFValidationError):
@@ -717,7 +717,7 @@ class TestDNSResolutionMocking:
 
     def test_dns_resolution_to_multiple_ips_one_private(self):
         """Test that DNS resolving to any private IP is blocked."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             # Returns both public and private IPs
             mock_resolve.return_value = ["8.8.8.8", "10.0.0.1"]
             with pytest.raises(SSRFValidationError) as exc_info:
@@ -728,14 +728,16 @@ class TestDNSResolutionMocking:
 
     def test_dns_resolution_to_multiple_public_ips_allowed(self):
         """Test that DNS resolving to multiple public IPs is allowed."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             mock_resolve.return_value = ["8.8.8.8", "8.8.4.4"]
             result = validate_webhook_url("https://multi-ip.example.com/webhook", resolve_dns=True)
             assert result == "https://multi-ip.example.com/webhook"
 
     def test_dns_gaierror_handling(self):
         """Test handling of DNS resolution failures."""
-        with patch("backend.core.url_validation.socket.getaddrinfo") as mock_getaddrinfo:
+        with patch(
+            "backend.core.url_validation.socket.getaddrinfo", autospec=True
+        ) as mock_getaddrinfo:
             mock_getaddrinfo.side_effect = socket.gaierror(8, "Name or service not known")
             with pytest.raises(SSRFValidationError) as exc_info:
                 resolve_hostname("nonexistent.invalid")
@@ -743,7 +745,9 @@ class TestDNSResolutionMocking:
 
     def test_dns_timeout_handling(self):
         """Test handling of DNS timeout."""
-        with patch("backend.core.url_validation.socket.getaddrinfo") as mock_getaddrinfo:
+        with patch(
+            "backend.core.url_validation.socket.getaddrinfo", autospec=True
+        ) as mock_getaddrinfo:
             mock_getaddrinfo.side_effect = TimeoutError("timed out")
             # DNS timeout should raise SSRFValidationError or be handled gracefully
             with pytest.raises((SSRFValidationError, socket.timeout)):
@@ -947,7 +951,7 @@ class TestValidateWebhookUrlForRequestDevelopment:
 
     def test_development_mode_allows_localhost(self):
         """Test that development mode allows localhost."""
-        with patch("backend.core.url_validation.resolve_hostname") as mock_resolve:
+        with patch("backend.core.url_validation.resolve_hostname", autospec=True) as mock_resolve:
             mock_resolve.return_value = ["127.0.0.1"]
             result = validate_webhook_url_for_request(
                 "http://localhost:8000/webhook", is_development=True
@@ -1096,7 +1100,7 @@ class TestSSRFLogging:
 
     def test_log_blocked_ssrf_attempt_basic(self):
         """Test that _log_blocked_ssrf_attempt logs properly."""
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             _log_blocked_ssrf_attempt("https://evil.com/webhook", "test_reason", "evil.com")
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
@@ -1107,7 +1111,7 @@ class TestSSRFLogging:
     def test_log_blocked_ssrf_attempt_truncates_long_urls(self):
         """Test that very long URLs are truncated in logs."""
         long_url = "https://example.com/" + "a" * 300
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             _log_blocked_ssrf_attempt(long_url, "long_url_test")
             call_args = mock_logger.warning.call_args
             # URL should be truncated to 200 chars
@@ -1117,7 +1121,7 @@ class TestSSRFLogging:
     def test_log_blocked_ssrf_attempt_sanitizes_control_chars(self):
         """Test that control characters are sanitized from logged URLs."""
         url_with_control = "https://evil.com/\x00\x01\x02/webhook"
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             _log_blocked_ssrf_attempt(url_with_control, "control_chars_test")
             call_args = str(mock_logger.warning.call_args)
             # Control characters should be replaced with ?
@@ -1127,7 +1131,7 @@ class TestSSRFLogging:
 
     def test_blocked_local_domain_is_logged(self):
         """Test that blocked .local domain attempts are logged."""
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             with pytest.raises(SSRFValidationError):
                 validate_webhook_url("https://printer.local/webhook", resolve_dns=False)
             # Check that a warning was logged
@@ -1137,7 +1141,7 @@ class TestSSRFLogging:
 
     def test_blocked_private_ip_is_logged(self):
         """Test that blocked private IP attempts are logged."""
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             with pytest.raises(SSRFValidationError):
                 validate_webhook_url("https://10.0.0.1/webhook", resolve_dns=False)
             mock_logger.warning.assert_called()
@@ -1146,7 +1150,7 @@ class TestSSRFLogging:
 
     def test_blocked_metadata_hostname_is_logged(self):
         """Test that blocked metadata hostname attempts are logged."""
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             with pytest.raises(SSRFValidationError):
                 validate_webhook_url("https://metadata/latest/", resolve_dns=False)
             mock_logger.warning.assert_called()
@@ -1155,7 +1159,7 @@ class TestSSRFLogging:
 
     def test_blocked_scheme_is_logged(self):
         """Test that blocked scheme attempts are logged."""
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             with pytest.raises(SSRFValidationError):
                 validate_webhook_url("ftp://example.com/file", resolve_dns=False)
             mock_logger.warning.assert_called()
@@ -1164,7 +1168,7 @@ class TestSSRFLogging:
 
     def test_embedded_credentials_is_logged(self):
         """Test that embedded credentials attempts are logged."""
-        with patch("backend.core.url_validation.logger") as mock_logger:
+        with patch("backend.core.url_validation.logger", autospec=True) as mock_logger:
             with pytest.raises(SSRFValidationError):
                 validate_webhook_url(
                     "https://user:pass@example.com/webhook",  # pragma: allowlist secret

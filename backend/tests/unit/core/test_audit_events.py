@@ -223,7 +223,7 @@ class TestSetupTeardownAuditLogging:
         """Test setup_audit_logging returns True on success."""
         teardown_audit_logging()  # Ensure clean state
 
-        with patch("backend.core.audit_events.event.listen"):
+        with patch("backend.core.audit_events.event.listen", autospec=True):
             result = setup_audit_logging()
 
         assert result is True
@@ -233,7 +233,7 @@ class TestSetupTeardownAuditLogging:
         """Test setup_audit_logging is idempotent (second call returns True)."""
         teardown_audit_logging()
 
-        with patch("backend.core.audit_events.event.listen"):
+        with patch("backend.core.audit_events.event.listen", autospec=True):
             result1 = setup_audit_logging()
             result2 = setup_audit_logging()
 
@@ -243,10 +243,10 @@ class TestSetupTeardownAuditLogging:
 
     def test_teardown_audit_logging_returns_true(self) -> None:
         """Test teardown_audit_logging returns True on success."""
-        with patch("backend.core.audit_events.event.listen"):
+        with patch("backend.core.audit_events.event.listen", autospec=True):
             setup_audit_logging()
 
-        with patch("backend.core.audit_events.event.remove"):
+        with patch("backend.core.audit_events.event.remove", autospec=True):
             result = teardown_audit_logging()
 
         assert result is True
@@ -270,7 +270,11 @@ class TestSetupTeardownAuditLogging:
         with audit_module._audit_logging_lock:
             audit_module._audit_logging_enabled = False
 
-        with patch("backend.core.audit_events.event.listen", side_effect=Exception("test error")):
+        with patch(
+            "backend.core.audit_events.event.listen",
+            side_effect=Exception("test error"),
+            autospec=True,
+        ):
             result = setup_audit_logging()
 
         assert result is False
@@ -304,7 +308,7 @@ class TestGetModelChanges:
         mock_state = MagicMock()
         mock_state.attrs = {"name": mock_attr_state}
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             # Configure inspect to return mapper for class, state for instance
             def inspect_side_effect(obj):
                 if obj is mock_instance.__class__:
@@ -334,7 +338,7 @@ class TestGetModelChanges:
 
         mock_state = MagicMock()
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
 
             def inspect_side_effect(obj):
                 if obj is mock_instance.__class__:
@@ -363,7 +367,7 @@ class TestGetResourceId:
         mock_mapper = MagicMock()
         mock_mapper.primary_key = [mock_pk_col]
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             mock_inspect.return_value = mock_mapper
 
             result = _get_resource_id(mock_instance)
@@ -384,7 +388,7 @@ class TestGetResourceId:
         mock_mapper = MagicMock()
         mock_mapper.primary_key = [mock_pk_col1, mock_pk_col2]
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             mock_inspect.return_value = mock_mapper
 
             result = _get_resource_id(mock_instance)
@@ -402,7 +406,7 @@ class TestGetResourceId:
         mock_mapper = MagicMock()
         mock_mapper.primary_key = [mock_pk_col]
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             mock_inspect.return_value = mock_mapper
 
             result = _get_resource_id(mock_instance)
@@ -430,7 +434,7 @@ class TestGetModelValues:
         mock_mapper = MagicMock()
         mock_mapper.column_attrs = [mock_attr1, mock_attr2, mock_attr3]
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             mock_inspect.return_value = mock_mapper
 
             values = _get_model_values(mock_instance)
@@ -451,7 +455,7 @@ class TestGetModelValues:
         mock_mapper = MagicMock()
         mock_mapper.column_attrs = [mock_attr]
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             mock_inspect.return_value = mock_mapper
 
             values = _get_model_values(mock_instance)
@@ -472,7 +476,7 @@ class TestGetModelValues:
         mock_mapper = MagicMock()
         mock_mapper.column_attrs = [mock_attr1, mock_attr2]
 
-        with patch("backend.core.audit_events.inspect") as mock_inspect:
+        with patch("backend.core.audit_events.inspect", autospec=True) as mock_inspect:
             mock_inspect.return_value = mock_mapper
 
             values = _get_model_values(mock_instance)

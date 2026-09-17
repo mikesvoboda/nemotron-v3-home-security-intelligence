@@ -96,8 +96,8 @@ class TestCreateDirectory:
         mock_result.returncode = 1  # sudo fails (e.g. no passwordless sudo)
 
         with (
-            patch("pathlib.Path.mkdir", side_effect=PermissionError("denied")),
-            patch("subprocess.run", return_value=mock_result),
+            patch("pathlib.Path.mkdir", side_effect=PermissionError("denied"), autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             assert create_directory("/some/path") is False
 
@@ -112,8 +112,10 @@ class TestCreateDirectory:
         sudo_chown_result.returncode = 0
 
         with (
-            patch("pathlib.Path.mkdir", side_effect=PermissionError("denied")),
-            patch("subprocess.run", side_effect=[sudo_mkdir_result, sudo_chown_result]),
+            patch("pathlib.Path.mkdir", side_effect=PermissionError("denied"), autospec=True),
+            patch(
+                "subprocess.run", side_effect=[sudo_mkdir_result, sudo_chown_result], autospec=True
+            ),
         ):
             assert create_directory("/some/path") is True
 
@@ -140,7 +142,7 @@ class TestGetFreeSpaceGb:
         """Should return 0 on error."""
         from setup_lib.storage_config import get_free_space_gb
 
-        with patch("shutil.disk_usage", side_effect=OSError("error")):
+        with patch("shutil.disk_usage", side_effect=OSError("error"), autospec=True):
             assert get_free_space_gb("/") == 0.0
 
     def test_calculates_gb_correctly(self, tmp_path: Path) -> None:
@@ -150,7 +152,7 @@ class TestGetFreeSpaceGb:
         mock_usage = MagicMock()
         mock_usage.free = 100 * (1024**3)  # 100 GB in bytes
 
-        with patch("shutil.disk_usage", return_value=mock_usage):
+        with patch("shutil.disk_usage", return_value=mock_usage, autospec=True):
             free_gb = get_free_space_gb(str(tmp_path))
             assert free_gb == pytest.approx(100.0, rel=0.01)
 
@@ -166,7 +168,7 @@ class TestIsSsd:
         mock_result.returncode = 0
         mock_result.stdout = "0\n"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             assert is_ssd(str(tmp_path)) is True
 
     def test_hdd_detected(self, tmp_path: Path) -> None:
@@ -177,21 +179,23 @@ class TestIsSsd:
         mock_result.returncode = 0
         mock_result.stdout = "1\n"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             assert is_ssd(str(tmp_path)) is False
 
     def test_lsblk_not_found(self, tmp_path: Path) -> None:
         """Should return None when lsblk not available."""
         from setup_lib.storage_config import is_ssd
 
-        with patch("subprocess.run", side_effect=FileNotFoundError()):
+        with patch("subprocess.run", side_effect=FileNotFoundError(), autospec=True):
             assert is_ssd(str(tmp_path)) is None
 
     def test_lsblk_timeout(self, tmp_path: Path) -> None:
         """Should return None on timeout."""
         from setup_lib.storage_config import is_ssd
 
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 5)):
+        with patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 5), autospec=True
+        ):
             assert is_ssd(str(tmp_path)) is None
 
     def test_lsblk_error(self, tmp_path: Path) -> None:
@@ -202,7 +206,7 @@ class TestIsSsd:
         mock_result.returncode = 1
         mock_result.stdout = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             assert is_ssd(str(tmp_path)) is None
 
     def test_nonexistent_path(self) -> None:
@@ -210,7 +214,7 @@ class TestIsSsd:
         from setup_lib.storage_config import is_ssd
 
         # Mock Path to simulate no existing ancestor
-        with patch("pathlib.Path.exists", return_value=False):
+        with patch("pathlib.Path.exists", return_value=False, autospec=True):
             result = is_ssd("/completely/fake/path")
             assert result is None
 
@@ -225,7 +229,7 @@ class TestValidateStoragePath:
         mock_usage = MagicMock()
         mock_usage.free = 100 * (1024**3)  # 100 GB
 
-        with patch("shutil.disk_usage", return_value=mock_usage):
+        with patch("shutil.disk_usage", return_value=mock_usage, autospec=True):
             is_valid, message = validate_storage_path(str(tmp_path), 50, "Test path")
             assert is_valid is True
             assert "100.0 GB available" in message
@@ -245,7 +249,7 @@ class TestValidateStoragePath:
         mock_usage = MagicMock()
         mock_usage.free = 5 * (1024**3)  # 5 GB
 
-        with patch("shutil.disk_usage", return_value=mock_usage):
+        with patch("shutil.disk_usage", return_value=mock_usage, autospec=True):
             is_valid, message = validate_storage_path(str(tmp_path), 50, "Test")
             assert is_valid is False
             assert "Insufficient space" in message
@@ -279,7 +283,7 @@ class TestPromptAndConfigureStorage:
 
         with (
             patch("builtins.input", lambda _: next(inputs)),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_storage({})
             assert result["foscam_base_path"] == str(foscam_dir)
@@ -293,9 +297,9 @@ class TestPromptAndConfigureStorage:
 
         with (
             patch("builtins.input", lambda _: next(inputs)),
-            patch("builtins.print"),
-            patch("setup_lib.storage_config.check_path_exists", return_value=True),
-            patch("setup_lib.storage_config.get_free_space_gb", return_value=100.0),
+            patch("builtins.print", autospec=True),
+            patch("setup_lib.storage_config.check_path_exists", return_value=True, autospec=True),
+            patch("setup_lib.storage_config.get_free_space_gb", return_value=100.0, autospec=True),
         ):
             result = prompt_and_configure_storage({})
             assert result["foscam_base_path"] == "/export/foscam"
@@ -312,7 +316,7 @@ class TestPromptAndConfigureStorage:
 
         with (
             patch("builtins.input", lambda _: next(inputs)),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_storage({})
             assert new_foscam.exists()
@@ -329,7 +333,7 @@ class TestPromptAndConfigureStorage:
 
         with (
             patch("builtins.input", lambda _: next(inputs)),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_storage({})
             assert not new_foscam.exists()
@@ -356,7 +360,7 @@ class TestPromptAndConfigureStorage:
         with (
             patch("builtins.input", lambda _: next(inputs)),
             patch("builtins.print", mock_print),
-            patch("shutil.disk_usage", return_value=mock_usage),
+            patch("shutil.disk_usage", return_value=mock_usage, autospec=True),
         ):
             prompt_and_configure_storage({})
 
@@ -379,7 +383,7 @@ class TestPromptAndConfigureStorage:
         with (
             patch("builtins.input", lambda _: next(inputs)),
             patch("builtins.print", mock_print),
-            patch("setup_lib.storage_config.is_ssd", return_value=True),
+            patch("setup_lib.storage_config.is_ssd", return_value=True, autospec=True),
         ):
             prompt_and_configure_storage({})
 
@@ -397,7 +401,7 @@ class TestPromptAndConfigureStorage:
 
         with (
             patch("builtins.input", lambda _: next(inputs)),
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_storage(
                 {

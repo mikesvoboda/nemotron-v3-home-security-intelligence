@@ -393,6 +393,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -417,6 +418,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -441,6 +443,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -471,6 +474,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -494,6 +498,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -517,6 +522,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -541,6 +547,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -561,6 +568,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -591,6 +599,7 @@ class TestWebSocketSystemEndpoint:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -661,6 +670,7 @@ class TestWebSocketEdgeCases:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -718,6 +728,7 @@ class TestWebSocketEdgeCases:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             # Should not raise - error during send_text breaks the loop
@@ -793,6 +804,7 @@ class TestWebSocketConnectionStates:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -852,6 +864,7 @@ class TestWebSocketLogging:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -1000,6 +1013,7 @@ class TestWebSocketConcurrency:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket)
@@ -1191,6 +1205,7 @@ class TestWebSocketRateLimiting:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket, mock_redis_client)
