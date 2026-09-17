@@ -68,6 +68,15 @@ def _get_onvif_device_url(camera: Camera) -> str:
     return device_url
 
 
+def _split_onvif_device_url(device_url: str) -> tuple[str, int]:
+    """Split an ONVIF device URL into (host, port) for onvif-zeep.
+
+    onvif-zeep's ONVIFCamera takes host and port separately, not a URL.
+    """
+    parsed = urlparse(device_url)
+    return parsed.hostname or "", parsed.port or 80  # Default ONVIF port
+
+
 class OnvifService:
     """ONVIF device management and PTZ control service.
 
@@ -195,8 +204,16 @@ class OnvifService:
                 # Try to get detailed info via ONVIF connection
                 if _ONVIFCamera is not None:
                     try:
-                        # Connect to device for RTSP URLs and capabilities
-                        onvif_camera = _ONVIFCamera(xaddrs)
+                        # Connect to device for RTSP URLs and capabilities.
+                        # onvif-zeep's constructor is (host, port, user, passwd)
+                        # and discovery has no per-device credentials — empty
+                        # strings attempt an anonymous session; cameras that
+                        # reject it fail into the handlers below, same as any
+                        # unreachable device. (WP4.1 autospec finding: this call
+                        # previously passed the device URL alone, so every
+                        # construction raised TypeError into the except below
+                        # and rtsp_urls/capabilities were never populated.)
+                        onvif_camera = _ONVIFCamera(ip_address, port, "", "")
 
                         # Get media profiles and RTSP URLs
                         try:
@@ -304,7 +321,14 @@ class OnvifService:
         _ONVIFCamera = _require_onvif_library()
         device_url = _get_onvif_device_url(camera)
 
-        onvif_camera = _ONVIFCamera(device_url)
+        # onvif-zeep takes (host, port, user, passwd), not a URL — see
+        # discover_devices for the WP4.1 finding this corrects. The Camera
+        # row's rtsp credentials are the device login (single-user local
+        # deployment: one camera credential set, NEM-5052 convention).
+        host, port = _split_onvif_device_url(device_url)
+        onvif_camera = _ONVIFCamera(
+            host, port, camera.rtsp_username or "", camera.rtsp_password or ""
+        )
         device_info = onvif_camera.devicemgmt.GetDeviceInformation()
         capabilities = onvif_camera.devicemgmt.GetCapabilities()
 
@@ -352,7 +376,12 @@ class OnvifService:
         _ONVIFCamera = _require_onvif_library()
         device_url = _get_onvif_device_url(camera)
 
-        onvif_camera = _ONVIFCamera(device_url)
+        # onvif-zeep takes (host, port, user, passwd), not a URL — see
+        # discover_devices for the WP4.1 finding this corrects.
+        host, port = _split_onvif_device_url(device_url)
+        onvif_camera = _ONVIFCamera(
+            host, port, camera.rtsp_username or "", camera.rtsp_password or ""
+        )
 
         if command == "stop":
             onvif_camera.ptz.Stop()
@@ -393,7 +422,9 @@ class OnvifService:
             Exception: If connection fails.
         """
         _ONVIFCamera = _require_onvif_library()
-        onvif_camera = _ONVIFCamera(device_url, username, password)
+        # onvif-zeep takes (host, port, user, passwd), not (url, user, passwd).
+        host, port = _split_onvif_device_url(device_url)
+        onvif_camera = _ONVIFCamera(host, port, username, password)
 
         profiles = onvif_camera.media.GetProfiles()
         if not profiles:
@@ -425,7 +456,12 @@ class OnvifService:
         _ONVIFCamera = _require_onvif_library()
         device_url = _get_onvif_device_url(camera)
 
-        onvif_camera = _ONVIFCamera(device_url)
+        # onvif-zeep takes (host, port, user, passwd), not a URL — see
+        # discover_devices for the WP4.1 finding this corrects.
+        host, port = _split_onvif_device_url(device_url)
+        onvif_camera = _ONVIFCamera(
+            host, port, camera.rtsp_username or "", camera.rtsp_password or ""
+        )
         presets = onvif_camera.ptz.GetPresets()
 
         return [{"token": p.token, "name": getattr(p, "Name", None)} for p in presets]
@@ -452,7 +488,12 @@ class OnvifService:
         _ONVIFCamera = _require_onvif_library()
         device_url = _get_onvif_device_url(camera)
 
-        onvif_camera = _ONVIFCamera(device_url)
+        # onvif-zeep takes (host, port, user, passwd), not a URL — see
+        # discover_devices for the WP4.1 finding this corrects.
+        host, port = _split_onvif_device_url(device_url)
+        onvif_camera = _ONVIFCamera(
+            host, port, camera.rtsp_username or "", camera.rtsp_password or ""
+        )
         onvif_camera.ptz.GotoPreset(PresetToken=preset_token)
 
         logger.info(
