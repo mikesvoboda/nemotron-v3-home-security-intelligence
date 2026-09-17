@@ -378,13 +378,13 @@ class TestSetupTelemetrySuccess:
 
         # Mock all the imports inside setup_telemetry
         with (
-            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
                 "opentelemetry.sdk.resources.get_aggregated_resources", autospec=True
             ) as mock_get_aggregated,
             patch("opentelemetry.sdk.resources.ProcessResourceDetector", autospec=True),
             patch("opentelemetry.sdk.resources.OsResourceDetector", autospec=True),
             patch("opentelemetry.sdk.trace.TracerProvider", autospec=True) as mock_tracer_provider,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
                 "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter",
                 autospec=True,
@@ -507,12 +507,12 @@ class TestSetupTelemetrySuccess:
         mock_settings.otel_trace_sample_rate = 1.0
 
         with (
-            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
                 "opentelemetry.sdk.trace.TracerProvider",
                 side_effect=Exception("Initialization failed"),
                 autospec=True,
             ),
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
         ):
             mock_resource.create.return_value = MagicMock()
 
@@ -1115,8 +1115,8 @@ class TestParentBasedSampler:
         mock_settings.otel_batch_export_timeout_ms = 30000
 
         with (
-            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch("opentelemetry.sdk.trace.TracerProvider", autospec=True) as mock_tracer_provider,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
                 "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter",
                 autospec=True,
@@ -1479,8 +1479,8 @@ class TestCompositePropagatorConfiguration:
         mock_settings.otel_batch_export_timeout_ms = 30000
 
         with (
-            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch("opentelemetry.sdk.trace.TracerProvider", autospec=True) as mock_tracer_provider,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
                 "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter",
                 autospec=True,
