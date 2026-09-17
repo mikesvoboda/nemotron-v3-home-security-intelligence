@@ -78,6 +78,10 @@ def classify(node: ast.Call) -> tuple[str, str]:
         return ("na", f"patch.{name}")
     if "new" in kw:
         return ("na", "new= given")
+    if "new_callable" in kw:
+        # found by the first real batch run: mock raises
+        # "Cannot use 'autospec' and 'new_callable' together"
+        return ("na", "new_callable= given")
     pos = node.args
     if name == "object":
         if len(pos) == 2 and isinstance(pos[1], ast.Constant) and isinstance(pos[1].value, str):

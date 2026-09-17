@@ -604,7 +604,7 @@ class TestReExportedUtilities:
         mock_app = MagicMock()
         mock_app.add_exception_handler = MagicMock()
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             register_exception_handlers(mock_app)
 
         # Verify that multiple exception handlers were registered

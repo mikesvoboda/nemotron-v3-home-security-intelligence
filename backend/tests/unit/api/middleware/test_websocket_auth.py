@@ -181,7 +181,9 @@ class TestTokenComparisonSecurity:
         get_settings.cache_clear()
 
         # Patch hmac.compare_digest to verify it's being called
-        with patch("backend.api.middleware.websocket_auth.hmac.compare_digest") as mock_compare:
+        with patch(
+            "backend.api.middleware.websocket_auth.hmac.compare_digest", autospec=True
+        ) as mock_compare:
             mock_compare.return_value = True
 
             result = await validate_websocket_token(mock_websocket, token=secret_token)

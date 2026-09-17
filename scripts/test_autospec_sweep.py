@@ -96,6 +96,16 @@ def test_new_kwarg_skipped(src):
     assert read(f) == code
 
 
+def test_new_callable_skipped(src):
+    # Found by the first real batch run: mock raises
+    # "Cannot use 'autospec' and 'new_callable' together", so a converted
+    # new_callable site is a broken test, not a stronger one.
+    code = 'with patch("a.b.c", new_callable=AsyncMock) as m:\n    pass\n'
+    f = write(src, code)
+    sweep(src, "--fix")
+    assert read(f) == code
+
+
 def test_positional_new_skipped(src):
     # patch("a.b.c", fake) — second positional is `new`; appending a kwarg
     # would not add autospec semantics and could change meaning

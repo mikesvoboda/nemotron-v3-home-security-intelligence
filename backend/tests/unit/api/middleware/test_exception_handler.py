@@ -377,7 +377,7 @@ class TestGenericExceptionHandlerSanitization:
         """Test that full error is logged server-side but sanitized for response."""
         error = Exception("Detailed error at /home/user/app/service.py:42 with password=secret123")
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await generic_exception_handler(mock_request, error)
 
             # Full error should be logged
