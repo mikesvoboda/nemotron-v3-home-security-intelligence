@@ -4319,3 +4319,39 @@ did not recur at 3fcffd8d -- n=1 boundary jitter: no fix, no
 SLOW_TEST_PATTERNS widening (allowlist-for-green is explicitly not-taken);
 its own row if it recurs. CI Gate (Required Checks) fails only as the
 rollup of this audit.
+
+## PHASE 3 CACHE + CONCURRENCY REPAIRS WP3.2/WP3.3/WP3.4 (2026-09-17, post-merge branch feat/phase3 off b062a031)
+
+WP3.2 (0562622d): build-backend-deps' cache-suffix "backend-deps" wrote its
+uv pre-warm to a namespace zero of the 13 downstream backend jobs read
+(grep: exactly one cache-suffix across all 9 workflow files). DECIDE: drop
+at the producer, not mirror onto 13 consumers (one shared namespace, no
+future-copy risk). MEASURE before (Jobs API steps, run 35170392538):
+Set up uv 1-2s/14 jobs; uv sync --frozen median 14s/22 installs — honest
+framing: wall-clock upside SMALL; the fix is the pre-warm being consumed at
+all. After-numbers from the triggered run, queue reported separately.
+
+WP3.3 (54cb68ab): frontend-tests' actions/cache step restored ROOT
+node_modules + ~/.npm before `npm ci` in frontend/ -- doubly dead at
+3fcffd8d: npm ci deletes/reinstalls its own target unconditionally, and the
+cached path is the WRONG tree (root package.json = commitlint/prettier set;
+no root package-lock.json is committed; CI checkouts never had the path, so
+16 junk cache entries/run, ~2-6s/shard overhead). setup-node cache: 'npm'
+(the working one) stays. Done-when: next run's shard setup unchanged-or-
+better (Install-with-retry was 11-20s).
+
+WP3.4 (396df6f1): trivy/sast/gitleaks/dependency-audit/agents-md had NO
+concurrency block (all five verified missing at b062a031), so stale runs
+of superseded pushes kept competing for the WP3.1-measured 20-job ceiling
+(9 runs land per push). ci.yml:10-12 pattern copied; safety: none serialize
+stateful work and none file external state on PR events (Linear steps live
+in ci.yml only). First-observed-cancel on the next push = done. NOTE: an
+earlier draft of that commit claimed a main-gated Linear step inside
+dependency-audit -- false (no Linear step in that file; audit-summary is a
+step-summary table), caught in self-review and amended before push.
+
+ALL THREE are ci.yml/workflow edits = the CI-only class: no local replay
+harness exists for Actions behavior; verification is YAML safe_load +
+structural asserts (34 jobs parse; concurrency blocks top-level with
+cancel-in-progress) now, and the pushed run's Jobs API (same protocol as
+the before-numbers) when it settles.
