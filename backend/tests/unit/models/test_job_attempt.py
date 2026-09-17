@@ -90,7 +90,7 @@ class TestJobAttemptModelInitialization:
         """Test that job attempt fields have correct default values."""
         job_id = uuid4()
 
-        with patch("backend.models.job_attempt.datetime") as mock_dt:
+        with patch("backend.models.job_attempt.datetime", autospec=True) as mock_dt:
             mock_now = datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC)
             mock_dt.now.return_value = mock_now
 
