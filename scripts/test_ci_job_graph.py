@@ -10,7 +10,10 @@ ci-gate's reach while `CI Gate` reported SUCCESS — the same invisibility class
 that hid WP0.2's CVEs for six months.
 
 Classes that satisfy the invariant:
-  GATE    reachable from ci-gate transitively (verdict converges in ci-gate)
+  GATE    ci-gate carries its red: either a direct need with a check_job line,
+          or reached through intermediates that each read `needs.<x>.result`
+          themselves. Bare `needs:` membership does NOT qualify — see
+          result_checked_needs() for why both severing mechanisms bite here.
   PLUMB   artifact-only job that cannot produce a correctness verdict
           (coverage merge/upload) — enumerated by name below, additions FAIL
   TRIAGE  jobs whose red is ACTIONED at runtime: they carry their own
@@ -25,6 +28,7 @@ not triaged, and not plumbing -> FAIL here.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -46,6 +50,28 @@ SCHEDULE_ONLY_MARKERS = ("schedule", "workflow_dispatch")
 def job_needs(job: dict) -> list[str]:
     n = job.get("needs", [])
     return n if isinstance(n, list) else [n]
+
+
+def result_checked_needs(job: dict) -> set[str]:
+    """The needs whose RED this job actually carries forward.
+
+    A `needs:` edge is ordering, not failure propagation. Two independent
+    mechanisms sever it, and this graph uses both:
+
+      * `if: always()` — the job runs even when its need failed, so its own
+        conclusion is decided solely by its steps. A summary job that inspects
+        only its shards reports success while a sibling need burns.
+      * ci-gate's `check_job` forgives `skipped` (deliberately — main-only jobs
+        arrive skipped on PRs). So the default `success()` path does not carry
+        a red either: the failed need merely skips its dependent, and a skip is
+        waved through.
+
+    What remains is the one edge that genuinely propagates: an intermediate job
+    reading `needs.<name>.result` itself and exiting non-zero on it. Reachability
+    is computed over those edges only — `needs` membership proves nothing.
+    """
+    script = "\n".join(s.get("run", "") for s in job.get("steps", []) if s.get("run"))
+    return set(re.findall(r"needs\.([a-zA-Z0-9_-]+)\.result", script))
 
 
 def has_linear_triage(job: dict) -> bool:
@@ -78,7 +104,9 @@ def main() -> int:
         if j in reach or j not in jobs:
             continue
         reach.add(j)
-        stack.extend(job_needs(jobs[j]))
+        # Follow only the edges this job actually carries a red across; a bare
+        # `needs:` entry it never inspects is ordering, not gating.
+        stack.extend(set(job_needs(jobs[j])) & result_checked_needs(jobs[j]))
 
     failures: list[str] = []
 
@@ -103,8 +131,6 @@ def main() -> int:
     gate_script = "\n".join(
         s.get("run", "") for s in jobs["ci-gate"].get("steps", []) if s.get("run")
     )
-    import re
-
     checked = set(
         re.findall(r'check_job\s+"[^"]+"\s+"\$\{\{\s*needs\.([a-zA-Z0-9_-]+)\.result', gate_script)
     )
