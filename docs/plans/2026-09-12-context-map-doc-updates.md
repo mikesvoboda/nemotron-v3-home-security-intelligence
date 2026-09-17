@@ -4160,3 +4160,95 @@ hypothetical external deployments without evidence of any is its own
 conversation. If a future owner restores the feature properly (real DDL +
 auth deps + callers), the retirement lock rewrites to assert the shipped
 contract — it is the tripwire, not an obstacle.
+
+## PRE-EXISTING SECURITY GATES — CVE Review Dates + Filesystem Vulnerability Scan FIXED (2026-09-16, owner request "fix the pre-existing issues"; NOT program work — dependency-vuln gates, red before the program existed)
+
+**[REAL REMEDIATION + evidence-backed review — no allowlist widening anywhere]**
+Two red gates on every recent head. ROOT-CAUSE SPLIT:
+
+1. _Check CVE Review Dates_ (scripts/check-trivyignore-expiry.sh): all 34
+   REVIEW BY dates expired Apr-Jun 2026. Fixed by the file's own on-review
+   protocol, run as a real pass: OSV-queried every Python entry against the
+   LOCKED uv.lock version; Debian security-tracker checked every base-image
+   entry; the two vendored-jar entries verified by reading setuptools 84.0.0's
+   dist-info in .venv. RESULT: 5 entries REMOVED for cause (jinja2 3.1.6
+   OSV-clean; setuptools 84 vendors jaraco.context 6.1.0 + wheel 0.46.3;
+   protobuf 7.36.1 OSV-clean), 28 KEPT with evidence re-stated inline (ecdsa
+   Minerva still UNFIXED at 0.19.2 per OSV; mbedcrypto 2.28.3-1 bookworm still
+   (unfixed) per tracker) and dates extended 18 months; several bookworm
+   point-release fixes NOW EXIST (libsqlite3 deb12u2, libpng deb12u2, glibc
+   deb12u14...) but stay listed HONESTLY — the image's apt versions are only
+   provable by the push-main image rebuild + scan, so each carries "remove at
+   the rebuild that proves it," not a calendar lie. One entry ADDED with full
+   rationale: CVE-2026-69247 (cryptography 49.0.0, fixed 50.0.0 but
+   UNREACHABLE — data-designer-engine 0.9.2 latest pins <=49; PKCS7 grep zero;
+   OSV shows 50.0.0 flagged ONLY by this CVE; revisit trigger recorded).
+   Gate local: exit 1 (34 expired) -> exit 0 (29 tracked, clean).
+
+2. _Filesystem Vulnerability Scan_: 12 HIGH in frontend/bun.lock + 1 HIGH in
+   uv.lock. bun.lock was the ONLY stale lock (npm's package-lock.json had all
+   fixed versions; bun.lock predated the dependency team's 09-15 lockfile
+   refresh). Serialized remediation AFTER the MVSOURCE push (one-heavy-job
+   rule): `bun update` within existing package.json ranges — package.json
+   restored afterward so the lock diff stays minimal and the
+   package-lock.json↔package.json pair stays untouched. All 12 packages land
+   fixed (serialize-javascript 6.0.2->7.1.1 via workbox-build 7.4.1 ->
+   @rollup/plugin-terser 1.0.0; react-router 7.18.4 matches npm's lock;
+   rollup 4.63.3; postcss/nanoid/fast-uri/... all past fixed).
+   cryptography 49.0.0: NOT a lockfile problem — the resolver is at maximum
+   (engine cap <=49 is why), hence the accepted-risk entry above, not a
+   --no-extra hack (uv has no such lock flag anyway).
+   VERIFICATION: trivy 0.74.0 (=workflow @master) fs scan, CI flags, local
+   tree minus gitignored dirs: all three lockfiles 0 vulns, exit 0.
+   `bun install --frozen-lockfile` clean; eslint max-warnings 0 + tsc --noEmit
+   green; vitest suite green twice (20,239 passed, identical totals with and
+   without --coverage); production vite build green
+   (PWA precache 187 entries). BUNDLE-SIZE side-note (main-only workflow,
+   continue-on-error — NOT a PR check): its real gate step pipes size-limit
+   through `|| true`, swallowing the exit, and recent main runs report green
+   while the advisory raw sums in the SAME job exceed the configured
+   thresholds (local post-upgrade build: JS sum 4,304,751 B vs the 512,000 B
+   sum check; the workflow's own .size-limit.json path globs + non-gzipped
+   limits measure the same sums). Whether the upgrade widened the gap is
+   undeterminable without a pre-upgrade build; flagged for owner as separate
+   hygiene, NOT chased here (workflow files sit outside both this request and
+   the program's named scope).
+
+HONEST LIMITS: local trivy ran on a FRESH vuln DB, CI @master ran hours
+earlier — the CI snapshot could still show nothing NEW, but a fresh DB could
+also add findings between runs; that churn is inherent to @master pinning
+(noted, workflow change out of scope). Container-image gates (scan-backend/
+frontend, main-only) were NOT rebuilt/scanned here — the Debian entries above
+are tracker-verified only. The stale `.claude/worktrees/wf_*` +
+`docs/superpowers/staged/` trees hold old lockfiles and pollute any UNfiltered
+local fs scan (gitignored, invisible to CI) — future local replays must skip
+them.
+
+## FRONTEND COVERAGE THRESHOLD IS UNENFORCED + REAL TREE IS BELOW IT (2026-09-16, PRE-EXISTING — surfaced by the bun.lock refresh's verification measurement, not caused by it)
+
+MEASURE: first fresh full-suite coverage run in recent history (vite.config.ts
+thresholds 83/77/81/84 stmts/branch/func/lines, hand-set "2026-01-02 after UI
+audit"): actual 79.97 / 74.60 / 78.44 / 80.93 — ALL FOUR below threshold.
+Suite itself green twice (20,239 passed, identical totals with and without
+--coverage — the delta is instrumentation attribution, not behavior).
+
+WHY NOTHING CAUGHT IT: the threshold has no enforcer. PR CI deliberately runs
+vitest shards WITHOUT --coverage (ci.yml:1414 comment: per-shard threshold
+misfires); test-coverage-gate.yml's frontend row is a hand-maintained display
+table; validate.sh --frontend runs bare vitest. A threshold no gate checks is
+the quiet-signal class this whole program exists to kill — same shape as the
+vacuous prettier hook (91e3ee54) and the unconditional pre-push jobs (WP0.1).
+
+ATTRIBUTION: pre-existing drift. CI installs frontend from
+package-lock.json (npm ci; vitest 4.1.11 there = same as my post-refresh
+bun.lock), and today's nightly failures are backend-only. The refresh moved
+local vitest 4.0.18->4.1.11 (bun had the older pair; npm's 09-15 refresh had
+already moved), which can shift v8 attribution by a point or so — but the gap
+is 3-6 points wide, larger than any plausible version delta, and the same-
+version comparison CI-vs-mine cannot be adjudicated here without a 1.5h
+old-lock rerun. NOT taken: lowering any threshold (goal rule: floors never
+lowered to pass); adding --coverage to CI shards (the misfire the comment
+records). OWNER CALL, not mine: (a) write tests to close 3-6 points, or
+(b) re-set thresholds to measured reality WITH a gate that enforces them, or
+(c) keep the display-table regime and delete the dead config so it stops
+lying. Row lands PRE-EXISTING style: measurement, no silent fix.
