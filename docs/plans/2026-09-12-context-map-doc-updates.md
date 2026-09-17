@@ -4757,3 +4757,61 @@ list ("a gate with no CI is a gate that rots"); the registry header now
 documents the kN id shape; suppression-registry.yml regenerated (+322 rows,
 semantic diff for the existing 12 categories = zero, verified before
 writing).
+
+## PRE-EXISTING (surfaced by WP0.5 honest gate, unmasked by WP4.1) — onvif discovery tests hit the real network (2026-09-17)
+
+MEASURE (CI run 35198886674 TPA replay: FAIL 84 rows): 6 of the 84 are 3
+unit tests at ~135s vs the 4.0s ceiling — `test_discover_devices_returns_list`
+/ `_filters_non_onvif` / `_extracts_manufacturer_from_scopes`. Per-shard JUnit
+is decisive: on shards 3+4 exactly these 3 run 134.6–136.0s while 6 sibling
+discovery tests on the SAME shards run 0.018–0.094s. Uniform per-test cost =
+code path, not contention.
+
+ROOT CAUSE (PRE-EXISTING since the Phase 2 discovery work, its own commit
+64c76add): the 3 tests never requested the file's existing
+`mock_onvif_camera_class` fixture (every sibling discovery test does), so
+`discover_devices`'s detail path constructed a REAL onvif-zeep ONVIFCamera
+against the mock device's 192.168.1.100 — and zeep's constructor is not lazy:
+`update_xaddrs()` POSTs GetCapabilities inside `__init__`. Sandbox proxy
+fail-fasts the fake IP (~3s/test, invisible); GitHub runners black-hole it
+(~130s socket stall, gate-visible). The defect stayed latent because
+production was ALSO wrong: pre-WP4.1 dd845630 passed the device URL as a
+single arg, so construction raised TypeError into the service's except
+before any I/O. dd845630's honest fix (correct (host, port, user, passwd))
+unmasked the socket — production stays aligned to the shipped contract; the
+test aligns to it too (fixture added, production untouched).
+
+TDD: red = connect-guard harness (socket.connect to 192.168.1.\* raises a
+BaseException subclass the service's except-Exception cannot swallow — an
+AssertionError would be swallowed and the violation stay green; NO_PROXY set
+so requests bypasses the proxy = CI topology; `-o addopts=` for in-process):
+pre-fix 3 failed at client.py `update_xaddrs` → zeep `post_xml` →
+`socket.connect(('192.168.1.100', 80))`. green = whole file 31 passed 3.23s
+under the same guard. Remaining 84-row arithmetic: 6 here + 1 single-shard
+5.57s roundtrip flake + 77 integration rows owned by the WP0.5 follow-up
+ruling below (separate class, separate ruling).
+
+## WP0.5 follow-up RULING — what a slow-runner TPA red should do (2026-09-17)
+
+MEASURE (replays of real artifacts through audit-test-durations.py at CI's
+thresholds — the ruling-verification technique reused): head 95a0957b TPA
+FAIL 84 decomposes completely — 6 rows = the onvif non-hermetic trio (row
+above, fixed 64c76add); 1 row = a 5.57s single-shard flake (same test
+0.022s on another shard); 77 rows = integration shard-2 inflation in THAT
+run only: the same 441-test split half ran median 3.01s / 1 breach on run
+f2de8c3a but median 6.59s / 76 breaches on run 95a0957b (its two halves'
+main-cost medians differ by 2% — environment, not composition). main itself
+(run 35174852358): FAIL exactly 1 row, 10.04s vs the 10.0s ceiling, on a
+test that ran 3.18s on a PR run. Slow-but-passing tests have no rerun path,
+so a sluggish runner VM blocks otherwise-green heads until the job is
+re-run (WP0.6 made TPA reach ci-gate, by design).
+
+RULING (owner, 2026-09-17, AskUserQuestion): **KEEP AS-IS.** The gate bites
+exactly as ruled; a slow-runner red is operationally a flaky-runner job —
+re-run it. Rejected: raising the integration ceiling 10s→12s (launders the
+class the gate exists to catch, against thresholds chosen from the
+distribution); cohort-relative downgrade logic (more machinery, more ways
+for the gate to lie); moving TPA out of ci-gate (contradicts WP0.6's
+codified rule). The onvif fix removed the only PERMANENT offender — watch
+one weekly cycle before re-opening; if slow-runner reds recur as a pattern,
+the mitigation is runner-job retry of the AUDIT step's inputs, decided then.
