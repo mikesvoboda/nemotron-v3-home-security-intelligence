@@ -4399,3 +4399,28 @@ NOT TAKEN: threshold edits, SLOW_TEST_PATTERNS widening, fixture timeout
 lowering, audit semantics change -- all owner or laundering territory.
 #6550 (WP3.2/3.3/3.4, all pre-merge-green otherwise: 64 pass) stays OPEN
 red on this pre-existing gate; main is red on it independently.
+
+## WP3.2/3.3 AFTER-NUMBERS (2026-09-17, run 35175054058 = the commit's own push, same Jobs-API protocol)
+
+WP3.2 (cache-suffix dropped): Set up uv n=15 median 2s (1-2) vs before
+n=14 median 2s (1-2) -- unchanged, as predicted: the step never paid to
+discover its namespace; uv sync --frozen n=23 median 14s (10-21) vs before
+14s (11-21) -- statistically identical at this resolution. HONEST VERDICT:
+the wall-clock win is NOT observable at run resolution; what changed is
+TOPOLOGY -- the pre-warm is now written where 13 consumers look (verified
+by diff), so cold-start runs after cache eviction hit warm instead of
+cold. A gate fix whose win is conditional-on-eviction is still the fix;
+the before-measurement said "SMALL upside" and the after-number says
+"zero upside on a warm day" -- same finding, now with both tails recorded.
+
+WP3.3 (dead node_modules restore removed): the deleted step's measured
+cost on the before-run: median 1.0s, range 0-3s, ~32s total per run across
+shards -- SMALL, as claimed ("pure waste", and waste is waste). Install-
+with-retry (npm ci) median 15s -> 19s (ranges overlap: 11-20 -> 12-21,
+n=16). NOT attributed to the removal: the step only ever restored ~/.npm
+(entries never contained node_modules -- wrong path; see commit body) and
+setup-node's cache: 'npm' still restores ~/.npm, so the plausible
+mechanism (one fewer warm-cache hand) is real but n=1 run; reported
+honestly rather than smoothed. Re-check on the NEXT push: if the median
+stays ~19s, note as the cost side of the cleanup; if it falls back, it was
+queue-day noise.
