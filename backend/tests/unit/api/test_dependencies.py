@@ -541,6 +541,7 @@ class TestAIServiceDependencies:
         with patch(
             "backend.core.container.get_container",
             return_value=mock_container,
+            autospec=True,
         ):
             result = get_face_detector_service_dep()
 
@@ -563,6 +564,7 @@ class TestAIServiceDependencies:
         with patch(
             "backend.core.container.get_container",
             return_value=mock_container,
+            autospec=True,
         ):
             result = get_plate_detector_service_dep()
 
@@ -585,6 +587,7 @@ class TestAIServiceDependencies:
         with patch(
             "backend.core.container.get_container",
             return_value=mock_container,
+            autospec=True,
         ):
             result = get_ocr_service_dep()
 
@@ -607,6 +610,7 @@ class TestAIServiceDependencies:
         with patch(
             "backend.core.container.get_container",
             return_value=mock_container,
+            autospec=True,
         ):
             result = get_yolo_world_service_dep()
 

@@ -620,7 +620,7 @@ class TestCursorSecurityLogging:
     def test_oversized_cursor_logs_security_event(self):
         """Test that oversized cursors trigger security logging."""
         oversized_cursor = "A" * (MAX_CURSOR_LENGTH + 1)
-        with patch("backend.api.pagination.logger") as mock_logger:
+        with patch("backend.api.pagination.logger", autospec=True) as mock_logger:
             with pytest.raises(ValueError):
                 decode_cursor(oversized_cursor)
             # Verify warning was logged with security event details
@@ -633,7 +633,7 @@ class TestCursorSecurityLogging:
         """Test that invalid base64 characters trigger security logging."""
         # Note: "not-valid-base64!!!" contains invalid base64url characters (!)
         # and is rejected at the format validation stage (NEM-2585)
-        with patch("backend.api.pagination.logger") as mock_logger:
+        with patch("backend.api.pagination.logger", autospec=True) as mock_logger:
             with pytest.raises(ValueError):
                 decode_cursor("not-valid-base64!!!")
             mock_logger.warning.assert_called_once()
@@ -645,7 +645,7 @@ class TestCursorSecurityLogging:
     def test_invalid_json_logs_security_event(self):
         """Test that invalid JSON triggers security logging."""
         invalid_cursor = base64.urlsafe_b64encode(b"not json").decode()
-        with patch("backend.api.pagination.logger") as mock_logger:
+        with patch("backend.api.pagination.logger", autospec=True) as mock_logger:
             with pytest.raises(ValueError):
                 decode_cursor(invalid_cursor)
             mock_logger.warning.assert_called_once()
@@ -657,7 +657,7 @@ class TestCursorSecurityLogging:
         """Test that out-of-bounds datetime triggers security logging."""
         cursor_json = json.dumps({"id": 123, "created_at": "2019-01-01T00:00:00Z"})
         invalid_cursor = base64.urlsafe_b64encode(cursor_json.encode()).decode()
-        with patch("backend.api.pagination.logger") as mock_logger:
+        with patch("backend.api.pagination.logger", autospec=True) as mock_logger:
             with pytest.raises(ValueError):
                 decode_cursor(invalid_cursor)
             mock_logger.warning.assert_called_once()
@@ -672,7 +672,7 @@ class TestCursorSecurityLogging:
         cursor_json = json.dumps(long_payload)
         long_cursor = base64.urlsafe_b64encode(cursor_json.encode()).decode()
 
-        with patch("backend.api.pagination.logger") as mock_logger:
+        with patch("backend.api.pagination.logger", autospec=True) as mock_logger:
             with pytest.raises(ValueError):
                 decode_cursor(long_cursor)
             call_args = mock_logger.warning.call_args

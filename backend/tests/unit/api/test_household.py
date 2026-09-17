@@ -749,8 +749,9 @@ class TestAddEmbeddingFromEvent:
             patch(
                 "backend.api.routes.household.get_reid_service",
                 return_value=mock_reid_service,
+                autospec=True,
             ),
-            patch("backend.api.routes.household.Image") as mock_pil,
+            patch("backend.api.routes.household.Image", autospec=True) as mock_pil,
         ):
             mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
             mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
@@ -864,8 +865,9 @@ class TestAddEmbeddingFromEvent:
             patch(
                 "backend.api.routes.household.get_reid_service",
                 return_value=mock_reid_service,
+                autospec=True,
             ),
-            patch("backend.api.routes.household.Image") as mock_pil,
+            patch("backend.api.routes.household.Image", autospec=True) as mock_pil,
         ):
             mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
             mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
