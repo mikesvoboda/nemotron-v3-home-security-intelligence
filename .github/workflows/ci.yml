@@ -104,7 +104,7 @@ jobs:
       - name: Suppression census (baseline stable)
         run: >-
           uv run python scripts/suppression-census.py --expect
-          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4}'
+          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":322}'
       # WP1.3: the ratchet. The --expect above says "the census must not
       # drift"; this says "counts may only FALL" — an unregistered
       # @pytest.mark.skip (or any new suppression of any category) fails CI
@@ -136,6 +136,13 @@ jobs:
           scripts/test_fast_select.py
           scripts/test_fast_runners_manifest.py
           scripts/test_precommit_config.py
+          # WP4.1: the autospec sweep's own tests joined the same doctrine —
+          # a gate/tool with no CI is a tool that rots (and whose refusal
+          # rules silently stop being true).
+          scripts/test_autospec_sweep.py
+          # WP4.2: the unspecced-mock gate measures through this list's own
+          # machinery (its done-when test drives ratchet-check end to end).
+          scripts/test_check_mock_spec.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
@@ -159,10 +166,13 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        # WP3.2: cache-suffix "backend-deps" put this pre-warm in a namespace
+        # none of the 13 downstream backend jobs read (they all use setup-uv's
+        # default cache key). Dropped rather than mirrored onto 13 jobs —
+        # one shared namespace, one line, no drift risk.
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: backend-deps
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -459,13 +469,20 @@ jobs:
   # Integration tests split into 4 domain-based parallel jobs for faster execution
   # Each job runs tests for a specific domain with within-shard parallelization
   integration-tests-api:
-    name: Integration Tests (API) - Python ${{ matrix.python-version }}
+    name: Integration Tests (API shard ${{ matrix.shard }}/2) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.14']
+        # WP3.7: 2-way split of the DAG's long pole. Measured (run
+        # 35178314774, post-WP3.5 so queueing doesn't confound): single job
+        # compute 1437s, completing +24.8 min after run start while every
+        # other path finished <= +10.1 min. junit sum 2721s over 883 cases;
+        # pytest-split count-balances (unit tier's evidence: its 4 shards
+        # land within +/-6% under the same no-.test_durations fallback).
+        shard: [1, 2]
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -506,7 +523,9 @@ jobs:
       LOG_DB_ENABLED: 'false'
       ENVIRONMENT: development # Avoid production password validation in CI
       CI: 'true'
-      FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api.jsonl
+      # WP3.7: shard in the filename (the unit tier's convention) so the two
+      # shards' tracking files can't clobber each other under merge-multiple.
+      FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api-shard-${{ matrix.shard }}.jsonl
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -543,11 +562,12 @@ jobs:
             -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
             -n auto \
             --timeout=30 \
+            --splits 2 --group ${{ matrix.shard }} \
             --cov=backend \
             --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-api.xml \
+            --cov-report=xml:coverage-integration-api-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
-            --junit-xml=test-results-integration-api.xml \
+            --junit-xml=test-results-integration-api-${{ matrix.shard }}.xml \
             --durations=20 \
             -v 2>&1 | tee test-output.log; then
             END_TIME=$(date +%s)
@@ -562,18 +582,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-api-py${{ matrix.python-version }}
+          name: test-results-integration-api-${{ matrix.shard }}-py${{ matrix.python-version }}
           path: |
-            test-results-integration-api.xml
-            flaky-test-tracking-integration-api.jsonl
+            test-results-integration-api-${{ matrix.shard }}.xml
+            flaky-test-tracking-integration-api-shard-${{ matrix.shard }}.jsonl
           retention-days: 7
 
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-api-py${{ matrix.python-version }}
-          path: coverage-integration-api.xml
+          name: coverage-integration-api-${{ matrix.shard }}-py${{ matrix.python-version }}
+          path: coverage-integration-api-${{ matrix.shard }}.xml
           retention-days: 7
 
   integration-tests-websocket:
@@ -1307,9 +1327,12 @@ jobs:
         run: cd frontend && npm run typecheck
 
   frontend-tests:
-    name: Frontend Tests (Vitest ${{ matrix.shard }}/16)
+    name: Frontend Tests (Vitest ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
-    timeout-minutes: 10 # Increased from 5 to accommodate cleanup overhead
+    # WP3.5: 10 -> 20 min. Halving shards doubles per-shard compute (~204s ->
+    # ~410s expected, max-shard extrapolation ~480s + install/teardown); the
+    # cap stays a runaway guard, not a hair trigger.
+    timeout-minutes: 20
     # Wait for lint to pass first - fail fast on code quality issues
     # Skip if only backend/docs changed (checked via detect-changes)
     needs: [detect-changes, frontend-lint]
@@ -1321,9 +1344,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Reduced from 24 to 16 shards - better balance of parallelism vs overhead
-        # Each shard runs ~40-50 tests with acceptable memory usage
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        # WP3.5: 16 -> 8 shards. Measured on run 35175054058 (Jobs API, queue
+        # = started_at - queued/created_at, compute = completed - started):
+        # shard queue median 573s (range 371-686) vs compute median ~204s --
+        # the matrix waits 3x its own runtime for scheduler slots against the
+        # WP3.1-measured ~20-job ceiling. 16+6+4 = 26 concurrent test jobs land
+        # at once; halving Vitest puts the whole fan-out (57 -> 49) under the
+        # cap so queue waits collapse. Per shard, compute roughly doubles
+        # (~204s -> ~410s); the spec's own words: fewer, better-packed jobs
+        # beat more shards until fan-out drops below the cap.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
       NODE_VERSION: '24'
       # 6GB heap with GC exposure - needed for Vitest itself
@@ -1344,17 +1374,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Restore npm cache with fallback
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
-        with:
-          path: |
-            ~/.npm
-            node_modules
-          key: npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-
-            npm-${{ runner.os }}-
-
+      # WP3.3: a previous "Restore npm cache with fallback" actions/cache step
+      # here cached root node_modules alongside ~/.npm. Root node_modules is
+      # never read by this job (npm ci runs in frontend/ and, being npm not
+      # bun, deletes and reinstalls whatever is at its own target), and this
+      # repo commits no root package-lock.json -- so the step could never
+      # restore or save anything real. setup-node's cache: 'npm' (above) is
+      # the one that actually works and stays.
       - name: Install dependencies with retry
         # npm ci can fail due to network issues, add retry logic for resilience
         run: |
@@ -1392,13 +1418,13 @@ jobs:
         run: |
           set -uo pipefail
           cd frontend
-          npx vitest run --shard=${{ matrix.shard }}/16 \
+          npx vitest run --shard=${{ matrix.shard }}/8 \
             --testNamePattern="$RERUN_PATTERN" --passWithNoTests --retry 2 \
             --reporter=default --teardownTimeout=1000 2>&1 \
             | tee /tmp/vitest-rerun-${{ matrix.shard }}.log || true
         shell: bash
 
-      - name: Run tests (shard ${{ matrix.shard }}/16)
+      - name: Run tests (shard ${{ matrix.shard }}/8)
         # Real exit code (fast-confidence-loop spec SS5.1). The previous step
         # grepped for the first 'passed' summary line, SIGKILLed vitest and
         # exit 0'd 5s later - an OOM workaround that also hid every failing
@@ -1425,7 +1451,7 @@ jobs:
           cd frontend
           # tee's exit status is masked by the pipe - pipefail makes vitest's
           # status the step's verdict instead (the acceptance property).
-          npx vitest run --shard=${{ matrix.shard }}/16 \
+          npx vitest run --shard=${{ matrix.shard }}/8 \
             --reporter=default --teardownTimeout=1000 2>&1 \
             | tee /tmp/vitest-shard-${{ matrix.shard }}.log
         shell: bash
@@ -1434,7 +1460,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: frontend-coverage-shard-${{ matrix.shard }}-of-16-node-${{ env.NODE_VERSION }}
+          name: frontend-coverage-shard-${{ matrix.shard }}-of-8-node-${{ env.NODE_VERSION }}
           path: frontend/coverage/
           retention-days: 7
 
@@ -1507,7 +1533,10 @@ jobs:
         run: ./scripts/check-api-coverage.sh
 
   # Primary E2E tests (Chromium) - required for merge
-  # Uses sharding to split tests across 6 parallel runners for 6x speed
+  # WP3.5: 6 -> 3 shards. Measured queue median ~386s vs compute median ~66s
+  # (run 35175054058): these jobs queue 6x their own runtime, and playwright's
+  # CI workers=4 already parallelizes within each shard. 3x compute (~66 ->
+  # ~140s) is far under the queueing they pay today.
   frontend-e2e:
     name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
@@ -1523,7 +1552,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        shard: [1/3, 2/3, 3/3]
     env:
       NODE_VERSION: '24'
     steps:

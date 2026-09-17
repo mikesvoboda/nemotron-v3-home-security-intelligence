@@ -640,7 +640,7 @@ class TestRetryHandler:
             )
         )
 
-        with patch("backend.services.retry_handler.logger") as mock_logger:
+        with patch("backend.services.retry_handler.logger", autospec=True) as mock_logger:
             success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
 
             assert success is True
@@ -1026,7 +1026,9 @@ class TestDLQCircuitBreaker:
         mock_settings.dlq_circuit_breaker_half_open_max_calls = 5
         mock_settings.dlq_circuit_breaker_success_threshold = 3
 
-        with patch("backend.services.retry_handler.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.retry_handler.get_settings", return_value=mock_settings, autospec=True
+        ):
             handler = RetryHandler(redis_client=mock_redis)
 
         status = handler.get_dlq_circuit_breaker_status()
@@ -1106,7 +1108,7 @@ class TestDLQJobLossLogging:
 
         # Now capture logs when processing job with open circuit
         # When circuit is open, the allow_call() check should log CRITICAL DATA LOSS
-        with patch("backend.services.retry_handler.logger") as mock_logger:
+        with patch("backend.services.retry_handler.logger", autospec=True) as mock_logger:
             result = await handler_with_low_threshold.with_retry(
                 operation=always_fail,
                 job_data={"camera_id": "cam3", "file_path": "/path/to/image.jpg"},
@@ -1153,7 +1155,7 @@ class TestDLQJobLossLogging:
             queue_name="detection_queue",
         )
 
-        with patch("backend.services.retry_handler.logger") as mock_logger:
+        with patch("backend.services.retry_handler.logger", autospec=True) as mock_logger:
             await handler_with_low_threshold.with_retry(
                 operation=always_fail,
                 job_data={"camera_id": "cam_lost", "important_data": "should_be_logged"},
@@ -1190,7 +1192,7 @@ class TestMoveToDlqEdgeCases:
         """Test _move_to_dlq logs warning when Redis is not initialized."""
         handler = RetryHandler(redis_client=None)
 
-        with patch("backend.services.retry_handler.logger") as mock_logger:
+        with patch("backend.services.retry_handler.logger", autospec=True) as mock_logger:
             result = await handler._move_to_dlq(
                 job_data={"camera_id": "cam1"},
                 error="Test error",

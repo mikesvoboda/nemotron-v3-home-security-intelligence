@@ -128,8 +128,9 @@ async def test_cached_swr_decorator_basic():
         patch(
             "backend.services.cache_service.get_cache_service",
             return_value=mock_cache,
+            autospec=True,
         ),
-        patch("backend.services.cache_service.get_settings") as mock_settings,
+        patch("backend.services.cache_service.get_settings", autospec=True) as mock_settings,
     ):
         mock_settings.return_value.cache_swr_enabled = True
 
@@ -153,8 +154,9 @@ async def test_cached_swr_decorator_with_dynamic_key():
         patch(
             "backend.services.cache_service.get_cache_service",
             return_value=mock_cache,
+            autospec=True,
         ),
-        patch("backend.services.cache_service.get_settings") as mock_settings,
+        patch("backend.services.cache_service.get_settings", autospec=True) as mock_settings,
     ):
         mock_settings.return_value.cache_swr_enabled = True
         mock_settings.return_value.cache_swr_stale_ttl = 60
@@ -181,8 +183,9 @@ async def test_cached_swr_decorator_disabled_falls_back_to_regular():
         patch(
             "backend.services.cache_service.get_cache_service",
             return_value=mock_cache,
+            autospec=True,
         ),
-        patch("backend.services.cache_service.get_settings") as mock_settings,
+        patch("backend.services.cache_service.get_settings", autospec=True) as mock_settings,
     ):
         mock_settings.return_value.cache_swr_enabled = False
 
@@ -227,8 +230,9 @@ async def test_cached_swr_decorator_handles_redis_error():
         patch(
             "backend.services.cache_service.get_cache_service",
             return_value=mock_cache,
+            autospec=True,
         ),
-        patch("backend.services.cache_service.get_settings") as mock_settings,
+        patch("backend.services.cache_service.get_settings", autospec=True) as mock_settings,
     ):
         mock_settings.return_value.cache_swr_enabled = True
         mock_settings.return_value.cache_swr_stale_ttl = 60
@@ -253,7 +257,7 @@ async def test_swr_uses_default_stale_ttl_from_settings(cache_service, mock_redi
     async def factory():
         return {"data": "value"}
 
-    with patch("backend.services.cache_service.get_settings") as mock_settings:
+    with patch("backend.services.cache_service.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.cache_swr_stale_ttl = 120
 
         await cache_service.get_or_set_swr(

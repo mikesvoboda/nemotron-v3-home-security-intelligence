@@ -84,7 +84,7 @@ class TestAuthMiddlewareMissingKeyLogging:
 
         call_next = AsyncMock()
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             # Verify 401 response
@@ -114,7 +114,7 @@ class TestAuthMiddlewareMissingKeyLogging:
 
         call_next = AsyncMock()
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             await middleware.dispatch(mock_request, call_next)
 
             extra = mock_logger.warning.call_args[1]["extra"]
@@ -140,7 +140,7 @@ class TestAuthMiddlewareMissingKeyLogging:
 
         call_next = AsyncMock()
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             assert response.status_code == 401
@@ -163,7 +163,7 @@ class TestAuthMiddlewareInvalidKeyLogging:
 
         call_next = AsyncMock()
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             # Verify 401 response
@@ -195,7 +195,7 @@ class TestAuthMiddlewareInvalidKeyLogging:
 
         call_next = AsyncMock()
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             assert response.status_code == 401
@@ -209,7 +209,7 @@ class TestWebSocketAuthLogging:
     @pytest.mark.asyncio
     async def test_websocket_missing_key_logs_warning(self, mock_websocket, enable_api_key_auth):
         """When WebSocket has no API key, a warning should be logged."""
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             result = await validate_websocket_api_key(mock_websocket)
 
             assert result is False
@@ -233,7 +233,7 @@ class TestWebSocketAuthLogging:
         """When WebSocket has invalid API key, a warning should be logged."""
         mock_websocket.query_params = {"api_key": "invalid-ws-key"}  # pragma: allowlist secret
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             result = await validate_websocket_api_key(mock_websocket)
 
             assert result is False
@@ -257,7 +257,7 @@ class TestWebSocketAuthLogging:
             "api_key": "test-valid-key-12345"  # pragma: allowlist secret
         }
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             result = await validate_websocket_api_key(mock_websocket)
 
             assert result is True
@@ -273,7 +273,7 @@ class TestWebSocketAuthLogging:
         ws.headers = {}
         ws.client = None  # No client info
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             result = await validate_websocket_api_key(ws)
 
             assert result is False
@@ -298,7 +298,7 @@ class TestAuthMiddlewareNoLoggingOnSuccess:
         mock_response.status_code = 200
         call_next = AsyncMock(return_value=mock_response)
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             assert response.status_code == 200
@@ -332,8 +332,8 @@ class TestAuthMiddlewareDisabled:
 
         # Mock session validation to return True
         with (
-            patch.object(AuthMiddleware, "_validate_session", return_value=True),
-            patch("backend.api.middleware.auth.logger") as mock_logger,
+            patch.object(AuthMiddleware, "_validate_session", return_value=True, autospec=True),
+            patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger,
         ):
             response = await middleware.dispatch(mock_request, call_next)
 
@@ -364,7 +364,7 @@ class TestExemptPathsNoLogging:
         mock_response.status_code = 200
         call_next = AsyncMock(return_value=mock_response)
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             assert response.status_code == 200
@@ -388,7 +388,7 @@ class TestExemptPathsNoLogging:
         mock_response.status_code = 200
         call_next = AsyncMock(return_value=mock_response)
 
-        with patch("backend.api.middleware.auth.logger") as mock_logger:
+        with patch("backend.api.middleware.auth.logger", autospec=True) as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             assert response.status_code == 200

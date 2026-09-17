@@ -193,7 +193,7 @@ class TestZoneHouseholdServiceTrustLevel:
         mock_config.allowed_vehicle_ids = []
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=1,
@@ -215,7 +215,7 @@ class TestZoneHouseholdServiceTrustLevel:
         mock_config.allowed_vehicle_ids = []
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=2,
@@ -237,7 +237,7 @@ class TestZoneHouseholdServiceTrustLevel:
         mock_config.allowed_vehicle_ids = [10, 20, 30]
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=20,
@@ -265,7 +265,7 @@ class TestZoneHouseholdServiceTrustLevel:
             }
         ]
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=5,
@@ -281,7 +281,7 @@ class TestZoneHouseholdServiceTrustLevel:
         service: ZoneHouseholdService,
     ) -> None:
         """Test that entity gets no trust when zone has no config."""
-        with patch.object(service, "get_config", return_value=None):
+        with patch.object(service, "get_config", return_value=None, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=1,
@@ -303,7 +303,7 @@ class TestZoneHouseholdServiceTrustLevel:
         mock_config.allowed_vehicle_ids = [10]
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=99,
@@ -335,7 +335,7 @@ class TestZoneHouseholdServiceTrustLevel:
         # Test at minute 30 (schedule not active)
         test_time = datetime(2026, 1, 21, 10, 30, tzinfo=UTC)
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, _reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=5,
@@ -357,7 +357,7 @@ class TestZoneHouseholdServiceTrustLevel:
         mock_config.allowed_vehicle_ids = []
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, _reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=1,
@@ -433,7 +433,9 @@ class TestZoneHouseholdServiceCRUD:
         mock_session: AsyncMock,
     ) -> None:
         """Test creating a new config."""
-        with patch("backend.models.zone_household_config.ZoneHouseholdConfig") as MockConfig:
+        with patch(
+            "backend.models.zone_household_config.ZoneHouseholdConfig", autospec=True
+        ) as MockConfig:
             mock_config = MagicMock()
             mock_config.id = 1
             mock_config.zone_id = "zone-1"
@@ -702,7 +704,7 @@ class TestZoneHouseholdServiceEdgeCases:
         mock_config.allowed_vehicle_ids = []
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, _ = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=1,
@@ -723,7 +725,7 @@ class TestZoneHouseholdServiceEdgeCases:
         mock_config.allowed_vehicle_ids = []
         mock_config.access_schedules = []
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, _ = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=1,
@@ -751,7 +753,7 @@ class TestZoneHouseholdServiceEdgeCases:
             }
         ]
 
-        with patch.object(service, "get_config", return_value=mock_config):
+        with patch.object(service, "get_config", return_value=mock_config, autospec=True):
             trust_level, reason = await service.get_trust_level(
                 zone_id="zone-1",
                 entity_id=1,

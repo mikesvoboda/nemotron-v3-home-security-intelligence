@@ -49,7 +49,7 @@ def mock_container():
 @pytest.fixture
 def docker_client(mock_docker_client):
     """Create a DockerClient with mocked docker-py client."""
-    with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+    with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
         mock_base.return_value = mock_docker_client
         client = DockerClient()
         client._client = mock_docker_client
@@ -66,7 +66,7 @@ class TestDockerClientInit:
 
     def test_init_with_default_host(self):
         """Test initialization with default Docker host."""
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = MagicMock()
             _client = DockerClient()
 
@@ -77,7 +77,7 @@ class TestDockerClientInit:
         """Test initialization with custom Docker host URL."""
         custom_host = "unix:///var/run/docker.sock"
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = MagicMock()
             _client = DockerClient(docker_host=custom_host)
 
@@ -87,7 +87,7 @@ class TestDockerClientInit:
         """Test initialization with TCP Docker host."""
         tcp_host = "tcp://192.168.1.100:2375"
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = MagicMock()
             _client = DockerClient(docker_host=tcp_host)
 
@@ -97,7 +97,7 @@ class TestDockerClientInit:
         """Test that docker_host is stored for reconnection."""
         custom_host = "unix:///custom/docker.sock"
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = MagicMock()
             client = DockerClient(docker_host=custom_host)
 
@@ -125,7 +125,7 @@ class TestDockerClientConnect:
         """Test connection failure to Docker daemon."""
         mock_docker_client.ping.side_effect = DockerException("Cannot connect")
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = mock_docker_client
             mock_base.from_env.return_value = mock_docker_client
             client = DockerClient()
@@ -155,7 +155,7 @@ class TestDockerClientConnect:
     @pytest.mark.asyncio
     async def test_close_handles_none_client(self):
         """Test close handles None client gracefully."""
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.from_env.return_value = MagicMock()
             client = DockerClient()
             client._client = None
@@ -540,7 +540,7 @@ class TestDockerClientContextManager:
     @pytest.mark.asyncio
     async def test_async_context_manager(self, mock_docker_client):
         """Test DockerClient as async context manager."""
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.from_env.return_value = mock_docker_client
             mock_docker_client.ping.return_value = True
 
@@ -578,7 +578,7 @@ class TestDockerClientAsync:
     @pytest.mark.asyncio
     async def test_not_connected_raises_error_for_operations(self):
         """Test that operations fail gracefully when not connected."""
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.from_env.return_value = None
             client = DockerClient()
             client._client = None
@@ -600,7 +600,7 @@ class TestDockerClientPodmanCompatibility:
         """Test that client can be configured for Podman socket."""
         podman_socket = "unix:///run/user/1000/podman/podman.sock"
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = MagicMock()
             _client = DockerClient(docker_host=podman_socket)
 
@@ -610,7 +610,7 @@ class TestDockerClientPodmanCompatibility:
         """Test that client can be configured for Podman TCP."""
         podman_tcp = "tcp://localhost:8888"
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.return_value = MagicMock()
             _client = DockerClient(docker_host=podman_tcp)
 
@@ -642,7 +642,7 @@ class TestDockerClientLogging:
 
         mock_docker_client.ping.side_effect = DockerException("Cannot connect")
 
-        with patch("backend.core.docker_client.BaseDockerClient") as mock_base:
+        with patch("backend.core.docker_client.BaseDockerClient", autospec=True) as mock_base:
             mock_base.from_env.return_value = mock_docker_client
             client = DockerClient()
             client._client = mock_docker_client

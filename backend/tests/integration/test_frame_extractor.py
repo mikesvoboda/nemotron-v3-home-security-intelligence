@@ -51,7 +51,7 @@ class TestFrameExtractorFileSystemIntegration:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime(2025, 1, 29, 12, 30, 45)
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = True
 
             file_path = await extractor.extract_frame("front_door", frame, timestamp)
@@ -77,7 +77,7 @@ class TestFrameExtractorFileSystemIntegration:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = True
 
             # Extract frames for multiple cameras
@@ -103,7 +103,7 @@ class TestFrameExtractorFileSystemIntegration:
         frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = True
 
             file_path = await extractor.extract_frame("camera1", frame, timestamp)
@@ -134,7 +134,7 @@ class TestFrameExtractorFileSystemIntegration:
 
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = True
 
             # Extract multiple frames with different timestamps
@@ -167,7 +167,7 @@ class TestFrameExtractorRedisIntegration:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime(2025, 1, 29, 12, 30, 45, 123456)
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = True
 
             await extractor.extract_frame("front_door", frame, timestamp)
@@ -203,7 +203,7 @@ class TestFrameExtractorRedisIntegration:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = True
 
             await extractor.extract_frame("camera1", frame, timestamp)
@@ -227,7 +227,7 @@ class TestFrameExtractorRedisIntegration:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion") as mock_detect:
+        with patch.object(extractor, "detect_motion", autospec=True) as mock_detect:
             mock_detect.return_value = False  # No motion
 
             result = await extractor.extract_frame("camera1", frame, timestamp)
@@ -354,7 +354,7 @@ class TestFrameExtractorConcurrentExtraction:
                 frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
                 timestamp = datetime(2025, 1, 29, 12, 30, 45 + i)
 
-                with patch.object(extractor, "detect_motion", return_value=True):
+                with patch.object(extractor, "detect_motion", return_value=True, autospec=True):
                     result = await extractor.extract_frame(camera_id, frame, timestamp)
                     results.append(result)
 
@@ -395,7 +395,7 @@ class TestFrameExtractorConcurrentExtraction:
             frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
             timestamp = datetime(2025, 1, 29, 12, 30, 45, index * 1000)
 
-            with patch.object(extractor, "detect_motion", return_value=True):
+            with patch.object(extractor, "detect_motion", return_value=True, autospec=True):
                 return await extractor.extract_frame("camera1", frame, timestamp)
 
         # Extract 10 frames concurrently for the same camera
@@ -425,10 +425,10 @@ class TestFrameExtractorErrorHandling:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch("cv2.imwrite") as mock_imwrite:
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
             mock_imwrite.return_value = False  # Simulate write failure
 
-            with patch.object(extractor, "detect_motion", return_value=True):
+            with patch.object(extractor, "detect_motion", return_value=True, autospec=True):
                 with pytest.raises(RuntimeError, match="Failed to save frame"):
                     await extractor.extract_frame("camera1", frame, timestamp)
 
@@ -445,7 +445,7 @@ class TestFrameExtractorErrorHandling:
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = datetime.now()
 
-        with patch.object(extractor, "detect_motion", return_value=True):
+        with patch.object(extractor, "detect_motion", return_value=True, autospec=True):
             # Should raise permission error or similar
             with pytest.raises((PermissionError, OSError)):
                 await extractor.extract_frame("camera1", frame, timestamp)

@@ -96,18 +96,27 @@ def analyzer_with_guided_json(mock_redis_client, mock_settings_with_guided_json)
         patch(
             "backend.services.nemotron_analyzer.get_settings",
             return_value=mock_settings_with_guided_json,
+            autospec=True,
         ),
         patch(
-            "backend.services.severity.get_settings", return_value=mock_settings_with_guided_json
+            "backend.services.severity.get_settings",
+            return_value=mock_settings_with_guided_json,
+            autospec=True,
         ),
         patch(
             "backend.services.token_counter.get_settings",
             return_value=mock_settings_with_guided_json,
+            autospec=True,
         ),
-        patch("backend.core.config.get_settings", return_value=mock_settings_with_guided_json),
+        patch(
+            "backend.core.config.get_settings",
+            return_value=mock_settings_with_guided_json,
+            autospec=True,
+        ),
         patch(
             "backend.services.inference_semaphore.get_settings",
             return_value=mock_settings_with_guided_json,
+            autospec=True,
         ),
     ):
         from backend.services.analyzer_facade import reset_analyzer_facade
@@ -133,18 +142,27 @@ def analyzer_without_guided_json(mock_redis_client, mock_settings_without_guided
         patch(
             "backend.services.nemotron_analyzer.get_settings",
             return_value=mock_settings_without_guided_json,
+            autospec=True,
         ),
         patch(
-            "backend.services.severity.get_settings", return_value=mock_settings_without_guided_json
+            "backend.services.severity.get_settings",
+            return_value=mock_settings_without_guided_json,
+            autospec=True,
         ),
         patch(
             "backend.services.token_counter.get_settings",
             return_value=mock_settings_without_guided_json,
+            autospec=True,
         ),
-        patch("backend.core.config.get_settings", return_value=mock_settings_without_guided_json),
+        patch(
+            "backend.core.config.get_settings",
+            return_value=mock_settings_without_guided_json,
+            autospec=True,
+        ),
         patch(
             "backend.services.inference_semaphore.get_settings",
             return_value=mock_settings_without_guided_json,
+            autospec=True,
         ),
     ):
         from backend.services.analyzer_facade import reset_analyzer_facade
@@ -259,7 +277,7 @@ class TestGuidedJsonSupportDetection:
     @pytest.mark.asyncio
     async def test_check_support_returns_false_on_connection_error(self, analyzer_with_guided_json):
         """Test that support check returns False on connection error after retries (NEM-3886)."""
-        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+        with patch("asyncio.sleep", autospec=True) as mock_sleep:  # Mock sleep to speed up test
             # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
             analyzer_with_guided_json._health_http_client = AsyncMock()
             analyzer_with_guided_json._health_http_client.post.side_effect = httpx.ConnectError(
@@ -282,7 +300,7 @@ class TestGuidedJsonSupportDetection:
     @pytest.mark.asyncio
     async def test_check_support_returns_false_on_timeout(self, analyzer_with_guided_json):
         """Test that support check returns False on timeout after retries (NEM-3886)."""
-        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+        with patch("asyncio.sleep", autospec=True) as mock_sleep:  # Mock sleep to speed up test
             # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
             analyzer_with_guided_json._health_http_client = AsyncMock()
             analyzer_with_guided_json._health_http_client.post.side_effect = httpx.TimeoutException(
@@ -307,7 +325,7 @@ class TestGuidedJsonSupportDetection:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
 
-        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+        with patch("asyncio.sleep", autospec=True) as mock_sleep:  # Mock sleep to speed up test
             # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
             analyzer_with_guided_json._health_http_client = AsyncMock()
             # Fail first, succeed second
@@ -335,7 +353,7 @@ class TestGuidedJsonSupportDetection:
         mock_success_response = MagicMock(spec=httpx.Response)
         mock_success_response.status_code = 200
 
-        with patch("asyncio.sleep") as mock_sleep:  # Mock sleep to speed up test
+        with patch("asyncio.sleep", autospec=True) as mock_sleep:  # Mock sleep to speed up test
             # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
             analyzer_with_guided_json._health_http_client = AsyncMock()
             # Fail with 503, then succeed
@@ -425,23 +443,23 @@ class TestGuidedJsonPayloadConstruction:
             captured_payload = json
             return llm_response
 
-        with patch(
-            "backend.services.nemotron_analyzer.get_settings",
-            return_value=mock_settings_with_guided_json,
-        ):
-            # Patch the persistent HTTP clients directly (NEM-5538 httpx pooling)
-            analyzer_with_guided_json._health_http_client = AsyncMock()
-            analyzer_with_guided_json._health_http_client.post.side_effect = capture_post
-            analyzer_with_guided_json._http_client = AsyncMock()
-            analyzer_with_guided_json._http_client.post.side_effect = capture_post
+        # get_settings is already patched (same settings object) by the
+        # analyzer_with_guided_json fixture; re-patching the same target
+        # under autospec is refused — mock cannot spec an attribute it has
+        # already mocked out (InvalidSpecError).
+        # Patch the persistent HTTP clients directly (NEM-5538 httpx pooling)
+        analyzer_with_guided_json._health_http_client = AsyncMock()
+        analyzer_with_guided_json._health_http_client.post.side_effect = capture_post
+        analyzer_with_guided_json._http_client = AsyncMock()
+        analyzer_with_guided_json._http_client.post.side_effect = capture_post
 
-            # Call _call_llm which should include guided_json
-            result = await analyzer_with_guided_json._call_llm(
-                camera_name="test_camera",
-                start_time="2025-01-26T10:00:00",
-                end_time="2025-01-26T10:01:00",
-                detections_list="1x person detected",
-            )
+        # Call _call_llm which should include guided_json
+        result = await analyzer_with_guided_json._call_llm(
+            camera_name="test_camera",
+            start_time="2025-01-26T10:00:00",
+            end_time="2025-01-26T10:01:00",
+            detections_list="1x person detected",
+        )
 
         # Verify guided_json was included in the payload
         assert captured_payload is not None
@@ -476,20 +494,20 @@ class TestGuidedJsonPayloadConstruction:
             captured_payload = json
             return llm_response
 
-        with patch(
-            "backend.services.nemotron_analyzer.get_settings",
-            return_value=mock_settings_without_guided_json,
-        ):
-            # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
-            analyzer_without_guided_json._http_client = AsyncMock()
-            analyzer_without_guided_json._http_client.post.side_effect = capture_post
+        # get_settings is already patched (same settings object) by the
+        # analyzer_without_guided_json fixture; re-patching the same target
+        # under autospec is refused — mock cannot spec an attribute it has
+        # already mocked out (InvalidSpecError).
+        # Patch the persistent HTTP client directly (NEM-5538 httpx pooling)
+        analyzer_without_guided_json._http_client = AsyncMock()
+        analyzer_without_guided_json._http_client.post.side_effect = capture_post
 
-            result = await analyzer_without_guided_json._call_llm(
-                camera_name="test_camera",
-                start_time="2025-01-26T10:00:00",
-                end_time="2025-01-26T10:01:00",
-                detections_list="1x person detected",
-            )
+        result = await analyzer_without_guided_json._call_llm(
+            camera_name="test_camera",
+            start_time="2025-01-26T10:00:00",
+            end_time="2025-01-26T10:01:00",
+            detections_list="1x person detected",
+        )
 
         # Verify guided_json was NOT included in the payload
         assert captured_payload is not None
@@ -529,22 +547,22 @@ class TestGuidedJsonPayloadConstruction:
             captured_payload = json
             return llm_response
 
-        with patch(
-            "backend.services.nemotron_analyzer.get_settings",
-            return_value=mock_settings_with_guided_json,
-        ):
-            # Patch the persistent HTTP clients directly (NEM-5538 httpx pooling)
-            analyzer_with_guided_json._health_http_client = AsyncMock()
-            analyzer_with_guided_json._health_http_client.post.side_effect = capture_post
-            analyzer_with_guided_json._http_client = AsyncMock()
-            analyzer_with_guided_json._http_client.post.side_effect = capture_post
+        # get_settings is already patched (same settings object) by the
+        # analyzer_with_guided_json fixture; re-patching the same target
+        # under autospec is refused — mock cannot spec an attribute it has
+        # already mocked out (InvalidSpecError).
+        # Patch the persistent HTTP clients directly (NEM-5538 httpx pooling)
+        analyzer_with_guided_json._health_http_client = AsyncMock()
+        analyzer_with_guided_json._health_http_client.post.side_effect = capture_post
+        analyzer_with_guided_json._http_client = AsyncMock()
+        analyzer_with_guided_json._http_client.post.side_effect = capture_post
 
-            result = await analyzer_with_guided_json._call_llm(
-                camera_name="test_camera",
-                start_time="2025-01-26T10:00:00",
-                end_time="2025-01-26T10:01:00",
-                detections_list="1x person detected",
-            )
+        result = await analyzer_with_guided_json._call_llm(
+            camera_name="test_camera",
+            start_time="2025-01-26T10:00:00",
+            end_time="2025-01-26T10:01:00",
+            detections_list="1x person detected",
+        )
 
         # Verify guided_json was NOT included because endpoint doesn't support it
         assert captured_payload is not None

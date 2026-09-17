@@ -20,21 +20,21 @@ class TestIsLinux:
         """Should return True when platform is Linux."""
         from setup_lib.linux_optimizer import is_linux
 
-        with patch("platform.system", return_value="Linux"):
+        with patch("platform.system", return_value="Linux", autospec=True):
             assert is_linux() is True
 
     def test_returns_false_on_windows(self) -> None:
         """Should return False when platform is Windows."""
         from setup_lib.linux_optimizer import is_linux
 
-        with patch("platform.system", return_value="Windows"):
+        with patch("platform.system", return_value="Windows", autospec=True):
             assert is_linux() is False
 
     def test_returns_false_on_macos(self) -> None:
         """Should return False when platform is Darwin (macOS)."""
         from setup_lib.linux_optimizer import is_linux
 
-        with patch("platform.system", return_value="Darwin"):
+        with patch("platform.system", return_value="Darwin", autospec=True):
             assert is_linux() is False
 
 
@@ -45,14 +45,14 @@ class TestIsRoot:
         """Should return True when running as root (euid=0)."""
         from setup_lib.linux_optimizer import is_root
 
-        with patch("os.geteuid", return_value=0):
+        with patch("os.geteuid", return_value=0, autospec=True):
             assert is_root() is True
 
     def test_returns_false_when_not_root(self) -> None:
         """Should return False when not running as root."""
         from setup_lib.linux_optimizer import is_root
 
-        with patch("os.geteuid", return_value=1000):
+        with patch("os.geteuid", return_value=1000, autospec=True):
             assert is_root() is False
 
 
@@ -79,7 +79,7 @@ class TestWriteConfigFile:
                 pass  # Don't actually chmod in tests
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo, autospec=True):
             success, modified = write_config_file(config_path, content)
 
             assert success is True
@@ -120,7 +120,7 @@ class TestWriteConfigFile:
                 pass  # Don't actually chmod in tests
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo, autospec=True):
             success, modified = write_config_file(config_path, new_content)
 
             assert success is True
@@ -150,7 +150,7 @@ class TestWriteConfigFile:
                 pass  # Don't actually chmod in tests
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo, autospec=True):
             success, modified = write_config_file(config_path, "new content", backup_dir)
 
             assert success is True
@@ -179,7 +179,7 @@ class TestWriteConfigFile:
                 pass  # Don't actually chmod in tests
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo):
+        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo, autospec=True):
             success, modified = write_config_file(config_path, content)
 
             assert success is True
@@ -197,7 +197,9 @@ class TestWriteConfigFile:
                 )
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
-        with patch("setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo_fail):
+        with patch(
+            "setup_lib.linux_optimizer._run_sudo", side_effect=mock_sudo_fail, autospec=True
+        ):
             success, modified = write_config_file(Path("/etc/test.conf"), "content")
 
             assert success is False
@@ -209,7 +211,7 @@ class TestWriteConfigFile:
 
         config_path = tmp_path / "test.conf"
 
-        with patch("tempfile.NamedTemporaryFile", side_effect=OSError("Disk full")):
+        with patch("tempfile.NamedTemporaryFile", side_effect=OSError("Disk full"), autospec=True):
             success, modified = write_config_file(config_path, "content")
 
             assert success is False
@@ -223,7 +225,7 @@ class TestRunCommand:
         """Should return success and output for successful command."""
         from setup_lib.linux_optimizer import run_command
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(stdout="test output", returncode=0)
 
             success, output = run_command(["echo", "test"])
@@ -235,7 +237,7 @@ class TestRunCommand:
         """Should return failure and error message for failed command."""
         from setup_lib.linux_optimizer import run_command
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(
                 returncode=1, cmd=["test"], stderr="error message"
             )
@@ -249,7 +251,7 @@ class TestRunCommand:
         """Should handle command not found error."""
         from setup_lib.linux_optimizer import run_command
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.side_effect = FileNotFoundError()
 
             success, output = run_command(["nonexistent"], verbose=False)
@@ -261,7 +263,7 @@ class TestRunCommand:
         """Should print command when verbose is True."""
         from setup_lib.linux_optimizer import run_command
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(stdout="", returncode=0)
 
             run_command(["echo", "test"], verbose=True)
@@ -273,7 +275,7 @@ class TestRunCommand:
         """Should not print command when verbose is False."""
         from setup_lib.linux_optimizer import run_command
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(stdout="", returncode=0)
 
             run_command(["echo", "test"], verbose=False)
@@ -295,6 +297,7 @@ class TestApplyNetworkOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(True, True),
+            autospec=True,
         ) as mock_write:
             result = apply_network_optimizations(tmp_path)
 
@@ -312,6 +315,7 @@ class TestApplyNetworkOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(True, False),
+            autospec=True,
         ):
             result = apply_network_optimizations(tmp_path)
 
@@ -325,6 +329,7 @@ class TestApplyNetworkOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(False, False),
+            autospec=True,
         ):
             result = apply_network_optimizations(tmp_path)
 
@@ -345,6 +350,7 @@ class TestApplyMemoryOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(True, True),
+            autospec=True,
         ) as mock_write:
             result = apply_memory_optimizations(tmp_path)
 
@@ -362,6 +368,7 @@ class TestApplyMemoryOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(True, False),
+            autospec=True,
         ):
             result = apply_memory_optimizations(tmp_path)
 
@@ -375,6 +382,7 @@ class TestApplyMemoryOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(False, False),
+            autospec=True,
         ):
             result = apply_memory_optimizations(tmp_path)
 
@@ -392,6 +400,7 @@ class TestApplySysctlChanges:
         with patch(
             "setup_lib.linux_optimizer.run_command",
             return_value=(True, "output"),
+            autospec=True,
         ) as mock_run:
             result = apply_sysctl_changes()
 
@@ -406,6 +415,7 @@ class TestApplySysctlChanges:
         with patch(
             "setup_lib.linux_optimizer.run_command",
             return_value=(False, "error"),
+            autospec=True,
         ):
             result = apply_sysctl_changes()
 
@@ -424,9 +434,10 @@ class TestApplyNvidiaOptimizations:
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
                 return_value=(True, True),
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
         ):
             mock_run.return_value = (True, "enabled")
 
@@ -443,9 +454,10 @@ class TestApplyNvidiaOptimizations:
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
                 return_value=(True, True),
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
         ):
             # First call: is-enabled returns "disabled", then enable succeeds
             mock_run.side_effect = [
@@ -470,9 +482,10 @@ class TestApplyNvidiaOptimizations:
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
                 return_value=(True, True),
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
         ):
             # is-enabled returns "enabled", so no enable call needed
             mock_run.side_effect = [
@@ -492,9 +505,10 @@ class TestApplyNvidiaOptimizations:
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
                 return_value=(True, True),
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("shutil.which", return_value=None),  # nvidia-smi not found
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("shutil.which", return_value=None, autospec=True),  # nvidia-smi not found
         ):
             mock_run.return_value = (True, "enabled")
 
@@ -509,6 +523,7 @@ class TestApplyNvidiaOptimizations:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(False, False),
+            autospec=True,
         ):
             result = apply_nvidia_optimizations(tmp_path)
 
@@ -522,10 +537,11 @@ class TestApplyNvidiaOptimizations:
         with (
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
-                return_value=(True, False),  # Success but not modified
+                return_value=(True, False),  # Success but not modified,
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
         ):
             mock_run.return_value = (True, "enabled")
 
@@ -548,11 +564,11 @@ class TestUpdateGrubParameters:
         backup_dir.mkdir()
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
-            patch("shutil.copy2"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo", autospec=True) as mock_sudo,
+            patch("shutil.copy2", autospec=True),
         ):
             mock_sudo.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -575,8 +591,8 @@ class TestUpdateGrubParameters:
         backup_dir.mkdir()
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
         ):
             result = _update_grub_parameters(backup_dir, {"iommu": "pt"})
 
@@ -588,7 +604,7 @@ class TestUpdateGrubParameters:
         """Should report failure when GRUB config doesn't exist."""
         from setup_lib.linux_optimizer import _update_grub_parameters
 
-        with patch.object(Path, "exists", return_value=False):
+        with patch.object(Path, "exists", return_value=False, autospec=True):
             result = _update_grub_parameters(tmp_path, {"iommu": "pt"})
 
             assert result.success is False
@@ -603,9 +619,9 @@ class TestUpdateGrubParameters:
         backup_dir.mkdir()
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
-            patch("shutil.copy2"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
+            patch("shutil.copy2", autospec=True),
         ):
             result = _update_grub_parameters(backup_dir, {"iommu": "pt"})
 
@@ -621,13 +637,17 @@ class TestUpdateGrubParameters:
         backup_dir.mkdir()
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "is_dir", return_value=True),  # /sys/firmware/efi exists
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
-            patch("setup_lib.linux_optimizer.shutil.which", return_value=None),  # no update-grub
-            patch("shutil.copy2"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
+            patch.object(
+                Path, "is_dir", return_value=True, autospec=True
+            ),  # /sys/firmware/efi exists
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo", autospec=True) as mock_sudo,
+            patch(
+                "setup_lib.linux_optimizer.shutil.which", return_value=None, autospec=True
+            ),  # no update-grub
+            patch("shutil.copy2", autospec=True),
         ):
             mock_sudo.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -651,13 +671,13 @@ class TestUpdateGrubParameters:
         backup_dir.mkdir()
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "write_text"),
-            patch.object(Path, "is_dir", return_value=False),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
-            patch("shutil.copy2"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
+            patch.object(Path, "write_text", autospec=True),
+            patch.object(Path, "is_dir", return_value=False, autospec=True),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo", autospec=True) as mock_sudo,
+            patch("shutil.copy2", autospec=True),
         ):
             mock_sudo.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -680,12 +700,12 @@ class TestApplyKernelParameters:
         grub_content = 'GRUB_CMDLINE_LINUX="quiet"\n'
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "is_dir", return_value=False),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
-            patch("shutil.copy2"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
+            patch.object(Path, "is_dir", return_value=False, autospec=True),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo", autospec=True) as mock_sudo,
+            patch("shutil.copy2", autospec=True),
         ):
             mock_sudo.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -715,12 +735,12 @@ class TestApplyDisableMitigations:
         grub_content = 'GRUB_CMDLINE_LINUX="quiet"\n'
 
         with (
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "read_text", return_value=grub_content),
-            patch.object(Path, "is_dir", return_value=False),
-            patch("setup_lib.linux_optimizer.run_command") as mock_run,
-            patch("setup_lib.linux_optimizer._run_sudo") as mock_sudo,
-            patch("shutil.copy2"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "read_text", return_value=grub_content, autospec=True),
+            patch.object(Path, "is_dir", return_value=False, autospec=True),
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run,
+            patch("setup_lib.linux_optimizer._run_sudo", autospec=True) as mock_sudo,
+            patch("shutil.copy2", autospec=True),
         ):
             mock_sudo.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
@@ -744,7 +764,7 @@ class TestDisableUnnecessaryServices:
         """Should disable unnecessary services."""
         from setup_lib.linux_optimizer import disable_unnecessary_services
 
-        with patch("setup_lib.linux_optimizer.run_command") as mock_run:
+        with patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run:
             # First call is is-enabled (returns "enabled"), then disable, then stop
             mock_run.side_effect = [
                 (True, "enabled"),  # is-enabled bluetooth
@@ -773,7 +793,7 @@ class TestDisableUnnecessaryServices:
         """Should skip services that are already disabled."""
         from setup_lib.linux_optimizer import disable_unnecessary_services
 
-        with patch("setup_lib.linux_optimizer.run_command") as mock_run:
+        with patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run:
             mock_run.return_value = (True, "disabled")
 
             result = disable_unnecessary_services()
@@ -785,7 +805,7 @@ class TestDisableUnnecessaryServices:
         """Should handle services that don't exist."""
         from setup_lib.linux_optimizer import disable_unnecessary_services
 
-        with patch("setup_lib.linux_optimizer.run_command") as mock_run:
+        with patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_run:
             mock_run.return_value = (False, "not-found")
 
             result = disable_unnecessary_services()
@@ -803,6 +823,7 @@ class TestApplyUserLimits:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(True, True),
+            autospec=True,
         ) as mock_write:
             result = apply_user_limits(tmp_path)
 
@@ -820,7 +841,8 @@ class TestApplyUserLimits:
 
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
-            return_value=(True, False),  # success, not modified
+            return_value=(True, False),  # success, not modified,
+            autospec=True,
         ):
             result = apply_user_limits(tmp_path)
 
@@ -834,6 +856,7 @@ class TestApplyUserLimits:
         with patch(
             "setup_lib.linux_optimizer.write_config_file",
             return_value=(False, False),
+            autospec=True,
         ):
             result = apply_user_limits(tmp_path)
 
@@ -851,9 +874,10 @@ class TestApplyAiEnvironment:
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
                 return_value=(True, True),
+                autospec=True,
             ) as mock_write,
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "chmod"),
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "chmod", autospec=True),
         ):
             result = apply_ai_environment(tmp_path)
 
@@ -873,14 +897,16 @@ class TestApplyAiEnvironment:
             patch(
                 "setup_lib.linux_optimizer.write_config_file",
                 return_value=(True, True),
+                autospec=True,
             ),
-            patch.object(Path, "exists", return_value=True),
-            patch.object(Path, "chmod") as mock_chmod,
+            patch.object(Path, "exists", return_value=True, autospec=True),
+            patch.object(Path, "chmod", autospec=True) as mock_chmod,
             patch(
                 "setup_lib.linux_optimizer._run_sudo",
                 return_value=subprocess.CompletedProcess(
                     args=[], returncode=0, stdout="", stderr=""
                 ),
+                autospec=True,
             ) as mock_sudo,
         ):
             apply_ai_environment(tmp_path)
@@ -900,14 +926,15 @@ class TestInstallVerificationScript:
         from setup_lib.linux_optimizer import install_verification_script
 
         with (
-            patch.object(Path, "exists", return_value=False),
-            patch.object(Path, "write_text"),
-            patch.object(Path, "chmod") as mock_chmod,
+            patch.object(Path, "exists", return_value=False, autospec=True),
+            patch.object(Path, "write_text", autospec=True),
+            patch.object(Path, "chmod", autospec=True) as mock_chmod,
             patch(
                 "setup_lib.linux_optimizer._run_sudo",
                 return_value=subprocess.CompletedProcess(
                     args=[], returncode=0, stdout="", stderr=""
                 ),
+                autospec=True,
             ),
         ):
             result = install_verification_script()
@@ -920,8 +947,8 @@ class TestInstallVerificationScript:
         """Should skip if script already installed with same content."""
         from setup_lib.linux_optimizer import VERIFY_SCRIPT, install_verification_script
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "read_text", return_value=VERIFY_SCRIPT):
+        with patch.object(Path, "exists", return_value=True, autospec=True):
+            with patch.object(Path, "read_text", return_value=VERIFY_SCRIPT, autospec=True):
                 result = install_verification_script()
 
                 assert result.success is True
@@ -932,12 +959,13 @@ class TestInstallVerificationScript:
         from setup_lib.linux_optimizer import install_verification_script
 
         with (
-            patch.object(Path, "exists", return_value=False),
+            patch.object(Path, "exists", return_value=False, autospec=True),
             patch(
                 "setup_lib.linux_optimizer._run_sudo",
                 return_value=subprocess.CompletedProcess(
                     args=[], returncode=1, stdout="", stderr="Permission denied"
                 ),
+                autospec=True,
             ),
         ):
             result = install_verification_script()
@@ -952,7 +980,7 @@ class TestRunOptimizations:
         """Should fail on non-Linux platforms."""
         from setup_lib.linux_optimizer import run_optimizations
 
-        with patch("setup_lib.linux_optimizer.is_linux", return_value=False):
+        with patch("setup_lib.linux_optimizer.is_linux", return_value=False, autospec=True):
             success, requires_reboot = run_optimizations()
 
             assert success is False
@@ -963,12 +991,12 @@ class TestRunOptimizations:
         from setup_lib.linux_optimizer import run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=False),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=False, autospec=True),
             # Mock all phase functions to avoid actual sudo calls
             patch("setup_lib.linux_optimizer.OPTIMIZATION_PHASES", []),
-            patch("setup_lib.linux_optimizer.apply_sysctl_changes"),
-            patch("setup_lib.linux_optimizer.install_verification_script"),
+            patch("setup_lib.linux_optimizer.apply_sysctl_changes", autospec=True),
+            patch("setup_lib.linux_optimizer.install_verification_script", autospec=True),
         ):
             success, requires_reboot = run_optimizations(dry_run=True)
 
@@ -979,8 +1007,8 @@ class TestRunOptimizations:
         from setup_lib.linux_optimizer import run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
         ):
             success, requires_reboot = run_optimizations(dry_run=True)
 
@@ -993,8 +1021,8 @@ class TestRunOptimizations:
         from setup_lib.linux_optimizer import run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
         ):
             success, requires_reboot = run_optimizations(phases=["network"], dry_run=True)
 
@@ -1011,8 +1039,8 @@ class TestRunOptimizations:
         from setup_lib.linux_optimizer import run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
         ):
             success, requires_reboot = run_optimizations(include_mitigations=True, dry_run=True)
 
@@ -1043,7 +1071,7 @@ class TestPromptAndRunOptimizations:
         """Should skip silently on non-Linux platforms."""
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
-        with patch("setup_lib.linux_optimizer.is_linux", return_value=False):
+        with patch("setup_lib.linux_optimizer.is_linux", return_value=False, autospec=True):
             success, requires_reboot = prompt_and_run_optimizations()
 
             assert success is True
@@ -1053,8 +1081,8 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("builtins.input", return_value="n"),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("builtins.input", return_value="n", autospec=True),
         ):
             success, requires_reboot = prompt_and_run_optimizations()
 
@@ -1069,11 +1097,15 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=False),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=False, autospec=True),
             # First input: "y" for optimizations, second: "n" for mitigations
-            patch("builtins.input", side_effect=["y", "n"]),
-            patch("setup_lib.linux_optimizer.run_optimizations", return_value=(True, False)),
+            patch("builtins.input", side_effect=["y", "n"], autospec=True),
+            patch(
+                "setup_lib.linux_optimizer.run_optimizations",
+                return_value=(True, False),
+                autospec=True,
+            ),
         ):
             success, requires_reboot = prompt_and_run_optimizations()
 
@@ -1086,8 +1118,8 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("builtins.input", side_effect=EOFError()),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("builtins.input", side_effect=EOFError(), autospec=True),
         ):
             success, requires_reboot = prompt_and_run_optimizations()
 
@@ -1098,8 +1130,8 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("builtins.input", side_effect=KeyboardInterrupt()),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("builtins.input", side_effect=KeyboardInterrupt(), autospec=True),
         ):
             success, requires_reboot = prompt_and_run_optimizations()
 
@@ -1110,12 +1142,15 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
-            patch("builtins.input", side_effect=["y", "y", "n"]),  # accept, mitigations, no reboot
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
+            patch(
+                "builtins.input", side_effect=["y", "y", "n"], autospec=True
+            ),  # accept, mitigations, no reboot
             patch(
                 "setup_lib.linux_optimizer.run_optimizations",
                 return_value=(True, True),
+                autospec=True,
             ) as mock_run,
         ):
             success, requires_reboot = prompt_and_run_optimizations()
@@ -1128,12 +1163,15 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
-            patch("builtins.input", side_effect=["y", "n"]),  # accept, no mitigations
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
+            patch(
+                "builtins.input", side_effect=["y", "n"], autospec=True
+            ),  # accept, no mitigations
             patch(
                 "setup_lib.linux_optimizer.run_optimizations",
                 return_value=(True, False),
+                autospec=True,
             ) as mock_run,
         ):
             success, requires_reboot = prompt_and_run_optimizations()
@@ -1146,12 +1184,13 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
-            patch("builtins.input", side_effect=["y", EOFError()]),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
+            patch("builtins.input", side_effect=["y", EOFError()], autospec=True),
             patch(
                 "setup_lib.linux_optimizer.run_optimizations",
                 return_value=(True, False),
+                autospec=True,
             ) as mock_run,
         ):
             success, requires_reboot = prompt_and_run_optimizations()
@@ -1164,14 +1203,17 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
-            patch("builtins.input", side_effect=["y", "n", "y"]),  # accept, no mitigations, reboot
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
+            patch(
+                "builtins.input", side_effect=["y", "n", "y"], autospec=True
+            ),  # accept, no mitigations, reboot
             patch(
                 "setup_lib.linux_optimizer.run_optimizations",
-                return_value=(True, True),  # requires reboot
+                return_value=(True, True),  # requires reboot,
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_reboot,
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_reboot,
         ):
             mock_reboot.return_value = (True, "")
 
@@ -1185,14 +1227,15 @@ class TestPromptAndRunOptimizations:
         from setup_lib.linux_optimizer import prompt_and_run_optimizations
 
         with (
-            patch("setup_lib.linux_optimizer.is_linux", return_value=True),
-            patch("setup_lib.linux_optimizer.is_root", return_value=True),
-            patch("builtins.input", side_effect=["y", "n", EOFError()]),
+            patch("setup_lib.linux_optimizer.is_linux", return_value=True, autospec=True),
+            patch("setup_lib.linux_optimizer.is_root", return_value=True, autospec=True),
+            patch("builtins.input", side_effect=["y", "n", EOFError()], autospec=True),
             patch(
                 "setup_lib.linux_optimizer.run_optimizations",
                 return_value=(True, True),
+                autospec=True,
             ),
-            patch("setup_lib.linux_optimizer.run_command") as mock_reboot,
+            patch("setup_lib.linux_optimizer.run_command", autospec=True) as mock_reboot,
         ):
             success, requires_reboot = prompt_and_run_optimizations()
 

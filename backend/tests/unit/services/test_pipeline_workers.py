@@ -178,7 +178,7 @@ def disable_redis_streams():
     These tests use the legacy list-based queue (BLPOP) which is simpler to mock.
     Redis Streams tests should be in a separate test module with proper stream mocking.
     """
-    with patch("backend.services.pipeline_workers.get_settings") as mock_settings:
+    with patch("backend.services.pipeline_workers.get_settings", autospec=True) as mock_settings:
         settings = MagicMock()
         settings.use_redis_streams = False
         mock_settings.return_value = settings
@@ -476,7 +476,7 @@ async def test_detection_worker_processes_item(
     )
 
     # Mock database session
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -592,7 +592,7 @@ async def test_detection_worker_error_recovery_with_retry(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -707,7 +707,9 @@ async def test_detection_worker_loop_general_exception_recovery(
         stop_timeout=TEST_STOP_TIMEOUT,
     )
 
-    with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
+    with patch(
+        "backend.services.pipeline_workers.record_pipeline_error", autospec=True
+    ) as mock_record:
         await worker.start()
         # Wait for at least one error to be recorded (event-based instead of arbitrary sleep)
         await wait_for_errors(worker, min_count=1)
@@ -930,7 +932,9 @@ async def test_analysis_worker_general_exception_handling(mock_redis_client, moc
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
+    with patch(
+        "backend.services.pipeline_workers.record_pipeline_error", autospec=True
+    ) as mock_record:
         await worker.start()
         # Wait for error to be recorded (event-based instead of arbitrary sleep)
         await wait_for_errors(worker, min_count=1)
@@ -1031,7 +1035,9 @@ async def test_analysis_worker_loop_general_exception_recovery(mock_redis_client
         stop_timeout=TEST_STOP_TIMEOUT,
     )
 
-    with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
+    with patch(
+        "backend.services.pipeline_workers.record_pipeline_error", autospec=True
+    ) as mock_record:
         await worker.start()
         # Wait for error to be recorded (event-based instead of arbitrary sleep)
         await wait_for_errors(worker, min_count=1)
@@ -1358,7 +1364,9 @@ async def test_queue_metrics_worker_updates_metrics(mock_redis_client):
         update_interval=0.05,
     )
 
-    with patch("backend.services.pipeline_workers.set_queue_depth") as mock_set_depth:
+    with patch(
+        "backend.services.pipeline_workers.set_queue_depth", autospec=True
+    ) as mock_set_depth:
         await worker.start()
         # Wait for metrics to be set (event-based instead of arbitrary sleep)
         await wait_for_call_count(mock_set_depth, min_count=2)
@@ -1557,7 +1565,7 @@ async def test_manager_signal_handler_installation(mock_redis_client):
     )
 
     # Mock the signal handler installation
-    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+    with patch.object(asyncio, "get_running_loop", autospec=True) as mock_get_loop:
         mock_loop = MagicMock()
         mock_get_loop.return_value = mock_loop
 
@@ -1583,7 +1591,7 @@ async def test_manager_signal_handler_not_implemented(mock_redis_client):
     )
 
     # Mock the signal handler to raise NotImplementedError (like on Windows)
-    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+    with patch.object(asyncio, "get_running_loop", autospec=True) as mock_get_loop:
         mock_loop = MagicMock()
         mock_loop.add_signal_handler.side_effect = NotImplementedError("Signals not supported")
         mock_get_loop.return_value = mock_loop
@@ -1605,7 +1613,7 @@ async def test_manager_signal_handler_runtime_error(mock_redis_client):
     )
 
     # Mock the signal handler to raise RuntimeError (e.g., not in main thread)
-    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+    with patch.object(asyncio, "get_running_loop", autospec=True) as mock_get_loop:
         mock_loop = MagicMock()
         mock_loop.add_signal_handler.side_effect = RuntimeError("Not in main thread")
         mock_get_loop.return_value = mock_loop
@@ -1631,7 +1639,7 @@ async def test_manager_signal_handler_triggers_stop(mock_redis_client):
     def capture_add_signal_handler(sig, handler):
         captured_handlers[sig] = handler
 
-    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+    with patch.object(asyncio, "get_running_loop", autospec=True) as mock_get_loop:
         mock_loop = MagicMock()
         mock_loop.add_signal_handler.side_effect = capture_add_signal_handler
         mock_get_loop.return_value = mock_loop
@@ -1645,7 +1653,7 @@ async def test_manager_signal_handler_triggers_stop(mock_redis_client):
         # Verify the handler creates a stop task when called
         with (
             patch.object(manager, "stop", new_callable=AsyncMock),
-            patch("asyncio.create_task") as mock_create_task,
+            patch("asyncio.create_task", autospec=True) as mock_create_task,
         ):
             # Call the SIGTERM handler
             captured_handlers[signal.SIGTERM]()
@@ -1761,7 +1769,7 @@ async def test_worker_cancellation_during_processing(
         stop_timeout=TEST_STOP_TIMEOUT,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -1905,7 +1913,7 @@ async def test_detection_worker_processes_video_item(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2004,7 +2012,7 @@ async def test_detection_worker_processes_image_item(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2055,7 +2063,7 @@ async def test_detection_worker_defaults_to_image_media_type(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2126,7 +2134,7 @@ async def test_detection_worker_uses_retry_handler(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2238,7 +2246,7 @@ async def test_detection_worker_passes_job_data_to_retry_handler(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2315,7 +2323,7 @@ async def test_detection_worker_passes_pipeline_start_time_to_batch_aggregator(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2371,7 +2379,7 @@ async def test_detection_worker_handles_missing_pipeline_start_time(
         poll_timeout=1,
     )
 
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+    with patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_get_session:
         mock_session = AsyncMock()
         mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -2421,7 +2429,7 @@ async def test_analysis_worker_records_total_pipeline_latency(mock_redis_client,
     )
 
     with patch(
-        "backend.services.pipeline_workers.record_pipeline_stage_latency"
+        "backend.services.pipeline_workers.record_pipeline_stage_latency", autospec=True
     ) as mock_record_latency:
         await worker.start()
         await wait_for_items_processed(worker, min_count=1)
@@ -2471,7 +2479,7 @@ async def test_analysis_worker_handles_missing_pipeline_start_time(
     )
 
     with patch(
-        "backend.services.pipeline_workers.record_pipeline_stage_latency"
+        "backend.services.pipeline_workers.record_pipeline_stage_latency", autospec=True
     ) as mock_record_latency:
         await worker.start()
         await wait_for_items_processed(worker, min_count=1)
@@ -2516,7 +2524,7 @@ async def test_analysis_worker_handles_invalid_pipeline_start_time(
     )
 
     with patch(
-        "backend.services.pipeline_workers.record_pipeline_stage_latency"
+        "backend.services.pipeline_workers.record_pipeline_stage_latency", autospec=True
     ) as mock_record_latency:
         await worker.start()
         await wait_for_items_processed(worker, min_count=1)
@@ -2721,7 +2729,11 @@ async def test_detection_worker_video_processing_detector_unavailable_during_fra
 
     # Should raise DetectorUnavailableError and cleanup frames
     with (
-        patch("backend.services.pipeline_workers.get_session", return_value=mock_session),
+        patch(
+            "backend.services.pipeline_workers.get_session",
+            return_value=mock_session,
+            autospec=True,
+        ),
         pytest.raises(DetectorUnavailableError),
     ):
         await worker._process_video_detection(
@@ -2803,7 +2815,9 @@ async def test_detection_worker_video_processing_frame_exception_continues():
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
     # Should complete successfully despite frame 2 error
-    with patch("backend.services.pipeline_workers.get_session", return_value=mock_session):
+    with patch(
+        "backend.services.pipeline_workers.get_session", return_value=mock_session, autospec=True
+    ):
         await worker._process_video_detection(
             camera_id="front_door",
             video_path="/videos/test.mp4",
@@ -3110,7 +3124,11 @@ async def test_detection_worker_video_processing_with_detector_unavailable_excep
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
     with (
-        patch("backend.services.pipeline_workers.get_session", return_value=mock_session),
+        patch(
+            "backend.services.pipeline_workers.get_session",
+            return_value=mock_session,
+            autospec=True,
+        ),
         pytest.raises(DetectorUnavailableError),
     ):
         await worker._process_video_detection(

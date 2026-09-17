@@ -17,8 +17,8 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: (
                 "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
@@ -33,8 +33,8 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: (
                 "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
@@ -49,8 +49,8 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/ufw" if cmd == "ufw" else None
             mock_run.return_value = MagicMock(returncode=0, stdout="Status: active\n")
@@ -63,8 +63,8 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/ufw" if cmd == "ufw" else None
             mock_run.return_value = MagicMock(returncode=0, stdout="Status: inactive\n")
@@ -77,9 +77,9 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
-            patch("platform.system", return_value="Windows"),
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("platform.system", return_value="Windows", autospec=True),
         ):
             mock_which.side_effect = lambda cmd: (
                 "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
@@ -97,9 +97,9 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
-            patch("platform.system", return_value="Windows"),
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("platform.system", return_value="Windows", autospec=True),
         ):
             mock_which.side_effect = lambda cmd: (
                 "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
@@ -119,8 +119,8 @@ class TestDetectFirewallType:
         from setup_lib.firewall_config import detect_firewall_type
 
         with (
-            patch("shutil.which", return_value=None),
-            patch("platform.system", return_value="Linux"),
+            patch("shutil.which", return_value=None, autospec=True),
+            patch("platform.system", return_value="Linux", autospec=True),
         ):
             result = detect_firewall_type()
             assert result is None
@@ -134,8 +134,8 @@ class TestIsFirewallActive:
         from setup_lib.firewall_config import is_firewall_active
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: (
                 "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
@@ -150,8 +150,8 @@ class TestIsFirewallActive:
         from setup_lib.firewall_config import is_firewall_active
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/ufw" if cmd == "ufw" else None
             mock_run.return_value = MagicMock(returncode=0, stdout="Status: active\n")
@@ -164,8 +164,8 @@ class TestIsFirewallActive:
         from setup_lib.firewall_config import is_firewall_active
 
         with (
-            patch("shutil.which", return_value=None),
-            patch("platform.system", return_value="Linux"),
+            patch("shutil.which", return_value=None, autospec=True),
+            patch("platform.system", return_value="Linux", autospec=True),
         ):
             result = is_firewall_active()
             assert result is False
@@ -179,8 +179,8 @@ class TestIsPortOpen:
         from setup_lib.firewall_config import is_port_open
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: (
                 "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
@@ -199,8 +199,8 @@ class TestIsPortOpen:
         from setup_lib.firewall_config import is_port_open
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: (
                 "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None
@@ -225,8 +225,8 @@ To                         Action      From
 8443/tcp                   ALLOW       Anywhere
 """
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/ufw" if cmd == "ufw" else None
             mock_run.return_value = MagicMock(returncode=0, stdout=ufw_status)
@@ -245,8 +245,8 @@ To                         Action      From
 22/tcp                     ALLOW       Anywhere
 """
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/ufw" if cmd == "ufw" else None
             mock_run.return_value = MagicMock(returncode=0, stdout=ufw_status)
@@ -266,9 +266,9 @@ LocalPort:                            8443
 Protocol:                             TCP
 """
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
-            patch("platform.system", return_value="Windows"),
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("platform.system", return_value="Windows", autospec=True),
         ):
             mock_which.side_effect = lambda cmd: (
                 "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
@@ -288,9 +288,9 @@ Protocol:                             TCP
         from setup_lib.firewall_config import is_port_open
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
-            patch("platform.system", return_value="Windows"),
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("platform.system", return_value="Windows", autospec=True),
         ):
             mock_which.side_effect = lambda cmd: (
                 "C:\\Windows\\netsh.exe" if cmd == "netsh" else None
@@ -312,8 +312,8 @@ Protocol:                             TCP
         from setup_lib.firewall_config import is_port_open
 
         with (
-            patch("shutil.which", return_value=None),
-            patch("platform.system", return_value="Linux"),
+            patch("shutil.which", return_value=None, autospec=True),
+            patch("platform.system", return_value="Linux", autospec=True),
         ):
             result = is_port_open(8443)
             assert result is True
@@ -382,7 +382,7 @@ class TestOpenFirewallPorts:
         """Should execute firewalld commands successfully."""
         from setup_lib.firewall_config import open_firewall_ports
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="success\n", stderr="")
 
             result = open_firewall_ports([8443, 8555], "firewalld")
@@ -395,7 +395,7 @@ class TestOpenFirewallPorts:
         """Should execute ufw commands successfully."""
         from setup_lib.firewall_config import open_firewall_ports
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="Rule added\n", stderr="")
 
             result = open_firewall_ports([8443], "ufw")
@@ -407,7 +407,7 @@ class TestOpenFirewallPorts:
         """Should execute Windows firewall commands successfully."""
         from setup_lib.firewall_config import open_firewall_ports
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="Ok.\n", stderr="")
 
             result = open_firewall_ports([8443], "windows")
@@ -419,7 +419,7 @@ class TestOpenFirewallPorts:
         """Should return False on command failure."""
         from setup_lib.firewall_config import open_firewall_ports
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.return_value = MagicMock(
                 returncode=1, stdout="", stderr="Error: Permission denied\n"
             )
@@ -439,7 +439,7 @@ class TestOpenFirewallPorts:
         """Should handle subprocess exceptions gracefully."""
         from setup_lib.firewall_config import open_firewall_ports
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.side_effect = subprocess.SubprocessError("Command failed")
 
             result = open_firewall_ports([8443], "firewalld")
@@ -468,8 +468,12 @@ class TestGetPortsToOpen:
         from setup_lib.firewall_config import get_ports_to_open
 
         with (
-            patch("setup_lib.firewall_config.is_port_open") as mock_is_open,
-            patch("setup_lib.firewall_config.detect_firewall_type", return_value="firewalld"),
+            patch("setup_lib.firewall_config.is_port_open", autospec=True) as mock_is_open,
+            patch(
+                "setup_lib.firewall_config.detect_firewall_type",
+                return_value="firewalld",
+                autospec=True,
+            ),
         ):
             # 8443 is open, 8555 is closed
             mock_is_open.side_effect = lambda p: p == 8443
@@ -483,7 +487,9 @@ class TestGetPortsToOpen:
         """Should return empty list when no firewall is active."""
         from setup_lib.firewall_config import get_ports_to_open
 
-        with patch("setup_lib.firewall_config.detect_firewall_type", return_value=None):
+        with patch(
+            "setup_lib.firewall_config.detect_firewall_type", return_value=None, autospec=True
+        ):
             result = get_ports_to_open([8443, 8555])
             assert result == []
 
@@ -496,14 +502,26 @@ class TestPromptAndConfigureFirewall:
         from setup_lib.firewall_config import prompt_and_configure_firewall
 
         with (
-            patch("setup_lib.firewall_config.detect_firewall_type", return_value="firewalld"),
-            patch("setup_lib.firewall_config.get_ports_to_open", return_value=[8443, 8555]),
             patch(
-                "setup_lib.firewall_config.get_open_port_commands", return_value=["cmd1", "cmd2"]
+                "setup_lib.firewall_config.detect_firewall_type",
+                return_value="firewalld",
+                autospec=True,
             ),
-            patch("setup_lib.firewall_config.open_firewall_ports", return_value=True) as mock_open,
-            patch("builtins.input", return_value="y"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.firewall_config.get_ports_to_open",
+                return_value=[8443, 8555],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.firewall_config.get_open_port_commands",
+                return_value=["cmd1", "cmd2"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.firewall_config.open_firewall_ports", return_value=True, autospec=True
+            ) as mock_open,
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_firewall({})
 
@@ -514,12 +532,22 @@ class TestPromptAndConfigureFirewall:
         from setup_lib.firewall_config import prompt_and_configure_firewall
 
         with (
-            patch("setup_lib.firewall_config.detect_firewall_type", return_value="firewalld"),
-            patch("setup_lib.firewall_config.get_ports_to_open", return_value=[8443]),
-            patch("setup_lib.firewall_config.get_open_port_commands", return_value=["cmd"]),
-            patch("setup_lib.firewall_config.open_firewall_ports") as mock_open,
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.firewall_config.detect_firewall_type",
+                return_value="firewalld",
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.firewall_config.get_ports_to_open", return_value=[8443], autospec=True
+            ),
+            patch(
+                "setup_lib.firewall_config.get_open_port_commands",
+                return_value=["cmd"],
+                autospec=True,
+            ),
+            patch("setup_lib.firewall_config.open_firewall_ports", autospec=True) as mock_open,
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_firewall({})
 
@@ -530,9 +558,11 @@ class TestPromptAndConfigureFirewall:
         from setup_lib.firewall_config import prompt_and_configure_firewall
 
         with (
-            patch("setup_lib.firewall_config.detect_firewall_type", return_value=None),
-            patch("setup_lib.firewall_config.open_firewall_ports") as mock_open,
-            patch("builtins.print"),
+            patch(
+                "setup_lib.firewall_config.detect_firewall_type", return_value=None, autospec=True
+            ),
+            patch("setup_lib.firewall_config.open_firewall_ports", autospec=True) as mock_open,
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_firewall({})
 
@@ -543,10 +573,14 @@ class TestPromptAndConfigureFirewall:
         from setup_lib.firewall_config import prompt_and_configure_firewall
 
         with (
-            patch("setup_lib.firewall_config.detect_firewall_type", return_value="firewalld"),
-            patch("setup_lib.firewall_config.get_ports_to_open", return_value=[]),
-            patch("setup_lib.firewall_config.open_firewall_ports") as mock_open,
-            patch("builtins.print"),
+            patch(
+                "setup_lib.firewall_config.detect_firewall_type",
+                return_value="firewalld",
+                autospec=True,
+            ),
+            patch("setup_lib.firewall_config.get_ports_to_open", return_value=[], autospec=True),
+            patch("setup_lib.firewall_config.open_firewall_ports", autospec=True) as mock_open,
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_firewall({})
 
@@ -560,14 +594,24 @@ class TestPromptAndConfigureFirewall:
         config = {"firewall_ports": custom_ports}
 
         with (
-            patch("setup_lib.firewall_config.detect_firewall_type", return_value="ufw"),
             patch(
-                "setup_lib.firewall_config.get_ports_to_open", return_value=custom_ports
+                "setup_lib.firewall_config.detect_firewall_type", return_value="ufw", autospec=True
+            ),
+            patch(
+                "setup_lib.firewall_config.get_ports_to_open",
+                return_value=custom_ports,
+                autospec=True,
             ) as mock_get,
-            patch("setup_lib.firewall_config.get_open_port_commands", return_value=["cmd"]),
-            patch("setup_lib.firewall_config.open_firewall_ports", return_value=True),
-            patch("builtins.input", return_value="y"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.firewall_config.get_open_port_commands",
+                return_value=["cmd"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.firewall_config.open_firewall_ports", return_value=True, autospec=True
+            ),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_firewall(config)
 

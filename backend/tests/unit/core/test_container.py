@@ -243,7 +243,7 @@ class TestRedisClientIntegration:
         container = get_container()
 
         # Mock Redis connection
-        with patch("backend.core.redis.RedisClient") as MockRedisClient:
+        with patch("backend.core.redis.RedisClient", autospec=True) as MockRedisClient:
             mock_instance = AsyncMock()
             mock_instance.connect = AsyncMock()
             MockRedisClient.return_value = mock_instance
@@ -267,7 +267,9 @@ class TestContextEnricherIntegration:
 
         container = Container()
 
-        with patch("backend.services.context_enricher.ContextEnricher") as MockEnricher:
+        with patch(
+            "backend.services.context_enricher.ContextEnricher", autospec=True
+        ) as MockEnricher:
             mock_instance = MagicMock()
             MockEnricher.return_value = mock_instance
 
@@ -295,7 +297,9 @@ class TestEnrichmentPipelineIntegration:
         container.register_async_singleton("redis_client", redis_factory)
 
         # Mock EnrichmentPipeline that depends on Redis
-        with patch("backend.services.enrichment_pipeline.EnrichmentPipeline") as MockPipeline:
+        with patch(
+            "backend.services.enrichment_pipeline.EnrichmentPipeline", autospec=True
+        ) as MockPipeline:
             mock_pipeline = MagicMock()
             MockPipeline.return_value = mock_pipeline
 
@@ -336,7 +340,9 @@ class TestNemotronAnalyzerIntegration:
         container.register_async_singleton("enrichment_pipeline", pipeline_factory)
 
         # Mock NemotronAnalyzer
-        with patch("backend.services.nemotron_analyzer.NemotronAnalyzer") as MockAnalyzer:
+        with patch(
+            "backend.services.nemotron_analyzer.NemotronAnalyzer", autospec=True
+        ) as MockAnalyzer:
             mock_analyzer = MagicMock()
             MockAnalyzer.return_value = mock_analyzer
 
@@ -369,7 +375,9 @@ class TestDetectorClientIntegration:
 
         container = Container()
 
-        with patch("backend.services.detector_client.DetectorClient") as MockDetector:
+        with patch(
+            "backend.services.detector_client.DetectorClient", autospec=True
+        ) as MockDetector:
             mock_instance = MagicMock()
             MockDetector.return_value = mock_instance
 

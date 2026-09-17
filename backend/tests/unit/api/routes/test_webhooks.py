@@ -78,7 +78,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload()
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
 
@@ -100,7 +102,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload(alerts=alerts)
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
 
@@ -125,7 +129,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload(alerts=[alert], status=AlertmanagerStatus.RESOLVED)
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
 
@@ -143,8 +149,10 @@ class TestReceiveAlertmanagerWebhook:
         background_tasks = BackgroundTasks()
 
         with (
-            patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls,
-            patch("backend.api.routes.webhooks.logger") as mock_logger,
+            patch(
+                "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+            ) as mock_broadcaster_cls,
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
         ):
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
@@ -166,8 +174,10 @@ class TestReceiveAlertmanagerWebhook:
         background_tasks = BackgroundTasks()
 
         with (
-            patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls,
-            patch("backend.api.routes.webhooks.logger") as mock_logger,
+            patch(
+                "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+            ) as mock_broadcaster_cls,
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
         ):
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
@@ -185,8 +195,10 @@ class TestReceiveAlertmanagerWebhook:
         background_tasks = BackgroundTasks()
 
         with (
-            patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls,
-            patch("backend.api.routes.webhooks.logger") as mock_logger,
+            patch(
+                "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+            ) as mock_broadcaster_cls,
+            patch("backend.api.routes.webhooks.logger", autospec=True) as mock_logger,
         ):
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
@@ -202,7 +214,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload()
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster_cls.get_instance.side_effect = RuntimeError(
                 "Broadcaster not initialized"
             )
@@ -220,7 +234,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload(receiver="critical-receiver")
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
 
@@ -234,7 +250,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload(alerts=[])
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
 
@@ -257,7 +275,9 @@ class TestReceiveAlertmanagerWebhook:
         payload = self._create_payload(alerts=[alert])
         background_tasks = BackgroundTasks()
 
-        with patch("backend.api.routes.webhooks.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.webhooks.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster_cls.get_instance.return_value = mock_broadcaster
 

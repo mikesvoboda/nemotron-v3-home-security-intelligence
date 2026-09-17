@@ -210,7 +210,9 @@ class TestOrphanedFileCleanupServiceInitialization:
         mock_settings.orphan_cleanup_enabled = True
 
         with patch(
-            "backend.services.orphan_cleanup_service.get_settings", return_value=mock_settings
+            "backend.services.orphan_cleanup_service.get_settings",
+            return_value=mock_settings,
+            autospec=True,
         ):
             service = OrphanedFileCleanupService()
 
@@ -297,7 +299,9 @@ class TestFileScanning:
         service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
 
         # Mock glob to raise permission error
-        with patch("pathlib.Path.glob", side_effect=PermissionError("Access denied")):
+        with patch(
+            "pathlib.Path.glob", side_effect=PermissionError("Access denied"), autospec=True
+        ):
             files = service._scan_clip_files()
 
         assert files == []
@@ -328,7 +332,7 @@ class TestAgeThreshold:
 
         # Mock file mtime to be 2 hours ago
         old_time = datetime.now().timestamp() - (2 * 3600)  # 2 hours ago
-        with patch.object(Path, "stat") as mock_stat:
+        with patch.object(Path, "stat", autospec=True) as mock_stat:
             mock_stat.return_value = MagicMock(st_mtime=old_time)
             result = service._is_file_old_enough(test_file)
 
@@ -695,7 +699,9 @@ class TestJobTrackerIntegration:
         )
 
         # Mock scan_clip_files to raise an exception
-        with patch.object(service, "_scan_clip_files", side_effect=Exception("Test error")):
+        with patch.object(
+            service, "_scan_clip_files", side_effect=Exception("Test error"), autospec=True
+        ):
             with pytest.raises(Exception, match="Test error"):
                 await service.run_cleanup()
 
@@ -861,7 +867,7 @@ class TestCleanupLoop:
 
         # Directly test the cleanup loop
         service.running = True
-        with patch.object(service, "run_cleanup", side_effect=mock_run_cleanup):
+        with patch.object(service, "run_cleanup", side_effect=mock_run_cleanup, autospec=True):
             with patch(
                 "backend.services.orphan_cleanup_service.asyncio.sleep",
                 new_callable=AsyncMock,
@@ -881,7 +887,9 @@ class TestCleanupLoop:
         async def mock_run_cleanup_cancelled():
             raise asyncio.CancelledError()
 
-        with patch.object(service, "run_cleanup", side_effect=mock_run_cleanup_cancelled):
+        with patch.object(
+            service, "run_cleanup", side_effect=mock_run_cleanup_cancelled, autospec=True
+        ):
             # Should exit without raising
             await service._cleanup_loop()
 
@@ -909,7 +917,9 @@ class TestCleanupLoop:
             return OrphanedFileCleanupStats()
 
         service.running = True
-        with patch.object(service, "run_cleanup", side_effect=mock_run_cleanup_with_error):
+        with patch.object(
+            service, "run_cleanup", side_effect=mock_run_cleanup_with_error, autospec=True
+        ):
             with patch(
                 "backend.services.orphan_cleanup_service.asyncio.sleep",
                 new_callable=AsyncMock,
@@ -1022,7 +1032,7 @@ class TestScanErrorHandling:
         service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
 
         # Mock glob to raise a generic exception
-        with patch("pathlib.Path.glob", side_effect=RuntimeError("Generic error")):
+        with patch("pathlib.Path.glob", side_effect=RuntimeError("Generic error"), autospec=True):
             files = service._scan_clip_files()
 
         assert files == []
@@ -1039,7 +1049,7 @@ class TestFileAgeChecking:
         test_file = Path("/nonexistent/file.mp4")
 
         # Mock stat to raise OSError
-        with patch.object(Path, "stat", side_effect=OSError("Stat failed")):
+        with patch.object(Path, "stat", side_effect=OSError("Stat failed"), autospec=True):
             result = service._is_file_old_enough(test_file)
 
         assert result is False
@@ -1161,7 +1171,9 @@ class TestFileDeletion:
         service = OrphanedFileCleanupService()
 
         # Mock unlink to raise exception
-        with patch.object(Path, "unlink", side_effect=PermissionError("Cannot delete")):
+        with patch.object(
+            Path, "unlink", side_effect=PermissionError("Cannot delete"), autospec=True
+        ):
             success, size = service._delete_file(test_file)
 
         assert success is False
@@ -1226,8 +1238,10 @@ class TestBroadcasting:
         )
 
         # Mock get_running_loop to raise RuntimeError
-        with patch("asyncio.get_running_loop", side_effect=RuntimeError("No running loop")):
-            with patch("asyncio.run") as mock_asyncio_run:
+        with patch(
+            "asyncio.get_running_loop", side_effect=RuntimeError("No running loop"), autospec=True
+        ):
+            with patch("asyncio.run", autospec=True) as mock_asyncio_run:
                 # Directly call _broadcast
                 service._broadcast("test_event", {"test": "data"})
 
@@ -1320,7 +1334,7 @@ class TestRunCleanupProgress:
             yield mock_session
 
         with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
-            with patch.object(service, "_is_orphan", side_effect=mock_is_orphan):
+            with patch.object(service, "_is_orphan", side_effect=mock_is_orphan, autospec=True):
                 stats = await service.run_cleanup()
 
         # Should still complete and process other files

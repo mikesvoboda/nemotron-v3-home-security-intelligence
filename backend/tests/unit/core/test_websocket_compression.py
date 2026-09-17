@@ -69,7 +69,9 @@ class TestShouldCompress:
     def test_should_compress_above_threshold(self):
         """Should return True for messages above threshold."""
         large_message = "x" * 2000  # 2KB message
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             assert should_compress(large_message)
@@ -77,7 +79,9 @@ class TestShouldCompress:
     def test_should_not_compress_below_threshold(self):
         """Should return False for messages below threshold."""
         small_message = "x" * 500  # 500 bytes
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             assert not should_compress(small_message)
@@ -85,7 +89,9 @@ class TestShouldCompress:
     def test_should_not_compress_when_disabled(self):
         """Should return False when compression is disabled."""
         large_message = "x" * 2000
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = False
             mock_settings.return_value.websocket_compression_threshold = 1024
             assert not should_compress(large_message)
@@ -93,7 +99,9 @@ class TestShouldCompress:
     def test_should_compress_with_override_threshold(self):
         """Should use override threshold when provided."""
         message = "x" * 500  # 500 bytes
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             # Override threshold to 100 bytes
@@ -102,7 +110,9 @@ class TestShouldCompress:
     def test_should_compress_bytes_input(self):
         """Should handle bytes input correctly."""
         large_bytes = b"x" * 2000
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             assert should_compress(large_bytes)
@@ -114,7 +124,9 @@ class TestCompressMessage:
     def test_compress_string_message(self):
         """Should compress string messages with magic byte prefix."""
         message = '{"type": "event", "data": "x" * 1000}'
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 6
             compressed = compress_message(message, track_stats=False)
 
@@ -128,7 +140,9 @@ class TestCompressMessage:
     def test_compress_dict_message(self):
         """Should serialize and compress dict messages."""
         message = {"type": "event", "data": {"key": "value" * 100}}
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 6
             compressed = compress_message(message, track_stats=False)
 
@@ -142,11 +156,15 @@ class TestCompressMessage:
     def test_compress_with_different_levels(self):
         """Should respect compression level setting."""
         message = "x" * 10000
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 1
             fast_compressed = compress_message(message, track_stats=False)
 
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 9
             best_compressed = compress_message(message, level=9, track_stats=False)
 
@@ -186,7 +204,9 @@ class TestPrepareMessage:
     def test_prepare_compresses_large_message(self):
         """Should compress messages above threshold."""
         large_message = {"type": "event", "data": "x" * 2000}
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             mock_settings.return_value.websocket_compression_level = 6
@@ -201,7 +221,9 @@ class TestPrepareMessage:
     def test_prepare_does_not_compress_small_message(self):
         """Should not compress messages below threshold."""
         small_message = {"type": "event"}
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             mock_settings.return_value.websocket_compression_level = 6
@@ -216,7 +238,9 @@ class TestPrepareMessage:
     def test_prepare_returns_json_string_for_uncompressed(self):
         """Should return JSON string when not compressing."""
         message = {"type": "ping"}
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
 
@@ -277,7 +301,9 @@ class TestCompressionStats:
         """Should track stats globally."""
         reset_compression_stats()
 
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 100
             mock_settings.return_value.websocket_compression_level = 6
@@ -300,7 +326,9 @@ class TestRoundTrip:
     def test_roundtrip_text(self):
         """Text message should survive compression roundtrip."""
         original = '{"type": "event", "data": "test data " * 100}'
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 6
             compressed = compress_message(original, track_stats=False)
             decompressed = decompress_message(compressed)
@@ -310,7 +338,9 @@ class TestRoundTrip:
     def test_roundtrip_dict(self):
         """Dict message should survive compression roundtrip."""
         original = {"type": "event", "data": {"nested": "value" * 50}}
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 6
             compressed = compress_message(original, track_stats=False)
             decompressed = decompress_message(compressed)
@@ -320,7 +350,9 @@ class TestRoundTrip:
     def test_roundtrip_unicode(self):
         """Unicode message should survive compression roundtrip."""
         original = '{"message": "Hello, \u4e16\u754c! \U0001f600"}'
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_level = 6
             compressed = compress_message(original, track_stats=False)
             decompressed = decompress_message(compressed)
@@ -331,7 +363,9 @@ class TestRoundTrip:
         """prepare_message -> decompress_message should work correctly."""
         large_message = {"type": "detection", "data": {"image": "x" * 5000}}
 
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             mock_settings.return_value.websocket_compression_level = 6
@@ -483,7 +517,9 @@ class TestPrepareMessageWithFormat:
         """Should return zlib-compressed bytes for ZLIB format when above threshold."""
         large_message = {"type": "event", "data": "x" * 2000}
 
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             mock_settings.return_value.websocket_compression_level = 6
@@ -500,7 +536,9 @@ class TestPrepareMessageWithFormat:
         """Should return JSON for ZLIB format when below threshold."""
         small_message = {"type": "ping"}
 
-        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+        with patch(
+            "backend.core.websocket.compression.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.websocket_compression_enabled = True
             mock_settings.return_value.websocket_compression_threshold = 1024
             mock_settings.return_value.websocket_compression_level = 6

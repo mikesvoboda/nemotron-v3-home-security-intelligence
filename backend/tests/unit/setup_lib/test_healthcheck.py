@@ -20,7 +20,11 @@ class TestPollEndpoint:
         mock_response = MagicMock()
         mock_response.status = 200
 
-        with patch("setup_lib.healthcheck.urllib.request.urlopen", return_value=mock_response):
+        with patch(
+            "setup_lib.healthcheck.urllib.request.urlopen",
+            return_value=mock_response,
+            autospec=True,
+        ):
             result = poll_endpoint("http://localhost:8000/health", timeout=5)
 
             assert result is True
@@ -33,9 +37,10 @@ class TestPollEndpoint:
             patch(
                 "setup_lib.healthcheck.urllib.request.urlopen",
                 side_effect=urllib.error.URLError("Connection refused"),
+                autospec=True,
             ),
-            patch("time.sleep"),
-            patch("time.monotonic") as mock_time,
+            patch("time.sleep", autospec=True),
+            patch("time.monotonic", autospec=True) as mock_time,
         ):
             # Simulate time progression: start at 0, deadline check, then past deadline
             mock_time.side_effect = [0, 0.1, 0.2, 100]
@@ -64,8 +69,9 @@ class TestPollEndpoint:
             patch(
                 "setup_lib.healthcheck.urllib.request.urlopen",
                 side_effect=urlopen_side_effect,
+                autospec=True,
             ),
-            patch("time.sleep"),
+            patch("time.sleep", autospec=True),
         ):
             result = poll_endpoint("http://localhost:8000/health", timeout=60, interval=1)
 
@@ -83,7 +89,11 @@ class TestCheckServiceHealth:
         mock_response = MagicMock()
         mock_response.read.return_value = json.dumps({"status": "ok"}).encode()
 
-        with patch("setup_lib.healthcheck.urllib.request.urlopen", return_value=mock_response):
+        with patch(
+            "setup_lib.healthcheck.urllib.request.urlopen",
+            return_value=mock_response,
+            autospec=True,
+        ):
             result = check_service_health("Backend", "http://localhost:8000/health")
 
             assert result["name"] == "Backend"
@@ -99,6 +109,7 @@ class TestCheckServiceHealth:
         with patch(
             "setup_lib.healthcheck.urllib.request.urlopen",
             side_effect=urllib.error.URLError("Connection refused"),
+            autospec=True,
         ):
             result = check_service_health("Backend", "http://localhost:8000/health")
 

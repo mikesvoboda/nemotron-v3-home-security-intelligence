@@ -102,10 +102,10 @@ class TestMonitoringServicesList:
 class TestInfrastructurePhaseAlloyMemlock:
     """Tests for alloy memlock pre-check in phase_infrastructure."""
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.resource.getrlimit")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases._is_service_installed")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.resource.getrlimit", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases._is_service_installed", autospec=True)
     def test_alloy_skipped_when_memlock_below_threshold(
         self,
         mock_is_installed: Mock,
@@ -132,10 +132,10 @@ class TestInfrastructurePhaseAlloyMemlock:
         # Verify: result should still succeed (alloy failure doesn't block)
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.resource.getrlimit")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases._is_service_installed")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.resource.getrlimit", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases._is_service_installed", autospec=True)
     def test_alloy_started_when_memlock_sufficient(
         self,
         mock_is_installed: Mock,
@@ -168,10 +168,10 @@ class TestInfrastructurePhaseAlloyMemlock:
         # Verify: result should succeed
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.resource.getrlimit")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases._is_service_installed")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.resource.getrlimit", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases._is_service_installed", autospec=True)
     def test_alloy_started_when_memlock_is_infinity(
         self,
         mock_is_installed: Mock,
@@ -201,10 +201,10 @@ class TestInfrastructurePhaseAlloyMemlock:
         # Verify: result should succeed
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.resource.getrlimit")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases._is_service_installed")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.resource.getrlimit", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases._is_service_installed", autospec=True)
     def test_alloy_failure_does_not_block_infrastructure_phase(
         self,
         mock_is_installed: Mock,
@@ -230,10 +230,10 @@ class TestInfrastructurePhaseAlloyMemlock:
         # Verify: phase should still succeed despite alloy failure
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.resource.getrlimit")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases._is_service_installed")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.resource.getrlimit", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases._is_service_installed", autospec=True)
     def test_alloy_memlock_threshold_matches_compose_config(
         self,
         mock_is_installed: Mock,
@@ -276,7 +276,7 @@ class TestApplicationPhaseServiceRetry:
         """Test that ai-llm is first in _APP_SERVICES (backend depends on it)."""
         assert _APP_SERVICES[0] == "ai-llm"
 
-    @patch("setup_lib.deploy_phases.compose_run")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_succeeds_when_compose_wait_succeeds(
         self,
         mock_compose_run: Mock,
@@ -298,7 +298,7 @@ class TestApplicationPhaseServiceRetry:
         wait_calls = [c for c in compose_calls if "--wait" in c.args]
         assert len(wait_calls) == 1
 
-    @patch("setup_lib.deploy_phases.compose_run")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_scopes_to_app_services_only(
         self,
         mock_compose_run: Mock,
@@ -317,8 +317,8 @@ class TestApplicationPhaseServiceRetry:
         # Verify: alloy is NOT in the --wait call
         assert "alloy" not in wait_call.args, "alloy should not be re-started in phase 5"
 
-    @patch("setup_lib.deploy_phases._wait_container_running")
-    @patch("setup_lib.deploy_phases.compose_run")
+    @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_retries_services_when_compose_wait_fails(
         self,
         mock_compose_run: Mock,
@@ -350,8 +350,8 @@ class TestApplicationPhaseServiceRetry:
         ]
         assert len(retry_calls) == 4, "Should retry all 4 app services"
 
-    @patch("setup_lib.deploy_phases._wait_container_running")
-    @patch("setup_lib.deploy_phases.compose_run")
+    @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_retries_all_critical_services(
         self,
         mock_compose_run: Mock,
@@ -378,8 +378,8 @@ class TestApplicationPhaseServiceRetry:
         expected_services = set(_APP_SERVICES)
         assert retried_services == expected_services
 
-    @patch("setup_lib.deploy_phases._wait_container_running")
-    @patch("setup_lib.deploy_phases.compose_run")
+    @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_reports_stuck_services(
         self,
         mock_compose_run: Mock,
@@ -410,11 +410,11 @@ class TestApplicationPhaseServiceRetry:
 class TestStopPhaseNonDestructiveRepair:
     """Tests for non-destructive repair logic in phase_stop."""
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.subprocess.run")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases.check_port_available")
-    @patch("setup_lib.deploy_phases._run_sudo")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.subprocess.run", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases.check_port_available", autospec=True)
+    @patch("setup_lib.deploy_phases._run_sudo", autospec=True)
     def test_stop_phase_skips_repair_when_storage_is_healthy(
         self,
         mock_run_sudo: Mock,
@@ -465,11 +465,11 @@ class TestStopPhaseNonDestructiveRepair:
         # Verify: phase succeeds
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.subprocess.run")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases.check_port_available")
-    @patch("setup_lib.deploy_phases._run_sudo")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.subprocess.run", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases.check_port_available", autospec=True)
+    @patch("setup_lib.deploy_phases._run_sudo", autospec=True)
     def test_stop_phase_tries_repair_before_reset_on_corruption(
         self,
         mock_run_sudo: Mock,
@@ -532,11 +532,11 @@ class TestStopPhaseNonDestructiveRepair:
         # Verify: phase succeeds
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.subprocess.run")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases.check_port_available")
-    @patch("setup_lib.deploy_phases._run_sudo")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.subprocess.run", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases.check_port_available", autospec=True)
+    @patch("setup_lib.deploy_phases._run_sudo", autospec=True)
     def test_stop_phase_falls_back_to_reset_when_repair_fails(
         self,
         mock_run_sudo: Mock,
@@ -614,11 +614,11 @@ class TestStopPhaseNonDestructiveRepair:
         # Verify: phase succeeds
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.subprocess.run")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases.check_port_available")
-    @patch("setup_lib.deploy_phases._run_sudo")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.subprocess.run", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases.check_port_available", autospec=True)
+    @patch("setup_lib.deploy_phases._run_sudo", autospec=True)
     def test_stop_phase_skips_repair_on_unrecognized_command_podman4(
         self,
         mock_run_sudo: Mock,
@@ -672,11 +672,11 @@ class TestStopPhaseNonDestructiveRepair:
         # Verify: phase succeeds
         assert result.success is True
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.subprocess.run")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases.check_port_available")
-    @patch("setup_lib.deploy_phases._run_sudo")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.subprocess.run", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases.check_port_available", autospec=True)
+    @patch("setup_lib.deploy_phases._run_sudo", autospec=True)
     def test_stop_phase_repair_preserves_images_reset_destroys_them(
         self,
         mock_run_sudo: Mock,
@@ -739,10 +739,10 @@ class TestStopPhaseNonDestructiveRepair:
 class TestDeployPhasesIntegration:
     """Integration tests for combined deploy phase behavior."""
 
-    @patch("setup_lib.deploy_phases.compose_run")
-    @patch("setup_lib.deploy_phases.resource.getrlimit")
-    @patch("setup_lib.deploy_phases.time.sleep")
-    @patch("setup_lib.deploy_phases._is_service_installed")
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    @patch("setup_lib.deploy_phases.resource.getrlimit", autospec=True)
+    @patch("setup_lib.deploy_phases.time.sleep", autospec=True)
+    @patch("setup_lib.deploy_phases._is_service_installed", autospec=True)
     def test_infrastructure_phase_completes_without_alloy(
         self,
         mock_is_installed: Mock,
@@ -779,8 +779,8 @@ class TestDeployPhasesIntegration:
                 break
         assert monitoring_started, "monitoring services should be started"
 
-    @patch("setup_lib.deploy_phases._wait_container_running")
-    @patch("setup_lib.deploy_phases.compose_run")
+    @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_retry_logic_is_resilient(
         self,
         mock_compose_run: Mock,

@@ -104,7 +104,9 @@ class TestCircuitBreakerState:
 
     def test_get_circuit_breaker_state_closed(self) -> None:
         """Test closed state when breaker is functioning normally."""
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "closed"
             mock_registry.return_value.get.return_value = mock_breaker
@@ -114,7 +116,9 @@ class TestCircuitBreakerState:
 
     def test_get_circuit_breaker_state_open(self) -> None:
         """Test open state when breaker is tripped."""
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "open"
             mock_registry.return_value.get.return_value = mock_breaker
@@ -124,7 +128,9 @@ class TestCircuitBreakerState:
 
     def test_get_circuit_breaker_state_half_open(self) -> None:
         """Test half-open state during recovery."""
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "half_open"
             mock_registry.return_value.get.return_value = mock_breaker
@@ -134,7 +140,9 @@ class TestCircuitBreakerState:
 
     def test_get_circuit_breaker_state_not_registered(self) -> None:
         """Test default closed state when breaker not registered."""
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_registry.return_value.get.return_value = None
 
             state = _get_circuit_breaker_state("unknown_service")
@@ -146,7 +154,9 @@ class TestCircuitBreakerMetrics:
 
     def test_get_circuit_breaker_metrics_exists(self) -> None:
         """Test metrics retrieval for registered breaker."""
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.get_status.return_value = {
                 "failure_count": 2,
@@ -162,7 +172,9 @@ class TestCircuitBreakerMetrics:
 
     def test_get_circuit_breaker_metrics_not_registered(self) -> None:
         """Test default metrics when breaker not registered."""
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_registry.return_value.get.return_value = None
 
             metrics = _get_circuit_breaker_metrics("unknown_service")
@@ -219,7 +231,9 @@ class TestAIServiceHealthCheck:
         config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings(yolo26_url="")
 
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_registry.return_value.get.return_value = None
 
             result = await _check_ai_service_health(config, settings)
@@ -234,7 +248,9 @@ class TestAIServiceHealthCheck:
         config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "open"
             mock_breaker.get_status.return_value = {
@@ -256,7 +272,9 @@ class TestAIServiceHealthCheck:
         config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "closed"
             mock_breaker.get_status.return_value = {
@@ -266,7 +284,7 @@ class TestAIServiceHealthCheck:
             }
             mock_registry.return_value.get.return_value = mock_breaker
 
-            with patch("httpx.AsyncClient.get") as mock_get:
+            with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
                 mock_response = MagicMock()
                 mock_response.status_code = 200
                 mock_get.return_value = mock_response
@@ -284,7 +302,9 @@ class TestAIServiceHealthCheck:
         config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "closed"
             mock_breaker.get_status.return_value = {
@@ -294,7 +314,7 @@ class TestAIServiceHealthCheck:
             }
             mock_registry.return_value.get.return_value = mock_breaker
 
-            with patch("httpx.AsyncClient.get") as mock_get:
+            with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
                 mock_response = MagicMock()
                 mock_response.status_code = 500
                 mock_get.return_value = mock_response
@@ -310,7 +330,9 @@ class TestAIServiceHealthCheck:
         config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "closed"
             mock_breaker.get_status.return_value = {
@@ -320,7 +342,7 @@ class TestAIServiceHealthCheck:
             }
             mock_registry.return_value.get.return_value = mock_breaker
 
-            with patch("httpx.AsyncClient.get") as mock_get:
+            with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
                 mock_get.side_effect = httpx.ConnectError("Connection refused")
 
                 result = await _check_ai_service_health(config, settings)
@@ -334,7 +356,9 @@ class TestAIServiceHealthCheck:
         config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
-        with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+        with patch(
+            "backend.services.circuit_breaker._get_registry", autospec=True
+        ) as mock_registry:
             mock_breaker = MagicMock()
             mock_breaker.state.value = "closed"
             mock_breaker.get_status.return_value = {
@@ -344,7 +368,7 @@ class TestAIServiceHealthCheck:
             }
             mock_registry.return_value.get.return_value = mock_breaker
 
-            with patch("httpx.AsyncClient.get") as mock_get:
+            with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
                 mock_get.side_effect = httpx.TimeoutException("Request timed out")
 
                 result = await _check_ai_service_health(config, settings, timeout=5.0)
@@ -478,10 +502,14 @@ class TestAIServicesHealthEndpoint:
     async def test_endpoint_returns_200_when_healthy(self, async_client: AsyncClient) -> None:
         """Test endpoint returns 200 when all services are healthy."""
         mock_settings = create_mock_settings()
-        with patch("backend.api.routes.health_ai_services.get_settings") as mock_get_settings:
+        with patch(
+            "backend.api.routes.health_ai_services.get_settings", autospec=True
+        ) as mock_get_settings:
             mock_get_settings.return_value = mock_settings
 
-            with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+            with patch(
+                "backend.services.circuit_breaker._get_registry", autospec=True
+            ) as mock_registry:
                 mock_breaker = MagicMock()
                 mock_breaker.state.value = "closed"
                 mock_breaker.get_status.return_value = {
@@ -492,7 +520,7 @@ class TestAIServicesHealthEndpoint:
                 mock_registry.return_value.get.return_value = mock_breaker
 
                 with patch(
-                    "backend.api.routes.health_ai_services.httpx.AsyncClient"
+                    "backend.api.routes.health_ai_services.httpx.AsyncClient", autospec=True
                 ) as mock_client:
                     mock_response = MagicMock()
                     mock_response.status_code = 200
@@ -517,10 +545,14 @@ class TestAIServicesHealthEndpoint:
             clip_url="",
             enrichment_url="",
         )
-        with patch("backend.api.routes.health_ai_services.get_settings") as mock_get_settings:
+        with patch(
+            "backend.api.routes.health_ai_services.get_settings", autospec=True
+        ) as mock_get_settings:
             mock_get_settings.return_value = mock_settings
 
-            with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+            with patch(
+                "backend.services.circuit_breaker._get_registry", autospec=True
+            ) as mock_registry:
                 mock_breaker = MagicMock()
                 mock_breaker.state.value = "open"
                 mock_breaker.get_status.return_value = {
@@ -540,10 +572,14 @@ class TestAIServicesHealthEndpoint:
     async def test_endpoint_includes_all_services(self, async_client: AsyncClient) -> None:
         """Test endpoint includes all 5 AI services."""
         mock_settings = create_mock_settings()
-        with patch("backend.api.routes.health_ai_services.get_settings") as mock_get_settings:
+        with patch(
+            "backend.api.routes.health_ai_services.get_settings", autospec=True
+        ) as mock_get_settings:
             mock_get_settings.return_value = mock_settings
 
-            with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+            with patch(
+                "backend.services.circuit_breaker._get_registry", autospec=True
+            ) as mock_registry:
                 mock_breaker = MagicMock()
                 mock_breaker.state.value = "closed"
                 mock_breaker.get_status.return_value = {
@@ -554,7 +590,7 @@ class TestAIServicesHealthEndpoint:
                 mock_registry.return_value.get.return_value = mock_breaker
 
                 with patch(
-                    "backend.api.routes.health_ai_services.httpx.AsyncClient"
+                    "backend.api.routes.health_ai_services.httpx.AsyncClient", autospec=True
                 ) as mock_client:
                     mock_response = MagicMock()
                     mock_response.status_code = 200
@@ -583,10 +619,14 @@ class TestAIServicesHealthEndpoint:
             clip_url="",
             enrichment_url="",
         )
-        with patch("backend.api.routes.health_ai_services.get_settings") as mock_get_settings:
+        with patch(
+            "backend.api.routes.health_ai_services.get_settings", autospec=True
+        ) as mock_get_settings:
             mock_get_settings.return_value = mock_settings
 
-            with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+            with patch(
+                "backend.services.circuit_breaker._get_registry", autospec=True
+            ) as mock_registry:
                 mock_registry.return_value.get.return_value = None
 
                 response = await async_client.get("/api/health/ai-services")

@@ -722,7 +722,7 @@ class TestAuditFailureDoesNotBlockOperations:
                 "log_action",
                 new_callable=AsyncMock,
             ) as mock_log,
-            patch("backend.services.audit_logger.logger.warning") as mock_warning,
+            patch("backend.services.audit_logger.logger.warning", autospec=True) as mock_warning,
         ):
             mock_log.side_effect = Exception("Database error")
 

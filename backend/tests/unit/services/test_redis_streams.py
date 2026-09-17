@@ -647,7 +647,7 @@ class TestGetDetectionStreamService:
 
         module._detection_stream_service = None
 
-        with patch("backend.services.redis_streams.get_settings") as mock_settings:
+        with patch("backend.services.redis_streams.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.queue_max_size = 10000
 
             service1 = await get_detection_stream_service(mock_redis_client)

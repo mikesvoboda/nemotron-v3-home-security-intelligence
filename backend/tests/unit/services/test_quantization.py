@@ -187,7 +187,7 @@ def test_is_bitsandbytes_available_not_installed(monkeypatch):
 
     try:
         # Mock find_spec to return None
-        with patch("importlib.util.find_spec", return_value=None):
+        with patch("importlib.util.find_spec", return_value=None, autospec=True):
             assert _is_bitsandbytes_available() is False
     finally:
         sys.modules.update(hidden_modules)
@@ -202,7 +202,7 @@ def test_is_bitsandbytes_available_no_cuda(monkeypatch):
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
 
-    with patch("importlib.util.find_spec", return_value=mock_spec):
+    with patch("importlib.util.find_spec", return_value=mock_spec, autospec=True):
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         assert _is_bitsandbytes_available() is False
 
@@ -216,7 +216,7 @@ def test_is_bitsandbytes_available_with_cuda(monkeypatch):
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = True
 
-    with patch("importlib.util.find_spec", return_value=mock_spec):
+    with patch("importlib.util.find_spec", return_value=mock_spec, autospec=True):
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         assert _is_bitsandbytes_available() is True
 
@@ -289,28 +289,28 @@ def test_get_model_size_mb_error_handling():
 
 def test_get_optimal_backend_x86():
     """Test get_optimal_backend returns X86 for x86_64."""
-    with patch("platform.machine", return_value="x86_64"):
+    with patch("platform.machine", return_value="x86_64", autospec=True):
         backend = get_optimal_backend()
         assert backend in (QuantizationBackend.X86, QuantizationBackend.ONEDNN)
 
 
 def test_get_optimal_backend_arm():
     """Test get_optimal_backend returns QNNPACK for ARM."""
-    with patch("platform.machine", return_value="arm64"):
+    with patch("platform.machine", return_value="arm64", autospec=True):
         backend = get_optimal_backend()
         assert backend == QuantizationBackend.QNNPACK
 
 
 def test_get_optimal_backend_aarch64():
     """Test get_optimal_backend returns QNNPACK for aarch64."""
-    with patch("platform.machine", return_value="aarch64"):
+    with patch("platform.machine", return_value="aarch64", autospec=True):
         backend = get_optimal_backend()
         assert backend == QuantizationBackend.QNNPACK
 
 
 def test_get_optimal_backend_unknown():
     """Test get_optimal_backend returns X86 for unknown platform."""
-    with patch("platform.machine", return_value="unknown"):
+    with patch("platform.machine", return_value="unknown", autospec=True):
         backend = get_optimal_backend()
         assert backend == QuantizationBackend.X86
 
@@ -322,7 +322,11 @@ def test_get_optimal_backend_unknown():
 
 def test_get_bnb_4bit_config_not_available():
     """Test get_bnb_4bit_config raises ImportError when not available."""
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=False):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available",
+        return_value=False,
+        autospec=True,
+    ):
         with pytest.raises(ImportError, match="bitsandbytes package not installed"):
             get_bnb_4bit_config()
 
@@ -332,7 +336,9 @@ def test_get_bnb_4bit_config_success(monkeypatch):
     import sys
 
     # Mock bitsandbytes availability
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         # Mock torch
         mock_torch = MagicMock()
         mock_torch.float16 = "float16"
@@ -365,7 +371,9 @@ def test_get_bnb_4bit_config_custom_params(monkeypatch):
     """Test get_bnb_4bit_config with custom parameters."""
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         mock_torch = MagicMock()
         mock_torch.float16 = "float16"
         mock_torch.bfloat16 = "bfloat16"
@@ -396,7 +404,9 @@ def test_get_bnb_4bit_config_invalid_dtype(monkeypatch):
     """Test get_bnb_4bit_config raises ValueError for invalid dtype."""
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         mock_torch = MagicMock()
         mock_transformers = MagicMock()
 
@@ -411,7 +421,9 @@ def test_get_bnb_4bit_config_invalid_quant_type(monkeypatch):
     """Test get_bnb_4bit_config raises ValueError for invalid quant_type."""
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         mock_torch = MagicMock()
         mock_torch.float16 = "float16"
         mock_transformers = MagicMock()
@@ -430,7 +442,11 @@ def test_get_bnb_4bit_config_invalid_quant_type(monkeypatch):
 
 def test_get_bnb_8bit_config_not_available():
     """Test get_bnb_8bit_config raises ImportError when not available."""
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=False):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available",
+        return_value=False,
+        autospec=True,
+    ):
         with pytest.raises(ImportError, match="bitsandbytes package not installed"):
             get_bnb_8bit_config()
 
@@ -439,7 +455,9 @@ def test_get_bnb_8bit_config_success(monkeypatch):
     """Test get_bnb_8bit_config returns valid config."""
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         mock_config_class = MagicMock()
         mock_config_instance = MagicMock()
         mock_config_class.return_value = mock_config_instance
@@ -463,7 +481,9 @@ def test_get_bnb_8bit_config_custom_params(monkeypatch):
     """Test get_bnb_8bit_config with custom parameters."""
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         mock_config_class = MagicMock()
         mock_transformers = MagicMock()
         mock_transformers.BitsAndBytesConfig = mock_config_class
@@ -643,6 +663,7 @@ async def test_apply_int8_quantization_async_dynamic(monkeypatch):
     with patch(
         "backend.services.quantization.apply_dynamic_int8_quantization",
         return_value=mock_result,
+        autospec=True,
     ):
         result = await apply_int8_quantization_async(MagicMock())
 
@@ -664,6 +685,7 @@ async def test_apply_int8_quantization_async_static(monkeypatch):
     with patch(
         "backend.services.quantization.apply_static_int8_quantization",
         return_value=mock_result,
+        autospec=True,
     ):
         calibration_data = [MagicMock(), MagicMock()]
         result = await apply_int8_quantization_async(
@@ -793,13 +815,17 @@ def test_quantizable_model_protocol():
 
 def test_is_bitsandbytes_available_import_error():
     """Test _is_bitsandbytes_available handles ImportError."""
-    with patch("importlib.util.find_spec", side_effect=ImportError("Module not found")):
+    with patch(
+        "importlib.util.find_spec", side_effect=ImportError("Module not found"), autospec=True
+    ):
         assert _is_bitsandbytes_available() is False
 
 
 def test_is_bitsandbytes_available_module_not_found_error():
     """Test _is_bitsandbytes_available handles ModuleNotFoundError."""
-    with patch("importlib.util.find_spec", side_effect=ModuleNotFoundError("No module")):
+    with patch(
+        "importlib.util.find_spec", side_effect=ModuleNotFoundError("No module"), autospec=True
+    ):
         assert _is_bitsandbytes_available() is False
 
 
@@ -842,7 +868,7 @@ def test_get_optimal_backend_intel_cpu(monkeypatch):
     mock_cpuinfo = MagicMock()
     mock_cpuinfo.get_cpu_info.return_value = {"vendor_id_raw": "GenuineIntel"}
 
-    with patch("platform.machine", return_value="x86_64"):
+    with patch("platform.machine", return_value="x86_64", autospec=True):
         monkeypatch.setitem(sys.modules, "cpuinfo", mock_cpuinfo)
 
         backend = get_optimal_backend()
@@ -856,7 +882,7 @@ def test_get_optimal_backend_amd_cpu():
     mock_cpuinfo = MagicMock()
     mock_cpuinfo.get_cpu_info.return_value = {"vendor_id_raw": "AuthenticAMD"}
 
-    with patch("platform.machine", return_value="x86_64"):
+    with patch("platform.machine", return_value="x86_64", autospec=True):
         with patch.dict(sys.modules, {"cpuinfo": mock_cpuinfo}):
             backend = get_optimal_backend()
             assert backend == QuantizationBackend.X86
@@ -867,7 +893,7 @@ def test_get_optimal_backend_cpuinfo_import_error():
     import sys
 
     # Mock x86_64 platform
-    with patch("platform.machine", return_value="x86_64"):
+    with patch("platform.machine", return_value="x86_64", autospec=True):
         # Remove cpuinfo from sys.modules to force ImportError
         original_cpuinfo = sys.modules.get("cpuinfo")
         if "cpuinfo" in sys.modules:
@@ -884,7 +910,7 @@ def test_get_optimal_backend_cpuinfo_import_error():
                     raise ImportError("No cpuinfo module")
                 return original_import(name, *args, **kwargs)
 
-            with patch("builtins.__import__", side_effect=mock_import):
+            with patch("builtins.__import__", side_effect=mock_import, autospec=True):
                 backend = get_optimal_backend()
                 # Should fall back to X86 when cpuinfo is not available
                 assert backend == QuantizationBackend.X86
@@ -904,7 +930,9 @@ def test_get_bnb_4bit_config_transformers_import_error(monkeypatch):
     import builtins
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         # Mock torch but make transformers import fail
         mock_torch = MagicMock()
         mock_torch.float16 = "float16"
@@ -920,7 +948,7 @@ def test_get_bnb_4bit_config_transformers_import_error(monkeypatch):
         # Remove transformers from cache to force re-import
         monkeypatch.delitem(sys.modules, "transformers", raising=False)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             with pytest.raises(ImportError, match="transformers package"):
                 get_bnb_4bit_config()
 
@@ -935,7 +963,9 @@ def test_get_bnb_8bit_config_transformers_import_error(monkeypatch):
     import builtins
     import sys
 
-    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+    with patch(
+        "backend.services.quantization._is_bitsandbytes_available", return_value=True, autospec=True
+    ):
         _original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -946,7 +976,7 @@ def test_get_bnb_8bit_config_transformers_import_error(monkeypatch):
         # Remove transformers from cache to force re-import
         monkeypatch.delitem(sys.modules, "transformers", raising=False)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             with pytest.raises(ImportError, match="transformers package"):
                 get_bnb_8bit_config()
 
@@ -1047,6 +1077,7 @@ async def test_apply_int8_quantization_async_with_calibration_data_no_static():
     with patch(
         "backend.services.quantization.apply_dynamic_int8_quantization",
         return_value=mock_result,
+        autospec=True,
     ):
         # Even with calibration_data, should use dynamic if use_static=False
         calibration_data = [MagicMock(), MagicMock()]
@@ -1074,6 +1105,7 @@ async def test_apply_int8_quantization_async_static_no_calibration_data():
     with patch(
         "backend.services.quantization.apply_dynamic_int8_quantization",
         return_value=mock_result,
+        autospec=True,
     ):
         # Should fall back to dynamic if no calibration_data
         result = await apply_int8_quantization_async(

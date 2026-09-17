@@ -38,7 +38,7 @@ except ImportError:
 @pytest.fixture
 def mock_redis_pool():
     """Mock Redis connection pool."""
-    with patch("backend.core.redis.ConnectionPool") as mock_pool_class:
+    with patch("backend.core.redis.ConnectionPool", autospec=True) as mock_pool_class:
         # Create a mock instance that will be returned by from_url()
         mock_pool_instance = AsyncMock(spec=ConnectionPool)
         mock_pool_instance.disconnect = AsyncMock()
@@ -73,7 +73,7 @@ def mock_redis_client():
 @pytest.fixture
 async def redis_client(mock_redis_pool, mock_redis_client):
     """Create a Redis client with mocked connection."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(redis_url="redis://localhost:6379/0")
         await client.connect()
         yield client
@@ -86,7 +86,7 @@ async def redis_client(mock_redis_pool, mock_redis_client):
 @pytest.mark.asyncio
 async def test_redis_connection_success(mock_redis_pool, mock_redis_client):
     """Test successful Redis connection."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient()
         await client.connect()
 
@@ -103,7 +103,7 @@ async def test_redis_connection_retry(mock_redis_pool):
     mock_client.ping = AsyncMock(side_effect=[ConnectionError(), ConnectionError(), True])
     mock_client.close = AsyncMock()
 
-    with patch("backend.core.redis.Redis", return_value=mock_client):
+    with patch("backend.core.redis.Redis", return_value=mock_client, autospec=True):
         client = RedisClient()
         client._base_delay = 0.01  # Speed up test
         client._max_delay = 0.1  # Speed up test
@@ -121,7 +121,7 @@ async def test_redis_connection_failure_after_retries(mock_redis_pool):
     mock_client.ping = AsyncMock(side_effect=ConnectionError("Connection failed"))
     mock_client.close = AsyncMock()
 
-    with patch("backend.core.redis.Redis", return_value=mock_client):
+    with patch("backend.core.redis.Redis", return_value=mock_client, autospec=True):
         client = RedisClient()
         client._base_delay = 0.01  # Speed up test
         client._max_delay = 0.1  # Speed up test
@@ -786,7 +786,7 @@ async def test_get_redis_dependency(mock_redis_pool, mock_redis_client):
     # Patch global state to ensure test isolation in parallel execution
     with (
         patch("backend.core.redis._redis_client", None),
-        patch("backend.core.redis.Redis", return_value=mock_redis_client),
+        patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True),
     ):
         # Simulate FastAPI dependency injection
         redis_generator = get_redis()
@@ -806,7 +806,7 @@ async def test_init_redis_creates_global_client(mock_redis_pool, mock_redis_clie
     # Patch global state to ensure test isolation in parallel execution
     with (
         patch("backend.core.redis._redis_client", None),
-        patch("backend.core.redis.Redis", return_value=mock_redis_client),
+        patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True),
     ):
         client = await init_redis()
 
@@ -821,7 +821,7 @@ async def test_close_redis_cleans_up_global_client(mock_redis_pool, mock_redis_c
     # Patch global state to ensure test isolation in parallel execution
     with (
         patch("backend.core.redis._redis_client", None),
-        patch("backend.core.redis.Redis", return_value=mock_redis_client),
+        patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True),
     ):
         await init_redis()
         await close_redis()
@@ -1426,7 +1426,7 @@ async def test_init_redis_concurrent_initialization(
     This tests the race condition fix (wa0t.4) by calling init_redis()
     concurrently from multiple coroutines.
     """
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         # Call init_redis concurrently from multiple coroutines
         results = await asyncio.gather(
             init_redis(),
@@ -1451,7 +1451,7 @@ async def test_get_redis_concurrent_initialization(
     mock_redis_pool, mock_redis_client, reset_redis_global_state
 ):
     """Test that concurrent get_redis calls don't create multiple clients."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         # Call get_redis concurrently
         generators = [get_redis() for _ in range(5)]
         clients = await asyncio.gather(*[anext(gen) for gen in generators])
@@ -1472,7 +1472,7 @@ async def test_get_redis_optional_concurrent_initialization(
     mock_redis_pool, mock_redis_client, reset_redis_global_state
 ):
     """Test that concurrent get_redis_optional calls don't create multiple clients."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         # Call get_redis_optional concurrently
         generators = [get_redis_optional() for _ in range(5)]
         clients = await asyncio.gather(*[anext(gen) for gen in generators])
@@ -1494,7 +1494,7 @@ async def test_close_redis_resets_lock(
     mock_redis_pool, mock_redis_client, reset_redis_global_state
 ):
     """Test that close_redis resets the initialization lock."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         await init_redis()
 
         # Lock should exist after initialization
@@ -1532,7 +1532,7 @@ async def test_get_redis_client_sync_after_init_redis(
     mock_redis_pool, mock_redis_client, reset_redis_global_state
 ):
     """Test get_redis_client_sync returns client after init_redis is called."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         # Before init, should return None
         assert get_redis_client_sync() is None
 
@@ -1762,7 +1762,7 @@ async def test_redis_connect_with_ssl_enabled(mock_redis_pool, mock_redis_client
     """Test that connect() passes SSL context to ConnectionPool when enabled."""
     import ssl
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
             ssl_enabled=True,
@@ -1782,7 +1782,7 @@ async def test_redis_connect_with_ssl_enabled(mock_redis_pool, mock_redis_client
 @pytest.mark.asyncio
 async def test_redis_connect_without_ssl(mock_redis_pool, mock_redis_client):
     """Test that connect() does not pass SSL context when disabled."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
             ssl_enabled=False,
@@ -1816,7 +1816,7 @@ def test_redis_client_password_from_constructor():
 
 def test_redis_client_password_none_by_default():
     """Test that RedisClient password defaults to None (no auth)."""
-    with patch("backend.core.redis.get_settings") as mock_get_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_get_settings:
         mock_settings = MagicMock()
         mock_settings.redis_url = "redis://localhost:6379/0"
         mock_settings.redis_password = None  # Default is no password
@@ -1835,7 +1835,7 @@ def test_redis_client_password_none_by_default():
 
 def test_redis_client_password_from_settings():
     """Test that RedisClient uses password from settings when not provided in constructor."""
-    with patch("backend.core.redis.get_settings") as mock_get_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_get_settings:
         mock_settings = MagicMock()
         mock_settings.redis_url = "redis://localhost:6379/0"
         mock_settings.redis_password = "settings_password"  # pragma: allowlist secret
@@ -1854,7 +1854,7 @@ def test_redis_client_password_from_settings():
 
 def test_redis_client_constructor_password_overrides_settings():
     """Test that constructor password takes precedence over settings."""
-    with patch("backend.core.redis.get_settings") as mock_get_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_get_settings:
         mock_settings = MagicMock()
         mock_settings.redis_url = "redis://localhost:6379/0"
         mock_settings.redis_password = "settings_password"  # pragma: allowlist secret
@@ -1878,7 +1878,7 @@ def test_redis_client_constructor_password_overrides_settings():
 @pytest.mark.asyncio
 async def test_redis_connect_with_password(mock_redis_pool, mock_redis_client):
     """Test that connect() passes password to ConnectionPool when provided."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
             password="test_password",  # pragma: allowlist secret
@@ -1896,7 +1896,7 @@ async def test_redis_connect_with_password(mock_redis_pool, mock_redis_client):
 @pytest.mark.asyncio
 async def test_redis_connect_without_password(mock_redis_pool, mock_redis_client):
     """Test that connect() does not pass password when not provided."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
             password=None,
@@ -1913,7 +1913,7 @@ async def test_redis_connect_without_password(mock_redis_pool, mock_redis_client
 @pytest.mark.asyncio
 async def test_redis_connect_with_empty_password(mock_redis_pool, mock_redis_client):
     """Test that connect() does not pass password when empty string provided."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
             password="",
@@ -1932,7 +1932,7 @@ async def test_redis_connect_with_password_and_ssl(mock_redis_pool, mock_redis_c
     """Test that connect() can use both password and SSL together."""
     import ssl
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
             password="secure_password",  # pragma: allowlist secret
@@ -2077,7 +2077,7 @@ def test_redis_client_create_ssl_context_with_ca_cert(tmp_path):
     )
 
     # Mock load_verify_locations to avoid actual SSL operations
-    with patch("ssl.SSLContext.load_verify_locations") as mock_load:
+    with patch("ssl.SSLContext.load_verify_locations", autospec=True) as mock_load:
         ssl_context = client._create_ssl_context()
 
         assert ssl_context is not None
@@ -2103,7 +2103,7 @@ def test_redis_client_create_ssl_context_with_client_cert(tmp_path):
     )
 
     # Mock load_cert_chain to avoid actual SSL operations
-    with patch("ssl.SSLContext.load_cert_chain") as mock_load:
+    with patch("ssl.SSLContext.load_cert_chain", autospec=True) as mock_load:
         ssl_context = client._create_ssl_context()
 
         assert ssl_context is not None
@@ -2132,7 +2132,7 @@ def test_redis_client_create_ssl_context_with_client_cert_and_key(tmp_path):
     )
 
     # Mock load_cert_chain to avoid actual SSL operations
-    with patch("ssl.SSLContext.load_cert_chain") as mock_load:
+    with patch("ssl.SSLContext.load_cert_chain", autospec=True) as mock_load:
         ssl_context = client._create_ssl_context()
 
         assert ssl_context is not None
@@ -2422,7 +2422,7 @@ async def test_get_redis_optional_returns_none_on_connection_error(
     """Test get_redis_optional returns None on connection error."""
     mock_redis_client.ping.side_effect = ConnectionError("Connection failed")
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         redis_generator = get_redis_optional()
         client = await anext(redis_generator)
 
@@ -2442,7 +2442,7 @@ async def test_get_redis_optional_returns_none_on_timeout_error(
 
     mock_redis_client.ping.side_effect = RedisTimeoutError("Timeout")
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         redis_generator = get_redis_optional()
         client = await anext(redis_generator)
 
@@ -2460,7 +2460,7 @@ async def test_get_redis_optional_returns_none_on_generic_exception(
     """Test get_redis_optional returns None on generic exception."""
     mock_redis_client.ping.side_effect = Exception("Generic error")
 
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         redis_generator = get_redis_optional()
         client = await anext(redis_generator)
 

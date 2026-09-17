@@ -150,7 +150,7 @@ def batch_aggregator(mock_redis_client, mock_analyzer):
         BatchAggregator: Configured aggregator
     """
     # Mock get_settings to avoid DATABASE_URL validation error in unit tests
-    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+    with patch("backend.services.batch_aggregator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.batch_window_seconds = 90
         mock_settings.return_value.batch_idle_timeout_seconds = 30
         mock_settings.return_value.fast_path_confidence_threshold = 0.9
@@ -1087,7 +1087,7 @@ class TestEdgeCases:
         # First add - creates new batch
         # Detection IDs must be integers (database model requirement)
         mock_redis_client.get.return_value = None
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+        with patch("backend.services.batch_aggregator.uuid.uuid4", autospec=True) as mock_uuid:
             mock_uuid.return_value.hex = "a1b2c3d4e5f6"  # pragma: allowlist secret
             batch_id1 = await batch_aggregator.add_detection(
                 camera_id=camera_id,

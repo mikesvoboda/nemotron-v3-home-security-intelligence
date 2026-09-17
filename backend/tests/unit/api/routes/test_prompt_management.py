@@ -121,10 +121,11 @@ def client(mock_db_session: MagicMock, mock_prompt_service: MagicMock) -> TestCl
         patch(
             "backend.api.routes.prompt_management.get_prompt_service",
             return_value=mock_prompt_service,
+            autospec=True,
         ),
         patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-        patch("backend.core.redis.close_redis", return_value=None),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_client, autospec=True),
+        patch("backend.core.redis.close_redis", return_value=None, autospec=True),
         TestClient(app) as test_client,
     ):
         yield test_client
@@ -798,6 +799,7 @@ class TestPromptTestRateLimiting:
             patch(
                 "backend.api.routes.prompt_management.get_prompt_service",
                 return_value=mock_prompt_service,
+                autospec=True,
             ),
             patch.dict(
                 os.environ,
@@ -968,6 +970,7 @@ class TestPromptTestRateLimiting:
             patch(
                 "backend.api.routes.prompt_management.get_prompt_service",
                 return_value=mock_prompt_service,
+                autospec=True,
             ),
             patch.dict(os.environ, {"RATE_LIMIT_ENABLED": "false"}),
             TestClient(app) as test_client,

@@ -61,7 +61,7 @@ def client(mock_redis: MagicMock) -> TestClient:
     app.dependency_overrides[get_redis] = override_get_redis
 
     # Mock settings to disable API key auth for these tests
-    with patch("backend.api.routes.dlq.get_settings") as mock_settings:
+    with patch("backend.api.routes.dlq.get_settings", autospec=True) as mock_settings:
         settings = MagicMock()
         settings.api_key_enabled = False
         settings.api_keys = []
@@ -96,7 +96,7 @@ def client_with_auth_enabled(mock_redis: MagicMock) -> TestClient:
     app.dependency_overrides[get_redis] = override_get_redis
 
     # Patch settings to enable API key auth
-    with patch("backend.api.routes.dlq.get_settings") as mock_settings:
+    with patch("backend.api.routes.dlq.get_settings", autospec=True) as mock_settings:
         settings = MagicMock()
         settings.api_key_enabled = True
         settings.api_keys = ["test-api-key-12345"]

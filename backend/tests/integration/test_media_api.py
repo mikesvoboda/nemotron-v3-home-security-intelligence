@@ -203,11 +203,17 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
         patch("backend.main.get_broadcaster", mock_get_broadcaster),
         patch("backend.main.FileWatcher", return_value=mock_file_watcher),
         patch("backend.main.get_pipeline_manager", mock_get_pipeline_manager),
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch(
+            "backend.main.get_system_broadcaster",
+            return_value=mock_system_broadcaster,
+        ),
         patch("backend.main.get_worker_supervisor", return_value=mock_worker_supervisor),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
+        patch(
+            "backend.main.ServiceHealthMonitor",
+            return_value=mock_service_health_monitor,
+        ),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
         patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
     ):

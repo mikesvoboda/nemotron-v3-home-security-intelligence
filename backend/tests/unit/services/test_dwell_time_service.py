@@ -53,15 +53,15 @@ class TestLoiteringMetricsEmission:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[mock_record]),
+            patch.object(service, "get_active_dwellers", return_value=[mock_record], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             alerts = await service.check_loitering(zone_id=42, threshold_seconds=300.0)
@@ -106,15 +106,15 @@ class TestLoiteringMetricsEmission:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[mock_record]),
+            patch.object(service, "get_active_dwellers", return_value=[mock_record], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             alerts = await service.check_loitering(zone_id=42, threshold_seconds=300.0)
@@ -151,15 +151,15 @@ class TestLoiteringMetricsEmission:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[mock_record]),
+            patch.object(service, "get_active_dwellers", return_value=[mock_record], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             alerts = await service.check_loitering(zone_id=42, threshold_seconds=300.0)
@@ -227,15 +227,16 @@ class TestLoiteringMetricsEmission:
                 service,
                 "get_active_dwellers",
                 return_value=[mock_record1, mock_record2, mock_record3],
+                autospec=True,
             ),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             alerts = await service.check_loitering(zone_id=42, threshold_seconds=300.0)
@@ -265,15 +266,15 @@ class TestLoiteringMetricsEmission:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[]),
+            patch.object(service, "get_active_dwellers", return_value=[], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             alerts = await service.check_loitering(zone_id=42, threshold_seconds=300.0)
@@ -307,15 +308,15 @@ class TestLoiteringMetricsEmission:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[mock_record]),
+            patch.object(service, "get_active_dwellers", return_value=[mock_record], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             await service.check_loitering(zone_id=12345, threshold_seconds=300.0)
@@ -346,15 +347,15 @@ class TestLoiteringMetricsEmission:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[mock_record]),
+            patch.object(service, "get_active_dwellers", return_value=[mock_record], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             await service.check_loitering(zone_id=99, threshold_seconds=300.0)
@@ -383,7 +384,7 @@ class TestRecordEntry:
 
         service = DwellTimeService(mock_db)
 
-        with patch.object(service, "get_active_record", return_value=None):
+        with patch.object(service, "get_active_record", return_value=None, autospec=True):
             record = await service.record_entry(
                 zone_id=42,
                 track_id=100,
@@ -409,7 +410,9 @@ class TestRecordEntry:
 
         service = DwellTimeService(mock_db)
 
-        with patch.object(service, "get_active_record", return_value=existing_record):
+        with patch.object(
+            service, "get_active_record", return_value=existing_record, autospec=True
+        ):
             record = await service.record_entry(
                 zone_id=42,
                 track_id=100,
@@ -443,7 +446,7 @@ class TestRecordExit:
 
         service = DwellTimeService(mock_db)
 
-        with patch.object(service, "get_active_record", return_value=mock_record):
+        with patch.object(service, "get_active_record", return_value=mock_record, autospec=True):
             result = await service.record_exit(zone_id=42, track_id=100)
 
             assert result is mock_record
@@ -458,7 +461,7 @@ class TestRecordExit:
         mock_db = AsyncMock()
         service = DwellTimeService(mock_db)
 
-        with patch.object(service, "get_active_record", return_value=None):
+        with patch.object(service, "get_active_record", return_value=None, autospec=True):
             result = await service.record_exit(zone_id=42, track_id=100)
 
             assert result is None
@@ -496,15 +499,15 @@ class TestAlertTriggering:
         service = DwellTimeService(mock_db)
 
         with (
-            patch.object(service, "get_active_dwellers", return_value=[mock_record]),
+            patch.object(service, "get_active_dwellers", return_value=[mock_record], autospec=True),
             patch(
-                "backend.services.dwell_time_service.record_loitering_alert"
+                "backend.services.dwell_time_service.record_loitering_alert", autospec=True
             ) as mock_record_alert,
             patch(
-                "backend.services.dwell_time_service.observe_loitering_dwell_time"
+                "backend.services.dwell_time_service.observe_loitering_dwell_time", autospec=True
             ) as mock_observe_dwell,
             patch(
-                "backend.services.dwell_time_service.record_loitering_event"
+                "backend.services.dwell_time_service.record_loitering_event", autospec=True
             ) as mock_record_event,
         ):
             # First check - should emit metrics

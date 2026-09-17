@@ -93,6 +93,7 @@ async def test_set_camera_status_updates_database_and_broadcasts() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         result = await service.set_camera_status(
             camera_id="front_door",
@@ -203,6 +204,7 @@ async def test_set_camera_online_convenience_method() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         result = await service.set_camera_online(
             camera_id="front_door",
@@ -243,6 +245,7 @@ async def test_set_camera_offline_convenience_method() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         result = await service.set_camera_offline(
             camera_id="front_door",
@@ -283,6 +286,7 @@ async def test_set_camera_error_convenience_method() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         result = await service.set_camera_error(
             camera_id="front_door",
@@ -326,6 +330,7 @@ async def test_broadcast_error_doesnt_fail_status_update(
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         # Should NOT raise despite broadcast failure
         result = await service.set_camera_status(
@@ -372,6 +377,7 @@ async def test_set_camera_status_logs_info_on_success(
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         await service.set_camera_status(
             camera_id="front_door",
@@ -407,6 +413,7 @@ async def test_broadcast_camera_status_change_function() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         result = await broadcast_camera_status_change(
             redis=mock_redis,  # type: ignore[arg-type]
@@ -446,6 +453,7 @@ async def test_broadcast_camera_status_change_without_optional_fields() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         await broadcast_camera_status_change(
             redis=mock_redis,  # type: ignore[arg-type]
@@ -514,6 +522,7 @@ async def test_broadcast_camera_status_change_with_explicit_event_type() -> None
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         await broadcast_camera_status_change(
             redis=mock_redis,  # type: ignore[arg-type]
@@ -547,6 +556,7 @@ async def test_broadcast_camera_status_change_with_details() -> None:
     with patch(
         "backend.services.camera_status_service.get_broadcaster",
         return_value=mock_broadcaster,
+        autospec=True,
     ):
         await broadcast_camera_status_change(
             redis=mock_redis,  # type: ignore[arg-type]

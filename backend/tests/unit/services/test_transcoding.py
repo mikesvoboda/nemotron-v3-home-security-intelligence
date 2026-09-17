@@ -178,7 +178,11 @@ class TestTranscodingServiceInit:
     def test_directory_creation_error(self, tmp_path: Path) -> None:
         """Test error handling when directory creation fails."""
         with (
-            patch("pathlib.Path.mkdir", side_effect=PermissionError("Permission denied")),
+            patch(
+                "pathlib.Path.mkdir",
+                side_effect=PermissionError("Permission denied"),
+                autospec=True,
+            ),
             pytest.raises(PermissionError),
         ):
             TranscodingService(output_dir=str(tmp_path / "no_permission"))
@@ -197,7 +201,7 @@ class TestCheckFFmpegAvailable:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             service = TranscodingService(output_dir=str(tmp_path))
             result = service.check_ffmpeg_available()
 
@@ -208,7 +212,9 @@ class TestCheckFFmpegAvailable:
         service = TranscodingService(output_dir=str(tmp_path))
         service._ffmpeg_available = None  # Reset cache
 
-        with patch("subprocess.run", side_effect=FileNotFoundError("ffmpeg not found")):
+        with patch(
+            "subprocess.run", side_effect=FileNotFoundError("ffmpeg not found"), autospec=True
+        ):
             result = service.check_ffmpeg_available()
 
         assert result is False
@@ -218,7 +224,9 @@ class TestCheckFFmpegAvailable:
         service = TranscodingService(output_dir=str(tmp_path))
         service._ffmpeg_available = None
 
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ffmpeg", 5)):
+        with patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("ffmpeg", 5), autospec=True
+        ):
             result = service.check_ffmpeg_available()
 
         assert result is False
@@ -231,7 +239,7 @@ class TestCheckFFmpegAvailable:
         service = TranscodingService(output_dir=str(tmp_path))
         service._ffmpeg_available = None
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = service.check_ffmpeg_available()
 
         assert result is False
@@ -241,7 +249,7 @@ class TestCheckFFmpegAvailable:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             service = TranscodingService(output_dir=str(tmp_path))
 
             result1 = service.check_ffmpeg_available()
@@ -257,7 +265,7 @@ class TestCheckFFmpegAvailable:
         service = TranscodingService(output_dir=str(tmp_path))
         service._ffmpeg_available = None
 
-        with patch("subprocess.run", side_effect=RuntimeError("Unexpected")):
+        with patch("subprocess.run", side_effect=RuntimeError("Unexpected"), autospec=True):
             result = service.check_ffmpeg_available()
 
         assert result is False
@@ -309,7 +317,7 @@ class TestGetVideoInfo:
         mock_result.returncode = 0
         mock_result.stdout = json.dumps(sample_ffprobe_output)
 
-        with patch("asyncio.to_thread", return_value=mock_result):
+        with patch("asyncio.to_thread", return_value=mock_result, autospec=True):
             info = await service.get_video_info(str(video_path))
 
         assert info is not None
@@ -342,7 +350,7 @@ class TestGetVideoInfo:
         mock_result.returncode = 0
         mock_result.stdout = json.dumps(ffprobe_output)
 
-        with patch("asyncio.to_thread", return_value=mock_result):
+        with patch("asyncio.to_thread", return_value=mock_result, autospec=True):
             info = await service.get_video_info(str(video_path))
 
         assert info is not None
@@ -365,7 +373,7 @@ class TestGetVideoInfo:
         mock_result.returncode = 1
         mock_result.stderr = "FFprobe error"
 
-        with patch("asyncio.to_thread", return_value=mock_result):
+        with patch("asyncio.to_thread", return_value=mock_result, autospec=True):
             info = await service.get_video_info(str(video_path))
 
         assert info is None
@@ -387,7 +395,7 @@ class TestGetVideoInfo:
         mock_result.returncode = 0
         mock_result.stdout = json.dumps(ffprobe_output)
 
-        with patch("asyncio.to_thread", return_value=mock_result):
+        with patch("asyncio.to_thread", return_value=mock_result, autospec=True):
             info = await service.get_video_info(str(video_path))
 
         assert info is None
@@ -402,7 +410,7 @@ class TestGetVideoInfo:
         mock_result.returncode = 0
         mock_result.stdout = "not valid json{"
 
-        with patch("asyncio.to_thread", return_value=mock_result):
+        with patch("asyncio.to_thread", return_value=mock_result, autospec=True):
             info = await service.get_video_info(str(video_path))
 
         assert info is None
@@ -416,6 +424,7 @@ class TestGetVideoInfo:
         with patch(
             "asyncio.to_thread",
             side_effect=subprocess.TimeoutExpired("ffprobe", 30),
+            autospec=True,
         ):
             info = await service.get_video_info(str(video_path))
 
@@ -427,7 +436,7 @@ class TestGetVideoInfo:
         video_path = tmp_path / "test.mkv"
         video_path.write_bytes(b"fake video")
 
-        with patch("asyncio.to_thread", side_effect=RuntimeError("Unexpected")):
+        with patch("asyncio.to_thread", side_effect=RuntimeError("Unexpected"), autospec=True):
             info = await service.get_video_info(str(video_path))
 
         assert info is None
@@ -466,9 +475,9 @@ class TestTranscodeToMp4:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
-            patch.object(service, "get_video_info", return_value=None),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
         ):
             # Create the output file to simulate FFmpeg success
             output_path.write_bytes(b"transcoded video")
@@ -499,9 +508,11 @@ class TestTranscodeToMp4:
                 return await coro
 
             with (
-                patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec,
-                patch("asyncio.wait_for", side_effect=mock_wait_for),
-                patch.object(service, "get_video_info", return_value=None),
+                patch(
+                    "asyncio.create_subprocess_exec", return_value=mock_process, autospec=True
+                ) as mock_exec,
+                patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+                patch.object(service, "get_video_info", return_value=None, autospec=True),
             ):
                 output_path.write_bytes(b"transcoded")
 
@@ -539,9 +550,9 @@ class TestTranscodeToMp4:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
-            patch.object(service, "get_video_info", return_value=None),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
         ):
             expected_output.write_bytes(b"transcoded")
 
@@ -611,9 +622,9 @@ class TestTranscodeToMp4:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
-            patch.object(service, "get_video_info", return_value=None),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
             pytest.raises(TranscodingError, match="FFmpeg transcoding failed"),
         ):
             await service.transcode_to_mp4(input_path=str(input_path))
@@ -629,9 +640,9 @@ class TestTranscodeToMp4:
         mock_process.wait = AsyncMock()
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=TimeoutError()),
-            patch.object(service, "get_video_info", return_value=None),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=TimeoutError(), autospec=True),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
             pytest.raises(TranscodingError, match="timed out"),
         ):
             await service.transcode_to_mp4(
@@ -655,9 +666,9 @@ class TestTranscodeToMp4:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
-            patch.object(service, "get_video_info", return_value=None),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
             pytest.raises(TranscodingError, match="was not created"),
         ):
             # Don't create the output file
@@ -675,8 +686,9 @@ class TestTranscodeToMp4:
             patch(
                 "asyncio.create_subprocess_exec",
                 side_effect=FileNotFoundError("ffmpeg not found"),
+                autospec=True,
             ),
-            patch.object(service, "get_video_info", return_value=None),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
             pytest.raises(TranscodingError, match="FFmpeg executable not found"),
         ):
             await service.transcode_to_mp4(input_path=str(input_path))
@@ -691,8 +703,9 @@ class TestTranscodeToMp4:
             patch(
                 "asyncio.create_subprocess_exec",
                 side_effect=RuntimeError("Unexpected error"),
+                autospec=True,
             ),
-            patch.object(service, "get_video_info", return_value=None),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
             pytest.raises(TranscodingError, match="Unexpected error"),
         ):
             await service.transcode_to_mp4(input_path=str(input_path))
@@ -722,9 +735,9 @@ class TestTranscodeToMp4:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
-            patch.object(service, "get_video_info", return_value=video_info),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+            patch.object(service, "get_video_info", return_value=video_info, autospec=True),
         ):
             output_path.write_bytes(b"transcoded")
 
@@ -776,7 +789,9 @@ class TestUtilityMethods:
         file_path = service.output_dir / "protected.mp4"
         file_path.write_bytes(b"transcoded video")
 
-        with patch.object(Path, "unlink", side_effect=PermissionError("Permission denied")):
+        with patch.object(
+            Path, "unlink", side_effect=PermissionError("Permission denied"), autospec=True
+        ):
             result = service.delete_transcoded_file("protected.mp4")
 
         assert result is False
@@ -878,8 +893,8 @@ class TestTranscodingIntegration:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
             patch.object(
                 service,
                 "get_video_info",
@@ -889,6 +904,7 @@ class TestTranscodingIntegration:
                     "height": 720,
                     "video_codec": "vp9",
                 },
+                autospec=True,
             ),
         ):
             output_path.write_bytes(b"transcoded content")
@@ -928,9 +944,9 @@ class TestTranscodingIntegration:
             return await coro
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch("asyncio.wait_for", side_effect=mock_wait_for),
-            patch.object(service, "get_video_info", return_value=None),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch("asyncio.wait_for", side_effect=mock_wait_for, autospec=True),
+            patch.object(service, "get_video_info", return_value=None, autospec=True),
         ):
             output_path.write_bytes(b"transcoded")
 

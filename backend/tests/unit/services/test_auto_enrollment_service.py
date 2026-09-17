@@ -415,7 +415,9 @@ class TestAutoEnrollmentService:
         mock_session.refresh = AsyncMock()
 
         # Use patch to avoid SQLAlchemy relationship issues
-        with patch("backend.services.auto_enrollment_service.FaceEmbedding") as mock_embedding_cls:
+        with patch(
+            "backend.services.auto_enrollment_service.FaceEmbedding", autospec=True
+        ) as mock_embedding_cls:
             mock_embedding_instance = MagicMock()
             mock_embedding_cls.return_value = mock_embedding_instance
 

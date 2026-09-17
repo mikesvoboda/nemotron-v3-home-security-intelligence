@@ -83,7 +83,7 @@ class TestProcessMemoryService:
 
     def test_get_memory_info_with_mocked_psutil(self) -> None:
         """Test get_memory_info with mocked psutil values."""
-        with patch("psutil.Process") as mock_process_class:
+        with patch("psutil.Process", autospec=True) as mock_process_class:
             mock_process = MagicMock()
             mock_process.memory_info.return_value = MagicMock(
                 rss=4_000_000_000,  # 4GB
@@ -115,7 +115,9 @@ class TestProcessMemoryService:
                 return "4294967296"  # 4GB
             return None
 
-        with patch.object(service, "_read_cgroup_file", side_effect=mock_read_cgroup):
+        with patch.object(
+            service, "_read_cgroup_file", side_effect=mock_read_cgroup, autospec=True
+        ):
             limit = service._get_container_memory_limit()
             assert limit == 4096  # 4GB in MB
 
@@ -133,7 +135,9 @@ class TestProcessMemoryService:
                 return "max"  # No limit
             return None
 
-        with patch.object(service, "_read_cgroup_file", side_effect=mock_read_cgroup):
+        with patch.object(
+            service, "_read_cgroup_file", side_effect=mock_read_cgroup, autospec=True
+        ):
             limit = service._get_container_memory_limit()
             assert limit is None
 
@@ -143,7 +147,7 @@ class TestProcessMemoryService:
         service._cached_container_limit = False  # Reset cache
 
         # Return None for all paths (simulating file not found)
-        with patch.object(service, "_read_cgroup_file", return_value=None):
+        with patch.object(service, "_read_cgroup_file", return_value=None, autospec=True):
             limit = service._get_container_memory_limit()
             assert limit is None
 
@@ -152,7 +156,7 @@ class TestProcessMemoryService:
         service = ProcessMemoryService()
 
         # Mock high memory usage
-        with patch.object(service, "get_memory_info") as mock_get:
+        with patch.object(service, "get_memory_info", autospec=True) as mock_get:
             mock_get.return_value = ProcessMemoryInfo(
                 rss_bytes=4_000_000_000,
                 rss_mb=3814.7,
@@ -168,7 +172,7 @@ class TestProcessMemoryService:
         """Test is_memory_critical returns False below threshold."""
         service = ProcessMemoryService()
 
-        with patch.object(service, "get_memory_info") as mock_get:
+        with patch.object(service, "get_memory_info", autospec=True) as mock_get:
             mock_get.return_value = ProcessMemoryInfo(
                 rss_bytes=1_000_000_000,
                 rss_mb=953.7,
@@ -184,7 +188,7 @@ class TestProcessMemoryService:
         """Test is_memory_warning returns True above warning threshold."""
         service = ProcessMemoryService()
 
-        with patch.object(service, "get_memory_info") as mock_get:
+        with patch.object(service, "get_memory_info", autospec=True) as mock_get:
             mock_get.return_value = ProcessMemoryInfo(
                 rss_bytes=3_500_000_000,
                 rss_mb=3337.9,
@@ -203,7 +207,7 @@ class TestProcessMemoryService:
             critical_threshold_percent=85.0,
         )
 
-        with patch.object(service, "get_memory_info") as mock_get:
+        with patch.object(service, "get_memory_info", autospec=True) as mock_get:
             # Set container_usage_percent to be used for threshold checks
             mock_get.return_value = ProcessMemoryInfo(
                 rss_bytes=3_000_000_000,
@@ -221,7 +225,7 @@ class TestProcessMemoryService:
         """Test container usage percentage is calculated correctly."""
         from backend.services.process_memory_service import CGROUP_V2_MEMORY_MAX
 
-        with patch("psutil.Process") as mock_process_class:
+        with patch("psutil.Process", autospec=True) as mock_process_class:
             mock_process = MagicMock()
             mock_process.memory_info.return_value = MagicMock(
                 rss=2_000_000_000,  # ~1907 MB
@@ -239,7 +243,9 @@ class TestProcessMemoryService:
                     return "4294967296"  # 4GB
                 return None
 
-            with patch.object(service, "_read_cgroup_file", side_effect=mock_read_cgroup):
+            with patch.object(
+                service, "_read_cgroup_file", side_effect=mock_read_cgroup, autospec=True
+            ):
                 info = service.get_memory_info()
 
                 # Container usage should be rss_mb / container_limit_mb * 100

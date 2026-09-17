@@ -199,7 +199,7 @@ def test_disabled_auth_allows_all_requests(app_without_auth):
     cookie authentication. This test mocks session validation to pass.
     """
     # Mock session validation to return True (valid session)
-    with patch.object(AuthMiddleware, "_validate_session", return_value=True):
+    with patch.object(AuthMiddleware, "_validate_session", return_value=True, autospec=True):
         client = TestClient(app_without_auth, cookies={"session_id": "test-session"})
 
         # Test without API key but with valid session

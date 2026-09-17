@@ -344,7 +344,9 @@ class TestRequestLoggingMiddlewareConfiguration:
 
         client = TestClient(app, raise_server_exceptions=False)
 
-        with patch("backend.api.middleware.request_logging.get_logger") as mock_logger:
+        with patch(
+            "backend.api.middleware.request_logging.get_logger", autospec=True
+        ) as mock_logger:
             mock_logger.return_value = MagicMock()
             client.get("/custom-health")
 

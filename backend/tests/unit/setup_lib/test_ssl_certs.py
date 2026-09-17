@@ -22,7 +22,7 @@ class TestGetLocalIp:
         mock_socket = MagicMock()
         mock_socket.getsockname.return_value = ("192.168.1.100", 0)
 
-        with patch("socket.socket") as mock_socket_class:
+        with patch("socket.socket", autospec=True) as mock_socket_class:
             mock_socket_class.return_value.__enter__.return_value = mock_socket
             result = get_local_ip()
 
@@ -33,7 +33,7 @@ class TestGetLocalIp:
         """Should return None when socket connection fails."""
         from setup_lib.ssl_certs import get_local_ip
 
-        with patch("socket.socket") as mock_socket_class:
+        with patch("socket.socket", autospec=True) as mock_socket_class:
             mock_socket = MagicMock()
             mock_socket.connect.side_effect = OSError("Network unreachable")
             mock_socket_class.return_value.__enter__.return_value = mock_socket
@@ -51,7 +51,7 @@ class TestGetLocalIp:
             mock_socket = MagicMock()
             mock_socket.getsockname.return_value = (expected_ip, 0)
 
-            with patch("socket.socket") as mock_socket_class:
+            with patch("socket.socket", autospec=True) as mock_socket_class:
                 mock_socket_class.return_value.__enter__.return_value = mock_socket
                 result = get_local_ip()
                 assert result == expected_ip
@@ -69,7 +69,7 @@ class TestGenerateSelfSignedCert:
         try:
             ssl_certs.CRYPTOGRAPHY_AVAILABLE = False
 
-            with patch("builtins.print") as mock_print:
+            with patch("builtins.print", autospec=True) as mock_print:
                 result = ssl_certs.generate_self_signed_cert(
                     cert_path=tmp_path / "cert.pem",
                     key_path=tmp_path / "key.pem",
@@ -451,9 +451,11 @@ class TestPromptAndGenerateCertificates:
         from setup_lib.ssl_certs import prompt_and_generate_certificates
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print") as mock_print,
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
         ):
             prompt_and_generate_certificates({})
 
@@ -467,10 +469,12 @@ class TestPromptAndGenerateCertificates:
         from setup_lib.ssl_certs import prompt_and_generate_certificates
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert") as mock_generate,
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch("setup_lib.ssl_certs.generate_self_signed_cert", autospec=True) as mock_generate,
         ):
             prompt_and_generate_certificates({})
 
@@ -485,10 +489,12 @@ class TestPromptAndGenerateCertificates:
         from setup_lib.ssl_certs import prompt_and_generate_certificates
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=True),
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert") as mock_generate,
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=True, autospec=True
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch("setup_lib.ssl_certs.generate_self_signed_cert", autospec=True) as mock_generate,
         ):
             prompt_and_generate_certificates({})
 
@@ -503,10 +509,12 @@ class TestPromptAndGenerateCertificates:
         from setup_lib.ssl_certs import prompt_and_generate_certificates
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=True),
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert") as mock_generate,
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=True, autospec=True
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch("setup_lib.ssl_certs.generate_self_signed_cert", autospec=True) as mock_generate,
         ):
             prompt_and_generate_certificates({})
 
@@ -523,12 +531,16 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", "y", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100"),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert", return_value=True),
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100", autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
+            ),
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
             prompt_and_generate_certificates({})
@@ -546,13 +558,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", "y", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100"),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100", autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -571,13 +585,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", "n", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100"),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100", autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -596,13 +612,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", "n", "10.0.0.1, 172.16.0.5"])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100"),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value="192.168.1.100", autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -624,13 +642,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", "10.0.0.1, invalid-ip, 172.16.0.5"])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print") as mock_print,
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -655,13 +675,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "myserver.local", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="defaulthost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="defaulthost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -679,13 +701,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="detected-hostname"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="detected-hostname", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -708,11 +732,15 @@ class TestPromptAndGenerateCertificates:
             ssl_certs.CRYPTOGRAPHY_AVAILABLE = False
 
             with (
-                patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-                patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-                patch("socket.gethostname", return_value="testhost"),
-                patch("builtins.input", side_effect=lambda _: next(input_responses)),
-                patch("builtins.print") as mock_print,
+                patch(
+                    "setup_lib.ssl_certs.check_existing_certificates",
+                    return_value=False,
+                    autospec=True,
+                ),
+                patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+                patch("socket.gethostname", return_value="testhost", autospec=True),
+                patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+                patch("builtins.print", autospec=True) as mock_print,
             ):
                 ssl_certs.prompt_and_generate_certificates({})
 
@@ -730,12 +758,16 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert", return_value=True),
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
+            ),
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
             prompt_and_generate_certificates({})
@@ -754,12 +786,16 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert", return_value=False),
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=False, autospec=True
+            ),
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
             prompt_and_generate_certificates({})
@@ -776,14 +812,17 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print") as mock_print,
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
             patch(
                 "setup_lib.ssl_certs.generate_self_signed_cert",
                 side_effect=Exception("Permission denied"),
+                autospec=True,
             ),
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -802,12 +841,16 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["y", "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print") as mock_print,
-            patch("setup_lib.ssl_certs.generate_self_signed_cert", return_value=True),
+            patch(
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
+            ),
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
             prompt_and_generate_certificates({})
@@ -825,13 +868,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter([yes_input, "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):
@@ -846,13 +891,15 @@ class TestPromptAndGenerateCertificates:
         input_responses = iter(["", "", ""])
 
         with (
-            patch("setup_lib.ssl_certs.check_existing_certificates", return_value=False),
-            patch("setup_lib.ssl_certs.get_local_ip", return_value=None),
-            patch("socket.gethostname", return_value="testhost"),
-            patch("builtins.input", side_effect=lambda _: next(input_responses)),
-            patch("builtins.print"),
             patch(
-                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True
+                "setup_lib.ssl_certs.check_existing_certificates", return_value=False, autospec=True
+            ),
+            patch("setup_lib.ssl_certs.get_local_ip", return_value=None, autospec=True),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("builtins.input", side_effect=lambda _: next(input_responses), autospec=True),
+            patch("builtins.print", autospec=True),
+            patch(
+                "setup_lib.ssl_certs.generate_self_signed_cert", return_value=True, autospec=True
             ) as mock_generate,
             patch("setup_lib.ssl_certs.CRYPTOGRAPHY_AVAILABLE", True),
         ):

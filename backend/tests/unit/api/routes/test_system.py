@@ -130,7 +130,7 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
 @pytest.fixture
 def mock_settings() -> Settings:
     """Create mock settings for tests."""
-    with patch("backend.api.routes.system.get_settings") as mock:
+    with patch("backend.api.routes.system.get_settings", autospec=True) as mock:
         settings = Settings(
             database_url="postgresql+asyncpg://test:test@localhost/test",  # pragma: allowlist secret
             api_key_enabled=False,
@@ -576,7 +576,7 @@ class TestRuntimeEnvFile:
     def test_write_runtime_env_creates_file(self) -> None:
         """Test that writing runtime env creates the file."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("backend.api.routes.system._runtime_env_path") as mock_path:
+            with patch("backend.api.routes.system._runtime_env_path", autospec=True) as mock_path:
                 mock_path.return_value = Path(tmpdir) / "runtime.env"
 
                 overrides = {
@@ -605,7 +605,9 @@ class TestRuntimeEnvFile:
                 "SEVERITY_LOW_MAX=30\nOTHER_VAR=unchanged\n"  # pragma: allowlist secret
             )
 
-            with patch("backend.api.routes.system._runtime_env_path", return_value=env_file):
+            with patch(
+                "backend.api.routes.system._runtime_env_path", return_value=env_file, autospec=True
+            ):
                 overrides = {"SEVERITY_LOW_MAX": "40"}
 
                 _write_runtime_env(overrides)
@@ -695,6 +697,7 @@ class TestDegradationStatus:
             with patch(
                 "backend.services.degradation_manager.get_degradation_manager",
                 side_effect=RuntimeError("Not initialized"),
+                autospec=True,
             ):
                 result = _get_degradation_status()
                 assert result is None
@@ -784,7 +787,7 @@ class TestHelperFunctions:
             testfile.write_text("test")
 
             # Mock stat to raise PermissionError
-            with patch.object(Path, "stat", side_effect=PermissionError):
+            with patch.object(Path, "stat", side_effect=PermissionError, autospec=True):
                 total_size, file_count = _get_directory_stats(path)
                 # Should return zeros for the file we couldn't access
                 assert total_size == 0
@@ -1733,6 +1736,7 @@ class TestGetSeverityMetadataEndpoint:
         with patch(
             "backend.services.severity.get_severity_service",
             return_value=mock_service,
+            autospec=True,
         ):
             response = await async_client.get("/api/system/severity")
 
@@ -1773,6 +1777,7 @@ class TestTriggerCleanupEndpoint:
         with patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_service,
+            autospec=True,
         ):
             response = await async_client.post("/api/system/cleanup", params={"dry_run": True})
 
@@ -1797,6 +1802,7 @@ class TestTriggerCleanupEndpoint:
             patch(
                 "backend.services.cleanup_service.CleanupService",
                 return_value=mock_service,
+                autospec=True,
             ),
             pytest.raises(OSError),
         ):

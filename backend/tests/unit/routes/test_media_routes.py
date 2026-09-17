@@ -294,7 +294,7 @@ class TestServeCameraFile:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="front_door", filename="image.jpg")
 
         assert response.path == str(test_file)
@@ -313,7 +313,7 @@ class TestServeCameraFile:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="garage", filename="2024-01/capture.png")
 
         assert response.path == str(test_file)
@@ -330,7 +330,7 @@ class TestServeCameraFile:
         mock_settings.foscam_base_path = str(tmp_path)
 
         with (
-            patch.object(media_routes, "get_settings", return_value=mock_settings),
+            patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await serve_camera_file(camera_id="backyard", filename="nonexistent.jpg")
@@ -349,7 +349,7 @@ class TestServeCameraFile:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="driveway", filename="recording.mp4")
 
         assert response.media_type == "video/mp4"
@@ -390,8 +390,10 @@ class TestServeThumbnail:
 
         # Mock the thumbnail base path
         with (
-            patch.object(media_routes, "_validate_and_resolve_path") as mock_validate,
-            patch.object(media_routes.Path, "__truediv__", return_value=tmp_path),
+            patch.object(
+                media_routes, "_validate_and_resolve_path", autospec=True
+            ) as mock_validate,
+            patch.object(media_routes.Path, "__truediv__", return_value=tmp_path, autospec=True),
         ):
             mock_validate.return_value = test_file
 
@@ -407,7 +409,9 @@ class TestServeThumbnail:
         # The actual thumbnail directory is determined by the module path
         # We'll test by mocking _validate_and_resolve_path to raise 404
         with (
-            patch.object(media_routes, "_validate_and_resolve_path") as mock_validate,
+            patch.object(
+                media_routes, "_validate_and_resolve_path", autospec=True
+            ) as mock_validate,
             pytest.raises(HTTPException) as exc_info,
         ):
             mock_validate.side_effect = HTTPException(
@@ -428,7 +432,9 @@ class TestServeThumbnail:
         test_file = tmp_path / "thumb_456.png"
         test_file.write_bytes(b"fake png thumbnail")
 
-        with patch.object(media_routes, "_validate_and_resolve_path") as mock_validate:
+        with patch.object(
+            media_routes, "_validate_and_resolve_path", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = test_file
 
             response = await serve_thumbnail(filename="thumb_456.png")
@@ -455,7 +461,7 @@ class TestServeMediaCompat:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_media_compat(path="cameras/front_door/image.jpg")
 
         assert response.path == str(test_file)
@@ -467,7 +473,9 @@ class TestServeMediaCompat:
         test_file = tmp_path / "thumb.jpg"
         test_file.write_bytes(b"fake thumbnail")
 
-        with patch.object(media_routes, "_validate_and_resolve_path") as mock_validate:
+        with patch.object(
+            media_routes, "_validate_and_resolve_path", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = test_file
 
             response = await serve_media_compat(path="thumbnails/thumb.jpg")
@@ -513,7 +521,7 @@ class TestServeMediaCompat:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_media_compat(path="/cameras/garage/snap.jpg")
 
         assert response.path == str(test_file)
@@ -529,7 +537,7 @@ class TestServeMediaCompat:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_media_compat(path="cameras/backyard/2024/01/15/motion.mp4")
 
         assert response.path == str(test_file)
@@ -558,7 +566,9 @@ class TestServeMediaCompat:
         test_file = tmp_path / "detection_abc.png"
         test_file.write_bytes(b"fake detection thumbnail")
 
-        with patch.object(media_routes, "_validate_and_resolve_path") as mock_validate:
+        with patch.object(
+            media_routes, "_validate_and_resolve_path", autospec=True
+        ) as mock_validate:
             mock_validate.return_value = test_file
 
             response = await serve_media_compat(path="thumbnails/detection_abc.png")
@@ -676,7 +686,7 @@ class TestEdgeCasesAndSecurity:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="front-door_1", filename="capture.jpg")
 
         assert response.path == str(test_file)
@@ -727,7 +737,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.jpg")
 
         assert response.media_type == "image/jpeg"
@@ -743,7 +753,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.jpeg")
 
         assert response.media_type == "image/jpeg"
@@ -759,7 +769,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.png")
 
         assert response.media_type == "image/png"
@@ -775,7 +785,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.gif")
 
         assert response.media_type == "image/gif"
@@ -791,7 +801,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.mp4")
 
         assert response.media_type == "video/mp4"
@@ -807,7 +817,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.avi")
 
         assert response.media_type == "video/x-msvideo"
@@ -823,7 +833,7 @@ class TestContentTypes:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path)
 
-        with patch.object(media_routes, "get_settings", return_value=mock_settings):
+        with patch.object(media_routes, "get_settings", return_value=mock_settings, autospec=True):
             response = await serve_camera_file(camera_id="cam", filename="test.webm")
 
         assert response.media_type == "video/webm"

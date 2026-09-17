@@ -76,7 +76,7 @@ def test_transcoding_service_initialization(temp_cache_dir):
 
 def test_transcoding_service_default_values():
     """Test TranscodingService uses settings defaults."""
-    with patch("backend.services.transcoding_service.get_settings") as mock_settings:
+    with patch("backend.services.transcoding_service.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.transcoding_cache_directory = "custom/cache"
         mock_settings.return_value.hardware_acceleration_enabled = False
         mock_settings.return_value.nvenc_preset = "p4"
@@ -224,7 +224,7 @@ async def test_transcode_video_success(transcoding_service, temp_video_file, tem
     if expected_output.exists():
         expected_output.unlink()
 
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
         # Mock successful ffmpeg execution
         mock_process = AsyncMock()
         mock_process.returncode = 0
@@ -267,7 +267,7 @@ async def test_transcode_video_force_retranscode(
     cached_file = temp_cache_dir / f"{file_hash}_transcoded.{OUTPUT_CONTAINER}"
     cached_file.write_bytes(b"old cached content" + b"\x00" * 1024)
 
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
         # First call is remux (should fail), second call is full transcode (should succeed)
         mock_remux_process = AsyncMock()
         mock_remux_process.returncode = 1  # Remux fails
@@ -296,7 +296,7 @@ async def test_transcode_video_force_retranscode(
 @pytest.mark.asyncio
 async def test_transcode_video_ffmpeg_failure(transcoding_service, temp_video_file):
     """Test transcoding raises error on ffmpeg failure."""
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
         mock_process = AsyncMock()
         mock_process.returncode = 1
         mock_process.communicate = AsyncMock(return_value=(b"", b"ffmpeg error"))
@@ -309,7 +309,7 @@ async def test_transcode_video_ffmpeg_failure(transcoding_service, temp_video_fi
 @pytest.mark.asyncio
 async def test_transcode_video_ffmpeg_not_found(transcoding_service, temp_video_file):
     """Test transcoding raises error when ffmpeg not found."""
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
         mock_exec.side_effect = FileNotFoundError()
 
         with pytest.raises(TranscodingError, match="ffmpeg not found"):
@@ -319,7 +319,7 @@ async def test_transcode_video_ffmpeg_not_found(transcoding_service, temp_video_
 @pytest.mark.asyncio
 async def test_transcode_video_output_not_created(transcoding_service, temp_video_file):
     """Test transcoding raises error when output file not created."""
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
         mock_process = AsyncMock()
         mock_process.returncode = 0
         mock_process.communicate = AsyncMock(return_value=(b"", b""))
@@ -349,7 +349,7 @@ async def test_get_or_transcode_needs_transcoding(
     file_hash = _compute_file_hash(temp_video_file)
     expected_output = temp_cache_dir / f"{file_hash}_transcoded.{OUTPUT_CONTAINER}"
 
-    with patch("asyncio.create_subprocess_exec") as mock_exec:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec:
         mock_process = AsyncMock()
         mock_process.returncode = 0
         mock_process.communicate = AsyncMock(return_value=(b"", b""))
@@ -440,7 +440,7 @@ def test_delete_cached_invalid_path(transcoding_service):
 
 def test_get_transcoding_service_singleton():
     """Test singleton pattern."""
-    with patch("backend.services.transcoding_service.get_settings") as mock_settings:
+    with patch("backend.services.transcoding_service.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.transcoding_cache_directory = "test/cache"
         mock_settings.return_value.hardware_acceleration_enabled = False
 
@@ -452,7 +452,7 @@ def test_get_transcoding_service_singleton():
 
 def test_reset_transcoding_service():
     """Test singleton reset."""
-    with patch("backend.services.transcoding_service.get_settings") as mock_settings:
+    with patch("backend.services.transcoding_service.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.transcoding_cache_directory = "test/cache"
         mock_settings.return_value.hardware_acceleration_enabled = False
 
@@ -495,7 +495,7 @@ class TestNVENCHardwareAcceleration:
         """Test NVENC detection when GPU is available."""
         from backend.services.transcoding_service import check_nvenc_available
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             # First call: check encoders
             encoder_result = MagicMock()
             encoder_result.returncode = 0
@@ -516,7 +516,7 @@ class TestNVENCHardwareAcceleration:
         """Test NVENC detection when encoder is not available in ffmpeg."""
         from backend.services.transcoding_service import check_nvenc_available
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             encoder_result = MagicMock()
             encoder_result.returncode = 0
             encoder_result.stdout = "libx264 - H.264 / AVC / MPEG-4 AVC"
@@ -533,7 +533,7 @@ class TestNVENCHardwareAcceleration:
         """Test NVENC detection when encoder exists but test fails (no GPU)."""
         from backend.services.transcoding_service import check_nvenc_available
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             # Encoder check succeeds
             encoder_result = MagicMock()
             encoder_result.returncode = 0
@@ -554,7 +554,7 @@ class TestNVENCHardwareAcceleration:
         """Test NVENC detection when ffmpeg is not installed."""
         from backend.services.transcoding_service import check_nvenc_available
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             mock_run.side_effect = FileNotFoundError("ffmpeg not found")
 
             result = check_nvenc_available()
@@ -565,7 +565,7 @@ class TestNVENCHardwareAcceleration:
         """Test NVENC detection handles timeout gracefully."""
         from backend.services.transcoding_service import check_nvenc_available
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             import subprocess
 
             mock_run.side_effect = subprocess.TimeoutExpired(cmd="ffmpeg", timeout=10)
@@ -578,7 +578,7 @@ class TestNVENCHardwareAcceleration:
         """Test NVENC availability is cached after first check."""
         from backend.services.transcoding_service import check_nvenc_available
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             encoder_result = MagicMock()
             encoder_result.returncode = 0
             encoder_result.stdout = "h264_nvenc"
@@ -605,7 +605,7 @@ class TestNVENCHardwareAcceleration:
             reset_nvenc_cache,
         )
 
-        with patch("subprocess.run") as mock_run:
+        with patch("subprocess.run", autospec=True) as mock_run:
             encoder_result = MagicMock()
             encoder_result.returncode = 0
             encoder_result.stdout = "h264_nvenc"
@@ -628,8 +628,14 @@ class TestNVENCHardwareAcceleration:
         from backend.services.transcoding_service import get_video_encoder_args
 
         with (
-            patch("backend.services.transcoding_service.check_nvenc_available", return_value=True),
-            patch("backend.services.transcoding_service.get_settings") as mock_settings,
+            patch(
+                "backend.services.transcoding_service.check_nvenc_available",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.transcoding_service.get_settings", autospec=True
+            ) as mock_settings,
         ):
             mock_settings.return_value.hardware_acceleration_enabled = True
             mock_settings.return_value.nvenc_preset = "p4"
@@ -649,8 +655,14 @@ class TestNVENCHardwareAcceleration:
         from backend.services.transcoding_service import get_video_encoder_args
 
         with (
-            patch("backend.services.transcoding_service.check_nvenc_available", return_value=False),
-            patch("backend.services.transcoding_service.get_settings") as mock_settings,
+            patch(
+                "backend.services.transcoding_service.check_nvenc_available",
+                return_value=False,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.transcoding_service.get_settings", autospec=True
+            ) as mock_settings,
         ):
             mock_settings.return_value.hardware_acceleration_enabled = True
 
@@ -667,7 +679,9 @@ class TestNVENCHardwareAcceleration:
         """Test encoder args when hardware acceleration is disabled."""
         from backend.services.transcoding_service import get_video_encoder_args
 
-        with patch("backend.services.transcoding_service.get_settings") as mock_settings:
+        with patch(
+            "backend.services.transcoding_service.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.hardware_acceleration_enabled = False
 
             args = get_video_encoder_args(use_hardware=True)
@@ -679,7 +693,9 @@ class TestNVENCHardwareAcceleration:
         """Test encoder args with use_hardware=False."""
         from backend.services.transcoding_service import get_video_encoder_args
 
-        with patch("backend.services.transcoding_service.get_settings") as mock_settings:
+        with patch(
+            "backend.services.transcoding_service.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.hardware_acceleration_enabled = True
 
             args = get_video_encoder_args(use_hardware=False)
@@ -734,7 +750,7 @@ class TestTranscodeVideoWithNVENC:
             expected_output.unlink()
 
         with (
-            patch("asyncio.create_subprocess_exec") as mock_exec,
+            patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec,
             patch(
                 "backend.services.transcoding_service.get_video_encoder_args",
                 return_value=[
@@ -747,6 +763,7 @@ class TestTranscodeVideoWithNVENC:
                     "-pix_fmt",
                     "yuv420p",
                 ],
+                autospec=True,
             ) as mock_encoder,
         ):
             # First call is remux (should fail), second call is full transcode (should succeed)
@@ -789,7 +806,7 @@ class TestTranscodeVideoWithNVENC:
             expected_output.unlink()
 
         with (
-            patch("asyncio.create_subprocess_exec") as mock_exec,
+            patch("asyncio.create_subprocess_exec", autospec=True) as mock_exec,
             patch(
                 "backend.services.transcoding_service.get_video_encoder_args",
                 return_value=[
@@ -802,6 +819,7 @@ class TestTranscodeVideoWithNVENC:
                     "-pix_fmt",
                     "yuv420p",
                 ],
+                autospec=True,
             ),
         ):
             # First call is remux (should fail), second call is full transcode (should succeed)

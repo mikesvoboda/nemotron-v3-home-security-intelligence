@@ -196,7 +196,7 @@ def sample_detections(sample_detections_factory):
 @pytest.mark.asyncio
 async def test_health_check_success(analyzer):
     """Test health check returns True when LLM server is available."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_get.return_value = mock_response
@@ -209,7 +209,7 @@ async def test_health_check_success(analyzer):
 @pytest.mark.asyncio
 async def test_health_check_failure(analyzer):
     """Test health check returns False when LLM server is unavailable."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_get.side_effect = httpx.ConnectError("Connection refused")
 
         result = await analyzer.health_check()
@@ -220,7 +220,7 @@ async def test_health_check_failure(analyzer):
 @pytest.mark.asyncio
 async def test_health_check_timeout(analyzer):
     """Test health check returns False on timeout."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_get.side_effect = httpx.TimeoutException("Request timeout")
 
         result = await analyzer.health_check()
@@ -438,7 +438,7 @@ async def test_call_llm_success(analyzer):
         )
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -475,7 +475,7 @@ async def test_call_llm_uses_completion_endpoint(analyzer):
         )
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -488,10 +488,13 @@ async def test_call_llm_uses_completion_endpoint(analyzer):
             detections_list="1. 14:30:00 - person",
         )
 
-        # Verify the endpoint path is /completion (llama.cpp completion API)
+        # Verify the endpoint path is /completion (llama.cpp completion API).
+        # autospec patches the CLASS-level function, so the bound client
+        # instance is recorded as the first positional argument — the URL
+        # is args[1], not args[0].
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        url = call_args[0][0]  # First positional argument is the URL
+        url = call_args[0][1]  # args[0] is the AsyncClient instance under autospec
         assert url.endswith("/completion"), (
             f"Expected URL to end with '/completion', got: {url}. "
             "The Nemotron analyzer should use the llama.cpp /completion endpoint."
@@ -503,7 +506,7 @@ async def test_call_llm_empty_content(analyzer):
     """Test LLM call with empty content raises ValueError."""
     mock_response = {"content": ""}
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -521,7 +524,7 @@ async def test_call_llm_empty_content(analyzer):
 @pytest.mark.asyncio
 async def test_call_llm_http_error(analyzer):
     """Test LLM call raises RuntimeError after retry exhaustion on HTTP 5xx error (NEM-1343)."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -813,7 +816,7 @@ async def test_analyze_batch_success(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -898,7 +901,7 @@ async def test_analyze_batch_llm_failure_fallback(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1043,7 +1046,7 @@ async def test_analyze_batch_broadcast_failure_continues(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1143,7 +1146,7 @@ async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1220,7 +1223,7 @@ async def test_analyze_detection_fast_path_success(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1334,7 +1337,7 @@ async def test_analyze_detection_fast_path_llm_failure_fallback(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1408,7 +1411,7 @@ async def test_analyze_detection_fast_path_broadcast_failure_continues(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1479,7 +1482,7 @@ async def test_analyze_detection_fast_path_string_detection_id(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -1506,7 +1509,7 @@ async def test_call_llm_invalid_json_in_response(analyzer):
     """Test _call_llm raises error when response contains invalid JSON."""
     mock_response = {"content": "This is not valid JSON at all"}
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -1524,7 +1527,7 @@ async def test_call_llm_invalid_json_in_response(analyzer):
 @pytest.mark.asyncio
 async def test_call_llm_timeout(analyzer):
     """Test _call_llm raises AnalyzerUnavailableError after retry exhaustion on timeout (NEM-1343)."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = httpx.ReadTimeout("Read timeout exceeded")
 
         # After retry exhaustion, AnalyzerUnavailableError is raised wrapping the original exception
@@ -1542,7 +1545,7 @@ async def test_call_llm_timeout(analyzer):
 @pytest.mark.asyncio
 async def test_call_llm_connection_error(analyzer):
     """Test _call_llm raises AnalyzerUnavailableError after retry exhaustion on connection error (NEM-1343)."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
 
         # After retry exhaustion, AnalyzerUnavailableError is raised wrapping the original exception
@@ -1995,10 +1998,12 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(analyzer, "_get_enriched_context", return_value=None),
-        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
-        patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        patch.object(analyzer, "_get_enriched_context", return_value=None, autospec=True),
+        patch.object(
+            analyzer, "_get_recent_scene_changes", return_value=[], autospec=True
+        ),  # NEM-3012
+        patch.object(analyzer, "_broadcast_event", return_value=None, autospec=True),
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
@@ -2137,10 +2142,12 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(analyzer, "_get_enriched_context", return_value=None),
-        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
-        patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        patch.object(analyzer, "_get_enriched_context", return_value=None, autospec=True),
+        patch.object(
+            analyzer, "_get_recent_scene_changes", return_value=[], autospec=True
+        ),  # NEM-3012
+        patch.object(analyzer, "_broadcast_event", return_value=None, autospec=True),
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
@@ -2272,10 +2279,12 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch("httpx.AsyncClient.post") as mock_post,
-        patch.object(analyzer, "_get_enriched_context", return_value=None),
-        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
-        patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        patch.object(analyzer, "_get_enriched_context", return_value=None, autospec=True),
+        patch.object(
+            analyzer, "_get_recent_scene_changes", return_value=[], autospec=True
+        ),  # NEM-3012
+        patch.object(analyzer, "_broadcast_event", return_value=None, autospec=True),
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
@@ -2487,10 +2496,14 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_get_enriched_context", return_value=None),
-        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
-        patch.object(analyzer, "_get_household_context", return_value=""),  # NEM-3024
-        patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch.object(analyzer, "_get_enriched_context", return_value=None, autospec=True),
+        patch.object(
+            analyzer, "_get_recent_scene_changes", return_value=[], autospec=True
+        ),  # NEM-3012
+        patch.object(
+            analyzer, "_get_household_context", return_value="", autospec=True
+        ),  # NEM-3024
+        patch.object(analyzer, "_broadcast_event", return_value=None, autospec=True),
         patch(
             "backend.services.prompt_auto_tuner.get_prompt_auto_tuner",
             return_value=mock_auto_tuner,
@@ -2632,7 +2645,7 @@ class TestNemotronAnalyzerImprovedPatterns:
             status_code=200,
         )
 
-        with patch("httpx.AsyncClient.get") as mock_get:
+        with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
             mock_get.return_value = mock_response
 
             result = await analyzer.health_check()
@@ -2708,7 +2721,7 @@ class TestNemotronAnalyzerImprovedPatterns:
                 return_value=mock_context,
                 autospec=True,
             ),
-            patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+            patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
             patch(
                 "backend.services.event_broadcaster.get_broadcaster",
                 new=AsyncMock(return_value=mock_broadcaster),
@@ -3139,9 +3152,9 @@ class TestIdempotencyHandling:
                     return_value=mock_context,
                     autospec=True,
                 ),
-                patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
-                patch.object(analyzer, "_get_enriched_context", return_value=None),
-                patch.object(analyzer, "_get_enrichment_result", return_value=None),
+                patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
+                patch.object(analyzer, "_get_enriched_context", return_value=None, autospec=True),
+                patch.object(analyzer, "_get_enrichment_result", return_value=None, autospec=True),
                 patch(
                     "backend.services.event_broadcaster.get_broadcaster",
                     new=AsyncMock(return_value=mock_broadcaster),
@@ -3430,7 +3443,7 @@ class TestLLMTokenMetrics:
         }
 
         with (
-            patch("httpx.AsyncClient.post") as mock_post,
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
             patch(
                 "backend.services.nemotron_analyzer.record_nemotron_tokens", autospec=True
             ) as mock_record,
@@ -3470,7 +3483,7 @@ class TestLLMTokenMetrics:
         }
 
         with (
-            patch("httpx.AsyncClient.post") as mock_post,
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
             patch(
                 "backend.services.nemotron_analyzer.record_nemotron_tokens", autospec=True
             ) as mock_record,
@@ -3513,7 +3526,7 @@ class TestLLMTokenMetrics:
         }
 
         with (
-            patch("httpx.AsyncClient.post") as mock_post,
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
             patch(
                 "backend.services.nemotron_analyzer.record_nemotron_tokens", autospec=True
             ) as mock_record,
@@ -3642,7 +3655,7 @@ class TestTokenCountingIntegration:
         mock_counter.validate_prompt.return_value = mock_validation
 
         with (
-            patch("httpx.AsyncClient.post") as mock_post,
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
             patch(
                 "backend.services.token_counter.get_token_counter",
                 return_value=mock_counter,
@@ -3737,7 +3750,7 @@ async def test_model_readiness_probe_success(analyzer):
     """Test model_readiness_probe succeeds with valid response."""
     mock_response = {"content": "test response"}
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -3751,7 +3764,7 @@ async def test_model_readiness_probe_success(analyzer):
 @pytest.mark.asyncio
 async def test_model_readiness_probe_connection_error(analyzer):
     """Test model_readiness_probe returns False on connection error."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
 
         result = await analyzer.model_readiness_probe()
@@ -3762,7 +3775,7 @@ async def test_model_readiness_probe_connection_error(analyzer):
 @pytest.mark.asyncio
 async def test_model_readiness_probe_timeout(analyzer):
     """Test model_readiness_probe returns False on timeout."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = httpx.TimeoutException("Request timeout")
 
         result = await analyzer.model_readiness_probe()
@@ -3773,7 +3786,7 @@ async def test_model_readiness_probe_timeout(analyzer):
 @pytest.mark.asyncio
 async def test_model_readiness_probe_http_error(analyzer):
     """Test model_readiness_probe returns False on HTTP error."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -3791,7 +3804,7 @@ async def test_warmup_success(analyzer):
     """Test warmup succeeds and records metrics."""
     mock_response = {"content": "warmup response"}
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -3806,7 +3819,7 @@ async def test_warmup_success(analyzer):
 @pytest.mark.asyncio
 async def test_warmup_failure(analyzer):
     """Test warmup handles failure gracefully."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection refused")
 
         result = await analyzer.warmup()
@@ -3890,7 +3903,7 @@ def test_record_analysis_metrics(analyzer):
     """Test _record_analysis_metrics records prompt latency."""
     from backend.core import metrics
 
-    with patch.object(metrics, "record_prompt_latency") as mock_record:
+    with patch.object(metrics, "record_prompt_latency", autospec=True) as mock_record:
         analyzer._record_analysis_metrics(
             prompt_version=1,
             latency_seconds=1.5,
@@ -4156,6 +4169,11 @@ async def test_enqueue_for_evaluation_success(analyzer, mock_redis_client):
             return_value=mock_queue,
             autospec=True,
         ),
+        # No autospec: backend.core.config.get_settings is ALREADY patched
+        # by the analyzer fixture, and mock refuses to autospec an
+        # attribute it has mocked out (InvalidSpecError). The fixture's
+        # outer patch keeps signature enforcement; this nested override
+        # only swaps the return_value for this call.
         patch("backend.core.config.get_settings") as mock_get_settings,
     ):
         mock_settings = MagicMock(spec=Settings)
@@ -4170,6 +4188,8 @@ async def test_enqueue_for_evaluation_success(analyzer, mock_redis_client):
 @pytest.mark.asyncio
 async def test_enqueue_for_evaluation_disabled(analyzer, mock_redis_client):
     """Test _enqueue_for_evaluation skips when background evaluation disabled."""
+    # No autospec: the analyzer fixture already patches this target
+    # (see test_enqueue_for_evaluation_success); nested autospec is refused.
     with patch("backend.core.config.get_settings") as mock_get_settings:
         mock_settings = MagicMock(spec=Settings)
         mock_settings.background_evaluation_enabled = False
@@ -4193,6 +4213,7 @@ async def test_enqueue_for_evaluation_handles_failure(analyzer, mock_redis_clien
             return_value=mock_queue,
             autospec=True,
         ),
+        # No autospec: already patched by the analyzer fixture (see above).
         patch("backend.core.config.get_settings") as mock_get_settings,
     ):
         mock_settings = MagicMock(spec=Settings)
@@ -4280,7 +4301,7 @@ async def test_call_llm_asyncio_timeout(analyzer):
         # Simulate asyncio.timeout() raising TimeoutError
         raise TimeoutError("Request timed out")
 
-    with patch("httpx.AsyncClient.post", side_effect=mock_post_with_timeout):
+    with patch("httpx.AsyncClient.post", side_effect=mock_post_with_timeout, autospec=True):
         with pytest.raises(
             AnalyzerUnavailableError, match=r"Nemotron LLM call failed after \d+ attempts"
         ):
@@ -4295,7 +4316,7 @@ async def test_call_llm_asyncio_timeout(analyzer):
 @pytest.mark.asyncio
 async def test_call_llm_client_error_no_retry(analyzer):
     """Test _call_llm does not retry on 4xx client errors."""
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 400
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -4341,7 +4362,7 @@ async def test_call_llm_unexpected_error_with_retry(analyzer):
         }
         return mock_resp
 
-    with patch("httpx.AsyncClient.post", side_effect=mock_post_side_effect):
+    with patch("httpx.AsyncClient.post", side_effect=mock_post_side_effect, autospec=True):
         result = await analyzer._call_llm(
             camera_name="Front Door",
             start_time="2025-12-23T14:30:00",
@@ -4422,7 +4443,7 @@ async def test_call_llm_with_household_context(analyzer):
         "usage": {"prompt_tokens": 200, "completion_tokens": 100},
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -4462,7 +4483,7 @@ async def test_call_llm_without_household_context(analyzer):
         "usage": {"prompt_tokens": 150, "completion_tokens": 80},
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -4501,7 +4522,7 @@ async def test_call_llm_household_context_injected_in_prompt(analyzer):
 +------------------------------------------------------------+
 -> Calculated base risk: 5"""
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -4548,7 +4569,7 @@ async def test_call_llm_vehicle_only_household_context(analyzer):
 +------------------------------------------------------------+
 -> Calculated base risk: 10"""
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -4753,7 +4774,7 @@ async def test_check_guided_json_support_http_4xx_error(analyzer):
     """Test _check_guided_json_support with 4xx HTTP error."""
     analyzer._supports_guided_json = None
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 400
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -4772,7 +4793,7 @@ async def test_check_guided_json_support_http_5xx_error_max_retries(analyzer):
     """Test _check_guided_json_support with 5xx error exhausting retries."""
     analyzer._supports_guided_json = None
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -4793,7 +4814,7 @@ async def test_check_guided_json_support_connection_error_retry(analyzer):
     """Test _check_guided_json_support retries on connection error."""
     analyzer._supports_guided_json = None
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = httpx.ConnectError("Connection failed")
 
         result = await analyzer._check_guided_json_support()
@@ -4808,7 +4829,7 @@ async def test_check_guided_json_support_unexpected_error_retry(analyzer):
     """Test _check_guided_json_support retries on unexpected error."""
     analyzer._supports_guided_json = None
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_post.side_effect = Exception("Unexpected error")
 
         result = await analyzer._check_guided_json_support()
@@ -5028,7 +5049,7 @@ Analyzing the security event...
         "usage": {"prompt_tokens": 100, "completion_tokens": 50},
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
@@ -5122,7 +5143,7 @@ Analyzing security event...
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -5208,7 +5229,7 @@ async def test_analyze_batch_llm_interaction_enrichment_snapshot(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -5291,7 +5312,7 @@ async def test_analyze_batch_llm_interaction_context_sources(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -5395,8 +5416,13 @@ async def test_analyze_batch_llm_interaction_household_matches(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
-        patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_get_enrichment),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
+        patch.object(
+            analyzer,
+            "_get_enrichment_result_from_data",
+            side_effect=mock_get_enrichment,
+            autospec=True,
+        ),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -5487,7 +5513,7 @@ async def test_analyze_batch_llm_interaction_graceful_failure(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -5572,8 +5598,13 @@ async def test_analyze_batch_llm_interaction_partial_enrichment(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
-        patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_get_enrichment),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
+        patch.object(
+            analyzer,
+            "_get_enrichment_result_from_data",
+            side_effect=mock_get_enrichment,
+            autospec=True,
+        ),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
@@ -5665,7 +5696,7 @@ async def test_analyze_detection_fast_path_creates_llm_interaction(
 
     with (
         patch("backend.services.nemotron_analyzer.get_session", autospec=True) as mock_get_session,
-        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True),
         patch(
             "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),

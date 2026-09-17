@@ -414,7 +414,9 @@ class TestEventGetSeverity:
         )
 
         # Mock the severity service function where it's imported from
-        with patch("backend.services.severity.get_severity_service") as mock_get_service:
+        with patch(
+            "backend.services.severity.get_severity_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.risk_score_to_severity.return_value = Severity.LOW
             mock_get_service.return_value = mock_service
@@ -432,7 +434,9 @@ class TestEventGetSeverity:
             risk_score=75,
         )
 
-        with patch("backend.services.severity.get_severity_service") as mock_get_service:
+        with patch(
+            "backend.services.severity.get_severity_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.risk_score_to_severity.return_value = Severity.HIGH
             mock_get_service.return_value = mock_service
@@ -449,7 +453,9 @@ class TestEventGetSeverity:
             risk_score=95,
         )
 
-        with patch("backend.services.severity.get_severity_service") as mock_get_service:
+        with patch(
+            "backend.services.severity.get_severity_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.risk_score_to_severity.return_value = Severity.CRITICAL
             mock_get_service.return_value = mock_service
@@ -841,7 +847,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_low(self, mock_settings):
         """Test computed_risk_level returns 'low' for score 0-29."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             for score in [0, 10, 20, 29]:
                 event = Event(
                     batch_id="b1",
@@ -853,7 +859,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_medium(self, mock_settings):
         """Test computed_risk_level returns 'medium' for score 30-59."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             for score in [30, 45, 59]:
                 event = Event(
                     batch_id="b1",
@@ -865,7 +871,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_high(self, mock_settings):
         """Test computed_risk_level returns 'high' for score 60-84."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             for score in [60, 70, 84]:
                 event = Event(
                     batch_id="b1",
@@ -877,7 +883,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_critical(self, mock_settings):
         """Test computed_risk_level returns 'critical' for score 85-100."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             for score in [85, 95, 100]:
                 event = Event(
                     batch_id="b1",
@@ -889,7 +895,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_boundary_29_30(self, mock_settings):
         """Test boundary between low and medium (29 vs 30)."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             low_event = Event(
                 batch_id="b1",
                 camera_id="cam",
@@ -907,7 +913,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_boundary_59_60(self, mock_settings):
         """Test boundary between medium and high (59 vs 60)."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             medium_event = Event(
                 batch_id="b1",
                 camera_id="cam",
@@ -925,7 +931,7 @@ class TestEventComputedRiskLevel:
 
     def test_computed_risk_level_boundary_84_85(self, mock_settings):
         """Test boundary between high and critical (84 vs 85)."""
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             high_event = Event(
                 batch_id="b1",
                 camera_id="cam",

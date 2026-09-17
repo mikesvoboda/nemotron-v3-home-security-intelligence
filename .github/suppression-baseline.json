@@ -10,5 +10,6 @@
   "pytest_skip": 32,
   "pytest_skip_imperative": 93,
   "pytest_skipif": 56,
-  "pytest_xfail": 4
+  "pytest_xfail": 4,
+  "unspecced_patch": 322
 }

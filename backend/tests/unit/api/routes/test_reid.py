@@ -255,6 +255,7 @@ class TestFindSimilarByDetection:
         with patch(
             "backend.api.routes.reid._get_redis_client",
             return_value=mock_redis,
+            autospec=True,
         ):
             result = await find_similar_by_detection(
                 detection_id="det_query",
@@ -287,6 +288,7 @@ class TestFindSimilarByDetection:
         with patch(
             "backend.api.routes.reid._get_redis_client",
             return_value=mock_redis,
+            autospec=True,
         ):
             with pytest.raises(Exception) as exc_info:
                 await find_similar_by_detection(
@@ -311,6 +313,7 @@ class TestFindSimilarByDetection:
         with patch(
             "backend.api.routes.reid._get_redis_client",
             return_value=None,
+            autospec=True,
         ):
             with pytest.raises(Exception) as exc_info:
                 await find_similar_by_detection(

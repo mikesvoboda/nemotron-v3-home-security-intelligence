@@ -230,7 +230,7 @@ class TestVehicleEnrichment:
 
         with (
             patch(
-                "backend.services.enrichment_pipeline.get_vision_extractor"
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
             ) as mock_get_extractor,
             patch(
                 "backend.services.enrichment_pipeline.classify_vehicle",
@@ -386,9 +386,11 @@ class TestPersonEnrichment:
 
         with (
             patch(
-                "backend.services.enrichment_pipeline.get_vision_extractor"
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
             ) as mock_get_extractor,
-            patch("backend.services.enrichment_pipeline.get_reid_service") as mock_get_reid,
+            patch(
+                "backend.services.enrichment_pipeline.get_reid_service", autospec=True
+            ) as mock_get_reid,
         ):
             mock_extractor = MagicMock()
             mock_extractor.extract_batch_attributes = AsyncMock(return_value=mock_vision_result)
@@ -744,7 +746,7 @@ class TestMixedDetections:
 
         with (
             patch(
-                "backend.services.enrichment_pipeline.get_vision_extractor"
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
             ) as mock_get_extractor,
             patch(
                 "backend.services.enrichment_pipeline.classify_vehicle",
@@ -937,7 +939,7 @@ class TestErrorHandling:
         """Test pipeline handles multiple service failures gracefully."""
         with (
             patch(
-                "backend.services.enrichment_pipeline.get_vision_extractor"
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
             ) as mock_get_extractor,
             patch(
                 "backend.services.enrichment_pipeline.classify_vehicle",
@@ -1197,7 +1199,7 @@ class TestResultFormatting:
 
         with (
             patch(
-                "backend.services.enrichment_pipeline.get_vision_extractor"
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
             ) as mock_get_extractor,
             patch(
                 "backend.services.enrichment_pipeline.classify_clothing",

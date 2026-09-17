@@ -322,7 +322,7 @@ class TestScheduledReportIsDue:
     def test_is_due_at_exact_time(self) -> None:
         """Test is_due returns True when current time equals next_run_at."""
         now = datetime.now(UTC)
-        with patch("backend.models.scheduled_report.utc_now", return_value=now):
+        with patch("backend.models.scheduled_report.utc_now", return_value=now, autospec=True):
             report = ScheduledReport(
                 name="Test Report",
                 frequency=ReportFrequency.DAILY.value,

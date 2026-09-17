@@ -528,7 +528,7 @@ class TestFlorenceExtractorInference:
         async def mock_inference(model, image, prompt):
             return responses.get(prompt, "")
 
-        with patch.object(extractor, "_run_inference", side_effect=mock_inference):
+        with patch.object(extractor, "_run_inference", side_effect=mock_inference, autospec=True):
             image = Image.new("RGB", (640, 480), color="white")
             bbox = (100, 100, 300, 250)
 
@@ -559,7 +559,7 @@ class TestFlorenceExtractorInference:
         async def mock_inference(model, image, prompt):
             return responses.get(prompt, "")
 
-        with patch.object(extractor, "_run_inference", side_effect=mock_inference):
+        with patch.object(extractor, "_run_inference", side_effect=mock_inference, autospec=True):
             image = Image.new("RGB", (640, 480), color="gray")
             bbox = (200, 50, 350, 400)
 
@@ -589,7 +589,7 @@ class TestFlorenceExtractorInference:
         async def mock_inference(model, image, prompt):
             return responses.get(prompt, "")
 
-        with patch.object(extractor, "_run_inference", side_effect=mock_inference):
+        with patch.object(extractor, "_run_inference", side_effect=mock_inference, autospec=True):
             image = Image.new("RGB", (1920, 1080), color="green")
 
             analysis = await extractor.extract_scene_analysis(model_tuple, image)
@@ -617,7 +617,7 @@ class TestFlorenceExtractorInference:
         async def mock_inference(model, image, prompt):
             return responses.get(prompt, "")
 
-        with patch.object(extractor, "_run_inference", side_effect=mock_inference):
+        with patch.object(extractor, "_run_inference", side_effect=mock_inference, autospec=True):
             image = Image.new("RGB", (640, 480), color="black")
 
             context = await extractor.extract_environment_context(model_tuple, image)
@@ -639,7 +639,9 @@ class TestFlorenceExtractorInference:
         async def mock_inference_error(model, image, prompt):
             raise RuntimeError("Model failed")
 
-        with patch.object(extractor, "_run_inference", side_effect=mock_inference_error):
+        with patch.object(
+            extractor, "_run_inference", side_effect=mock_inference_error, autospec=True
+        ):
             image = Image.new("RGB", (640, 480), color="white")
             bbox = (0, 0, 100, 100)
 
@@ -700,6 +702,7 @@ class TestFlorenceLoader:
                 patch(
                     "builtins.__import__",
                     side_effect=ImportError("No module named 'transformers'"),
+                    autospec=True,
                 ),
                 pytest.raises(ImportError),
             ):

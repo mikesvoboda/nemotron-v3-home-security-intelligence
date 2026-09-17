@@ -129,7 +129,7 @@ class TestPgbouncerDatabaseInit:
         """Test that PgBouncer mode disables prepared statement cache."""
         from backend.core.database import init_db
 
-        with patch("backend.core.database.get_settings") as mock_settings:
+        with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 database_url="postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
                 database_url_read=None,
@@ -141,7 +141,7 @@ class TestPgbouncerDatabaseInit:
                 use_pgbouncer=True,  # Enable PgBouncer mode
             )
 
-            with patch("backend.core.database.create_async_engine") as mock_engine:
+            with patch("backend.core.database.create_async_engine", autospec=True) as mock_engine:
                 # Mock the engine to avoid actual database connection
                 mock_engine.return_value = MagicMock()
                 mock_engine.return_value.sync_engine = MagicMock()
@@ -164,7 +164,7 @@ class TestPgbouncerDatabaseInit:
         """Test that non-PgBouncer mode preserves default prepared statement cache."""
         from backend.core.database import init_db
 
-        with patch("backend.core.database.get_settings") as mock_settings:
+        with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 database_url="postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
                 database_url_read=None,
@@ -176,7 +176,7 @@ class TestPgbouncerDatabaseInit:
                 use_pgbouncer=False,  # Disable PgBouncer mode
             )
 
-            with patch("backend.core.database.create_async_engine") as mock_engine:
+            with patch("backend.core.database.create_async_engine", autospec=True) as mock_engine:
                 # Mock the engine to avoid actual database connection
                 mock_engine.return_value = MagicMock()
                 mock_engine.return_value.sync_engine = MagicMock()

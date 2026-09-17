@@ -90,6 +90,15 @@ def family(reason: str) -> str:
 
 def classify(cat: str, item: dict) -> str:
     reason = item["reason"] or ""
+    if cat == "unspecced_patch":
+        # WP4.2 seed. The 37 sites in benchmarks/chaos/e2e ride their tier's
+        # deferral (already `scoped` via excluded_test_trees — validate.sh
+        # --ignore + nightly-full-gate.yml); the unit 56 + integration 229
+        # are WP4.1's per-site-adjudicated reverts (ledger 2026-09-12 entry:
+        # nested-autospec refusals + fixture-surface policy), kept on purpose
+        # but NOT permanent by adjudication — `todo` keeps the ratchet's teeth.
+        tier = item["id"].split("/")[2] if len(item["id"].split("/")) > 2 else ""
+        return "scoped" if tier in ("benchmarks", "chaos", "e2e") else "todo"
     if cat == "pytest_skip_imperative":
         f = item["id"].rsplit(":", 1)[0]
         # The only two imperative TODOs (guard read site by site in WP1.2):
@@ -121,6 +130,10 @@ def tracking_for(kind: str, item: dict, cat: str) -> str | None:
     reason = item["reason"] or ""
     if kind in EXEMPT:
         return "nightly-full-gate.yml" if kind == "scoped" else None
+    if cat == "unspecced_patch":
+        # the WP4.1 ledger entry adjudicated each site's class (nested /
+        # fixture-surface / unswept tier) — the registry points at the ruling
+        return "R-WP4.1-SWEEP-RESIDUAL"
     if cat == "frontend_quarantine":
         return "R-T7-VITEST"
     m = TRACK_RE.search(reason)

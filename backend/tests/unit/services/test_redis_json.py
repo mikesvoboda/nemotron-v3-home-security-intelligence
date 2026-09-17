@@ -689,7 +689,7 @@ class TestGetBatchMetadataService:
 
         module._batch_metadata_service = None
 
-        with patch("backend.services.redis_json.get_settings") as mock_settings:
+        with patch("backend.services.redis_json.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock()
 
             service1 = await get_batch_metadata_service(mock_redis_client)

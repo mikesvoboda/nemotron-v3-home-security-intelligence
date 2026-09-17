@@ -95,7 +95,11 @@ class TestGetSettingsEndpoint:
         mock_settings = create_mock_settings()
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -125,7 +129,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -148,7 +156,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -172,7 +184,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -200,7 +216,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -228,7 +248,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -252,7 +276,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -275,7 +303,11 @@ class TestGetSettingsEndpoint:
         )
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -295,7 +327,11 @@ class TestGetSettingsEndpoint:
         mock_settings = create_mock_settings()
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -476,10 +512,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -506,10 +547,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -545,10 +591,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -578,10 +629,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -605,10 +661,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -642,10 +703,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -673,10 +739,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -700,10 +771,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -737,10 +813,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -766,10 +847,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -791,10 +877,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -827,10 +918,15 @@ class TestPatchSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -875,6 +971,7 @@ class TestPatchSettingsEndpoint:
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -901,10 +998,15 @@ class TestPatchSettingsEndpoint:
         readonly_path = Path("/nonexistent/readonly/runtime.env")
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=readonly_path,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -1004,7 +1106,11 @@ class TestCameraSettingsEndpoint:
         mock_settings = create_mock_settings(snapshot_cache_ttl=7200)
         app = create_test_app()
 
-        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.settings_api.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
@@ -1024,10 +1130,15 @@ class TestCameraSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -1054,10 +1165,15 @@ class TestCameraSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -1081,10 +1197,15 @@ class TestCameraSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -1110,10 +1231,15 @@ class TestCameraSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(
@@ -1137,10 +1263,15 @@ class TestCameraSettingsEndpoint:
         app = create_test_app()
 
         with (
-            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.settings_api._get_runtime_env_path",
                 return_value=temp_runtime_env,
+                autospec=True,
             ),
         ):
             async with AsyncClient(

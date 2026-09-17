@@ -1524,7 +1524,7 @@ class TestSlowQueryLogging:
         mock_conn = MagicMock(spec=Connection)
         mock_conn.info = {"query_start_time": 0.0}
 
-        with patch("backend.core.database.time.perf_counter", return_value=0.2):
+        with patch("backend.core.database.time.perf_counter", return_value=0.2, autospec=True):
             with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(spec=Settings, slow_query_threshold_ms=50)
 
@@ -1556,7 +1556,7 @@ class TestSlowQueryLogging:
         mock_conn = MagicMock(spec=Connection)
         mock_conn.info = {"query_start_time": 0.0}
 
-        with patch("backend.core.database.time.perf_counter", return_value=0.2):
+        with patch("backend.core.database.time.perf_counter", return_value=0.2, autospec=True):
             with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(spec=Settings, slow_query_threshold_ms=50)
 
@@ -1651,7 +1651,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "warning") as mock_logger:
+            with patch.object(db_module._logger, "warning", autospec=True) as mock_logger:
                 with pytest.raises(IntegrityError):
                     async with db_module.get_session():
                         pass  # commit will raise
@@ -1693,7 +1693,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "error") as mock_logger:
+            with patch.object(db_module._logger, "error", autospec=True) as mock_logger:
                 with pytest.raises(OperationalError):
                     async with db_module.get_session():
                         pass
@@ -1730,7 +1730,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "error") as mock_logger:
+            with patch.object(db_module._logger, "error", autospec=True) as mock_logger:
                 with pytest.raises(SQLAlchemyTimeoutError):
                     async with db_module.get_session():
                         pass
@@ -1769,7 +1769,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "exception") as mock_logger:
+            with patch.object(db_module._logger, "exception", autospec=True) as mock_logger:
                 with pytest.raises(ProgrammingError):
                     async with db_module.get_session():
                         pass
@@ -1804,7 +1804,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "exception") as mock_logger:
+            with patch.object(db_module._logger, "exception", autospec=True) as mock_logger:
                 with pytest.raises(RuntimeError):
                     async with db_module.get_session():
                         pass
@@ -1844,7 +1844,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "warning") as mock_logger:
+            with patch.object(db_module._logger, "warning", autospec=True) as mock_logger:
                 with pytest.raises(IntegrityError):
                     async for _session in db_module.get_db():
                         pass  # commit will raise
@@ -1884,7 +1884,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "error") as mock_logger:
+            with patch.object(db_module._logger, "error", autospec=True) as mock_logger:
                 with pytest.raises(OperationalError):
                     async for _session in db_module.get_db():
                         pass
@@ -1919,7 +1919,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "exception") as mock_logger:
+            with patch.object(db_module._logger, "exception", autospec=True) as mock_logger:
                 with pytest.raises(KeyError):
                     async for _session in db_module.get_db():
                         pass
@@ -1964,7 +1964,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "warning") as mock_logger:
+            with patch.object(db_module._logger, "warning", autospec=True) as mock_logger:
                 with pytest.raises(IntegrityError):
                     async with db_module.get_session():
                         pass
@@ -1999,7 +1999,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "warning") as mock_logger:
+            with patch.object(db_module._logger, "warning", autospec=True) as mock_logger:
                 with pytest.raises(IntegrityError):
                     async with db_module.get_session():
                         pass
@@ -2036,7 +2036,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "exception") as mock_logger:
+            with patch.object(db_module._logger, "exception", autospec=True) as mock_logger:
                 with pytest.raises(HTTPException) as exc_info:
                     async with db_module.get_session():
                         raise HTTPException(status_code=404, detail="Not found")
@@ -2081,7 +2081,7 @@ class TestDatabaseErrorLogging:
 
             db_module._async_session_factory = mock_factory
 
-            with patch.object(db_module._logger, "exception") as mock_logger:
+            with patch.object(db_module._logger, "exception", autospec=True) as mock_logger:
                 with pytest.raises(HTTPException) as exc_info:
                     async for _session in db_module.get_db():
                         raise HTTPException(status_code=404, detail="Camera not found")

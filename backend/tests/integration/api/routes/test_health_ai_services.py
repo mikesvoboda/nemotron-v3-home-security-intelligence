@@ -61,6 +61,7 @@ class TestAIServicesHealthIntegration:
         with patch(
             "backend.api.routes.health_ai_services._check_ai_service_health",
             return_value=_detail("healthy"),
+            autospec=True,
         ):
             response = await async_client.get("/api/health/ai-services")
 
@@ -80,6 +81,7 @@ class TestAIServicesHealthIntegration:
         with patch(
             "backend.api.routes.health_ai_services._check_ai_service_health",
             return_value=_detail("unknown", error="Service URL not configured"),
+            autospec=True,
         ):
             response = await async_client.get("/api/health/ai-services")
             data = response.json()
@@ -103,6 +105,7 @@ class TestAIServicesHealthIntegration:
         with patch(
             "backend.api.routes.health_ai_services._check_ai_service_health",
             return_value=_detail("unknown", error="Service URL not configured"),
+            autospec=True,
         ):
             response = await async_client.get("/api/health/ai-services")
             data = response.json()
@@ -139,6 +142,7 @@ class TestAIServicesHealthIntegration:
         with patch(
             "backend.api.routes.health_ai_services._check_ai_service_health",
             return_value=unhealthy_detail,
+            autospec=True,
         ):
             response = await async_client.get("/api/health/ai-services")
 

@@ -220,6 +220,7 @@ class TestHealthCheckFailureScenarios:
         with patch(
             "backend.api.routes.system.check_database_health",
             side_effect=mock_db_health_check,
+            autospec=True,
         ):
             response = await client.get("/api/system/health/ready")
 
@@ -283,6 +284,7 @@ class TestHealthCheckFailureScenarios:
         with patch(
             "backend.api.routes.system.check_database_health",
             side_effect=mock_db_health_check,
+            autospec=True,
         ):
             response = await client.get("/api/system/health/ready")
 
@@ -339,6 +341,7 @@ class TestHealthCheckFailureScenarios:
         with patch(
             "backend.api.routes.system.check_database_health",
             side_effect=slow_db_check,
+            autospec=True,
         ):
             start_time = time.monotonic()
             response = await client.get("/api/system/health/ready")

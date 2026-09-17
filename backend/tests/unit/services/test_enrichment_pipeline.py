@@ -1085,9 +1085,9 @@ class TestEnrichmentPipelineInit:
     def test_init_defaults(self, mock_model_manager: MagicMock) -> None:
         """Test initialization with default values."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
 
@@ -1112,9 +1112,9 @@ class TestEnrichmentPipelineInit:
     def test_init_custom_values(self, mock_model_manager: MagicMock) -> None:
         """Test initialization with custom values."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -1135,9 +1135,9 @@ class TestEnrichmentPipelineInit:
         """Test initialization with Redis client."""
         mock_redis = MagicMock()
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -1163,9 +1163,9 @@ class TestEnrichmentPipelineEnrichBatch:
     ) -> None:
         """Test enrich_batch with no detections."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             result = await pipeline.enrich_batch(
@@ -1186,9 +1186,9 @@ class TestEnrichmentPipelineEnrichBatch:
     ) -> None:
         """Test enrich_batch filters low confidence detections."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_vehicle",
                 new_callable=AsyncMock,
@@ -1236,9 +1236,9 @@ class TestEnrichmentPipelineEnrichBatch:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_vehicle",
                 new_callable=AsyncMock,
@@ -1288,9 +1288,9 @@ class TestEnrichmentPipelineEnrichBatch:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_clothing",
                 new_callable=AsyncMock,
@@ -1339,9 +1339,9 @@ class TestEnrichmentPipelineEnrichBatch:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_pet",
                 new_callable=AsyncMock,
@@ -1382,9 +1382,9 @@ class TestEnrichmentPipelineEnrichBatch:
     ) -> None:
         """Test enrich_batch only runs violence with 2+ persons."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_violence",
                 new_callable=AsyncMock,
@@ -1444,9 +1444,9 @@ class TestEnrichmentPipelineEnrichBatch:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_violence",
                 new_callable=AsyncMock,
@@ -1495,9 +1495,9 @@ class TestEnrichmentPipelineEnrichBatch:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.assess_image_quality",
                 new_callable=AsyncMock,
@@ -1548,14 +1548,16 @@ class TestEnrichmentPipelineEnrichBatch:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.assess_image_quality",
                 new_callable=AsyncMock,
             ) as mock_assess,
-            patch("backend.services.enrichment_pipeline.detect_quality_change") as mock_detect,
+            patch(
+                "backend.services.enrichment_pipeline.detect_quality_change", autospec=True
+            ) as mock_detect,
         ):
             mock_assess.return_value = mock_quality
             mock_detect.return_value = (True, "Sudden quality degradation detected")
@@ -1603,9 +1605,9 @@ class TestEnrichmentPipelineErrorHandling:
     ) -> None:
         """Test vehicle classification errors are logged and pipeline continues gracefully."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             # Make the model manager raise an error when loading the model
             # This simulates a model loading failure - internal errors are caught
@@ -1659,9 +1661,11 @@ class TestEnrichmentPipelineErrorHandling:
             bbox=person_detection.bbox,
         )
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor") as mock_get_ext,
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
+            ) as mock_get_ext,
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             mock_extractor = MagicMock()
             mock_extractor.extract_batch_attributes = AsyncMock(
@@ -1720,10 +1724,12 @@ class TestEnrichmentPipelineErrorHandling:
             bbox=person_detection.bbox,
         )
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor") as mock_get_ext,
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
             patch(
-                "backend.services.enrichment_pipeline.get_scene_change_detector"
+                "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
+            ) as mock_get_ext,
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True
             ) as mock_get_scene,
         ):
             # Make vision extractor fail (this adds to errors list)
@@ -1784,9 +1790,9 @@ class TestEnrichmentPipelineHelpers:
     ) -> None:
         """Test _load_image returns PIL Image unchanged."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             img = Image.new("RGB", (100, 100))
@@ -1802,9 +1808,9 @@ class TestEnrichmentPipelineHelpers:
     ) -> None:
         """Test _crop_to_bbox with valid bbox."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             bbox = BoundingBox(x1=10, y1=20, x2=100, y2=150)
@@ -1821,9 +1827,9 @@ class TestEnrichmentPipelineHelpers:
     ) -> None:
         """Test _crop_to_bbox with zero-size bbox returns None."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             bbox = BoundingBox(x1=50, y1=50, x2=50, y2=50)
@@ -1839,9 +1845,9 @@ class TestEnrichmentPipelineHelpers:
     ) -> None:
         """Test _crop_to_bbox clamps coordinates to image bounds."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             # Bbox extends beyond image (640x480)
@@ -1864,9 +1870,9 @@ class TestEnrichmentPipelineImageHelpers:
     ) -> None:
         """Test _get_image_for_detection returns shared image."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             images = {None: test_image}
@@ -1884,9 +1890,9 @@ class TestEnrichmentPipelineImageHelpers:
     ) -> None:
         """Test _get_image_for_detection returns detection-specific image."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             images = {None: test_image, 1: small_image}
@@ -1907,10 +1913,10 @@ class TestGlobalSingletons:
     def test_get_enrichment_pipeline_creates_instance(self) -> None:
         """Test get_enrichment_pipeline creates singleton."""
         with (
-            patch("backend.services.enrichment_pipeline.get_model_manager"),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline1 = get_enrichment_pipeline()
             pipeline2 = get_enrichment_pipeline()
@@ -1920,10 +1926,10 @@ class TestGlobalSingletons:
     def test_reset_enrichment_pipeline_clears_singleton(self) -> None:
         """Test reset_enrichment_pipeline clears the singleton."""
         with (
-            patch("backend.services.enrichment_pipeline.get_model_manager"),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline1 = get_enrichment_pipeline()
             reset_enrichment_pipeline()
@@ -1942,13 +1948,14 @@ class TestGlobalSingletons:
         reset_enrichment_pipeline()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_model_manager"),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.core.redis.get_redis_client_sync",
                 return_value=mock_redis_client,
+                autospec=True,
             ) as mock_get_redis,
         ):
             pipeline = get_enrichment_pipeline()
@@ -1968,13 +1975,14 @@ class TestGlobalSingletons:
         reset_enrichment_pipeline()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_model_manager"),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.core.redis.get_redis_client_sync",
                 return_value=None,
+                autospec=True,
             ),
         ):
             pipeline = get_enrichment_pipeline()
@@ -2014,10 +2022,12 @@ class TestEnrichmentServiceMode:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -2062,10 +2072,12 @@ class TestEnrichmentServiceMode:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -2121,10 +2133,12 @@ class TestEnrichmentServiceMode:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -2166,10 +2180,12 @@ class TestEnrichmentServiceMode:
         unified_result = UnifiedEnrichmentResult()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -2648,9 +2664,9 @@ class TestEnrichmentPipelineEnrichBatchExtended:
         mock_model_manager.load = mock_load
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -2705,9 +2721,9 @@ class TestEnrichmentPipelineEnrichBatchExtended:
         mock_model_manager.load = mock_load
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -2749,10 +2765,10 @@ class TestEnrichmentPipelineEnrichBatchExtended:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
             patch(
-                "backend.services.enrichment_pipeline.get_scene_change_detector"
+                "backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True
             ) as mock_get_scene,
         ):
             mock_detector = MagicMock()
@@ -2802,9 +2818,9 @@ class TestEnrichmentPipelineEnrichBatchExtended:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.detect_vehicle_damage",
                 new_callable=AsyncMock,
@@ -2851,9 +2867,9 @@ class TestEnrichmentPipelineEnrichBatchExtended:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.segformer_loader.segment_clothing",
                 new_callable=AsyncMock,
@@ -2893,9 +2909,9 @@ class TestEnrichmentPipelineEnrichBatchExtended:
     ) -> None:
         """Test enrich_batch returns early when no shared image available for certain tasks."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -2946,9 +2962,9 @@ class TestEnrichmentPipelineHelpersExtended:
         img.save(img_path)
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
 
@@ -2969,9 +2985,9 @@ class TestEnrichmentPipelineHelpersExtended:
         img.save(img_path)
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
 
@@ -2986,9 +3002,9 @@ class TestEnrichmentPipelineHelpersExtended:
     ) -> None:
         """Test _load_image returns None for invalid path."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
 
@@ -3002,9 +3018,9 @@ class TestEnrichmentPipelineHelpersExtended:
     ) -> None:
         """Test _crop_to_bbox returns None on error."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             bbox = BoundingBox(x1=10, y1=20, x2=100, y2=150)
@@ -3040,9 +3056,9 @@ class TestEnrichmentPipelineErrorHandlingExtended:
         mock_model_manager.load = mock_load
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -3085,9 +3101,9 @@ class TestEnrichmentPipelineErrorHandlingExtended:
         mock_model_manager.load = mock_load
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -3126,9 +3142,9 @@ class TestEnrichmentPipelineErrorHandlingExtended:
         get appended to result.errors - only top-level errors do.
         """
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_clothing",
                 new_callable=AsyncMock,
@@ -3176,9 +3192,9 @@ class TestEnrichmentPipelineErrorHandlingExtended:
         get appended to result.errors - only top-level errors do.
         """
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_pet",
                 new_callable=AsyncMock,
@@ -3221,9 +3237,9 @@ class TestEnrichmentPipelineErrorHandlingExtended:
     ) -> None:
         """Test image quality assessment error handling."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.assess_image_quality",
                 new_callable=AsyncMock,
@@ -3277,10 +3293,12 @@ class TestEnrichmentServiceModeExtended:
         unified_result = UnifiedEnrichmentResult()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -3323,10 +3341,12 @@ class TestEnrichmentServiceModeExtended:
         unified_result = UnifiedEnrichmentResult()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -3369,10 +3389,12 @@ class TestEnrichmentServiceModeExtended:
         unified_result = UnifiedEnrichmentResult()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch(
+                "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+            ) as mock_get_client,
         ):
             mock_client = MagicMock()
             mock_client.enrich_detection = AsyncMock(return_value=unified_result)
@@ -3462,9 +3484,9 @@ class TestEnrichmentPipelineWeatherClassification:
     ) -> None:
         """Test pipeline initializes with weather_classification_enabled=True by default."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
             assert pipeline.weather_classification_enabled is True
@@ -3475,9 +3497,9 @@ class TestEnrichmentPipelineWeatherClassification:
     ) -> None:
         """Test pipeline can disable weather classification."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -3506,9 +3528,9 @@ class TestEnrichmentPipelineWeatherClassification:
         )
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_weather",
                 new_callable=AsyncMock,
@@ -3553,9 +3575,9 @@ class TestEnrichmentPipelineWeatherClassification:
     ) -> None:
         """Test enrich_batch skips weather when disabled."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_weather",
                 new_callable=AsyncMock,
@@ -3597,9 +3619,9 @@ class TestEnrichmentPipelineWeatherClassification:
     ) -> None:
         """Test enrich_batch handles weather classification errors gracefully."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_weather",
                 new_callable=AsyncMock,
@@ -3641,9 +3663,9 @@ class TestEnrichmentPipelineWeatherClassification:
     ) -> None:
         """Test weather classification is skipped if no shared image available."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_weather",
                 new_callable=AsyncMock,
@@ -4108,6 +4130,7 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
         with patch(
             "backend.services.enrichment_pipeline.get_model_manager",
             return_value=mock_model_manager,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4152,6 +4175,7 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
         with patch(
             "backend.services.enrichment_pipeline.get_model_manager",
             return_value=mock_model_manager,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4191,6 +4215,7 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
         with patch(
             "backend.services.enrichment_pipeline.get_model_manager",
             return_value=mock_model_manager,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4234,6 +4259,7 @@ class TestEnrichmentPipelineEnrichBatchMainLogic:
         with patch(
             "backend.services.enrichment_pipeline.get_model_manager",
             return_value=mock_model_manager,
+            autospec=True,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4312,7 +4338,7 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
 
         pipeline = EnrichmentPipeline()
 
-        with patch("backend.core.metrics.record_enrichment_batch_status"):
+        with patch("backend.core.metrics.record_enrichment_batch_status", autospec=True):
             tracking = await pipeline.enrich_batch_with_tracking([], {})
 
             assert isinstance(tracking, EnrichmentTrackingResult)
@@ -4335,9 +4361,10 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
             patch(
                 "backend.services.enrichment_pipeline.get_model_manager",
                 return_value=mock_model_manager,
+                autospec=True,
             ),
-            patch("backend.core.metrics.record_enrichment_batch_status"),
-            patch("backend.core.metrics.set_enrichment_success_rate"),
+            patch("backend.core.metrics.record_enrichment_batch_status", autospec=True),
+            patch("backend.core.metrics.set_enrichment_success_rate", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4392,11 +4419,12 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
             patch(
                 "backend.services.enrichment_pipeline.get_model_manager",
                 return_value=mock_model_manager,
+                autospec=True,
             ),
-            patch("backend.core.metrics.record_enrichment_batch_status"),
-            patch("backend.core.metrics.record_enrichment_failure"),
-            patch("backend.core.metrics.record_enrichment_partial_batch"),
-            patch("backend.core.metrics.set_enrichment_success_rate"),
+            patch("backend.core.metrics.record_enrichment_batch_status", autospec=True),
+            patch("backend.core.metrics.record_enrichment_failure", autospec=True),
+            patch("backend.core.metrics.record_enrichment_partial_batch", autospec=True),
+            patch("backend.core.metrics.set_enrichment_success_rate", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4440,9 +4468,12 @@ class TestEnrichmentPipelineEnrichBatchWithTracking:
             patch(
                 "backend.services.enrichment_pipeline.get_model_manager",
                 return_value=mock_model_manager,
+                autospec=True,
             ),
-            patch("backend.core.metrics.record_enrichment_batch_status"),
-            patch("backend.core.metrics.set_enrichment_success_rate") as mock_set_rate,
+            patch("backend.core.metrics.record_enrichment_batch_status", autospec=True),
+            patch(
+                "backend.core.metrics.set_enrichment_success_rate", autospec=True
+            ) as mock_set_rate,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -4644,7 +4675,10 @@ class TestEnrichmentPipelineHelperMethodsCoverage:
 
         # Mock model_manager to raise KeyError for unavailable model
         with patch.object(
-            pipeline.model_manager, "load", side_effect=KeyError("yolo11-license-plate")
+            pipeline.model_manager,
+            "load",
+            side_effect=KeyError("yolo11-license-plate"),
+            autospec=True,
         ):
             results = await pipeline._detect_license_plates([vehicle_detection], {None: test_image})
 
@@ -4662,7 +4696,7 @@ class TestEnrichmentPipelineHelperMethodsCoverage:
         mock_cm.__aenter__.side_effect = RuntimeError("Model load failed")
         mock_cm.__aexit__ = AsyncMock()
 
-        with patch.object(pipeline.model_manager, "load", return_value=mock_cm):
+        with patch.object(pipeline.model_manager, "load", return_value=mock_cm, autospec=True):
             results = await pipeline._detect_license_plates([vehicle_detection], {None: test_image})
 
             assert results == []
@@ -4674,7 +4708,9 @@ class TestEnrichmentPipelineHelperMethodsCoverage:
         """Test _detect_faces handles model KeyError."""
         pipeline = EnrichmentPipeline()
 
-        with patch.object(pipeline.model_manager, "load", side_effect=KeyError("yolo11-face")):
+        with patch.object(
+            pipeline.model_manager, "load", side_effect=KeyError("yolo11-face"), autospec=True
+        ):
             results = await pipeline._detect_faces([person_detection], {None: test_image})
 
             assert results == []
@@ -4695,7 +4731,9 @@ class TestEnrichmentPipelineHelperMethodsCoverage:
         bbox = BoundingBox(x1=100, y1=50, x2=200, y2=100)
         plate = LicensePlateResult(bbox=bbox, source_detection_id=1)
 
-        with patch.object(pipeline.model_manager, "load", side_effect=KeyError("paddleocr")):
+        with patch.object(
+            pipeline.model_manager, "load", side_effect=KeyError("paddleocr"), autospec=True
+        ):
             await pipeline._read_plates([plate], {None: test_image})
 
             # Text should remain empty since OCR wasn't available
@@ -4710,7 +4748,9 @@ class TestEnrichmentPipelineHelperMethodsCoverage:
         assert pipeline._enrichment_client is None
 
         # Gets created on first call
-        with patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client:
+        with patch(
+            "backend.services.enrichment_pipeline.get_enrichment_client", autospec=True
+        ) as mock_get_client:
             mock_client = MagicMock()
             mock_get_client.return_value = mock_client
 
@@ -4964,9 +5004,10 @@ class TestEnrichmentPipelineVideoHandling:
             patch(
                 "backend.services.video_processor.VideoProcessor",
                 return_value=mock_processor,
+                autospec=True,
             ),
-            patch("PIL.Image.open", return_value=test_image),
-            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+            patch("PIL.Image.open", return_value=test_image, autospec=True),
+            patch("tempfile.TemporaryDirectory", autospec=True) as mock_temp_dir,
         ):
             # Configure the context manager
             mock_temp_dir.return_value.__enter__ = MagicMock(
@@ -4996,8 +5037,9 @@ class TestEnrichmentPipelineVideoHandling:
             patch(
                 "backend.services.video_processor.VideoProcessor",
                 return_value=mock_processor,
+                autospec=True,
             ),
-            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+            patch("tempfile.TemporaryDirectory", autospec=True) as mock_temp_dir,
         ):
             mock_temp_dir.return_value.__enter__ = MagicMock(
                 return_value="/tmp/test_dir"  # noqa: S108
@@ -5024,8 +5066,9 @@ class TestEnrichmentPipelineVideoHandling:
             patch(
                 "backend.services.video_processor.VideoProcessor",
                 side_effect=VideoProcessingError("ffmpeg not found"),
+                autospec=True,
             ),
-            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+            patch("tempfile.TemporaryDirectory", autospec=True) as mock_temp_dir,
         ):
             mock_temp_dir.return_value.__enter__ = MagicMock(
                 return_value="/tmp/test_dir"  # noqa: S108
@@ -5048,8 +5091,9 @@ class TestEnrichmentPipelineVideoHandling:
             patch(
                 "backend.services.video_processor.VideoProcessor",
                 side_effect=Exception("Unexpected error"),
+                autospec=True,
             ),
-            patch("tempfile.TemporaryDirectory") as mock_temp_dir,
+            patch("tempfile.TemporaryDirectory", autospec=True) as mock_temp_dir,
         ):
             mock_temp_dir.return_value.__enter__ = MagicMock(
                 return_value="/tmp/test_dir"  # noqa: S108
@@ -5514,9 +5558,9 @@ class TestEnrichmentPipelineActionRecognition:
         }
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -5590,9 +5634,9 @@ class TestEnrichmentPipelineActionRecognition:
         }
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -5650,9 +5694,9 @@ class TestEnrichmentPipelineActionRecognition:
     ) -> None:
         """Test action recognition is not called when disabled."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_actions",
                 new_callable=AsyncMock,
@@ -5710,9 +5754,9 @@ class TestEnrichmentPipelineActionRecognition:
         }
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -5775,9 +5819,9 @@ class TestEnrichmentPipelineActionRecognition:
     ) -> None:
         """Test action recognition only runs when persons are detected."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_actions",
                 new_callable=AsyncMock,
@@ -5844,9 +5888,9 @@ class TestEnrichmentPipelineActionRecognition:
         }
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -5923,9 +5967,9 @@ class TestEnrichmentPipelineActionRecognition:
         }
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -6001,9 +6045,9 @@ class TestEnrichmentPipelineGetActionFrames:
         mock_buffer.get_sequence.return_value = jpeg_frames
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -6027,9 +6071,9 @@ class TestEnrichmentPipelineGetActionFrames:
         mock_buffer.get_sequence.return_value = None  # No frames in buffer
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -6049,9 +6093,9 @@ class TestEnrichmentPipelineGetActionFrames:
     ) -> None:
         """Test _get_action_frames returns current frame when no buffer configured."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -6073,9 +6117,9 @@ class TestEnrichmentPipelineGetActionFrames:
         mock_buffer = MagicMock()
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -6111,9 +6155,9 @@ class TestEnrichmentPipelineRecognizeActions:
         }
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_actions",
                 new_callable=AsyncMock,
@@ -6140,9 +6184,9 @@ class TestEnrichmentPipelineRecognizeActions:
     ) -> None:
         """Test _recognize_actions returns None for empty frame list."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
         ):
             pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
 
@@ -6158,9 +6202,9 @@ class TestEnrichmentPipelineRecognizeActions:
     ) -> None:
         """Test _recognize_actions propagates X-CLIP errors."""
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.classify_actions",
                 new_callable=AsyncMock,

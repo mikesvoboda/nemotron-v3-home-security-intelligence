@@ -517,7 +517,7 @@ async def test_full_pipeline_single_image(
 
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-        with patch.object(detector._http_client, "post") as mock_post:
+        with patch.object(detector._http_client, "post", autospec=True) as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
             mock_post.return_value = mock_response
 
@@ -576,7 +576,7 @@ async def test_full_pipeline_single_image(
             "reasoning": "Test reasoning for detected objects",
         }
 
-    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm):
+    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True):
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
             camera_id=camera_id,
@@ -637,7 +637,7 @@ async def test_full_pipeline_multiple_images_same_camera(
 
         async with get_session() as session:
             # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-            with patch.object(detector._http_client, "post") as mock_post:
+            with patch.object(detector._http_client, "post", autospec=True) as mock_post:
                 mock_response = create_mock_httpx_response(mock_detector_response)
                 mock_post.return_value = mock_response
 
@@ -688,7 +688,7 @@ async def test_full_pipeline_multiple_images_same_camera(
             "reasoning": "Test reasoning for detected objects",
         }
 
-    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm):
+    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True):
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
             camera_id=camera_id,
@@ -740,7 +740,10 @@ async def test_pipeline_detector_failure_graceful(
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
         with patch.object(
-            detector._http_client, "post", side_effect=httpx.ConnectError("Connection refused")
+            detector._http_client,
+            "post",
+            side_effect=httpx.ConnectError("Connection refused"),
+            autospec=True,
         ):
             # Should raise DetectorUnavailableError to allow retry
             with pytest.raises(DetectorUnavailableError) as exc_info:
@@ -765,7 +768,10 @@ async def test_pipeline_detector_failure_graceful(
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
         with patch.object(
-            detector._http_client, "post", side_effect=httpx.TimeoutException("Request timed out")
+            detector._http_client,
+            "post",
+            side_effect=httpx.TimeoutException("Request timed out"),
+            autospec=True,
         ):
             # Should raise DetectorUnavailableError to allow retry
             with pytest.raises(DetectorUnavailableError) as exc_info:
@@ -791,7 +797,7 @@ async def test_pipeline_detector_failure_graceful(
         )
 
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-        with patch.object(detector._http_client, "post", return_value=mock_response):
+        with patch.object(detector._http_client, "post", return_value=mock_response, autospec=True):
             # Should raise DetectorUnavailableError to allow retry
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
@@ -858,7 +864,7 @@ async def test_pipeline_low_confidence_filtering(
 
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-        with patch.object(detector._http_client, "post") as mock_post:
+        with patch.object(detector._http_client, "post", autospec=True) as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
             mock_post.return_value = mock_response
 
@@ -896,7 +902,7 @@ async def test_pipeline_llm_failure_fallback(
 
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-        with patch.object(detector._http_client, "post") as mock_post:
+        with patch.object(detector._http_client, "post", autospec=True) as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
             mock_post.return_value = mock_response
 
@@ -912,7 +918,9 @@ async def test_pipeline_llm_failure_fallback(
     batch_id = unique_id("test_batch_llm_failure")
     analyzer = NemotronAnalyzer(redis_client=mock_redis)
 
-    with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
+    with patch(
+        "backend.services.nemotron_analyzer.httpx.AsyncClient", autospec=True
+    ) as mock_client:
         mock_instance = AsyncMock()
         mock_instance.post = AsyncMock(side_effect=httpx.ConnectError("LLM service unavailable"))
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
@@ -1091,7 +1099,7 @@ async def test_fast_path_high_priority_detection(
     detection_id = None
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-        with patch.object(detector._http_client, "post") as mock_post:
+        with patch.object(detector._http_client, "post", autospec=True) as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
             mock_post.return_value = mock_response
 
@@ -1108,7 +1116,9 @@ async def test_fast_path_high_priority_detection(
         risk_score=90, risk_level="critical", summary="High confidence person detected"
     )
 
-    with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
+    with patch(
+        "backend.services.nemotron_analyzer.httpx.AsyncClient", autospec=True
+    ) as mock_client:
         mock_response = create_mock_httpx_response(mock_llm_response)
 
         mock_instance = AsyncMock()
@@ -1184,7 +1194,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     detection_id = None
     async with get_session() as session:
         # Patch the persistent HTTP client's post method (NEM-1721 pattern)
-        with patch.object(detector._http_client, "post") as mock_post:
+        with patch.object(detector._http_client, "post", autospec=True) as mock_post:
             mock_response = create_mock_httpx_response(mock_detector_response)
             mock_post.return_value = mock_response
 
@@ -1265,7 +1275,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
             "reasoning": "Test reasoning for detected objects",
         }
 
-    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm):
+    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True):
         # Call analyze_batch with queue payload data (not from Redis)
         event = await analyzer.analyze_batch(
             batch_id=queue_item["batch_id"],

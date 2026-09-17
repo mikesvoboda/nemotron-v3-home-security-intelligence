@@ -331,7 +331,7 @@ class TestGetLuaScripts:
 
         mock_redis = AsyncMock()
 
-        with patch("backend.core.redis.init_redis", return_value=mock_redis):
+        with patch("backend.core.redis.init_redis", return_value=mock_redis, autospec=True):
             scripts1 = await get_lua_scripts()
             scripts2 = await get_lua_scripts()
 
@@ -345,7 +345,7 @@ class TestGetLuaScripts:
 
         mock_redis = AsyncMock()
 
-        with patch("backend.core.redis.init_redis", return_value=mock_redis):
+        with patch("backend.core.redis.init_redis", return_value=mock_redis, autospec=True):
             scripts1 = await get_lua_scripts()
             await reset_lua_scripts()
             scripts2 = await get_lua_scripts()

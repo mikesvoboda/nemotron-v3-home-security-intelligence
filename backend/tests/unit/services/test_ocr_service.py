@@ -215,7 +215,7 @@ async def test_read_plates_success(temp_test_image, sample_plate_detections, moc
     """Test successful plate text reading."""
     images = {temp_test_image: Image.open(temp_test_image).convert("RGB")}
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = ("ABC 123", 0.95)
 
         results = await read_plates(
@@ -266,7 +266,7 @@ async def test_read_plates_low_confidence_filtered(temp_test_image, sample_plate
     """Test that low confidence results are filtered."""
     images = {temp_test_image: Image.open(temp_test_image).convert("RGB")}
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         # Return low confidence
         mock_to_thread.return_value = ("ABC 123", 0.3)
 
@@ -286,7 +286,7 @@ async def test_read_plates_short_text_filtered(temp_test_image, sample_plate_det
     """Test that short text results are filtered."""
     images = {temp_test_image: Image.open(temp_test_image).convert("RGB")}
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         # Return very short text
         mock_to_thread.return_value = ("A", 0.95)
 
@@ -311,7 +311,7 @@ async def test_read_plates_handles_exception(temp_test_image):
     ]
     images = {temp_test_image: Image.open(temp_test_image).convert("RGB")}
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.side_effect = RuntimeError("OCR crashed")
 
         results = await read_plates(
@@ -326,7 +326,7 @@ async def test_read_plates_handles_exception(temp_test_image):
 @pytest.mark.asyncio
 async def test_read_plates_with_image_paths(temp_test_image, sample_plate_detections):
     """Test plate reading with image paths instead of cache."""
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = ("XYZ789", 0.92)
 
         results = await read_plates(
@@ -344,7 +344,7 @@ async def test_read_single_plate_success():
     """Test reading single plate image."""
     plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = ("ABC 123", 0.95)
 
         result = await read_single_plate(
@@ -375,7 +375,7 @@ async def test_read_single_plate_low_confidence():
     """Test single plate with low confidence."""
     plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = ("ABC123", 0.3)
 
         result = await read_single_plate(
@@ -392,7 +392,7 @@ async def test_read_single_plate_handles_exception():
     """Test single plate exception handling."""
     plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.side_effect = RuntimeError("OCR failed")
 
         result = await read_single_plate(
@@ -608,7 +608,7 @@ async def test_read_single_plate_empty_cleaned_text():
     """Test single plate with text that becomes empty after cleaning (covers line 406)."""
     plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         # Return single character that will be filtered by clean_plate_text
         mock_to_thread.return_value = ("@", 0.95)
 
@@ -727,7 +727,7 @@ async def test_read_plates_uses_image_paths_loading(temp_test_image):
         ),
     ]
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = ("XYZ999", 0.88)
 
         # Pass image_paths instead of pre-loaded images
@@ -755,7 +755,7 @@ async def test_read_plates_none_ocr_result():
     test_image = Image.new("RGB", (1920, 1080), color=(100, 150, 200))
     images = {"test.jpg": test_image}
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = (None, 0.0)
 
         results = await read_plates(
@@ -773,7 +773,7 @@ async def test_read_single_plate_none_ocr_result():
     """Test read_single_plate when OCR returns None."""
     plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
 
-    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+    with patch("backend.services.ocr_service.asyncio.to_thread", autospec=True) as mock_to_thread:
         mock_to_thread.return_value = (None, 0.0)
 
         result = await read_single_plate(

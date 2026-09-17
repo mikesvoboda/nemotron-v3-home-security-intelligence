@@ -225,7 +225,7 @@ class TestOpenToHalfOpenTransition:
             circuit_breaker.record_failure()
 
         # Simulate time passing beyond recovery timeout
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             # Set current time to just after recovery timeout
             mock_time.return_value = circuit_breaker._opened_at + 35.0
 
@@ -244,7 +244,7 @@ class TestOpenToHalfOpenTransition:
         opened_at = circuit_breaker._opened_at
 
         # Simulate time still within recovery timeout
-        with patch("time.monotonic", return_value=opened_at + 15.0):
+        with patch("time.monotonic", return_value=opened_at + 15.0, autospec=True):
             is_permitted = circuit_breaker.is_call_permitted()
 
         assert is_permitted is False
@@ -267,7 +267,7 @@ class TestHalfOpenToClosedTransition:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             circuit_breaker.is_call_permitted()
 
@@ -287,7 +287,7 @@ class TestHalfOpenToClosedTransition:
         for _ in range(2):
             low_threshold_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = low_threshold_breaker._opened_at + 10.0
             low_threshold_breaker.is_call_permitted()
 
@@ -318,7 +318,7 @@ class TestHalfOpenToOpenTransition:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             circuit_breaker.is_call_permitted()
 
@@ -346,7 +346,7 @@ class TestHalfOpenCallLimiting:
         for _ in range(2):
             low_threshold_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = low_threshold_breaker._opened_at + 10.0
 
             # First call is permitted and increments counter
@@ -370,7 +370,7 @@ class TestHalfOpenCallLimiting:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
 
             # Initial half_open_calls should be 0 after transition
@@ -393,7 +393,7 @@ class TestHalfOpenCallLimiting:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             assert circuit_breaker.is_call_permitted() is True
             assert circuit_breaker._half_open_calls == 1
@@ -628,7 +628,7 @@ class TestEdgeCases:
         for _ in range(3):
             circuit_breaker.record_failure()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             circuit_breaker.is_call_permitted()
 
@@ -661,7 +661,7 @@ class TestEdgeCases:
         assert open_time is not None
 
         # OPEN -> HALF_OPEN
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             circuit_breaker.is_call_permitted()
 
@@ -701,7 +701,7 @@ class TestCompleteStateMachineCycle:
         assert circuit_breaker.is_call_permitted() is False
 
         # Transition to HALF_OPEN after timeout
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             is_permitted = circuit_breaker.is_call_permitted()
 
@@ -724,7 +724,7 @@ class TestCompleteStateMachineCycle:
             circuit_breaker.record_failure()
 
         # Get to HALF_OPEN
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             circuit_breaker.is_call_permitted()
 
@@ -736,7 +736,7 @@ class TestCompleteStateMachineCycle:
         assert circuit_breaker.get_state() == WebSocketCircuitState.OPEN
 
         # Another recovery cycle
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = circuit_breaker._opened_at + 35.0
             circuit_breaker.is_call_permitted()
 
@@ -1014,7 +1014,7 @@ class TestRedisPersistenceOnStateTransitions:
         mock_redis.set.reset_mock()
 
         # Transition to HALF_OPEN
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = breaker_with_redis._opened_at + 35.0
             await breaker_with_redis.is_call_permitted_async()
 
@@ -1030,7 +1030,7 @@ class TestRedisPersistenceOnStateTransitions:
         for _ in range(3):
             await breaker_with_redis.record_failure_async()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = breaker_with_redis._opened_at + 35.0
             await breaker_with_redis.is_call_permitted_async()
 
@@ -1051,7 +1051,7 @@ class TestRedisPersistenceOnStateTransitions:
         for _ in range(3):
             await breaker_with_redis.record_failure_async()
 
-        with patch("time.monotonic") as mock_time:
+        with patch("time.monotonic", autospec=True) as mock_time:
             mock_time.return_value = breaker_with_redis._opened_at + 35.0
             await breaker_with_redis.is_call_permitted_async()
 
@@ -1138,7 +1138,7 @@ class TestRestoreStateTimestampAdjustment:
         }
         mock_redis.get.return_value = json.dumps(stored_data)
 
-        with patch("time.monotonic", return_value=5000.0):
+        with patch("time.monotonic", return_value=5000.0, autospec=True):
             await breaker_with_redis.restore_state_from_redis()
 
         # opened_at should be set to current time (5000.0), not the stored value
@@ -1161,7 +1161,7 @@ class TestRestoreStateTimestampAdjustment:
         }
         mock_redis.get.return_value = json.dumps(stored_data)
 
-        with patch("time.monotonic", return_value=5000.0):
+        with patch("time.monotonic", return_value=5000.0, autospec=True):
             await breaker_with_redis.restore_state_from_redis()
 
         # backoff_expires_at should be current_time + current_backoff_delay

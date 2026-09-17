@@ -29,7 +29,7 @@ def redis_client() -> RedisClient:
 
     Returns a client with mock settings for adaptive TTL testing.
     """
-    with patch("backend.core.redis.get_settings") as mock_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value = MagicMock(
             redis_url="redis://localhost:6379/0",
             redis_ssl_enabled=False,

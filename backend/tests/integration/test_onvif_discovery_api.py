@@ -54,7 +54,7 @@ async def test_discover_onvif_devices_success(client: AsyncClient):
         }
     ]
 
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -108,7 +108,7 @@ async def test_discover_onvif_devices_multiple_devices(client: AsyncClient):
         },
     ]
 
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -140,7 +140,7 @@ async def test_discover_onvif_devices_no_devices_found(client: AsyncClient):
 
     Should return 200 with empty devices list and count 0.
     """
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=[])
         mock_service_class.return_value = mock_service
@@ -175,7 +175,7 @@ async def test_discover_onvif_devices_partial_success(client: AsyncClient):
         }
     ]
 
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_result)
         mock_service_class.return_value = mock_service
@@ -255,7 +255,7 @@ async def test_discover_onvif_devices_default_timeout(client: AsyncClient):
     """Test discovery uses default timeout when not specified."""
     mock_devices = []
 
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -279,7 +279,7 @@ async def test_discover_onvif_devices_service_failure(client: AsyncClient):
 
     Should return 500 internal server error.
     """
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(side_effect=Exception("WS-Discovery failed"))
         mock_service_class.return_value = mock_service
@@ -327,7 +327,7 @@ async def test_discover_onvif_devices_rtsp_urls_structure(client: AsyncClient):
         }
     ]
 
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service
@@ -368,7 +368,7 @@ async def test_discover_onvif_devices_response_includes_all_required_fields(
         }
     ]
 
-    with patch("backend.services.onvif_service.OnvifService") as mock_service_class:
+    with patch("backend.services.onvif_service.OnvifService", autospec=True) as mock_service_class:
         mock_service = MagicMock()
         mock_service.discover_devices = AsyncMock(return_value=mock_devices)
         mock_service_class.return_value = mock_service

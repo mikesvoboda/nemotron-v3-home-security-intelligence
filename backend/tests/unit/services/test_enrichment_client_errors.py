@@ -57,8 +57,14 @@ def enrichment_client(mock_settings):
     mock_health_client.aclose = AsyncMock()
 
     with (
-        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
-        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+        patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch(
+            "httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client], autospec=True
+        ),
     ):
         client = EnrichmentClient()
         client._http_client = mock_http_client
@@ -705,7 +711,10 @@ class TestHealthCheckErrors:
     ):
         """Test is_healthy returns False when health check returns error status."""
         with patch.object(
-            enrichment_client, "check_health", return_value={"status": "error", "error": "test"}
+            enrichment_client,
+            "check_health",
+            return_value={"status": "error", "error": "test"},
+            autospec=True,
         ):
             result = await enrichment_client.is_healthy()
             assert result is False
@@ -752,7 +761,10 @@ class TestUnexpectedExceptions:
     ):
         """Test vehicle classification with memory error during processing."""
         with patch.object(
-            enrichment_client, "_encode_image_to_base64", side_effect=MemoryError("Out of memory")
+            enrichment_client,
+            "_encode_image_to_base64",
+            side_effect=MemoryError("Out of memory"),
+            autospec=True,
         ):
             # MemoryError during _encode_image_to_base64 is not caught (it's before try block)
             with pytest.raises(MemoryError) as exc_info:
@@ -766,7 +778,10 @@ class TestUnexpectedExceptions:
     ):
         """Test pet classification with ValueError during processing."""
         with patch.object(
-            enrichment_client, "_encode_image_to_base64", side_effect=ValueError("Invalid image")
+            enrichment_client,
+            "_encode_image_to_base64",
+            side_effect=ValueError("Invalid image"),
+            autospec=True,
         ):
             # ValueError during _encode_image_to_base64 is not caught (it's before try block)
             with pytest.raises(ValueError) as exc_info:
@@ -780,7 +795,10 @@ class TestUnexpectedExceptions:
     ):
         """Test clothing classification with TypeError during processing."""
         with patch.object(
-            enrichment_client, "_encode_image_to_base64", side_effect=TypeError("Wrong type")
+            enrichment_client,
+            "_encode_image_to_base64",
+            side_effect=TypeError("Wrong type"),
+            autospec=True,
         ):
             # TypeError during _encode_image_to_base64 is not caught (it's before try block)
             with pytest.raises(TypeError) as exc_info:
@@ -794,7 +812,10 @@ class TestUnexpectedExceptions:
     ):
         """Test action classification with RuntimeError during processing."""
         with patch.object(
-            enrichment_client, "_encode_image_to_base64", side_effect=RuntimeError("Runtime error")
+            enrichment_client,
+            "_encode_image_to_base64",
+            side_effect=RuntimeError("Runtime error"),
+            autospec=True,
         ):
             # RuntimeError during _encode_image_to_base64 is not caught (it's before try block)
             with pytest.raises(RuntimeError) as exc_info:

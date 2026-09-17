@@ -159,7 +159,7 @@ class TestCreateZone:
         sample_zone_create: LineZoneCreate,
     ) -> None:
         """Test zone creation logs the event."""
-        with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
             await line_zone_service.create_zone("front_door", sample_zone_create)
 
             mock_logger.info.assert_called_once()
@@ -335,7 +335,7 @@ class TestUpdateZone:
         sample_zone: LineZone,
     ) -> None:
         """Test updating zone name."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             data = LineZoneUpdate(name="Updated Entry Line")
 
             result = await line_zone_service.update_zone(1, data)
@@ -353,7 +353,7 @@ class TestUpdateZone:
         sample_zone: LineZone,
     ) -> None:
         """Test updating zone coordinates."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             data = LineZoneUpdate(start_x=200, start_y=300, end_x=600, end_y=300)
 
             result = await line_zone_service.update_zone(1, data)
@@ -372,7 +372,7 @@ class TestUpdateZone:
         sample_zone: LineZone,
     ) -> None:
         """Test updating alert_on_cross flag."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             data = LineZoneUpdate(alert_on_cross=False)
 
             result = await line_zone_service.update_zone(1, data)
@@ -388,7 +388,7 @@ class TestUpdateZone:
         sample_zone: LineZone,
     ) -> None:
         """Test updating target classes."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             data = LineZoneUpdate(target_classes=["person", "bicycle", "car"])
 
             result = await line_zone_service.update_zone(1, data)
@@ -403,7 +403,7 @@ class TestUpdateZone:
         mock_session: AsyncMock,
     ) -> None:
         """Test updating non-existent zone returns None."""
-        with patch.object(line_zone_service, "get_zone", return_value=None):
+        with patch.object(line_zone_service, "get_zone", return_value=None, autospec=True):
             data = LineZoneUpdate(name="Test")
 
             result = await line_zone_service.update_zone(999, data)
@@ -419,8 +419,8 @@ class TestUpdateZone:
         sample_zone: LineZone,
     ) -> None:
         """Test zone update logs the event."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
+            with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
                 data = LineZoneUpdate(name="Updated")
 
                 await line_zone_service.update_zone(1, data)
@@ -446,7 +446,7 @@ class TestDeleteZone:
         sample_zone: LineZone,
     ) -> None:
         """Test successful zone deletion."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             result = await line_zone_service.delete_zone(1)
 
             assert result is True
@@ -460,7 +460,7 @@ class TestDeleteZone:
         mock_session: AsyncMock,
     ) -> None:
         """Test deleting non-existent zone returns False."""
-        with patch.object(line_zone_service, "get_zone", return_value=None):
+        with patch.object(line_zone_service, "get_zone", return_value=None, autospec=True):
             result = await line_zone_service.delete_zone(999)
 
             assert result is False
@@ -474,8 +474,8 @@ class TestDeleteZone:
         sample_zone: LineZone,
     ) -> None:
         """Test zone deletion logs the event."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
+            with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
                 await line_zone_service.delete_zone(1)
 
                 mock_logger.info.assert_called_once()
@@ -499,7 +499,7 @@ class TestIncrementCount:
         sample_zone: LineZone,
     ) -> None:
         """Test incrementing in_count."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             await line_zone_service.increment_count(1, direction="in")
 
             assert sample_zone.in_count == 1
@@ -514,7 +514,7 @@ class TestIncrementCount:
         sample_zone: LineZone,
     ) -> None:
         """Test incrementing out_count."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             await line_zone_service.increment_count(1, direction="out")
 
             assert sample_zone.in_count == 0
@@ -528,7 +528,7 @@ class TestIncrementCount:
         sample_zone: LineZone,
     ) -> None:
         """Test incrementing count multiple times."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             await line_zone_service.increment_count(1, direction="in")
             await line_zone_service.increment_count(1, direction="in")
             await line_zone_service.increment_count(1, direction="out")
@@ -555,8 +555,8 @@ class TestIncrementCount:
         mock_session: AsyncMock,
     ) -> None:
         """Test incrementing count for non-existent zone logs warning."""
-        with patch.object(line_zone_service, "get_zone", return_value=None):
-            with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch.object(line_zone_service, "get_zone", return_value=None, autospec=True):
+            with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
                 await line_zone_service.increment_count(999, direction="in")
 
                 mock_logger.warning.assert_called_once()
@@ -570,8 +570,8 @@ class TestIncrementCount:
         sample_zone: LineZone,
     ) -> None:
         """Test count increment logs debug message."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
+            with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
                 await line_zone_service.increment_count(1, direction="in")
 
                 mock_logger.debug.assert_called_once()
@@ -598,7 +598,7 @@ class TestResetCounts:
         sample_zone.in_count = 10
         sample_zone.out_count = 5
 
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             await line_zone_service.reset_counts(1)
 
             assert sample_zone.in_count == 0
@@ -613,7 +613,7 @@ class TestResetCounts:
         sample_zone: LineZone,
     ) -> None:
         """Test resetting counts that are already zero."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
             await line_zone_service.reset_counts(1)
 
             assert sample_zone.in_count == 0
@@ -626,8 +626,8 @@ class TestResetCounts:
         mock_session: AsyncMock,
     ) -> None:
         """Test resetting counts for non-existent zone logs warning."""
-        with patch.object(line_zone_service, "get_zone", return_value=None):
-            with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch.object(line_zone_service, "get_zone", return_value=None, autospec=True):
+            with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
                 await line_zone_service.reset_counts(999)
 
                 mock_logger.warning.assert_called_once()
@@ -641,8 +641,8 @@ class TestResetCounts:
         sample_zone: LineZone,
     ) -> None:
         """Test count reset logs info message."""
-        with patch.object(line_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.line_zone_service.logger") as mock_logger:
+        with patch.object(line_zone_service, "get_zone", return_value=sample_zone, autospec=True):
+            with patch("backend.services.line_zone_service.logger", autospec=True) as mock_logger:
                 await line_zone_service.reset_counts(1)
 
                 mock_logger.info.assert_called_once()

@@ -301,7 +301,10 @@ class TestAnalyzeBatchErrorHandling:
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
         with patch.object(
-            httpx.AsyncClient, "post", side_effect=httpx.ConnectError("LLM service unavailable")
+            httpx.AsyncClient,
+            "post",
+            side_effect=httpx.ConnectError("LLM service unavailable"),
+            autospec=True,
         ):
             event = await analyzer.analyze_batch(batch_id)
 
@@ -462,7 +465,10 @@ class TestAnalyzeDetectionFastPath:
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
         with patch.object(
-            httpx.AsyncClient, "post", side_effect=httpx.ConnectError("LLM service unavailable")
+            httpx.AsyncClient,
+            "post",
+            side_effect=httpx.ConnectError("LLM service unavailable"),
+            autospec=True,
         ):
             event = await analyzer.analyze_detection_fast_path(sample_camera.id, str(detection.id))
 
@@ -599,7 +605,7 @@ class TestHealthCheck:
 
         analyzer = NemotronAnalyzer(redis_client=None)
 
-        with patch.object(httpx.AsyncClient, "get", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "get", return_value=mock_response, autospec=True):
             result = await analyzer.health_check()
 
         assert result is True
@@ -609,7 +615,10 @@ class TestHealthCheck:
         analyzer = NemotronAnalyzer(redis_client=None)
 
         with patch.object(
-            httpx.AsyncClient, "get", side_effect=httpx.ConnectError("Connection refused")
+            httpx.AsyncClient,
+            "get",
+            side_effect=httpx.ConnectError("Connection refused"),
+            autospec=True,
         ):
             result = await analyzer.health_check()
 
@@ -622,7 +631,7 @@ class TestHealthCheck:
 
         analyzer = NemotronAnalyzer(redis_client=None)
 
-        with patch.object(httpx.AsyncClient, "get", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "get", return_value=mock_response, autospec=True):
             result = await analyzer.health_check()
 
         assert result is False

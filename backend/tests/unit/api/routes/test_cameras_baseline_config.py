@@ -36,8 +36,14 @@ class TestUpdateBaselineConfig:
         )
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.set_camera_config = AsyncMock()
             mock_service.get_camera_config = AsyncMock(
@@ -115,6 +121,7 @@ class TestUpdateBaselineConfig:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await update_baseline_config(
@@ -138,8 +145,14 @@ class TestUpdateBaselineConfig:
         config_update = BaselineConfigUpdate(threshold_stdev=3.5)
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.set_camera_config = AsyncMock()
             mock_service.get_camera_config = AsyncMock(
@@ -178,8 +191,14 @@ class TestUpdateBaselineConfig:
         config_update = BaselineConfigUpdate(override_global_config=False)
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.set_camera_config = AsyncMock()
             mock_service.get_camera_config = AsyncMock(
@@ -218,8 +237,14 @@ class TestResetBaseline:
         mock_camera.id = "front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.reset_camera_baseline = AsyncMock(
                 return_value={
@@ -246,6 +271,7 @@ class TestResetBaseline:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await reset_baseline(camera_id="nonexistent", db=mock_db)
@@ -262,8 +288,14 @@ class TestResetBaseline:
         mock_camera.id = "new_camera"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.reset_camera_baseline = AsyncMock(
                 return_value={
@@ -291,8 +323,14 @@ class TestResetBaseline:
         mock_activity_result.rowcount = 168
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.reset_camera_baseline = AsyncMock(
                 return_value={
@@ -316,8 +354,14 @@ class TestResetBaseline:
         mock_camera.id = "front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.reset_camera_baseline = AsyncMock(
                 return_value={
@@ -345,8 +389,14 @@ class TestGetBaselineConfig:
         mock_camera.id = "front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.get_camera_config = AsyncMock(
                 return_value={
@@ -379,8 +429,14 @@ class TestGetBaselineConfig:
         mock_camera.id = "front_door"
 
         with (
-            patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera),
-            patch("backend.api.routes.cameras.baseline_config_service") as mock_service,
+            patch(
+                "backend.api.routes.cameras.get_camera_or_404",
+                return_value=mock_camera,
+                autospec=True,
+            ),
+            patch(
+                "backend.api.routes.cameras.baseline_config_service", autospec=True
+            ) as mock_service,
         ):
             mock_service.get_camera_config = AsyncMock(
                 return_value={
@@ -412,6 +468,7 @@ class TestGetBaselineConfig:
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_baseline_config(camera_id="nonexistent", db=mock_db)

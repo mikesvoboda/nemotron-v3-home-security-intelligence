@@ -41,7 +41,7 @@ def test_all_pool_types_are_defined():
 
 def test_redis_client_init_with_dedicated_pools():
     """Test RedisClient initialization with dedicated pools enabled."""
-    with patch("backend.core.redis.get_settings") as mock_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.redis_url = "redis://localhost:6379"
         mock_settings.return_value.redis_password = None
         mock_settings.return_value.redis_ssl_enabled = False
@@ -69,7 +69,7 @@ def test_redis_client_init_with_dedicated_pools():
 
 def test_redis_client_init_dedicated_pools_disabled():
     """Test RedisClient initialization with dedicated pools disabled."""
-    with patch("backend.core.redis.get_settings") as mock_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.redis_url = "redis://localhost:6379"
         mock_settings.return_value.redis_password = None
         mock_settings.return_value.redis_ssl_enabled = False
@@ -92,7 +92,7 @@ def test_redis_client_init_dedicated_pools_disabled():
 
 def test_redis_client_init_override_dedicated_pools():
     """Test RedisClient can override dedicated_pools setting."""
-    with patch("backend.core.redis.get_settings") as mock_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.redis_url = "redis://localhost:6379"
         mock_settings.return_value.redis_password = None
         mock_settings.return_value.redis_ssl_enabled = False
@@ -116,7 +116,7 @@ def test_redis_client_init_override_dedicated_pools():
 
 def test_redis_client_pool_sizes_configured():
     """Test pool sizes are configured from settings."""
-    with patch("backend.core.redis.get_settings") as mock_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.redis_url = "redis://localhost:6379"
         mock_settings.return_value.redis_password = None
         mock_settings.return_value.redis_ssl_enabled = False

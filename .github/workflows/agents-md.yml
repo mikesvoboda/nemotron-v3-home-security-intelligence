@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# WP3.4: repeated pushes to a PR branch piled up redundant runs of this
+# workflow that all competed for the measured ~20-job scheduler ceiling
+# (spec WP3.1: concurrency 20 pinned). Same pattern as ci.yml:10-12.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-agents-md:
     runs-on: ubuntu-latest

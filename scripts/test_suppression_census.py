@@ -101,6 +101,7 @@ EXPECTED = {
     "frontend_todo": 1,
     "excluded_test_trees": 3,  # load/benchmarks/e2e, deduped
     "coverage_omit": 2,  # main.py + wildcards are plumbing, not suppressions
+    "unspecced_patch": 0,  # WP4.2: the fixture carries no convertible patch()s
 }
 
 

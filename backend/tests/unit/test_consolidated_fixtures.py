@@ -83,7 +83,9 @@ class TestMockDbSessionContext:
         self, mock_db_session: AsyncMock, mock_db_session_context: AsyncMock
     ) -> None:
         """Test integration with patching get_session."""
-        with patch("backend.core.database.get_session", return_value=mock_db_session_context):
+        with patch(
+            "backend.core.database.get_session", return_value=mock_db_session_context, autospec=True
+        ):
             # Simulate code that uses get_session
             from backend.core.database import get_session
 

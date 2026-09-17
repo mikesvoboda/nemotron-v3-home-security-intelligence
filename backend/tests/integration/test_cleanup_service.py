@@ -325,7 +325,7 @@ async def test_run_cleanup_keeps_images_when_disabled(test_db, tmp_path):
         delete_calls.append(path)
         return original_delete_file(path)
 
-    with patch.object(service, "_delete_file", side_effect=tracking_delete_file):
+    with patch.object(service, "_delete_file", side_effect=tracking_delete_file, autospec=True):
         stats = await service.run_cleanup()
 
     # When delete_images is False, no image files should be deleted

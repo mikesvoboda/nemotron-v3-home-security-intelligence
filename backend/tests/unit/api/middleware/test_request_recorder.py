@@ -522,7 +522,9 @@ class TestRequestRecorderConfiguration:
 
     def test_loads_configuration_from_settings(self):
         """Test that middleware loads configuration from settings."""
-        with patch("backend.api.middleware.request_recorder.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.request_recorder.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(
                 request_recording_enabled=True,
                 request_recording_sample_rate=0.05,
@@ -538,7 +540,9 @@ class TestRequestRecorderConfiguration:
 
     def test_explicit_config_overrides_settings(self):
         """Test that explicit configuration overrides settings."""
-        with patch("backend.api.middleware.request_recorder.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.request_recorder.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value = MagicMock(
                 request_recording_enabled=False,
                 request_recording_sample_rate=0.01,
@@ -840,7 +844,7 @@ class TestReplayEndpoint:
         app = FastAPI()
         app.include_router(debug_router)
 
-        with patch("backend.api.routes.debug.get_settings") as mock_settings:
+        with patch("backend.api.routes.debug.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(debug=False)
 
             client = TestClient(app, headers=get_auth_headers())
@@ -852,7 +856,7 @@ class TestReplayEndpoint:
         """Test that replay returns 404 for nonexistent recording."""
         app, recordings_dir = app_with_replay
 
-        with patch("backend.api.routes.debug.get_settings") as mock_settings:
+        with patch("backend.api.routes.debug.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(debug=True)
             with patch("backend.api.routes.debug.RECORDINGS_DIR", recordings_dir):
                 client = TestClient(app, headers=get_auth_headers())
@@ -870,7 +874,7 @@ class TestReplayEndpoint:
 
         app, recordings_dir = app_with_replay
 
-        with patch("backend.api.routes.debug.get_settings") as mock_settings:
+        with patch("backend.api.routes.debug.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(debug=True)
             with patch("backend.api.routes.debug.RECORDINGS_DIR", recordings_dir):
                 # Mock httpx to return a successful response
@@ -924,7 +928,7 @@ class TestReplayEndpoint:
         with open(recording_file, "w") as f:  # nosemgrep: path-traversal-open
             json.dump(recording_data, f)
 
-        with patch("backend.api.routes.debug.get_settings") as mock_settings:
+        with patch("backend.api.routes.debug.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(debug=True)
             with patch("backend.api.routes.debug.RECORDINGS_DIR", temp_recordings_dir):
                 mock_response = MagicMock()
@@ -975,7 +979,7 @@ class TestReplayEndpoint:
         with open(recording_file, "w") as f:  # nosemgrep: path-traversal-open
             json.dump(recording_data, f)
 
-        with patch("backend.api.routes.debug.get_settings") as mock_settings:
+        with patch("backend.api.routes.debug.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(debug=True)
             with patch("backend.api.routes.debug.RECORDINGS_DIR", temp_recordings_dir):
                 mock_response = MagicMock()
@@ -1004,7 +1008,7 @@ class TestReplayEndpoint:
 
         app, recordings_dir = app_with_replay
 
-        with patch("backend.api.routes.debug.get_settings") as mock_settings:
+        with patch("backend.api.routes.debug.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(debug=True)
             with patch("backend.api.routes.debug.RECORDINGS_DIR", recordings_dir):
                 mock_response = MagicMock()

@@ -445,7 +445,9 @@ class TestGetEventRoute:
         mock_event.detection_id_list = [1, 2, 3]
         mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event(event_id=1, request=mock_request, db=mock_db)
 
         assert result.id == 1
@@ -486,7 +488,9 @@ class TestUpdateEventRoute:
         update_data = EventUpdate(reviewed=True)
         mock_background_tasks = MagicMock()
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             with patch("backend.api.routes.events.AuditService.log_action", AsyncMock()):
                 result = await update_event(
                     event_id=1,
@@ -515,7 +519,9 @@ class TestGetEventDetectionsRoute:
         mock_event.detections = []
         mock_event.detection_id_list = []
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event_detections(
                 event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=mock_db
             )
@@ -540,7 +546,9 @@ class TestGetEventEnrichmentsRoute:
         mock_event.detections = []
         mock_event.detection_id_list = []
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event_enrichments(event_id=1, limit=50, offset=0, db=mock_db)
 
         assert result.event_id == 1
@@ -561,7 +569,9 @@ class TestGetEventEnrichmentsRoute:
         mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
         mock_event.detection_id_list = [1, 2, 3]
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event_enrichments(event_id=1, limit=50, offset=100, db=mock_db)
 
         assert result.event_id == 1
@@ -585,7 +595,9 @@ class TestGetEventClipRoute:
         mock_event.id = 1
         mock_event.clip_path = None
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event_clip(event_id=1, db=mock_db)
 
         assert result.clip_available is False
@@ -603,7 +615,9 @@ class TestGetEventClipRoute:
         mock_event.id = 1
         mock_event.clip_path = "/nonexistent/clip.mp4"
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event_clip(event_id=1, db=mock_db)
 
         assert result.clip_available is False
@@ -634,7 +648,9 @@ class TestGenerateEventClipRoute:
 
         request = ClipGenerateRequest(force=False)
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 await generate_event_clip(
                     event_id=1, request=request, response=mock_response, db=mock_db
@@ -897,7 +913,7 @@ class TestSearchEventsRouteComprehensive:
         mock_db = AsyncMock(spec=AsyncSession)
 
         # Mock search_events function
-        with patch("backend.api.routes.events.search_events") as mock_search:
+        with patch("backend.api.routes.events.search_events", autospec=True) as mock_search:
             mock_search.return_value = AsyncMock(results=[], total_count=0, limit=50, offset=0)
 
             await search_events_endpoint(
@@ -926,7 +942,7 @@ class TestSearchEventsRouteComprehensive:
 
         mock_db = AsyncMock(spec=AsyncSession)
 
-        with patch("backend.api.routes.events.search_events") as mock_search:
+        with patch("backend.api.routes.events.search_events", autospec=True) as mock_search:
             mock_search.return_value = AsyncMock(results=[], total_count=0, limit=50, offset=0)
 
             await search_events_endpoint(
@@ -982,7 +998,9 @@ class TestUpdateEventRouteComprehensive:
         update_data = EventUpdate(reviewed=True, notes="Test note")
         mock_background_tasks = MagicMock()
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             # Mock audit service to raise exception
             with patch(
                 "backend.api.routes.events.AuditService.log_action",
@@ -1030,9 +1048,13 @@ class TestUpdateEventRouteComprehensive:
         update_data = EventUpdate(notes="New note")
         mock_background_tasks = MagicMock()
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             with patch("backend.api.routes.events.AuditService.log_action", AsyncMock()):
-                with patch("backend.api.routes.events.record_event_reviewed") as mock_metric:
+                with patch(
+                    "backend.api.routes.events.record_event_reviewed", autospec=True
+                ) as mock_metric:
                     await update_event(
                         event_id=1,
                         update_data=update_data,
@@ -1128,7 +1150,9 @@ class TestGetEventDetectionsRouteComprehensive:
 
         mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_detections_result])
 
-        with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
+        with patch(
+            "backend.api.routes.events.get_event_or_404", return_value=mock_event, autospec=True
+        ):
             result = await get_event_detections(
                 event_id=1, limit=2, offset=1, order_detections_by="detected_at", db=mock_db
             )

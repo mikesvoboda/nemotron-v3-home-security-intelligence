@@ -469,7 +469,7 @@ async def test_detect_plates_uses_thread_pool(temp_test_image, mock_yolo_model):
         )
     ]
 
-    with patch("asyncio.to_thread") as mock_to_thread:
+    with patch("asyncio.to_thread", autospec=True) as mock_to_thread:
         # Make to_thread return expected result
         mock_to_thread.return_value = [([0.2, 0.3, 0.8, 0.7], 0.92)]
 

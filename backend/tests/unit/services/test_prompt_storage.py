@@ -1272,7 +1272,7 @@ class TestFileSystemErrors:
         test_file.write_text('{"key": "value"}')
 
         # Mock open to raise OSError
-        with patch("builtins.open", side_effect=OSError("Permission denied")):
+        with patch("builtins.open", side_effect=OSError("Permission denied"), autospec=True):
             result = storage_service._read_json(test_file)
             assert result is None
 
@@ -1390,8 +1390,8 @@ class TestRiskLevelMapping:
         """Test low risk level for scores under 30."""
         # Use mock to control random scores
         with (
-            patch("random.randint", return_value=15),
-            patch("random.uniform", return_value=0.1),
+            patch("random.randint", return_value=15, autospec=True),
+            patch("random.uniform", return_value=0.1, autospec=True),
         ):
             result = await storage_service.run_mock_test(
                 model_name="nemotron",
@@ -1404,8 +1404,8 @@ class TestRiskLevelMapping:
     async def test_score_to_level_medium(self, storage_service: PromptStorageService):
         """Test medium risk level for scores 30-59."""
         with (
-            patch("random.randint", return_value=45),
-            patch("random.uniform", return_value=0.1),
+            patch("random.randint", return_value=45, autospec=True),
+            patch("random.uniform", return_value=0.1, autospec=True),
         ):
             result = await storage_service.run_mock_test(
                 model_name="nemotron",
@@ -1418,8 +1418,8 @@ class TestRiskLevelMapping:
     async def test_score_to_level_high(self, storage_service: PromptStorageService):
         """Test high risk level for scores 60-84."""
         with (
-            patch("random.randint", return_value=75),
-            patch("random.uniform", return_value=0.1),
+            patch("random.randint", return_value=75, autospec=True),
+            patch("random.uniform", return_value=0.1, autospec=True),
         ):
             result = await storage_service.run_mock_test(
                 model_name="nemotron",
@@ -1432,8 +1432,8 @@ class TestRiskLevelMapping:
     async def test_score_to_level_critical(self, storage_service: PromptStorageService):
         """Test critical risk level for scores 85+."""
         with (
-            patch("random.randint", return_value=90),
-            patch("random.uniform", return_value=0.1),
+            patch("random.randint", return_value=90, autospec=True),
+            patch("random.uniform", return_value=0.1, autospec=True),
         ):
             result = await storage_service.run_mock_test(
                 model_name="nemotron",

@@ -989,7 +989,7 @@ class TestDownloadExport:
         mock_result.scalar_one_or_none.return_value = completed_export_job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = False
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1013,7 +1013,7 @@ class TestDownloadExport:
         mock_result.scalar_one_or_none.return_value = completed_export_job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1054,7 +1054,7 @@ class TestDownloadExport:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1094,7 +1094,7 @@ class TestDownloadExport:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1134,7 +1134,7 @@ class TestDownloadExport:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1177,7 +1177,7 @@ class TestDownloadExport:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1273,7 +1273,7 @@ class TestGetDownloadInfo:
         mock_result.scalar_one_or_none.return_value = completed_export_job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = False
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1295,7 +1295,7 @@ class TestGetDownloadInfo:
         mock_result.scalar_one_or_none.return_value = completed_export_job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1339,7 +1339,7 @@ class TestGetDownloadInfo:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1381,7 +1381,7 @@ class TestGetDownloadInfo:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1422,7 +1422,7 @@ class TestGetDownloadInfo:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path
@@ -1466,7 +1466,7 @@ class TestGetDownloadInfo:
         mock_result.scalar_one_or_none.return_value = job
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.exports.EXPORT_DIR") as mock_export_dir:
+        with patch("backend.api.routes.exports.EXPORT_DIR", autospec=True) as mock_export_dir:
             mock_path = MagicMock()
             mock_path.exists.return_value = True
             mock_export_dir.__truediv__.return_value = mock_path

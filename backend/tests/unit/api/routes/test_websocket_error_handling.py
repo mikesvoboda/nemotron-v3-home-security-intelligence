@@ -468,6 +468,7 @@ class TestConnectionCleanup:
             patch(
                 "backend.api.routes.websocket.get_subscription_manager",
                 return_value=mock_subscription_manager,
+                autospec=True,
             ),
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
@@ -562,6 +563,7 @@ class TestSystemEndpointErrorHandling:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket, mock_redis_client)
@@ -588,6 +590,7 @@ class TestSystemEndpointErrorHandling:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket, mock_redis_client)
@@ -613,6 +616,7 @@ class TestSystemEndpointErrorHandling:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
         ):
             await websocket_system_status(mock_websocket, mock_redis_client)
@@ -645,7 +649,9 @@ class TestConnectionIDContext:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.set_connection_id") as mock_set_conn_id,
+            patch(
+                "backend.api.routes.websocket.set_connection_id", autospec=True
+            ) as mock_set_conn_id,
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
@@ -672,7 +678,9 @@ class TestConnectionIDContext:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.set_connection_id") as mock_set_conn_id,
+            patch(
+                "backend.api.routes.websocket.set_connection_id", autospec=True
+            ) as mock_set_conn_id,
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 

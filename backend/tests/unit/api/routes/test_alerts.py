@@ -319,7 +319,7 @@ class TestCreateRule:
         )
 
         # Mock the created rule using helper
-        with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
+        with patch("backend.api.routes.alerts.AlertRule", autospec=True) as mock_rule_class:
             mock_rule_instance = create_mock_rule(
                 id="new-rule-id",
                 name="Test Rule",
@@ -370,7 +370,7 @@ class TestCreateRule:
         )
 
         # Mock the created rule using helper
-        with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
+        with patch("backend.api.routes.alerts.AlertRule", autospec=True) as mock_rule_class:
             mock_rule_instance = create_mock_rule(
                 id="night-rule-id",
                 name="Night Alert",
@@ -406,7 +406,7 @@ class TestCreateRule:
 
         rule_data = AlertRuleCreate(name="Critical Rule", severity=AlertSeverity.CRITICAL)
 
-        with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
+        with patch("backend.api.routes.alerts.AlertRule", autospec=True) as mock_rule_class:
             mock_rule_instance = create_mock_rule(
                 id="critical-rule",
                 name="Critical Rule",
@@ -434,7 +434,7 @@ class TestCreateRule:
 
         rule_data = AlertRuleCreate(name="Test Rule", severity=AlertSeverity.LOW)
 
-        with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
+        with patch("backend.api.routes.alerts.AlertRule", autospec=True) as mock_rule_class:
             mock_rule_instance = create_mock_rule(
                 id="rule-id",
                 name="Test Rule",
@@ -474,7 +474,9 @@ class TestGetRule:
             channels=["pushover"],
         )
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await get_rule(rule_id="test-rule-id", db=mock_db)
 
             assert result.id == "test-rule-id"
@@ -491,6 +493,7 @@ class TestGetRule:
         with patch(
             "backend.api.routes.alerts.get_alert_rule_or_404",
             side_effect=HTTPException(status_code=404, detail="Rule not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_rule(rule_id="nonexistent", db=mock_db)
@@ -522,7 +525,9 @@ class TestUpdateRule:
 
         rule_update = AlertRuleUpdate(enabled=False)
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await update_rule(
                 rule_id="rule-id",
                 rule_data=rule_update,
@@ -556,7 +561,9 @@ class TestUpdateRule:
 
         rule_update = AlertRuleUpdate(severity=AlertSeverity.CRITICAL)
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             await update_rule(
                 rule_id="rule-id",
                 rule_data=rule_update,
@@ -582,6 +589,7 @@ class TestUpdateRule:
         with patch(
             "backend.api.routes.alerts.get_alert_rule_or_404",
             side_effect=HTTPException(status_code=404, detail="Rule not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await update_rule(
@@ -613,7 +621,9 @@ class TestUpdateRule:
 
         rule_update = AlertRuleUpdate(enabled=False)
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             # Background task is scheduled (actual cache invalidation happens later)
             result = await update_rule(
                 rule_id="rule-id",
@@ -643,7 +653,9 @@ class TestDeleteRule:
         mock_rule = MagicMock(spec=AlertRule)
         mock_rule.id = "rule-to-delete"
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await delete_rule(
                 rule_id="rule-to-delete",
                 background_tasks=mock_background_tasks,
@@ -669,6 +681,7 @@ class TestDeleteRule:
         with patch(
             "backend.api.routes.alerts.get_alert_rule_or_404",
             side_effect=HTTPException(status_code=404, detail="Rule not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_rule(
@@ -692,7 +705,9 @@ class TestDeleteRule:
         mock_rule = MagicMock(spec=AlertRule)
         mock_rule.id = "rule-to-delete"
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             # Background task is scheduled (actual cache invalidation happens later)
             result = await delete_rule(
                 rule_id="rule-to-delete",
@@ -750,7 +765,9 @@ class TestTestRule:
 
         test_data = RuleTestRequest(event_ids=[1])
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await test_rule(
                 rule_id="rule-id",
                 test_data=test_data,
@@ -809,7 +826,9 @@ class TestTestRule:
 
         test_data = RuleTestRequest(limit=10)
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await test_rule(
                 rule_id="rule-id",
                 test_data=test_data,
@@ -842,7 +861,9 @@ class TestTestRule:
 
         test_data = RuleTestRequest(limit=10)
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await test_rule(
                 rule_id="rule-id",
                 test_data=test_data,
@@ -934,7 +955,9 @@ class TestTestRule:
 
         test_data = RuleTestRequest(limit=5)
 
-        with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
+        with patch(
+            "backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule, autospec=True
+        ):
             result = await test_rule(
                 rule_id="rule-id",
                 test_data=test_data,
@@ -987,7 +1010,9 @@ class TestAcknowledgeAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
             mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
@@ -1041,7 +1066,9 @@ class TestAcknowledgeAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
             mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
@@ -1132,7 +1159,9 @@ class TestAcknowledgeAlert:
 
         # NEM-2582: Broadcast now uses background task, test that broadcaster failure
         # doesn't block the request - simulate RuntimeError from get_instance
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster.side_effect = RuntimeError("Broadcaster not initialized")
 
             # Should not raise exception, just log warning
@@ -1184,7 +1213,9 @@ class TestDismissAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
             mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
@@ -1238,7 +1269,9 @@ class TestDismissAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
             mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
@@ -1288,7 +1321,9 @@ class TestDismissAlert:
         mock_result.scalar_one_or_none.return_value = mock_alert
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster_instance = AsyncMock()
             mock_broadcaster_instance.broadcast_metrics = MagicMock()
             mock_broadcaster.return_value = mock_broadcaster_instance
@@ -1377,7 +1412,9 @@ class TestDismissAlert:
 
         # NEM-2582: Broadcast now uses background task, test that broadcaster failure
         # doesn't block the request - simulate RuntimeError from get_instance
-        with patch("backend.api.routes.alerts.EventBroadcaster.get_instance") as mock_broadcaster:
+        with patch(
+            "backend.api.routes.alerts.EventBroadcaster.get_instance", autospec=True
+        ) as mock_broadcaster:
             mock_broadcaster.side_effect = RuntimeError("Broadcaster not initialized")
 
             # Should not raise exception, just log warning

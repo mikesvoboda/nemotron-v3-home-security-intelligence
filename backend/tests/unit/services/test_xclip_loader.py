@@ -1553,7 +1553,7 @@ class TestNumpyConversionValidation:
         mock_img = MagicMock(spec=Image.Image)
         mock_img.load.return_value = None
 
-        with patch("numpy.array", return_value=None):
+        with patch("numpy.array", return_value=None, autospec=True):
             result = _convert_to_numpy_safe(mock_img)
             assert result is None
 
@@ -1565,7 +1565,7 @@ class TestNumpyConversionValidation:
         mock_img = MagicMock(spec=Image.Image)
         mock_img.load.return_value = None
 
-        with patch("numpy.array") as mock_array:
+        with patch("numpy.array", autospec=True) as mock_array:
             invalid_arr = MagicMock(spec=np.ndarray)
             invalid_arr.shape = (100,)  # 1D, should be rejected
             mock_array.return_value = invalid_arr
@@ -1581,7 +1581,7 @@ class TestNumpyConversionValidation:
         mock_img = MagicMock(spec=Image.Image)
         mock_img.load.return_value = None
 
-        with patch("numpy.array") as mock_array:
+        with patch("numpy.array", autospec=True) as mock_array:
             invalid_arr = MagicMock(spec=np.ndarray)
             invalid_arr.shape = (0, 100, 3)  # Zero height
             mock_array.return_value = invalid_arr
@@ -1713,7 +1713,7 @@ class TestNullFrameHandlingIntegration:
         frames = [None, valid_img, None, valid_img, None]  # type: ignore[list-item]
 
         # Should succeed with the valid frames (after filtering)
-        with patch("asyncio.get_running_loop") as mock_loop:
+        with patch("asyncio.get_running_loop", autospec=True) as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(
                 return_value={
                     "detected_action": "walking",
@@ -1738,7 +1738,7 @@ class TestNullFrameHandlingIntegration:
         # 9 None and 1 valid
         frames = [None] * 9 + [valid_img]  # type: ignore[list-item]
 
-        with patch("asyncio.get_running_loop") as mock_loop:
+        with patch("asyncio.get_running_loop", autospec=True) as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(
                 return_value={
                     "detected_action": "standing",
@@ -1763,7 +1763,7 @@ class TestNullFrameHandlingIntegration:
         # Mix valid images with strings (paths that weren't loaded)
         frames = [valid_img, "/path/to/image.jpg", valid_img]  # type: ignore[list-item]
 
-        with patch("asyncio.get_running_loop") as mock_loop:
+        with patch("asyncio.get_running_loop", autospec=True) as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(
                 return_value={
                     "detected_action": "running",

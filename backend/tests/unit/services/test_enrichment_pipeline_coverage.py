@@ -504,6 +504,7 @@ async def test_classify_person_clothing_individual_failure() -> None:
     with patch(
         "backend.services.enrichment_pipeline.classify_clothing",
         side_effect=RuntimeError("Classification failed"),
+        autospec=True,
     ):
         # Should return empty dict, not raise
         result = await pipeline._classify_person_clothing([person_det], image)

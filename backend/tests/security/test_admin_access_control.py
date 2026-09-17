@@ -28,7 +28,9 @@ class TestAdminAccessControlFunction:
         mock_settings = MagicMock()
         mock_settings.admin_enabled = True
 
-        with patch("backend.api.routes.admin.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+        ):
             # Should not raise - admin is enabled
             result = require_admin_access()
             # Function returns None when access is allowed
@@ -39,7 +41,9 @@ class TestAdminAccessControlFunction:
         mock_settings = MagicMock()
         mock_settings.admin_enabled = False
 
-        with patch("backend.api.routes.admin.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 require_admin_access()
 
@@ -53,7 +57,9 @@ class TestAdminAccessControlFunction:
         mock_settings.admin_enabled = True
         mock_settings.debug = False
 
-        with patch("backend.api.routes.admin.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+        ):
             # Should not raise - admin_enabled is the only check
             result = require_admin_access()
             assert result is None
@@ -64,7 +70,9 @@ class TestAdminAccessControlFunction:
         mock_settings.admin_enabled = False
         mock_settings.debug = True  # debug=True should not override admin_enabled=False
 
-        with patch("backend.api.routes.admin.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 require_admin_access()
 
@@ -105,7 +113,9 @@ class TestAdminEndpointsProductionMode:
         mock_settings = MagicMock()
         mock_settings.admin_enabled = admin_enabled
 
-        with patch("backend.api.routes.admin.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.admin.get_settings", return_value=mock_settings, autospec=True
+        ):
             if should_block:
                 with pytest.raises(Exception) as exc_info:
                     require_admin_access()

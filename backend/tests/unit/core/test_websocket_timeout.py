@@ -119,7 +119,7 @@ class TestWebSocketIdleTimeout:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 5
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -152,7 +152,7 @@ class TestWebSocketIdleTimeout:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -182,7 +182,7 @@ class TestWebSocketIdleTimeout:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 5
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -211,8 +211,9 @@ class TestWebSocketIdleTimeout:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 5
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -339,7 +340,7 @@ class TestClientDisconnectDetection:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -370,7 +371,7 @@ class TestClientDisconnectDetection:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -401,8 +402,9 @@ class TestClientDisconnectDetection:
             patch(
                 "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
+                autospec=True,
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -452,7 +454,7 @@ class TestHeartbeatTaskLifecycle:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
             patch.object(asyncio.Event, "set", track_stop),
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
@@ -491,7 +493,7 @@ class TestHeartbeatTaskLifecycle:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
             patch.object(asyncio.Event, "set", track_stop),
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 5
@@ -534,7 +536,7 @@ class TestKeepaliveMessages:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -575,7 +577,7 @@ class TestKeepaliveMessages:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -616,7 +618,7 @@ class TestKeepaliveMessages:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -658,7 +660,7 @@ class TestConnectionRecovery:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 5
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -690,7 +692,7 @@ class TestConnectionRecovery:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -732,7 +734,7 @@ class TestConnectionRecovery:
                     "backend.api.routes.websocket.get_broadcaster",
                     AsyncMock(return_value=mock_event_broadcaster),
                 ),
-                patch("backend.api.routes.websocket.get_settings") as mock_settings,
+                patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
             ):
                 mock_settings.return_value.websocket_idle_timeout_seconds = 5
                 mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -776,7 +778,7 @@ class TestWebSocketCleanup:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -807,7 +809,7 @@ class TestWebSocketCleanup:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 300
             mock_settings.return_value.websocket_ping_interval_seconds = 30
@@ -837,7 +839,7 @@ class TestWebSocketCleanup:
                 "backend.api.routes.websocket.get_broadcaster",
                 AsyncMock(return_value=mock_event_broadcaster),
             ),
-            patch("backend.api.routes.websocket.get_settings") as mock_settings,
+            patch("backend.api.routes.websocket.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.websocket_idle_timeout_seconds = 5
             mock_settings.return_value.websocket_ping_interval_seconds = 30

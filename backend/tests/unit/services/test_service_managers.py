@@ -87,7 +87,9 @@ def config_no_restart():
 @pytest.mark.asyncio
 async def test_shell_health_check_success(shell_manager, sample_config):
     """Test health check when service responds with HTTP 200."""
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.services.service_managers.httpx.AsyncClient", autospec=True
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -106,7 +108,9 @@ async def test_shell_health_check_success(shell_manager, sample_config):
 @pytest.mark.asyncio
 async def test_shell_health_check_connection_error(shell_manager, sample_config):
     """Test health check when service is not reachable (connection error)."""
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.services.service_managers.httpx.AsyncClient", autospec=True
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -121,7 +125,9 @@ async def test_shell_health_check_connection_error(shell_manager, sample_config)
 @pytest.mark.asyncio
 async def test_shell_health_check_timeout(shell_manager, sample_config):
     """Test health check when service times out."""
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.services.service_managers.httpx.AsyncClient", autospec=True
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -136,7 +142,9 @@ async def test_shell_health_check_timeout(shell_manager, sample_config):
 @pytest.mark.asyncio
 async def test_shell_health_check_http_error(shell_manager, sample_config):
     """Test health check when service returns HTTP 500 error."""
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.services.service_managers.httpx.AsyncClient", autospec=True
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
@@ -160,7 +168,9 @@ async def test_shell_health_check_http_error(shell_manager, sample_config):
 @pytest.mark.asyncio
 async def test_shell_health_check_unexpected_exception(shell_manager, sample_config):
     """Test health check when unexpected exception occurs."""
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.services.service_managers.httpx.AsyncClient", autospec=True
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=ValueError("Unexpected error"))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -178,7 +188,7 @@ async def test_shell_health_check_unexpected_exception(shell_manager, sample_con
 @pytest.mark.asyncio
 async def test_shell_health_check_redis_ping_success(shell_manager, redis_config):
     """Test Redis health check when redis-cli ping returns PONG."""
-    with patch("asyncio.create_subprocess_shell") as mock_proc:
+    with patch("asyncio.create_subprocess_shell", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 0
         process.communicate = AsyncMock(return_value=(b"PONG\n", b""))
@@ -196,7 +206,7 @@ async def test_shell_health_check_redis_ping_success(shell_manager, redis_config
 @pytest.mark.asyncio
 async def test_shell_health_check_redis_ping_failure(shell_manager, redis_config):
     """Test Redis health check when redis-cli ping fails (not PONG)."""
-    with patch("asyncio.create_subprocess_shell") as mock_proc:
+    with patch("asyncio.create_subprocess_shell", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 1
         process.communicate = AsyncMock(return_value=(b"", b"Could not connect to Redis"))
@@ -210,7 +220,7 @@ async def test_shell_health_check_redis_ping_failure(shell_manager, redis_config
 @pytest.mark.asyncio
 async def test_shell_health_check_redis_ping_timeout(shell_manager, redis_config):
     """Test Redis health check when redis-cli ping times out."""
-    with patch("asyncio.create_subprocess_shell") as mock_proc:
+    with patch("asyncio.create_subprocess_shell", autospec=True) as mock_proc:
         process = AsyncMock()
         process.communicate = AsyncMock(side_effect=TimeoutError("Timed out"))
         process.kill = MagicMock()
@@ -226,7 +236,7 @@ async def test_shell_health_check_redis_ping_timeout(shell_manager, redis_config
 @pytest.mark.asyncio
 async def test_shell_health_check_redis_unexpected_exception(shell_manager, redis_config):
     """Test Redis health check when unexpected exception occurs."""
-    with patch("asyncio.create_subprocess_shell") as mock_proc:
+    with patch("asyncio.create_subprocess_shell", autospec=True) as mock_proc:
         mock_proc.side_effect = Exception("Unexpected subprocess error")
 
         result = await shell_manager.check_health(redis_config)
@@ -244,7 +254,7 @@ async def test_shell_restart_success(shell_manager, sample_config):
     Security: Tests that shell=False is used (create_subprocess_exec) to prevent
     command injection.
     """
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 0
         process.communicate = AsyncMock(return_value=(b"success\n", b""))
@@ -263,7 +273,7 @@ async def test_shell_restart_success(shell_manager, sample_config):
 @pytest.mark.asyncio
 async def test_shell_restart_failure(shell_manager, sample_config):
     """Test restart when subprocess exits with non-zero code."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 1
         process.communicate = AsyncMock(return_value=(b"", b"Error: restart failed"))
@@ -277,7 +287,7 @@ async def test_shell_restart_failure(shell_manager, sample_config):
 @pytest.mark.asyncio
 async def test_shell_restart_timeout(shell_manager, sample_config):
     """Test restart when subprocess times out."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.communicate = AsyncMock(side_effect=TimeoutError("Subprocess timeout"))
         process.kill = MagicMock()
@@ -293,7 +303,7 @@ async def test_shell_restart_timeout(shell_manager, sample_config):
 @pytest.mark.asyncio
 async def test_shell_restart_exception(shell_manager, sample_config):
     """Test restart when unexpected exception occurs."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         mock_proc.side_effect = Exception("Failed to create subprocess")
 
         result = await shell_manager.restart(sample_config)
@@ -331,7 +341,7 @@ async def test_shell_manager_restart_returns_false_when_restart_cmd_none(
 @pytest.mark.asyncio
 async def test_shell_manager_restart_works_with_restart_cmd(shell_manager, config_with_restart):
     """Test that ShellServiceManager.restart works when restart_cmd is set."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 0
         process.communicate = AsyncMock(return_value=(b"success\n", b""))
@@ -445,7 +455,7 @@ async def test_docker_restart_success(docker_manager, docker_sample_config):
     Security: Tests that shell=False is used (create_subprocess_exec) to prevent
     command injection through container names.
     """
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 0
         process.communicate = AsyncMock(return_value=(b"yolo26\n", b""))
@@ -513,7 +523,7 @@ async def test_docker_restart_rejects_invalid_container_name():
 @pytest.mark.asyncio
 async def test_docker_restart_failure(docker_manager, docker_sample_config):
     """Test Docker restart when docker restart command fails."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.returncode = 1
         process.communicate = AsyncMock(return_value=(b"", b"Error: No such container: yolo26"))
@@ -527,7 +537,7 @@ async def test_docker_restart_failure(docker_manager, docker_sample_config):
 @pytest.mark.asyncio
 async def test_docker_restart_timeout(docker_manager, docker_sample_config):
     """Test Docker restart when command times out."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         process = AsyncMock()
         process.communicate = AsyncMock(side_effect=TimeoutError("Docker restart timeout"))
         process.kill = MagicMock()
@@ -543,7 +553,7 @@ async def test_docker_restart_timeout(docker_manager, docker_sample_config):
 @pytest.mark.asyncio
 async def test_docker_restart_exception(docker_manager, docker_sample_config):
     """Test Docker restart when unexpected exception occurs."""
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         mock_proc.side_effect = Exception("Docker daemon not running")
 
         result = await docker_manager.restart(docker_sample_config)
@@ -631,7 +641,7 @@ async def test_shell_restart_handles_file_not_found(shell_manager, sample_config
     This occurs when the restart script/command is not found (e.g., missing executable).
     The fix for NEM-1241 ensures this doesn't crash but returns False with a warning.
     """
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         mock_proc.side_effect = FileNotFoundError(
             "No such file or directory: 'ai/start_detector.sh'"
         )
@@ -654,7 +664,7 @@ async def test_docker_restart_handles_file_not_found(docker_manager):
         restart_cmd="docker restart yolo26",
     )
 
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         mock_proc.side_effect = FileNotFoundError("No such file or directory: 'docker'")
 
         result = await docker_manager.restart(config)
@@ -669,10 +679,10 @@ async def test_shell_restart_file_not_found_logs_warning(shell_manager, sample_c
     NEM-1241: Changed from ERROR to WARNING since this is an expected condition
     when running in containerized environments.
     """
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         mock_proc.side_effect = FileNotFoundError("ai/start_detector.sh not found")
 
-        with patch("backend.services.service_managers.logger") as mock_logger:
+        with patch("backend.services.service_managers.logger", autospec=True) as mock_logger:
             await shell_manager.restart(sample_config)
 
             # Should log warning, not error
@@ -693,10 +703,10 @@ async def test_docker_restart_file_not_found_logs_warning(docker_manager):
         restart_cmd="docker restart yolo26",
     )
 
-    with patch("asyncio.create_subprocess_exec") as mock_proc:
+    with patch("asyncio.create_subprocess_exec", autospec=True) as mock_proc:
         mock_proc.side_effect = FileNotFoundError("docker not found")
 
-        with patch("backend.services.service_managers.logger") as mock_logger:
+        with patch("backend.services.service_managers.logger", autospec=True) as mock_logger:
             await docker_manager.restart(config)
 
             # Should log warning, not error

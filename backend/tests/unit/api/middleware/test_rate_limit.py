@@ -230,7 +230,9 @@ class TestGetTierLimits:
 
     def test_get_default_tier_limits(self):
         """Test getting default tier limits."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_requests_per_minute = 100
             mock_settings.return_value.rate_limit_burst = 20
 
@@ -240,7 +242,9 @@ class TestGetTierLimits:
 
     def test_get_media_tier_limits(self):
         """Test getting media tier limits."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_media_requests_per_minute = 50
             mock_settings.return_value.rate_limit_burst = 10
 
@@ -250,7 +254,9 @@ class TestGetTierLimits:
 
     def test_get_websocket_tier_limits(self):
         """Test getting websocket tier limits (fixed burst of 2)."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_websocket_connections_per_minute = 30
 
             requests, burst = get_tier_limits(RateLimitTier.WEBSOCKET)
@@ -259,7 +265,9 @@ class TestGetTierLimits:
 
     def test_get_search_tier_limits(self):
         """Test getting search tier limits."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_search_requests_per_minute = 60
             mock_settings.return_value.rate_limit_burst = 15
 
@@ -269,7 +277,9 @@ class TestGetTierLimits:
 
     def test_get_export_tier_limits(self):
         """Test getting export tier limits (no burst)."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_export_requests_per_minute = 10
 
             requests, burst = get_tier_limits(RateLimitTier.EXPORT)
@@ -278,7 +288,9 @@ class TestGetTierLimits:
 
     def test_get_ai_inference_tier_limits(self):
         """Test getting AI inference tier limits."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_ai_inference_requests_per_minute = 10
             mock_settings.return_value.rate_limit_ai_inference_burst = 3
 
@@ -288,7 +300,9 @@ class TestGetTierLimits:
 
     def test_get_bulk_tier_limits(self):
         """Test getting bulk tier limits (NEM-2600)."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_bulk_requests_per_minute = 10
             mock_settings.return_value.rate_limit_bulk_burst = 2
 
@@ -311,7 +325,9 @@ class TestGetClientIp:
         mock_request.client.host = "192.168.1.100"
         mock_request.headers = Headers({})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = []
             ip = get_client_ip(mock_request)
 
@@ -324,7 +340,9 @@ class TestGetClientIp:
         mock_request.client.host = "127.0.0.1"  # Trusted proxy
         mock_request.headers = Headers({"X-Forwarded-For": "203.0.113.5, 198.51.100.10"})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = ["127.0.0.1"]
             ip = get_client_ip(mock_request)
 
@@ -338,7 +356,9 @@ class TestGetClientIp:
         mock_request.client.host = "192.168.1.100"  # Untrusted
         mock_request.headers = Headers({"X-Forwarded-For": "1.2.3.4"})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = ["127.0.0.1"]
             ip = get_client_ip(mock_request)
 
@@ -352,7 +372,9 @@ class TestGetClientIp:
         mock_request.client.host = "127.0.0.1"  # Trusted proxy
         mock_request.headers = Headers({"X-Real-IP": "203.0.113.10"})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = ["127.0.0.1"]
             ip = get_client_ip(mock_request)
 
@@ -367,7 +389,9 @@ class TestGetClientIp:
             {"X-Forwarded-For": "203.0.113.5", "X-Real-IP": "203.0.113.10"}
         )
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = ["127.0.0.1"]
             ip = get_client_ip(mock_request)
 
@@ -379,7 +403,9 @@ class TestGetClientIp:
         mock_request.client = None
         mock_request.headers = Headers({})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = []
             ip = get_client_ip(mock_request)
 
@@ -392,7 +418,9 @@ class TestGetClientIp:
         mock_websocket.client.host = "192.168.1.200"
         mock_websocket.headers = Headers({})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = []
             ip = get_client_ip(mock_websocket)
 
@@ -405,7 +433,9 @@ class TestGetClientIp:
         mock_request.client.host = "10.5.10.20"  # Within 10.0.0.0/8
         mock_request.headers = Headers({"X-Forwarded-For": "203.0.113.5"})
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.trusted_proxy_ips = ["10.0.0.0/8"]
             ip = get_client_ip(mock_request)
 
@@ -417,7 +447,9 @@ class TestRateLimiterInit:
 
     def test_init_with_tier_default(self):
         """Test initializing with tier uses tier defaults."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_requests_per_minute = 100
             mock_settings.return_value.rate_limit_burst = 20
 
@@ -580,7 +612,7 @@ class TestRateLimiterCheckRateLimit:
                 new_callable=AsyncMock,
                 return_value=(True, 5),  # allowed, count=5
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -602,7 +634,7 @@ class TestRateLimiterCheckRateLimit:
                 new_callable=AsyncMock,
                 return_value=(False, 15),  # denied, count=15
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -618,7 +650,9 @@ class TestRateLimiterCheckRateLimit:
     @pytest.mark.asyncio
     async def test_skip_when_rate_limiting_disabled(self, mock_redis_client):
         """Test skipping rate limit check when disabled."""
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_enabled = False
 
             limiter = RateLimiter(requests_per_minute=10)
@@ -639,7 +673,7 @@ class TestRateLimiterCheckRateLimit:
                 new_callable=AsyncMock,
                 side_effect=Exception("Redis connection failed"),
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -662,7 +696,7 @@ class TestRateLimiterCheckRateLimit:
                 "backend.api.middleware.rate_limit._execute_rate_limit_script",
                 mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -697,8 +731,9 @@ class TestRateLimiterCall:
                 limiter,
                 "_check_rate_limit",
                 return_value=(True, 5, 12),
+                autospec=True,
             ) as mock_check,
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.trusted_proxy_ips = []
             # Should not raise exception
@@ -721,8 +756,9 @@ class TestRateLimiterCall:
                 limiter,
                 "_check_rate_limit",
                 return_value=(False, 15, 12),
+                autospec=True,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.trusted_proxy_ips = []
 
@@ -751,8 +787,9 @@ class TestRateLimiterCall:
                 limiter,
                 "_check_rate_limit",
                 return_value=(False, 15, 12),
+                autospec=True,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.trusted_proxy_ips = []
 
@@ -777,8 +814,9 @@ class TestRateLimiterCall:
                 limiter,
                 "_check_rate_limit",
                 return_value=(False, 15, 10),
+                autospec=True,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.trusted_proxy_ips = []
 
@@ -809,7 +847,7 @@ class TestCheckWebsocketRateLimit:
                 new_callable=AsyncMock,
                 return_value=(True, 5),  # allowed, count=5
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.trusted_proxy_ips = []
@@ -833,7 +871,7 @@ class TestCheckWebsocketRateLimit:
                 new_callable=AsyncMock,
                 return_value=(False, 35),  # denied, count=35 (over limit)
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
             mock_settings.return_value.trusted_proxy_ips = []
@@ -848,7 +886,9 @@ class TestCheckWebsocketRateLimit:
         """Test skipping WebSocket rate limit when disabled."""
         mock_websocket = MagicMock(spec=WebSocket)
 
-        with patch("backend.api.middleware.rate_limit.get_settings") as mock_settings:
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.rate_limit_enabled = False
 
             is_allowed = await check_websocket_rate_limit(mock_websocket, mock_redis_client)
@@ -943,7 +983,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -996,7 +1036,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1035,7 +1075,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 return_value=(True, 5),  # Always return allowed, count=5 (under limit)
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1071,7 +1111,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=ConnectionError("Redis connection refused"),
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1100,7 +1140,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=TimeoutError("Redis operation timed out"),
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1128,7 +1168,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=Exception("Script execution failed"),
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1165,7 +1205,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1209,7 +1249,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1264,7 +1304,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 
@@ -1307,7 +1347,7 @@ class TestRedisStressTests:
                 new_callable=AsyncMock,
                 side_effect=mock_execute,
             ),
-            patch("backend.api.middleware.rate_limit.get_settings") as mock_settings,
+            patch("backend.api.middleware.rate_limit.get_settings", autospec=True) as mock_settings,
         ):
             mock_settings.return_value.rate_limit_enabled = True
 

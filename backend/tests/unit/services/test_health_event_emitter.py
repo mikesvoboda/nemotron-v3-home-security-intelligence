@@ -712,7 +712,7 @@ def test_component_health_state_with_values() -> None:
 @pytest.mark.asyncio
 async def test_get_health_event_emitter_from_container() -> None:
     """Test that get_health_event_emitter can retrieve from DI container."""
-    with patch("backend.core.container.get_container") as mock_container:
+    with patch("backend.core.container.get_container", autospec=True) as mock_container:
         # Arrange
         container_emitter = HealthEventEmitter()
         mock_reg = MagicMock()
@@ -733,6 +733,7 @@ async def test_get_health_event_emitter_fallback_to_legacy() -> None:
     with patch(
         "backend.core.container.get_container",
         side_effect=ImportError,
+        autospec=True,
     ):
         # Act
         result = get_health_event_emitter()
@@ -743,7 +744,7 @@ async def test_get_health_event_emitter_fallback_to_legacy() -> None:
 
 def test_reset_health_event_emitter_resets_both_di_and_legacy() -> None:
     """Test that reset_health_event_emitter resets both DI and legacy instances."""
-    with patch("backend.core.container.get_container") as mock_container:
+    with patch("backend.core.container.get_container", autospec=True) as mock_container:
         # Arrange
         container_emitter = MagicMock()
         container_emitter.reset = MagicMock()

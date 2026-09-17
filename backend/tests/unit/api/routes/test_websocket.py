@@ -195,6 +195,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -212,6 +213,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -226,6 +228,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -251,6 +254,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -269,6 +273,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -288,6 +293,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -304,6 +310,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -321,6 +328,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -341,6 +349,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -357,6 +366,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -373,6 +383,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -400,6 +411,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -426,10 +438,12 @@ class TestHandleValidatedMessage:
             patch(
                 "backend.api.routes.websocket.get_subscription_manager",
                 return_value=mock_subscription_manager,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.websocket.get_message_buffer",
                 return_value=mock_buffer,
+                autospec=True,
             ),
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
@@ -451,6 +465,7 @@ class TestHandleValidatedMessage:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message_upper, "conn-123")
 
@@ -712,6 +727,7 @@ class TestSubscriptionEdgeCases:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -729,6 +745,7 @@ class TestSubscriptionEdgeCases:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -748,6 +765,7 @@ class TestSubscriptionEdgeCases:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -772,6 +790,7 @@ class TestSubscriptionEdgeCases:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 
@@ -792,6 +811,7 @@ class TestSubscriptionEdgeCases:
         with patch(
             "backend.api.routes.websocket.get_subscription_manager",
             return_value=mock_subscription_manager,
+            autospec=True,
         ):
             await handle_validated_message(mock_websocket, message, "conn-123")
 

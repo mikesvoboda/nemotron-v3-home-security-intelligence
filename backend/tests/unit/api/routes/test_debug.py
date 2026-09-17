@@ -88,7 +88,7 @@ def _replay_hop_stays_in_process():
             kwargs.setdefault("base_url", "http://replay.internal")
         return real_cls(*args, **kwargs)
 
-    with patch("httpx.AsyncClient", side_effect=_asgi_client):
+    with patch("httpx.AsyncClient", side_effect=_asgi_client, autospec=True):
         yield
 
 
@@ -117,7 +117,9 @@ class TestDebugConfigEndpoint:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -146,7 +148,9 @@ class TestDebugConfigEndpoint:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -190,7 +194,9 @@ class TestDebugRedisInfoEndpoint:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -212,7 +218,9 @@ class TestDebugRedisInfoEndpoint:
         from backend.main import app
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = _mock_redis_none
             try:
@@ -241,7 +249,9 @@ class TestDebugWebSocketConnectionsEndpoint:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -274,7 +284,9 @@ class TestDebugCircuitBreakersEndpoint:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -305,7 +317,9 @@ class TestDebugCircuitBreakersEndpoint:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -347,7 +361,9 @@ class TestDebugEndpointSecurity:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
@@ -384,7 +400,9 @@ class TestRedisInfoHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -411,7 +429,9 @@ class TestRedisInfoHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -440,7 +460,9 @@ class TestRedisInfoHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -479,7 +501,9 @@ class TestWorkerStatusHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -506,7 +530,9 @@ class TestWorkerStatusHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -538,7 +564,9 @@ class TestQueueDepthsHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -567,7 +595,9 @@ class TestConfigRedactionHelpers:
         async def mock_redis_gen():
             yield mock_redis
 
-        with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
+        with patch(
+            "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+        ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
                 async with authenticated_async_client() as client:
@@ -604,8 +634,10 @@ class TestProfilingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
-            patch("backend.core.profiling.get_profiling_manager") as mock_manager,
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
+            patch("backend.core.profiling.get_profiling_manager", autospec=True) as mock_manager,
         ):
             mock_prof = MagicMock()
             mock_prof.is_profiling = False
@@ -639,8 +671,10 @@ class TestProfilingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
-            patch("backend.core.profiling.get_profiling_manager") as mock_manager,
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
+            patch("backend.core.profiling.get_profiling_manager", autospec=True) as mock_manager,
         ):
             mock_prof = MagicMock()
             mock_prof.is_profiling = True
@@ -670,8 +704,10 @@ class TestProfilingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
-            patch("backend.core.profiling.get_profiling_manager") as mock_manager,
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
+            patch("backend.core.profiling.get_profiling_manager", autospec=True) as mock_manager,
         ):
             mock_prof = MagicMock()
             mock_prof.is_profiling = True
@@ -704,8 +740,10 @@ class TestProfilingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
-            patch("backend.core.profiling.get_profiling_manager") as mock_manager,
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
+            patch("backend.core.profiling.get_profiling_manager", autospec=True) as mock_manager,
         ):
             mock_prof = MagicMock()
             mock_prof.is_profiling = False
@@ -735,8 +773,10 @@ class TestProfilingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
-            patch("backend.core.profiling.get_profiling_manager") as mock_manager,
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
+            patch("backend.core.profiling.get_profiling_manager", autospec=True) as mock_manager,
         ):
             mock_prof = MagicMock()
             mock_prof.is_profiling = True
@@ -768,8 +808,10 @@ class TestProfilingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
-            patch("backend.core.profiling.get_profiling_manager") as mock_manager,
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
+            patch("backend.core.profiling.get_profiling_manager", autospec=True) as mock_manager,
         ):
             mock_prof = MagicMock()
             mock_prof.is_profiling = False
@@ -806,7 +848,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(tmp_path / "nonexistent")),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -854,7 +898,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -889,7 +935,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -933,7 +981,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -965,7 +1015,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -992,7 +1044,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1023,7 +1077,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1070,7 +1126,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1119,7 +1177,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1163,7 +1223,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1197,7 +1259,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1229,7 +1293,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1259,7 +1325,9 @@ class TestRecordingEndpoints:
             yield mock_redis
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
@@ -1292,9 +1360,11 @@ class TestRecordingEndpoints:
 
         # Mock Path.unlink to raise an exception
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=debug_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=debug_settings, autospec=True
+            ),
             patch("backend.api.routes.debug.RECORDINGS_DIR", str(recordings_dir)),
-            patch("pathlib.Path.unlink", side_effect=OSError("Permission denied")),
+            patch("pathlib.Path.unlink", side_effect=OSError("Permission denied"), autospec=True),
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:

@@ -201,8 +201,8 @@ def mock_http_response() -> MagicMock:
 class TestListModels:
     """Tests for GET /api/system/models endpoint."""
 
-    @patch("backend.api.routes.model_management.get_model_zoo")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_list_models_returns_registry_with_runtime_state(
         self,
         mock_get_http_client: MagicMock,
@@ -258,8 +258,8 @@ class TestListModels:
         assert response.service_status["ai-enrichment"] == "healthy"
         assert response.service_status["ai-enrichment-light"] == "healthy"
 
-    @patch("backend.api.routes.model_management.get_model_zoo")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_list_models_handles_enrichment_service_down(
         self,
         mock_get_http_client: MagicMock,
@@ -302,8 +302,8 @@ class TestListModels:
 class TestGetModelStatus:
     """Tests for GET /api/system/models/{name}/status endpoint."""
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_get_model_status_returns_detailed_info(
         self,
         mock_get_http_client: MagicMock,
@@ -341,7 +341,7 @@ class TestGetModelStatus:
         assert result.runtime.loaded is True
         assert result.runtime.actual_vram_mb == 287
 
-    @patch("backend.api.routes.model_management.get_model_config")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
     async def test_get_model_status_unknown_model_returns_404(
         self,
         mock_get_model_config: MagicMock,
@@ -371,8 +371,8 @@ class TestGetModelStatus:
 class TestLoadModel:
     """Tests for POST /api/system/models/{name}/load endpoint."""
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_load_model_proxies_to_correct_service(
         self,
         mock_get_http_client: MagicMock,
@@ -414,8 +414,8 @@ class TestLoadModel:
         call_url = mock_enrichment_client.post.call_args[0][0]
         assert "ai-enrichment-light" in call_url
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_load_model_heavy_routes_to_gpu0(
         self,
         mock_get_http_client: MagicMock,
@@ -454,8 +454,8 @@ class TestLoadModel:
         assert "ai-enrichment:8094" in call_url or "ai-enrichment" in call_url
         assert "ai-enrichment-light" not in call_url
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_load_model_light_routes_to_gpu1(
         self,
         mock_get_http_client: MagicMock,
@@ -502,8 +502,8 @@ class TestLoadModel:
 class TestUnloadModel:
     """Tests for POST /api/system/models/{name}/unload endpoint."""
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_unload_model_proxies_to_correct_service(
         self,
         mock_get_http_client: MagicMock,
@@ -552,8 +552,8 @@ class TestUnloadModel:
 class TestReloadModel:
     """Tests for POST /api/system/models/{name}/reload endpoint."""
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_reload_model_unloads_then_loads(
         self,
         mock_get_http_client: MagicMock,
@@ -618,7 +618,7 @@ class TestReloadModel:
 class TestUnloadAllModels:
     """Tests for POST /api/system/models/unload-all endpoint."""
 
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_unload_all_calls_both_services(
         self,
         mock_get_http_client: MagicMock,
@@ -677,7 +677,7 @@ class TestUnloadAllModels:
 class TestVramSummary:
     """Tests for GET /api/system/models/vram-summary endpoint."""
 
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_vram_summary_aggregates_both_gpus(
         self,
         mock_get_http_client: MagicMock,
@@ -789,7 +789,7 @@ class TestServiceRouting:
 class TestErrorHandling:
     """Tests for error handling in model management routes."""
 
-    @patch("backend.api.routes.model_management.get_model_config")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
     async def test_load_disabled_model_returns_400(
         self,
         mock_get_model_config: MagicMock,
@@ -813,8 +813,8 @@ class TestErrorHandling:
         assert exc_info.value.status_code == 400
         assert "disabled" in exc_info.value.detail.lower()
 
-    @patch("backend.api.routes.model_management.get_model_config")
-    @patch("backend.api.routes.model_management.get_http_client")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
+    @patch("backend.api.routes.model_management.get_http_client", autospec=True)
     async def test_load_model_service_error_returns_502(
         self,
         mock_get_http_client: MagicMock,
@@ -844,7 +844,7 @@ class TestErrorHandling:
 
         assert exc_info.value.status_code == 502
 
-    @patch("backend.api.routes.model_management.get_model_config")
+    @patch("backend.api.routes.model_management.get_model_config", autospec=True)
     async def test_unload_unknown_model_returns_404(
         self,
         mock_get_model_config: MagicMock,

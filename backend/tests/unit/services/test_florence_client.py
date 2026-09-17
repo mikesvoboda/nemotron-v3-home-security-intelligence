@@ -58,7 +58,7 @@ async def reset_global_client():
 @pytest.fixture
 def mock_settings():
     """Create mock settings for FlorenceClient."""
-    with patch("backend.services.florence_client.get_settings") as mock:
+    with patch("backend.services.florence_client.get_settings", autospec=True) as mock:
         mock.return_value.florence_url = "http://localhost:8092"
         mock.return_value.ai_connect_timeout = 10.0
         mock.return_value.ai_health_timeout = 5.0
@@ -87,11 +87,12 @@ def client(mock_settings):
     mock_health_client = AsyncMock()
     mock_health_client.aclose = AsyncMock()
 
-    with (
-        patch(
-            "backend.services.florence_client.get_settings", return_value=mock_settings.return_value
-        ),
-        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+    # get_settings is already patched (with the same settings) by the
+    # mock_settings fixture this one depends on; re-patching it here is
+    # redundant, and under autospec mock refuses to spec an attribute it
+    # has already mocked out (InvalidSpecError).
+    with patch(
+        "httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client], autospec=True
     ):
         client = FlorenceClient()
 
@@ -268,7 +269,7 @@ class TestFlorenceClientInit:
 
     def test_init_uses_settings_florence_url(self) -> None:
         """Test initialization uses florence_url from settings."""
-        with patch("backend.services.florence_client.get_settings") as mock:
+        with patch("backend.services.florence_client.get_settings", autospec=True) as mock:
             # Create a mock with florence_url configured
             settings_obj = MagicMock()
             settings_obj.florence_url = "http://custom-florence:9999"
@@ -1114,7 +1115,9 @@ class TestMetricsRecording:
         mock_response.json.return_value = {"result": "test"}
         client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("backend.services.florence_client.observe_ai_request_duration") as mock_observe:
+        with patch(
+            "backend.services.florence_client.observe_ai_request_duration", autospec=True
+        ) as mock_observe:
             await client.extract(sample_image, "<CAPTION>")
             mock_observe.assert_called_once()
             args = mock_observe.call_args[0]
@@ -1129,7 +1132,9 @@ class TestMetricsRecording:
         mock_response.json.return_value = {"text": "test"}
         client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("backend.services.florence_client.observe_ai_request_duration") as mock_observe:
+        with patch(
+            "backend.services.florence_client.observe_ai_request_duration", autospec=True
+        ) as mock_observe:
             await client.ocr(sample_image)
             mock_observe.assert_called_once()
             args = mock_observe.call_args[0]
@@ -1143,7 +1148,9 @@ class TestMetricsRecording:
         mock_response.json.return_value = {"detections": []}
         client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("backend.services.florence_client.observe_ai_request_duration") as mock_observe:
+        with patch(
+            "backend.services.florence_client.observe_ai_request_duration", autospec=True
+        ) as mock_observe:
             await client.detect(sample_image)
             mock_observe.assert_called_once()
             args = mock_observe.call_args[0]
@@ -1154,7 +1161,9 @@ class TestMetricsRecording:
         """Test connection error records pipeline error metric."""
         client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
-        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.florence_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             with pytest.raises(FlorenceUnavailableError):
                 await client.extract(sample_image, "<CAPTION>")
             mock_record.assert_called_once_with("florence_connection_error")
@@ -1164,7 +1173,9 @@ class TestMetricsRecording:
         """Test timeout records pipeline error metric."""
         client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
 
-        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.florence_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             with pytest.raises(FlorenceUnavailableError):
                 await client.extract(sample_image, "<CAPTION>")
             mock_record.assert_called_once_with("florence_timeout")
@@ -1181,7 +1192,9 @@ class TestMetricsRecording:
         )
         client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.florence_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             with pytest.raises(FlorenceUnavailableError):
                 await client.extract(sample_image, "<CAPTION>")
             mock_record.assert_called_once_with("florence_server_error")
@@ -1198,7 +1211,9 @@ class TestMetricsRecording:
         )
         client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.florence_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             await client.extract(sample_image, "<CAPTION>")
             mock_record.assert_called_once_with("florence_client_error")
 
@@ -1210,7 +1225,9 @@ class TestMetricsRecording:
         mock_response.json.return_value = {}  # Missing 'result' key
         client._http_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("backend.services.florence_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.florence_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             await client.extract(sample_image, "<CAPTION>")
             mock_record.assert_called_once_with("florence_malformed_response")
 

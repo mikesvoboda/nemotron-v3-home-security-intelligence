@@ -268,6 +268,7 @@ class TestWebhookServiceDelivery:
                 httpx.AsyncClient,
                 "post",
                 return_value=mock_response,
+                autospec=True,
             ):
                 delivery = await webhook_service.deliver_webhook(
                     session,
@@ -301,6 +302,7 @@ class TestWebhookServiceDelivery:
                 httpx.AsyncClient,
                 "post",
                 return_value=mock_response,
+                autospec=True,
             ):
                 delivery = await webhook_service.deliver_webhook(
                     session,
@@ -345,6 +347,7 @@ class TestWebhookServiceTrigger:
                 httpx.AsyncClient,
                 "post",
                 return_value=mock_response,
+                autospec=True,
             ):
                 deliveries = await webhook_service.trigger_webhooks_for_event(
                     session,
@@ -426,6 +429,7 @@ class TestWebhookServiceTest:
                 httpx.AsyncClient,
                 "post",
                 return_value=mock_response,
+                autospec=True,
             ):
                 result = await webhook_service.test_webhook(
                     session,
@@ -479,6 +483,7 @@ class TestWebhookServiceDeliveryHistory:
                 httpx.AsyncClient,
                 "post",
                 return_value=mock_response,
+                autospec=True,
             ):
                 await webhook_service.deliver_webhook(
                     session,

@@ -116,7 +116,7 @@ class TestGetAnomalyContext:
     ) -> None:
         """Test successfully retrieving anomaly context."""
         with patch(
-            "backend.api.routes.zone_anomalies.get_zone_anomaly_service"
+            "backend.api.routes.zone_anomalies.get_zone_anomaly_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_anomaly_with_context = AsyncMock(return_value=sample_anomaly_context)
@@ -152,7 +152,7 @@ class TestGetAnomalyContext:
     ) -> None:
         """Test 404 when anomaly does not exist."""
         with patch(
-            "backend.api.routes.zone_anomalies.get_zone_anomaly_service"
+            "backend.api.routes.zone_anomalies.get_zone_anomaly_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_anomaly_with_context = AsyncMock(return_value=None)
@@ -173,7 +173,7 @@ class TestGetAnomalyContext:
     ) -> None:
         """Test retrieving anomaly context with no associated detections."""
         with patch(
-            "backend.api.routes.zone_anomalies.get_zone_anomaly_service"
+            "backend.api.routes.zone_anomalies.get_zone_anomaly_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_anomaly_with_context = AsyncMock(
@@ -205,7 +205,7 @@ class TestGetAnomalyContext:
         acknowledged_context["acknowledged_at"] = datetime(2025, 1, 24, 4, 0, 0, tzinfo=UTC)
 
         with patch(
-            "backend.api.routes.zone_anomalies.get_zone_anomaly_service"
+            "backend.api.routes.zone_anomalies.get_zone_anomaly_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_anomaly_with_context = AsyncMock(return_value=acknowledged_context)

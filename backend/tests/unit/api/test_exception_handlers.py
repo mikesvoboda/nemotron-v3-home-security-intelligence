@@ -920,7 +920,7 @@ class TestDatabaseRedisExceptionHandlersIntegration:
         body = response.json()
         assert body["error"]["code"] == "CACHE_UNAVAILABLE"
 
-    @patch("backend.api.exception_handlers.datetime")
+    @patch("backend.api.exception_handlers.datetime", autospec=True)
     def test_build_error_response_includes_timestamp(self, mock_datetime: Mock) -> None:
         """Test that error response includes ISO timestamp."""
         mock_now = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -960,7 +960,7 @@ class TestSecurityIntelligenceExceptionHandler:
             status_code=500,
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await security_intelligence_exception_handler(request, exc)
 
             # Should log as error for 5xx
@@ -983,7 +983,7 @@ class TestSecurityIntelligenceExceptionHandler:
 
         exc = RateLimitError("Rate limit exceeded")
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await security_intelligence_exception_handler(request, exc)
 
             mock_logger.warning.assert_called_once()
@@ -1004,7 +1004,7 @@ class TestSecurityIntelligenceExceptionHandler:
 
         exc = ValidationError("Invalid input", status_code=400)
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await security_intelligence_exception_handler(request, exc)
 
             mock_logger.info.assert_called_once()
@@ -1030,7 +1030,7 @@ class TestSecurityIntelligenceExceptionHandler:
             details=details,
         )
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await security_intelligence_exception_handler(request, exc)
 
         content = response.body.decode()
@@ -1053,7 +1053,7 @@ class TestSecurityIntelligenceExceptionHandler:
             status_code=200,  # 2xx status code (not 4xx or 5xx)
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await security_intelligence_exception_handler(request, exc)
 
             # Should log as debug for non-error status codes
@@ -1084,7 +1084,7 @@ class TestHttpExceptionHandler:
 
         exc = StarletteHTTPException(status_code=404, detail="Camera not found")
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await http_exception_handler(request, exc)
 
             mock_logger.info.assert_called_once()
@@ -1109,7 +1109,7 @@ class TestHttpExceptionHandler:
             detail="Authentication required",
         )
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await http_exception_handler(request, exc)
 
         assert response.status_code == 401
@@ -1131,7 +1131,7 @@ class TestHttpExceptionHandler:
             detail="Internal server error",
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await http_exception_handler(request, exc)
 
             # Should log as error for 5xx
@@ -1156,7 +1156,7 @@ class TestHttpExceptionHandler:
             detail="Service temporarily unavailable",
         )
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await http_exception_handler(request, exc)
 
         assert response.status_code == 503
@@ -1179,7 +1179,7 @@ class TestHttpExceptionHandler:
             headers={"Retry-After": "60"},
         )
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await http_exception_handler(request, exc)
 
         assert response.headers.get("Retry-After") == "60"
@@ -1196,7 +1196,7 @@ class TestHttpExceptionHandler:
 
         exc = StarletteHTTPException(status_code=418, detail="I'm a teapot")
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await http_exception_handler(request, exc)
 
         assert response.status_code == 418
@@ -1215,7 +1215,7 @@ class TestHttpExceptionHandler:
 
         exc = StarletteHTTPException(status_code=400, detail="Bad request")
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await http_exception_handler(request, exc)
 
             call_args = mock_logger.info.call_args
@@ -1238,7 +1238,7 @@ class TestHttpExceptionHandler:
             detail="Moved Permanently",
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await http_exception_handler(request, exc)
 
             # Should not call error, warning, or info for 3xx
@@ -1276,7 +1276,7 @@ class TestValidationExceptionHandler:
         }
         exc = RequestValidationError([error])
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await validation_exception_handler(request, exc)
 
             mock_logger.info.assert_called_once()
@@ -1315,7 +1315,7 @@ class TestValidationExceptionHandler:
         ]
         exc = RequestValidationError(errors)
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await validation_exception_handler(request, exc)
 
         content = response.body.decode()
@@ -1344,7 +1344,7 @@ class TestValidationExceptionHandler:
         }
         exc = RequestValidationError([error])
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await validation_exception_handler(request, exc)
 
         content = response.body.decode()
@@ -1385,7 +1385,7 @@ class TestPydanticValidationHandler:
         except PydanticValidationError as e:
             exc = e
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await pydantic_validation_handler(request, exc)
 
             # Should log as error since it's a server-side bug
@@ -1420,7 +1420,7 @@ class TestPydanticValidationHandler:
         except PydanticValidationError as e:
             exc = e
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await pydantic_validation_handler(request, exc)
 
             # Should log without request_id
@@ -1452,8 +1452,10 @@ class TestGenericExceptionHandler:
         exc = ValueError("Unexpected error occurred")
 
         with (
-            patch("backend.api.exception_handlers.logger") as mock_logger,
-            patch("backend.api.exception_handlers.sanitize_error_for_response") as mock_sanitize,
+            patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger,
+            patch(
+                "backend.api.exception_handlers.sanitize_error_for_response", autospec=True
+            ) as mock_sanitize,
         ):
             mock_sanitize.return_value = "A safe error message"
 
@@ -1486,8 +1488,10 @@ class TestGenericExceptionHandler:
         exc = KeyError("missing_key")
 
         with (
-            patch("backend.api.exception_handlers.logger") as mock_logger,
-            patch("backend.api.exception_handlers.sanitize_error_for_response") as mock_sanitize,
+            patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger,
+            patch(
+                "backend.api.exception_handlers.sanitize_error_for_response", autospec=True
+            ) as mock_sanitize,
         ):
             mock_sanitize.return_value = "Sanitized error message"
 
@@ -1522,7 +1526,7 @@ class TestCircuitBreakerExceptionHandler:
             recovery_timeout=30.0,
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await circuit_breaker_exception_handler(request, exc)
 
             mock_logger.warning.assert_called_once()
@@ -1550,7 +1554,7 @@ class TestCircuitBreakerExceptionHandler:
             recovery_timeout=60.0,
         )
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await circuit_breaker_exception_handler(request, exc)
 
         # Should include Retry-After header with recovery timeout
@@ -1568,7 +1572,7 @@ class TestCircuitBreakerExceptionHandler:
 
         exc = CircuitBreakerOpenError(service_name="service")
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await circuit_breaker_exception_handler(request, exc)
 
         # Should not have Retry-After header if no timeout
@@ -1586,7 +1590,7 @@ class TestCircuitBreakerExceptionHandler:
 
         exc = CircuitBreakerOpenError(service_name="database")
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await circuit_breaker_exception_handler(request, exc)
 
             call_args = mock_logger.warning.call_args
@@ -1620,7 +1624,7 @@ class TestRateLimitExceptionHandler:
             window_seconds=60,
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await rate_limit_exception_handler(request, exc)
 
             mock_logger.warning.assert_called_once()
@@ -1644,7 +1648,7 @@ class TestRateLimitExceptionHandler:
 
         exc = RateLimitError(retry_after=120)
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await rate_limit_exception_handler(request, exc)
 
         assert response.headers.get("Retry-After") == "120"
@@ -1661,7 +1665,7 @@ class TestRateLimitExceptionHandler:
 
         exc = RateLimitError("Too many requests")
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await rate_limit_exception_handler(request, exc)
 
         # Should not have Retry-After header if not specified
@@ -1679,7 +1683,7 @@ class TestRateLimitExceptionHandler:
 
         exc = RateLimitError("Rate limit hit", retry_after=30)
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await rate_limit_exception_handler(request, exc)
 
             call_args = mock_logger.warning.call_args
@@ -1712,7 +1716,7 @@ class TestExternalServiceExceptionHandler:
             details={"reason": "timeout"},
         )
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             response = await external_service_exception_handler(request, exc)
 
             mock_logger.error.assert_called_once()
@@ -1742,7 +1746,7 @@ class TestExternalServiceExceptionHandler:
             details={"error": "connection timeout", "host": "db.example.com"},
         )
 
-        with patch("backend.api.exception_handlers.logger"):
+        with patch("backend.api.exception_handlers.logger", autospec=True):
             response = await external_service_exception_handler(request, exc)
 
         content = response.body.decode()
@@ -1762,7 +1766,7 @@ class TestRegisterExceptionHandlers:
         """Test that all exception handlers are registered with the app."""
         app = FastAPI()
 
-        with patch("backend.api.exception_handlers.logger") as mock_logger:
+        with patch("backend.api.exception_handlers.logger", autospec=True) as mock_logger:
             register_exception_handlers(app)
 
             # Should log that handlers were registered

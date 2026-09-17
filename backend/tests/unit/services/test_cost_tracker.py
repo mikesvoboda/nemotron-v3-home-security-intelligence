@@ -55,7 +55,7 @@ def mock_redis_client():
 @pytest.fixture
 def mock_metrics_service():
     """Create a mock metrics service."""
-    with patch("backend.services.cost_tracker.get_metrics_service") as mock:
+    with patch("backend.services.cost_tracker.get_metrics_service", autospec=True) as mock:
         metrics = MagicMock()
         mock.return_value = metrics
         yield metrics
@@ -359,7 +359,7 @@ class TestBudgetTracking:
             warning_threshold=0.8,
         )
 
-        with patch("backend.services.cost_tracker.logger") as mock_logger:
+        with patch("backend.services.cost_tracker.logger", autospec=True) as mock_logger:
             # This should exceed 80% of $0.01 budget
             tracker.track_llm_usage(
                 input_tokens=10000,

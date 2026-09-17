@@ -642,7 +642,7 @@ class TestCallLLM:
         """Test successful LLM call."""
         mock_response = {"content": "This is the LLM response."}
 
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_resp = MagicMock(spec=httpx.Response)
             mock_resp.status_code = 200
             mock_resp.json.return_value = mock_response
@@ -657,7 +657,7 @@ class TestCallLLM:
     @pytest.mark.asyncio
     async def test_call_llm_timeout(self, audit_service):
         """Test LLM call handles timeout."""
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_post.side_effect = httpx.TimeoutException("Timeout")
 
             with pytest.raises(httpx.TimeoutException):
@@ -666,7 +666,7 @@ class TestCallLLM:
     @pytest.mark.asyncio
     async def test_call_llm_connection_error(self, audit_service):
         """Test LLM call handles connection error."""
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_post.side_effect = httpx.ConnectError("Connection refused")
 
             with pytest.raises(httpx.ConnectError):
@@ -675,7 +675,7 @@ class TestCallLLM:
     @pytest.mark.asyncio
     async def test_call_llm_http_error(self, audit_service):
         """Test LLM call handles HTTP error."""
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_resp = MagicMock(spec=httpx.Response)
             mock_resp.status_code = 500
             mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -822,7 +822,7 @@ class TestRunConsistencyCheck:
             call_args_captured.append(prompt)
             return llm_response
 
-        with patch.object(audit_service, "_call_llm", side_effect=capture_call_llm):
+        with patch.object(audit_service, "_call_llm", side_effect=capture_call_llm, autospec=True):
             await audit_service._run_consistency_check(sample_event)
 
         # Verify the original assistant response was stripped from the prompt
@@ -1444,7 +1444,7 @@ class TestPromptFormatting:
             captured_prompt = prompt
             return "Critique response"
 
-        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt):
+        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt, autospec=True):
             await audit_service._run_self_critique(sample_event)
 
         assert str(sample_event.risk_score) in captured_prompt
@@ -1461,7 +1461,7 @@ class TestPromptFormatting:
             captured_prompt = prompt
             return '{"context_usage": 4, "reasoning_coherence": 4, "risk_justification": 4, "actionability": 4}'
 
-        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt):
+        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt, autospec=True):
             await audit_service._run_rubric_eval(sample_event)
 
         # Verify prompt contains expected elements
@@ -1481,7 +1481,7 @@ class TestPromptFormatting:
             captured_prompt = prompt
             return '{"missing_context": [], "confusing_sections": [], "unused_data": [], "format_suggestions": [], "model_gaps": []}'
 
-        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt):
+        with patch.object(audit_service, "_call_llm", side_effect=capture_prompt, autospec=True):
             await audit_service._run_prompt_improvement(sample_event)
 
         # Verify prompt asks for 5 categories

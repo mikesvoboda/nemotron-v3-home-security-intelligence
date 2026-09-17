@@ -7,7 +7,10 @@
 #
 # ids are minted by suppression-census.py --locations and must match the census
 # byte-for-byte: pytest decorators `file::test_name` (line-drift-proof),
-# imperative pytest.skip `file:lineno`, frontend `file::title`, and the literal
+# imperative pytest.skip `file:lineno`, frontend `file::title`, unspecced mock
+# patches `file::scope::kN` (WP4.2 — scope-ordinal, line-drift-proof by
+# design; a same-scope insertion renumbers later kNs and the ratchet surfaces
+# that as STALE+UNREGISTERED, loudly, never silently), and the literal
 # entry paths / tree basenames / coverage-omit modules for the config categories.
 #
 # kind vocabulary (the spec's mandated distinction — environment probes are

@@ -759,7 +759,7 @@ class TestJobTrackerRedisIntegration:
         tracker = JobTracker()
         job_id = tracker.create_job("export")
 
-        with patch.object(tracker, "_persist_job_async") as mock_persist:
+        with patch.object(tracker, "_persist_job_async", autospec=True) as mock_persist:
             # Should not raise
             tracker._schedule_persist(job_id)
 
@@ -1067,7 +1067,7 @@ class TestJobTrackerWebSocketIntegration:
     async def test_create_websocket_broadcast_callback(self) -> None:
         """Should create a valid WebSocket broadcast callback."""
         with patch(
-            "backend.services.system_broadcaster.get_system_broadcaster"
+            "backend.services.system_broadcaster.get_system_broadcaster", autospec=True
         ) as mock_get_broadcaster:
             mock_broadcaster = AsyncMock()
             mock_get_broadcaster.return_value = mock_broadcaster
@@ -1088,7 +1088,7 @@ class TestJobTrackerWebSocketIntegration:
         mock_redis = AsyncMock()
 
         with patch(
-            "backend.services.system_broadcaster.get_system_broadcaster"
+            "backend.services.system_broadcaster.get_system_broadcaster", autospec=True
         ) as mock_get_broadcaster:
             mock_broadcaster = AsyncMock()
             mock_get_broadcaster.return_value = mock_broadcaster
@@ -1106,7 +1106,7 @@ class TestJobTrackerWebSocketIntegration:
         tracker.set_broadcast_callback(existing_callback)
 
         with patch(
-            "backend.services.system_broadcaster.get_system_broadcaster"
+            "backend.services.system_broadcaster.get_system_broadcaster", autospec=True
         ) as mock_get_broadcaster:
             mock_broadcaster = AsyncMock()
             mock_get_broadcaster.return_value = mock_broadcaster

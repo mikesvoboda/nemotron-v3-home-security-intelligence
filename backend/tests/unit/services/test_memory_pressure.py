@@ -128,7 +128,9 @@ class TestCheckMemoryPressure:
                 "gpu_utilization": 50.0,
             }
 
-        with patch.object(monitor, "get_current_stats_async", side_effect=mock_stats):
+        with patch.object(
+            monitor, "get_current_stats_async", side_effect=mock_stats, autospec=True
+        ):
             level = await monitor.check_memory_pressure()
 
         # At exactly 85%, should be WARNING
@@ -148,7 +150,9 @@ class TestCheckMemoryPressure:
                 "gpu_utilization": 50.0,
             }
 
-        with patch.object(monitor, "get_current_stats_async", side_effect=mock_stats):
+        with patch.object(
+            monitor, "get_current_stats_async", side_effect=mock_stats, autospec=True
+        ):
             level = await monitor.check_memory_pressure()
 
         # At exactly 95%, should be CRITICAL
@@ -208,7 +212,9 @@ class TestCheckMemoryPressure:
                 "gpu_utilization": 30.0,
             }
 
-        with patch.object(monitor, "get_current_stats_async", side_effect=mock_stats):
+        with patch.object(
+            monitor, "get_current_stats_async", side_effect=mock_stats, autospec=True
+        ):
             level = await monitor.check_memory_pressure()
 
         # Mock data should be low usage, returning NORMAL
@@ -239,7 +245,9 @@ class TestCheckMemoryPressure:
         monitor = GPUMonitor()
 
         # Make get_current_stats_async fail
-        with patch.object(monitor, "get_current_stats_async", side_effect=Exception("Stats error")):
+        with patch.object(
+            monitor, "get_current_stats_async", side_effect=Exception("Stats error"), autospec=True
+        ):
             # Should return NORMAL and not raise
             level = await monitor.check_memory_pressure()
             assert level == MemoryPressureLevel.NORMAL
@@ -583,6 +591,7 @@ class TestBatchAggregatorBackpressure:
         with patch(
             "backend.services.batch_aggregator.get_memory_pressure_level",
             return_value=MemoryPressureLevel.CRITICAL,
+            autospec=True,
         ):
             should_apply = await aggregator.should_apply_backpressure()
             assert should_apply is True
@@ -598,6 +607,7 @@ class TestBatchAggregatorBackpressure:
         with patch(
             "backend.services.batch_aggregator.get_memory_pressure_level",
             return_value=MemoryPressureLevel.NORMAL,
+            autospec=True,
         ):
             should_apply = await aggregator.should_apply_backpressure()
             assert should_apply is False
@@ -717,7 +727,7 @@ class TestMemoryPressureIntegration:
         """Test that poll loop checks memory pressure periodically."""
         monitor = GPUMonitor(poll_interval=0.05)
 
-        with patch("backend.services.gpu_monitor.get_session") as mock_session:
+        with patch("backend.services.gpu_monitor.get_session", autospec=True) as mock_session:
             mock_session.return_value.__aenter__ = AsyncMock()
             mock_session.return_value.__aexit__ = AsyncMock()
             mock_db_session = AsyncMock()

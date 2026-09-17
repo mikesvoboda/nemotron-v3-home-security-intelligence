@@ -76,7 +76,9 @@ class TestCorrelationIdMiddleware:
         mock_check_setup = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.debug.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.debug.get_settings", return_value=mock_settings, autospec=True
+            ),
             patch(
                 "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
                 mock_check_setup,

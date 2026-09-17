@@ -16,7 +16,7 @@ class TestIsToolkitInstalled:
         """Should return True when nvidia-ctk is found in PATH."""
         from setup_lib.nvidia_toolkit import is_toolkit_installed
 
-        with patch("shutil.which", return_value="/usr/bin/nvidia-ctk"):
+        with patch("shutil.which", return_value="/usr/bin/nvidia-ctk", autospec=True):
             result = is_toolkit_installed()
             assert result is True
 
@@ -24,7 +24,7 @@ class TestIsToolkitInstalled:
         """Should return False when nvidia-ctk is not found."""
         from setup_lib.nvidia_toolkit import is_toolkit_installed
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = is_toolkit_installed()
             assert result is False
 
@@ -32,7 +32,7 @@ class TestIsToolkitInstalled:
         """Should check specifically for nvidia-ctk."""
         from setup_lib.nvidia_toolkit import is_toolkit_installed
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.return_value = None
             is_toolkit_installed()
             mock_which.assert_called_once_with("nvidia-ctk")
@@ -50,7 +50,7 @@ class TestGetToolkitVersion:
         mock_result.stdout = "NVIDIA Container Toolkit CLI version 1.14.3"
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_toolkit_version()
             assert version == "1.14.3"
 
@@ -63,7 +63,7 @@ class TestGetToolkitVersion:
         mock_result.stdout = "nvidia-ctk version 1.15.0"
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_toolkit_version()
             assert version == "1.15.0"
 
@@ -76,7 +76,7 @@ class TestGetToolkitVersion:
         mock_result.stdout = "version 1.14"
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_toolkit_version()
             assert version == "1.14"
 
@@ -84,7 +84,7 @@ class TestGetToolkitVersion:
         """Should return None when nvidia-ctk is not installed."""
         from setup_lib.nvidia_toolkit import get_toolkit_version
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             version = get_toolkit_version()
             assert version is None
 
@@ -97,7 +97,7 @@ class TestGetToolkitVersion:
         mock_result.stdout = ""
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_toolkit_version()
             assert version is None
 
@@ -105,7 +105,7 @@ class TestGetToolkitVersion:
         """Should return None on timeout."""
         from setup_lib.nvidia_toolkit import get_toolkit_version
 
-        with patch("subprocess.run", side_effect=TimeoutError):
+        with patch("subprocess.run", side_effect=TimeoutError, autospec=True):
             version = get_toolkit_version()
             assert version is None
 
@@ -113,7 +113,7 @@ class TestGetToolkitVersion:
         """Should return None on permission error."""
         from setup_lib.nvidia_toolkit import get_toolkit_version
 
-        with patch("subprocess.run", side_effect=PermissionError):
+        with patch("subprocess.run", side_effect=PermissionError, autospec=True):
             version = get_toolkit_version()
             assert version is None
 
@@ -126,7 +126,7 @@ class TestGetToolkitVersion:
         mock_result.stdout = "unexpected output without version"
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             version = get_toolkit_version()
             assert version is None
 
@@ -138,7 +138,7 @@ class TestIsDockerInstalled:
         """Should return True when docker is found in PATH."""
         from setup_lib.nvidia_toolkit import is_docker_installed
 
-        with patch("shutil.which", return_value="/usr/bin/docker"):
+        with patch("shutil.which", return_value="/usr/bin/docker", autospec=True):
             result = is_docker_installed()
             assert result is True
 
@@ -146,7 +146,7 @@ class TestIsDockerInstalled:
         """Should return False when docker is not found."""
         from setup_lib.nvidia_toolkit import is_docker_installed
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = is_docker_installed()
             assert result is False
 
@@ -154,7 +154,7 @@ class TestIsDockerInstalled:
         """Should check specifically for docker."""
         from setup_lib.nvidia_toolkit import is_docker_installed
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.return_value = None
             is_docker_installed()
             mock_which.assert_called_once_with("docker")
@@ -167,7 +167,7 @@ class TestIsPodmanInstalled:
         """Should return True when podman is found in PATH."""
         from setup_lib.nvidia_toolkit import is_podman_installed
 
-        with patch("shutil.which", return_value="/usr/bin/podman"):
+        with patch("shutil.which", return_value="/usr/bin/podman", autospec=True):
             result = is_podman_installed()
             assert result is True
 
@@ -175,7 +175,7 @@ class TestIsPodmanInstalled:
         """Should return False when podman is not found."""
         from setup_lib.nvidia_toolkit import is_podman_installed
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = is_podman_installed()
             assert result is False
 
@@ -183,7 +183,7 @@ class TestIsPodmanInstalled:
         """Should check specifically for podman."""
         from setup_lib.nvidia_toolkit import is_podman_installed
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.return_value = None
             is_podman_installed()
             mock_which.assert_called_once_with("podman")
@@ -197,8 +197,8 @@ class TestGetDetectedRuntimes:
         from setup_lib.nvidia_toolkit import get_detected_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=True),
+            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True, autospec=True),
+            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=True, autospec=True),
         ):
             runtimes = get_detected_runtimes()
             assert "docker" in runtimes
@@ -210,8 +210,10 @@ class TestGetDetectedRuntimes:
         from setup_lib.nvidia_toolkit import get_detected_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=False),
+            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True, autospec=True),
+            patch(
+                "setup_lib.nvidia_toolkit.is_podman_installed", return_value=False, autospec=True
+            ),
         ):
             runtimes = get_detected_runtimes()
             assert runtimes == ["docker"]
@@ -221,8 +223,10 @@ class TestGetDetectedRuntimes:
         from setup_lib.nvidia_toolkit import get_detected_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=False),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=True),
+            patch(
+                "setup_lib.nvidia_toolkit.is_docker_installed", return_value=False, autospec=True
+            ),
+            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=True, autospec=True),
         ):
             runtimes = get_detected_runtimes()
             assert runtimes == ["podman"]
@@ -232,8 +236,12 @@ class TestGetDetectedRuntimes:
         from setup_lib.nvidia_toolkit import get_detected_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=False),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=False),
+            patch(
+                "setup_lib.nvidia_toolkit.is_docker_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_podman_installed", return_value=False, autospec=True
+            ),
         ):
             runtimes = get_detected_runtimes()
             assert runtimes == []
@@ -247,10 +255,14 @@ class TestGetToolkitInstallationSummary:
         from setup_lib.nvidia_toolkit import get_toolkit_installation_summary
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3"),
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=True),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3", autospec=True
+            ),
+            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True, autospec=True),
+            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=True, autospec=True),
         ):
             summary = get_toolkit_installation_summary()
 
@@ -264,9 +276,13 @@ class TestGetToolkitInstallationSummary:
         from setup_lib.nvidia_toolkit import get_toolkit_installation_summary
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=False),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=True, autospec=True),
+            patch(
+                "setup_lib.nvidia_toolkit.is_podman_installed", return_value=False, autospec=True
+            ),
         ):
             summary = get_toolkit_installation_summary()
 
@@ -280,10 +296,18 @@ class TestGetToolkitInstallationSummary:
         from setup_lib.nvidia_toolkit import get_toolkit_installation_summary
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3"),
-            patch("setup_lib.nvidia_toolkit.is_docker_installed", return_value=False),
-            patch("setup_lib.nvidia_toolkit.is_podman_installed", return_value=False),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3", autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_docker_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_podman_installed", return_value=False, autospec=True
+            ),
         ):
             summary = get_toolkit_installation_summary()
 
@@ -346,7 +370,7 @@ class TestInstallToolkit:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = install_toolkit("fedora")
             assert result is True
 
@@ -357,7 +381,7 @@ class TestInstallToolkit:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = install_toolkit("fedora")
             assert result is False
 
@@ -372,7 +396,7 @@ class TestInstallToolkit:
         """Should return False and handle OS errors."""
         from setup_lib.nvidia_toolkit import install_toolkit
 
-        with patch("subprocess.run", side_effect=OSError("Permission denied")):
+        with patch("subprocess.run", side_effect=OSError("Permission denied"), autospec=True):
             result = install_toolkit("fedora")
             assert result is False
 
@@ -388,8 +412,10 @@ class TestConfigureDockerRuntime:
         mock_result.returncode = 0
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("subprocess.run", return_value=mock_result) as mock_run,
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run,
         ):
             result = configure_docker_runtime()
             assert result is True
@@ -408,8 +434,10 @@ class TestConfigureDockerRuntime:
         mock_result.returncode = 1
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("subprocess.run", return_value=mock_result),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             result = configure_docker_runtime()
             assert result is False
@@ -418,7 +446,9 @@ class TestConfigureDockerRuntime:
         """Should return False when toolkit is not installed."""
         from setup_lib.nvidia_toolkit import configure_docker_runtime
 
-        with patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False):
+        with patch(
+            "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+        ):
             result = configure_docker_runtime()
             assert result is False
 
@@ -427,8 +457,10 @@ class TestConfigureDockerRuntime:
         from setup_lib.nvidia_toolkit import configure_docker_runtime
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("subprocess.run", side_effect=PermissionError),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch("subprocess.run", side_effect=PermissionError, autospec=True),
         ):
             result = configure_docker_runtime()
             assert result is False
@@ -440,8 +472,12 @@ class TestConfigureDockerRuntime:
         from setup_lib.nvidia_toolkit import configure_docker_runtime
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 60)),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 60), autospec=True
+            ),
         ):
             result = configure_docker_runtime()
             assert result is False
@@ -458,8 +494,10 @@ class TestConfigurePodmanRuntime:
         mock_result.returncode = 0
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("subprocess.run", return_value=mock_result) as mock_run,
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run,
         ):
             result = configure_podman_runtime()
             assert result is True
@@ -477,8 +515,10 @@ class TestConfigurePodmanRuntime:
         mock_result.returncode = 1
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("subprocess.run", return_value=mock_result),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             result = configure_podman_runtime()
             assert result is False
@@ -487,7 +527,9 @@ class TestConfigurePodmanRuntime:
         """Should return False when toolkit is not installed."""
         from setup_lib.nvidia_toolkit import configure_podman_runtime
 
-        with patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False):
+        with patch(
+            "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+        ):
             result = configure_podman_runtime()
             assert result is False
 
@@ -501,10 +543,20 @@ class TestConfigureRuntimes:
 
         with (
             patch(
-                "setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker", "podman"]
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker", "podman"],
+                autospec=True,
             ),
-            patch("setup_lib.nvidia_toolkit.configure_docker_runtime", return_value=True),
-            patch("setup_lib.nvidia_toolkit.configure_podman_runtime", return_value=True),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_docker_runtime",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_podman_runtime",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             results = configure_runtimes()
             assert results["docker"] is True
@@ -515,11 +567,19 @@ class TestConfigureRuntimes:
         from setup_lib.nvidia_toolkit import configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
             patch(
-                "setup_lib.nvidia_toolkit.configure_docker_runtime", return_value=True
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_docker_runtime",
+                return_value=True,
+                autospec=True,
             ) as mock_docker,
-            patch("setup_lib.nvidia_toolkit.configure_podman_runtime") as mock_podman,
+            patch(
+                "setup_lib.nvidia_toolkit.configure_podman_runtime", autospec=True
+            ) as mock_podman,
         ):
             results = configure_runtimes()
             assert results == {"docker": True}
@@ -531,10 +591,18 @@ class TestConfigureRuntimes:
         from setup_lib.nvidia_toolkit import configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["podman"]),
-            patch("setup_lib.nvidia_toolkit.configure_docker_runtime") as mock_docker,
             patch(
-                "setup_lib.nvidia_toolkit.configure_podman_runtime", return_value=True
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["podman"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_docker_runtime", autospec=True
+            ) as mock_docker,
+            patch(
+                "setup_lib.nvidia_toolkit.configure_podman_runtime",
+                return_value=True,
+                autospec=True,
             ) as mock_podman,
         ):
             results = configure_runtimes()
@@ -546,7 +614,9 @@ class TestConfigureRuntimes:
         """Should return empty dict when no runtimes are available."""
         from setup_lib.nvidia_toolkit import configure_runtimes
 
-        with patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[]):
+        with patch(
+            "setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[], autospec=True
+        ):
             results = configure_runtimes()
             assert results == {}
 
@@ -556,10 +626,20 @@ class TestConfigureRuntimes:
 
         with (
             patch(
-                "setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker", "podman"]
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker", "podman"],
+                autospec=True,
             ),
-            patch("setup_lib.nvidia_toolkit.configure_docker_runtime", return_value=True),
-            patch("setup_lib.nvidia_toolkit.configure_podman_runtime", return_value=False),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_docker_runtime",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_podman_runtime",
+                return_value=False,
+                autospec=True,
+            ),
         ):
             results = configure_runtimes()
             assert results["docker"] is True
@@ -576,7 +656,7 @@ class TestRestartDockerDaemon:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = restart_docker_daemon()
             assert result is True
             call_args = mock_run.call_args[0][0]
@@ -591,7 +671,7 @@ class TestRestartDockerDaemon:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = restart_docker_daemon()
             assert result is False
 
@@ -599,7 +679,7 @@ class TestRestartDockerDaemon:
         """Should return False on permission error."""
         from setup_lib.nvidia_toolkit import restart_docker_daemon
 
-        with patch("subprocess.run", side_effect=PermissionError):
+        with patch("subprocess.run", side_effect=PermissionError, autospec=True):
             result = restart_docker_daemon()
             assert result is False
 
@@ -607,7 +687,7 @@ class TestRestartDockerDaemon:
         """Should return False when systemctl is not found."""
         from setup_lib.nvidia_toolkit import restart_docker_daemon
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             result = restart_docker_daemon()
             assert result is False
 
@@ -622,7 +702,7 @@ class TestVerifyGpuPassthrough:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = verify_gpu_passthrough("docker")
             assert result is True
             call_args = mock_run.call_args[0][0]
@@ -636,7 +716,7 @@ class TestVerifyGpuPassthrough:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = verify_gpu_passthrough("podman")
             assert result is True
             call_args = mock_run.call_args[0][0]
@@ -650,7 +730,7 @@ class TestVerifyGpuPassthrough:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = verify_gpu_passthrough("docker")
             assert result is False
 
@@ -667,7 +747,9 @@ class TestVerifyGpuPassthrough:
 
         from setup_lib.nvidia_toolkit import verify_gpu_passthrough
 
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 120)):
+        with patch(
+            "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 120), autospec=True
+        ):
             result = verify_gpu_passthrough("docker")
             assert result is False
 
@@ -679,7 +761,9 @@ class TestPromptAndInstallToolkit:
         """Should return True immediately if toolkit is already installed."""
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
-        with patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True):
+        with patch(
+            "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+        ):
             result = prompt_and_install_toolkit()
             assert result is True
 
@@ -688,8 +772,10 @@ class TestPromptAndInstallToolkit:
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_toolkit(config={})
             assert result is False
@@ -699,8 +785,10 @@ class TestPromptAndInstallToolkit:
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_toolkit(config={"distro_family": "unknown"})
             assert result is False
@@ -710,9 +798,11 @@ class TestPromptAndInstallToolkit:
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_toolkit(config={"distro_family": "fedora"})
             assert result is False
@@ -722,10 +812,12 @@ class TestPromptAndInstallToolkit:
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=True),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=True, autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_toolkit(config={"distro_family": "fedora"})
             assert result is True
@@ -735,10 +827,12 @@ class TestPromptAndInstallToolkit:
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=False),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=False, autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_toolkit(config={"distro_family": "fedora"})
             assert result is False
@@ -748,10 +842,12 @@ class TestPromptAndInstallToolkit:
         from setup_lib.nvidia_toolkit import prompt_and_install_toolkit
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.input") as mock_input,
-            patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=True),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.input", autospec=True) as mock_input,
+            patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=True, autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_install_toolkit(
                 config={"distro_family": "fedora", "auto_install": True}
@@ -765,10 +861,14 @@ class TestPromptAndInstallToolkit:
 
         for response in ["Y", "yes", "YES", "Yes"]:
             with (
-                patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-                patch("builtins.input", return_value=response),
-                patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=True),
-                patch("builtins.print"),
+                patch(
+                    "setup_lib.nvidia_toolkit.is_toolkit_installed",
+                    return_value=False,
+                    autospec=True,
+                ),
+                patch("builtins.input", return_value=response, autospec=True),
+                patch("setup_lib.nvidia_toolkit.install_toolkit", return_value=True, autospec=True),
+                patch("builtins.print", autospec=True),
             ):
                 result = prompt_and_install_toolkit(config={"distro_family": "fedora"})
                 assert result is True, f"Failed for response: {response}"
@@ -782,8 +882,10 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_runtimes()
             assert result is False
@@ -793,9 +895,11 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[]),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[], autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_runtimes()
             assert result is False
@@ -805,10 +909,16 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("builtins.input", return_value="n"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch("builtins.input", return_value="n", autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_runtimes()
             assert result is False
@@ -818,12 +928,24 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("builtins.input", return_value="y"),
-            patch("setup_lib.nvidia_toolkit.configure_runtimes", return_value={"docker": True}),
-            patch("setup_lib.nvidia_toolkit.restart_docker_daemon", return_value=True),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch("builtins.input", return_value="y", autospec=True),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_runtimes",
+                return_value={"docker": True},
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.restart_docker_daemon", return_value=True, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_runtimes()
             assert result is True
@@ -833,12 +955,24 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("builtins.input") as mock_input,
-            patch("setup_lib.nvidia_toolkit.configure_runtimes", return_value={"docker": True}),
-            patch("setup_lib.nvidia_toolkit.restart_docker_daemon", return_value=True),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch("builtins.input", autospec=True) as mock_input,
+            patch(
+                "setup_lib.nvidia_toolkit.configure_runtimes",
+                return_value={"docker": True},
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.restart_docker_daemon", return_value=True, autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = prompt_and_configure_runtimes(config={"auto_install": True})
             assert result is True
@@ -849,13 +983,23 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("setup_lib.nvidia_toolkit.configure_runtimes", return_value={"docker": True}),
             patch(
-                "setup_lib.nvidia_toolkit.restart_docker_daemon", return_value=True
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_runtimes",
+                return_value={"docker": True},
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.restart_docker_daemon", return_value=True, autospec=True
             ) as mock_restart,
-            patch("builtins.print"),
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_runtimes(config={"auto_install": True})
             mock_restart.assert_called_once()
@@ -865,11 +1009,21 @@ class TestPromptAndConfigureRuntimes:
         from setup_lib.nvidia_toolkit import prompt_and_configure_runtimes
 
         with (
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("setup_lib.nvidia_toolkit.configure_runtimes", return_value={"docker": False}),
-            patch("setup_lib.nvidia_toolkit.restart_docker_daemon") as mock_restart,
-            patch("builtins.print"),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.configure_runtimes",
+                return_value={"docker": False},
+                autospec=True,
+            ),
+            patch("setup_lib.nvidia_toolkit.restart_docker_daemon", autospec=True) as mock_restart,
+            patch("builtins.print", autospec=True),
         ):
             prompt_and_configure_runtimes(config={"auto_install": True})
             mock_restart.assert_not_called()
@@ -883,8 +1037,8 @@ class TestSetupNvidiaContainerToolkit:
         from setup_lib.nvidia_toolkit import setup_nvidia_container_toolkit
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=None),
-            patch("builtins.print"),
+            patch("setup_lib.platform_detect.get_platform_info", return_value=None, autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit()
             assert result is False
@@ -901,8 +1055,12 @@ class TestSetupNvidiaContainerToolkit:
         }
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=platform_info),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.platform_detect.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit()
             assert result is False
@@ -919,9 +1077,15 @@ class TestSetupNvidiaContainerToolkit:
         }
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=platform_info),
-            patch("setup_lib.platform_detect.get_distro_family", return_value="unknown"),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.platform_detect.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.platform_detect.get_distro_family", return_value="unknown", autospec=True
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit()
             assert result is False
@@ -938,13 +1102,31 @@ class TestSetupNvidiaContainerToolkit:
         }
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=platform_info),
-            patch("setup_lib.platform_detect.get_distro_family", return_value="fedora"),
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3"),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("setup_lib.nvidia_toolkit.prompt_and_configure_runtimes", return_value=True),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.platform_detect.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.platform_detect.get_distro_family", return_value="fedora", autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3", autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.prompt_and_configure_runtimes",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit()
             assert result is True
@@ -961,13 +1143,33 @@ class TestSetupNvidiaContainerToolkit:
         }
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=platform_info),
-            patch("setup_lib.platform_detect.get_distro_family", return_value="fedora"),
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("setup_lib.nvidia_toolkit.prompt_and_install_toolkit", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("setup_lib.nvidia_toolkit.prompt_and_configure_runtimes", return_value=True),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.platform_detect.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.platform_detect.get_distro_family", return_value="fedora", autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.prompt_and_install_toolkit",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.prompt_and_configure_runtimes",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit(auto_install=True)
             assert result is True
@@ -984,11 +1186,23 @@ class TestSetupNvidiaContainerToolkit:
         }
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=platform_info),
-            patch("setup_lib.platform_detect.get_distro_family", return_value="fedora"),
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False),
-            patch("setup_lib.nvidia_toolkit.prompt_and_install_toolkit", return_value=False),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.platform_detect.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.platform_detect.get_distro_family", return_value="fedora", autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=False, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.prompt_and_install_toolkit",
+                return_value=False,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit()
             assert result is False
@@ -1005,12 +1219,22 @@ class TestSetupNvidiaContainerToolkit:
         }
 
         with (
-            patch("setup_lib.platform_detect.get_platform_info", return_value=platform_info),
-            patch("setup_lib.platform_detect.get_distro_family", return_value="fedora"),
-            patch("setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True),
-            patch("setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3"),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[]),
-            patch("builtins.print"),
+            patch(
+                "setup_lib.platform_detect.get_platform_info",
+                return_value=platform_info,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.platform_detect.get_distro_family", return_value="fedora", autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.is_toolkit_installed", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_toolkit.get_toolkit_version", return_value="1.14.3", autospec=True
+            ),
+            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[], autospec=True),
+            patch("builtins.print", autospec=True),
         ):
             result = setup_nvidia_container_toolkit()
             assert result is True
@@ -1034,10 +1258,16 @@ class TestPrintToolkitInfo:
 
         with (
             patch(
-                "setup_lib.nvidia_toolkit.get_toolkit_installation_summary", return_value=summary
+                "setup_lib.nvidia_toolkit.get_toolkit_installation_summary",
+                return_value=summary,
+                autospec=True,
             ),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=["docker"]),
-            patch("builtins.print") as mock_print,
+            patch(
+                "setup_lib.nvidia_toolkit.get_detected_runtimes",
+                return_value=["docker"],
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True) as mock_print,
         ):
             print_toolkit_info()
             # Verify print was called
@@ -1058,10 +1288,12 @@ class TestPrintToolkitInfo:
 
         with (
             patch(
-                "setup_lib.nvidia_toolkit.get_toolkit_installation_summary", return_value=summary
+                "setup_lib.nvidia_toolkit.get_toolkit_installation_summary",
+                return_value=summary,
+                autospec=True,
             ),
-            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[]),
-            patch("builtins.print") as mock_print,
+            patch("setup_lib.nvidia_toolkit.get_detected_runtimes", return_value=[], autospec=True),
+            patch("builtins.print", autospec=True) as mock_print,
         ):
             print_toolkit_info()
             assert mock_print.call_count > 0

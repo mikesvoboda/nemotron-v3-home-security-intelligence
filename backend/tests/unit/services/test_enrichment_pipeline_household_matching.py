@@ -115,10 +115,18 @@ def mock_enrichment_services():
     from contextlib import ExitStack
 
     stack = ExitStack()
-    stack.enter_context(patch("backend.services.enrichment_pipeline.get_vision_extractor"))
-    stack.enter_context(patch("backend.services.enrichment_pipeline.get_reid_service"))
-    stack.enter_context(patch("backend.services.enrichment_pipeline.get_scene_change_detector"))
-    stack.enter_context(patch("backend.services.enrichment_pipeline.get_scene_ocr_service"))
+    stack.enter_context(
+        patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True)
+    )
+    stack.enter_context(
+        patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True)
+    )
+    stack.enter_context(
+        patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True)
+    )
+    stack.enter_context(
+        patch("backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True)
+    )
 
     yield stack
 
@@ -280,10 +288,12 @@ class TestEnrichmentPipelineHouseholdMatching:
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             # Create pipeline with household matching enabled
@@ -341,17 +351,19 @@ class TestEnrichmentPipelineHouseholdMatching:
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
         with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
-            patch("backend.services.enrichment_pipeline.get_reid_service"),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
-            patch("backend.services.enrichment_pipeline.get_scene_ocr_service"),
+            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
+            patch("backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True),
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(
@@ -425,10 +437,12 @@ class TestEnrichmentPipelineHouseholdMatching:
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(
@@ -481,6 +495,7 @@ class TestEnrichmentPipelineHouseholdMatching:
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(
@@ -533,6 +548,7 @@ class TestEnrichmentPipelineHouseholdMatching:
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(
@@ -660,10 +676,12 @@ class TestRunHouseholdMatchingMethod:
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(
@@ -708,10 +726,12 @@ class TestRunHouseholdMatchingMethod:
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(
@@ -767,10 +787,12 @@ class TestRunHouseholdMatchingMethod:
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
+                autospec=True,
             ),
             patch(
                 "backend.core.database.get_session",
                 return_value=mock_session_cm,
+                autospec=True,
             ),
         ):
             pipeline = EnrichmentPipeline(

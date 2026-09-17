@@ -78,10 +78,20 @@ class TestNemotronAnalyzerWarmup:
     def analyzer(self, mock_redis_client, mock_settings):
         """Create NemotronAnalyzer instance with mocked dependencies."""
         with (
-            patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-            patch("backend.services.severity.get_settings", return_value=mock_settings),
-            patch("backend.services.token_counter.get_settings", return_value=mock_settings),
-            patch("backend.core.config.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "backend.services.token_counter.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
         ):
             from backend.services.nemotron_analyzer import NemotronAnalyzer
             from backend.services.severity import reset_severity_service
@@ -96,7 +106,7 @@ class TestNemotronAnalyzerWarmup:
     @pytest.mark.asyncio
     async def test_model_readiness_probe_success(self, analyzer):
         """Test that model_readiness_probe returns True when inference succeeds."""
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_response = MagicMock(spec=httpx.Response)
             mock_response.status_code = 200
             mock_response.json.return_value = {"content": "ready"}
@@ -110,7 +120,7 @@ class TestNemotronAnalyzerWarmup:
     @pytest.mark.asyncio
     async def test_model_readiness_probe_failure_connection_error(self, analyzer):
         """Test that model_readiness_probe returns False on connection error."""
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_post.side_effect = httpx.ConnectError("Connection refused")
 
             result = await analyzer.model_readiness_probe()
@@ -120,7 +130,7 @@ class TestNemotronAnalyzerWarmup:
     @pytest.mark.asyncio
     async def test_model_readiness_probe_failure_timeout(self, analyzer):
         """Test that model_readiness_probe returns False on timeout."""
-        with patch("httpx.AsyncClient.post") as mock_post:
+        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
             mock_post.side_effect = httpx.TimeoutException("Request timeout")
 
             result = await analyzer.model_readiness_probe()
@@ -245,7 +255,11 @@ class TestDetectorClientWarmup:
     @pytest.fixture
     async def detector_client(self, mock_settings):
         """Create DetectorClient instance with mocked settings."""
-        with patch("backend.services.detector_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.detector_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.detector_client import DetectorClient
 
             client = DetectorClient()

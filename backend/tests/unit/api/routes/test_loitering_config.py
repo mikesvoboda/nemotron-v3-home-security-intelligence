@@ -36,7 +36,7 @@ class TestGetLoiteringConfig:
         mock_zone.loitering_alert_enabled = True
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)
@@ -60,7 +60,7 @@ class TestGetLoiteringConfig:
         mock_db = AsyncMock()
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             # Service returns None when zone not found
@@ -90,7 +90,7 @@ class TestGetLoiteringConfig:
         mock_zone.loitering_alert_enabled = False
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)
@@ -120,7 +120,7 @@ class TestGetLoiteringConfig:
         mock_zone.loitering_alert_enabled = True
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)
@@ -157,7 +157,7 @@ class TestUpdateLoiteringConfig:
         )
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)
@@ -196,7 +196,7 @@ class TestUpdateLoiteringConfig:
         )
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=None)
@@ -231,7 +231,7 @@ class TestUpdateLoiteringConfig:
         )
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)
@@ -265,7 +265,7 @@ class TestUpdateLoiteringConfig:
         )
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)
@@ -299,7 +299,7 @@ class TestUpdateLoiteringConfig:
         )
 
         with patch(
-            "backend.api.routes.analytics_zones.get_polygon_zone_service"
+            "backend.api.routes.analytics_zones.get_polygon_zone_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_zone = AsyncMock(return_value=mock_zone)

@@ -409,13 +409,13 @@ class TestLogModelLoadStrictFalseWarning:
 
     def test_no_warning_when_no_keys(self) -> None:
         """No warning should be logged when no key mismatches."""
-        with patch("backend.core.security.logger") as mock_logger:
+        with patch("backend.core.security.logger", autospec=True) as mock_logger:
             log_model_load_strict_false_warning("/path/model.pt")
             mock_logger.warning.assert_not_called()
 
     def test_warning_logged_for_missing_keys(self) -> None:
         """Warning should be logged for missing keys."""
-        with patch("backend.core.security.logger") as mock_logger:
+        with patch("backend.core.security.logger", autospec=True) as mock_logger:
             log_model_load_strict_false_warning(
                 "/path/model.pt",
                 missing_keys=["layer1.weight", "layer2.bias"],
@@ -427,7 +427,7 @@ class TestLogModelLoadStrictFalseWarning:
 
     def test_warning_logged_for_unexpected_keys(self) -> None:
         """Warning should be logged for unexpected keys."""
-        with patch("backend.core.security.logger") as mock_logger:
+        with patch("backend.core.security.logger", autospec=True) as mock_logger:
             log_model_load_strict_false_warning(
                 "/path/model.pt",
                 unexpected_keys=["extra.weight"],

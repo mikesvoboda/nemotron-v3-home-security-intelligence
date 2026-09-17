@@ -30,7 +30,7 @@ def fast_sleep():
         else:
             await original_sleep(delay)
 
-    with patch.object(asyncio, "sleep", side_effect=quick_sleep) as mock_sleep:
+    with patch.object(asyncio, "sleep", side_effect=quick_sleep, autospec=True) as mock_sleep:
         yield mock_sleep
 
 
@@ -785,7 +785,7 @@ async def test_logging_on_health_check(health_monitor, mock_manager, caplog, fas
     """Test that health checks are logged appropriately."""
     mock_manager.check_health.return_value = True
 
-    with patch("backend.services.health_monitor.logger") as mock_logger:
+    with patch("backend.services.health_monitor.logger", autospec=True) as mock_logger:
         await health_monitor.start()
         await asyncio.sleep(0.15)
         await health_monitor.stop()
@@ -800,7 +800,7 @@ async def test_logging_on_failure(health_monitor, mock_manager, fast_sleep):
     """Test that failures are logged as warnings."""
     mock_manager.check_health.return_value = False
 
-    with patch("backend.services.health_monitor.logger") as mock_logger:
+    with patch("backend.services.health_monitor.logger", autospec=True) as mock_logger:
         await health_monitor.start()
         await asyncio.sleep(0.15)
         await health_monitor.stop()

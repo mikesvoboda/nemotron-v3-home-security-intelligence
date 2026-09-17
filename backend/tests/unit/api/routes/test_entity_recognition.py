@@ -95,7 +95,9 @@ class TestGetEntityRecognitionStats:
         mock_entity_stats: EntityRecognitionStats,
     ) -> None:
         """Test getting entity recognition stats."""
-        with patch("backend.api.routes.entity_recognition.EntityRecognitionService") as MockService:
+        with patch(
+            "backend.api.routes.entity_recognition.EntityRecognitionService", autospec=True
+        ) as MockService:
             mock_service = AsyncMock()
             mock_service.get_hourly_stats = AsyncMock(return_value=mock_entity_stats)
             MockService.return_value = mock_service
@@ -133,7 +135,9 @@ class TestGetEntityRecognitionStats:
             window_end=datetime(2026, 2, 3, 11, 0, 0, tzinfo=UTC),
         )
 
-        with patch("backend.api.routes.entity_recognition.EntityRecognitionService") as MockService:
+        with patch(
+            "backend.api.routes.entity_recognition.EntityRecognitionService", autospec=True
+        ) as MockService:
             mock_service = AsyncMock()
             mock_service.get_hourly_stats = AsyncMock(return_value=empty_stats)
             MockService.return_value = mock_service
@@ -188,7 +192,9 @@ class TestGetEntityRecognitionStats:
         """Test that database is queried when cache read fails."""
         mock_cache_service.get = AsyncMock(side_effect=Exception("Redis connection error"))
 
-        with patch("backend.api.routes.entity_recognition.EntityRecognitionService") as MockService:
+        with patch(
+            "backend.api.routes.entity_recognition.EntityRecognitionService", autospec=True
+        ) as MockService:
             mock_service = AsyncMock()
             mock_service.get_hourly_stats = AsyncMock(return_value=mock_entity_stats)
             MockService.return_value = mock_service
@@ -206,7 +212,9 @@ class TestGetEntityRecognitionStats:
         mock_entity_stats: EntityRecognitionStats,
     ) -> None:
         """Test that result is cached after database query."""
-        with patch("backend.api.routes.entity_recognition.EntityRecognitionService") as MockService:
+        with patch(
+            "backend.api.routes.entity_recognition.EntityRecognitionService", autospec=True
+        ) as MockService:
             mock_service = AsyncMock()
             mock_service.get_hourly_stats = AsyncMock(return_value=mock_entity_stats)
             MockService.return_value = mock_service
@@ -228,7 +236,9 @@ class TestGetEntityRecognitionStats:
         """Test that response is returned even if cache write fails."""
         mock_cache_service.set = AsyncMock(side_effect=Exception("Redis write error"))
 
-        with patch("backend.api.routes.entity_recognition.EntityRecognitionService") as MockService:
+        with patch(
+            "backend.api.routes.entity_recognition.EntityRecognitionService", autospec=True
+        ) as MockService:
             mock_service = AsyncMock()
             mock_service.get_hourly_stats = AsyncMock(return_value=mock_entity_stats)
             MockService.return_value = mock_service

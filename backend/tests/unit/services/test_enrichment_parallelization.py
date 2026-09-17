@@ -37,10 +37,16 @@ def mock_enrichment_services():
     This prevents network calls to external services during initialization.
     """
     with (
-        patch("backend.services.enrichment_pipeline.get_vision_extractor") as mock_vision,
-        patch("backend.services.enrichment_pipeline.get_reid_service") as mock_reid,
-        patch("backend.services.enrichment_pipeline.get_scene_change_detector") as mock_scene,
-        patch("backend.services.enrichment_pipeline.get_scene_ocr_service") as mock_ocr,
+        patch(
+            "backend.services.enrichment_pipeline.get_vision_extractor", autospec=True
+        ) as mock_vision,
+        patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True) as mock_reid,
+        patch(
+            "backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True
+        ) as mock_scene,
+        patch(
+            "backend.services.enrichment_pipeline.get_scene_ocr_service", autospec=True
+        ) as mock_ocr,
     ):
         # Configure mocks to return non-None values to avoid AttributeErrors
         mock_vision.return_value = MagicMock()
@@ -381,11 +387,15 @@ class TestPhase1ParallelExecution:
         )
 
         with (
-            patch.object(pipeline, "_detect_faces", side_effect=delayed_mock),
-            patch.object(pipeline, "_detect_license_plates", side_effect=delayed_mock),
-            patch.object(pipeline, "_detect_violence", side_effect=delayed_mock),
-            patch.object(pipeline, "_classify_weather", side_effect=delayed_mock),
-            patch.object(pipeline, "_classify_person_clothing", side_effect=delayed_mock),
+            patch.object(pipeline, "_detect_faces", side_effect=delayed_mock, autospec=True),
+            patch.object(
+                pipeline, "_detect_license_plates", side_effect=delayed_mock, autospec=True
+            ),
+            patch.object(pipeline, "_detect_violence", side_effect=delayed_mock, autospec=True),
+            patch.object(pipeline, "_classify_weather", side_effect=delayed_mock, autospec=True),
+            patch.object(
+                pipeline, "_classify_person_clothing", side_effect=delayed_mock, autospec=True
+            ),
         ):
             detections = [person_detection, vehicle_detection]
 
@@ -491,9 +501,11 @@ class TestPhase2Prerequisites:
         )
 
         with (
-            patch.object(pipeline, "_is_fast_alpr_available", return_value=False),
-            patch.object(pipeline, "_detect_license_plates", side_effect=mock_plate_detection),
-            patch.object(pipeline, "_read_plates", side_effect=mock_read_plates),
+            patch.object(pipeline, "_is_fast_alpr_available", return_value=False, autospec=True),
+            patch.object(
+                pipeline, "_detect_license_plates", side_effect=mock_plate_detection, autospec=True
+            ),
+            patch.object(pipeline, "_read_plates", side_effect=mock_read_plates, autospec=True),
         ):
             await pipeline.enrich_batch([vehicle_detection], {None: test_image})
 
@@ -549,8 +561,10 @@ class TestPhase2Prerequisites:
         )
 
         with (
-            patch.object(pipeline, "_detect_license_plates", side_effect=mock_plate_detection),
-            patch.object(pipeline, "_read_plates", side_effect=mock_read_plates),
+            patch.object(
+                pipeline, "_detect_license_plates", side_effect=mock_plate_detection, autospec=True
+            ),
+            patch.object(pipeline, "_read_plates", side_effect=mock_read_plates, autospec=True),
         ):
             await pipeline.enrich_batch([vehicle_detection], {None: test_image})
 
@@ -619,7 +633,9 @@ class TestPhase2Prerequisites:
             clothing_segmentation_enabled=False,
         )
 
-        with patch.object(pipeline, "_detect_faces", side_effect=mock_face_detection):
+        with patch.object(
+            pipeline, "_detect_faces", side_effect=mock_face_detection, autospec=True
+        ):
             result = await pipeline.enrich_batch([person_detection], {None: test_image})
 
             # Verify face detection was called
@@ -709,9 +725,13 @@ class TestPartialFailureHandling:
         )
 
         with (
-            patch.object(pipeline, "_detect_faces", side_effect=mock_face_detection_failure),
-            patch.object(pipeline, "_classify_person_clothing", side_effect=mock_clothing),
-            patch.object(pipeline, "_estimate_poses", side_effect=mock_pose),
+            patch.object(
+                pipeline, "_detect_faces", side_effect=mock_face_detection_failure, autospec=True
+            ),
+            patch.object(
+                pipeline, "_classify_person_clothing", side_effect=mock_clothing, autospec=True
+            ),
+            patch.object(pipeline, "_estimate_poses", side_effect=mock_pose, autospec=True),
         ):
             result = await pipeline.enrich_batch(
                 [person_detection, vehicle_detection], {None: test_image}
@@ -785,9 +805,11 @@ class TestPartialFailureHandling:
         )
 
         with (
-            patch.object(pipeline, "_detect_faces", side_effect=mock_face_failure),
-            patch.object(pipeline, "_detect_license_plates", side_effect=mock_plate_failure),
-            patch.object(pipeline, "_classify_weather", side_effect=mock_weather),
+            patch.object(pipeline, "_detect_faces", side_effect=mock_face_failure, autospec=True),
+            patch.object(
+                pipeline, "_detect_license_plates", side_effect=mock_plate_failure, autospec=True
+            ),
+            patch.object(pipeline, "_classify_weather", side_effect=mock_weather, autospec=True),
         ):
             result = await pipeline.enrich_batch(
                 [person_detection, vehicle_detection], {None: test_image}
@@ -849,8 +871,10 @@ class TestPartialFailureHandling:
         )
 
         with (
-            patch.object(pipeline, "_detect_license_plates", side_effect=mock_plate_failure),
-            patch.object(pipeline, "_read_plates", side_effect=mock_ocr),
+            patch.object(
+                pipeline, "_detect_license_plates", side_effect=mock_plate_failure, autospec=True
+            ),
+            patch.object(pipeline, "_read_plates", side_effect=mock_ocr, autospec=True),
         ):
             result = await pipeline.enrich_batch([vehicle_detection], {None: test_image})
 

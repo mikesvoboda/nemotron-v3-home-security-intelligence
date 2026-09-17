@@ -57,7 +57,9 @@ class TestBaggageMiddleware:
 
     def test_middleware_extracts_baggage_header(self, client: TestClient) -> None:
         """Should extract baggage from W3C Baggage header."""
-        with patch("backend.api.middleware.baggage.extract_context_from_headers") as mock_extract:
+        with patch(
+            "backend.api.middleware.baggage.extract_context_from_headers", autospec=True
+        ) as mock_extract:
             response = client.get(
                 "/test",
                 headers={"baggage": "camera.id=front_door,event.priority=high"},
@@ -70,7 +72,7 @@ class TestBaggageMiddleware:
 
     def test_middleware_sets_request_source_for_api(self, client: TestClient) -> None:
         """Should set request.source=api for API requests."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             response = client.get("/test")
             assert response.status_code == 200
             # Should set request.source to 'api' for non-UI requests
@@ -78,7 +80,7 @@ class TestBaggageMiddleware:
 
     def test_middleware_sets_request_source_for_ui(self, client: TestClient) -> None:
         """Should set request.source=ui when X-Request-Source header is present."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             response = client.get(
                 "/test",
                 headers={"X-Request-Source": "ui"},
@@ -88,7 +90,7 @@ class TestBaggageMiddleware:
 
     def test_middleware_sets_request_source_for_scheduled(self, client: TestClient) -> None:
         """Should set request.source=scheduled for scheduled tasks."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             response = client.get(
                 "/test",
                 headers={"X-Request-Source": "scheduled"},
@@ -98,7 +100,7 @@ class TestBaggageMiddleware:
 
     def test_middleware_extracts_camera_id_from_path(self, client: TestClient) -> None:
         """Should extract camera_id from URL path and set as baggage."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             response = client.get("/cameras/front_door/detect")
             assert response.status_code == 200
             # Should set camera.id from path parameter
@@ -110,8 +112,9 @@ class TestBaggageMiddleware:
             patch(
                 "backend.api.middleware.baggage.get_baggage",
                 return_value="upstream_camera",
+                autospec=True,
             ),
-            patch("backend.api.middleware.baggage.set_baggage") as mock_set,
+            patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set,
         ):
             response = client.get(
                 "/cameras/front_door/detect",
@@ -130,7 +133,7 @@ class TestSetPipelineBaggage:
 
     def test_set_pipeline_baggage_with_all_values(self) -> None:
         """Should set all provided baggage values."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             set_pipeline_baggage(
                 camera_id="front_door",
                 event_priority="high",
@@ -144,21 +147,21 @@ class TestSetPipelineBaggage:
 
     def test_set_pipeline_baggage_with_partial_values(self) -> None:
         """Should only set provided baggage values."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             set_pipeline_baggage(camera_id="backyard")
 
             mock_set.assert_called_once_with("camera.id", "backyard")
 
     def test_set_pipeline_baggage_with_no_values(self) -> None:
         """Should not set any baggage when no values provided."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             set_pipeline_baggage()
 
             mock_set.assert_not_called()
 
     def test_set_pipeline_baggage_validates_priority(self) -> None:
         """Should only accept valid priority values."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             # Valid priorities: low, normal, high, critical
             set_pipeline_baggage(event_priority="high")
             mock_set.assert_called_with("event.priority", "high")
@@ -169,7 +172,7 @@ class TestSetPipelineBaggage:
 
     def test_set_pipeline_baggage_validates_request_source(self) -> None:
         """Should only accept valid request source values."""
-        with patch("backend.api.middleware.baggage.set_baggage") as mock_set:
+        with patch("backend.api.middleware.baggage.set_baggage", autospec=True) as mock_set:
             # Valid sources: ui, api, scheduled, internal
             set_pipeline_baggage(request_source="ui")
             mock_set.assert_called_with("request.source", "ui")
@@ -185,7 +188,7 @@ class TestGetBaggageHelpers:
     def test_get_camera_id_from_baggage(self) -> None:
         """Should retrieve camera.id from baggage."""
         with patch(
-            "backend.api.middleware.baggage.get_baggage", return_value="front_door"
+            "backend.api.middleware.baggage.get_baggage", return_value="front_door", autospec=True
         ) as mock_get:
             result = get_camera_id_from_baggage()
 
@@ -194,7 +197,9 @@ class TestGetBaggageHelpers:
 
     def test_get_camera_id_from_baggage_returns_none(self) -> None:
         """Should return None when camera.id not in baggage."""
-        with patch("backend.api.middleware.baggage.get_baggage", return_value=None) as mock_get:
+        with patch(
+            "backend.api.middleware.baggage.get_baggage", return_value=None, autospec=True
+        ) as mock_get:
             result = get_camera_id_from_baggage()
 
             mock_get.assert_called_once_with("camera.id")
@@ -202,7 +207,9 @@ class TestGetBaggageHelpers:
 
     def test_get_event_priority_from_baggage(self) -> None:
         """Should retrieve event.priority from baggage."""
-        with patch("backend.api.middleware.baggage.get_baggage", return_value="high") as mock_get:
+        with patch(
+            "backend.api.middleware.baggage.get_baggage", return_value="high", autospec=True
+        ) as mock_get:
             result = get_event_priority_from_baggage()
 
             mock_get.assert_called_once_with("event.priority")
@@ -210,7 +217,9 @@ class TestGetBaggageHelpers:
 
     def test_get_event_priority_from_baggage_returns_none(self) -> None:
         """Should return None when event.priority not in baggage."""
-        with patch("backend.api.middleware.baggage.get_baggage", return_value=None) as mock_get:
+        with patch(
+            "backend.api.middleware.baggage.get_baggage", return_value=None, autospec=True
+        ) as mock_get:
             result = get_event_priority_from_baggage()
 
             mock_get.assert_called_once_with("event.priority")
@@ -218,7 +227,9 @@ class TestGetBaggageHelpers:
 
     def test_get_request_source_from_baggage(self) -> None:
         """Should retrieve request.source from baggage."""
-        with patch("backend.api.middleware.baggage.get_baggage", return_value="ui") as mock_get:
+        with patch(
+            "backend.api.middleware.baggage.get_baggage", return_value="ui", autospec=True
+        ) as mock_get:
             result = get_request_source_from_baggage()
 
             mock_get.assert_called_once_with("request.source")
@@ -226,7 +237,9 @@ class TestGetBaggageHelpers:
 
     def test_get_request_source_from_baggage_returns_none(self) -> None:
         """Should return None when request.source not in baggage."""
-        with patch("backend.api.middleware.baggage.get_baggage", return_value=None) as mock_get:
+        with patch(
+            "backend.api.middleware.baggage.get_baggage", return_value=None, autospec=True
+        ) as mock_get:
             result = get_request_source_from_baggage()
 
             mock_get.assert_called_once_with("request.source")
@@ -247,12 +260,18 @@ class TestBaggagePropagation:
                     "traceparent": "00-trace-span-01",
                     "baggage": "camera.id=front_door,request.source=api",
                 },
+                autospec=True,
             ),
             patch(
                 "backend.api.middleware.correlation.get_correlation_id",
                 return_value="corr-123",
+                autospec=True,
             ),
-            patch("backend.api.middleware.correlation.get_request_id", return_value="req-456"),
+            patch(
+                "backend.api.middleware.correlation.get_request_id",
+                return_value="req-456",
+                autospec=True,
+            ),
         ):
             headers = get_correlation_headers()
 
@@ -266,7 +285,7 @@ class TestBaggagePropagation:
         import backend.core.telemetry as telemetry_module
 
         # Simulate setting baggage at the start of pipeline
-        with patch.object(telemetry_module, "set_baggage") as mock_set:
+        with patch.object(telemetry_module, "set_baggage", autospec=True) as mock_set:
             # Set initial baggage using module reference
             telemetry_module.set_baggage("camera.id", "front_door")
             telemetry_module.set_baggage("event.priority", "high")
@@ -286,9 +305,9 @@ class TestBaggageIntegration:
         # This test verifies baggage is not lost when entering/exiting spans
         # We use mocks to avoid needing full OTEL initialization
         with (
-            patch.object(telemetry_module, "get_baggage") as mock_get,
-            patch.object(telemetry_module, "set_baggage") as mock_set,
-            patch.object(telemetry_module, "get_tracer") as mock_tracer,
+            patch.object(telemetry_module, "get_baggage", autospec=True) as mock_get,
+            patch.object(telemetry_module, "set_baggage", autospec=True) as mock_set,
+            patch.object(telemetry_module, "get_tracer", autospec=True) as mock_tracer,
         ):
             # Setup mock tracer
             mock_span = MagicMock()
@@ -310,7 +329,7 @@ class TestBaggageIntegration:
         """Baggage should propagate through batch processing."""
         import backend.core.telemetry as telemetry_module
 
-        with patch.object(telemetry_module, "set_baggage") as mock_set:
+        with patch.object(telemetry_module, "set_baggage", autospec=True) as mock_set:
             # Simulate batch processor setting baggage for batch context
             telemetry_module.set_baggage("batch.id", "batch-12345")
             telemetry_module.set_baggage("camera.id", "front_door")

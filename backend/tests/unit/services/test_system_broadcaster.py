@@ -206,7 +206,7 @@ async def test_system_broadcaster_start_broadcasting():
     broadcaster = SystemBroadcaster()
 
     # Mock broadcast loop to avoid actual sleeping
-    with patch.object(broadcaster, "_broadcast_loop"):
+    with patch.object(broadcaster, "_broadcast_loop", autospec=True):
         await broadcaster.start_broadcasting(interval=1.0)
 
     assert broadcaster._running is True
@@ -323,7 +323,7 @@ async def test_system_broadcaster_get_latest_gpu_stats_error():
     broadcaster = SystemBroadcaster()
 
     # Mock get_session to raise error (ConnectionError is caught)
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
         mock_session.side_effect = ConnectionError("Database error")
 
         gpu_stats = await broadcaster._get_latest_gpu_stats()
@@ -340,7 +340,7 @@ async def test_system_broadcaster_get_camera_stats_error():
     broadcaster = SystemBroadcaster()
 
     # Mock get_session to raise error (ConnectionError is caught)
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
         mock_session.side_effect = ConnectionError("Database error")
 
         camera_stats = await broadcaster._get_camera_stats()
@@ -443,7 +443,7 @@ async def test_system_broadcaster_listen_restarts_with_fresh_connection():
     broadcaster._pubsub_listening = True
 
     # Mock _reset_pubsub_connection to verify it's called
-    with patch.object(broadcaster, "_reset_pubsub_connection") as mock_reset:
+    with patch.object(broadcaster, "_reset_pubsub_connection", autospec=True) as mock_reset:
         # Make reset set a new pubsub
         async def set_pubsub():
             broadcaster._pubsub = mock_pubsub
@@ -707,7 +707,9 @@ async def test_system_broadcaster_listen_for_updates_reconnection_failure():
     async def reset_fail():
         broadcaster._pubsub = None
 
-    with patch.object(broadcaster, "_reset_pubsub_connection", side_effect=reset_fail):
+    with patch.object(
+        broadcaster, "_reset_pubsub_connection", side_effect=reset_fail, autospec=True
+    ):
         await broadcaster._listen_for_updates()
         await asyncio.sleep(0.1)  # mocked, short wait for test
 
@@ -740,8 +742,8 @@ async def test_system_broadcaster_broadcast_loop_no_connections():
         await original_sleep(0.01)  # Short sleep for test
 
     with (
-        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast),
-        patch("asyncio.sleep", side_effect=counting_sleep),
+        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast, autospec=True),
+        patch("asyncio.sleep", side_effect=counting_sleep, autospec=True),
     ):
         await broadcaster._broadcast_loop(interval=0.1)
 
@@ -770,8 +772,8 @@ async def test_system_broadcaster_broadcast_loop_handles_error():
         return {"test": "data"}
 
     with (
-        patch.object(broadcaster, "_get_system_status", side_effect=mock_get_status),
-        patch.object(broadcaster, "broadcast_status"),
+        patch.object(broadcaster, "_get_system_status", side_effect=mock_get_status, autospec=True),
+        patch.object(broadcaster, "broadcast_status", autospec=True),
     ):
         await broadcaster._broadcast_loop(interval=0.01)
 
@@ -792,7 +794,9 @@ async def test_system_broadcaster_broadcast_loop_cancelled():
     async def raise_cancelled():
         raise asyncio.CancelledError()
 
-    with patch.object(broadcaster, "_get_system_status", side_effect=raise_cancelled):
+    with patch.object(
+        broadcaster, "_get_system_status", side_effect=raise_cancelled, autospec=True
+    ):
         # Should exit cleanly
         await broadcaster._broadcast_loop(interval=0.1)
 
@@ -828,7 +832,9 @@ async def test_system_broadcaster_get_gpu_stats_none_result():
         return mock_cm
 
     # Use a context manager mock
-    with patch("backend.services.system_broadcaster.get_session") as mock_session_getter:
+    with patch(
+        "backend.services.system_broadcaster.get_session", autospec=True
+    ) as mock_session_getter:
         mock_context = AsyncMock()
         mock_context.__aenter__.return_value = mock_session
         mock_context.__aexit__.return_value = None
@@ -875,7 +881,9 @@ async def test_system_broadcaster_listen_stops_when_flag_false():
         await original_send(data)
         broadcaster._pubsub_listening = False
 
-    with patch.object(broadcaster, "_send_to_local_clients", side_effect=send_and_stop):
+    with patch.object(
+        broadcaster, "_send_to_local_clients", side_effect=send_and_stop, autospec=True
+    ):
         await broadcaster._listen_for_updates()
 
     # Should stop early (the loop checks _pubsub_listening at the start of each iteration)
@@ -1059,10 +1067,17 @@ async def test_system_broadcaster_broadcast_loop_calls_performance():
         await original_sleep(0.01)
 
     with (
-        patch.object(broadcaster, "broadcast_performance", side_effect=mock_broadcast_performance),
-        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast_status),
-        patch.object(broadcaster, "_get_system_status", side_effect=mock_get_status),
-        patch("asyncio.sleep", side_effect=counting_sleep),
+        patch.object(
+            broadcaster,
+            "broadcast_performance",
+            side_effect=mock_broadcast_performance,
+            autospec=True,
+        ),
+        patch.object(
+            broadcaster, "broadcast_status", side_effect=mock_broadcast_status, autospec=True
+        ),
+        patch.object(broadcaster, "_get_system_status", side_effect=mock_get_status, autospec=True),
+        patch("asyncio.sleep", side_effect=counting_sleep, autospec=True),
     ):
         await broadcaster._broadcast_loop(interval=0.1)
 
@@ -1123,8 +1138,13 @@ async def test_system_broadcaster_get_system_status_uses_single_session():
 
     with (
         patch("backend.services.system_broadcaster.get_session", counting_session),
-        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
-        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
         patch.object(
             broadcaster,
             "_check_ai_health",
@@ -1134,6 +1154,7 @@ async def test_system_broadcaster_get_system_status_uses_single_session():
                 "yolo26": True,
                 "nemotron": True,
             },
+            autospec=True,
         ),
     ):
         status = await broadcaster._get_system_status()
@@ -1222,8 +1243,13 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
 
     with (
         patch("backend.services.system_broadcaster.get_session", failing_session),
-        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
-        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
         patch.object(
             broadcaster,
             "_check_ai_health",
@@ -1233,6 +1259,7 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
                 "yolo26": True,
                 "nemotron": True,
             },
+            autospec=True,
         ),
     ):
         status = await broadcaster._get_system_status()
@@ -1298,8 +1325,13 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
 
     with (
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
-        patch.object(broadcaster, "_check_redis_health", return_value=False),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=False, autospec=True),
         patch.object(
             broadcaster,
             "_check_ai_health",
@@ -1309,6 +1341,7 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
                 "yolo26": True,
                 "nemotron": True,
             },
+            autospec=True,
         ),
     ):
         status = await broadcaster._get_system_status()
@@ -1327,7 +1360,9 @@ async def test_system_broadcaster_check_ai_health_both_healthy():
     """Test _check_ai_health when both AI services respond with 200."""
     broadcaster = SystemBroadcaster()
 
-    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+    with patch(
+        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+    ) as mock_client_cls:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1348,7 +1383,9 @@ async def test_system_broadcaster_check_ai_health_both_unhealthy():
     """Test _check_ai_health when both AI services fail."""
     broadcaster = SystemBroadcaster()
 
-    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+    with patch(
+        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+    ) as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.get.side_effect = OSError("Connection refused")
         mock_client_cls.return_value.__aenter__.return_value = mock_client
@@ -1367,7 +1404,9 @@ async def test_system_broadcaster_check_ai_health_non_200_status():
     """Test _check_ai_health when services return non-200 status codes."""
     broadcaster = SystemBroadcaster()
 
-    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+    with patch(
+        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+    ) as mock_client_cls:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 500  # Server error
@@ -1391,7 +1430,9 @@ async def test_system_broadcaster_check_ai_health_timeout():
 
     broadcaster = SystemBroadcaster()
 
-    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+    with patch(
+        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+    ) as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.get.side_effect = real_httpx.TimeoutException("Timeout")
         mock_client_cls.return_value.__aenter__.return_value = mock_client
@@ -1423,8 +1464,13 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
 
     with (
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
-        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
         patch.object(
             broadcaster,
             "_check_ai_health",
@@ -1434,6 +1480,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
                 "all_healthy": True,
                 "any_healthy": True,
             },
+            autospec=True,
         ),
     ):
         status = await broadcaster._get_system_status()
@@ -1464,8 +1511,13 @@ async def test_system_broadcaster_get_system_status_ai_degraded():
 
     with (
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
-        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
         patch.object(
             broadcaster,
             "_check_ai_health",
@@ -1475,6 +1527,7 @@ async def test_system_broadcaster_get_system_status_ai_degraded():
                 "all_healthy": False,
                 "any_healthy": True,
             },
+            autospec=True,
         ),
     ):
         status = await broadcaster._get_system_status()
@@ -1504,8 +1557,13 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
 
     with (
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
-        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
         patch.object(
             broadcaster,
             "_check_ai_health",
@@ -1515,6 +1573,7 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
                 "all_healthy": False,
                 "any_healthy": False,
             },
+            autospec=True,
         ),
     ):
         status = await broadcaster._get_system_status()
@@ -1550,7 +1609,7 @@ async def test_system_broadcaster_is_degraded_after_max_recovery_attempts():
     broadcaster._pubsub_listening = True
 
     # Mock _broadcast_degraded_state to avoid WebSocket interactions
-    with patch.object(broadcaster, "_broadcast_degraded_state"):
+    with patch.object(broadcaster, "_broadcast_degraded_state", autospec=True):
         await broadcaster._attempt_listener_recovery()
 
     # Should be in degraded mode
@@ -1571,7 +1630,7 @@ async def test_system_broadcaster_is_degraded_after_circuit_breaker_open():
     broadcaster._circuit_breaker._state = WebSocketCircuitState.OPEN
 
     # Mock _broadcast_degraded_state to avoid WebSocket interactions
-    with patch.object(broadcaster, "_broadcast_degraded_state"):
+    with patch.object(broadcaster, "_broadcast_degraded_state", autospec=True):
         await broadcaster._attempt_listener_recovery()
 
     # Should be in degraded mode
@@ -1630,8 +1689,10 @@ async def test_system_broadcaster_is_degraded_after_reestablish_failure():
 
     # Mock _broadcast_degraded_state to avoid WebSocket interactions
     with (
-        patch.object(broadcaster, "_reset_pubsub_connection", side_effect=reset_fail),
-        patch.object(broadcaster, "_broadcast_degraded_state"),
+        patch.object(
+            broadcaster, "_reset_pubsub_connection", side_effect=reset_fail, autospec=True
+        ),
+        patch.object(broadcaster, "_broadcast_degraded_state", autospec=True),
     ):
         await broadcaster._attempt_listener_recovery()
 
@@ -1693,7 +1754,10 @@ async def test_system_broadcaster_connect_send_initial_status_failure():
 
     # Mock _get_system_status to raise a connection error (specific exception)
     with patch.object(
-        broadcaster, "_get_system_status", side_effect=ConnectionError("Status error")
+        broadcaster,
+        "_get_system_status",
+        side_effect=ConnectionError("Status error"),
+        autospec=True,
     ):
         # Should not raise - error is caught and logged
         await broadcaster.connect(mock_websocket)
@@ -1745,7 +1809,10 @@ async def test_system_broadcaster_broadcast_degraded_state_send_failure():
 
     # Mock _send_to_local_clients to raise an error
     with patch.object(
-        broadcaster, "_send_to_local_clients", side_effect=ConnectionError("Send error")
+        broadcaster,
+        "_send_to_local_clients",
+        side_effect=ConnectionError("Send error"),
+        autospec=True,
     ):
         # Should not raise - error is caught
         await broadcaster._broadcast_degraded_state()
@@ -1898,8 +1965,8 @@ async def test_system_broadcaster_attempt_recovery_stops_if_flag_cleared():
         broadcaster._pubsub_listening = False
 
     with (
-        patch("asyncio.sleep", side_effect=mock_sleep),
-        patch.object(broadcaster, "_reset_pubsub_connection") as mock_reset,
+        patch("asyncio.sleep", side_effect=mock_sleep, autospec=True),
+        patch.object(broadcaster, "_reset_pubsub_connection", autospec=True) as mock_reset,
     ):
         await broadcaster._attempt_listener_recovery()
 
@@ -1950,7 +2017,7 @@ async def test_system_broadcaster_get_camera_stats_deprecated_method():
     """Test _get_camera_stats (deprecated) handles errors (line 766)."""
     broadcaster = SystemBroadcaster()
 
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
+    with patch("backend.services.system_broadcaster.get_session", autospec=True) as mock_session:
         mock_session.side_effect = ConnectionError("Session error")
 
         camera_stats = await broadcaster._get_camera_stats()
@@ -1971,7 +2038,9 @@ async def test_system_broadcaster_check_ai_health_gather_error():
     broadcaster = SystemBroadcaster()
 
     # Mock httpx.AsyncClient to cause gather to fail
-    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+    with patch(
+        "backend.services.system_broadcaster.httpx.AsyncClient", autospec=True
+    ) as mock_client_cls:
         mock_client_cls.side_effect = RuntimeError("Client creation failed")
 
         result = await broadcaster._check_ai_health()
@@ -2004,7 +2073,7 @@ async def test_system_broadcaster_get_health_status_healthy():
 
     with (
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
     ):
         health = await broadcaster._get_health_status()
 
@@ -2027,7 +2096,7 @@ async def test_system_broadcaster_get_health_status_degraded():
 
     with (
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
-        patch.object(broadcaster, "_check_redis_health", return_value=False),
+        patch.object(broadcaster, "_check_redis_health", return_value=False, autospec=True),
     ):
         health = await broadcaster._get_health_status()
 

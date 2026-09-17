@@ -53,12 +53,15 @@ class TestInitDbPoolConfiguration:
             mock_engine.begin = mock_begin
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     return_value=mock_engine,
+                    autospec=True,
                 ) as mock_create_engine,
-                patch("backend.core.database.async_sessionmaker") as mock_sessionmaker,
+                patch(
+                    "backend.core.database.async_sessionmaker", autospec=True
+                ) as mock_sessionmaker,
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -111,12 +114,15 @@ class TestInitDbPoolConfiguration:
             mock_engine.begin = mock_begin
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     return_value=mock_engine,
+                    autospec=True,
                 ),
-                patch("backend.core.database.async_sessionmaker") as mock_sessionmaker,
+                patch(
+                    "backend.core.database.async_sessionmaker", autospec=True
+                ) as mock_sessionmaker,
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -166,12 +172,13 @@ class TestInitDbPoolConfiguration:
             mock_engine.begin = mock_begin
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     return_value=mock_engine,
+                    autospec=True,
                 ) as mock_create_engine,
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -206,7 +213,7 @@ class TestInitDbPoolConfiguration:
             db_module._engine = None
             db_module._async_session_factory = None
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_url="mysql://user:pass@localhost:3306/testdb",
                     database_url_read=None,
@@ -387,12 +394,13 @@ class TestPoolTimeoutBehavior:
             custom_timeout = 60  # Custom timeout value
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     return_value=mock_engine,
+                    autospec=True,
                 ) as mock_create_engine,
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -439,12 +447,13 @@ class TestPoolTimeoutBehavior:
             custom_recycle = 3600  # 1 hour
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     return_value=mock_engine,
+                    autospec=True,
                 ) as mock_create_engine,
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
@@ -893,7 +902,7 @@ class TestGetDbDependency:
             db_module._async_session_factory = mock_factory
 
             # Mock _check_loop_mismatch to avoid re-initialization
-            with patch.object(db_module, "_check_loop_mismatch", return_value=False):
+            with patch.object(db_module, "_check_loop_mismatch", return_value=False, autospec=True):
                 # Consume the async generator
                 gen = db_module.get_db()
                 session = await gen.__anext__()
@@ -936,7 +945,7 @@ class TestGetDbDependency:
             db_module._async_session_factory = mock_factory
 
             # Mock _check_loop_mismatch to avoid re-initialization
-            with patch.object(db_module, "_check_loop_mismatch", return_value=False):
+            with patch.object(db_module, "_check_loop_mismatch", return_value=False, autospec=True):
                 gen = db_module.get_db()
                 await gen.__anext__()
 
@@ -1134,7 +1143,7 @@ class TestConnectionPoolWarming:
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_pool_warming_size=3,
                     database_pool_warming_timeout=30,
@@ -1172,7 +1181,7 @@ class TestConnectionPoolWarming:
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_pool_warming_size=5,
                     database_pool_warming_timeout=30,
@@ -1209,7 +1218,7 @@ class TestConnectionPoolWarming:
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_pool_warming_size=50,  # Higher than pool_size
                     database_pool_warming_timeout=30,
@@ -1250,7 +1259,7 @@ class TestConnectionPoolWarming:
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_pool_warming_size=4,
                     database_pool_warming_timeout=30,
@@ -1290,7 +1299,7 @@ class TestConnectionPoolWarming:
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_pool_warming_size=3,
                     database_pool_warming_timeout=1,  # 1 second timeout
@@ -1326,7 +1335,7 @@ class TestConnectionPoolWarming:
 
             db_module._engine = mock_engine
 
-            with patch("backend.core.database.get_settings") as mock_settings:
+            with patch("backend.core.database.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_pool_warming_size=3,
                     database_pool_warming_timeout=30,

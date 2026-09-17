@@ -277,7 +277,7 @@ class TestCircuitBreakerErrorContext:
         cb.record_failure()
         cb.record_failure()
 
-        with patch("backend.core.error_context.logger") as mock_logger:
+        with patch("backend.core.error_context.logger", autospec=True) as mock_logger:
             try:
                 cb.check_and_raise()
             except CircuitBreakerOpenError as e:

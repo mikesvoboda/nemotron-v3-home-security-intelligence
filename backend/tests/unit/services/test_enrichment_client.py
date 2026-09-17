@@ -106,8 +106,14 @@ def client(mock_settings: MagicMock) -> EnrichmentClient:
     mock_health_client.aclose = AsyncMock()
 
     with (
-        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
-        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+        patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch(
+            "httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client], autospec=True
+        ),
     ):
         client = EnrichmentClient()
         # Store mocks for test access
@@ -119,7 +125,9 @@ def client(mock_settings: MagicMock) -> EnrichmentClient:
 @pytest.fixture
 def client_custom_url() -> EnrichmentClient:
     """Create an EnrichmentClient with custom URL."""
-    with patch("backend.services.enrichment_client.get_settings") as mock_settings_fn:
+    with patch(
+        "backend.services.enrichment_client.get_settings", autospec=True
+    ) as mock_settings_fn:
         mock_settings = MagicMock()
         mock_settings.ai_connect_timeout = 10.0
         mock_settings.ai_health_timeout = 5.0
@@ -665,19 +673,31 @@ class TestEnrichmentClientInit:
 
     def test_init_with_default_url(self, mock_settings: MagicMock) -> None:
         """Test initialization with default URL from settings."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert client._base_url == "http://test-enrichment:8094"
 
     def test_init_with_custom_url(self, mock_settings: MagicMock) -> None:
         """Test initialization with custom URL."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient(base_url="http://custom:9000/")
             assert client._base_url == "http://custom:9000"
 
     def test_init_strips_trailing_slash(self, mock_settings: MagicMock) -> None:
         """Test that trailing slashes are stripped from URLs."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient(base_url="http://custom:9000///")
             assert client._base_url == "http://custom:9000"
 
@@ -694,13 +714,21 @@ class TestEnrichmentClientInit:
         mock_settings.enrichment_max_retries = 3
         # Read timeout configuration (NEM-2524)
         mock_settings.enrichment_read_timeout = 120.0
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert client._base_url == DEFAULT_ENRICHMENT_URL.rstrip("/")
 
     def test_timeout_configuration(self, mock_settings: MagicMock) -> None:
         """Test timeout configuration is set correctly."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert client._timeout.connect == 10.0
             assert client._health_timeout.connect == 5.0
@@ -775,19 +803,25 @@ class TestEnrichmentClientHealthCheck:
     @pytest.mark.asyncio
     async def test_is_healthy_true_healthy(self, client: EnrichmentClient) -> None:
         """Test is_healthy returns True when status is healthy."""
-        with patch.object(client, "check_health", return_value={"status": "healthy"}):
+        with patch.object(
+            client, "check_health", return_value={"status": "healthy"}, autospec=True
+        ):
             assert await client.is_healthy() is True
 
     @pytest.mark.asyncio
     async def test_is_healthy_true_degraded(self, client: EnrichmentClient) -> None:
         """Test is_healthy returns True when status is degraded."""
-        with patch.object(client, "check_health", return_value={"status": "degraded"}):
+        with patch.object(
+            client, "check_health", return_value={"status": "degraded"}, autospec=True
+        ):
             assert await client.is_healthy() is True
 
     @pytest.mark.asyncio
     async def test_is_healthy_false_unavailable(self, client: EnrichmentClient) -> None:
         """Test is_healthy returns False when status is unavailable."""
-        with patch.object(client, "check_health", return_value={"status": "unavailable"}):
+        with patch.object(
+            client, "check_health", return_value={"status": "unavailable"}, autospec=True
+        ):
             assert await client.is_healthy() is False
 
 
@@ -933,7 +967,7 @@ class TestEnrichmentClientClassifyVehicle:
         mock_response.raise_for_status = MagicMock()
 
         with patch(
-            "backend.services.enrichment_client.observe_ai_request_duration"
+            "backend.services.enrichment_client.observe_ai_request_duration", autospec=True
         ) as mock_observe:
             client._http_client.post = AsyncMock(return_value=mock_response)
 
@@ -974,7 +1008,9 @@ class TestEnrichmentClientClassifyVehicle:
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test vehicle classification with connection error."""
-        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.enrichment_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             client._http_client.post = AsyncMock(
                 side_effect=httpx.ConnectError("Connection refused")
             )
@@ -989,7 +1025,9 @@ class TestEnrichmentClientClassifyVehicle:
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test vehicle classification with timeout."""
-        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.enrichment_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             client._http_client.post = AsyncMock(
                 side_effect=httpx.TimeoutException("Request timed out")
             )
@@ -1008,7 +1046,9 @@ class TestEnrichmentClientClassifyVehicle:
         mock_response = MagicMock()
         mock_response.status_code = 503
 
-        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.enrichment_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             client._http_client.post = AsyncMock(
                 side_effect=httpx.HTTPStatusError(
                     "Service unavailable", request=mock_request, response=mock_response
@@ -1029,7 +1069,9 @@ class TestEnrichmentClientClassifyVehicle:
         mock_response = MagicMock()
         mock_response.status_code = 400
 
-        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.enrichment_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             client._http_client.post = AsyncMock(
                 side_effect=httpx.HTTPStatusError(
                     "Bad request", request=mock_request, response=mock_response
@@ -1045,7 +1087,9 @@ class TestEnrichmentClientClassifyVehicle:
         self, client: EnrichmentClient, sample_image: Image.Image
     ) -> None:
         """Test vehicle classification with unexpected error."""
-        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.enrichment_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             client._http_client.post = AsyncMock(side_effect=RuntimeError("Unexpected"))
 
             with pytest.raises(EnrichmentUnavailableError):
@@ -1824,14 +1868,22 @@ class TestGlobalClientManagement:
 
     def test_get_enrichment_client_creates_singleton(self, mock_settings: MagicMock) -> None:
         """Test get_enrichment_client creates a singleton instance."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client1 = get_enrichment_client()
             client2 = get_enrichment_client()
             assert client1 is client2
 
     async def test_reset_enrichment_client_clears_singleton(self, mock_settings: MagicMock) -> None:
         """Test reset_enrichment_client clears the singleton."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client1 = get_enrichment_client()
             await reset_enrichment_client()
             client2 = get_enrichment_client()
@@ -1841,7 +1893,11 @@ class TestGlobalClientManagement:
         self, mock_settings: MagicMock
     ) -> None:
         """Test get_enrichment_client returns EnrichmentClient instance."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = get_enrichment_client()
             assert isinstance(client, EnrichmentClient)
 
@@ -2000,7 +2056,7 @@ class TestEnrichmentClientRetryLogic:
             ]
         )
 
-        with patch("backend.services.enrichment_client.increment_enrichment_retry"):
+        with patch("backend.services.enrichment_client.increment_enrichment_retry", autospec=True):
             result = await client.classify_vehicle(sample_image)
 
         assert result is not None

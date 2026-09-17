@@ -509,7 +509,7 @@ class TestRestoreTable:
         # Use real Camera model instead of mock to avoid SQLAlchemy errors
         from backend.models.camera import Camera
 
-        with patch.object(service, "_get_model_class", return_value=Camera):
+        with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             count = await service._restore_table(mock_db_session, "cameras", cameras_file)
 
             assert count == 2
@@ -566,7 +566,7 @@ class TestRestoreTable:
 
         service = RestoreService()
 
-        with patch.object(service, "_get_model_class", return_value=None):
+        with patch.object(service, "_get_model_class", return_value=None, autospec=True):
             count = await service._restore_table(mock_db_session, "cameras", cameras_file)
 
             assert count == 0
@@ -584,7 +584,7 @@ class TestRestoreTable:
         # Use real Camera model instead of mock
         from backend.models.camera import Camera
 
-        with patch.object(service, "_get_model_class", return_value=Camera):
+        with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             await service._restore_table(mock_db_session, "cameras", cameras_file)
 
             # Verify delete was executed
@@ -614,7 +614,7 @@ class TestRestoreTable:
             # Call original for first record
             original_init(self, **kwargs)
 
-        with patch.object(service, "_get_model_class", return_value=Camera):
+        with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             with patch.object(Camera, "__init__", mock_init):
                 count = await service._restore_table(mock_db_session, "cameras", cameras_file)
 
@@ -705,7 +705,7 @@ class TestRestoreFromBackup:
         # Use real Camera model
         from backend.models.camera import Camera
 
-        with patch.object(service, "_get_model_class", return_value=Camera):
+        with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             result = await service.restore_from_backup(
                 backup_file=backup_file,
                 db=mock_db_session,
@@ -770,7 +770,7 @@ class TestRestoreFromBackup:
         # Use real Camera model
         from backend.models.camera import Camera
 
-        with patch.object(service, "_get_model_class", return_value=Camera):
+        with patch.object(service, "_get_model_class", return_value=Camera, autospec=True):
             with pytest.raises(RestoreError, match="Restore failed"):
                 await service.restore_from_backup(
                     backup_file=backup_file,
@@ -830,7 +830,9 @@ class TestRestoreFromBackup:
             restore_order.append(table_name)
             return 0
 
-        with patch.object(service, "_restore_table", side_effect=track_restore_order):
+        with patch.object(
+            service, "_restore_table", side_effect=track_restore_order, autospec=True
+        ):
             await service.restore_from_backup(
                 backup_file=backup_file,
                 db=mock_db_session,
