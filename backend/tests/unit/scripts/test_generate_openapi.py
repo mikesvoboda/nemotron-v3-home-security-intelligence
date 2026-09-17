@@ -441,7 +441,7 @@ class TestMainFunction:
 
         stdout = io.StringIO()
 
-        with patch.object(_module, "Path") as mock_path_class:
+        with patch.object(_module, "Path", autospec=True) as mock_path_class:
             # Mock __file__ to be in tmp_path
             mock_path_class.return_value.parent.parent.resolve.return_value = tmp_path
             # Make the output path resolve to something outside
@@ -469,8 +469,8 @@ class TestMainFunction:
         output_path.write_text('{"test": "spec"}\n')
 
         with (
-            patch.object(_module, "Path") as mock_path_class,
-            patch.object(_module, "spec_needs_regeneration") as mock_check,
+            patch.object(_module, "Path", autospec=True) as mock_path_class,
+            patch.object(_module, "spec_needs_regeneration", autospec=True) as mock_check,
         ):
             # Setup path mocking
             mock_path_class.return_value.parent.parent.resolve.return_value = tmp_path
@@ -499,7 +499,7 @@ class TestMainFunction:
 
         stdout = io.StringIO()
 
-        with patch.object(_module, "Path") as mock_path_class:
+        with patch.object(_module, "Path", autospec=True) as mock_path_class:
             mock_path_class.return_value.parent.parent.resolve.return_value = tmp_path
             mock_resolved = tmp_path / "docs" / "openapi.json"
 
@@ -527,12 +527,12 @@ class TestMainFunction:
         mock_spec = {"openapi": "3.1.0", "info": {"title": "Test"}}
 
         with (
-            patch.object(_module, "Path") as mock_path_class,
-            patch.object(_module, "get_openapi_spec") as mock_get_spec,
-            patch.object(_module, "spec_needs_regeneration") as mock_check,
-            patch.object(_module, "compute_api_hash") as mock_hash,
-            patch.object(_module, "write_cached_hash"),
-            patch("builtins.open", create=True) as mock_open,
+            patch.object(_module, "Path", autospec=True) as mock_path_class,
+            patch.object(_module, "get_openapi_spec", autospec=True) as mock_get_spec,
+            patch.object(_module, "spec_needs_regeneration", autospec=True) as mock_check,
+            patch.object(_module, "compute_api_hash", autospec=True) as mock_hash,
+            patch.object(_module, "write_cached_hash", autospec=True),
+            patch("builtins.open", create=True, autospec=True) as mock_open,
         ):
             # Setup path mocking
             mock_path_class.return_value.parent.parent.resolve.return_value = tmp_path
@@ -568,8 +568,8 @@ class TestMainFunction:
         stdout = io.StringIO()
 
         with (
-            patch.object(_module, "Path") as mock_path_class,
-            patch.object(_module, "spec_needs_regeneration") as mock_check,
+            patch.object(_module, "Path", autospec=True) as mock_path_class,
+            patch.object(_module, "spec_needs_regeneration", autospec=True) as mock_check,
         ):
             mock_path_class.return_value.parent.parent.resolve.return_value = tmp_path
             output_path = tmp_path / "docs" / "openapi.json"
