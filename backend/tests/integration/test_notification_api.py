@@ -94,7 +94,10 @@ async def notification_client(integration_db, mock_redis):
         patch("backend.main.init_redis", return_value=mock_redis),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=notification_settings),
-        patch("backend.api.routes.notification.get_settings", return_value=notification_settings),
+        patch(
+            "backend.api.routes.notification.get_settings",
+            return_value=notification_settings,
+        ),
         _bypass_setup_guard(),
     ):
         get_settings.cache_clear()
@@ -124,7 +127,10 @@ async def notification_disabled_client(integration_db, mock_redis):
         patch("backend.main.init_redis", return_value=mock_redis),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=disabled_settings),
-        patch("backend.api.routes.notification.get_settings", return_value=disabled_settings),
+        patch(
+            "backend.api.routes.notification.get_settings",
+            return_value=disabled_settings,
+        ),
         _bypass_setup_guard(),
     ):
         get_settings.cache_clear()
@@ -161,7 +167,10 @@ async def email_only_client(integration_db, mock_redis):
         patch("backend.main.init_redis", return_value=mock_redis),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.core.config.get_settings", return_value=email_only_settings),
-        patch("backend.api.routes.notification.get_settings", return_value=email_only_settings),
+        patch(
+            "backend.api.routes.notification.get_settings",
+            return_value=email_only_settings,
+        ),
         _bypass_setup_guard(),
     ):
         get_settings.cache_clear()

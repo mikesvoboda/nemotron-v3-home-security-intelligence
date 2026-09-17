@@ -33,6 +33,7 @@ def allow_test_commands():
     with patch(
         "backend.services.service_managers.validate_restart_command",
         return_value=True,
+        autospec=True,
     ):
         yield
 
@@ -56,7 +57,7 @@ def fast_sleep():
         else:
             await original_sleep(delay)
 
-    with patch.object(asyncio, "sleep", side_effect=quick_sleep) as mock_sleep:
+    with patch.object(asyncio, "sleep", side_effect=quick_sleep, autospec=True) as mock_sleep:
         yield mock_sleep
 
 
@@ -474,7 +475,7 @@ async def test_health_check_with_real_http_mock(test_config: ServiceConfig) -> N
     mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
 
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client:
+    with patch("backend.services.service_managers.httpx.AsyncClient", autospec=True) as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = AsyncMock(return_value=mock_response)
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
@@ -501,7 +502,7 @@ async def test_health_check_failure_with_http_error(test_config: ServiceConfig) 
         )
     )
 
-    with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client:
+    with patch("backend.services.service_managers.httpx.AsyncClient", autospec=True) as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = AsyncMock(return_value=mock_response)
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)

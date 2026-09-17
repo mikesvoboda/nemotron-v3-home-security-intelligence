@@ -88,7 +88,11 @@ async def test_start_preview_returns_webrtc_url(
     - Response includes stream_id
     - Response includes expires_in (300 seconds)
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
         assert response.status_code == 200
@@ -116,7 +120,11 @@ async def test_start_preview_within_2_seconds(
     """
     import time
 
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         start_time = time.time()
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
         elapsed = time.time() - start_time
@@ -137,7 +145,11 @@ async def test_start_preview_passes_credentials_to_go2rtc(
     - Credentials decrypted before sending
     - Password never in API response
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
         assert response.status_code == 200
@@ -165,7 +177,11 @@ async def test_start_preview_camera_not_found(client: AsyncClient, mock_go2rtc_c
     - Returns 404 status code
     - Error message indicates camera not found
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post("/api/cameras/nonexistent/preview/start")
 
         assert response.status_code == 404
@@ -196,7 +212,11 @@ async def test_start_preview_non_rtsp_camera(
     session.add(camera)
     await session.commit()
 
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post(f"/api/cameras/{camera.id}/preview/start")
 
         assert response.status_code == 400
@@ -220,7 +240,9 @@ async def test_start_preview_go2rtc_unavailable_returns_503(
     mock_client = AsyncMock()
     mock_client.health_check.return_value = False
 
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client", return_value=mock_client, autospec=True
+    ):
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
         assert response.status_code == 503
@@ -244,7 +266,9 @@ async def test_start_preview_go2rtc_connection_error(client: AsyncClient, rtsp_c
     mock_client.health_check.return_value = True
     mock_client.register_stream.side_effect = Go2RTCUnavailableError("Connection refused")
 
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client", return_value=mock_client, autospec=True
+    ):
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
         assert response.status_code == 503
@@ -267,7 +291,11 @@ async def test_stop_preview_success(client: AsyncClient, rtsp_camera: Camera, mo
     """
     stream_id = "camera_test_rtsp_camera_12345"
 
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.delete(f"/api/cameras/{rtsp_camera.id}/preview/stop")
 
         assert response.status_code == 200
@@ -288,7 +316,11 @@ async def test_stop_preview_idempotent(
     - Multiple DELETE requests succeed
     - No error on stopping already-stopped preview
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         # First stop
         response1 = await client.delete(f"/api/cameras/{rtsp_camera.id}/preview/stop")
         assert response1.status_code == 200
@@ -307,7 +339,11 @@ async def test_stop_preview_camera_not_found(client: AsyncClient, mock_go2rtc_cl
     - Returns 404 status code
     - Error message indicates camera not found
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.delete("/api/cameras/nonexistent/preview/stop")
 
         assert response.status_code == 404
@@ -328,7 +364,11 @@ async def test_preview_session_expires_after_5_minutes(
     - Automatic cleanup after 300 seconds
     - Design doc requirement: 5-minute expiry
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
         assert response.status_code == 200
@@ -374,7 +414,11 @@ async def test_multiple_cameras_preview_simultaneously(
 
     await session.commit()
 
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         # Start preview for all cameras
         responses = []
         for camera in cameras:
@@ -444,7 +488,11 @@ async def test_preview_webrtc_url_format(
     - Path: /api/ws
     - Query parameter: src={stream_id}
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")
 
         assert response.status_code == 200
@@ -470,7 +518,11 @@ async def test_preview_error_response_format(client: AsyncClient, mock_go2rtc_cl
     - Status codes match HTTP semantics
     - Error messages are user-friendly
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
         response = await client.post("/api/cameras/nonexistent/preview/start")
 
         assert response.status_code == 404
@@ -497,8 +549,14 @@ async def test_preview_decrypts_password_before_go2rtc(
     - Send decrypted password to go2rtc
     - Never expose decrypted password in API response
     """
-    with patch("backend.api.routes.cameras._get_go2rtc_client", return_value=mock_go2rtc_client):
-        with patch("backend.services.credential_service.CredentialService") as mock_cred_service:
+    with patch(
+        "backend.api.routes.cameras._get_go2rtc_client",
+        return_value=mock_go2rtc_client,
+        autospec=True,
+    ):
+        with patch(
+            "backend.services.credential_service.CredentialService", autospec=True
+        ) as mock_cred_service:
             mock_cred_service.decrypt.return_value = "decrypted_password"
 
             response = await client.post(f"/api/cameras/{rtsp_camera.id}/preview/start")

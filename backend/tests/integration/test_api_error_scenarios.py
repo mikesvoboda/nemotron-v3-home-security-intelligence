@@ -56,6 +56,7 @@ class TestDatabaseConnectionErrors:
         with patch(
             "backend.api.routes.system.check_database_health",
             side_effect=TimeoutError("Database timeout"),
+            autospec=True,
         ):
             response = await client.get("/api/system/health")
             # Should return 503 with degraded/unhealthy status
@@ -73,6 +74,7 @@ class TestDatabaseConnectionErrors:
         with patch(
             "backend.api.routes.system.check_database_health",
             side_effect=TimeoutError("Database timeout"),
+            autospec=True,
         ):
             response = await client.get("/api/system/health/ready")
             # Should return 503 when database is unreachable
@@ -489,6 +491,7 @@ class TestAIServiceTimeoutHandling:
         with patch(
             "backend.api.routes.system.check_ai_services_health",
             side_effect=TimeoutError("AI service timeout"),
+            autospec=True,
         ):
             response = await client.get("/api/system/health")
             # Should still return a response even if AI is down

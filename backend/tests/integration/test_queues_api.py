@@ -115,7 +115,10 @@ def get_patches(
             return_value=mock_services["system_broadcaster"],
         ),
         patch("backend.main.GPUMonitor", return_value=mock_services["gpu_monitor"]),
-        patch("backend.main.CleanupService", return_value=mock_services["cleanup_service"]),
+        patch(
+            "backend.main.CleanupService",
+            return_value=mock_services["cleanup_service"],
+        ),
         patch("backend.main.FileWatcher", mock_services["file_watcher_class"]),
         patch(
             "backend.main.get_pipeline_manager",

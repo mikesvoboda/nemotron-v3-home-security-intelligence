@@ -314,7 +314,7 @@ class TestDLQEndpointAuth:
 
         with (
             patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
-            patch("backend.api.routes.dlq.get_redis", return_value=mock_redis),
+            patch("backend.api.routes.dlq.get_redis", return_value=mock_redis, autospec=True),
         ):
             response = await client.post(
                 "/api/dlq/requeue/dlq:detection",
@@ -395,6 +395,7 @@ class TestDatabaseErrors:
         with patch(
             "backend.api.routes.system.check_database_health",
             side_effect=TimeoutError("Database query timeout"),
+            autospec=True,
         ):
             response = await client.get("/api/system/health")
             # Should return degraded/unhealthy status
@@ -440,6 +441,7 @@ class TestServiceErrors:
         with patch(
             "backend.api.routes.system.check_ai_services_health",
             side_effect=TimeoutError("AI service timeout"),
+            autospec=True,
         ):
             response = await client.get("/api/system/health")
             # Should still return a response even with AI timeout

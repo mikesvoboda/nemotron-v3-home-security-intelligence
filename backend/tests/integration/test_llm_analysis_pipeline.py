@@ -316,6 +316,7 @@ class TestAnalyzeBatchWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response
@@ -372,6 +373,7 @@ class TestAnalyzeBatchWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response
@@ -452,6 +454,7 @@ class TestAnalyzeBatchWithEnrichment:
                     has_data=True,
                     data=partial_enrichment,
                 ),
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response
@@ -500,6 +503,7 @@ class TestAnalyzeDetectionFastPathWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response
@@ -539,6 +543,7 @@ class TestAnalyzeDetectionFastPathWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response
@@ -622,6 +627,7 @@ class TestPromptFormattingWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             await analyzer.analyze_batch(batch_id)
@@ -665,7 +671,8 @@ class TestPromptFormattingWithEnrichment:
             patch.object(
                 analyzer,
                 "_get_enrichment_result_from_data",
-                return_value=None,  # No enrichment
+                return_value=None,  # No enrichment,
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response
@@ -708,7 +715,10 @@ class TestErrorHandlingWithEnrichment:
         # Mock LLM to fail
         with (
             patch.object(
-                httpx.AsyncClient, "post", side_effect=httpx.ConnectError("LLM unavailable")
+                httpx.AsyncClient,
+                "post",
+                side_effect=httpx.ConnectError("LLM unavailable"),
+                autospec=True,
             ),
             patch.object(
                 analyzer,
@@ -717,6 +727,7 @@ class TestErrorHandlingWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             event = await analyzer.analyze_batch(batch_id)
@@ -742,7 +753,10 @@ class TestErrorHandlingWithEnrichment:
 
         with (
             patch.object(
-                httpx.AsyncClient, "post", side_effect=httpx.ConnectError("LLM unavailable")
+                httpx.AsyncClient,
+                "post",
+                side_effect=httpx.ConnectError("LLM unavailable"),
+                autospec=True,
             ),
             patch.object(
                 analyzer,
@@ -751,6 +765,7 @@ class TestErrorHandlingWithEnrichment:
                     has_data=True,
                     data=realistic_enrichment_result,
                 ),
+                autospec=True,
             ),
         ):
             event = await analyzer.analyze_detection_fast_path(sample_camera.id, str(detection.id))
@@ -810,7 +825,12 @@ class TestEnrichmentPipelineIntegration:
 
         with (
             patch("httpx.AsyncClient.post") as mock_post,
-            patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_enrichment),
+            patch.object(
+                analyzer,
+                "_get_enrichment_result_from_data",
+                side_effect=mock_enrichment,
+                autospec=True,
+            ),
         ):
             mock_post.return_value = mock_response
             await analyzer.analyze_batch(batch_id)
@@ -859,6 +879,7 @@ class TestEnrichmentPipelineIntegration:
                     has_data=True,
                     data=enrichment_with_errors,
                 ),
+                autospec=True,
             ),
         ):
             mock_post.return_value = mock_response

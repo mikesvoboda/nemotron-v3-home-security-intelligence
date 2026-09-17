@@ -640,10 +640,10 @@ class TestFileWatcherRapidFileCreation:
 
         # Mock the observer to prevent real filesystem events
         with (
-            patch.object(watcher.observer, "schedule"),
-            patch.object(watcher.observer, "start"),
-            patch.object(watcher.observer, "stop"),
-            patch.object(watcher.observer, "join"),
+            patch.object(watcher.observer, "schedule", autospec=True),
+            patch.object(watcher.observer, "start", autospec=True),
+            patch.object(watcher.observer, "stop", autospec=True),
+            patch.object(watcher.observer, "join", autospec=True),
         ):
             await watcher.start()
 

@@ -456,6 +456,7 @@ class TestVideoThumbnail:
         with patch(
             "backend.api.dependencies.get_video_processor_dep",
             return_value=mock_video_processor,
+            autospec=True,
         ):
             response = await async_client.get(
                 f"/api/detections/{video_detection_with_file.id}/video/thumbnail"

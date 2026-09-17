@@ -124,7 +124,7 @@ class TestDetectObjectsStoresInDatabase:
         mock_response.json.return_value = mock_detector_response
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -219,7 +219,9 @@ class TestDetectObjectsStoresInDatabase:
                 mock_response.json.return_value = response_data
                 mock_response.raise_for_status = MagicMock()
 
-                with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+                with patch.object(
+                    httpx.AsyncClient, "post", return_value=mock_response, autospec=True
+                ):
                     async with get_session() as session:
                         detections = await detector_client.detect_objects(
                             image_path=temp_path,
@@ -268,7 +270,7 @@ class TestConfidenceFiltering:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -313,7 +315,7 @@ class TestConfidenceFiltering:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -341,7 +343,10 @@ class TestConnectionErrorHandling:
         from backend.core.database import get_session
 
         with patch.object(
-            httpx.AsyncClient, "post", side_effect=httpx.ConnectError("Connection refused")
+            httpx.AsyncClient,
+            "post",
+            side_effect=httpx.ConnectError("Connection refused"),
+            autospec=True,
         ):
             async with get_session() as session:
                 # Connection errors should raise DetectorUnavailableError to allow retry
@@ -375,7 +380,10 @@ class TestTimeoutHandling:
         from backend.core.database import get_session
 
         with patch.object(
-            httpx.AsyncClient, "post", side_effect=httpx.TimeoutException("Request timeout")
+            httpx.AsyncClient,
+            "post",
+            side_effect=httpx.TimeoutException("Request timeout"),
+            autospec=True,
         ):
             async with get_session() as session:
                 # Timeouts should raise DetectorUnavailableError to allow retry
@@ -425,7 +433,7 @@ class TestMultipleDetectionsSameImage:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -466,7 +474,7 @@ class TestHealthCheckIntegration:
         mock_response.json.return_value = {"status": "healthy"}
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "get", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "get", return_value=mock_response, autospec=True):
             result = await detector_client.health_check()
 
         assert result is True
@@ -474,7 +482,10 @@ class TestHealthCheckIntegration:
     async def test_health_check_integration_connection_error(self, detector_client):
         """Test health check returns False when connection fails."""
         with patch.object(
-            httpx.AsyncClient, "get", side_effect=httpx.ConnectError("Connection refused")
+            httpx.AsyncClient,
+            "get",
+            side_effect=httpx.ConnectError("Connection refused"),
+            autospec=True,
         ):
             result = await detector_client.health_check()
 
@@ -482,7 +493,9 @@ class TestHealthCheckIntegration:
 
     async def test_health_check_integration_timeout(self, detector_client):
         """Test health check returns False when request times out."""
-        with patch.object(httpx.AsyncClient, "get", side_effect=httpx.TimeoutException("Timeout")):
+        with patch.object(
+            httpx.AsyncClient, "get", side_effect=httpx.TimeoutException("Timeout"), autospec=True
+        ):
             result = await detector_client.health_check()
 
         assert result is False
@@ -495,7 +508,7 @@ class TestHealthCheckIntegration:
             "Service Unavailable", request=MagicMock(), response=mock_response
         )
 
-        with patch.object(httpx.AsyncClient, "get", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "get", return_value=mock_response, autospec=True):
             result = await detector_client.health_check()
 
         assert result is False
@@ -516,7 +529,7 @@ class TestBadResponseHandling:
             "Internal Server Error", request=MagicMock(), response=mock_response
         )
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 # 5xx errors should raise DetectorUnavailableError to allow retry
                 with pytest.raises(DetectorUnavailableError) as exc_info:
@@ -542,7 +555,7 @@ class TestBadResponseHandling:
         mock_response.json.return_value = {"wrong_key": "no detections field"}
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -577,7 +590,7 @@ class TestBadResponseHandling:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -616,7 +629,7 @@ class TestBboxFormatHandling:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -653,7 +666,7 @@ class TestBboxFormatHandling:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -709,7 +722,7 @@ class TestEmptyDetections:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -751,7 +764,7 @@ class TestTimestampHandling:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -804,7 +817,7 @@ class TestBaselineUpdatesOnDetection:
         mock_response.json.return_value = mock_detector_response
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -874,7 +887,7 @@ class TestBaselineUpdatesOnDetection:
         mock_response.json.return_value = response_data
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -926,7 +939,7 @@ class TestBaselineUpdatesOnDetection:
         mock_response.json.return_value = response_data_1
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,
@@ -947,7 +960,7 @@ class TestBaselineUpdatesOnDetection:
             initial_sample_count = person_baseline.sample_count
 
         # Second detection batch - another person
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch.object(httpx.AsyncClient, "post", return_value=mock_response, autospec=True):
             async with get_session() as session:
                 detections = await detector_client.detect_objects(
                     image_path=temp_image_file,

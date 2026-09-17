@@ -213,7 +213,10 @@ def sync_client_for_broadcast(integration_env):
         stack.enter_context(patch("backend.main.init_redis", return_value=mock_redis_client))
         stack.enter_context(patch("backend.main.close_redis", return_value=None))
         stack.enter_context(
-            patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster)
+            patch(
+                "backend.main.get_system_broadcaster",
+                return_value=mock_system_broadcaster,
+            )
         )
         stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
         stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
@@ -229,7 +232,10 @@ def sync_client_for_broadcast(integration_env):
         )
         stack.enter_context(patch("backend.main.stop_broadcaster", AsyncMock()))
         stack.enter_context(
-            patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor)
+            patch(
+                "backend.main.ServiceHealthMonitor",
+                return_value=mock_service_health_monitor,
+            )
         )
         stack.enter_context(
             patch(
@@ -239,36 +245,60 @@ def sync_client_for_broadcast(integration_env):
         )
         # New mocks for services added after initial fixture creation
         stack.enter_context(
-            patch("backend.main.get_worker_supervisor", return_value=mock_worker_supervisor)
+            patch(
+                "backend.main.get_worker_supervisor",
+                return_value=mock_worker_supervisor,
+            )
         )
         stack.enter_context(patch("backend.main.get_container", return_value=mock_container))
         stack.enter_context(patch("backend.main.wire_services", AsyncMock()))
         stack.enter_context(patch("backend.main.init_job_tracker_websocket", AsyncMock()))
         stack.enter_context(
-            patch("backend.main.PerformanceCollector", return_value=mock_performance_collector)
+            patch(
+                "backend.main.PerformanceCollector",
+                return_value=mock_performance_collector,
+            )
         )
         stack.enter_context(
-            patch("backend.main.BackgroundEvaluator", return_value=mock_background_evaluator)
+            patch(
+                "backend.main.BackgroundEvaluator",
+                return_value=mock_background_evaluator,
+            )
         )
         stack.enter_context(patch("backend.main.get_evaluation_queue", MagicMock()))
         stack.enter_context(patch("backend.main.get_audit_service", MagicMock()))
         stack.enter_context(
-            patch("backend.main.ContainerOrchestrator", return_value=mock_container_orchestrator)
+            patch(
+                "backend.main.ContainerOrchestrator",
+                return_value=mock_container_orchestrator,
+            )
         )
         stack.enter_context(patch("backend.main.DockerClient", return_value=mock_docker_client))
         stack.enter_context(patch("backend.main.register_workers", MagicMock()))
         stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
         stack.enter_context(
-            patch("backend.main.create_detection_worker", return_value=mock_detection_worker)
+            patch(
+                "backend.main.create_detection_worker",
+                return_value=mock_detection_worker,
+            )
         )
         stack.enter_context(
-            patch("backend.main.create_analysis_worker", return_value=mock_analysis_worker)
+            patch(
+                "backend.main.create_analysis_worker",
+                return_value=mock_analysis_worker,
+            )
         )
         stack.enter_context(
-            patch("backend.main.create_timeout_worker", return_value=mock_timeout_worker)
+            patch(
+                "backend.main.create_timeout_worker",
+                return_value=mock_timeout_worker,
+            )
         )
         stack.enter_context(
-            patch("backend.main.create_metrics_worker", return_value=mock_metrics_worker)
+            patch(
+                "backend.main.create_metrics_worker",
+                return_value=mock_metrics_worker,
+            )
         )
         client = stack.enter_context(TestClient(app))
         yield client

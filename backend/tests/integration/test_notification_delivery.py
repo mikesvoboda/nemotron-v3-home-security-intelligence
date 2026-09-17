@@ -177,7 +177,7 @@ class TestEmailDelivery:
         """Test successful email delivery."""
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -200,7 +200,7 @@ class TestEmailDelivery:
         """Test that email contains correct alert details."""
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -220,7 +220,7 @@ class TestEmailDelivery:
         """Test email delivery failure with SMTP error."""
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_smtp.return_value.__enter__.return_value.login.side_effect = Exception(
                 "SMTP connection failed"
             )
@@ -238,7 +238,7 @@ class TestEmailDelivery:
 
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_smtp.return_value.__enter__.return_value.login.side_effect = (
                 smtplib.SMTPAuthenticationError(535, b"Authentication failed")
             )
@@ -436,7 +436,7 @@ class TestAlertRuleIntegration:
         # Deliver notification
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -582,7 +582,7 @@ class TestErrorScenarios:
 
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_smtp.side_effect = smtplib.SMTPException("Service unavailable")
 
             delivery = await service.send_email(test_alert)
@@ -610,7 +610,7 @@ class TestErrorScenarios:
         service = NotificationService(mock_settings)
 
         # Mock successful email
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -656,7 +656,7 @@ class TestMultiChannelDelivery:
         """Test delivering to all configured channels."""
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -763,7 +763,7 @@ class TestNotificationPipeline:
         # 5. Deliver notification
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -839,7 +839,7 @@ class TestNotificationPipeline:
 
         service = NotificationService(mock_settings)
 
-        with patch("backend.services.notification.smtplib.SMTP") as mock_smtp:
+        with patch("backend.services.notification.smtplib.SMTP", autospec=True) as mock_smtp:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 

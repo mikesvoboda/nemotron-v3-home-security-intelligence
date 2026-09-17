@@ -101,6 +101,7 @@ async def test_get_stream_config_success(client, test_camera, mock_onvif_client)
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.get(f"/api/cameras/{camera_id}/stream-config")
 
@@ -173,6 +174,7 @@ async def test_get_stream_config_connection_failure(client, test_camera):
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_client,
+        autospec=True,
     ):
         response = await client.get(f"/api/cameras/{camera_id}/stream-config")
 
@@ -208,6 +210,7 @@ async def test_get_stream_config_read_only_camera(client, test_camera):
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_client,
+        autospec=True,
     ):
         response = await client.get(f"/api/cameras/{camera_id}/stream-config")
 
@@ -232,6 +235,7 @@ async def test_put_stream_config_success_full_update(client, test_camera, mock_o
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -259,6 +263,7 @@ async def test_put_stream_config_success_partial_update_bitrate(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -282,6 +287,7 @@ async def test_put_stream_config_success_partial_update_resolution(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -305,6 +311,7 @@ async def test_put_stream_config_validation_error_bitrate_exceeds_max(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -328,6 +335,7 @@ async def test_put_stream_config_validation_error_bitrate_below_min(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -351,6 +359,7 @@ async def test_put_stream_config_validation_error_unsupported_resolution(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -384,6 +393,7 @@ async def test_put_stream_config_validation_error_unsupported_codec(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -407,6 +417,7 @@ async def test_put_stream_config_validation_error_fps_exceeds_max(
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -432,6 +443,7 @@ async def test_put_stream_config_conflict_read_only_camera(client, test_camera):
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -489,6 +501,7 @@ async def test_put_stream_config_invalid_profile_token(client, test_camera, mock
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 
@@ -513,6 +526,7 @@ async def test_put_stream_config_onvif_failure(client, test_camera, mock_onvif_c
     with patch(
         "backend.services.onvif_service.ONVIFService.create_client",
         return_value=mock_onvif_client,
+        autospec=True,
     ):
         response = await client.put(f"/api/cameras/{camera_id}/stream-config", json=update_data)
 

@@ -1546,7 +1546,11 @@ async def test_pipeline_latency_empty_stages(client, mock_redis):
         "total_pipeline": {"sample_count": 0, "avg_ms": None, "min_ms": None, "max_ms": None},
     }
 
-    with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=mock_tracker):
+    with patch(
+        "backend.core.metrics.get_pipeline_latency_tracker",
+        return_value=mock_tracker,
+        autospec=True,
+    ):
         response = await client.get("/api/system/pipeline-latency")
 
         assert response.status_code == 200
@@ -2051,7 +2055,7 @@ async def test_performance_stores_snapshot_in_redis(client, mock_redis):
         alerts=[],
     )
 
-    with patch("backend.api.routes.system._performance_collector") as mock_collector:
+    with patch("backend.api.routes.system._performance_collector", autospec=True) as mock_collector:
         mock_collector.collect_all = AsyncMock(return_value=mock_snapshot)
 
         # Mock Redis zadd to verify it's called

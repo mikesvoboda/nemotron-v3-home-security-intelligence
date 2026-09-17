@@ -199,6 +199,7 @@ async def test_create_backup_with_mocked_service(client: AsyncClient, mock_redis
     with patch(
         "backend.api.routes.backup.BackupService.create_backup",
         return_value=mock_result,
+        autospec=True,
     ):
         response = await client.post("/api/backup", json={})
         assert response.status_code == 202
@@ -688,6 +689,7 @@ async def test_start_restore_with_corrupted_file(client: AsyncClient, mock_redis
     with patch(
         "backend.api.routes.backup.RestoreService.restore_from_backup",
         side_effect=BackupCorruptedError("Backup file is corrupted"),
+        autospec=True,
     ):
         response = await client.post("/api/backup/restore", files=files)
 
@@ -833,6 +835,7 @@ async def test_restore_job_with_mocked_service_success(
     with patch(
         "backend.api.routes.backup.RestoreService.restore_from_backup",
         return_value=restore_result,
+        autospec=True,
     ):
         # Upload file
         files = {"file": ("backup.zip", zip_content, "application/zip")}
@@ -868,6 +871,7 @@ async def test_backup_job_failure_updates_status(
     with patch(
         "backend.api.routes.backup.BackupService.create_backup",
         side_effect=Exception("Test backup error"),
+        autospec=True,
     ):
         response = await client.post("/api/backup", json={})
         assert response.status_code == 202
@@ -896,6 +900,7 @@ async def test_restore_validation_error_updates_status(
     with patch(
         "backend.api.routes.backup.RestoreService.restore_from_backup",
         side_effect=BackupValidationError("Invalid backup format"),
+        autospec=True,
     ):
         files = {"file": ("backup.zip", zip_content, "application/zip")}
         response = await client.post("/api/backup/restore", files=files)
@@ -921,6 +926,7 @@ async def test_restore_error_cleans_up_temp_file(client: AsyncClient, mock_redis
     with patch(
         "backend.api.routes.backup.RestoreService.restore_from_backup",
         side_effect=RestoreError("Restore failed"),
+        autospec=True,
     ):
         files = {"file": ("backup.zip", zip_content, "application/zip")}
         response = await client.post("/api/backup/restore", files=files)

@@ -205,7 +205,9 @@ class TestTraceContextPropagationWithMockedOtel:
         mock_span = MagicMock()
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.logging._get_otel_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.logging._get_otel_current_span", return_value=mock_span, autospec=True
+        ):
             result = get_current_trace_context()
 
         # Verify trace_id is 32 hex chars (128-bit)
@@ -223,7 +225,7 @@ class TestTraceContextPropagationWithMockedOtel:
         """Test that get_current_trace_context returns None when OTEL unavailable."""
         from backend.core.logging import get_current_trace_context
 
-        with patch("backend.core.logging._get_otel_current_span", return_value=None):
+        with patch("backend.core.logging._get_otel_current_span", return_value=None, autospec=True):
             result = get_current_trace_context()
 
         assert result["trace_id"] is None
@@ -240,7 +242,9 @@ class TestTraceContextPropagationWithMockedOtel:
         mock_span = MagicMock()
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.logging._get_otel_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.logging._get_otel_current_span", return_value=mock_span, autospec=True
+        ):
             result = get_current_trace_context()
 
         assert result["trace_id"] is None
@@ -474,6 +478,7 @@ class TestContextFilterIntegration:
         with patch(
             "backend.core.logging.get_current_trace_context",
             return_value=mock_trace_context,
+            autospec=True,
         ):
             filter_obj = ContextFilter()
             record = logging.LogRecord(
@@ -506,6 +511,7 @@ class TestContextFilterIntegration:
         with patch(
             "backend.core.logging.get_current_trace_context",
             return_value=mock_trace_context,
+            autospec=True,
         ):
             filter_obj = ContextFilter()
             record = logging.LogRecord(
@@ -541,6 +547,7 @@ class TestContextFilterIntegration:
         with patch(
             "backend.core.logging.get_current_trace_context",
             return_value={"trace_id": None, "span_id": None},
+            autospec=True,
         ):
             filter_obj = ContextFilter()
             record = logging.LogRecord(
