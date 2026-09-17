@@ -16,7 +16,7 @@ class TestDetectPlatform:
         """Should detect Linux platform."""
         from setup_lib.platform_detect import detect_platform
 
-        with patch("platform.system", return_value="Linux"):
+        with patch("platform.system", return_value="Linux", autospec=True):
             result = detect_platform()
             assert result == "linux"
 
@@ -24,7 +24,7 @@ class TestDetectPlatform:
         """Should detect Windows platform."""
         from setup_lib.platform_detect import detect_platform
 
-        with patch("platform.system", return_value="Windows"):
+        with patch("platform.system", return_value="Windows", autospec=True):
             result = detect_platform()
             assert result == "windows"
 
@@ -32,7 +32,7 @@ class TestDetectPlatform:
         """Should return None for unsupported macOS."""
         from setup_lib.platform_detect import detect_platform
 
-        with patch("platform.system", return_value="Darwin"):
+        with patch("platform.system", return_value="Darwin", autospec=True):
             result = detect_platform()
             assert result is None
 
@@ -51,8 +51,8 @@ VERSION_ID=43
 PRETTY_NAME="Fedora Linux 43 (Workstation Edition)"
 """
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
         ):
             result = detect_linux_distro()
             assert result is not None
@@ -72,8 +72,8 @@ VERSION_ID="24.04"
 PRETTY_NAME="Ubuntu 24.04 LTS"
 """
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
         ):
             result = detect_linux_distro()
             assert result is not None
@@ -91,8 +91,8 @@ ID=debian
 PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
 """
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
         ):
             result = detect_linux_distro()
             assert result is not None
@@ -110,8 +110,8 @@ ID_LIKE="fedora"
 VERSION_ID="9.3"
 """
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
         ):
             result = detect_linux_distro()
             assert result is not None
@@ -127,8 +127,8 @@ ID=arch
 PRETTY_NAME="Arch Linux"
 """
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
         ):
             result = detect_linux_distro()
             assert result is not None
@@ -138,7 +138,7 @@ PRETTY_NAME="Arch Linux"
         """Should return None when /etc/os-release doesn't exist."""
         from setup_lib.platform_detect import detect_linux_distro
 
-        with patch("pathlib.Path.exists", return_value=False):
+        with patch("pathlib.Path.exists", return_value=False, autospec=True):
             result = detect_linux_distro()
             assert result is None
 
@@ -150,8 +150,8 @@ PRETTY_NAME="Arch Linux"
 without = proper format
 """
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
         ):
             result = detect_linux_distro()
             # Should return empty dict or partial results, not crash
@@ -165,7 +165,7 @@ class TestDetectPackageManager:
         """Should detect dnf package manager."""
         from setup_lib.platform_detect import detect_package_manager
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.side_effect = lambda cmd: "/usr/bin/dnf" if cmd == "dnf" else None
             result = detect_package_manager()
             assert result == "dnf"
@@ -174,7 +174,7 @@ class TestDetectPackageManager:
         """Should detect apt package manager."""
         from setup_lib.platform_detect import detect_package_manager
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.side_effect = lambda cmd: "/usr/bin/apt" if cmd == "apt" else None
             result = detect_package_manager()
             assert result == "apt"
@@ -183,7 +183,7 @@ class TestDetectPackageManager:
         """Should detect pacman package manager."""
         from setup_lib.platform_detect import detect_package_manager
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.side_effect = lambda cmd: "/usr/bin/pacman" if cmd == "pacman" else None
             result = detect_package_manager()
             assert result == "pacman"
@@ -192,7 +192,7 @@ class TestDetectPackageManager:
         """Should detect winget on Windows."""
         from setup_lib.platform_detect import detect_package_manager
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.side_effect = lambda cmd: (
                 "C:\\Windows\\winget.exe" if cmd == "winget" else None
             )
@@ -203,7 +203,7 @@ class TestDetectPackageManager:
         """Should return None when no package manager found."""
         from setup_lib.platform_detect import detect_package_manager
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = detect_package_manager()
             assert result is None
 
@@ -217,8 +217,8 @@ class TestIsWsl:
 
         wsl_version = "Linux version 4.4.0-19041-Microsoft"
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=wsl_version),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=wsl_version, autospec=True),
         ):
             result = is_wsl()
             assert result is True
@@ -229,8 +229,8 @@ class TestIsWsl:
 
         wsl_version = "Linux version 5.15.90.1-microsoft-standard-WSL2"
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=wsl_version),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=wsl_version, autospec=True),
         ):
             result = is_wsl()
             assert result is True
@@ -241,8 +241,8 @@ class TestIsWsl:
 
         regular_linux = "Linux version 6.18.5-200.fc43.x86_64"
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=regular_linux),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=regular_linux, autospec=True),
         ):
             result = is_wsl()
             assert result is False
@@ -251,7 +251,7 @@ class TestIsWsl:
         """Should return False when /proc/version doesn't exist."""
         from setup_lib.platform_detect import is_wsl
 
-        with patch("pathlib.Path.exists", return_value=False):
+        with patch("pathlib.Path.exists", return_value=False, autospec=True):
             result = is_wsl()
             assert result is False
 
@@ -268,10 +268,10 @@ ID=fedora
 VERSION_ID=43
 """
         with (
-            patch("platform.system", return_value="Linux"),
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.read_text", return_value=os_release_content),
-            patch("shutil.which") as mock_which,
+            patch("platform.system", return_value="Linux", autospec=True),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.read_text", return_value=os_release_content, autospec=True),
+            patch("shutil.which", autospec=True) as mock_which,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/dnf" if cmd == "dnf" else None
             result = get_platform_info()
@@ -286,8 +286,8 @@ VERSION_ID=43
         from setup_lib.platform_detect import get_platform_info
 
         with (
-            patch("platform.system", return_value="Windows"),
-            patch("shutil.which") as mock_which,
+            patch("platform.system", return_value="Windows", autospec=True),
+            patch("shutil.which", autospec=True) as mock_which,
         ):
             mock_which.side_effect = lambda cmd: (
                 "C:\\Windows\\winget.exe" if cmd == "winget" else None
@@ -303,7 +303,7 @@ VERSION_ID=43
         """Should return None for unsupported platforms."""
         from setup_lib.platform_detect import get_platform_info
 
-        with patch("platform.system", return_value="Darwin"):
+        with patch("platform.system", return_value="Darwin", autospec=True):
             result = get_platform_info()
             assert result is None
 

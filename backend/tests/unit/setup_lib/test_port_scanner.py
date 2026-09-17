@@ -156,7 +156,7 @@ class TestCheckPortAvailable:
         """Should return True when port is available on IPv4."""
         from setup_lib.port_scanner import check_port_available
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock = MagicMock()
             mock_sock.connect_ex.return_value = 111  # Connection refused (port free)
             mock_socket.return_value.__enter__.return_value = mock_sock
@@ -168,7 +168,7 @@ class TestCheckPortAvailable:
         """Should return False when port is in use on IPv4."""
         from setup_lib.port_scanner import check_port_available
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock = MagicMock()
             mock_sock.connect_ex.return_value = 0  # Connection successful (port in use)
             mock_socket.return_value.__enter__.return_value = mock_sock
@@ -180,7 +180,7 @@ class TestCheckPortAvailable:
         """Should return False when port is in use on IPv6 only."""
         from setup_lib.port_scanner import check_port_available
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock_v4 = MagicMock()
             mock_sock_v4.connect_ex.return_value = 111  # IPv4 available
 
@@ -197,7 +197,7 @@ class TestCheckPortAvailable:
         """Should return True when IPv4 available and IPv6 raises error."""
         from setup_lib.port_scanner import check_port_available
 
-        with patch("socket.socket") as mock_socket:
+        with patch("socket.socket", autospec=True) as mock_socket:
             mock_sock_v4 = MagicMock()
             mock_sock_v4.connect_ex.return_value = 111
 
@@ -226,8 +226,8 @@ class TestGetProcessUsingPort:
         ss_output = 'LISTEN 0 128 *:8080 *:* users:(("nginx",pid=1234,fd=6))'
 
         with (
-            patch("shutil.which", return_value="/usr/bin/ss"),
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/ss", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = MagicMock(returncode=0, stdout=ss_output)
 
@@ -244,8 +244,8 @@ Proto Recv-Q Send-Q Local Address           Foreign Address         State       
 tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      5678/python"""
 
         with (
-            patch("shutil.which") as mock_which,
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", autospec=True) as mock_which,
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_which.side_effect = lambda cmd: "/usr/bin/netstat" if cmd == "netstat" else None
             mock_run.return_value = MagicMock(returncode=0, stdout=netstat_output)
@@ -258,7 +258,7 @@ tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      
         """Should return empty ProcessInfo when no process found."""
         from setup_lib.port_scanner import get_process_using_port
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = get_process_using_port(8080)
             assert result.pid is None
             assert result.name is None
@@ -268,8 +268,8 @@ tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      
         from setup_lib.port_scanner import get_process_using_port
 
         with (
-            patch("shutil.which", return_value="/usr/bin/ss"),
-            patch("subprocess.run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/ss", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
         ):
             mock_run.return_value = MagicMock(returncode=1, stdout="")
 
@@ -355,7 +355,7 @@ class TestFindAlternativePort:
         """Should find next available port."""
         from setup_lib.port_scanner import find_alternative_port
 
-        with patch("setup_lib.port_scanner.check_port_available") as mock_check:
+        with patch("setup_lib.port_scanner.check_port_available", autospec=True) as mock_check:
             mock_check.return_value = True
             result = find_alternative_port(8080)
             assert result == 8081
@@ -364,7 +364,7 @@ class TestFindAlternativePort:
         """Should skip unavailable ports."""
         from setup_lib.port_scanner import find_alternative_port
 
-        with patch("setup_lib.port_scanner.check_port_available") as mock_check:
+        with patch("setup_lib.port_scanner.check_port_available", autospec=True) as mock_check:
             # 8081 and 8082 unavailable, 8083 available
             mock_check.side_effect = lambda p: p >= 8083
             result = find_alternative_port(8080)
@@ -374,7 +374,7 @@ class TestFindAlternativePort:
         """Should skip excluded ports."""
         from setup_lib.port_scanner import find_alternative_port
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=True):
+        with patch("setup_lib.port_scanner.check_port_available", return_value=True, autospec=True):
             result = find_alternative_port(8080, exclude={8081, 8082})
             assert result == 8083
 
@@ -382,7 +382,9 @@ class TestFindAlternativePort:
         """Should raise RuntimeError when no port available."""
         from setup_lib.port_scanner import find_alternative_port
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=False):
+        with patch(
+            "setup_lib.port_scanner.check_port_available", return_value=False, autospec=True
+        ):
             with pytest.raises(RuntimeError, match="No available port found"):
                 find_alternative_port(65530)
 
@@ -394,7 +396,7 @@ class TestFindAlternativePorts:
         """Should find multiple alternative ports."""
         from setup_lib.port_scanner import find_alternative_ports
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=True):
+        with patch("setup_lib.port_scanner.check_port_available", return_value=True, autospec=True):
             result = find_alternative_ports(8080, count=3)
             assert result == [8081, 8082, 8083]
 
@@ -402,7 +404,7 @@ class TestFindAlternativePorts:
         """Should return fewer alternatives if not enough available."""
         from setup_lib.port_scanner import find_alternative_ports
 
-        with patch("setup_lib.port_scanner.check_port_available") as mock_check:
+        with patch("setup_lib.port_scanner.check_port_available", autospec=True) as mock_check:
             # Only 8081 available, then no more
             mock_check.side_effect = lambda p: p == 8081
             result = find_alternative_ports(8080, count=3)
@@ -413,7 +415,9 @@ class TestFindAlternativePorts:
         """Should return empty list when no alternatives available."""
         from setup_lib.port_scanner import find_alternative_ports
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=False):
+        with patch(
+            "setup_lib.port_scanner.check_port_available", return_value=False, autospec=True
+        ):
             result = find_alternative_ports(65530, count=3)
             assert result == []
 
@@ -421,7 +425,7 @@ class TestFindAlternativePorts:
         """Should respect exclude set."""
         from setup_lib.port_scanner import find_alternative_ports
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=True):
+        with patch("setup_lib.port_scanner.check_port_available", return_value=True, autospec=True):
             result = find_alternative_ports(8080, count=2, exclude={8081})
             assert 8081 not in result
             assert result == [8082, 8083]
@@ -436,7 +440,7 @@ class TestScanPorts:
 
         ports = {8080: "Frontend", 8000: "Backend"}
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=True):
+        with patch("setup_lib.port_scanner.check_port_available", return_value=True, autospec=True):
             result = scan_ports(ports)
             assert result.has_conflicts is False
             assert result.conflicts == []
@@ -449,9 +453,13 @@ class TestScanPorts:
         ports = {8080: "Frontend"}
 
         with (
-            patch("setup_lib.port_scanner.check_port_available", return_value=False),
-            patch("setup_lib.port_scanner.get_process_using_port") as mock_get_proc,
-            patch("setup_lib.port_scanner.find_alternative_ports", return_value=[8081, 8082]),
+            patch("setup_lib.port_scanner.check_port_available", return_value=False, autospec=True),
+            patch("setup_lib.port_scanner.get_process_using_port", autospec=True) as mock_get_proc,
+            patch(
+                "setup_lib.port_scanner.find_alternative_ports",
+                return_value=[8081, 8082],
+                autospec=True,
+            ),
         ):
             from setup_lib.port_scanner import ProcessInfo
 
@@ -472,9 +480,9 @@ class TestScanPorts:
         ports = {8080: "Frontend", 8000: "Backend"}
 
         with (
-            patch("setup_lib.port_scanner.check_port_available", return_value=False),
-            patch("setup_lib.port_scanner.get_process_using_port") as mock_get_proc,
-            patch("setup_lib.port_scanner.find_alternative_ports", return_value=[]),
+            patch("setup_lib.port_scanner.check_port_available", return_value=False, autospec=True),
+            patch("setup_lib.port_scanner.get_process_using_port", autospec=True) as mock_get_proc,
+            patch("setup_lib.port_scanner.find_alternative_ports", return_value=[], autospec=True),
         ):
             from setup_lib.port_scanner import ProcessInfo
 
@@ -493,7 +501,7 @@ class TestScanRequiredPorts:
         """Should scan all ports in REQUIRED_PORTS."""
         from setup_lib.port_scanner import REQUIRED_PORTS, scan_required_ports
 
-        with patch("setup_lib.port_scanner.check_port_available", return_value=True):
+        with patch("setup_lib.port_scanner.check_port_available", return_value=True, autospec=True):
             result = scan_required_ports()
             assert result.scanned_ports == REQUIRED_PORTS
 
@@ -568,7 +576,7 @@ class TestPrintConflictReport:
 
         result = PortScanResult()
 
-        with patch("builtins.print") as mock_print:
+        with patch("builtins.print", autospec=True) as mock_print:
             print_conflict_report(result)
             mock_print.assert_called_once()
             assert "All required ports are available" in mock_print.call_args[0][0]
@@ -582,9 +590,9 @@ class TestPromptAndScanPorts:
         from setup_lib.port_scanner import prompt_and_scan_ports
 
         with (
-            patch("setup_lib.port_scanner.scan_required_ports") as mock_scan,
-            patch("builtins.print"),
-            patch("builtins.input") as mock_input,
+            patch("setup_lib.port_scanner.scan_required_ports", autospec=True) as mock_scan,
+            patch("builtins.print", autospec=True),
+            patch("builtins.input", autospec=True) as mock_input,
         ):
             from setup_lib.port_scanner import PortScanResult
 
@@ -600,10 +608,10 @@ class TestPromptAndScanPorts:
         from setup_lib.port_scanner import prompt_and_scan_ports
 
         with (
-            patch("setup_lib.port_scanner.scan_required_ports") as mock_scan,
-            patch("setup_lib.port_scanner.print_conflict_report"),
-            patch("builtins.print"),
-            patch("builtins.input", return_value="y") as mock_input,
+            patch("setup_lib.port_scanner.scan_required_ports", autospec=True) as mock_scan,
+            patch("setup_lib.port_scanner.print_conflict_report", autospec=True),
+            patch("builtins.print", autospec=True),
+            patch("builtins.input", return_value="y", autospec=True) as mock_input,
         ):
             from setup_lib.port_scanner import PortConflict, PortScanResult
 
@@ -620,10 +628,10 @@ class TestPromptAndScanPorts:
         from setup_lib.port_scanner import prompt_and_scan_ports
 
         with (
-            patch("setup_lib.port_scanner.scan_required_ports") as mock_scan,
-            patch("setup_lib.port_scanner.print_conflict_report"),
-            patch("builtins.print"),
-            patch("builtins.input", return_value="n"),
+            patch("setup_lib.port_scanner.scan_required_ports", autospec=True) as mock_scan,
+            patch("setup_lib.port_scanner.print_conflict_report", autospec=True),
+            patch("builtins.print", autospec=True),
+            patch("builtins.input", return_value="n", autospec=True),
         ):
             from setup_lib.port_scanner import PortConflict, PortScanResult
 
@@ -640,10 +648,10 @@ class TestPromptAndScanPorts:
         from setup_lib.port_scanner import prompt_and_scan_ports
 
         with (
-            patch("setup_lib.port_scanner.scan_required_ports") as mock_scan,
-            patch("setup_lib.port_scanner.print_conflict_report"),
-            patch("builtins.print"),
-            patch("builtins.input", side_effect=EOFError),
+            patch("setup_lib.port_scanner.scan_required_ports", autospec=True) as mock_scan,
+            patch("setup_lib.port_scanner.print_conflict_report", autospec=True),
+            patch("builtins.print", autospec=True),
+            patch("builtins.input", side_effect=EOFError, autospec=True),
         ):
             from setup_lib.port_scanner import PortConflict, PortScanResult
 
@@ -660,10 +668,10 @@ class TestPromptAndScanPorts:
         from setup_lib.port_scanner import prompt_and_scan_ports
 
         with (
-            patch("setup_lib.port_scanner.scan_required_ports") as mock_scan,
-            patch("setup_lib.port_scanner.print_conflict_report"),
-            patch("builtins.print"),
-            patch("builtins.input", side_effect=KeyboardInterrupt),
+            patch("setup_lib.port_scanner.scan_required_ports", autospec=True) as mock_scan,
+            patch("setup_lib.port_scanner.print_conflict_report", autospec=True),
+            patch("builtins.print", autospec=True),
+            patch("builtins.input", side_effect=KeyboardInterrupt, autospec=True),
         ):
             from setup_lib.port_scanner import PortConflict, PortScanResult
 

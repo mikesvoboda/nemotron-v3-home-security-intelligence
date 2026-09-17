@@ -18,7 +18,7 @@ class TestDetectContainerRuntime:
         """Should return podman runtime when podman-compose is available."""
         from setup_lib.image_pull import detect_container_runtime
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.return_value = "/usr/bin/podman-compose"
             result = detect_container_runtime()
             assert result == ("podman", "podman-compose")
@@ -39,8 +39,8 @@ class TestDetectContainerRuntime:
             return None
 
         with (
-            patch("shutil.which", side_effect=mock_which),
-            patch("subprocess.run", return_value=mock_result),
+            patch("shutil.which", side_effect=mock_which, autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             result = detect_container_runtime()
             assert result == ("docker", "docker compose")
@@ -62,8 +62,8 @@ class TestDetectContainerRuntime:
             return None
 
         with (
-            patch("shutil.which", side_effect=mock_which),
-            patch("subprocess.run", return_value=mock_result),
+            patch("shutil.which", side_effect=mock_which, autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             result = detect_container_runtime()
             assert result == ("docker", "docker-compose")
@@ -72,7 +72,7 @@ class TestDetectContainerRuntime:
         """Should return None when no container runtime is found."""
         from setup_lib.image_pull import detect_container_runtime
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = detect_container_runtime()
             assert result is None
 
@@ -90,8 +90,12 @@ class TestDetectContainerRuntime:
             return None
 
         with (
-            patch("shutil.which", side_effect=mock_which),
-            patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="docker", timeout=5)),
+            patch("shutil.which", side_effect=mock_which, autospec=True),
+            patch(
+                "subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="docker", timeout=5),
+                autospec=True,
+            ),
         ):
             result = detect_container_runtime()
             assert result == ("docker", "docker-compose")
@@ -110,8 +114,8 @@ class TestDetectContainerRuntime:
             return None
 
         with (
-            patch("shutil.which", side_effect=mock_which),
-            patch("subprocess.run", side_effect=FileNotFoundError),
+            patch("shutil.which", side_effect=mock_which, autospec=True),
+            patch("subprocess.run", side_effect=FileNotFoundError, autospec=True),
         ):
             result = detect_container_runtime()
             assert result == ("docker", "docker-compose")
@@ -133,8 +137,8 @@ class TestDetectContainerRuntime:
             return None
 
         with (
-            patch("shutil.which", side_effect=mock_which),
-            patch("subprocess.run", return_value=mock_result),
+            patch("shutil.which", side_effect=mock_which, autospec=True),
+            patch("subprocess.run", return_value=mock_result, autospec=True),
         ):
             result = detect_container_runtime()
             assert result is None
@@ -190,7 +194,7 @@ class TestGetComposeFiles:
         """Should return empty list when no compose files exist."""
         from setup_lib.image_pull import get_compose_files
 
-        with patch.object(Path, "exists", return_value=False):
+        with patch.object(Path, "exists", return_value=False, autospec=True):
             result = get_compose_files()
             assert result == []
 
@@ -221,7 +225,7 @@ class TestPullImages:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = pull_images("docker-compose.ghcr.yml", ("docker", "docker compose"))
             assert result is True
             mock_run.assert_called_once_with(
@@ -236,7 +240,7 @@ class TestPullImages:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = pull_images("docker-compose.ghcr.yml", ("podman", "podman-compose"))
             assert result is True
             mock_run.assert_called_once_with(
@@ -251,7 +255,7 @@ class TestPullImages:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = pull_images("docker-compose.prod.yml", ("docker", "docker-compose"))
             assert result is True
             mock_run.assert_called_once_with(
@@ -266,7 +270,7 @@ class TestPullImages:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = pull_images("docker-compose.ghcr.yml", ("podman", "podman-compose"))
             assert result is False
 
@@ -274,7 +278,7 @@ class TestPullImages:
         """Should return False when compose command not found."""
         from setup_lib.image_pull import pull_images
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             result = pull_images("docker-compose.ghcr.yml", ("podman", "podman-compose"))
             assert result is False
 
@@ -282,7 +286,7 @@ class TestPullImages:
         """Should return False when user cancels with Ctrl+C."""
         from setup_lib.image_pull import pull_images
 
-        with patch("subprocess.run", side_effect=KeyboardInterrupt):
+        with patch("subprocess.run", side_effect=KeyboardInterrupt, autospec=True):
             result = pull_images("docker-compose.ghcr.yml", ("podman", "podman-compose"))
             assert result is False
 
@@ -297,7 +301,7 @@ class TestValidateComposePath:
         compose_file = tmp_path / "docker-compose.yml"
         compose_file.write_text("version: '3'\n")
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = _validate_compose_path(str(compose_file))
             assert result == compose_file.resolve()
 
@@ -311,7 +315,7 @@ class TestValidateComposePath:
         cwd = tmp_path / "project"
         cwd.mkdir()
 
-        with patch.object(Path, "cwd", return_value=cwd):
+        with patch.object(Path, "cwd", return_value=cwd, autospec=True):
             result = _validate_compose_path(str(outside_file))
             assert result is None
 
@@ -323,7 +327,7 @@ class TestValidateComposePath:
         cwd.mkdir()
 
         # Try to escape with ../
-        with patch.object(Path, "cwd", return_value=cwd):
+        with patch.object(Path, "cwd", return_value=cwd, autospec=True):
             result = _validate_compose_path("../../../etc/passwd")
             assert result is None
 
@@ -331,7 +335,7 @@ class TestValidateComposePath:
         """Should return None for file that doesn't exist."""
         from setup_lib.image_pull import _validate_compose_path
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = _validate_compose_path("nonexistent.yml")
             assert result is None
 
@@ -342,7 +346,7 @@ class TestValidateComposePath:
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = _validate_compose_path(str(subdir))
             assert result is None
 
@@ -350,7 +354,7 @@ class TestValidateComposePath:
         """Should return None when OSError occurs."""
         from setup_lib.image_pull import _validate_compose_path
 
-        with patch.object(Path, "resolve", side_effect=OSError("Permission denied")):
+        with patch.object(Path, "resolve", side_effect=OSError("Permission denied"), autospec=True):
             result = _validate_compose_path("some-file.yml")
             assert result is None
 
@@ -358,7 +362,7 @@ class TestValidateComposePath:
         """Should return None when ValueError occurs (invalid path)."""
         from setup_lib.image_pull import _validate_compose_path
 
-        with patch.object(Path, "resolve", side_effect=ValueError("Invalid path")):
+        with patch.object(Path, "resolve", side_effect=ValueError("Invalid path"), autospec=True):
             result = _validate_compose_path("\x00invalid")
             assert result is None
 
@@ -383,7 +387,7 @@ services:
         compose_file = tmp_path / "docker-compose.yml"
         compose_file.write_text(compose_content)
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list(str(compose_file))
             assert len(result) == 3
             assert "ghcr.io/example/backend:latest" in result
@@ -407,7 +411,7 @@ services:
         compose_file = tmp_path / "docker-compose.yml"
         compose_file.write_text(compose_content)
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list(str(compose_file))
             assert len(result) == 2
             assert "(build) app" in result
@@ -417,7 +421,7 @@ services:
         """Should return empty list for invalid path."""
         from setup_lib.image_pull import get_image_list
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list("/nonexistent/path/compose.yml")
             assert result == []
 
@@ -425,7 +429,7 @@ services:
         """Should return empty list for path traversal attempts."""
         from setup_lib.image_pull import get_image_list
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list("../../../etc/passwd")
             assert result == []
 
@@ -454,8 +458,8 @@ services:
             return original_import(name, *args, **kwargs)
 
         with (
-            patch.object(Path, "cwd", return_value=tmp_path),
-            patch.object(builtins, "__import__", side_effect=mock_import),
+            patch.object(Path, "cwd", return_value=tmp_path, autospec=True),
+            patch.object(builtins, "__import__", side_effect=mock_import, autospec=True),
         ):
             result = get_image_list(str(compose_file))
             assert "ghcr.io/example/backend:latest" in result
@@ -474,7 +478,7 @@ volumes:
         compose_file = tmp_path / "docker-compose.yml"
         compose_file.write_text(compose_content)
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list(str(compose_file))
             # Should handle gracefully without raising
             assert result == []
@@ -498,8 +502,8 @@ volumes:
 
         # Make the file path valid but then mock read_text to fail
         with (
-            patch.object(Path, "cwd", return_value=tmp_path),
-            patch.object(builtins, "__import__", side_effect=mock_import),
+            patch.object(Path, "cwd", return_value=tmp_path, autospec=True),
+            patch.object(builtins, "__import__", side_effect=mock_import, autospec=True),
         ):
             # Create a fresh validated path that exists
             result = get_image_list(str(compose_file))
@@ -517,7 +521,7 @@ services: {}
         compose_file = tmp_path / "docker-compose.yml"
         compose_file.write_text(compose_content)
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list(str(compose_file))
             assert result == []
 
@@ -533,7 +537,7 @@ networks:
         compose_file = tmp_path / "docker-compose.yml"
         compose_file.write_text(compose_content)
 
-        with patch.object(Path, "cwd", return_value=tmp_path):
+        with patch.object(Path, "cwd", return_value=tmp_path, autospec=True):
             result = get_image_list(str(compose_file))
             assert result == []
 
@@ -606,7 +610,9 @@ class TestPromptAndPullImages:
         """Should handle case when no container runtime is found."""
         from setup_lib.image_pull import prompt_and_pull_images
 
-        with patch("setup_lib.image_pull.detect_container_runtime", return_value=None):
+        with patch(
+            "setup_lib.image_pull.detect_container_runtime", return_value=None, autospec=True
+        ):
             # Should return without error
             prompt_and_pull_images({})
 
@@ -618,8 +624,9 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=[]),
+            patch("setup_lib.image_pull.get_compose_files", return_value=[], autospec=True),
         ):
             # Should return without error
             prompt_and_pull_images({})
@@ -636,11 +643,14 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", return_value="2"),  # Skip option
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch("builtins.input", return_value="2", autospec=True),  # Skip option
         ):
             # Should return without pulling
             prompt_and_pull_images({})
@@ -657,9 +667,12 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("builtins.input", return_value="1"),
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("builtins.input", return_value="1", autospec=True),
         ):
             # Should return without pulling (build mode)
             prompt_and_pull_images({})
@@ -676,12 +689,23 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1", "image2"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["1", "y"]),  # Select option 1, confirm
-            patch("setup_lib.image_pull.pull_images", return_value=True) as mock_pull,
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch(
+                "setup_lib.image_pull.get_image_list",
+                return_value=["image1", "image2"],
+                autospec=True,
+            ),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch(
+                "builtins.input", side_effect=["1", "y"], autospec=True
+            ),  # Select option 1, confirm
+            patch(
+                "setup_lib.image_pull.pull_images", return_value=True, autospec=True
+            ) as mock_pull,
         ):
             prompt_and_pull_images({})
             mock_pull.assert_called_once_with(
@@ -701,12 +725,17 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["1", "n"]),  # Select option 1, decline
-            patch("setup_lib.image_pull.pull_images") as mock_pull,
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch(
+                "builtins.input", side_effect=["1", "n"], autospec=True
+            ),  # Select option 1, decline
+            patch("setup_lib.image_pull.pull_images", autospec=True) as mock_pull,
         ):
             prompt_and_pull_images({})
             mock_pull.assert_not_called()
@@ -723,11 +752,14 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", return_value="invalid"),
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch("builtins.input", return_value="invalid", autospec=True),
         ):
             # Should handle gracefully without raising
             prompt_and_pull_images({})
@@ -744,11 +776,14 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", return_value="99"),
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch("builtins.input", return_value="99", autospec=True),
         ):
             # Should handle gracefully without raising
             prompt_and_pull_images({})
@@ -765,12 +800,19 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["", "y"]),  # Empty defaults to 1, then confirm
-            patch("setup_lib.image_pull.pull_images", return_value=True) as mock_pull,
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch(
+                "builtins.input", side_effect=["", "y"], autospec=True
+            ),  # Empty defaults to 1, then confirm
+            patch(
+                "setup_lib.image_pull.pull_images", return_value=True, autospec=True
+            ) as mock_pull,
         ):
             prompt_and_pull_images({})
             mock_pull.assert_called_once()
@@ -787,12 +829,15 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["1", "y"]),
-            patch("setup_lib.image_pull.pull_images", return_value=False),
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch("builtins.input", side_effect=["1", "y"], autospec=True),
+            patch("setup_lib.image_pull.pull_images", return_value=False, autospec=True),
         ):
             # Should complete without raising
             prompt_and_pull_images({})
@@ -809,12 +854,15 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("docker", "docker compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["1", "y"]),
-            patch("setup_lib.image_pull.pull_images", return_value=True),
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch("builtins.input", side_effect=["1", "y"], autospec=True),
+            patch("setup_lib.image_pull.pull_images", return_value=True, autospec=True),
         ):
             # Should complete without raising
             prompt_and_pull_images({})
@@ -823,7 +871,9 @@ class TestPromptAndPullImages:
         """Should accept config dict parameter (reserved for future use)."""
         from setup_lib.image_pull import prompt_and_pull_images
 
-        with patch("setup_lib.image_pull.detect_container_runtime", return_value=None):
+        with patch(
+            "setup_lib.image_pull.detect_container_runtime", return_value=None, autospec=True
+        ):
             # Should accept config without error
             prompt_and_pull_images({"some_key": "some_value"})
 
@@ -840,11 +890,16 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", return_value="4"),  # Skip option (len(compose_files) + 1)
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch(
+                "builtins.input", return_value="4", autospec=True
+            ),  # Skip option (len(compose_files) + 1)
         ):
             # Should complete without raising
             prompt_and_pull_images({})
@@ -864,11 +919,16 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=images),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB") as mock_estimate,
-            patch("builtins.input", return_value="2"),  # Skip
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=images, autospec=True),
+            patch(
+                "setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True
+            ) as mock_estimate,
+            patch("builtins.input", return_value="2", autospec=True),  # Skip
         ):
             prompt_and_pull_images({})
             # estimate_pull_size should be called with all images
@@ -886,12 +946,19 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["1", ""]),  # Select 1, empty confirm = yes
-            patch("setup_lib.image_pull.pull_images", return_value=True) as mock_pull,
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch(
+                "builtins.input", side_effect=["1", ""], autospec=True
+            ),  # Select 1, empty confirm = yes
+            patch(
+                "setup_lib.image_pull.pull_images", return_value=True, autospec=True
+            ) as mock_pull,
         ):
             prompt_and_pull_images({})
             mock_pull.assert_called_once()
@@ -908,12 +975,17 @@ class TestPromptAndPullImages:
             patch(
                 "setup_lib.image_pull.detect_container_runtime",
                 return_value=("podman", "podman-compose"),
+                autospec=True,
             ),
-            patch("setup_lib.image_pull.get_compose_files", return_value=compose_files),
-            patch("setup_lib.image_pull.get_image_list", return_value=["image1"]),
-            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB"),
-            patch("builtins.input", side_effect=["1", "yes"]),
-            patch("setup_lib.image_pull.pull_images", return_value=True) as mock_pull,
+            patch(
+                "setup_lib.image_pull.get_compose_files", return_value=compose_files, autospec=True
+            ),
+            patch("setup_lib.image_pull.get_image_list", return_value=["image1"], autospec=True),
+            patch("setup_lib.image_pull.estimate_pull_size", return_value="~1 GB", autospec=True),
+            patch("builtins.input", side_effect=["1", "yes"], autospec=True),
+            patch(
+                "setup_lib.image_pull.pull_images", return_value=True, autospec=True
+            ) as mock_pull,
         ):
             prompt_and_pull_images({})
             mock_pull.assert_called_once()

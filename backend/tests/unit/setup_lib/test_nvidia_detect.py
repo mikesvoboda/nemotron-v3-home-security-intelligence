@@ -19,7 +19,7 @@ class TestIsNvidiaGpuPresent:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             result = is_nvidia_gpu_present()
             assert result is True
             mock_run.assert_called_once()
@@ -34,7 +34,7 @@ class TestIsNvidiaGpuPresent:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = is_nvidia_gpu_present()
             assert result is False
 
@@ -42,7 +42,7 @@ class TestIsNvidiaGpuPresent:
         """Should return False when nvidia-smi is not installed."""
         from setup_lib.nvidia_detect import is_nvidia_gpu_present
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             result = is_nvidia_gpu_present()
             assert result is False
 
@@ -50,7 +50,7 @@ class TestIsNvidiaGpuPresent:
         """Should return False on permission errors."""
         from setup_lib.nvidia_detect import is_nvidia_gpu_present
 
-        with patch("subprocess.run", side_effect=PermissionError):
+        with patch("subprocess.run", side_effect=PermissionError, autospec=True):
             result = is_nvidia_gpu_present()
             assert result is False
 
@@ -80,7 +80,7 @@ class TestGetGpuInfo:
                 mock_result.stdout = memory_output
             return mock_result
 
-        with patch("subprocess.run", side_effect=mock_run_side_effect):
+        with patch("subprocess.run", side_effect=mock_run_side_effect, autospec=True):
             result = get_gpu_info()
             assert result is not None
             assert len(result) == 1
@@ -105,7 +105,7 @@ class TestGetGpuInfo:
                 mock_result.stdout = memory_output
             return mock_result
 
-        with patch("subprocess.run", side_effect=mock_run_side_effect):
+        with patch("subprocess.run", side_effect=mock_run_side_effect, autospec=True):
             result = get_gpu_info()
             assert result is not None
             assert len(result) == 2
@@ -121,7 +121,7 @@ class TestGetGpuInfo:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = get_gpu_info()
             assert result is None
 
@@ -129,7 +129,7 @@ class TestGetGpuInfo:
         """Should return None when nvidia-smi is not installed."""
         from setup_lib.nvidia_detect import get_gpu_info
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             result = get_gpu_info()
             assert result is None
 
@@ -150,7 +150,7 @@ class TestGetGpuInfo:
                 mock_result.stdout = memory_output
             return mock_result
 
-        with patch("subprocess.run", side_effect=mock_run_side_effect):
+        with patch("subprocess.run", side_effect=mock_run_side_effect, autospec=True):
             result = get_gpu_info()
             assert result is not None
             assert result[0]["name"] == "NVIDIA GeForce RTX 4090"
@@ -167,7 +167,7 @@ class TestGetDriverVersion:
         mock_result.returncode = 0
         mock_result.stdout = "560.35.03\n"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = get_driver_version()
             assert result == "560.35.03"
 
@@ -179,7 +179,7 @@ class TestGetDriverVersion:
         mock_result.returncode = 0
         mock_result.stdout = "  535.183.01  \n"
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = get_driver_version()
             assert result == "535.183.01"
 
@@ -190,7 +190,7 @@ class TestGetDriverVersion:
         mock_result = MagicMock()
         mock_result.returncode = 1
 
-        with patch("subprocess.run", return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result, autospec=True):
             result = get_driver_version()
             assert result is None
 
@@ -198,7 +198,7 @@ class TestGetDriverVersion:
         """Should return None when nvidia-smi is not installed."""
         from setup_lib.nvidia_detect import get_driver_version
 
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError, autospec=True):
             result = get_driver_version()
             assert result is None
 
@@ -210,7 +210,7 @@ class TestGetDriverVersion:
         mock_result.returncode = 0
         mock_result.stdout = "560.35.03\n"
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result, autospec=True) as mock_run:
             get_driver_version()
             call_args = mock_run.call_args
             cmd = call_args[0][0]
@@ -332,7 +332,7 @@ class TestIsContainerToolkitInstalled:
         """Should return True when nvidia-ctk is found."""
         from setup_lib.nvidia_detect import is_container_toolkit_installed
 
-        with patch("shutil.which", return_value="/usr/bin/nvidia-ctk"):
+        with patch("shutil.which", return_value="/usr/bin/nvidia-ctk", autospec=True):
             result = is_container_toolkit_installed()
             assert result is True
 
@@ -340,7 +340,7 @@ class TestIsContainerToolkitInstalled:
         """Should return False when nvidia-ctk is not found."""
         from setup_lib.nvidia_detect import is_container_toolkit_installed
 
-        with patch("shutil.which", return_value=None):
+        with patch("shutil.which", return_value=None, autospec=True):
             result = is_container_toolkit_installed()
             assert result is False
 
@@ -348,7 +348,7 @@ class TestIsContainerToolkitInstalled:
         """Should check for nvidia-ctk specifically."""
         from setup_lib.nvidia_detect import is_container_toolkit_installed
 
-        with patch("shutil.which") as mock_which:
+        with patch("shutil.which", autospec=True) as mock_which:
             mock_which.return_value = "/usr/bin/nvidia-ctk"
             is_container_toolkit_installed()
             mock_which.assert_called_with("nvidia-ctk")
@@ -402,12 +402,28 @@ class TestPromptAndCheckNvidia:
         mock_gpu_info = [{"name": "NVIDIA GeForce RTX 4090", "vram_mb": 24564}]
 
         with (
-            patch("setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True),
-            patch("setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info),
-            patch("setup_lib.nvidia_detect.get_driver_version", return_value="560.35.03"),
-            patch("setup_lib.nvidia_detect.is_driver_version_sufficient", return_value=True),
-            patch("setup_lib.nvidia_detect.is_container_toolkit_installed", return_value=True),
-            patch("builtins.print"),  # Suppress output
+            patch(
+                "setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_driver_version",
+                return_value="560.35.03",
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_driver_version_sufficient",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_container_toolkit_installed",
+                return_value=True,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),  # Suppress output
         ):
             config: dict[str, object] = {}
             result = prompt_and_check_nvidia(config)
@@ -423,8 +439,10 @@ class TestPromptAndCheckNvidia:
         from setup_lib.nvidia_detect import prompt_and_check_nvidia
 
         with (
-            patch("setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=False),
-            patch("builtins.print"),  # Suppress output
+            patch(
+                "setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=False, autospec=True
+            ),
+            patch("builtins.print", autospec=True),  # Suppress output
         ):
             config: dict[str, object] = {}
             result = prompt_and_check_nvidia(config)
@@ -439,11 +457,23 @@ class TestPromptAndCheckNvidia:
         mock_gpu_info = [{"name": "NVIDIA GeForce RTX 3080", "vram_mb": 10240}]
 
         with (
-            patch("setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True),
-            patch("setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info),
-            patch("setup_lib.nvidia_detect.get_driver_version", return_value="470.256.02"),
-            patch("setup_lib.nvidia_detect.is_driver_version_sufficient", return_value=False),
-            patch("builtins.print"),  # Suppress output
+            patch(
+                "setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_driver_version",
+                return_value="470.256.02",
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_driver_version_sufficient",
+                return_value=False,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),  # Suppress output
         ):
             config: dict[str, object] = {}
             result = prompt_and_check_nvidia(config)
@@ -459,12 +489,28 @@ class TestPromptAndCheckNvidia:
         mock_gpu_info = [{"name": "NVIDIA GeForce RTX 4090", "vram_mb": 24564}]
 
         with (
-            patch("setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True),
-            patch("setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info),
-            patch("setup_lib.nvidia_detect.get_driver_version", return_value="560.35.03"),
-            patch("setup_lib.nvidia_detect.is_driver_version_sufficient", return_value=True),
-            patch("setup_lib.nvidia_detect.is_container_toolkit_installed", return_value=False),
-            patch("builtins.print"),  # Suppress output
+            patch(
+                "setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_driver_version",
+                return_value="560.35.03",
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_driver_version_sufficient",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_container_toolkit_installed",
+                return_value=False,
+                autospec=True,
+            ),
+            patch("builtins.print", autospec=True),  # Suppress output
         ):
             config: dict[str, object] = {}
             result = prompt_and_check_nvidia(config)
@@ -533,11 +579,27 @@ class TestGetNvidiaDetectionSummary:
         mock_gpu_info = [{"name": "NVIDIA GeForce RTX 4090", "vram_mb": 24564}]
 
         with (
-            patch("setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True),
-            patch("setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info),
-            patch("setup_lib.nvidia_detect.get_driver_version", return_value="560.35.03"),
-            patch("setup_lib.nvidia_detect.is_driver_version_sufficient", return_value=True),
-            patch("setup_lib.nvidia_detect.is_container_toolkit_installed", return_value=True),
+            patch(
+                "setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=True, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_gpu_info", return_value=mock_gpu_info, autospec=True
+            ),
+            patch(
+                "setup_lib.nvidia_detect.get_driver_version",
+                return_value="560.35.03",
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_driver_version_sufficient",
+                return_value=True,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.nvidia_detect.is_container_toolkit_installed",
+                return_value=True,
+                autospec=True,
+            ),
         ):
             result = get_nvidia_detection_summary()
 
@@ -551,7 +613,9 @@ class TestGetNvidiaDetectionSummary:
         """Should return minimal summary when no GPU detected."""
         from setup_lib.nvidia_detect import get_nvidia_detection_summary
 
-        with patch("setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=False):
+        with patch(
+            "setup_lib.nvidia_detect.is_nvidia_gpu_present", return_value=False, autospec=True
+        ):
             result = get_nvidia_detection_summary()
 
             assert result["gpu_present"] is False
