@@ -4424,3 +4424,28 @@ mechanism (one fewer warm-cache hand) is real but n=1 run; reported
 honestly rather than smoothed. Re-check on the NEXT push: if the median
 stays ~19s, note as the cost side of the cleanup; if it falls back, it was
 queue-day noise.
+
+## WP3.5 FAN-OUT REDUCED UNDER THE MEASURED 20 (`ec08f6e9`)
+
+MEASURE (run 35175054058, Jobs API, queue/compute separated): the 57-job
+run peaked at 26 concurrent test jobs vs the WP3.1 ceiling ~20. Vitest
+shards queue-med 573s vs compute-med ~204s (3x), E2E queue-med 386s vs
+compute ~66s (6x), Backend Unit queue 508s. Aggregate queue:compute ~1.4:1
+— the fan-out is the wall clock.
+
+DECIDE: Vitest 16→8, E2E 6→3. Peak wave 26→15, under the cap, so matrix
+first-waves land without stagger. Per-shard compute doubles (~204→~410s,
+~66→~140s — playwright CI workers=4 already parallelizes within a shard);
+Vitest timeout 10→20 min stays a runaway guard. Backend Unit left 4-way:
+its queue is lint-ordered and 4→2 buys nothing the wave already covers.
+The plan's other candidate — the 4-way trivy-scan matrix — was already
+deleted at WP0.3 (ci.yml:2324 comment); recorded, not re-listed. Artifact
+rename `-of-16`→`-of-8` verified safe (merge job globs
+`frontend-coverage-shard-*-node-*`); ci-gate reads summary jobs only.
+
+MEASURE-again: the push at `ec08f6e9` changes ci.yml, which trips
+detect-changes' workflow filter → should-run-all → the FULL fan-out runs,
+so after-numbers come from that run, same protocol. Expected signature:
+Vitest/E2E shard queues collapse toward the 16–90s background level while
+per-shard compute doubles; if queues do NOT collapse, the 20-ceiling is
+not what bound this fan-out and this row carries that finding instead.
