@@ -20,7 +20,7 @@ from backend.core.redis import RedisClient
 @pytest.fixture
 def mock_redis_pool():
     """Mock Redis connection pool."""
-    with patch("backend.core.redis.ConnectionPool") as mock_pool_class:
+    with patch("backend.core.redis.ConnectionPool", autospec=True) as mock_pool_class:
         mock_pool_instance = AsyncMock(spec=ConnectionPool)
         mock_pool_instance.disconnect = AsyncMock()
         mock_pool_class.from_url.return_value = mock_pool_instance
@@ -54,7 +54,7 @@ def mock_redis_client():
 @pytest.fixture
 async def redis_client(mock_redis_pool, mock_redis_client):
     """Create a Redis client with mocked connection."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client, autospec=True):
         client = RedisClient(redis_url="redis://localhost:6379/0")
         await client.connect()
         yield client
@@ -72,7 +72,7 @@ class TestCompressionRoundTrip:
         # Create data that exceeds the default 1KB threshold
         large_data = json.dumps({"key": "value" * 500})  # ~2.5KB
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
 
@@ -103,7 +103,7 @@ class TestCompressionRoundTrip:
             }
         )
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
 
@@ -122,7 +122,7 @@ class TestSmallDataNotCompressed:
         """Data below threshold should not be compressed."""
         small_data = json.dumps({"key": "value"})  # ~16 bytes
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
 
@@ -148,7 +148,7 @@ class TestSmallDataNotCompressed:
         data_bytes = data_at_threshold.encode("utf-8")
         assert len(data_bytes) == threshold, f"Expected {threshold} bytes, got {len(data_bytes)}"
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = threshold
 
@@ -165,7 +165,7 @@ class TestSmallDataNotCompressed:
         filler = "x" * (threshold - len('{"data":""}') + 1)
         data_above_threshold = json.dumps({"data": filler})
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = threshold
 
@@ -183,7 +183,7 @@ class TestCompressionDisabled:
         """When compression is disabled, original data should be returned."""
         large_data = json.dumps({"key": "value" * 500})
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = False
             mock_settings.return_value.redis_compression_threshold = 1024
 
@@ -233,7 +233,7 @@ class TestCompressionPrefix:
         """Compressed data should have the Z: prefix."""
         large_data = json.dumps({"data": "x" * 2000})
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
 
@@ -265,7 +265,7 @@ class TestCompressionEfficiency:
         # Wrap in JSON to make it a valid payload
         data = json.dumps({"random": random_data})
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
 
@@ -288,7 +288,7 @@ class TestQueueCompressionIntegration:
         """Large payloads should be compressed when added to queue."""
         large_data = {"detections": [{"label": "person"}] * 100}
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
             mock_settings.return_value.queue_max_size = 10000
@@ -309,7 +309,7 @@ class TestQueueCompressionIntegration:
         """Small payloads should not be compressed."""
         small_data = {"key": "value"}
 
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.redis_compression_enabled = True
             mock_settings.return_value.redis_compression_threshold = 1024
             mock_settings.return_value.queue_max_size = 10000

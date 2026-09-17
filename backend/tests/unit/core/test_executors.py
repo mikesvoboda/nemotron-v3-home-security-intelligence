@@ -141,7 +141,7 @@ class TestGetCpuExecutor:
 
     def test_fallback_when_cpu_count_none(self):
         """Should fallback to 4 workers when os.cpu_count() returns None."""
-        with patch.object(os, "cpu_count", return_value=None):
+        with patch.object(os, "cpu_count", return_value=None, autospec=True):
             executor = get_cpu_executor()
             try:
                 # Should create executor with 4 workers as fallback

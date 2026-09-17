@@ -31,7 +31,7 @@ def redis_client() -> RedisClient:
     - jitter_factor: 0.25 (0-25% of delay)
     - max_retries: 3
     """
-    with patch("backend.core.redis.get_settings") as mock_settings:
+    with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value = MagicMock(
             redis_url="redis://localhost:6379/0",
             redis_ssl_enabled=False,
@@ -67,7 +67,7 @@ class TestCalculateBackoffDelay:
         - Expected: 1.0 to 1.25
         """
         # Mock random to return 0 for deterministic testing (no jitter)
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(1)
             assert delay == 1.0
 
@@ -79,7 +79,7 @@ class TestCalculateBackoffDelay:
         - Jitter range: 0 to 0.5 (25% of 2.0)
         - Expected: 2.0 to 2.5
         """
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(2)
             assert delay == 2.0
 
@@ -91,7 +91,7 @@ class TestCalculateBackoffDelay:
         - Jitter range: 0 to 1.0 (25% of 4.0)
         - Expected: 4.0 to 5.0
         """
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(3)
             assert delay == 4.0
 
@@ -103,7 +103,7 @@ class TestCalculateBackoffDelay:
         - Jitter range: 0 to 2.0 (25% of 8.0)
         - Expected: 8.0 to 10.0
         """
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(4)
             assert delay == 8.0
 
@@ -116,13 +116,13 @@ class TestCalculateBackoffDelay:
         - Jitter range: 0 to 7.5 (25% of 30.0)
         - Expected: 30.0 to 37.5
         """
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(6)
             assert delay == 30.0
 
     def test_backoff_delay_very_high_attempt_still_capped(self, redis_client: RedisClient) -> None:
         """Test that very high attempt numbers are still capped at max_delay."""
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(100)
             assert delay == 30.0
 
@@ -135,7 +135,7 @@ class TestCalculateBackoffDelay:
         - With max jitter: 1.0 + 0.25 = 1.25
         """
         # Test with maximum jitter
-        with patch("backend.core.redis.random.uniform", return_value=0.25):
+        with patch("backend.core.redis.random.uniform", return_value=0.25, autospec=True):
             delay = redis_client._calculate_backoff_delay(1)
             assert delay == 1.25
 
@@ -147,7 +147,7 @@ class TestCalculateBackoffDelay:
         - Maximum jitter: 30.0 * 0.25 = 7.5
         - With max jitter: 30.0 + 7.5 = 37.5
         """
-        with patch("backend.core.redis.random.uniform", return_value=0.25):
+        with patch("backend.core.redis.random.uniform", return_value=0.25, autospec=True):
             delay = redis_client._calculate_backoff_delay(10)
             assert delay == 37.5
 
@@ -195,7 +195,7 @@ class TestCalculateBackoffDelay:
         - Base delay: 1.0 * 2^(0-1) = 1.0 * 0.5 = 0.5
         - This is a mathematical result, not necessarily intended behavior
         """
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(0)
             assert delay == 0.5
 
@@ -206,7 +206,7 @@ class TestCalculateBackoffDelay:
         - Base delay: 1.0 * 2^(-1-1) = 1.0 * 2^-2 = 1.0 * 0.25 = 0.25
         - This is a mathematical result, not necessarily intended behavior
         """
-        with patch("backend.core.redis.random.uniform", return_value=0):
+        with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
             delay = redis_client._calculate_backoff_delay(-1)
             assert delay == 0.25
 
@@ -475,7 +475,7 @@ class TestEdgeCases:
 
         with (
             patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("backend.core.redis.logger") as mock_logger,
+            patch("backend.core.redis.logger", autospec=True) as mock_logger,
             pytest.raises(ConnectionError),
         ):
             await redis_client.with_retry(operation, "custom_op_name")
@@ -530,7 +530,7 @@ class TestBackoffConfiguration:
 
     def test_default_backoff_settings(self) -> None:
         """Test that default backoff settings are applied."""
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 redis_url="redis://localhost:6379/0",
                 redis_ssl_enabled=False,
@@ -549,7 +549,7 @@ class TestBackoffConfiguration:
 
     def test_custom_backoff_settings(self) -> None:
         """Test that backoff settings can be customized."""
-        with patch("backend.core.redis.get_settings") as mock_settings:
+        with patch("backend.core.redis.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 redis_url="redis://localhost:6379/0",
                 redis_ssl_enabled=False,
@@ -574,7 +574,7 @@ class TestBackoffConfiguration:
             assert client._jitter_factor == 0.1
 
             # Verify backoff calculation uses new settings
-            with patch("backend.core.redis.random.uniform", return_value=0):
+            with patch("backend.core.redis.random.uniform", return_value=0, autospec=True):
                 delay = client._calculate_backoff_delay(1)
                 assert delay == 2.0  # base_delay
 

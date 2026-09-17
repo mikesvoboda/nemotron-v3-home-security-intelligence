@@ -383,7 +383,7 @@ class TestParentBasedPrioritySampler:
             # Create a mock context that returns our parent
             mock_context = MagicMock()
 
-            with patch("opentelemetry.trace.get_current_span") as mock_get_span:
+            with patch("opentelemetry.trace.get_current_span", autospec=True) as mock_get_span:
                 mock_span = MagicMock()
                 mock_span.get_span_context.return_value = parent_span_context
                 mock_get_span.return_value = mock_span
@@ -414,7 +414,7 @@ class TestParentBasedPrioritySampler:
 
         mock_context = MagicMock()
 
-        with patch("opentelemetry.trace.get_current_span") as mock_get_span:
+        with patch("opentelemetry.trace.get_current_span", autospec=True) as mock_get_span:
             mock_span = MagicMock()
             mock_span.get_span_context.return_value = parent_span_context
             mock_get_span.return_value = mock_span
@@ -515,7 +515,7 @@ class TestCreateOtelSampler:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             result = create_otel_sampler()
             assert result is None
 

@@ -46,7 +46,7 @@ class TestLoggingSetup:
 
     def test_setup_logging_configures_root_logger(self):
         """Test that setup_logging configures the logging system."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="DEBUG",
                 log_file_path="data/logs/test.log",
@@ -288,24 +288,47 @@ class TestSQLiteHandlerGetSession:
     """Tests for SQLiteHandler._get_session method (lines 87-105)."""
 
     def test_get_session_creates_engine_and_factory(self):
-        """Test that _get_session initializes engine and session factory on first call."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        """Test that _get_session initializes engine and session factory on first call.
+
+        WP4.1 finding: this test previously replaced _get_session itself with
+        a mock and asserted the mock's return value -- it passed no matter
+        what production did (autospec=True exposed it: an autospec'd method
+        demands `self`, which the self-mock never received). Aligned to the
+        shipped contract: run the real _get_session, patching only the
+        sqlalchemy calls production makes (lazy imports, patched at source)
+        and assert what the docstring claims -- engine + factory created,
+        URL converted async->sync, session returned.
+        """
+        handler = SQLiteHandler()
+        with (
+            patch("backend.core.logging.get_settings", autospec=True) as mock_settings,
+            patch("sqlalchemy.create_engine", autospec=True) as mock_create_engine,
+        ):
             mock_settings.return_value = MagicMock(
                 database_url="postgresql+asyncpg://postgres:postgres@localhost:5432/security"
             )
+            mock_engine = MagicMock()
+            mock_create_engine.return_value = mock_engine
 
-            with (
-                patch("backend.core.logging.SQLiteHandler._get_session") as mock_get_session,
-            ):
-                # Simulate session being returned
-                mock_session = MagicMock()
-                mock_get_session.return_value = mock_session
+            mock_session = MagicMock()
+            # sessionmaker(bind=engine) -> factory(); mock the factory call
+            # via the engine-bound maker by stubbing the created factory.
+            with patch("sqlalchemy.orm.sessionmaker", autospec=True) as mock_sm:
+                mock_factory = MagicMock(return_value=mock_session)
+                mock_sm.return_value = mock_factory
 
-                handler = SQLiteHandler()
-                handler._get_session = mock_get_session
                 session = handler._get_session()
 
-                assert session is mock_session
+            assert session is mock_session
+            mock_create_engine.assert_called_once_with(
+                "postgresql://postgres:postgres@localhost:5432/security"
+            )
+            assert handler._engine is mock_engine
+            assert handler._session_factory is mock_factory
+            # factory cached: second call must not rebuild the engine
+            session2 = handler._get_session()
+            assert session2 is mock_session
+            mock_create_engine.assert_called_once()
 
     def test_get_session_returns_none_on_import_error(self):
         """Test that _get_session returns None when database setup fails."""
@@ -314,7 +337,7 @@ class TestSQLiteHandlerGetSession:
         handler._db_available = True
 
         # Patch get_settings to raise an exception during engine creation
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.side_effect = RuntimeError("Config error")
 
             # _get_session should catch the exception and set _db_available to False
@@ -344,14 +367,14 @@ class TestSQLiteHandlerGetSession:
         handler._session_factory = None
         handler._db_available = True
 
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 database_url="postgresql+asyncpg://postgres:postgres@localhost:5432/security"
             )
 
             with (
-                patch("sqlalchemy.create_engine") as mock_create_engine,
-                patch("sqlalchemy.orm.sessionmaker") as mock_sessionmaker,
+                patch("sqlalchemy.create_engine", autospec=True) as mock_create_engine,
+                patch("sqlalchemy.orm.sessionmaker", autospec=True) as mock_sessionmaker,
             ):
                 mock_engine = MagicMock()
                 mock_create_engine.return_value = mock_engine
@@ -384,7 +407,7 @@ class TestSQLiteHandlerEmit:
         mock_session = MagicMock()
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -425,7 +448,7 @@ class TestSQLiteHandlerEmit:
         mock_session = MagicMock()
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -468,7 +491,7 @@ class TestSQLiteHandlerEmit:
         mock_session = MagicMock()
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -525,7 +548,7 @@ class TestSQLiteHandlerEmit:
         mock_session.add.side_effect = RuntimeError("Database error")
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -555,7 +578,7 @@ class TestSQLiteHandlerEmit:
         mock_session.commit.side_effect = RuntimeError("Commit failed")
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -585,7 +608,7 @@ class TestSQLiteHandlerEmit:
         mock_session = MagicMock()
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -622,7 +645,7 @@ class TestSetupLoggingFileHandler:
 
     def test_setup_logging_handles_file_handler_exception(self):
         """Test that setup_logging handles file handler creation failure gracefully."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="INFO",
                 log_file_path="/nonexistent/deep/nested/path/test.log",
@@ -632,7 +655,9 @@ class TestSetupLoggingFileHandler:
             )
 
             # Patch RotatingFileHandler to raise an exception
-            with patch("backend.core.logging.RotatingFileHandler") as mock_file_handler:
+            with patch(
+                "backend.core.logging.RotatingFileHandler", autospec=True
+            ) as mock_file_handler:
                 mock_file_handler.side_effect = PermissionError("Permission denied")
 
                 root = logging.getLogger()
@@ -654,7 +679,7 @@ class TestSetupLoggingFileHandler:
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "logs" / "nested" / "app.log"
 
-            with patch("backend.core.logging.get_settings") as mock_settings:
+            with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     log_level="DEBUG",
                     log_file_path=str(log_path),
@@ -682,7 +707,7 @@ class TestSetupLoggingSQLiteHandler:
 
     def test_setup_logging_adds_sqlite_handler_when_enabled(self):
         """Test that setup_logging adds SQLite handler when log_db_enabled is True."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="INFO",
                 log_file_path="data/logs/test.log",
@@ -711,7 +736,7 @@ class TestSetupLoggingSQLiteHandler:
 
     def test_setup_logging_handles_sqlite_handler_exception(self):
         """Test that setup_logging handles DatabaseHandler creation failure."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="INFO",
                 log_file_path="data/logs/test.log",
@@ -721,7 +746,7 @@ class TestSetupLoggingSQLiteHandler:
                 log_db_min_level="INFO",
             )
 
-            with patch("backend.core.logging.DatabaseHandler") as mock_db_handler:
+            with patch("backend.core.logging.DatabaseHandler", autospec=True) as mock_db_handler:
                 mock_db_handler.side_effect = RuntimeError("Database handler initialization failed")
 
                 root = logging.getLogger()
@@ -740,7 +765,7 @@ class TestSetupLoggingSQLiteHandler:
 
     def test_setup_logging_skips_sqlite_handler_when_disabled(self):
         """Test that setup_logging skips SQLite handler when log_db_enabled is False."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="DEBUG",
                 log_file_path="data/logs/test.log",
@@ -772,7 +797,7 @@ class TestSetupLoggingIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "app.log"
 
-            with patch("backend.core.logging.get_settings") as mock_settings:
+            with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     log_level="DEBUG",
                     log_file_path=str(log_path),
@@ -814,7 +839,7 @@ class TestSetupLoggingIntegration:
 
     def test_setup_logging_reduces_third_party_noise(self):
         """Test that setup_logging reduces logging level for third-party libraries."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="DEBUG",
                 log_file_path="data/logs/test.log",
@@ -840,7 +865,7 @@ class TestSetupLoggingIntegration:
 
     def test_setup_logging_handles_invalid_log_level(self):
         """Test that setup_logging handles invalid log level gracefully."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="INVALID_LEVEL",  # Invalid level
                 log_file_path="data/logs/test.log",
@@ -865,7 +890,7 @@ class TestSetupLoggingIntegration:
 
     def test_setup_logging_clears_existing_handlers(self):
         """Test that setup_logging clears existing handlers before adding new ones."""
-        with patch("backend.core.logging.get_settings") as mock_settings:
+        with patch("backend.core.logging.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 log_level="INFO",
                 log_file_path="data/logs/test.log",
@@ -1246,7 +1271,7 @@ class TestDatabaseHandlerTableNotExists:
         )
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -1279,7 +1304,7 @@ class TestDatabaseHandlerTableNotExists:
         mock_session.add.side_effect = Exception("Connection refused")
         handler._get_session = MagicMock(return_value=mock_session)
 
-        with patch("backend.models.log.Log") as MockLog:
+        with patch("backend.models.log.Log", autospec=True) as MockLog:
             mock_log_instance = MagicMock()
             MockLog.return_value = mock_log_instance
 
@@ -1328,7 +1353,7 @@ class TestEnableDeferredDbLogging:
         deferred_handler._db_available = True
         mock_root.handlers = [deferred_handler]
 
-        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root, autospec=True):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
@@ -1348,7 +1373,7 @@ class TestEnableDeferredDbLogging:
         active_handler._db_available = True
         mock_root.handlers = [active_handler]
 
-        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root, autospec=True):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
@@ -1363,7 +1388,7 @@ class TestEnableDeferredDbLogging:
         mock_root = MagicMock()
         mock_root.handlers = [logging.StreamHandler()]
 
-        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root, autospec=True):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 
@@ -1391,7 +1416,7 @@ class TestEnableDeferredDbLogging:
         mock_root = MagicMock()
         mock_root.handlers = [deferred1, active, deferred2]
 
-        with patch("backend.core.logging.logging.getLogger", return_value=mock_root):
+        with patch("backend.core.logging.logging.getLogger", return_value=mock_root, autospec=True):
             # Call the function
             enabled_count = enable_deferred_db_logging()
 

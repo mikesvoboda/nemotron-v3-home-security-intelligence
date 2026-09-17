@@ -420,7 +420,7 @@ class TestGetTLSConfig:
 
     def test_get_config_disabled_by_default(self, clean_env):
         """Test that TLS is disabled by default."""
-        with patch("backend.core.config.get_settings") as mock_get_settings:
+        with patch("backend.core.config.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_cert_path = None
@@ -617,7 +617,7 @@ class TestLoadCertificatePaths:
         """Test when certificate paths are not configured."""
         from backend.core.tls import load_certificate_paths
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_cert_file = None
             mock_settings.tls_key_file = None
@@ -631,7 +631,7 @@ class TestLoadCertificatePaths:
         """Test when only tls_cert_file is set but tls_key_file is None."""
         from backend.core.tls import load_certificate_paths
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_cert_file = "/path/to/cert.pem"
             mock_settings.tls_key_file = None
@@ -650,7 +650,7 @@ class TestLoadCertificatePaths:
         cert_file.write_text("CERT")
         key_file.write_text("KEY")
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_cert_file = str(cert_file)
             mock_settings.tls_key_file = str(key_file)
@@ -667,7 +667,7 @@ class TestLoadCertificatePaths:
         key_file = tmp_path / "key.pem"
         key_file.write_text("KEY")
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_cert_file = "/nonexistent/cert.pem"
             mock_settings.tls_key_file = str(key_file)
@@ -683,7 +683,7 @@ class TestLoadCertificatePaths:
         cert_file = tmp_path / "cert.pem"
         cert_file.write_text("CERT")
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_cert_file = str(cert_file)
             mock_settings.tls_key_file = "/nonexistent/key.pem"
@@ -879,7 +879,7 @@ class TestGetTLSConfigModeBased:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "self_signed"
             mock_settings.tls_cert_path = str(cert_path)
@@ -906,7 +906,7 @@ class TestGetTLSConfigModeBased:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "provided"
             mock_settings.tls_cert_path = str(cert_path)
@@ -928,7 +928,7 @@ class TestGetTLSConfigLegacy:
 
     def test_legacy_tls_disabled(self):
         """Test legacy mode with TLS disabled."""
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = False
@@ -949,7 +949,7 @@ class TestGetTLSConfigLegacy:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = True
@@ -968,7 +968,7 @@ class TestGetTLSConfigLegacy:
         """Test legacy mode raises error when certs not found."""
         from backend.core.tls import CertificateNotFoundError
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = True
@@ -984,7 +984,7 @@ class TestGetTLSConfigLegacy:
         cert_dir = tmp_path / "certs"
         cert_dir.mkdir()
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = True
@@ -1007,7 +1007,7 @@ class TestGetTLSConfigLegacy:
         """Test legacy mode raises error when no certs and auto-generate disabled."""
         from backend.core.tls import TLSConfigurationError
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = True
@@ -1033,7 +1033,7 @@ class TestGetTLSConfigLegacy:
 
         ca_path.write_text(cert_path.read_text())
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = True
@@ -1061,7 +1061,7 @@ class TestGetTLSConfigLegacy:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_mode = "disabled"
             mock_settings.tls_enabled = True
@@ -1091,8 +1091,8 @@ class TestGetLocalIPs:
         from backend.core.tls import _get_local_ips
 
         with (
-            patch("socket.gethostname", return_value="testhost"),
-            patch("socket.gethostbyname", return_value="192.168.1.100"),
+            patch("socket.gethostname", return_value="testhost", autospec=True),
+            patch("socket.gethostbyname", return_value="192.168.1.100", autospec=True),
         ):
             ips = _get_local_ips()
             assert "127.0.0.1" in ips
@@ -1106,7 +1106,7 @@ class TestGetLocalIPs:
 
         caplog.set_level(logging.DEBUG)
 
-        with patch("socket.gethostname", side_effect=Exception("Network error")):
+        with patch("socket.gethostname", side_effect=Exception("Network error"), autospec=True):
             ips = _get_local_ips()
             # Should still return 127.0.0.1
             assert "127.0.0.1" in ips
@@ -1119,7 +1119,7 @@ class TestIsTLSEnabled:
         """Test is_tls_enabled returns False when both flags disabled."""
         from backend.core.tls import is_tls_enabled
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = False
             mock_settings.tls_mode = "disabled"
@@ -1131,7 +1131,7 @@ class TestIsTLSEnabled:
         """Test is_tls_enabled returns True when legacy flag enabled."""
         from backend.core.tls import is_tls_enabled
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = True
             mock_settings.tls_mode = "disabled"
@@ -1143,7 +1143,7 @@ class TestIsTLSEnabled:
         """Test is_tls_enabled returns True when mode is not disabled."""
         from backend.core.tls import is_tls_enabled
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = False
             mock_settings.tls_mode = "self_signed"
@@ -1159,7 +1159,7 @@ class TestGetCertInfo:
         """Test get_cert_info returns None when TLS disabled."""
         from backend.core.tls import get_cert_info
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = False
             mock_settings.tls_mode = "disabled"
@@ -1181,7 +1181,7 @@ class TestGetCertInfo:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = False
             mock_settings.tls_mode = "self_signed"
@@ -1208,7 +1208,7 @@ class TestGetCertInfo:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = True
             mock_settings.tls_mode = "disabled"
@@ -1237,7 +1237,7 @@ class TestGetCertInfo:
             hostname="localhost",
         )
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = True
             mock_settings.tls_mode = "disabled"
@@ -1255,7 +1255,7 @@ class TestGetCertInfo:
         """Test get_cert_info returns None when cert doesn't exist."""
         from backend.core.tls import get_cert_info
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = True
             mock_settings.tls_mode = "disabled"
@@ -1279,7 +1279,7 @@ class TestGetCertInfo:
         invalid_cert = tmp_path / "invalid.pem"
         invalid_cert.write_text("Not a valid certificate")
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = True
             mock_settings.tls_mode = "disabled"
@@ -1296,7 +1296,7 @@ class TestGetCertInfo:
         """Test get_cert_info returns None when no cert is configured."""
         from backend.core.tls import get_cert_info
 
-        with patch("backend.core.tls.get_settings") as mock_get_settings:
+        with patch("backend.core.tls.get_settings", autospec=True) as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.tls_enabled = True
             mock_settings.tls_mode = "disabled"

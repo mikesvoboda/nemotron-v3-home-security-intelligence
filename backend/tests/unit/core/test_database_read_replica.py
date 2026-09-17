@@ -122,13 +122,18 @@ class TestInitDbReadReplica:
                 return mock_engine
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     side_effect=mock_create_engine,
+                    autospec=True,
                 ),
-                patch("backend.core.database._setup_pool_event_handlers") as mock_setup_handlers,
-                patch("backend.core.database.async_sessionmaker") as mock_sessionmaker,
+                patch(
+                    "backend.core.database._setup_pool_event_handlers", autospec=True
+                ) as mock_setup_handlers,
+                patch(
+                    "backend.core.database.async_sessionmaker", autospec=True
+                ) as mock_sessionmaker,
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -201,13 +206,18 @@ class TestInitDbReadReplica:
                 return mock_engine
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
                 patch(
                     "backend.core.database.create_async_engine",
                     side_effect=mock_create_engine,
+                    autospec=True,
                 ),
-                patch("backend.core.database._setup_pool_event_handlers") as mock_setup_handlers,
-                patch("backend.core.database.async_sessionmaker") as mock_sessionmaker,
+                patch(
+                    "backend.core.database._setup_pool_event_handlers", autospec=True
+                ) as mock_setup_handlers,
+                patch(
+                    "backend.core.database.async_sessionmaker", autospec=True
+                ) as mock_sessionmaker,
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -273,10 +283,14 @@ class TestInitDbReadReplica:
             mock_conn = AsyncMock()
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
-                patch("backend.core.database.create_async_engine", return_value=mock_engine),
-                patch("backend.core.database._setup_pool_event_handlers"),
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+                patch(
+                    "backend.core.database.create_async_engine",
+                    return_value=mock_engine,
+                    autospec=True,
+                ),
+                patch("backend.core.database._setup_pool_event_handlers", autospec=True),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -444,7 +458,9 @@ class TestGetReadDbFallback:
             db_module._read_session_factory = mock_read_factory
             db_module._bound_loop_id = None
 
-            with patch("backend.core.database._check_loop_mismatch", return_value=False):
+            with patch(
+                "backend.core.database._check_loop_mismatch", return_value=False, autospec=True
+            ):
                 # Call get_read_db and consume the generator
                 gen = db_module.get_read_db()
                 session = await gen.__anext__()
@@ -489,7 +505,9 @@ class TestGetReadDbFallback:
             db_module._read_session_factory = None
             db_module._bound_loop_id = None
 
-            with patch("backend.core.database._check_loop_mismatch", return_value=False):
+            with patch(
+                "backend.core.database._check_loop_mismatch", return_value=False, autospec=True
+            ):
                 # Call get_read_db and consume the generator
                 gen = db_module.get_read_db()
                 session = await gen.__anext__()

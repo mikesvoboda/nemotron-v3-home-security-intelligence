@@ -132,7 +132,9 @@ class TestAddSpanAttributes:
         mock_span = MagicMock()
         mock_span.set_attribute = MagicMock()
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             add_span_attributes(camera_id="front_door", confidence=0.95, enabled=True)
 
         assert mock_span.set_attribute.call_count == 3
@@ -144,7 +146,9 @@ class TestAddSpanAttributes:
         """Should handle spans that don't have set_attribute method."""
         mock_span = MagicMock(spec=[])  # Empty spec - no methods
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             # Should not raise
             add_span_attributes(key="value")
 
@@ -158,7 +162,9 @@ class TestRecordException:
         mock_span.record_exception = MagicMock()
         mock_span.set_status = MagicMock()
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             test_exception = ValueError("Test error")
             record_exception(test_exception, attributes={"custom": "value"})
 
@@ -171,7 +177,9 @@ class TestRecordException:
         """Should handle spans that don't have record_exception method."""
         mock_span = MagicMock(spec=[])  # Empty spec - no methods
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             # Should not raise
             record_exception(ValueError("test"))
 
@@ -370,25 +378,40 @@ class TestSetupTelemetrySuccess:
 
         # Mock all the imports inside setup_telemetry
         with (
-            patch("opentelemetry.sdk.resources.Resource") as mock_resource,
-            patch("opentelemetry.sdk.resources.get_aggregated_resources") as mock_get_aggregated,
-            patch("opentelemetry.sdk.resources.ProcessResourceDetector"),
-            patch("opentelemetry.sdk.resources.OsResourceDetector"),
-            patch("opentelemetry.sdk.trace.TracerProvider") as mock_tracer_provider,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
-                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+                "opentelemetry.sdk.resources.get_aggregated_resources", autospec=True
+            ) as mock_get_aggregated,
+            patch("opentelemetry.sdk.resources.ProcessResourceDetector", autospec=True),
+            patch("opentelemetry.sdk.resources.OsResourceDetector", autospec=True),
+            patch("opentelemetry.sdk.trace.TracerProvider", autospec=True) as mock_tracer_provider,
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter",
+                autospec=True,
             ) as mock_exporter,
-            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_processor,
-            patch("opentelemetry.sdk.trace.sampling.TraceIdRatioBased") as mock_sampler,
-            patch("opentelemetry.trace") as mock_trace,
-            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
-            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
             patch(
-                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+                "opentelemetry.sdk.trace.export.BatchSpanProcessor", autospec=True
+            ) as mock_processor,
+            patch(
+                "opentelemetry.sdk.trace.sampling.TraceIdRatioBased", autospec=True
+            ) as mock_sampler,
+            patch("opentelemetry.trace", autospec=True) as mock_trace,
+            patch(
+                "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor", autospec=True
+            ) as mock_fastapi,
+            patch(
+                "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor", autospec=True
+            ) as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor", autospec=True
             ) as mock_sqlalchemy,
-            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            patch(
+                "opentelemetry.instrumentation.redis.RedisInstrumentor", autospec=True
+            ) as mock_redis,
             # Mock the priority-based sampler module (NEM-3793)
-            patch("backend.core.sampling.create_otel_sampler") as mock_create_sampler,
+            patch(
+                "backend.core.sampling.create_otel_sampler", autospec=True
+            ) as mock_create_sampler,
         ):
             # Setup mocks
             mock_service_resource = MagicMock()
@@ -457,7 +480,7 @@ class TestSetupTelemetrySuccess:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             result = setup_telemetry(mock_app, mock_settings)
 
             assert result is False
@@ -484,10 +507,11 @@ class TestSetupTelemetrySuccess:
         mock_settings.otel_trace_sample_rate = 1.0
 
         with (
-            patch("opentelemetry.sdk.resources.Resource") as mock_resource,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
             patch(
                 "opentelemetry.sdk.trace.TracerProvider",
                 side_effect=Exception("Initialization failed"),
+                autospec=True,
             ),
         ):
             mock_resource.create.return_value = MagicMock()
@@ -518,12 +542,18 @@ class TestShutdownTelemetrySuccess:
         telemetry_module._tracer_provider = mock_provider
 
         with (
-            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
-            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
             patch(
-                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+                "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor", autospec=True
+            ) as mock_fastapi,
+            patch(
+                "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor", autospec=True
+            ) as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor", autospec=True
             ) as mock_sqlalchemy,
-            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            patch(
+                "opentelemetry.instrumentation.redis.RedisInstrumentor", autospec=True
+            ) as mock_redis,
         ):
             shutdown_telemetry()
 
@@ -557,7 +587,7 @@ class TestShutdownTelemetrySuccess:
                 raise Exception("Shutdown failed")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             # Should not raise
             shutdown_telemetry()
 
@@ -580,7 +610,7 @@ class TestGetTracerImportError:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             tracer = get_tracer("test_module")
 
             # Verify it's a no-op tracer
@@ -601,7 +631,7 @@ class TestGetCurrentSpanImportError:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             span = get_current_span()
 
             # Verify it's a no-op span
@@ -618,8 +648,8 @@ class TestRecordExceptionWithStatus:
         mock_span.set_status = MagicMock()
 
         with (
-            patch("backend.core.telemetry.get_current_span", return_value=mock_span),
-            patch("opentelemetry.trace.StatusCode") as mock_status_code,
+            patch("backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True),
+            patch("opentelemetry.trace.StatusCode", autospec=True) as mock_status_code,
         ):
             mock_status_code.ERROR = "ERROR"
             test_exception = ValueError("Test error")
@@ -640,7 +670,9 @@ class TestGetTraceId:
         mock_span_context.trace_id = 12345678901234567890123456789012
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             trace_id = get_trace_id()
 
             assert trace_id is not None
@@ -654,7 +686,9 @@ class TestGetTraceId:
         mock_span_context.is_valid = False
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             trace_id = get_trace_id()
 
             assert trace_id is None
@@ -663,7 +697,9 @@ class TestGetTraceId:
         """Should return None when span doesn't have get_span_context method."""
         mock_span = MagicMock(spec=[])  # No get_span_context method
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             trace_id = get_trace_id()
 
             assert trace_id is None
@@ -674,8 +710,8 @@ class TestGetTraceId:
         mock_span.get_span_context.side_effect = Exception("Test error")
 
         with (
-            patch("backend.core.telemetry.get_current_span", return_value=mock_span),
-            patch("backend.core.telemetry.logger") as mock_logger,
+            patch("backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True),
+            patch("backend.core.telemetry.logger", autospec=True) as mock_logger,
         ):
             trace_id = get_trace_id()
 
@@ -696,7 +732,9 @@ class TestGetSpanId:
         mock_span_context.span_id = 1234567890123456
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             span_id = get_span_id()
 
             assert span_id is not None
@@ -710,7 +748,9 @@ class TestGetSpanId:
         mock_span_context.is_valid = False
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             span_id = get_span_id()
 
             assert span_id is None
@@ -719,7 +759,9 @@ class TestGetSpanId:
         """Should return None when span doesn't have get_span_context method."""
         mock_span = MagicMock(spec=[])  # No get_span_context method
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             span_id = get_span_id()
 
             assert span_id is None
@@ -730,8 +772,8 @@ class TestGetSpanId:
         mock_span.get_span_context.side_effect = Exception("Test error")
 
         with (
-            patch("backend.core.telemetry.get_current_span", return_value=mock_span),
-            patch("backend.core.telemetry.logger") as mock_logger,
+            patch("backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True),
+            patch("backend.core.telemetry.logger", autospec=True) as mock_logger,
         ):
             span_id = get_span_id()
 
@@ -747,8 +789,8 @@ class TestGetTraceContext:
     def test_get_trace_context_returns_dict(self) -> None:
         """Should return dictionary with trace_id and span_id."""
         with (
-            patch("backend.core.telemetry.get_trace_id", return_value="trace123"),
-            patch("backend.core.telemetry.get_span_id", return_value="span456"),
+            patch("backend.core.telemetry.get_trace_id", return_value="trace123", autospec=True),
+            patch("backend.core.telemetry.get_span_id", return_value="span456", autospec=True),
         ):
             context = get_trace_context()
 
@@ -757,8 +799,8 @@ class TestGetTraceContext:
     def test_get_trace_context_handles_none_values(self) -> None:
         """Should return dictionary with None values when IDs are not available."""
         with (
-            patch("backend.core.telemetry.get_trace_id", return_value=None),
-            patch("backend.core.telemetry.get_span_id", return_value=None),
+            patch("backend.core.telemetry.get_trace_id", return_value=None, autospec=True),
+            patch("backend.core.telemetry.get_span_id", return_value=None, autospec=True),
         ):
             context = get_trace_context()
 
@@ -777,7 +819,7 @@ class TestTraceSpan:
         mock_tracer.start_as_current_span.return_value = mock_span
 
         with (
-            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer),
+            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True),
             trace_span("test_span", camera_id="front_door", confidence=0.95) as span,
         ):
             assert span == mock_span
@@ -796,8 +838,8 @@ class TestTraceSpan:
         mock_tracer.start_as_current_span.return_value = mock_span
 
         with (
-            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer),
-            patch("backend.core.telemetry.record_exception") as mock_record,
+            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True),
+            patch("backend.core.telemetry.record_exception", autospec=True) as mock_record,
             pytest.raises(ValueError),
         ):
             with trace_span("test_span"):
@@ -814,8 +856,8 @@ class TestTraceSpan:
         mock_tracer.start_as_current_span.return_value = mock_span
 
         with (
-            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer),
-            patch("backend.core.telemetry.record_exception") as mock_record,
+            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True),
+            patch("backend.core.telemetry.record_exception", autospec=True) as mock_record,
             pytest.raises(ValueError),
         ):
             with trace_span("test_span", record_exception_on_error=False):
@@ -840,7 +882,7 @@ class TestTraceFunctionDecorator:
         mock_span.__exit__ = Mock(return_value=None)
         mock_tracer.start_as_current_span.return_value = mock_span
 
-        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer):
+        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True):
             result = sync_func(2, 3)
 
         assert result == 5
@@ -859,7 +901,7 @@ class TestTraceFunctionDecorator:
         mock_span.__exit__ = Mock(return_value=None)
         mock_tracer.start_as_current_span.return_value = mock_span
 
-        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer):
+        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True):
             result = my_function()
 
         assert result == "result"
@@ -879,7 +921,7 @@ class TestTraceFunctionDecorator:
         mock_span.__exit__ = Mock(return_value=None)
         mock_tracer.start_as_current_span.return_value = mock_span
 
-        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer):
+        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True):
             result = await async_func(5)
 
         assert result == 10
@@ -898,7 +940,7 @@ class TestTraceFunctionDecorator:
         mock_span.__exit__ = Mock(return_value=None)
         mock_tracer.start_as_current_span.return_value = mock_span
 
-        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer):
+        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True):
             result = func_with_attrs()
 
         assert result == "done"
@@ -920,8 +962,8 @@ class TestTraceFunctionDecorator:
         mock_tracer.start_as_current_span.return_value = mock_span
 
         with (
-            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer),
-            patch("backend.core.telemetry.record_exception") as mock_record,
+            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True),
+            patch("backend.core.telemetry.record_exception", autospec=True) as mock_record,
             pytest.raises(ValueError),
         ):
             failing_func()
@@ -943,8 +985,8 @@ class TestTraceFunctionDecorator:
         mock_tracer.start_as_current_span.return_value = mock_span
 
         with (
-            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer),
-            patch("backend.core.telemetry.record_exception") as mock_record,
+            patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True),
+            patch("backend.core.telemetry.record_exception", autospec=True) as mock_record,
             pytest.raises(ValueError),
         ):
             await failing_async_func()
@@ -969,7 +1011,7 @@ class TestTraceFunctionDecorator:
         mock_span.__exit__ = Mock(return_value=None)
         mock_tracer.start_as_current_span.return_value = mock_span
 
-        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer):
+        with patch("backend.core.telemetry.get_tracer", return_value=mock_tracer, autospec=True):
             result = await func_returning_coroutine()
 
         assert result == 42
@@ -987,12 +1029,18 @@ class TestShutdownTelemetryNonTracerProvider:
         telemetry_module._tracer_provider = "not_a_tracer_provider"  # Not a TracerProvider
 
         with (
-            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
-            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
             patch(
-                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+                "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor", autospec=True
+            ) as mock_fastapi,
+            patch(
+                "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor", autospec=True
+            ) as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor", autospec=True
             ) as mock_sqlalchemy,
-            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            patch(
+                "opentelemetry.instrumentation.redis.RedisInstrumentor", autospec=True
+            ) as mock_redis,
         ):
             shutdown_telemetry()
 
@@ -1017,7 +1065,9 @@ class TestRecordExceptionWithoutSetStatus:
         # Simulate span without set_status method
         delattr(mock_span, "set_status")
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             test_exception = ValueError("Test error")
             record_exception(test_exception)
 
@@ -1065,31 +1115,51 @@ class TestParentBasedSampler:
         mock_settings.otel_batch_export_timeout_ms = 30000
 
         with (
-            patch("opentelemetry.sdk.resources.Resource") as mock_resource,
-            patch("opentelemetry.sdk.trace.TracerProvider") as mock_tracer_provider,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
+            patch("opentelemetry.sdk.trace.TracerProvider", autospec=True) as mock_tracer_provider,
             patch(
-                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter",
+                autospec=True,
             ) as mock_exporter,
-            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_processor,
-            patch("opentelemetry.sdk.trace.sampling.TraceIdRatioBased") as mock_ratio_sampler,
-            patch("opentelemetry.sdk.trace.sampling.ParentBased") as mock_parent_based,
-            patch("opentelemetry.sdk.trace.sampling.ALWAYS_ON") as mock_always_on,
-            patch("opentelemetry.sdk.trace.sampling.ALWAYS_OFF") as mock_always_off,
-            patch("opentelemetry.trace") as mock_trace,
-            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
-            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
             patch(
-                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+                "opentelemetry.sdk.trace.export.BatchSpanProcessor", autospec=True
+            ) as mock_processor,
+            patch(
+                "opentelemetry.sdk.trace.sampling.TraceIdRatioBased", autospec=True
+            ) as mock_ratio_sampler,
+            patch(
+                "opentelemetry.sdk.trace.sampling.ParentBased", autospec=True
+            ) as mock_parent_based,
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_ON", autospec=True) as mock_always_on,
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_OFF", autospec=True) as mock_always_off,
+            patch("opentelemetry.trace", autospec=True) as mock_trace,
+            patch(
+                "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor", autospec=True
+            ) as mock_fastapi,
+            patch(
+                "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor", autospec=True
+            ) as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor", autospec=True
             ) as mock_sqlalchemy,
-            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
-            patch("opentelemetry.propagate.set_global_textmap") as mock_set_textmap,
-            patch("opentelemetry.propagators.composite.CompositePropagator") as mock_composite,
             patch(
-                "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator"
+                "opentelemetry.instrumentation.redis.RedisInstrumentor", autospec=True
+            ) as mock_redis,
+            patch("opentelemetry.propagate.set_global_textmap", autospec=True) as mock_set_textmap,
+            patch(
+                "opentelemetry.propagators.composite.CompositePropagator", autospec=True
+            ) as mock_composite,
+            patch(
+                "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator",
+                autospec=True,
             ) as mock_trace_prop,
-            patch("opentelemetry.baggage.propagation.W3CBaggagePropagator") as mock_baggage_prop,
+            patch(
+                "opentelemetry.baggage.propagation.W3CBaggagePropagator", autospec=True
+            ) as mock_baggage_prop,
             # Mock the priority-based sampler module (NEM-3793)
-            patch("backend.core.sampling.create_otel_sampler") as mock_create_sampler,
+            patch(
+                "backend.core.sampling.create_otel_sampler", autospec=True
+            ) as mock_create_sampler,
         ):
             # Setup mocks
             mock_resource.create.return_value = MagicMock()
@@ -1126,8 +1196,10 @@ class TestSetBaggage:
         mock_ctx = MagicMock()
 
         with (
-            patch("opentelemetry.baggage.set_baggage", return_value=mock_ctx) as mock_set,
-            patch("opentelemetry.context.attach") as mock_attach,
+            patch(
+                "opentelemetry.baggage.set_baggage", return_value=mock_ctx, autospec=True
+            ) as mock_set,
+            patch("opentelemetry.context.attach", autospec=True) as mock_attach,
         ):
             set_baggage("camera_id", "front_door")
 
@@ -1145,15 +1217,19 @@ class TestSetBaggage:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             # Should not raise
             set_baggage("key", "value")
 
     def test_set_baggage_handles_exception(self) -> None:
         """Should handle exceptions gracefully."""
         with (
-            patch("opentelemetry.baggage.set_baggage", side_effect=Exception("Test error")),
-            patch("backend.core.telemetry.logger") as mock_logger,
+            patch(
+                "opentelemetry.baggage.set_baggage",
+                side_effect=Exception("Test error"),
+                autospec=True,
+            ),
+            patch("backend.core.telemetry.logger", autospec=True) as mock_logger,
         ):
             set_baggage("key", "value")
 
@@ -1165,7 +1241,9 @@ class TestGetBaggage:
 
     def test_get_baggage_returns_value(self) -> None:
         """Should return baggage value from OpenTelemetry context."""
-        with patch("opentelemetry.baggage.get_baggage", return_value="front_door") as mock_get:
+        with patch(
+            "opentelemetry.baggage.get_baggage", return_value="front_door", autospec=True
+        ) as mock_get:
             result = get_baggage("camera_id")
 
             assert result == "front_door"
@@ -1173,7 +1251,7 @@ class TestGetBaggage:
 
     def test_get_baggage_returns_none_when_not_set(self) -> None:
         """Should return None when baggage is not set."""
-        with patch("opentelemetry.baggage.get_baggage", return_value=None):
+        with patch("opentelemetry.baggage.get_baggage", return_value=None, autospec=True):
             result = get_baggage("nonexistent_key")
 
             assert result is None
@@ -1189,7 +1267,7 @@ class TestGetBaggage:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             result = get_baggage("key")
 
             assert result is None
@@ -1197,8 +1275,12 @@ class TestGetBaggage:
     def test_get_baggage_handles_exception(self) -> None:
         """Should return None and log on exception."""
         with (
-            patch("opentelemetry.baggage.get_baggage", side_effect=Exception("Test error")),
-            patch("backend.core.telemetry.logger") as mock_logger,
+            patch(
+                "opentelemetry.baggage.get_baggage",
+                side_effect=Exception("Test error"),
+                autospec=True,
+            ),
+            patch("backend.core.telemetry.logger", autospec=True) as mock_logger,
         ):
             result = get_baggage("key")
 
@@ -1213,14 +1295,14 @@ class TestGetAllBaggage:
         """Should return dictionary of all baggage entries."""
         mock_baggage = {"camera_id": "front_door", "batch_id": "batch-123"}
 
-        with patch("opentelemetry.baggage.get_all", return_value=mock_baggage):
+        with patch("opentelemetry.baggage.get_all", return_value=mock_baggage, autospec=True):
             result = get_all_baggage()
 
             assert result == {"camera_id": "front_door", "batch_id": "batch-123"}
 
     def test_get_all_baggage_returns_empty_dict_when_no_baggage(self) -> None:
         """Should return empty dict when no baggage is set."""
-        with patch("opentelemetry.baggage.get_all", return_value={}):
+        with patch("opentelemetry.baggage.get_all", return_value={}, autospec=True):
             result = get_all_baggage()
 
             assert result == {}
@@ -1236,7 +1318,7 @@ class TestGetAllBaggage:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             result = get_all_baggage()
 
             assert result == {}
@@ -1250,8 +1332,10 @@ class TestClearBaggage:
         mock_ctx = MagicMock()
 
         with (
-            patch("opentelemetry.baggage.remove_baggage", return_value=mock_ctx) as mock_remove,
-            patch("opentelemetry.context.attach") as mock_attach,
+            patch(
+                "opentelemetry.baggage.remove_baggage", return_value=mock_ctx, autospec=True
+            ) as mock_remove,
+            patch("opentelemetry.context.attach", autospec=True) as mock_attach,
         ):
             clear_baggage("camera_id")
 
@@ -1269,7 +1353,7 @@ class TestClearBaggage:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             # Should not raise
             clear_baggage("key")
 
@@ -1279,7 +1363,7 @@ class TestSetRequestBaggage:
 
     def test_set_request_baggage_sets_all_provided_entries(self) -> None:
         """Should set all provided baggage entries."""
-        with patch("backend.core.telemetry.set_baggage") as mock_set:
+        with patch("backend.core.telemetry.set_baggage", autospec=True) as mock_set:
             set_request_baggage(
                 request_id="req-123",
                 correlation_id="corr-456",
@@ -1295,14 +1379,14 @@ class TestSetRequestBaggage:
 
     def test_set_request_baggage_skips_none_values(self) -> None:
         """Should skip None values."""
-        with patch("backend.core.telemetry.set_baggage") as mock_set:
+        with patch("backend.core.telemetry.set_baggage", autospec=True) as mock_set:
             set_request_baggage(camera_id="front_door")
 
             mock_set.assert_called_once_with("camera_id", "front_door")
 
     def test_set_request_baggage_with_no_values(self) -> None:
         """Should not set any baggage when no values provided."""
-        with patch("backend.core.telemetry.set_baggage") as mock_set:
+        with patch("backend.core.telemetry.set_baggage", autospec=True) as mock_set:
             set_request_baggage()
 
             mock_set.assert_not_called()
@@ -1317,8 +1401,10 @@ class TestExtractContextFromHeaders:
         headers = {"traceparent": "00-trace-span-01", "baggage": "camera_id=front_door"}
 
         with (
-            patch("opentelemetry.propagate.extract", return_value=mock_ctx) as mock_extract,
-            patch("opentelemetry.context.attach") as mock_attach,
+            patch(
+                "opentelemetry.propagate.extract", return_value=mock_ctx, autospec=True
+            ) as mock_extract,
+            patch("opentelemetry.context.attach", autospec=True) as mock_attach,
         ):
             extract_context_from_headers(headers)
 
@@ -1338,7 +1424,7 @@ class TestExtractContextFromHeaders:
 
         headers = {"traceparent": "00-trace-span-01"}
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             # Should not raise
             extract_context_from_headers(headers)
 
@@ -1347,8 +1433,12 @@ class TestExtractContextFromHeaders:
         headers = {"traceparent": "00-trace-span-01"}
 
         with (
-            patch("opentelemetry.propagate.extract", side_effect=Exception("Test error")),
-            patch("backend.core.telemetry.logger") as mock_logger,
+            patch(
+                "opentelemetry.propagate.extract",
+                side_effect=Exception("Test error"),
+                autospec=True,
+            ),
+            patch("backend.core.telemetry.logger", autospec=True) as mock_logger,
         ):
             extract_context_from_headers(headers)
 
@@ -1389,31 +1479,51 @@ class TestCompositePropagatorConfiguration:
         mock_settings.otel_batch_export_timeout_ms = 30000
 
         with (
-            patch("opentelemetry.sdk.resources.Resource") as mock_resource,
-            patch("opentelemetry.sdk.trace.TracerProvider") as mock_tracer_provider,
+            patch("opentelemetry.sdk.resources.Resource", autospec=True) as mock_resource,
+            patch("opentelemetry.sdk.trace.TracerProvider", autospec=True) as mock_tracer_provider,
             patch(
-                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter",
+                autospec=True,
             ) as mock_exporter,
-            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_processor,
-            patch("opentelemetry.sdk.trace.sampling.TraceIdRatioBased") as mock_sampler,
-            patch("opentelemetry.sdk.trace.sampling.ParentBased") as mock_parent_based,
-            patch("opentelemetry.sdk.trace.sampling.ALWAYS_ON"),
-            patch("opentelemetry.sdk.trace.sampling.ALWAYS_OFF"),
-            patch("opentelemetry.trace") as mock_trace,
-            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
-            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
             patch(
-                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+                "opentelemetry.sdk.trace.export.BatchSpanProcessor", autospec=True
+            ) as mock_processor,
+            patch(
+                "opentelemetry.sdk.trace.sampling.TraceIdRatioBased", autospec=True
+            ) as mock_sampler,
+            patch(
+                "opentelemetry.sdk.trace.sampling.ParentBased", autospec=True
+            ) as mock_parent_based,
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_ON", autospec=True),
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_OFF", autospec=True),
+            patch("opentelemetry.trace", autospec=True) as mock_trace,
+            patch(
+                "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor", autospec=True
+            ) as mock_fastapi,
+            patch(
+                "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor", autospec=True
+            ) as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor", autospec=True
             ) as mock_sqlalchemy,
-            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
-            patch("opentelemetry.propagate.set_global_textmap") as mock_set_textmap,
-            patch("opentelemetry.propagators.composite.CompositePropagator") as mock_composite,
             patch(
-                "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator"
+                "opentelemetry.instrumentation.redis.RedisInstrumentor", autospec=True
+            ) as mock_redis,
+            patch("opentelemetry.propagate.set_global_textmap", autospec=True) as mock_set_textmap,
+            patch(
+                "opentelemetry.propagators.composite.CompositePropagator", autospec=True
+            ) as mock_composite,
+            patch(
+                "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator",
+                autospec=True,
             ) as mock_trace_prop,
-            patch("opentelemetry.baggage.propagation.W3CBaggagePropagator") as mock_baggage_prop,
+            patch(
+                "opentelemetry.baggage.propagation.W3CBaggagePropagator", autospec=True
+            ) as mock_baggage_prop,
             # Mock the priority-based sampler module (NEM-3793)
-            patch("backend.core.sampling.create_otel_sampler") as mock_create_sampler,
+            patch(
+                "backend.core.sampling.create_otel_sampler", autospec=True
+            ) as mock_create_sampler,
         ):
             # Setup mocks
             mock_resource.create.return_value = MagicMock()
@@ -1458,7 +1568,9 @@ class TestAddSpanEvent:
         mock_span = MagicMock()
         mock_span.add_event = MagicMock()
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             add_span_event("test.event", {"key": "value"})
 
         mock_span.add_event.assert_called_once_with("test.event", attributes={"key": "value"})
@@ -1470,7 +1582,9 @@ class TestAddSpanEvent:
         mock_span = MagicMock()
         mock_span.add_event = MagicMock()
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             add_span_event("test.event", {"key": "value"}, timestamp_ns=1234567890)
 
         mock_span.add_event.assert_called_once_with(
@@ -1483,7 +1597,9 @@ class TestAddSpanEvent:
 
         mock_span = MagicMock(spec=[])  # Empty spec - no methods
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             # Should not raise
             add_span_event("test.event")
 
@@ -1498,7 +1614,9 @@ class TestRecordPipelineMilestone:
         mock_span = MagicMock()
         mock_span.add_event = MagicMock()
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             record_pipeline_milestone(
                 "detection_complete",
                 stage="detect",
@@ -1527,7 +1645,9 @@ class TestRecordPipelineMilestone:
         mock_span = MagicMock()
         mock_span.add_event = MagicMock()
 
-        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.telemetry.get_current_span", return_value=mock_span, autospec=True
+        ):
             record_pipeline_milestone("started")
 
         mock_span.add_event.assert_called_once()
@@ -1587,8 +1707,8 @@ class TestCaptureSpanContext:
         from backend.core.telemetry import capture_span_context
 
         with (
-            patch("backend.core.telemetry.get_trace_id", return_value="trace123"),
-            patch("backend.core.telemetry.get_span_id", return_value="span456"),
+            patch("backend.core.telemetry.get_trace_id", return_value="trace123", autospec=True),
+            patch("backend.core.telemetry.get_span_id", return_value="span456", autospec=True),
         ):
             ctx = capture_span_context()
 
@@ -1601,8 +1721,8 @@ class TestCaptureSpanContext:
         from backend.core.telemetry import capture_span_context
 
         with (
-            patch("backend.core.telemetry.get_trace_id", return_value=None),
-            patch("backend.core.telemetry.get_span_id", return_value="span456"),
+            patch("backend.core.telemetry.get_trace_id", return_value=None, autospec=True),
+            patch("backend.core.telemetry.get_span_id", return_value="span456", autospec=True),
         ):
             ctx = capture_span_context()
 
@@ -1613,8 +1733,8 @@ class TestCaptureSpanContext:
         from backend.core.telemetry import capture_span_context
 
         with (
-            patch("backend.core.telemetry.get_trace_id", return_value="trace123"),
-            patch("backend.core.telemetry.get_span_id", return_value=None),
+            patch("backend.core.telemetry.get_trace_id", return_value="trace123", autospec=True),
+            patch("backend.core.telemetry.get_span_id", return_value=None, autospec=True),
         ):
             ctx = capture_span_context()
 
@@ -1696,7 +1816,7 @@ class TestTraceSpanWithLinks:
         from backend.core.telemetry import trace_span_with_links
 
         with (
-            patch("backend.core.telemetry.record_exception") as mock_record,
+            patch("backend.core.telemetry.record_exception", autospec=True) as mock_record,
             pytest.raises(ValueError),
         ):
             with trace_span_with_links("test_span"):
@@ -1806,6 +1926,7 @@ class TestOTELLoggingSetup:
         with patch(
             "opentelemetry.instrumentation.logging.LoggingInstrumentor",
             return_value=mock_instrumentor,
+            autospec=True,
         ):
             _setup_otel_logging("test-service")
 
@@ -1824,7 +1945,7 @@ class TestOTELLoggingSetup:
                 raise ImportError("Module not found")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             # Should not raise
             _setup_otel_logging("test-service")
 
@@ -1838,6 +1959,7 @@ class TestOTELLoggingSetup:
         with patch(
             "opentelemetry.instrumentation.logging.LoggingInstrumentor",
             return_value=mock_instrumentor,
+            autospec=True,
         ):
             # Should not raise
             _setup_otel_logging("test-service")
@@ -1859,13 +1981,21 @@ class TestShutdownTelemetryWithLogging:
         telemetry_module._tracer_provider = mock_provider
 
         with (
-            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
-            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
             patch(
-                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+                "opentelemetry.instrumentation.fastapi.FastAPIInstrumentor", autospec=True
+            ) as mock_fastapi,
+            patch(
+                "opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor", autospec=True
+            ) as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor", autospec=True
             ) as mock_sqlalchemy,
-            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
-            patch("opentelemetry.instrumentation.logging.LoggingInstrumentor") as mock_logging,
+            patch(
+                "opentelemetry.instrumentation.redis.RedisInstrumentor", autospec=True
+            ) as mock_redis,
+            patch(
+                "opentelemetry.instrumentation.logging.LoggingInstrumentor", autospec=True
+            ) as mock_logging,
         ):
             from backend.core.telemetry import shutdown_telemetry
 

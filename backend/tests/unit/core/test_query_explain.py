@@ -32,7 +32,7 @@ class TestQueryExplainLoggerConfiguration:
         """Test that threshold can be customized via settings."""
         from backend.core.query_explain import QueryExplainLogger
 
-        with patch("backend.core.query_explain.get_settings") as mock_settings:
+        with patch("backend.core.query_explain.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 slow_query_threshold_ms=200.0,
                 slow_query_explain_enabled=True,
@@ -49,7 +49,7 @@ class TestQueryExplainLoggerConfiguration:
         original = os.environ.get("SLOW_QUERY_THRESHOLD_MS")
         try:
             os.environ["SLOW_QUERY_THRESHOLD_MS"] = "250"
-            with patch("backend.core.query_explain.get_settings") as mock_settings:
+            with patch("backend.core.query_explain.get_settings", autospec=True) as mock_settings:
                 mock_settings.return_value = MagicMock(
                     slow_query_threshold_ms=250.0,
                     slow_query_explain_enabled=True,
@@ -73,7 +73,7 @@ class TestQueryExplainLoggerConfiguration:
         """Test that EXPLAIN logging can be disabled via settings."""
         from backend.core.query_explain import QueryExplainLogger
 
-        with patch("backend.core.query_explain.get_settings") as mock_settings:
+        with patch("backend.core.query_explain.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 slow_query_threshold_ms=100.0,
                 slow_query_explain_enabled=False,
@@ -122,7 +122,7 @@ class TestQueryTimingTracking:
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
 
-        with patch.object(logger, "_log_slow_query") as mock_log:
+        with patch.object(logger, "_log_slow_query", autospec=True) as mock_log:
             # Using positional args since some params are underscore-prefixed
             logger.after_cursor_execute(
                 mock_conn,
@@ -207,7 +207,7 @@ class TestExplainAnalyzeExecution:
         ]
         mock_conn.execute.return_value = mock_result
 
-        with patch.object(logger, "_get_logger") as mock_get_logger:
+        with patch.object(logger, "_get_logger", autospec=True) as mock_get_logger:
             mock_logger = MagicMock()
             mock_get_logger.return_value = mock_logger
 
@@ -237,7 +237,7 @@ class TestExplainAnalyzeExecution:
         mock_context = MagicMock()
         mock_context._query_start_time = time.time() - 0.050  # Only 50ms ago
 
-        with patch.object(logger, "_log_slow_query") as mock_log:
+        with patch.object(logger, "_log_slow_query", autospec=True) as mock_log:
             # Using positional args since some params are underscore-prefixed
             logger.after_cursor_execute(
                 mock_conn,
@@ -255,7 +255,7 @@ class TestExplainAnalyzeExecution:
         """Test that EXPLAIN is not executed when logging is disabled."""
         from backend.core.query_explain import QueryExplainLogger
 
-        with patch("backend.core.query_explain.get_settings") as mock_settings:
+        with patch("backend.core.query_explain.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 slow_query_threshold_ms=100.0,
                 slow_query_explain_enabled=False,
@@ -267,7 +267,7 @@ class TestExplainAnalyzeExecution:
         mock_context = MagicMock()
         mock_context._query_start_time = time.time() - 0.150  # 150ms ago
 
-        with patch.object(logger, "_log_slow_query") as mock_log:
+        with patch.object(logger, "_log_slow_query", autospec=True) as mock_log:
             # Using positional args since some params are underscore-prefixed
             logger.after_cursor_execute(
                 mock_conn,
@@ -361,7 +361,7 @@ class TestStructuredLogging:
 
         logger = QueryExplainLogger()
 
-        with patch.object(logger, "_get_logger") as mock_get_logger:
+        with patch.object(logger, "_get_logger", autospec=True) as mock_get_logger:
             mock_log = MagicMock()
             mock_get_logger.return_value = mock_log
 
@@ -394,7 +394,7 @@ class TestEventListenerRegistration:
 
         mock_engine = MagicMock()
 
-        with patch("backend.core.query_explain.event") as mock_event:
+        with patch("backend.core.query_explain.event", autospec=True) as mock_event:
             logger.register(mock_engine)
 
             # Verify event.listen was called for both hooks
@@ -411,7 +411,7 @@ class TestEventListenerRegistration:
 
         mock_engine = MagicMock()
 
-        with patch("backend.core.query_explain.event") as mock_event:
+        with patch("backend.core.query_explain.event", autospec=True) as mock_event:
             setup_explain_logging(mock_engine)
 
             # Should have registered event listeners
@@ -445,7 +445,7 @@ class TestParameterSanitization:
 
         logger = QueryExplainLogger()
 
-        with patch.object(logger, "_get_logger") as mock_get_logger:
+        with patch.object(logger, "_get_logger", autospec=True) as mock_get_logger:
             mock_log = MagicMock()
             mock_get_logger.return_value = mock_log
 

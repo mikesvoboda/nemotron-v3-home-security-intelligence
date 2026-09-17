@@ -73,10 +73,10 @@ class TestAfterCursorExecute:
         mock_conn.info = {"query_start_time": time.perf_counter() - 0.2}
 
         with (
-            patch("backend.core.database.get_settings") as mock_settings,
-            patch("backend.core.database._logger") as mock_logger,
-            patch("backend.core.metrics.observe_db_query_duration"),
-            patch("backend.core.metrics.record_slow_query"),
+            patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+            patch("backend.core.database._logger", autospec=True) as mock_logger,
+            patch("backend.core.metrics.observe_db_query_duration", autospec=True),
+            patch("backend.core.metrics.record_slow_query", autospec=True),
         ):
             mock_settings.return_value = MagicMock(slow_query_threshold_ms=100.0)
 
@@ -109,9 +109,9 @@ class TestAfterCursorExecute:
         mock_conn.info = {"query_start_time": time.perf_counter() - 0.010}  # 10ms ago
 
         with (
-            patch("backend.core.database.get_settings") as mock_settings,
-            patch("backend.core.database._logger") as mock_logger,
-            patch("backend.core.metrics.observe_db_query_duration"),
+            patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+            patch("backend.core.database._logger", autospec=True) as mock_logger,
+            patch("backend.core.metrics.observe_db_query_duration", autospec=True),
         ):
             # Use high threshold (10s) to ensure test stability in CI
             mock_settings.return_value = MagicMock(slow_query_threshold_ms=10000.0)
@@ -142,10 +142,10 @@ class TestAfterCursorExecute:
         long_query = "SELECT " + "x" * 600 + " FROM table"
 
         with (
-            patch("backend.core.database.get_settings") as mock_settings,
-            patch("backend.core.database._logger") as mock_logger,
-            patch("backend.core.metrics.observe_db_query_duration"),
-            patch("backend.core.metrics.record_slow_query"),
+            patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+            patch("backend.core.database._logger", autospec=True) as mock_logger,
+            patch("backend.core.metrics.observe_db_query_duration", autospec=True),
+            patch("backend.core.metrics.record_slow_query", autospec=True),
         ):
             mock_settings.return_value = MagicMock(slow_query_threshold_ms=100.0)
 
@@ -174,8 +174,8 @@ class TestAfterCursorExecute:
         mock_conn.info = {"query_start_time": time.perf_counter()}
 
         with (
-            patch("backend.core.database.get_settings") as mock_settings,
-            patch("backend.core.metrics.observe_db_query_duration") as mock_observe,
+            patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+            patch("backend.core.metrics.observe_db_query_duration", autospec=True) as mock_observe,
         ):
             mock_settings.return_value = MagicMock(slow_query_threshold_ms=100.0)
 
@@ -205,10 +205,10 @@ class TestAfterCursorExecute:
         mock_conn.info = {"query_start_time": time.perf_counter() - 0.2}
 
         with (
-            patch("backend.core.database.get_settings") as mock_settings,
-            patch("backend.core.database._logger"),
-            patch("backend.core.metrics.observe_db_query_duration"),
-            patch("backend.core.metrics.record_slow_query") as mock_record_slow,
+            patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+            patch("backend.core.database._logger", autospec=True),
+            patch("backend.core.metrics.observe_db_query_duration", autospec=True),
+            patch("backend.core.metrics.record_slow_query", autospec=True) as mock_record_slow,
         ):
             mock_settings.return_value = MagicMock(slow_query_threshold_ms=100.0)
 
@@ -273,7 +273,7 @@ class TestSetupSlowQueryLogging:
         try:
             db_module._engine = mock_async_engine
 
-            with patch("backend.core.database.event.listen") as mock_listen:
+            with patch("backend.core.database.event.listen", autospec=True) as mock_listen:
                 result = setup_slow_query_logging()
 
                 assert result is True
@@ -299,7 +299,7 @@ class TestSetupSlowQueryLogging:
         try:
             db_module._engine = mock_async_engine
 
-            with patch("backend.core.database.event.listen") as mock_listen:
+            with patch("backend.core.database.event.listen", autospec=True) as mock_listen:
                 # First call
                 result1 = setup_slow_query_logging()
                 assert result1 is True
@@ -327,7 +327,7 @@ class TestSetupSlowQueryLogging:
         mock_async_engine = MagicMock()
         mock_async_engine.sync_engine = mock_sync_engine
 
-        with patch("backend.core.database.event.listen") as mock_listen:
+        with patch("backend.core.database.event.listen", autospec=True) as mock_listen:
             result = setup_slow_query_logging(engine=mock_async_engine)
 
             assert result is True
@@ -376,8 +376,8 @@ class TestDisableSlowQueryLogging:
             db_module._engine = mock_async_engine
 
             with (
-                patch("backend.core.database.event.listen"),
-                patch("backend.core.database.event.remove") as mock_remove,
+                patch("backend.core.database.event.listen", autospec=True),
+                patch("backend.core.database.event.remove", autospec=True) as mock_remove,
             ):
                 # First enable
                 setup_slow_query_logging()

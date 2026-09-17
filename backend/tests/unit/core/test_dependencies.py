@@ -33,7 +33,9 @@ class TestRedisDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(return_value=mock_redis)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_redis_dependency()
             redis = await gen.__anext__()
 
@@ -52,7 +54,9 @@ class TestRedisDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(side_effect=ServiceNotFoundError("redis_client"))
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_redis_dependency()
             with pytest.raises(ServiceNotFoundError):
                 await gen.__anext__()
@@ -70,7 +74,9 @@ class TestContextEnricherDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get = MagicMock(return_value=mock_enricher)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_context_enricher_dependency()
             enricher = await gen.__anext__()
 
@@ -90,7 +96,9 @@ class TestEnrichmentPipelineDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(return_value=mock_pipeline)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_enrichment_pipeline_dependency()
             pipeline = await gen.__anext__()
 
@@ -110,7 +118,9 @@ class TestNemotronAnalyzerDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(return_value=mock_analyzer)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_nemotron_analyzer_dependency()
             analyzer = await gen.__anext__()
 
@@ -130,7 +140,9 @@ class TestDetectorDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get = MagicMock(return_value=mock_detector)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_detector_dependency()
             detector = await gen.__anext__()
 
@@ -150,7 +162,9 @@ class TestAIServiceDependencies:
         mock_container = MagicMock(spec=Container)
         mock_container.get = MagicMock(return_value=mock_service)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_face_detector_service_dependency()
             service = await gen.__anext__()
 
@@ -166,7 +180,9 @@ class TestAIServiceDependencies:
         mock_container = MagicMock(spec=Container)
         mock_container.get = MagicMock(return_value=mock_service)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_plate_detector_service_dependency()
             service = await gen.__anext__()
 
@@ -182,7 +198,9 @@ class TestAIServiceDependencies:
         mock_container = MagicMock(spec=Container)
         mock_container.get = MagicMock(return_value=mock_service)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_ocr_service_dependency()
             service = await gen.__anext__()
 
@@ -198,7 +216,9 @@ class TestAIServiceDependencies:
         mock_container = MagicMock(spec=Container)
         mock_container.get = MagicMock(return_value=mock_service)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_yolo_world_service_dependency()
             service = await gen.__anext__()
 
@@ -219,9 +239,11 @@ class TestEntityRepositoryDependency:
         mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_context.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("backend.core.database.get_session", return_value=mock_session_context):
+        with patch(
+            "backend.core.database.get_session", return_value=mock_session_context, autospec=True
+        ):
             with patch(
-                "backend.repositories.entity_repository.EntityRepository"
+                "backend.repositories.entity_repository.EntityRepository", autospec=True
             ) as mock_repo_class:
                 mock_repo = MagicMock()
                 mock_repo_class.return_value = mock_repo
@@ -246,8 +268,10 @@ class TestEntityRepositoryDependency:
         mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_context.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("backend.core.database.get_session", return_value=mock_session_context):
-            with patch("backend.repositories.entity_repository.EntityRepository"):
+        with patch(
+            "backend.core.database.get_session", return_value=mock_session_context, autospec=True
+        ):
+            with patch("backend.repositories.entity_repository.EntityRepository", autospec=True):
                 gen = get_entity_repository()
                 await gen.__anext__()
 
@@ -274,12 +298,15 @@ class TestEntityClusteringServiceDependency:
         mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_context.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("backend.core.database.get_session", return_value=mock_session_context):
+        with patch(
+            "backend.core.database.get_session", return_value=mock_session_context, autospec=True
+        ):
             with patch(
-                "backend.repositories.entity_repository.EntityRepository"
+                "backend.repositories.entity_repository.EntityRepository", autospec=True
             ) as mock_repo_class:
                 with patch(
-                    "backend.services.entity_clustering_service.EntityClusteringService"
+                    "backend.services.entity_clustering_service.EntityClusteringService",
+                    autospec=True,
                 ) as mock_service_class:
                     mock_repo = MagicMock()
                     mock_service = MagicMock()
@@ -311,19 +338,29 @@ class TestHybridEntityStorageDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(return_value=mock_redis)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
-            with patch("backend.core.database.get_session", return_value=mock_session_context):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
+            with patch(
+                "backend.core.database.get_session",
+                return_value=mock_session_context,
+                autospec=True,
+            ):
                 with patch(
-                    "backend.services.reid_service.get_reid_service", return_value=mock_reid_service
+                    "backend.services.reid_service.get_reid_service",
+                    return_value=mock_reid_service,
+                    autospec=True,
                 ):
                     with patch(
-                        "backend.repositories.entity_repository.EntityRepository"
+                        "backend.repositories.entity_repository.EntityRepository", autospec=True
                     ) as mock_repo_class:
                         with patch(
-                            "backend.services.entity_clustering_service.EntityClusteringService"
+                            "backend.services.entity_clustering_service.EntityClusteringService",
+                            autospec=True,
                         ) as mock_clustering_class:
                             with patch(
-                                "backend.services.hybrid_entity_storage.HybridEntityStorage"
+                                "backend.services.hybrid_entity_storage.HybridEntityStorage",
+                                autospec=True,
                             ) as mock_storage_class:
                                 mock_repo = MagicMock()
                                 mock_clustering = MagicMock()
@@ -361,17 +398,28 @@ class TestReIDServiceDependency:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(return_value=mock_redis)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
-            with patch("backend.core.database.get_session", return_value=mock_session_context):
-                with patch("backend.repositories.entity_repository.EntityRepository"):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
+            with patch(
+                "backend.core.database.get_session",
+                return_value=mock_session_context,
+                autospec=True,
+            ):
+                with patch(
+                    "backend.repositories.entity_repository.EntityRepository", autospec=True
+                ):
                     with patch(
-                        "backend.services.entity_clustering_service.EntityClusteringService"
+                        "backend.services.entity_clustering_service.EntityClusteringService",
+                        autospec=True,
                     ):
                         with patch(
-                            "backend.services.hybrid_entity_storage.HybridEntityStorage"
+                            "backend.services.hybrid_entity_storage.HybridEntityStorage",
+                            autospec=True,
                         ) as mock_storage_class:
                             with patch(
-                                "backend.services.reid_service.ReIdentificationService"
+                                "backend.services.reid_service.ReIdentificationService",
+                                autospec=True,
                             ) as mock_reid_class:
                                 mock_storage = MagicMock()
                                 mock_reid = MagicMock()
@@ -409,7 +457,7 @@ class TestPaginationLimits:
         mock_settings.pagination_max_limit = 100
         mock_settings.pagination_default_limit = 25
 
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             limits = get_pagination_limits()
             assert limits.max_limit == 100
             assert limits.default_limit == 25
@@ -427,7 +475,9 @@ class TestAsyncGeneratorCleanup:
         mock_container = MagicMock(spec=Container)
         mock_container.get_async = AsyncMock(return_value=mock_redis)
 
-        with patch("backend.core.dependencies.get_container", return_value=mock_container):
+        with patch(
+            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
+        ):
             gen = get_redis_dependency()
 
             # Verify it's an async generator
@@ -443,9 +493,11 @@ class TestAsyncGeneratorCleanup:
         mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_context.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("backend.core.database.get_session", return_value=mock_session_context):
+        with patch(
+            "backend.core.database.get_session", return_value=mock_session_context, autospec=True
+        ):
             with patch(
-                "backend.repositories.entity_repository.EntityRepository"
+                "backend.repositories.entity_repository.EntityRepository", autospec=True
             ) as mock_repo_class:
                 # Make EntityRepository raise an exception
                 mock_repo_class.side_effect = RuntimeError("Test exception")

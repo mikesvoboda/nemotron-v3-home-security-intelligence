@@ -34,7 +34,9 @@ class TestTraceContextInLogs:
         mock_span.get_span_context.return_value.span_id = 0xFEDCBA0987654321
         mock_span.get_span_context.return_value.is_valid = True
 
-        with patch("backend.core.logging.get_current_trace_context") as mock_get_trace:
+        with patch(
+            "backend.core.logging.get_current_trace_context", autospec=True
+        ) as mock_get_trace:
             mock_get_trace.return_value = {
                 "trace_id": "1234567890abcdef1234567890abcdef",
                 "span_id": "fedcba0987654321",
@@ -67,7 +69,9 @@ class TestTraceContextInLogs:
         """
         from backend.core.logging import ContextFilter
 
-        with patch("backend.core.logging.get_current_trace_context") as mock_get_trace:
+        with patch(
+            "backend.core.logging.get_current_trace_context", autospec=True
+        ) as mock_get_trace:
             mock_get_trace.return_value = {"trace_id": None, "span_id": None}
 
             filter_obj = ContextFilter()
@@ -94,7 +98,9 @@ class TestTraceContextInLogs:
         """Test that explicit trace_id in extra= takes precedence."""
         from backend.core.logging import ContextFilter
 
-        with patch("backend.core.logging.get_current_trace_context") as mock_get_trace:
+        with patch(
+            "backend.core.logging.get_current_trace_context", autospec=True
+        ) as mock_get_trace:
             mock_get_trace.return_value = {
                 "trace_id": "context-trace-id",
                 "span_id": "context-span-id",
@@ -214,7 +220,9 @@ class TestGetCurrentTraceContext:
         mock_span = MagicMock()
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.logging._get_otel_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.logging._get_otel_current_span", return_value=mock_span, autospec=True
+        ):
             result = get_current_trace_context()
 
         assert result["trace_id"] == "1234567890abcdef1234567890abcdef"
@@ -224,7 +232,7 @@ class TestGetCurrentTraceContext:
         """Test that function returns None values when OpenTelemetry unavailable."""
         from backend.core.logging import get_current_trace_context
 
-        with patch("backend.core.logging._get_otel_current_span", return_value=None):
+        with patch("backend.core.logging._get_otel_current_span", return_value=None, autospec=True):
             result = get_current_trace_context()
 
         assert result["trace_id"] is None
@@ -240,7 +248,9 @@ class TestGetCurrentTraceContext:
         mock_span = MagicMock()
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("backend.core.logging._get_otel_current_span", return_value=mock_span):
+        with patch(
+            "backend.core.logging._get_otel_current_span", return_value=mock_span, autospec=True
+        ):
             result = get_current_trace_context()
 
         assert result["trace_id"] is None
@@ -253,6 +263,7 @@ class TestGetCurrentTraceContext:
         with patch(
             "backend.core.logging._get_otel_current_span",
             side_effect=ImportError("No module named 'opentelemetry'"),
+            autospec=True,
         ):
             result = get_current_trace_context()
 
@@ -466,7 +477,9 @@ class TestCorrelationIdIntegration:
             exc_info=None,
         )
 
-        with patch("backend.core.logging.get_current_trace_context") as mock_get_trace:
+        with patch(
+            "backend.core.logging.get_current_trace_context", autospec=True
+        ) as mock_get_trace:
             mock_get_trace.return_value = {"trace_id": None, "span_id": None}
             result = filter_obj.filter(record)
 
@@ -482,7 +495,9 @@ class TestCorrelationIdIntegration:
         set_correlation_id("corr-uuid-12345")
         set_request_id("req-abc")
 
-        with patch("backend.core.logging.get_current_trace_context") as mock_get_trace:
+        with patch(
+            "backend.core.logging.get_current_trace_context", autospec=True
+        ) as mock_get_trace:
             mock_get_trace.return_value = {
                 "trace_id": "trace-id-xyz",
                 "span_id": "span-id-123",

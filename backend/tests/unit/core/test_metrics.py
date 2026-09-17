@@ -2079,7 +2079,7 @@ class TestExemplarSupport:
         mock_span_context.trace_id = 12345678901234567890123456789012
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("opentelemetry.trace.get_current_span", return_value=mock_span):
+        with patch("opentelemetry.trace.get_current_span", return_value=mock_span, autospec=True):
             result = _get_trace_exemplar()
 
         assert result is not None
@@ -2095,7 +2095,7 @@ class TestExemplarSupport:
         mock_span = MagicMock()
         mock_span.is_recording.return_value = False
 
-        with patch("opentelemetry.trace.get_current_span", return_value=mock_span):
+        with patch("opentelemetry.trace.get_current_span", return_value=mock_span, autospec=True):
             result = _get_trace_exemplar()
 
         assert result is None

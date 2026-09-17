@@ -660,7 +660,7 @@ class TestAuthMiddlewareExtended:
             return {"message": "success"}
 
         # Mock session validation to return True (valid session)
-        with patch.object(AuthMiddleware, "_validate_session", return_value=True):
+        with patch.object(AuthMiddleware, "_validate_session", return_value=True, autospec=True):
             client = TestClient(app, cookies={"session_id": "test-session"})
             response = client.get("/api/test")
 

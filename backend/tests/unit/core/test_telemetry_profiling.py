@@ -29,8 +29,10 @@ class TestProfileWithTraceContext:
         mock_tag_wrapper.__exit__ = MagicMock(return_value=None)
 
         with (
-            patch("opentelemetry.trace.get_current_span", return_value=mock_span),
-            patch("pyroscope.tag_wrapper", return_value=mock_tag_wrapper) as mock_pyroscope,
+            patch("opentelemetry.trace.get_current_span", return_value=mock_span, autospec=True),
+            patch(
+                "pyroscope.tag_wrapper", return_value=mock_tag_wrapper, autospec=True
+            ) as mock_pyroscope,
         ):
             with profile_with_trace_context():
                 pass
@@ -53,7 +55,7 @@ class TestProfileWithTraceContext:
         mock_span_context.is_valid = False
         mock_span.get_span_context.return_value = mock_span_context
 
-        with patch("opentelemetry.trace.get_current_span", return_value=mock_span):
+        with patch("opentelemetry.trace.get_current_span", return_value=mock_span, autospec=True):
             # Should not raise
             executed = False
             with profile_with_trace_context():
@@ -82,8 +84,8 @@ class TestProfileWithTraceContext:
             return original_import(name, *args, **kwargs)
 
         with (
-            patch("opentelemetry.trace.get_current_span", return_value=mock_span),
-            patch("builtins.__import__", side_effect=mock_import),
+            patch("opentelemetry.trace.get_current_span", return_value=mock_span, autospec=True),
+            patch("builtins.__import__", side_effect=mock_import, autospec=True),
         ):
             # Should not raise
             executed = False
@@ -105,7 +107,7 @@ class TestProfileWithTraceContext:
                 raise ImportError("opentelemetry not installed")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import, autospec=True):
             # Should not raise
             executed = False
             with profile_with_trace_context():
@@ -121,8 +123,9 @@ class TestProfileWithTraceContext:
             patch(
                 "opentelemetry.trace.get_current_span",
                 side_effect=Exception("Unexpected error"),
+                autospec=True,
             ),
-            patch("backend.core.telemetry.logger") as mock_logger,
+            patch("backend.core.telemetry.logger", autospec=True) as mock_logger,
         ):
             # Should not raise
             executed = False
@@ -178,6 +181,7 @@ class TestProfilingMiddleware:
         with patch(
             "backend.api.middleware.profiling.profile_with_trace_context",
             side_effect=mock_profile_context,
+            autospec=True,
         ):
             from fastapi import FastAPI
 
@@ -285,7 +289,7 @@ class TestInitProfilingPytestGuard:
 
         from backend.core.telemetry import init_profiling
 
-        with patch("pyroscope.configure") as mock_configure:
+        with patch("pyroscope.configure", autospec=True) as mock_configure:
             init_profiling()
         mock_configure.assert_not_called()
 

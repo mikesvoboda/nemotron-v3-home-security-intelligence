@@ -439,12 +439,16 @@ class TestSetupOtelMetrics:
         mock_metrics.get_meter.return_value = mock_meter
 
         with (
-            patch("opentelemetry.metrics.set_meter_provider"),
-            patch("opentelemetry.metrics.get_meter", return_value=mock_meter),
-            patch("opentelemetry.sdk.metrics.MeterProvider", return_value=mock_provider),
-            patch("opentelemetry.sdk.resources.Resource"),
-            patch("opentelemetry.sdk.metrics.view.View"),
-            patch("opentelemetry.sdk.metrics.view.ExplicitBucketHistogramAggregation"),
+            patch("opentelemetry.metrics.set_meter_provider", autospec=True),
+            patch("opentelemetry.metrics.get_meter", return_value=mock_meter, autospec=True),
+            patch(
+                "opentelemetry.sdk.metrics.MeterProvider", return_value=mock_provider, autospec=True
+            ),
+            patch("opentelemetry.sdk.resources.Resource", autospec=True),
+            patch("opentelemetry.sdk.metrics.view.View", autospec=True),
+            patch(
+                "opentelemetry.sdk.metrics.view.ExplicitBucketHistogramAggregation", autospec=True
+            ),
         ):
             result = setup_otel_metrics()
 

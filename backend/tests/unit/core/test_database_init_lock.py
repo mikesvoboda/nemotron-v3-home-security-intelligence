@@ -70,9 +70,13 @@ class TestInitDbAdvisoryLock:
             mock_engine.begin = MagicMock(return_value=mock_begin_ctx)
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
-                patch("backend.core.database.create_async_engine", return_value=mock_engine),
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+                patch(
+                    "backend.core.database.create_async_engine",
+                    return_value=mock_engine,
+                    autospec=True,
+                ),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -137,9 +141,13 @@ class TestInitDbAdvisoryLock:
             mock_engine.begin = MagicMock(return_value=mock_begin_ctx)
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
-                patch("backend.core.database.create_async_engine", return_value=mock_engine),
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+                patch(
+                    "backend.core.database.create_async_engine",
+                    return_value=mock_engine,
+                    autospec=True,
+                ),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -208,9 +216,13 @@ class TestInitDbAdvisoryLock:
             mock_engine.begin = MagicMock(return_value=mock_begin_ctx)
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
-                patch("backend.core.database.create_async_engine", return_value=mock_engine),
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+                patch(
+                    "backend.core.database.create_async_engine",
+                    return_value=mock_engine,
+                    autospec=True,
+                ),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -277,9 +289,13 @@ class TestInitDbAdvisoryLock:
             mock_engine.begin = MagicMock(return_value=mock_begin_ctx)
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
-                patch("backend.core.database.create_async_engine", return_value=mock_engine),
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+                patch(
+                    "backend.core.database.create_async_engine",
+                    return_value=mock_engine,
+                    autospec=True,
+                ),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",
@@ -352,9 +368,13 @@ class TestInitDbAdvisoryLock:
             mock_engine.begin = MagicMock(return_value=mock_begin_ctx)
 
             with (
-                patch("backend.core.database.get_settings") as mock_settings,
-                patch("backend.core.database.create_async_engine", return_value=mock_engine),
-                patch("backend.core.database.async_sessionmaker"),
+                patch("backend.core.database.get_settings", autospec=True) as mock_settings,
+                patch(
+                    "backend.core.database.create_async_engine",
+                    return_value=mock_engine,
+                    autospec=True,
+                ),
+                patch("backend.core.database.async_sessionmaker", autospec=True),
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://localhost/test",

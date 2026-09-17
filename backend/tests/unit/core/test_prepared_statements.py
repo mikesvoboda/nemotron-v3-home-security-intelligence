@@ -370,7 +370,7 @@ class TestCacheConfiguration:
         mock_settings.use_pgbouncer = True
         mock_settings.prepared_statement_cache_size = 100
 
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             cache = create_cache_from_settings()
 
             # Should be disabled for PgBouncer compatibility
@@ -385,7 +385,7 @@ class TestCacheConfiguration:
         mock_settings.use_pgbouncer = False
         mock_settings.prepared_statement_cache_size = 200
 
-        with patch("backend.core.config.get_settings", return_value=mock_settings):
+        with patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True):
             cache = create_cache_from_settings()
 
             assert cache.max_size == 200

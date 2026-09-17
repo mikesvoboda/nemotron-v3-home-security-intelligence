@@ -75,7 +75,7 @@ class TestAddDetectionToEvent:
         """Test that junction table entry is created."""
         mock_session = AsyncMock()
 
-        with patch("backend.models.event_detection.EventDetection") as mock_ed:
+        with patch("backend.models.event_detection.EventDetection", autospec=True) as mock_ed:
             mock_ed_instance = MagicMock()
             mock_ed.return_value = mock_ed_instance
 
