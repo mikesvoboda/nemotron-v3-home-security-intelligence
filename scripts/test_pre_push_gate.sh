@@ -60,9 +60,11 @@ case "\$*" in
 esac
 EOF
 # npm == the vitest runner: honest rc for the frontend smoke tests. rc=127 models
-# the runner being un-launchable — the ONE condition under which the tsc fallback
-# is legitimate. "Ran but no files matched" is a smoke FAILURE (a silent smoke test
-# is how the jest-flag lie hid for a year), never a fallback.
+# the runner being un-launchable, which WP2.4 made a DEFECT (owner ruling
+# 2026-09-17): a tier that could not run is never a pass, so there is no longer
+# any condition under which the tsc fallback substitutes for a real verdict.
+# "Ran but no files matched" is likewise a FAILURE (a silent smoke test is how
+# the jest-flag lie hid for a year), never a fallback.
 cat >"$BIN/npm" <<EOF
 #!/bin/sh
 echo "npm \$*" >> "$LOGS/calls"
@@ -150,25 +152,30 @@ run_direct
 expect_nonzero "broken-types"
 expect_line "broken-types" "[1] API Types Contract: FAILED"
 
-echo "[5] pytest rc=5 with clean import: author's no-tests fallback stays legitimate"
+# WP2.4 removed the rc=5 import fallback; owner ruled 2026-09-17 that this is
+# the contract, not a regression. A tier that collected nothing has produced no
+# evidence, and "no evidence" is the vacuous pass WP0.1 exists to forbid — the
+# same shape as the empty-results-dir case test_audit_gate.sh pins at [6].
+echo "[5] pytest rc=5 (collected nothing): a tier that ran no tests is a DEFECT"
 reset_sandbox
 touch "$ROOT/broken_nocollect"
 run_direct
-expect_zero "no-collect"
-expect_call "no-collect" "from backend.main import"
+expect_nonzero "no-collect"
+expect_no_call "no-collect" "from backend.main import"
 
-echo "[6] pytest rc=5 with broken import: the fallback must bite"
+echo "[6] pytest rc=5 with a broken import: still a defect, fallback stays removed"
 reset_sandbox
 touch "$ROOT/broken_nocollect" "$ROOT/broken_import"
 run_direct
 expect_nonzero "no-collect+bad-import"
+expect_no_call "no-collect+bad-import" "from backend.main import"
 
-echo "[7] vitest un-launchable (rc=127): tsc fallback is legitimate; tsc dirty must bite"
+echo "[7] vitest un-launchable (rc=127): an un-launchable runner is a DEFECT, never laundered through tsc"
 reset_sandbox
 touch "$ROOT/broken_npmabsent"
 run_direct
-expect_zero "runner-absent"
-expect_call "runner-absent" "npx tsc"
+expect_nonzero "runner-absent"
+expect_no_call "runner-absent" "npx tsc"
 reset_sandbox
 touch "$ROOT/broken_npmabsent" "$ROOT/broken_tsckey"
 run_direct

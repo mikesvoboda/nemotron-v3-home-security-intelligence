@@ -164,13 +164,15 @@ jobs:
       - name: Test Performance Audit gate test (WP0.5)
         run: bash scripts/test_audit_gate.sh
 
-      # NOT WIRED YET, deliberately, so this reads as a decision and not an
-      # oversight: scripts/test_pre_push_gate.sh (WP0.1) is RED against the
-      # shipped hook. WP2.4 rewrote pre-push-tests.sh and dropped two legacy
-      # fallbacks the test pins (pytest rc=5 -> import check; vitest rc=127 ->
-      # tsc check). 9 of its 11 cases pass; the 2 that fail are a behaviour
-      # question -- is failing closed there correct? -- not a test bug. It is
-      # wired the moment that is ruled on.
+      # WP0.1's gate test. It was written at 00:13 on 2026-09-16 against the
+      # smoke-test hook and went stale at 16:33 when WP2.4 rewrote
+      # pre-push-tests.sh -- invisibly, because it ran nowhere. Retargeted to
+      # the shipped contract (owner ruling 2026-09-17: an unrunnable tier is a
+      # DEFECT, so pytest rc=5 and vitest rc=127 both fail closed; the old
+      # import/tsc fallbacks stay removed) and wired here so it cannot rot
+      # again. 11 cases, incl. three real `git push` blocks.
+      - name: Pre-push hook gate test (WP0.1)
+        run: bash scripts/test_pre_push_gate.sh
 
   # Backend Jobs
 
