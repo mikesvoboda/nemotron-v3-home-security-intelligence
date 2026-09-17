@@ -286,7 +286,9 @@ class TestDeleteFile:
         test_file = tmp_path / "protected.jpg"
         test_file.write_text("test data")
 
-        with patch("pathlib.Path.unlink", side_effect=PermissionError("Access denied")):
+        with patch(
+            "pathlib.Path.unlink", side_effect=PermissionError("Access denied"), autospec=True
+        ):
             success, freed = job._delete_file(test_file)
 
         assert success is False
@@ -500,7 +502,7 @@ class TestCleanupRun:
         )
 
         # Mock _delete_file to fail
-        with patch.object(job, "_delete_file", return_value=(False, 0)):
+        with patch.object(job, "_delete_file", return_value=(False, 0), autospec=True):
             report = await job.run()
 
         assert report.deleted_files == 0
@@ -589,7 +591,7 @@ class TestOrphanCleanupScheduler:
         """Test scheduler initializes with correct values."""
         from backend.jobs.orphan_cleanup_job import OrphanCleanupScheduler
 
-        with patch("backend.jobs.orphan_cleanup_job.get_settings") as mock_settings:
+        with patch("backend.jobs.orphan_cleanup_job.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 orphan_cleanup_enabled=True,
                 orphan_cleanup_scan_interval_hours=24,
@@ -611,7 +613,7 @@ class TestOrphanCleanupScheduler:
         """Test scheduler with custom configuration."""
         from backend.jobs.orphan_cleanup_job import OrphanCleanupScheduler
 
-        with patch("backend.jobs.orphan_cleanup_job.get_settings") as mock_settings:
+        with patch("backend.jobs.orphan_cleanup_job.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 orphan_cleanup_enabled=True,
                 orphan_cleanup_scan_interval_hours=24,
@@ -634,7 +636,7 @@ class TestOrphanCleanupScheduler:
         """Test scheduler doesn't start when disabled."""
         from backend.jobs.orphan_cleanup_job import OrphanCleanupScheduler
 
-        with patch("backend.jobs.orphan_cleanup_job.get_settings") as mock_settings:
+        with patch("backend.jobs.orphan_cleanup_job.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 orphan_cleanup_enabled=False,
                 orphan_cleanup_scan_interval_hours=24,
@@ -652,7 +654,7 @@ class TestOrphanCleanupScheduler:
         """Test stop is safe when scheduler is not running."""
         from backend.jobs.orphan_cleanup_job import OrphanCleanupScheduler
 
-        with patch("backend.jobs.orphan_cleanup_job.get_settings") as mock_settings:
+        with patch("backend.jobs.orphan_cleanup_job.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 orphan_cleanup_enabled=True,
                 orphan_cleanup_scan_interval_hours=24,
@@ -737,7 +739,7 @@ class TestEdgeCases:
         """Test scheduler as async context manager."""
         from backend.jobs.orphan_cleanup_job import OrphanCleanupScheduler
 
-        with patch("backend.jobs.orphan_cleanup_job.get_settings") as mock_settings:
+        with patch("backend.jobs.orphan_cleanup_job.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(
                 orphan_cleanup_enabled=False,  # Disabled so no task starts
                 orphan_cleanup_scan_interval_hours=24,
