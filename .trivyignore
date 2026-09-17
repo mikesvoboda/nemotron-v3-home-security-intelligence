@@ -15,44 +15,16 @@
 # - Remove entries when fixes become available
 
 # =============================================================================
-# Jinja2 Sandbox Escape Vulnerabilities
-# =============================================================================
-# These CVEs relate to Jinja2's sandbox mode which this application does not use.
-# We use Jinja2 only via FastAPI's template rendering with trusted templates.
-# The sandboxed environment bypass is not exploitable in our use case.
-
-# CVE-2024-56326 - Jinja2 sandbox escape via str.format (REVIEW BY: 2026-04-05)
-# Requires attacker to control template content
-# Not applicable: We don't use sandboxed environment and don't allow user-controlled templates
-CVE-2024-56326
-
-# CVE-2024-22195 - Jinja2 XSS vulnerability in xmlattr filter (REVIEW BY: 2026-04-05)
-# Not applicable: We use Jinja2 for backend templates only, not user-facing HTML
-CVE-2024-22195
-
-# CVE-2025-27516 - Jinja2 sandbox breakout through attr filter (REVIEW BY: 2026-04-05)
-# Not applicable: Same reasoning as CVE-2024-56326 - we don't use sandbox mode
-CVE-2025-27516
-
-# =============================================================================
-# Cryptography Library - No Fix Available
-# =============================================================================
-# Some cryptography CVEs may appear even with the latest version because:
-# 1. The fix is pending upstream OpenSSL changes
-# 2. The vulnerability is in rarely-used functionality
-# Add specific CVEs here if they have no fix and are accepted risk
-
-# =============================================================================
 # Alpine Linux Base Image
 # =============================================================================
 # Alpine-specific CVEs that are false positives or have no fix
 # These often relate to packages not installed in our production image
 
-# CVE-2024-58251 - BusyBox vulnerability affecting busybox-binsh and ssl_client (REVIEW BY: 2026-04-05)
+# CVE-2024-58251 - BusyBox vulnerability affecting busybox-binsh and ssl_client (REVIEW BY: 2027-03-16)
 # Low severity, no fix available in current Alpine stable
 CVE-2024-58251
 
-# CVE-2025-46394 - BusyBox vulnerability affecting busybox-binsh (REVIEW BY: 2026-04-05)
+# CVE-2025-46394 - BusyBox vulnerability affecting busybox-binsh (REVIEW BY: 2027-03-16)
 # Low severity, no fix available in current Alpine stable
 CVE-2025-46394
 
@@ -61,123 +33,134 @@ CVE-2025-46394
 # =============================================================================
 # These CVEs are in system packages with no upstream fix available
 
-# CVE-2025-2176 - libzvbi critical vulnerability (REVIEW BY: 2026-05-05)
-# No fix available in Debian stable
+# NOTE (review 2026-09-16): the Debian security tracker now shows fix versions
+# in bookworm point releases for several entries below (e.g. libsqlite3
+# 3.40.1-2+deb12u2, libpng 1.6.39-2+deb12u2, libzvbi 0.2.41-1+deb12u1,
+# glibc 2.36-9+deb12u14). They stay listed because the production image's apt
+# package versions are only verifiable by rebuilding the image and running the
+# push-main image scan (scan-backend/scan-frontend jobs), which was not done
+# for this review. Each entry that the next image rebuild proves fixed should
+# be DELETED at that rebuild, not at the calendar date.
+
+# CVE-2025-2176 - libzvbi critical vulnerability (REVIEW BY: 2027-05-05)
+# Fix shipped in bookworm 0.2.41-1+deb12u1 (tracker, verified 2026-09-16);
+# remove once the production image rebuild proves the patched version.
 # Affects libzvbi0 package used by ffmpeg dependencies
 CVE-2025-2176
 
-# CVE-2023-45853 - zlib integer overflow (REVIEW BY: 2026-06-05)
+# CVE-2023-45853 - zlib integer overflow (REVIEW BY: 2027-06-05)
 # Marked "will_not_fix" by Debian
 # Affects minizip functionality in zipOpenNewFileInZip4_6, not used by application
 CVE-2023-45853
 
-# CVE-2023-6879 - libaom heap-buffer-overflow CRITICAL (REVIEW BY: 2026-05-05)
+# CVE-2023-6879 - libaom heap-buffer-overflow CRITICAL (REVIEW BY: 2027-05-05)
 # No fix in Debian stable
 # Affects AV1 codec library used by ffmpeg, not directly used by application
 CVE-2023-6879
 
-# CVE-2023-39616 - libaom invalid read (REVIEW BY: 2026-06-05)
+# CVE-2023-39616 - libaom invalid read (REVIEW BY: 2027-06-05)
 # Marked "will_not_fix" by Debian
 # Same package as above, AV1 codec not directly used
 CVE-2023-39616
 
-# CVE-2023-45221 - libmfx improper buffer restrictions (REVIEW BY: 2026-06-05)
+# CVE-2023-45221 - libmfx improper buffer restrictions (REVIEW BY: 2027-06-05)
 # Marked "will_not_fix" by Debian
 # Intel Media SDK not used by our application
 CVE-2023-45221
 
-# CVE-2023-52355 - libtiff heap buffer overflow (REVIEW BY: 2026-05-05)
+# CVE-2023-52355 - libtiff heap buffer overflow (REVIEW BY: 2027-05-05)
 # Affected status
 # TIFF processing handled by PIL with memory safety measures
 CVE-2023-52355
 
-# CVE-2023-25193 - libharfbuzz O(n^2) complexity (REVIEW BY: 2026-06-05)
+# CVE-2023-25193 - libharfbuzz O(n^2) complexity (REVIEW BY: 2027-06-05)
 # No fix available
 # Text shaping library, DoS risk only in malicious font processing
 CVE-2023-25193
 
-# CVE-2024-23775 - libmbedcrypto integer overflow (REVIEW BY: 2026-05-05)
+# CVE-2024-23775 - libmbedcrypto integer overflow (REVIEW BY: 2027-05-05)
 # No fix in Debian stable
 # Used by some Python SSL, but not critical path
 CVE-2024-23775
 
-# CVE-2025-47917 - libmbedcrypto use-after-free CRITICAL (REVIEW BY: 2026-04-05)
-# No fix in Debian stable
+# CVE-2025-47917 - libmbedcrypto use-after-free CRITICAL (REVIEW BY: 2027-04-05)
+# Tracker: still (unfixed) on bookworm (verified 2026-09-16)
 # Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-47917
 
-# CVE-2025-48965 - libmbedcrypto NULL pointer dereference (REVIEW BY: 2026-05-05)
-# No fix in Debian stable
+# CVE-2025-48965 - libmbedcrypto NULL pointer dereference (REVIEW BY: 2027-05-05)
+# Fix shipped in bookworm 2.28.3-1 per tracker; keep until image rebuild proves it
 # Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-48965
 
-# CVE-2025-52496 - libmbedcrypto AESNI race condition (REVIEW BY: 2026-05-05)
-# No fix in Debian stable
+# CVE-2025-52496 - libmbedcrypto AESNI race condition (REVIEW BY: 2027-05-05)
+# Fix shipped in bookworm per tracker; keep until image rebuild proves it
 # Mbed TLS library used by librist (RIST protocol), ffmpeg dependency
 CVE-2025-52496
 
-# CVE-2025-13601 - libglib2.0 integer overflow in g_escape_uri_string (REVIEW BY: 2026-05-05)
+# CVE-2025-13601 - libglib2.0 integer overflow in g_escape_uri_string (REVIEW BY: 2027-05-05)
 # Affected status
 # GLib utility function, not directly exploitable in our context
 CVE-2025-13601
 
-# CVE-2025-68973 - gpgv information disclosure/code execution (REVIEW BY: 2026-05-05)
+# CVE-2025-68973 - gpgv information disclosure/code execution (REVIEW BY: 2027-05-05)
 # Affected status
 # Used for apt signature verification, not user-exposed
 CVE-2025-68973
 
-# CVE-2025-7345 - libgdk-pixbuf heap buffer overflow (REVIEW BY: 2026-05-05)
+# CVE-2025-7345 - libgdk-pixbuf heap buffer overflow (REVIEW BY: 2027-05-05)
 # Fix deferred status
 # Image processing library, input validation handles malicious images
 CVE-2025-7345
 
-# CVE-2025-7458 - libsqlite3-0 integer overflow CRITICAL (REVIEW BY: 2026-04-05)
-# No fix in Debian stable
+# CVE-2025-7458 - libsqlite3-0 integer overflow CRITICAL (REVIEW BY: 2027-04-05)
+# Fix shipped in bookworm 3.40.1-2+deb12u2 per tracker (verified 2026-09-16);
+# remove once the production image rebuild proves the patched version.
 # SQLite vulnerability, affects libsqlite3-0 package used by Python stdlib
 CVE-2025-7458
 
-# CVE-2025-2173 - libzvbi vulnerability (REVIEW BY: 2026-05-05)
-# Affected, no fix available in Debian stable
+# CVE-2025-2173 - libzvbi vulnerability (REVIEW BY: 2027-05-05)
+# Fix shipped in bookworm 0.2.41-1+deb12u1 per tracker; keep until rebuild
 # Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 CVE-2025-2173
 
-# CVE-2025-2174 - libzvbi vulnerability (REVIEW BY: 2026-05-05)
-# Affected, no fix available in Debian stable
+# CVE-2025-2174 - libzvbi vulnerability (REVIEW BY: 2027-05-05)
+# Fix shipped in bookworm 0.2.41-1+deb12u1 per tracker; keep until rebuild
 # Affects libzvbi0/libzvbi-common used by ffmpeg, not directly used by application
 CVE-2025-2174
 
-# CVE-2025-5318 - libssh-gcrypt out-of-bounds read in sftp_handle() (REVIEW BY: 2026-05-05)
+# CVE-2025-5318 - libssh-gcrypt out-of-bounds read in sftp_handle() (REVIEW BY: 2027-05-05)
 # Affected, no fix available
 # SSH library used by ffmpeg libavformat, not directly used by application
 CVE-2025-5318
 
-# CVE-2025-5372 - libssh-gcrypt incorrect return code handling in ssh_kdf() (REVIEW BY: 2026-05-05)
+# CVE-2025-5372 - libssh-gcrypt incorrect return code handling in ssh_kdf() (REVIEW BY: 2027-05-05)
 # Affected, no fix available
 # SSH library used by ffmpeg libavformat, not directly used by application
 CVE-2025-5372
 
-# CVE-2025-5987 - libssh-gcrypt invalid return code for chacha20 poly1305 (REVIEW BY: 2026-05-05)
+# CVE-2025-5987 - libssh-gcrypt invalid return code for chacha20 poly1305 (REVIEW BY: 2027-05-05)
 # Affected, no fix available
 # SSH library used by ffmpeg libavformat, not directly used by application
 CVE-2025-5987
 
-# CVE-2025-6020 - libpam directory traversal (REVIEW BY: 2026-05-05)
+# CVE-2025-6020 - libpam directory traversal (REVIEW BY: 2027-05-05)
 # Affected, no fix available in Debian stable
 # PAM modules used for system authentication, not user-exposed in container
 CVE-2025-6020
 
-# CVE-2026-0861 - glibc integer overflow in memalign (REVIEW BY: 2026-04-17)
+# CVE-2026-0861 - glibc integer overflow in memalign (REVIEW BY: 2027-03-16)
 # CRITICAL per Trivy, but Debian marks as "Minor issue" with <no-dsa>
-# Affects libc-bin and libc6 (glibc 2.36-9+deb12u13)
-# Fixed only in sid (2.42-8), not available for bookworm stable
+# Affects libc-bin and libc6; fix shipped in bookworm 2.36-9+deb12u14 per
+# tracker (verified 2026-09-16) — keep until image rebuild proves the version.
 # Exploitation requires attacker control of BOTH size (near PTRDIFF_MAX) and
 # alignment (range [1<<62+1, 1<<63]) arguments to memalign/posix_memalign/aligned_alloc
 # Our application doesn't expose memory allocation controls to untrusted input
 # Reference: https://security-tracker.debian.org/tracker/CVE-2026-0861
 CVE-2026-0861
 
-# CVE-2023-2953 - OpenLDAP null pointer dereference in ber_memalloc_x (REVIEW BY: 2026-04-21)
-# HIGH severity, no fix available in Debian bookworm stable (version 2.5.13+dfsg-5)
+# CVE-2023-2953 - OpenLDAP null pointer dereference in ber_memalloc_x (REVIEW BY: 2027-04-21)
+# HIGH severity, no DSA for bookworm (tracker <no-dsa>, verified 2026-09-16)
 # Affects libldap-2.5-0 package, a transitive dependency of curl (via libcurl4)
 # Not exploitable in our context:
 #   1. Our application does not use LDAP functionality
@@ -186,8 +169,9 @@ CVE-2026-0861
 # Reference: https://security-tracker.debian.org/tracker/CVE-2023-2953
 CVE-2023-2953
 
-# CVE-2026-22695 - libpng denial of service and information disclosure (REVIEW BY: 2026-04-23)
-# HIGH severity, no fix available in Debian bookworm stable (version 1.6.39-2+deb12u1)
+# CVE-2026-22695 - libpng denial of service and information disclosure (REVIEW BY: 2027-04-23)
+# HIGH severity; fix shipped in bookworm 1.6.39-2+deb12u2 per tracker
+# (verified 2026-09-16) — remove once the image rebuild proves the patch.
 # Affects libpng16-16 package used by image processing libraries (PIL/Pillow)
 # Mitigated by:
 #   1. Application validates image input sizes before processing
@@ -195,8 +179,8 @@ CVE-2023-2953
 #   3. Memory limits enforced at container level
 CVE-2026-22695
 
-# CVE-2026-22801 - libpng information disclosure and denial of service (REVIEW BY: 2026-04-23)
-# HIGH severity, no fix available in Debian bookworm stable (version 1.6.39-2+deb12u1)
+# CVE-2026-22801 - libpng information disclosure and denial of service (REVIEW BY: 2027-04-23)
+# HIGH severity; fix shipped in bookworm 1.6.39-2+deb12u2 per tracker.
 # Same package and mitigation as CVE-2026-22695
 CVE-2026-22801
 
@@ -204,54 +188,54 @@ CVE-2026-22801
 # Python Package Vulnerabilities - No Fix Available
 # =============================================================================
 
-# CVE-2024-23342 - python-ecdsa Minerva timing attack (REVIEW BY: 2026-05-03)
-# HIGH severity, no fix planned by upstream maintainer
+# CVE-2024-23342 - python-ecdsa Minerva timing attack (REVIEW BY: 2027-05-03)
+# HIGH severity, no fix planned by upstream maintainer (OSV: unfixed at the
+# locked ecdsa 0.19.2, re-verified 2026-09-16)
 # python-ecdsa project considers side-channel attacks out of scope
-# ecdsa 0.19.1 is transitive dependency via python-jose (JWT library)
+# ecdsa is a transitive dependency via python-jose (JWT library)
 # Not exploitable in our context:
 #   1. JWT signing uses HMAC (HS256), not ECDSA in our implementation
 #   2. Timing attack requires local timing measurement capability
 #   3. No ECDH operations or ECDSA signing in production code paths
 CVE-2024-23342
 
-# GHSA-58pv-8j8x-9vj2 / CVE-2026-23949 - jaraco.context path traversal in tarfile.chdir() (REVIEW BY: 2026-04-13)
-# Affected version 5.3.0 is vendored inside setuptools (even latest 80.9.0)
-# No upstream fix available - setuptools has not updated vendored jaraco.context to 6.1.0
-# Not exploitable in our context:
-#   1. We don't use jaraco.context directly
-#   2. We don't use setuptools.tarfile.chdir() functionality
-#   3. The vulnerability requires attacker-controlled tar extraction paths
-#   4. This is a build/setup-time dependency, not runtime-exposed
-GHSA-58pv-8j8x-9vj2
-# CVE-2026-23949 - jaraco.context path traversal (same as GHSA-58pv-8j8x-9vj2) (REVIEW BY: 2026-04-13)
-CVE-2026-23949
+# =============================================================================
+# Python Package Vulnerabilities - Accepted Risk (fix exists but is
+# unreachable through the dependency graph)
+# =============================================================================
 
-# CVE-2026-24049 - wheel privilege escalation/arbitrary code execution (REVIEW BY: 2026-04-23)
-# Affected version 0.45.1 is vendored inside setuptools (even latest 80.9.0)
-# No upstream fix available - setuptools has not updated vendored wheel to 0.46.2
+# CVE-2026-69247 - cryptography PKCS#7 EnvelopedData Bleichenbacher oracle (REVIEW BY: 2027-03-16)
+# HIGH, fixed in cryptography 50.0.0 — but the fix is UNREACHABLE: the nemo
+# dependency group (project.optional-dependencies + dependency-groups, both
+# "data-designer>=0.9.2") pulls data-designer-engine 0.9.2 which pins
+# cryptography>=48.0.1,<=49, and 0.9.2 is the engine's latest release
+# (registry-checked 2026-09-16). uv resolves one cross-extra environment, so
+# the runtime stays on 49.0.0 while the nemo group exists in the lock.
 # Not exploitable in our context:
-#   1. We don't use wheel directly at runtime
-#   2. Wheel is only used during package build/install (setuptools vendored copy)
-#   3. The application does not build/install packages at runtime
-#   4. Build process runs in controlled CI environment with trusted inputs
-CVE-2026-24049
+#   1. The oracle requires decrypting attacker-supplied PKCS#7 EnvelopedData;
+#      grep over backend/ finds zero uses of PKCS7/EnvelopedData APIs
+#   2. cryptography enters only via python-jose (HMAC paths) and pyjwt
+#   3. OSV: 50.0.0 clean, 49.0.0 flagged ONLY by this CVE (no other advisories)
+# Revisit trigger: data-designer-engine releasing a build that allows
+# cryptography>=50; then upgrade and DELETE this entry.
+# Reference: https://avd.aquasec.com/nvd/cve-2026-69247
+CVE-2026-69247
 
-# CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
-# HIGH severity, no fix available for protobuf 6.33.2
-# Not exploitable in our context:
-#   1. We don't parse untrusted JSON with protobuf
-#   2. Protobuf is used for internal serialization between AI services
-#   3. All protobuf inputs come from trusted internal services (RT-DETR, Nemotron)
-#   4. The vulnerability requires attacker-controlled deeply nested JSON
-# Reference: https://avd.aquasec.com/nvd/cve-2026-0994
-CVE-2026-0994
+# =============================================================================
+# REMOVED 2026-09-16 review (fixes present in the LOCKED versions — OSV-clean):
+#   CVE-2024-56326 / CVE-2024-22195 / CVE-2025-27516  (jinja2 fixed in shipped 3.1.6)
+#   GHSA-58pv-8j8x-9vj2 / CVE-2026-23949              (setuptools 84.0.0 vendors jaraco.context 6.1.0)
+#   CVE-2026-24049                                    (setuptools 84.0.0 vendors wheel 0.46.3)
+#   CVE-2026-0994                                     (protobuf 7.36.1 in uv.lock, OSV-clean)
+# The file's own rule: "Remove entries when fixes become available."
+# =============================================================================
 
 # =============================================================================
 # Dockerfile Misconfigurations - Accepted Risks
 # =============================================================================
 # These are Trivy misconfiguration checks that are intentionally accepted.
 
-# AVD-DS-0001 - Base image uses :latest tag for continuous development (REVIEW BY: 2026-07-05)
+# AVD-DS-0001 - Base image uses :latest tag for continuous development (REVIEW BY: 2027-07-05)
 # The nemotron-base image uses :latest tag because:
 # 1. The base image is built and published from the same repository
 # 2. Using :latest allows automatic pickup of base image updates
@@ -259,7 +243,7 @@ CVE-2026-0994
 # 4. The base image build is controlled and not external
 AVD-DS-0001
 
-# AVD-DS-0002 - vsftpd requires root to bind to privileged port 21 (REVIEW BY: 2026-07-05)
+# AVD-DS-0002 - vsftpd requires root to bind to privileged port 21 (REVIEW BY: 2027-07-05)
 # vsftpd is an FTP server that needs root privileges to:
 # 1. Bind to port 21 (privileged port)
 # 2. Create system users via useradd/chpasswd in entrypoint
@@ -277,5 +261,7 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-24 (NEM-3447)
-# Next review: 2026-04-24
+# Last reviewed: 2026-09-16 (full pass: OSV-queried every Python entry against
+# the locked version; Debian tracker checked for every base-image entry;
+# filesystem-scan findings remediated where the dependency graph allows)
+# Next review: 2027-03-16
