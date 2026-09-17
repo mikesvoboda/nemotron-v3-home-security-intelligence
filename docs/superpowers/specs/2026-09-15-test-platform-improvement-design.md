@@ -91,10 +91,25 @@ despite its only dependency having finished, and 12+ minutes of stagger between
 shards of the same 16-way Vitest matrix. Most of the 45-minute wall clock is
 queueing, not compute.
 
-The queueing is consistent with hitting an account-level concurrent-job cap
-(GitHub's Free-plan default is 20). **That cap is inferred from the symptom, not
-measured** — the implementing agent must confirm the actual limit in
-Settings → Billing before sizing the fan-out reduction in Phase 3.
+**CONFIRMED 2026-09-17 (WP3.1): the cap is real, and the measured ceiling is
+~20 concurrent jobs — but it is not the Free-plan entitlement this paragraph
+first guessed.** The plan's concurrency/minute allowance does not apply here:
+the repository is PUBLIC (owner's billing screen: Actions $96.15 consumed, 100%
+covered by public-repo discounts, 0 of the 2,000 private-plan minutes used), so
+hosted Linux minutes are free and unmetered. The binding limit is GitHub's
+account-wide scheduler ceiling. Measured on the push at `3fcffd8d` (9 workflow
+runs, 73 jobs, 15 s-bucket occupancy from the Jobs API): concurrency pinned at
+exactly 20 — 3.0 of the 7.5 window minutes at 20, 3.5 min ≥15 — and job starts
+arrive in cap-sated waves (26 within 60 s, then a second wave of 14). Two caveats
+kept honest: the clamp is 95% of the busy window, not 100% (brief headroom above
+20 exists), and the specific 10-minute `build-backend-deps` stall did not
+reproduce — first-wave queueing on this run was ~1 min, with completed-job queue
+sum 39.3 min against compute sum 40.8 min. Consequences for Phase 3 sizing:
+target the measured 20, not the plan's number; the fan-out reduction (WP3.5)
+still pays — per-push cap-hours and wall clock fall with less churn, and
+trivy.yml/dependency-audit.yml's duplicate scans burn cap-hours for free — but
+queue-vs-compute must be reported against 20, and WP3.7's re-measurement is no
+longer confounded by the cap question.
 
 **Two cache defects.** `build-backend-deps` passes `cache-suffix: backend-deps`
 (`ci.yml:115`) while all 13 downstream backend jobs use the default cache

@@ -4252,3 +4252,40 @@ records). OWNER CALL, not mine: (a) write tests to close 3-6 points, or
 (b) re-set thresholds to measured reality WITH a gate that enforces them, or
 (c) keep the display-table regime and delete the dead config so it stops
 lying. Row lands PRE-EXISTING style: measurement, no silent fix.
+
+## WP3.1 CONCURRENCY CAP CONFIRMED — 20, MEASURED (2026-09-17, Phase 3 first step per PLAN "do this first")
+
+MEASURE (three independent lines, all agreeing):
+
+1. OWNER EVIDENCE (billing screen, 2026-09-17): GitHub Free + Actions
+   metered-use $96.15 consumed / $96.16 discounts / $0 billable, "0 min used
+   / 2,000 min included". The plan's minute pool and its private-repo job cap
+   are UNUSED and DO NOT APPLY: the repo is PUBLIC, hosted Linux minutes are
+   free/unmetered, and the discounts ARE the public-repo policy. The spec's
+   guessed mechanism (Free-plan 20-job entitlement) was the wrong model.
+2. LIVE MEASUREMENT (push 3fcffd8d, all 9 workflow runs = 73 jobs, Jobs API
+   timestamps, 15s-bucket occupancy): peak concurrency exactly 20; 3.0 of the
+   7.5-minute window spent AT 20, 3.5 min >=15; job starts arrive in cap-sated
+   waves (12+4 in the first minute, then 26 in ~60s at 01:27, second wave 14).
+   That is a scheduler ceiling, not fair-use slop: the platform refills to 20
+   and holds.
+3. SPEC POLICY: public repos have no plan-level hosted-runner cap at all —
+   nothing in Settings would have shown a number; only measurement could.
+
+DECIDE: Phase 3 sizes against MEASURED 20 (recorded in the spec's evidence
+section, replacing the inferred claim). Consequences: WP3.5 stays valuable
+(less churn = fewer cap-hours and lower wall clock; the duplicate trivy/
+dependency-audit scans the same push runs 5× burn cap-hours for free —
+WP3.4+WP3.5 remove them), but "get fan-out under the cap" reframes as
+"cut cap-hours and queue stalls", and WP3.7's re-measurement is un-confounded.
+
+NOT TAKEN: extrapolating 20 into a hard SLA (clamp was 95% of busy window —
+brief headroom exists above 20); treating the non-reproducing 10-min
+build-backend-deps stall as disproving queueing (first-wave queue ~1 min this
+run vs completed-job queue-sum 39.3 min overall — queue is real, its shape
+varies run to run). Measurement artifacts disclosed honestly: an early
+mid-run snapshot showed run-538-only peak 28 — an artifact of jobs still
+"pending" at snapshot time having started with completed_at=None retroactive
+timestamps; both corrected snapshots (run-only and cross-run) independently
+give 20. Data: /tmp/wp25/final-jobs.tsv + python 15s histogram (this row's
+commit body cites the method).
