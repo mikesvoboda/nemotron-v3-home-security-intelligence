@@ -201,7 +201,7 @@ async def test_get_telemetry_returns_queue_depths() -> None:
     redis = AsyncMock()
     redis.get_queue_length = AsyncMock(side_effect=[10, 5])
 
-    with patch.object(system_routes, "get_latency_stats", return_value=None):
+    with patch.object(system_routes, "get_latency_stats", return_value=None, autospec=True):
         response = await system_routes.get_telemetry(redis)
 
     assert response.queues.detection_queue == 10
@@ -270,7 +270,7 @@ async def test_get_telemetry_has_timestamp() -> None:
     redis = AsyncMock()
     redis.get_queue_length = AsyncMock(return_value=0)
 
-    with patch.object(system_routes, "get_latency_stats", return_value=None):
+    with patch.object(system_routes, "get_latency_stats", return_value=None, autospec=True):
         response = await system_routes.get_telemetry(redis)
 
     assert response.timestamp is not None
@@ -288,7 +288,7 @@ async def test_get_telemetry_queue_names_are_correct() -> None:
     redis = AsyncMock()
     redis.get_queue_length = AsyncMock(return_value=0)
 
-    with patch.object(system_routes, "get_latency_stats", return_value=None):
+    with patch.object(system_routes, "get_latency_stats", return_value=None, autospec=True):
         await system_routes.get_telemetry(redis)
 
     # Verify get_queue_length was called with correct queue names
@@ -403,7 +403,7 @@ async def test_telemetry_reflects_pipeline_state() -> None:
     # Simulate backlog: detection queue has items waiting
     redis.get_queue_length = AsyncMock(side_effect=[25, 10])
 
-    with patch.object(system_routes, "get_latency_stats", return_value=None):
+    with patch.object(system_routes, "get_latency_stats", return_value=None, autospec=True):
         response = await system_routes.get_telemetry(redis)
 
     # Should show backlog

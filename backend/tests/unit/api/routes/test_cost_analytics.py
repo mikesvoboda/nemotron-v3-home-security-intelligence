@@ -158,7 +158,7 @@ class TestCalculateTokenCost:
     @pytest.mark.unit
     def test_token_cost_calculation(self, mock_daily_usage, mock_pricing):
         """Test token cost calculation."""
-        with patch("backend.api.routes.cost_analytics.get_cost_tracker") as mock_get:
+        with patch("backend.api.routes.cost_analytics.get_cost_tracker", autospec=True) as mock_get:
             mock_tracker = MagicMock()
             mock_tracker._pricing = mock_pricing
             mock_get.return_value = mock_tracker
@@ -183,7 +183,7 @@ class TestCalculateGpuCost:
     @pytest.mark.unit
     def test_gpu_cost_calculation(self, mock_daily_usage, mock_pricing):
         """Test GPU cost calculation."""
-        with patch("backend.api.routes.cost_analytics.get_cost_tracker") as mock_get:
+        with patch("backend.api.routes.cost_analytics.get_cost_tracker", autospec=True) as mock_get:
             mock_tracker = MagicMock()
             mock_tracker._pricing = mock_pricing
             mock_get.return_value = mock_tracker
@@ -236,7 +236,7 @@ class TestBuildCostHistory:
         self, mock_cost_tracker, mock_daily_usage, mock_pricing, mock_db_session
     ):
         """Test cost history is built for the correct number of days."""
-        with patch("backend.api.routes.cost_analytics.get_cost_tracker") as mock_get:
+        with patch("backend.api.routes.cost_analytics.get_cost_tracker", autospec=True) as mock_get:
             mock_tracker = MagicMock()
             mock_tracker._pricing = mock_pricing
             mock_tracker.get_daily_usage.return_value = mock_daily_usage
@@ -254,7 +254,7 @@ class TestBuildCostHistory:
     @pytest.mark.unit
     async def test_cost_history_handles_no_data(self, mock_pricing, mock_db_session):
         """Test cost history handles days with no data."""
-        with patch("backend.api.routes.cost_analytics.get_cost_tracker") as mock_get:
+        with patch("backend.api.routes.cost_analytics.get_cost_tracker", autospec=True) as mock_get:
             mock_tracker = MagicMock()
             mock_tracker._pricing = mock_pricing
             mock_tracker.get_daily_usage.return_value = None
@@ -282,7 +282,9 @@ class TestGetCostAnalytics:
         mock_db_session.execute.return_value = mock_result
 
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             response = await get_cost_analytics(mock_db_session)
 
@@ -349,7 +351,9 @@ class TestGetCostAnalytics:
         mock_db_session.execute.return_value = mock_result
 
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             response = await get_cost_analytics(mock_db_session)
 
@@ -367,7 +371,9 @@ class TestGetCostTrends:
     async def test_get_cost_trends_success(self, mock_cost_tracker):
         """Test successful retrieval of cost trends."""
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             start = date(2026, 1, 25)
             end = date(2026, 1, 31)
@@ -384,7 +390,9 @@ class TestGetCostTrends:
     async def test_get_cost_trends_single_day(self, mock_cost_tracker):
         """Test cost trends for a single day."""
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             day = date(2026, 1, 31)
             response = await get_cost_trends(start_date=day, end_date=day)
@@ -399,7 +407,9 @@ class TestGetCostTrends:
         mock_cost_tracker.get_daily_usage.return_value = None
 
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             start = date(2026, 1, 25)
             end = date(2026, 1, 31)
@@ -442,7 +452,9 @@ class TestCostAnalyticsSchemas:
         mock_db_session.execute.return_value = mock_result
 
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             response = await get_cost_analytics(mock_db_session)
 
@@ -469,7 +481,9 @@ class TestCostAnalyticsSchemas:
         mock_db_session.execute.return_value = mock_result
 
         with patch(
-            "backend.api.routes.cost_analytics.get_cost_tracker", return_value=mock_cost_tracker
+            "backend.api.routes.cost_analytics.get_cost_tracker",
+            return_value=mock_cost_tracker,
+            autospec=True,
         ):
             response = await get_cost_analytics(mock_db_session)
 

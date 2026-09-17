@@ -170,7 +170,7 @@ class TestReceiveAlertmanagerWebhook:
                 new_callable=AsyncMock,
                 return_value=True,
             ),
-            patch("backend.api.routes.alertmanager.logger") as mock_logger,
+            patch("backend.api.routes.alertmanager.logger", autospec=True) as mock_logger,
         ):
             result = await receive_alertmanager_webhook(payload, mock_db_session, redis_client=None)
 
@@ -193,7 +193,7 @@ class TestReceiveAlertmanagerWebhook:
                 new_callable=AsyncMock,
                 return_value=True,
             ),
-            patch("backend.api.routes.alertmanager.logger") as mock_logger,
+            patch("backend.api.routes.alertmanager.logger", autospec=True) as mock_logger,
         ):
             result = await receive_alertmanager_webhook(payload, mock_db_session, redis_client=None)
 
@@ -212,7 +212,7 @@ class TestReceiveAlertmanagerWebhook:
                 new_callable=AsyncMock,
                 return_value=True,
             ),
-            patch("backend.api.routes.alertmanager.logger") as mock_logger,
+            patch("backend.api.routes.alertmanager.logger", autospec=True) as mock_logger,
         ):
             result = await receive_alertmanager_webhook(payload, mock_db_session, redis_client=None)
 
@@ -378,7 +378,9 @@ class TestBroadcastPrometheusAlert:
         )
         mock_redis = MagicMock()
 
-        with patch("backend.api.routes.alertmanager.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster_cls.get_instance = MagicMock(
                 side_effect=RuntimeError("Broadcaster not initialized")
             )
@@ -401,7 +403,9 @@ class TestBroadcastPrometheusAlert:
         )
         mock_redis = MagicMock()
 
-        with patch("backend.api.routes.alertmanager.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster._redis = MagicMock()
             mock_broadcaster._redis.publish = AsyncMock()
@@ -427,7 +431,9 @@ class TestBroadcastPrometheusAlert:
         )
         mock_redis = MagicMock()
 
-        with patch("backend.api.routes.alertmanager.EventBroadcaster") as mock_broadcaster_cls:
+        with patch(
+            "backend.api.routes.alertmanager.EventBroadcaster", autospec=True
+        ) as mock_broadcaster_cls:
             mock_broadcaster = MagicMock()
             mock_broadcaster._redis = MagicMock()
             mock_broadcaster._redis.publish = AsyncMock(side_effect=Exception("Publish failed"))

@@ -77,7 +77,7 @@ class TestAdminSecurityControls:
 
         from backend.api.routes.admin import require_admin_access
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.admin_enabled = True
             # Should not raise
             require_admin_access()
@@ -91,7 +91,7 @@ class TestAdminSecurityControls:
 
         from backend.api.routes.admin import require_admin_access
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.admin_enabled = False
             with pytest.raises(HTTPException) as exc_info:
                 require_admin_access()
@@ -120,9 +120,9 @@ class TestSeedCamerasEndpoint:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -196,9 +196,9 @@ class TestSeedCamerasEndpoint:
         mock_db.execute.side_effect = [mock_clear_result, mock_delete_result, mock_ids_result]
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -244,9 +244,9 @@ class TestSeedCamerasEndpoint:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -297,10 +297,10 @@ class TestSeedCamerasEndpoint:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.Path") as mock_path,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.Path", autospec=True) as mock_path,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -342,10 +342,10 @@ class TestSeedCamerasEndpoint:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.Path") as mock_path,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.Path", autospec=True) as mock_path,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -388,9 +388,9 @@ class TestSeedCamerasEndpoint:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             # Provide 6 sample cameras
@@ -436,8 +436,8 @@ class TestSeedEventsEndpoint:
         mock_db.execute.return_value = mock_camera_result
 
         with (
-            patch("backend.api.routes.admin.random") as mock_random,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.random", autospec=True) as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             # Control randomness for consistent testing
             mock_random.choice.return_value = mock_camera
@@ -536,8 +536,8 @@ class TestSeedEventsEndpoint:
         ]
 
         with (
-            patch("backend.api.routes.admin.random") as mock_random,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.random", autospec=True) as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_random.choice.return_value = mock_camera
             mock_random.random.return_value = 0.25
@@ -593,8 +593,8 @@ class TestSeedEventsEndpoint:
         mock_db.flush = AsyncMock(side_effect=mock_flush)
 
         with (
-            patch("backend.api.routes.admin.random") as mock_random,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.random", autospec=True) as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_random.choice.return_value = mock_camera
             # Simulate risk distribution - create more than needed for random calls
@@ -675,8 +675,8 @@ class TestSeedEventsEndpoint:
             return a  # Return minimum value
 
         with (
-            patch("backend.api.routes.admin.random") as mock_random,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.random", autospec=True) as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_random.choice.return_value = mock_camera
             mock_random.random.return_value = 0.25
@@ -748,7 +748,7 @@ class TestClearDataEndpoint:
             None,
         ]
 
-        with patch("backend.api.routes.admin.get_db_audit_service") as mock_audit:
+        with patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await clear_seeded_data(
@@ -798,7 +798,7 @@ class TestClearDataEndpoint:
             None,
         ]
 
-        with patch("backend.api.routes.admin.get_db_audit_service") as mock_audit:
+        with patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit:
             mock_audit.return_value.log_action = AsyncMock()
 
             result = await clear_seeded_data(
@@ -834,7 +834,7 @@ class TestClearDataEndpoint:
             None,
         ]
 
-        with patch("backend.api.routes.admin.get_db_audit_service") as mock_audit:
+        with patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit:
             mock_audit_service = AsyncMock()
             mock_audit.return_value = mock_audit_service
 
@@ -864,9 +864,11 @@ class TestOrphanCleanupEndpoint:
         request = OrphanCleanupRequest()  # Uses default dry_run=True
 
         with (
-            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
-            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.jobs.orphan_cleanup_job.OrphanCleanupJob", autospec=True
+            ) as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker", autospec=True) as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_job = AsyncMock()
             mock_report = MagicMock()
@@ -905,9 +907,11 @@ class TestOrphanCleanupEndpoint:
         request = OrphanCleanupRequest(dry_run=True, min_age_hours=48)
 
         with (
-            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
-            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.jobs.orphan_cleanup_job.OrphanCleanupJob", autospec=True
+            ) as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker", autospec=True) as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_job = AsyncMock()
             mock_report = MagicMock()
@@ -948,9 +952,11 @@ class TestOrphanCleanupEndpoint:
         request = OrphanCleanupRequest(dry_run=False, max_delete_gb=5.0)
 
         with (
-            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
-            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.jobs.orphan_cleanup_job.OrphanCleanupJob", autospec=True
+            ) as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker", autospec=True) as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_job = AsyncMock()
             mock_report = MagicMock()
@@ -992,9 +998,11 @@ class TestOrphanCleanupEndpoint:
         request = OrphanCleanupRequest(dry_run=True)
 
         with (
-            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
-            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.jobs.orphan_cleanup_job.OrphanCleanupJob", autospec=True
+            ) as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker", autospec=True) as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_job = AsyncMock()
             mock_report = MagicMock()
@@ -1038,9 +1046,11 @@ class TestOrphanCleanupEndpoint:
         request = OrphanCleanupRequest(dry_run=False)
 
         with (
-            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
-            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.jobs.orphan_cleanup_job.OrphanCleanupJob", autospec=True
+            ) as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker", autospec=True) as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_job = AsyncMock()
             mock_report = MagicMock()
@@ -1078,7 +1088,7 @@ class TestGetSampleCameras:
         """Verify _get_sample_cameras uses configured foscam_base_path."""
         from backend.api.routes.admin import _get_sample_cameras
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/custom/camera/path"
 
             cameras = _get_sample_cameras()
@@ -1091,7 +1101,7 @@ class TestGetSampleCameras:
         """Verify _get_sample_cameras returns exactly 6 cameras."""
         from backend.api.routes.admin import _get_sample_cameras
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
             cameras = _get_sample_cameras()
@@ -1102,7 +1112,7 @@ class TestGetSampleCameras:
         """Verify _get_sample_cameras includes all required camera fields."""
         from backend.api.routes.admin import _get_sample_cameras
 
-        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = "/export/foscam"
 
             cameras = _get_sample_cameras()
@@ -1141,9 +1151,9 @@ class TestAdminAuditLogging:
         mock_db.execute.return_value = mock_result
 
         with (
-            patch("backend.api.routes.admin.get_settings") as mock_settings,
-            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras", autospec=True) as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -1200,8 +1210,8 @@ class TestAdminAuditLogging:
         mock_db.execute.return_value = mock_camera_result
 
         with (
-            patch("backend.api.routes.admin.random") as mock_random,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch("backend.api.routes.admin.random", autospec=True) as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_random.choice.return_value = mock_camera
             mock_random.random.return_value = 0.25  # Low risk
@@ -1238,8 +1248,10 @@ class TestAdminAuditLogging:
         request = SeedPipelineLatencyRequest(num_samples=10, time_span_hours=1)
 
         with (
-            patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker_getter,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.core.metrics.get_pipeline_latency_tracker", autospec=True
+            ) as mock_tracker_getter,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_tracker = MagicMock()
             mock_tracker._samples = {
@@ -1279,9 +1291,11 @@ class TestAdminAuditLogging:
         request = OrphanCleanupRequest(dry_run=True)
 
         with (
-            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
-            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
-            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+            patch(
+                "backend.jobs.orphan_cleanup_job.OrphanCleanupJob", autospec=True
+            ) as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker", autospec=True) as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit,
         ):
             mock_job = AsyncMock()
             mock_report = MagicMock()
@@ -1341,7 +1355,7 @@ class TestAdminAuditLogging:
             None,
         ]
 
-        with patch("backend.api.routes.admin.get_db_audit_service") as mock_audit:
+        with patch("backend.api.routes.admin.get_db_audit_service", autospec=True) as mock_audit:
             mock_audit_service = AsyncMock()
             mock_audit.return_value = mock_audit_service
 

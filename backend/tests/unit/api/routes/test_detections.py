@@ -905,6 +905,7 @@ class TestGetDetection:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             result = await get_detection(detection_id=1, db=mock_db_session)
 
@@ -917,6 +918,7 @@ class TestGetDetection:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             side_effect=HTTPException(status_code=404, detail="Not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_detection(detection_id=999, db=mock_db_session)
@@ -938,6 +940,7 @@ class TestGetDetectionEnrichment:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             result = await get_detection_enrichment(detection_id=1, db=mock_db_session)
 
@@ -953,6 +956,7 @@ class TestGetDetectionEnrichment:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             result = await get_detection_enrichment(detection_id=1, db=mock_db_session)
 
@@ -979,8 +983,9 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
+            patch("os.path.exists", return_value=True, autospec=True),
         ):
             mock_file_data = b"fake image data"
             with patch("builtins.open", mock_open(read_data=mock_file_data)):
@@ -1009,8 +1014,9 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
+            patch("os.path.exists", return_value=True, autospec=True),
         ):
             mock_file_data = b"fake full image data"
             with patch("builtins.open", mock_open(read_data=mock_file_data)):
@@ -1038,8 +1044,9 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=False),
+            patch("os.path.exists", return_value=False, autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_image(
@@ -1076,10 +1083,15 @@ class TestGetDetectionImage:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             # detection.thumbnail_path is None, so os.path.exists not called on it
             # First: file_path exists check (True), second: generated thumbnail exists (True)
-            with patch("backend.api.routes.detections.os.path.exists", side_effect=[True, True]):
+            with patch(
+                "backend.api.routes.detections.os.path.exists",
+                side_effect=[True, True],
+                autospec=True,
+            ):
                 mock_file_data = b"generated thumbnail"
                 with patch("builtins.open", mock_open(read_data=mock_file_data)):
                     response = await get_detection_image(
@@ -1111,8 +1123,13 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", side_effect=[False, True]),
+            patch(
+                "backend.api.routes.detections.os.path.exists",
+                side_effect=[False, True],
+                autospec=True,
+            ),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_image(
@@ -1141,10 +1158,11 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
+            patch("os.path.exists", return_value=True, autospec=True),
         ):
-            with patch("builtins.open", side_effect=OSError("Read error")):
+            with patch("builtins.open", side_effect=OSError("Read error"), autospec=True):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_detection_image(
                         detection_id=1,
@@ -1174,8 +1192,9 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
         ):
             mock_file_data = b"video thumbnail data"
             with patch("builtins.open", mock_open(read_data=mock_file_data)):
@@ -1211,10 +1230,13 @@ class TestGetDetectionImage:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             # detection.thumbnail_path is None, so first call checks if source exists (True)
             # The file is opened to read the generated thumbnail
-            with patch("backend.api.routes.detections.os.path.exists", return_value=True):
+            with patch(
+                "backend.api.routes.detections.os.path.exists", return_value=True, autospec=True
+            ):
                 mock_file_data = b"generated video thumbnail"
                 with patch("builtins.open", mock_open(read_data=mock_file_data)):
                     response = await get_detection_image(
@@ -1253,8 +1275,11 @@ class TestGetDetectionImage:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
-            with patch("backend.api.routes.detections.os.path.exists", return_value=True):
+            with patch(
+                "backend.api.routes.detections.os.path.exists", return_value=True, autospec=True
+            ):
                 mock_file_data = b"full frame from video"
                 with patch("builtins.open", mock_open(read_data=mock_file_data)):
                     response = await get_detection_image(
@@ -1286,8 +1311,11 @@ class TestGetDetectionImage:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=False),
+            patch(
+                "backend.api.routes.detections.os.path.exists", return_value=False, autospec=True
+            ),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_image(
@@ -1321,8 +1349,9 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
         ):
             response = await get_detection_thumbnail(
                 detection_id=1,
@@ -1350,8 +1379,9 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
         ):
             response = await get_detection_thumbnail(
                 detection_id=2,
@@ -1388,9 +1418,12 @@ class TestGetDetectionThumbnail:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             # First call: source file exists check
-            with patch("backend.api.routes.detections.os.path.exists", return_value=True):
+            with patch(
+                "backend.api.routes.detections.os.path.exists", return_value=True, autospec=True
+            ):
                 response = await get_detection_thumbnail(
                     detection_id=3,
                     db=mock_db_session,
@@ -1418,8 +1451,11 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=False),
+            patch(
+                "backend.api.routes.detections.os.path.exists", return_value=False, autospec=True
+            ),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_thumbnail(
@@ -1450,8 +1486,9 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_thumbnail(
@@ -1479,8 +1516,9 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
         ):
             response = await get_detection_thumbnail(
                 detection_id=6,
@@ -1509,8 +1547,9 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
         ):
             response = await get_detection_thumbnail(
                 detection_id=7,
@@ -1545,8 +1584,11 @@ class TestGetDetectionThumbnail:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
-            with patch("backend.api.routes.detections.os.path.exists", return_value=True):
+            with patch(
+                "backend.api.routes.detections.os.path.exists", return_value=True, autospec=True
+            ):
                 response = await get_detection_thumbnail(
                     detection_id=8,
                     db=mock_db_session,
@@ -1581,8 +1623,11 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=False),
+            patch(
+                "backend.api.routes.detections.os.path.exists", return_value=False, autospec=True
+            ),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_thumbnail(
@@ -1615,8 +1660,9 @@ class TestGetDetectionThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_thumbnail(
@@ -1647,10 +1693,11 @@ class TestStreamDetectionVideo:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", return_value=True),
+            patch("backend.api.routes.detections.os.path.exists", return_value=True, autospec=True),
         ):
-            with patch.object(Path, "stat") as mock_stat:
+            with patch.object(Path, "stat", autospec=True) as mock_stat:
                 mock_stat.return_value = Mock(st_size=10000)
                 mock_file_data = b"video data"
                 with patch("builtins.open", mock_open(read_data=mock_file_data)):
@@ -1676,6 +1723,7 @@ class TestStreamDetectionVideo:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
@@ -1701,8 +1749,9 @@ class TestStreamDetectionVideo:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=False),
+            patch("os.path.exists", return_value=False, autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await stream_detection_video(
@@ -1727,9 +1776,10 @@ class TestStreamDetectionVideo:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
-            patch.object(Path, "stat") as mock_stat,
+            patch("os.path.exists", return_value=True, autospec=True),
+            patch.object(Path, "stat", autospec=True) as mock_stat,
         ):
             mock_stat.return_value = Mock(st_size=10000)
             mock_file_data = b"v" * 10000
@@ -1757,9 +1807,10 @@ class TestStreamDetectionVideo:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
-            patch.object(Path, "stat") as mock_stat,
+            patch("os.path.exists", return_value=True, autospec=True),
+            patch.object(Path, "stat", autospec=True) as mock_stat,
         ):
             mock_stat.return_value = Mock(st_size=10000)
             with pytest.raises(HTTPException) as exc_info:
@@ -1790,8 +1841,9 @@ class TestGetVideoThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
+            patch("os.path.exists", return_value=True, autospec=True),
         ):
             mock_file_data = b"thumbnail data"
             with patch("builtins.open", mock_open(read_data=mock_file_data)):
@@ -1814,6 +1866,7 @@ class TestGetVideoThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
             pytest.raises(HTTPException) as exc_info,
         ):
@@ -1841,10 +1894,15 @@ class TestGetVideoThumbnail:
         with patch(
             "backend.api.routes.detections.get_detection_or_404",
             return_value=detection,
+            autospec=True,
         ):
             # detection.thumbnail_path is None, so os.path.exists not called on it
             # First: video file_path exists check (True), second: generated thumbnail exists (True)
-            with patch("backend.api.routes.detections.os.path.exists", side_effect=[True, True]):
+            with patch(
+                "backend.api.routes.detections.os.path.exists",
+                side_effect=[True, True],
+                autospec=True,
+            ):
                 mock_file_data = b"generated thumbnail"
                 with patch("builtins.open", mock_open(read_data=mock_file_data)):
                     response = await get_video_thumbnail(
@@ -1874,8 +1932,13 @@ class TestGetVideoThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("backend.api.routes.detections.os.path.exists", side_effect=[False, True]),
+            patch(
+                "backend.api.routes.detections.os.path.exists",
+                side_effect=[False, True],
+                autospec=True,
+            ),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_video_thumbnail(
@@ -1899,8 +1962,9 @@ class TestGetVideoThumbnail:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", side_effect=[False, False]),
+            patch("os.path.exists", side_effect=[False, False], autospec=True),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_video_thumbnail(
@@ -2679,7 +2743,7 @@ class TestFileReadSpecificExceptions:
         """Test FileNotFoundError returns 404 for source image read."""
         from backend.api.routes.detections import _get_full_image_for_image
 
-        with patch("builtins.open", side_effect=FileNotFoundError("No such file")):
+        with patch("builtins.open", side_effect=FileNotFoundError("No such file"), autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 _get_full_image_for_image("/path/to/missing.jpg")
 
@@ -2691,7 +2755,7 @@ class TestFileReadSpecificExceptions:
         """Test PermissionError returns 403 for source image read."""
         from backend.api.routes.detections import _get_full_image_for_image
 
-        with patch("builtins.open", side_effect=PermissionError("Access denied")):
+        with patch("builtins.open", side_effect=PermissionError("Access denied"), autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 _get_full_image_for_image("/path/to/protected.jpg")
 
@@ -2703,7 +2767,7 @@ class TestFileReadSpecificExceptions:
         """Test OSError returns 500 for source image read."""
         from backend.api.routes.detections import _get_full_image_for_image
 
-        with patch("builtins.open", side_effect=OSError("Disk I/O error")):
+        with patch("builtins.open", side_effect=OSError("Disk I/O error"), autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 _get_full_image_for_image("/path/to/bad_disk.jpg")
 
@@ -2726,9 +2790,10 @@ class TestFileReadSpecificExceptions:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
-            patch("builtins.open", side_effect=FileNotFoundError("File deleted")),
+            patch("os.path.exists", return_value=True, autospec=True),
+            patch("builtins.open", side_effect=FileNotFoundError("File deleted"), autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_video_thumbnail(
@@ -2753,9 +2818,10 @@ class TestFileReadSpecificExceptions:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
-            patch("builtins.open", side_effect=PermissionError("Access denied")),
+            patch("os.path.exists", return_value=True, autospec=True),
+            patch("builtins.open", side_effect=PermissionError("Access denied"), autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_video_thumbnail(
@@ -2784,9 +2850,10 @@ class TestFileReadSpecificExceptions:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
-            patch("builtins.open", side_effect=FileNotFoundError("File deleted")),
+            patch("os.path.exists", return_value=True, autospec=True),
+            patch("builtins.open", side_effect=FileNotFoundError("File deleted"), autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_image(
@@ -2819,9 +2886,10 @@ class TestFileReadSpecificExceptions:
             patch(
                 "backend.api.routes.detections.get_detection_or_404",
                 return_value=detection,
+                autospec=True,
             ),
-            patch("os.path.exists", return_value=True),
-            patch("builtins.open", side_effect=PermissionError("Access denied")),
+            patch("os.path.exists", return_value=True, autospec=True),
+            patch("builtins.open", side_effect=PermissionError("Access denied"), autospec=True),
             pytest.raises(HTTPException) as exc_info,
         ):
             await get_detection_image(
@@ -2856,7 +2924,7 @@ class TestFileReadSpecificExceptions:
         from backend.api.routes.detections import _get_full_image_for_image
 
         # Test with an unexpected exception type
-        with patch("builtins.open", side_effect=RuntimeError("Unexpected error")):
+        with patch("builtins.open", side_effect=RuntimeError("Unexpected error"), autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 _get_full_image_for_image("/path/to/file.jpg")
 

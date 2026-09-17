@@ -37,7 +37,9 @@ class TestVerifyApiKey:
         """Test that when api_key_enabled is False, all requests pass without validation."""
         mock_settings.api_key_enabled = False
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             # Should not raise any exception
             result = await verify_api_key(x_api_key=None, api_key=None)
             assert result is None
@@ -48,7 +50,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = ["valid_key"]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 await verify_api_key(x_api_key=None, api_key=None)
 
@@ -62,7 +66,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = [valid_key]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             result = await verify_api_key(x_api_key=valid_key, api_key=None)
             assert result is None
 
@@ -73,7 +79,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = [valid_key]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             result = await verify_api_key(x_api_key=None, api_key=valid_key)
             assert result is None
 
@@ -85,7 +93,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = [valid_key]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             # Header key is valid, should pass
             result = await verify_api_key(x_api_key=valid_key, api_key=invalid_key)
             assert result is None
@@ -96,7 +106,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = ["valid_key"]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 await verify_api_key(
                     x_api_key="invalid_key",  # pragma: allowlist secret
@@ -113,7 +125,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = [valid_key]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             # Valid key should work
             await verify_api_key(x_api_key=valid_key, api_key=None)
 
@@ -133,7 +147,9 @@ class TestVerifyApiKey:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = ["key1", "key2", "key3"]  # pragma: allowlist secret
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             # All valid keys should pass  # pragma: allowlist secret
             await verify_api_key(x_api_key="key1", api_key=None)  # pragma: allowlist secret
             await verify_api_key(x_api_key="key2", api_key=None)  # pragma: allowlist secret
@@ -175,7 +191,9 @@ class TestGetDLQStats:
             )
         )
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_stats(redis=mock_redis_client)
 
             assert result.detection_queue_count == 5
@@ -197,7 +215,9 @@ class TestGetDLQStats:
             )
         )
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_stats(redis=mock_redis_client)
 
             assert result.detection_queue_count == 0
@@ -218,7 +238,9 @@ class TestGetDLQStats:
             )
         )
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_stats(redis=mock_redis_client)
 
             assert result.detection_queue_count == 10000
@@ -254,7 +276,9 @@ class TestGetDLQJobs:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[mock_job])
         mock_redis_client.get_queue_length = AsyncMock(return_value=1)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_jobs(
                 queue_name=DLQName.DETECTION,
                 start=0,
@@ -283,7 +307,9 @@ class TestGetDLQJobs:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[])
         mock_redis_client.get_queue_length = AsyncMock(return_value=0)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_jobs(
                 queue_name=DLQName.ANALYSIS,
                 start=0,
@@ -317,7 +343,9 @@ class TestGetDLQJobs:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=mock_jobs[:2])  # Return first 2
         mock_redis_client.get_queue_length = AsyncMock(return_value=5)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_jobs(
                 queue_name=DLQName.DETECTION,
                 start=0,
@@ -349,7 +377,9 @@ class TestGetDLQJobs:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[mock_job])
         mock_redis_client.get_queue_length = AsyncMock(return_value=100)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_jobs(
                 queue_name=DLQName.ANALYSIS,
                 start=50,
@@ -370,7 +400,9 @@ class TestGetDLQJobs:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[])
         mock_redis_client.get_queue_length = AsyncMock(return_value=0)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             # Limit is constrained to 1000 by FastAPI validation
             result = await get_dlq_jobs(
                 queue_name=DLQName.DETECTION,
@@ -406,7 +438,9 @@ class TestGetDLQJobs:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[mock_job])
         mock_redis_client.get_queue_length = AsyncMock(return_value=1)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_jobs(
                 queue_name=DLQName.ANALYSIS,
                 start=0,
@@ -437,8 +471,10 @@ class TestRequeueDLQJob:
         mock_handler.move_dlq_job_to_queue = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_dlq_job(
                 queue_name=DLQName.DETECTION,
@@ -464,8 +500,10 @@ class TestRequeueDLQJob:
         mock_handler.move_dlq_job_to_queue = AsyncMock(return_value=False)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_dlq_job(
                 queue_name=DLQName.ANALYSIS,
@@ -488,7 +526,9 @@ class TestRequeueDLQJob:
         mock_settings.api_keys = ["valid_key"]
 
         # Test with no API key - should raise 401
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 # Manually call verify_api_key to test auth requirement
                 await verify_api_key(x_api_key=None, api_key=None)
@@ -506,8 +546,10 @@ class TestRequeueDLQJob:
         mock_handler.move_dlq_job_to_queue = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_dlq_job(
                 queue_name=DLQName.ANALYSIS,
@@ -543,8 +585,10 @@ class TestRequeueAllDLQJobs:
         )
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_all_dlq_jobs(
                 queue_name=DLQName.DETECTION,
@@ -572,8 +616,10 @@ class TestRequeueAllDLQJobs:
         mock_handler.move_dlq_job_to_queue = AsyncMock()
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_all_dlq_jobs(
                 queue_name=DLQName.ANALYSIS,
@@ -602,8 +648,10 @@ class TestRequeueAllDLQJobs:
         mock_handler.move_dlq_job_to_queue = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_all_dlq_jobs(
                 queue_name=DLQName.DETECTION,
@@ -632,8 +680,10 @@ class TestRequeueAllDLQJobs:
         mock_handler.move_dlq_job_to_queue = AsyncMock(side_effect=[True, True, False])
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_all_dlq_jobs(
                 queue_name=DLQName.DETECTION,
@@ -653,7 +703,9 @@ class TestRequeueAllDLQJobs:
         mock_settings.api_keys = ["valid_key"]
 
         # Test auth requirement
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 await verify_api_key(x_api_key=None, api_key=None)
 
@@ -677,8 +729,10 @@ class TestClearDLQ:
         mock_handler.clear_dlq = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await clear_dlq(
                 queue_name=DLQName.DETECTION,
@@ -705,8 +759,10 @@ class TestClearDLQ:
         mock_handler.clear_dlq = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await clear_dlq(
                 queue_name=DLQName.ANALYSIS,
@@ -730,8 +786,10 @@ class TestClearDLQ:
         mock_handler.clear_dlq = AsyncMock(return_value=False)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await clear_dlq(
                 queue_name=DLQName.DETECTION,
@@ -751,7 +809,9 @@ class TestClearDLQ:
         mock_settings.api_keys = ["valid_key"]
 
         # Test auth requirement
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             with pytest.raises(Exception) as exc_info:
                 await verify_api_key(x_api_key=None, api_key=None)
 
@@ -771,8 +831,10 @@ class TestClearDLQ:
         mock_handler.clear_dlq = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await clear_dlq(
                 queue_name=DLQName.DETECTION,
@@ -796,7 +858,9 @@ class TestEdgeCasesAndErrorHandling:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[])
         mock_redis_client.get_queue_length = AsyncMock(return_value=0)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             # Test minimum limit (1)
             result = await get_dlq_jobs(
                 queue_name=DLQName.DETECTION,
@@ -824,7 +888,9 @@ class TestEdgeCasesAndErrorHandling:
         mock_settings.api_key_enabled = True
         mock_settings.api_keys = [valid_key]
 
-        with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True
+        ):
             # Key with whitespace should fail (exact match required)
             with pytest.raises(Exception) as exc_info:
                 await verify_api_key(x_api_key=" test_key_123 ", api_key=None)
@@ -855,7 +921,9 @@ class TestEdgeCasesAndErrorHandling:
         mock_handler.get_dlq_jobs = AsyncMock(return_value=[mock_job])
         mock_redis_client.get_queue_length = AsyncMock(return_value=1)
 
-        with patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler):
+        with patch(
+            "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+        ):
             result = await get_dlq_jobs(
                 queue_name=DLQName.DETECTION,
                 start=0,
@@ -884,8 +952,10 @@ class TestEdgeCasesAndErrorHandling:
         mock_handler.move_dlq_job_to_queue = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await requeue_dlq_job(
                 queue_name=DLQName.DETECTION,
@@ -909,8 +979,10 @@ class TestEdgeCasesAndErrorHandling:
         mock_handler.clear_dlq = AsyncMock(return_value=True)
 
         with (
-            patch("backend.api.routes.dlq.get_retry_handler", return_value=mock_handler),
-            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.dlq.get_retry_handler", return_value=mock_handler, autospec=True
+            ),
+            patch("backend.api.routes.dlq.get_settings", return_value=mock_settings, autospec=True),
         ):
             result = await clear_dlq(
                 queue_name=DLQName.ANALYSIS,

@@ -50,12 +50,16 @@ class TestGetCrossingTrends:
             interval="hour",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await get_crossing_trends(
                     zone_id=1,
                     db=mock_db,
@@ -81,7 +85,9 @@ class TestGetCrossingTrends:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             # Service returns None when zone not found
             mock_service.get_crossing_trends = AsyncMock(return_value=None)
@@ -120,7 +126,9 @@ class TestGetCrossingTrends:
             interval="hour",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
@@ -162,12 +170,16 @@ class TestGetCrossingTrends:
             interval="day",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await get_crossing_trends(
                     zone_id=1,
                     db=mock_db,
@@ -203,12 +215,16 @@ class TestGetCrossingTrends:
             interval="hour",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await get_crossing_trends(
                     zone_id=1,
                     db=mock_db,
@@ -242,12 +258,16 @@ class TestGetCrossingTrends:
             interval="hour",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await get_crossing_trends(
                     zone_id=1,
                     db=mock_db,
@@ -284,12 +304,16 @@ class TestGetCrossingTrends:
             interval="hour",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await get_crossing_trends(
                     zone_id=1,
                     db=mock_db,
@@ -323,12 +347,16 @@ class TestGetCrossingTrends:
             interval="hour",
         )
 
-        with patch("backend.api.routes.analytics_zones.get_line_zone_service") as mock_get_service:
+        with patch(
+            "backend.api.routes.analytics_zones.get_line_zone_service", autospec=True
+        ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_crossing_trends = AsyncMock(return_value=mock_trends_response)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await get_crossing_trends(
                     zone_id=42,
                     db=mock_db,

@@ -172,7 +172,7 @@ class TestGetAlert:
         mock_alert.updated_at = datetime.now(UTC)
         mock_alert.delivered_at = None
 
-        with patch.object(AlertService, "get_alert", return_value=mock_alert):
+        with patch.object(AlertService, "get_alert", return_value=mock_alert, autospec=True):
             result = await get_alert(alert_id="test-alert-id", db=mock_db)
 
         assert result.id == "test-alert-id"
@@ -188,7 +188,7 @@ class TestGetAlert:
 
         mock_db = AsyncMock()
 
-        with patch.object(AlertService, "get_alert", return_value=None):
+        with patch.object(AlertService, "get_alert", return_value=None, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await get_alert(alert_id="nonexistent", db=mock_db)
 
@@ -230,7 +230,7 @@ class TestCreateAlert:
             metadata={"source": "test"},
         )
 
-        with patch.object(AlertService, "create_alert", return_value=mock_alert):
+        with patch.object(AlertService, "create_alert", return_value=mock_alert, autospec=True):
             result = await create_alert(alert_data=request, db=mock_db)
 
         assert result.id == "new-alert-id"
@@ -266,7 +266,7 @@ class TestUpdateAlert:
 
         request = AlertServiceUpdateRequest(status=SchemaStatus.ACKNOWLEDGED)
 
-        with patch.object(AlertService, "update_alert", return_value=mock_alert):
+        with patch.object(AlertService, "update_alert", return_value=mock_alert, autospec=True):
             result = await update_alert(alert_id="update-alert-id", alert_data=request, db=mock_db)
 
         assert result.id == "update-alert-id"
@@ -285,7 +285,7 @@ class TestUpdateAlert:
         mock_db = AsyncMock()
         request = AlertServiceUpdateRequest(status=SchemaStatus.ACKNOWLEDGED)
 
-        with patch.object(AlertService, "update_alert", return_value=None):
+        with patch.object(AlertService, "update_alert", return_value=None, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await update_alert(alert_id="nonexistent", alert_data=request, db=mock_db)
 
@@ -303,7 +303,7 @@ class TestDeleteAlert:
 
         mock_db = AsyncMock()
 
-        with patch.object(AlertService, "delete_alert", return_value=True):
+        with patch.object(AlertService, "delete_alert", return_value=True, autospec=True):
             result = await delete_alert(alert_id="delete-alert-id", db=mock_db)
 
         assert result.success is True
@@ -320,7 +320,7 @@ class TestDeleteAlert:
 
         mock_db = AsyncMock()
 
-        with patch.object(AlertService, "delete_alert", return_value=False):
+        with patch.object(AlertService, "delete_alert", return_value=False, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_alert(alert_id="nonexistent", db=mock_db)
 
@@ -334,7 +334,9 @@ class TestDeleteAlert:
 
         mock_db = AsyncMock()
 
-        with patch.object(AlertService, "delete_alert", return_value=True) as mock_delete:
+        with patch.object(
+            AlertService, "delete_alert", return_value=True, autospec=True
+        ) as mock_delete:
             result = await delete_alert(alert_id="test-id", reason="Test deletion", db=mock_db)
 
         assert result.success is True
@@ -368,7 +370,9 @@ class TestAcknowledgeAlert:
         mock_alert.updated_at = datetime.now(UTC)
         mock_alert.delivered_at = None
 
-        with patch.object(AlertService, "acknowledge_alert", return_value=mock_alert):
+        with patch.object(
+            AlertService, "acknowledge_alert", return_value=mock_alert, autospec=True
+        ):
             result = await acknowledge_alert(alert_id="ack-alert-id", db=mock_db)
 
         assert result.id == "ack-alert-id"
@@ -384,7 +388,7 @@ class TestAcknowledgeAlert:
 
         mock_db = AsyncMock()
 
-        with patch.object(AlertService, "acknowledge_alert", return_value=None):
+        with patch.object(AlertService, "acknowledge_alert", return_value=None, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await acknowledge_alert(alert_id="nonexistent", db=mock_db)
 
@@ -418,7 +422,7 @@ class TestDismissAlert:
 
         request = DismissRequest(reason="False positive")
 
-        with patch.object(AlertService, "dismiss_alert", return_value=mock_alert):
+        with patch.object(AlertService, "dismiss_alert", return_value=mock_alert, autospec=True):
             result = await dismiss_alert(alert_id="dismiss-alert-id", request=request, db=mock_db)
 
         assert result.id == "dismiss-alert-id"
@@ -445,7 +449,7 @@ class TestDismissAlert:
         mock_alert.updated_at = datetime.now(UTC)
         mock_alert.delivered_at = None
 
-        with patch.object(AlertService, "dismiss_alert", return_value=mock_alert):
+        with patch.object(AlertService, "dismiss_alert", return_value=mock_alert, autospec=True):
             result = await dismiss_alert(alert_id="dismiss-id", db=mock_db)
 
         assert result.id == "dismiss-id"
@@ -460,7 +464,7 @@ class TestDismissAlert:
 
         mock_db = AsyncMock()
 
-        with patch.object(AlertService, "dismiss_alert", return_value=None):
+        with patch.object(AlertService, "dismiss_alert", return_value=None, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await dismiss_alert(alert_id="nonexistent", db=mock_db)
 

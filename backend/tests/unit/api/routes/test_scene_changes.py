@@ -368,7 +368,7 @@ class TestAcknowledgeSceneChange:
 
         mock_request = MagicMock()
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
             result = await acknowledge_scene_change(
                 "front_door", 1, request=mock_request, db=mock_db
@@ -415,7 +415,7 @@ class TestAcknowledgeSceneChange:
 
         mock_request = MagicMock()
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
             result = await acknowledge_scene_change(
                 "front_door", 1, request=mock_request, db=mock_db
@@ -466,7 +466,7 @@ class TestAcknowledgeSceneChange:
 
         mock_request = MagicMock()
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
 
             # First call
@@ -523,7 +523,7 @@ class TestAcknowledgeSceneChange:
 
         mock_request = MagicMock()
 
-        with patch("backend.api.routes.cameras.AuditService") as mock_audit:
+        with patch("backend.api.routes.cameras.AuditService", autospec=True) as mock_audit:
             mock_audit.log_action = AsyncMock()
             result = await acknowledge_scene_change(
                 "driveway", 100, request=mock_request, db=mock_db

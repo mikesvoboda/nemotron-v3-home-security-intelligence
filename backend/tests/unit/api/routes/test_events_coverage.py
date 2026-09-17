@@ -131,7 +131,9 @@ class TestListEventsFilters:
         mock_db_session.execute.side_effect = [mock_count_result, mock_result]
 
         # Set trace_id in request headers
-        with patch("backend.api.routes.events.get_trace_id", return_value="test-trace-123"):
+        with patch(
+            "backend.api.routes.events.get_trace_id", return_value="test-trace-123", autospec=True
+        ):
             response = client.get("/api/events")
 
         assert response.status_code == 200
@@ -519,7 +521,7 @@ class TestBulkUpdateEvents:
 class TestBulkDeleteEvents:
     """Tests for bulk_delete_events endpoint."""
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_soft_delete(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -536,7 +538,7 @@ class TestBulkDeleteEvents:
         data = response.json()
         assert data["succeeded"] == 2
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_hard_delete(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -559,7 +561,7 @@ class TestBulkDeleteEvents:
         data = response.json()
         assert data["succeeded"] == 1
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_event_not_found(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -585,8 +587,8 @@ class TestBulkDeleteEvents:
 class TestUpdateEvent:
     """Tests for update_event endpoint."""
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("backend.api.routes.events.AuditService.log_action")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("backend.api.routes.events.AuditService.log_action", autospec=True)
     def test_update_event_reviewed_true(
         self, mock_audit, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -611,13 +613,13 @@ class TestUpdateEvent:
         mock_get_event.return_value = mock_event
         mock_audit.return_value = AsyncMock()
 
-        with patch("backend.api.routes.events.record_event_reviewed") as mock_metric:
+        with patch("backend.api.routes.events.record_event_reviewed", autospec=True) as mock_metric:
             response = client.patch("/api/events/1", json={"reviewed": True})
 
         assert response.status_code == 200
         mock_metric.assert_called_once()
 
-    @patch("backend.api.routes.events.get_event_or_404")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
     def test_update_event_snooze_until(
         self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -654,8 +656,8 @@ class TestUpdateEvent:
 class TestGetEventEnrichments:
     """Tests for get_event_enrichments endpoint."""
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("backend.api.routes.events.batch_fetch_detections")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("backend.api.routes.events.batch_fetch_detections", autospec=True)
     def test_get_enrichments_with_pagination(
         self, mock_batch_fetch, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -688,7 +690,7 @@ class TestGetEventEnrichments:
         assert data["total"] == 100
         assert data["has_more"] is True
 
-    @patch("backend.api.routes.events.get_event_or_404")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
     def test_get_enrichments_empty(
         self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -709,7 +711,7 @@ class TestGetEventEnrichments:
         assert data["total"] == 0
         assert data["has_more"] is False
 
-    @patch("backend.api.routes.events.get_event_or_404")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
     def test_get_enrichments_offset_beyond_range(
         self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -737,7 +739,7 @@ class TestGetEventEnrichments:
 class TestGetEventClip:
     """Tests for get_event_clip endpoint."""
 
-    @patch("backend.api.routes.events.get_event_or_404")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
     def test_get_clip_no_clip_path(
         self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -755,8 +757,8 @@ class TestGetEventClip:
         assert data["clip_available"] is False
         assert data["clip_url"] is None
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("pathlib.Path")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("pathlib.Path", autospec=True)
     def test_get_clip_file_not_exists(
         self, mock_path_class, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -787,8 +789,8 @@ class TestGetEventClip:
 class TestGenerateEventClip:
     """Tests for generate_event_clip endpoint."""
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("pathlib.Path")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("pathlib.Path", autospec=True)
     def test_generate_clip_already_exists_no_force(
         self,
         mock_path_class,
@@ -821,8 +823,8 @@ class TestGenerateEventClip:
         assert data["status"] == "completed"
         assert "already exists" in data["message"].lower()
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("backend.api.routes.events.batch_fetch_file_paths")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("backend.api.routes.events.batch_fetch_file_paths", autospec=True)
     def test_generate_clip_no_detection_images(
         self,
         mock_batch_fetch,
@@ -845,7 +847,7 @@ class TestGenerateEventClip:
         assert response.status_code == 400
         assert "no detection images available" in response.json()["detail"].lower()
 
-    @patch("backend.api.routes.events.get_event_or_404")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
     def test_generate_clip_no_detections(
         self, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -942,7 +944,7 @@ class TestAnalyzeBatchStreaming:
 class TestDeleteEvent:
     """Tests for delete_event endpoint (soft delete)."""
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_delete_event_success(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -955,7 +957,7 @@ class TestDeleteEvent:
 
         assert response.status_code == 204
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_delete_event_not_found(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -968,7 +970,7 @@ class TestDeleteEvent:
 
         assert response.status_code == 404
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_delete_event_already_deleted(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -992,7 +994,7 @@ class TestDeleteEvent:
 class TestRestoreEvent:
     """Tests for restore_event endpoint."""
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_restore_event_success(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1023,7 +1025,7 @@ class TestRestoreEvent:
         data = response.json()
         assert data["id"] == 1
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_restore_event_not_found(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1036,7 +1038,7 @@ class TestRestoreEvent:
 
         assert response.status_code == 404
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_restore_event_not_deleted(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1095,7 +1097,7 @@ class TestExportEventsFilters:
 
         assert response.status_code == 200
 
-    @patch("backend.api.routes.events.AuditService.log_action")
+    @patch("backend.api.routes.events.AuditService.log_action", autospec=True)
     def test_export_events_audit_logging_exception(
         self, mock_audit, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1142,7 +1144,7 @@ class TestExportEventsFilters:
 class TestBulkOperationsErrorPaths:
     """Tests for bulk operations error handling."""
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_create_exception_during_processing(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1247,7 +1249,7 @@ class TestBulkOperationsErrorPaths:
         # Should succeed despite cache error
         assert response.status_code == 207
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_hard_delete_with_file_failures(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1271,7 +1273,7 @@ class TestBulkOperationsErrorPaths:
         data = response.json()
         assert data["succeeded"] == 1
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_hard_delete_event_not_found_after_files(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1293,7 +1295,7 @@ class TestBulkOperationsErrorPaths:
         data = response.json()
         assert data["failed"] == 1
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_exception_during_processing(
         self, mock_get_service, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1310,7 +1312,7 @@ class TestBulkOperationsErrorPaths:
         data = response.json()
         assert data["failed"] == 1
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_bulk_delete_cache_invalidation_failure(
         self,
         mock_get_service,
@@ -1335,8 +1337,8 @@ class TestBulkOperationsErrorPaths:
 class TestUpdateEventBranches:
     """Tests for update_event conditional branches."""
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("backend.api.routes.events.AuditService.log_action")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("backend.api.routes.events.AuditService.log_action", autospec=True)
     def test_update_event_reviewed_false(
         self, mock_audit, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1364,8 +1366,8 @@ class TestUpdateEventBranches:
 
         assert response.status_code == 200
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("backend.api.routes.events.record_event_reviewed")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("backend.api.routes.events.record_event_reviewed", autospec=True)
     def test_update_event_metric_failure_continues(
         self, mock_metric, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1394,7 +1396,7 @@ class TestUpdateEventBranches:
         # Should succeed despite metric error
         assert response.status_code == 200
 
-    @patch("backend.api.routes.events.get_event_or_404")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
     def test_update_event_cache_invalidation_failure(
         self,
         mock_get_event,
@@ -1431,8 +1433,8 @@ class TestUpdateEventBranches:
 class TestGetEventClipWithFile:
     """Tests for get_event_clip with existing file."""
 
-    @patch("backend.api.routes.events.get_event_or_404")
-    @patch("pathlib.Path")
+    @patch("backend.api.routes.events.get_event_or_404", autospec=True)
+    @patch("pathlib.Path", autospec=True)
     def test_get_clip_file_exists(
         self, mock_path_class, mock_get_event, client: TestClient, mock_db_session: AsyncMock
     ):
@@ -1467,7 +1469,7 @@ class TestGetEventClipWithFile:
 class TestDeleteRestoreCacheFailures:
     """Tests for delete/restore cache invalidation failures."""
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_delete_event_cache_invalidation_failure(
         self,
         mock_get_service,
@@ -1486,7 +1488,7 @@ class TestDeleteRestoreCacheFailures:
         # Should succeed despite cache error
         assert response.status_code == 204
 
-    @patch("backend.api.routes.events.get_event_service")
+    @patch("backend.api.routes.events.get_event_service", autospec=True)
     def test_restore_event_cache_invalidation_failure(
         self,
         mock_get_service,

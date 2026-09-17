@@ -302,7 +302,7 @@ class TestUpdateEndpointConcurrency:
     def mock_client(self):
         """Create a test client fixture."""
 
-        with patch("backend.api.routes.prompt_management.get_db"):
+        with patch("backend.api.routes.prompt_management.get_db", autospec=True):
             yield
 
     def test_update_request_with_expected_version_schema(self):

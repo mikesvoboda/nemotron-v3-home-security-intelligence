@@ -144,10 +144,10 @@ async def test_check_ai_service_health_healthy() -> None:
         "critical": True,
     }
 
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get.return_value = None  # No circuit breaker registered
 
-        with patch("httpx.AsyncClient") as mock_client:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
@@ -177,10 +177,10 @@ async def test_check_ai_service_health_unhealthy_http_error() -> None:
         "critical": True,
     }
 
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get.return_value = None
 
-        with patch("httpx.AsyncClient") as mock_client:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 500
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
@@ -207,10 +207,10 @@ async def test_check_ai_service_health_unhealthy_connection_refused() -> None:
         "critical": True,
     }
 
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get.return_value = None
 
-        with patch("httpx.AsyncClient") as mock_client:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=httpx.ConnectError("Connection refused")
             )
@@ -235,10 +235,10 @@ async def test_check_ai_service_health_unhealthy_timeout() -> None:
         "critical": True,
     }
 
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get.return_value = None
 
-        with patch("httpx.AsyncClient") as mock_client:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=httpx.TimeoutException("Request timeout")
             )
@@ -283,7 +283,7 @@ async def test_check_ai_service_health_skips_when_circuit_open() -> None:
         "critical": True,
     }
 
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_breaker = MagicMock()
         mock_breaker.state.value = "open"
         mock_registry.return_value.get.return_value = mock_breaker
@@ -302,7 +302,7 @@ async def test_check_ai_service_health_skips_when_circuit_open() -> None:
 
 def test_get_circuit_breaker_summary_all_closed() -> None:
     """Test circuit breaker summary when all circuits are closed."""
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {
             "yolo26": {"state": "closed", "failure_count": 0},
             "nemotron": {"state": "closed", "failure_count": 0},
@@ -320,7 +320,7 @@ def test_get_circuit_breaker_summary_all_closed() -> None:
 
 def test_get_circuit_breaker_summary_with_open() -> None:
     """Test circuit breaker summary with some circuits open."""
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {
             "yolo26": {"state": "open", "failure_count": 5},
             "nemotron": {"state": "closed", "failure_count": 0},
@@ -340,7 +340,7 @@ def test_get_circuit_breaker_summary_with_open() -> None:
 
 def test_get_circuit_breaker_summary_empty() -> None:
     """Test circuit breaker summary when no circuits are registered."""
-    with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
+    with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {}
 
         result = _get_circuit_breaker_summary()

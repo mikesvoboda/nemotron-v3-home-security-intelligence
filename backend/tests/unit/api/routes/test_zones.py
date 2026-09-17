@@ -35,7 +35,9 @@ class TestListZones:
         mock_db = AsyncMock()
 
         # Mock camera exists
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             # Mock zones query
             mock_zone1 = MagicMock(spec=Zone)
             mock_zone1.id = "zone1"
@@ -86,7 +88,9 @@ class TestListZones:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             # Mock only enabled zones
             mock_zone = MagicMock(spec=Zone)
             mock_zone.id = "zone1"
@@ -127,6 +131,7 @@ class TestListZones:
         with patch(
             "backend.api.routes.zones.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await list_zones(
@@ -144,7 +149,9 @@ class TestListZones:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             # Mock empty zones query
             mock_result = MagicMock()
             mock_result.scalars.return_value.all.return_value = []
@@ -167,7 +174,9 @@ class TestListZones:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             # Mock disabled zone
             mock_zone = MagicMock(spec=Zone)
             mock_zone.id = "zone1"
@@ -218,8 +227,12 @@ class TestCreateZone:
             priority=10,
         )
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.uuid.uuid4", return_value="test-uuid-1234"):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.uuid.uuid4", return_value="test-uuid-1234", autospec=True
+            ):
                 result = await create_zone(
                     camera_id="front_door",
                     zone_data=zone_data,
@@ -253,8 +266,10 @@ class TestCreateZone:
             coordinates=[[0.1, 0.2], [0.3, 0.2], [0.3, 0.8], [0.1, 0.8]],
         )
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.uuid.uuid4") as mock_uuid:
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch("backend.api.routes.zones.uuid.uuid4", autospec=True) as mock_uuid:
                 mock_uuid.return_value = "generated-uuid"
 
                 result = await create_zone(
@@ -285,6 +300,7 @@ class TestCreateZone:
         with patch(
             "backend.api.routes.zones.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await create_zone(
@@ -315,7 +331,9 @@ class TestCreateZone:
             priority=25,
         )
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             result = await create_zone(
                 camera_id="backyard",
                 zone_data=zone_data,
@@ -366,8 +384,12 @@ class TestGetZone:
         mock_zone.camera_id = "front_door"
         mock_zone.name = "Driveway"
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=mock_camera):
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=mock_camera, autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 result = await get_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -385,9 +407,13 @@ class TestGetZone:
 
         mock_zone = MagicMock(spec=Zone)
 
-        with patch("backend.api.routes.zones.get_camera_or_404") as mock_camera_check:
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", autospec=True
+        ) as mock_camera_check:
             mock_camera_check.return_value = MagicMock()
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 await get_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -403,8 +429,12 @@ class TestGetZone:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404") as mock_zone_check:
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", autospec=True
+            ) as mock_zone_check:
                 mock_zone_check.return_value = MagicMock()
 
                 await get_zone(
@@ -428,6 +458,7 @@ class TestGetZone:
         with patch(
             "backend.api.routes.zones.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_zone(
@@ -447,10 +478,13 @@ class TestGetZone:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             with patch(
                 "backend.api.routes.zones.get_zone_or_404",
                 side_effect=HTTPException(status_code=404, detail="Zone not found"),
+                autospec=True,
             ):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_zone(
@@ -470,12 +504,15 @@ class TestGetZone:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             with patch(
                 "backend.api.routes.zones.get_zone_or_404",
                 side_effect=HTTPException(
                     status_code=404, detail="Zone not found for camera front_door"
                 ),
+                autospec=True,
             ):
                 with pytest.raises(HTTPException) as exc_info:
                     await get_zone(
@@ -506,8 +543,12 @@ class TestUpdateZone:
         mock_zone.name = "Driveway"
         mock_zone.enabled = True
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 result = await update_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -540,8 +581,12 @@ class TestUpdateZone:
         mock_zone.enabled = True
         mock_zone.priority = 10
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 result = await update_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -570,8 +615,12 @@ class TestUpdateZone:
         mock_zone.enabled = True
         mock_zone.priority = 10
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 await update_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -600,8 +649,12 @@ class TestUpdateZone:
         mock_zone.camera_id = "front_door"
         mock_zone.coordinates = [[0.1, 0.2], [0.3, 0.2], [0.3, 0.8], [0.1, 0.8]]
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 result = await update_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -626,6 +679,7 @@ class TestUpdateZone:
         with patch(
             "backend.api.routes.zones.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await update_zone(
@@ -649,10 +703,13 @@ class TestUpdateZone:
 
         zone_data = ZoneUpdate(name="Updated")
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             with patch(
                 "backend.api.routes.zones.get_zone_or_404",
                 side_effect=HTTPException(status_code=404, detail="Zone not found"),
+                autospec=True,
             ):
                 with pytest.raises(HTTPException) as exc_info:
                     await update_zone(
@@ -676,12 +733,15 @@ class TestUpdateZone:
 
         zone_data = ZoneUpdate(name="Updated")
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             with patch(
                 "backend.api.routes.zones.get_zone_or_404",
                 side_effect=HTTPException(
                     status_code=404, detail="Zone not found for camera front_door"
                 ),
+                autospec=True,
             ):
                 with pytest.raises(HTTPException) as exc_info:
                     await update_zone(
@@ -708,8 +768,12 @@ class TestDeleteZone:
         mock_zone.id = "zone1"
         mock_zone.camera_id = "front_door"
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 result = await delete_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -747,9 +811,13 @@ class TestDeleteZone:
 
         mock_zone = MagicMock(spec=Zone)
 
-        with patch("backend.api.routes.zones.get_camera_or_404") as mock_camera_check:
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", autospec=True
+        ) as mock_camera_check:
             mock_camera_check.return_value = MagicMock()
-            with patch("backend.api.routes.zones.get_zone_or_404", return_value=mock_zone):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", return_value=mock_zone, autospec=True
+            ):
                 await delete_zone(
                     camera_id="front_door",
                     zone_id="zone1",
@@ -767,8 +835,12 @@ class TestDeleteZone:
 
         mock_zone = MagicMock(spec=Zone)
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
-            with patch("backend.api.routes.zones.get_zone_or_404") as mock_zone_check:
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
+            with patch(
+                "backend.api.routes.zones.get_zone_or_404", autospec=True
+            ) as mock_zone_check:
                 mock_zone_check.return_value = mock_zone
 
                 await delete_zone(
@@ -792,6 +864,7 @@ class TestDeleteZone:
         with patch(
             "backend.api.routes.zones.get_camera_or_404",
             side_effect=HTTPException(status_code=404, detail="Camera not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_zone(
@@ -811,10 +884,13 @@ class TestDeleteZone:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             with patch(
                 "backend.api.routes.zones.get_zone_or_404",
                 side_effect=HTTPException(status_code=404, detail="Zone not found"),
+                autospec=True,
             ):
                 with pytest.raises(HTTPException) as exc_info:
                     await delete_zone(
@@ -834,12 +910,15 @@ class TestDeleteZone:
 
         mock_db = AsyncMock()
 
-        with patch("backend.api.routes.zones.get_camera_or_404", return_value=MagicMock()):
+        with patch(
+            "backend.api.routes.zones.get_camera_or_404", return_value=MagicMock(), autospec=True
+        ):
             with patch(
                 "backend.api.routes.zones.get_zone_or_404",
                 side_effect=HTTPException(
                     status_code=404, detail="Zone not found for camera front_door"
                 ),
+                autospec=True,
             ):
                 with pytest.raises(HTTPException) as exc_info:
                     await delete_zone(

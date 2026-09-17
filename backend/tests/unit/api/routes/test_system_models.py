@@ -75,7 +75,9 @@ class TestGetModelsEndpoint:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -116,7 +118,9 @@ class TestGetModelsEndpoint:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -176,7 +180,9 @@ class TestGetModelsEndpoint:
             "vram_used_mb": 300,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -221,7 +227,9 @@ class TestGetModelsEndpoint:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -257,7 +265,9 @@ class TestGetModelByNameEndpoint:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
@@ -283,7 +293,9 @@ class TestGetModelByNameEndpoint:
     @pytest.mark.asyncio
     async def test_get_model_not_found(self) -> None:
         """Test that non-existent model returns 404."""
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client_factory.return_value = mock_client
 
@@ -315,7 +327,9 @@ class TestGetModelByNameEndpoint:
             "vram_used_mb": 300,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
@@ -343,7 +357,9 @@ class TestGetModelByNameEndpoint:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
@@ -382,7 +398,9 @@ class TestModelStatusSchema:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
@@ -436,7 +454,9 @@ class TestModelStatusSchema:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -485,7 +505,9 @@ class TestVRAMStats:
             "vram_used_mb": 300,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -524,7 +546,9 @@ class TestVRAMStats:
             "vram_used_mb": 0,
         }
 
-        with patch("backend.api.routes.model_management.get_http_client") as mock_client_factory:
+        with patch(
+            "backend.api.routes.model_management.get_http_client", autospec=True
+        ) as mock_client_factory:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
@@ -555,7 +579,9 @@ class TestModelZooStatusEndpoint:
         mock_manager.total_loaded_vram = 0
         mock_manager._load_counts = {}
 
-        with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
+        with patch(
+            "backend.api.routes.system.get_model_manager", return_value=mock_manager, autospec=True
+        ):
             async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
@@ -584,7 +610,9 @@ class TestModelZooStatusEndpoint:
         mock_manager.total_loaded_vram = 0
         mock_manager._load_counts = {}
 
-        with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
+        with patch(
+            "backend.api.routes.system.get_model_manager", return_value=mock_manager, autospec=True
+        ):
             async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
@@ -617,6 +645,7 @@ class TestModelZooStatusEndpoint:
         with patch(
             "backend.api.routes.system.get_model_manager",
             return_value=mock_manager,
+            autospec=True,
         ):
             async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
@@ -644,7 +673,9 @@ class TestModelZooStatusEndpoint:
         mock_manager.total_loaded_vram = 0
         mock_manager._load_counts = {}
 
-        with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
+        with patch(
+            "backend.api.routes.system.get_model_manager", return_value=mock_manager, autospec=True
+        ):
             async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
@@ -672,7 +703,9 @@ class TestModelZooStatusEndpoint:
         mock_manager.total_loaded_vram = 0
         mock_manager._load_counts = {}
 
-        with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
+        with patch(
+            "backend.api.routes.system.get_model_manager", return_value=mock_manager, autospec=True
+        ):
             async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
@@ -779,6 +812,7 @@ class TestModelZooLatencyHistoryEndpoint:
         with patch(
             "backend.core.metrics.get_model_latency_tracker",
             return_value=mock_tracker,
+            autospec=True,
         ):
             async with authenticated_async_client() as client:
                 response = await client.get(
@@ -817,6 +851,7 @@ class TestModelZooLatencyHistoryEndpoint:
         with patch(
             "backend.core.metrics.get_model_latency_tracker",
             return_value=mock_tracker,
+            autospec=True,
         ):
             async with authenticated_async_client() as client:
                 response = await client.get(

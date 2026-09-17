@@ -61,7 +61,7 @@ class TestLogFrontendEntryHelper:
             message="Test message",
         )
 
-        with patch("backend.api.routes.logs.frontend_logger") as mock_logger:
+        with patch("backend.api.routes.logs.frontend_logger", autospec=True) as mock_logger:
             result = _log_frontend_entry(entry)
 
             assert result is True
@@ -82,7 +82,7 @@ class TestLogFrontendEntryHelper:
             user_agent="TestBrowser/1.0",
         )
 
-        with patch("backend.api.routes.logs.frontend_logger") as mock_logger:
+        with patch("backend.api.routes.logs.frontend_logger", autospec=True) as mock_logger:
             result = _log_frontend_entry(entry)
 
             assert result is True
@@ -100,7 +100,7 @@ class TestLogFrontendEntryHelper:
             context={"action": "click", "element": "button"},
         )
 
-        with patch("backend.api.routes.logs.frontend_logger") as mock_logger:
+        with patch("backend.api.routes.logs.frontend_logger", autospec=True) as mock_logger:
             _log_frontend_entry(entry)
 
             call_args = mock_logger.log.call_args
@@ -120,7 +120,7 @@ class TestLogFrontendEntryHelper:
         mock_headers.get.return_value = "RequestBrowser/1.0"
         mock_request.headers = mock_headers
 
-        with patch("backend.api.routes.logs.frontend_logger") as mock_logger:
+        with patch("backend.api.routes.logs.frontend_logger", autospec=True) as mock_logger:
             result = _log_frontend_entry(entry, mock_request)
 
             assert result is True
@@ -141,7 +141,7 @@ class TestLogFrontendEntryHelper:
         mock_request = MagicMock(spec=Request)
         mock_request.headers.get.return_value = "HeaderBrowser/1.0"
 
-        with patch("backend.api.routes.logs.frontend_logger") as mock_logger:
+        with patch("backend.api.routes.logs.frontend_logger", autospec=True) as mock_logger:
             _log_frontend_entry(entry, mock_request)
 
             call_args = mock_logger.log.call_args
@@ -156,8 +156,8 @@ class TestLogFrontendEntryHelper:
         )
 
         with (
-            patch("backend.api.routes.logs.frontend_logger") as mock_logger,
-            patch("backend.api.routes.logs.logger") as mock_route_logger,
+            patch("backend.api.routes.logs.frontend_logger", autospec=True) as mock_logger,
+            patch("backend.api.routes.logs.logger", autospec=True) as mock_route_logger,
         ):
             mock_logger.log.side_effect = Exception("Logging failed")
 
@@ -180,7 +180,7 @@ class TestIngestFrontendLog:
         mock_request = MagicMock(spec=Request)
         mock_request.headers.get.return_value = None
 
-        with patch("backend.api.routes.logs._log_frontend_entry", return_value=True):
+        with patch("backend.api.routes.logs._log_frontend_entry", return_value=True, autospec=True):
             response = await ingest_frontend_log(entry, mock_request)
 
             assert isinstance(response, FrontendLogResponse)
@@ -197,7 +197,9 @@ class TestIngestFrontendLog:
         )
         mock_request = MagicMock(spec=Request)
 
-        with patch("backend.api.routes.logs._log_frontend_entry", return_value=False):
+        with patch(
+            "backend.api.routes.logs._log_frontend_entry", return_value=False, autospec=True
+        ):
             response = await ingest_frontend_log(entry, mock_request)
 
             assert response.success is False
@@ -220,7 +222,7 @@ class TestIngestFrontendLogsBatch:
         )
         mock_request = MagicMock(spec=Request)
 
-        with patch("backend.api.routes.logs._log_frontend_entry", return_value=True):
+        with patch("backend.api.routes.logs._log_frontend_entry", return_value=True, autospec=True):
             response = await ingest_frontend_logs_batch(batch, mock_request)
 
             assert response.success is True
@@ -244,8 +246,9 @@ class TestIngestFrontendLogsBatch:
             patch(
                 "backend.api.routes.logs._log_frontend_entry",
                 side_effect=[True, False, True],
+                autospec=True,
             ),
-            patch("backend.api.routes.logs.logger"),
+            patch("backend.api.routes.logs.logger", autospec=True),
         ):
             response = await ingest_frontend_logs_batch(batch, mock_request)
 
@@ -264,8 +267,8 @@ class TestIngestFrontendLogsBatch:
         mock_request = MagicMock(spec=Request)
 
         with (
-            patch("backend.api.routes.logs._log_frontend_entry", return_value=False),
-            patch("backend.api.routes.logs.logger"),
+            patch("backend.api.routes.logs._log_frontend_entry", return_value=False, autospec=True),
+            patch("backend.api.routes.logs.logger", autospec=True),
         ):
             response = await ingest_frontend_logs_batch(batch, mock_request)
 

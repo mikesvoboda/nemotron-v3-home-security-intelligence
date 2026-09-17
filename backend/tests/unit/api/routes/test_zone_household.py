@@ -36,6 +36,7 @@ class TestGetZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock service returns config
             mock_config = MagicMock()
@@ -49,7 +50,7 @@ class TestGetZoneHouseholdConfig:
             mock_config.updated_at = datetime(2026, 1, 21, 12, 0, 0, tzinfo=UTC)
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=mock_config)
@@ -75,9 +76,10 @@ class TestGetZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=None)
@@ -95,11 +97,13 @@ class TestGetZoneHouseholdConfig:
         """Test get config verifies zone exists before fetching config."""
         from backend.api.routes.zone_household import get_zone_household_config
 
-        with patch("backend.api.routes.zone_household.get_zone_or_404") as mock_zone_check:
+        with patch(
+            "backend.api.routes.zone_household.get_zone_or_404", autospec=True
+        ) as mock_zone_check:
             mock_zone_check.return_value = MagicMock()
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=None)
@@ -120,6 +124,7 @@ class TestGetZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             side_effect=HTTPException(status_code=404, detail="Zone not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_zone_household_config(
@@ -150,6 +155,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock member/vehicle validation
             mock_result = MagicMock()
@@ -166,7 +172,7 @@ class TestUpsertZoneHouseholdConfig:
             mock_config.access_schedules = []
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=None)  # No existing config
@@ -199,6 +205,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock member validation
             mock_result = MagicMock()
@@ -220,7 +227,7 @@ class TestUpsertZoneHouseholdConfig:
             updated_config.access_schedules = []
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=existing_config)
@@ -252,6 +259,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock owner doesn't exist
             mock_result = MagicMock()
@@ -283,6 +291,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock first member exists, second doesn't
             mock_result_1 = MagicMock()
@@ -320,6 +329,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock first vehicle exists, second doesn't
             mock_result_1 = MagicMock()
@@ -365,6 +375,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock owner exists
             mock_result = MagicMock()
@@ -377,7 +388,7 @@ class TestUpsertZoneHouseholdConfig:
             mock_config.access_schedules = [schedule.model_dump()]
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=None)
@@ -404,6 +415,7 @@ class TestUpsertZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             side_effect=HTTPException(status_code=404, detail="Zone not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await upsert_zone_household_config(
@@ -430,6 +442,7 @@ class TestPatchZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             # Mock existing config
             existing_config = MagicMock()
@@ -447,7 +460,7 @@ class TestPatchZoneHouseholdConfig:
             updated_config.access_schedules = []
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=existing_config)
@@ -478,9 +491,10 @@ class TestPatchZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=None)
@@ -507,11 +521,12 @@ class TestPatchZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             existing_config = MagicMock()
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=existing_config)
@@ -523,6 +538,7 @@ class TestPatchZoneHouseholdConfig:
                     side_effect=HTTPException(
                         status_code=404, detail="Household member with id 999 not found"
                     ),
+                    autospec=True,
                 ):
                     with pytest.raises(HTTPException) as exc_info:
                         await patch_zone_household_config(
@@ -545,6 +561,7 @@ class TestPatchZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             existing_config = MagicMock()
             existing_config.owner_id = 1  # Should remain unchanged
@@ -558,7 +575,7 @@ class TestPatchZoneHouseholdConfig:
             updated_config.access_schedules = []
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=existing_config)
@@ -589,6 +606,7 @@ class TestPatchZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             side_effect=HTTPException(status_code=404, detail="Zone not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await patch_zone_household_config(
@@ -622,6 +640,7 @@ class TestPatchZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             existing_config = MagicMock()
 
@@ -634,7 +653,7 @@ class TestPatchZoneHouseholdConfig:
             updated_config.allowed_member_ids = []
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=existing_config)
@@ -667,13 +686,14 @@ class TestDeleteZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             existing_config = MagicMock()
             existing_config.id = 1
             existing_config.zone_id = "zone-123"
 
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=existing_config)
@@ -696,9 +716,10 @@ class TestDeleteZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_config = AsyncMock(return_value=None)
@@ -721,6 +742,7 @@ class TestDeleteZoneHouseholdConfig:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             side_effect=HTTPException(status_code=404, detail="Zone not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_zone_household_config(
@@ -753,9 +775,10 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_trust_level = AsyncMock(
@@ -785,9 +808,10 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_trust_level = AsyncMock(
@@ -817,9 +841,10 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_trust_level = AsyncMock(
@@ -850,9 +875,10 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_trust_level = AsyncMock(
@@ -881,9 +907,10 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_trust_level = AsyncMock(
@@ -914,9 +941,10 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             return_value=MagicMock(),
+            autospec=True,
         ):
             with patch(
-                "backend.api.routes.zone_household.ZoneHouseholdService"
+                "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
             ) as mock_service_class:
                 mock_service = MagicMock()
                 mock_service.get_trust_level = AsyncMock(
@@ -948,6 +976,7 @@ class TestCheckEntityTrust:
         with patch(
             "backend.api.routes.zone_household.get_zone_or_404",
             side_effect=HTTPException(status_code=404, detail="Zone not found"),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await check_entity_trust(
@@ -982,7 +1011,9 @@ class TestGetMemberZones:
             },
         ]
 
-        with patch("backend.api.routes.zone_household.ZoneHouseholdService") as mock_service_class:
+        with patch(
+            "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_zones_for_member = AsyncMock(return_value=zones)
             mock_service_class.return_value = mock_service
@@ -1003,7 +1034,9 @@ class TestGetMemberZones:
         """Test getting member zones returns empty list when member has no trust."""
         from backend.api.routes.zone_household import get_member_zones
 
-        with patch("backend.api.routes.zone_household.ZoneHouseholdService") as mock_service_class:
+        with patch(
+            "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_zones_for_member = AsyncMock(return_value=[])
             mock_service_class.return_value = mock_service
@@ -1038,7 +1071,9 @@ class TestGetMemberZones:
             },
         ]
 
-        with patch("backend.api.routes.zone_household.ZoneHouseholdService") as mock_service_class:
+        with patch(
+            "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_zones_for_member = AsyncMock(return_value=zones)
             mock_service_class.return_value = mock_service
@@ -1076,7 +1111,9 @@ class TestGetVehicleZones:
             },
         ]
 
-        with patch("backend.api.routes.zone_household.ZoneHouseholdService") as mock_service_class:
+        with patch(
+            "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_zones_for_vehicle = AsyncMock(return_value=zones)
             mock_service_class.return_value = mock_service
@@ -1096,7 +1133,9 @@ class TestGetVehicleZones:
         """Test getting vehicle zones returns empty list when vehicle has no trust."""
         from backend.api.routes.zone_household import get_vehicle_zones
 
-        with patch("backend.api.routes.zone_household.ZoneHouseholdService") as mock_service_class:
+        with patch(
+            "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_zones_for_vehicle = AsyncMock(return_value=[])
             mock_service_class.return_value = mock_service
@@ -1121,7 +1160,9 @@ class TestGetVehicleZones:
             },
         ]
 
-        with patch("backend.api.routes.zone_household.ZoneHouseholdService") as mock_service_class:
+        with patch(
+            "backend.api.routes.zone_household.ZoneHouseholdService", autospec=True
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_zones_for_vehicle = AsyncMock(return_value=zones)
             mock_service_class.return_value = mock_service

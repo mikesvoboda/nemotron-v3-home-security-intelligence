@@ -76,7 +76,7 @@ class TestValidateAndResolvePath:
 
     def test_resolve_os_error_returns_400(self, tmp_path: Path) -> None:
         """Test OSError during path resolution returns 400."""
-        with patch.object(Path, "resolve", side_effect=OSError("Filesystem error")):
+        with patch.object(Path, "resolve", side_effect=OSError("Filesystem error"), autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 _validate_and_resolve_path(tmp_path, "test.jpg")
 
@@ -85,7 +85,7 @@ class TestValidateAndResolvePath:
 
     def test_resolve_value_error_returns_400(self, tmp_path: Path) -> None:
         """Test ValueError during path resolution returns 400."""
-        with patch.object(Path, "resolve", side_effect=ValueError("Invalid path")):
+        with patch.object(Path, "resolve", side_effect=ValueError("Invalid path"), autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 _validate_and_resolve_path(tmp_path, "test.jpg")
 
@@ -251,7 +251,7 @@ class TestServeCameraFile:
         test_file = camera_dir / "image.jpg"
         test_file.write_text("test image")
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await serve_camera_file(
@@ -299,7 +299,7 @@ class TestServeCameraFile:
         """Test non-existent camera file returns 404."""
         from backend.api.routes.media import serve_camera_file
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             with pytest.raises(HTTPException) as exc_info:
@@ -324,7 +324,7 @@ class TestServeCameraFile:
         test_file = camera_dir / "image.jpg"
         test_file.write_text("test")
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await serve_camera_file(
@@ -351,7 +351,7 @@ class TestServeThumbnail:
         test_file = tmp_path / "thumbnail.jpg"
         test_file.write_text("thumbnail data")
 
-        with patch("backend.api.routes.media.Path") as mock_path_class:
+        with patch("backend.api.routes.media.Path", autospec=True) as mock_path_class:
             # Mock the base path calculation
             base_path_mock = MagicMock()
             base_path_mock.__truediv__ = lambda self, x: tmp_path if x == "thumbnails" else self
@@ -367,6 +367,7 @@ class TestServeThumbnail:
             with patch(
                 "backend.api.routes.media._validate_and_resolve_path",
                 return_value=test_file.resolve(),
+                autospec=True,
             ):
                 result = await serve_thumbnail(
                     filename="thumbnail.jpg",
@@ -384,6 +385,7 @@ class TestServeThumbnail:
         with patch(
             "backend.api.routes.media._validate_and_resolve_path",
             side_effect=HTTPException(status_code=404, detail={"error": "File not found"}),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await serve_thumbnail(
@@ -421,7 +423,7 @@ class TestServeDetectionImage:
         mock_result.scalar_one_or_none.return_value = mock_detection
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await serve_detection_image(
@@ -496,7 +498,7 @@ class TestServeDetectionImage:
         mock_result.scalar_one_or_none.return_value = mock_detection
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await serve_detection_image(
@@ -530,7 +532,7 @@ class TestServeDetectionImage:
         mock_result.scalar_one_or_none.return_value = mock_detection
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             with pytest.raises(HTTPException) as exc_info:
@@ -566,7 +568,7 @@ class TestServeDetectionImage:
         mock_result.scalar_one_or_none.return_value = mock_detection
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await serve_detection_image(
@@ -592,7 +594,7 @@ class TestServeDetectionImage:
         mock_result.scalar_one_or_none.return_value = mock_detection
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             with pytest.raises(HTTPException) as exc_info:
@@ -626,7 +628,7 @@ class TestServeDetectionImage:
         mock_result.scalar_one_or_none.return_value = mock_detection
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             with pytest.raises(HTTPException) as exc_info:
@@ -661,6 +663,7 @@ class TestServeClip:
         with patch(
             "backend.api.routes.media._validate_and_resolve_path",
             return_value=test_file.resolve(),
+            autospec=True,
         ):
             result = await serve_clip(
                 filename="123_clip.mp4",
@@ -683,6 +686,7 @@ class TestServeClip:
         with patch(
             "backend.api.routes.media._validate_and_resolve_path",
             side_effect=HTTPException(status_code=404, detail={"error": "File not found"}),
+            autospec=True,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await serve_clip(
@@ -709,7 +713,7 @@ class TestServeMediaCompat:
         test_file = camera_dir / "image.jpg"
         test_file.write_text("test")
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             result = await serve_media_compat(
@@ -738,7 +742,7 @@ class TestServeMediaCompat:
         """Test thumbnails/* path routes to serve_thumbnail."""
         from backend.api.routes.media import serve_media_compat
 
-        with patch("backend.api.routes.media.serve_thumbnail") as mock_serve:
+        with patch("backend.api.routes.media.serve_thumbnail", autospec=True) as mock_serve:
             mock_serve.return_value = MagicMock()
 
             await serve_media_compat(
@@ -777,7 +781,7 @@ class TestServeMediaCompat:
         async def mock_get_db():
             yield mock_db
 
-        with patch("backend.api.routes.media.get_settings") as mock_settings:
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value.foscam_base_path = str(tmp_path)
 
             with patch("backend.api.routes.media.get_db", mock_get_db):
@@ -811,7 +815,7 @@ class TestServeMediaCompat:
         from backend.api.routes.media import serve_media_compat
         from backend.services.clip_generator import ClipGenerator
 
-        with patch("backend.api.routes.media.serve_clip") as mock_serve:
+        with patch("backend.api.routes.media.serve_clip", autospec=True) as mock_serve:
             mock_serve.return_value = MagicMock()
 
             await serve_media_compat(
@@ -844,7 +848,7 @@ class TestServeMediaCompat:
         """Test path with leading slash is stripped correctly."""
         from backend.api.routes.media import serve_media_compat
 
-        with patch("backend.api.routes.media.serve_thumbnail") as mock_serve:
+        with patch("backend.api.routes.media.serve_thumbnail", autospec=True) as mock_serve:
             mock_serve.return_value = MagicMock()
 
             await serve_media_compat(

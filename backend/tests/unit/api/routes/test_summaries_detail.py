@@ -36,7 +36,7 @@ class TestGetSummaryDetail:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
@@ -52,7 +52,9 @@ class TestGetSummaryDetail:
             mock_repo.get_by_id = AsyncMock(return_value=mock_summary)
 
             # Mock EventRepository for fetching related events
-            with patch("backend.api.routes.summaries.EventRepository") as MockEventRepo:
+            with patch(
+                "backend.api.routes.summaries.EventRepository", autospec=True
+            ) as MockEventRepo:
                 mock_event_repo = MockEventRepo.return_value
 
                 mock_event1 = MagicMock()
@@ -90,7 +92,9 @@ class TestGetSummaryDetail:
                 )
 
                 # Mock summary parser
-                with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+                with patch(
+                    "backend.api.routes.summaries.parse_summary_content", autospec=True
+                ) as mock_parse:
                     from backend.services.summary_parser import StructuredSummary
 
                     mock_parse.return_value = StructuredSummary(
@@ -136,7 +140,7 @@ class TestGetSummaryDetail:
         mock_cache.get.return_value = None
 
         # Mock database response with no summary
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = AsyncMock(return_value=None)
 
@@ -204,7 +208,7 @@ class TestGetSummaryDetail:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
@@ -220,7 +224,9 @@ class TestGetSummaryDetail:
             mock_repo.get_by_id = AsyncMock(return_value=mock_summary)
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -252,7 +258,7 @@ class TestGetSummaryDetail:
         mock_cache.set.side_effect = Exception("Redis write failed")
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
@@ -268,7 +274,9 @@ class TestGetSummaryDetail:
             mock_repo.get_by_id = AsyncMock(return_value=mock_summary)
 
             # Mock summary parser
-            with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
+            with patch(
+                "backend.api.routes.summaries.parse_summary_content", autospec=True
+            ) as mock_parse:
                 from backend.services.summary_parser import StructuredSummary
 
                 mock_parse.return_value = StructuredSummary(
@@ -305,7 +313,7 @@ class TestExportSummary:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
@@ -321,7 +329,9 @@ class TestExportSummary:
             mock_repo.get_by_id = AsyncMock(return_value=mock_summary)
 
             # Mock EventRepository
-            with patch("backend.api.routes.summaries.EventRepository") as MockEventRepo:
+            with patch(
+                "backend.api.routes.summaries.EventRepository", autospec=True
+            ) as MockEventRepo:
                 mock_event_repo = MockEventRepo.return_value
                 mock_event = MagicMock()
                 mock_event.id = 101
@@ -360,7 +370,7 @@ class TestExportSummary:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
@@ -376,7 +386,9 @@ class TestExportSummary:
             mock_repo.get_by_id = AsyncMock(return_value=mock_summary)
 
             # Mock EventRepository
-            with patch("backend.api.routes.summaries.EventRepository") as MockEventRepo:
+            with patch(
+                "backend.api.routes.summaries.EventRepository", autospec=True
+            ) as MockEventRepo:
                 mock_event_repo = MockEventRepo.return_value
                 mock_event = MagicMock()
                 mock_event.id = 101
@@ -415,7 +427,7 @@ class TestExportSummary:
         mock_cache.get.return_value = None
 
         # Mock database response with no summary
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = AsyncMock(return_value=None)
 
@@ -438,7 +450,7 @@ class TestExportSummary:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with patch("backend.api.routes.summaries.SummaryRepository", autospec=True) as MockRepo:
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)

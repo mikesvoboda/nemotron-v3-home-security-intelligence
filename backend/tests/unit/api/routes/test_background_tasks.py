@@ -44,7 +44,7 @@ class TestCamerasBackgroundTasks:
         mock_cache.invalidate_cameras = AsyncMock(side_effect=Exception("Redis connection failed"))
 
         # Should not raise exception
-        with patch("backend.api.routes.cameras.logger") as mock_logger:
+        with patch("backend.api.routes.cameras.logger", autospec=True) as mock_logger:
             await _invalidate_cameras_cache_background(
                 mock_cache,
                 CacheInvalidationReason.CAMERA_UPDATED,
@@ -101,7 +101,7 @@ class TestEventsBackgroundTasks:
         mock_cache.invalidate_events = AsyncMock(side_effect=Exception("Redis connection failed"))
 
         # Should not raise exception
-        with patch("backend.api.routes.events.logger") as mock_logger:
+        with patch("backend.api.routes.events.logger", autospec=True) as mock_logger:
             await _invalidate_events_cache_background(mock_cache, "event_updated")
 
             # Should log warning but not fail
@@ -155,7 +155,7 @@ class TestAlertsBackgroundTasks:
         mock_cache.invalidate_alerts = AsyncMock(side_effect=Exception("Redis connection failed"))
 
         # Should not raise exception
-        with patch("backend.api.routes.alerts.logger") as mock_logger:
+        with patch("backend.api.routes.alerts.logger", autospec=True) as mock_logger:
             await _invalidate_alerts_cache_background(
                 mock_cache,
                 CacheInvalidationReason.ALERT_RULE_DELETED,

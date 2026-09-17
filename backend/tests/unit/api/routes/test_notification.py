@@ -122,10 +122,15 @@ class TestGetNotificationConfig:
     ) -> None:
         """Test getting configuration when all channels are configured."""
         with (
-            patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.notification.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             async with authenticated_async_client() as client:
@@ -170,10 +175,13 @@ class TestGetNotificationConfig:
         ]
 
         with (
-            patch("backend.api.routes.notification.get_settings", return_value=settings),
+            patch(
+                "backend.api.routes.notification.get_settings", return_value=settings, autospec=True
+            ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             async with authenticated_async_client() as client:
@@ -209,10 +217,13 @@ class TestGetNotificationConfig:
         mock_notification_service.get_available_channels.return_value = [NotificationChannel.EMAIL]
 
         with (
-            patch("backend.api.routes.notification.get_settings", return_value=settings),
+            patch(
+                "backend.api.routes.notification.get_settings", return_value=settings, autospec=True
+            ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             async with authenticated_async_client() as client:
@@ -249,10 +260,13 @@ class TestGetNotificationConfig:
         mock_notification_service.get_available_channels.return_value = []
 
         with (
-            patch("backend.api.routes.notification.get_settings", return_value=settings),
+            patch(
+                "backend.api.routes.notification.get_settings", return_value=settings, autospec=True
+            ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             async with authenticated_async_client() as client:
@@ -293,10 +307,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -338,10 +357,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -379,10 +403,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -419,10 +448,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -457,10 +491,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -489,10 +528,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -528,10 +572,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -568,10 +617,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -603,10 +657,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -647,10 +706,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -691,10 +755,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:
@@ -734,10 +803,15 @@ class TestTestNotification:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             with (
-                patch("backend.api.routes.notification.get_settings", return_value=mock_settings),
+                patch(
+                    "backend.api.routes.notification.get_settings",
+                    return_value=mock_settings,
+                    autospec=True,
+                ),
                 patch(
                     "backend.api.routes.notification.get_notification_service",
                     return_value=mock_notification_service,
+                    autospec=True,
                 ),
             ):
                 async with authenticated_async_client() as client:

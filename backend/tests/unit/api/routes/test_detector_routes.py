@@ -77,20 +77,22 @@ def test_app(mock_registry) -> FastAPI:
     with patch(
         "backend.api.routes.detector.get_detector_registry",
         return_value=mock_registry,
+        autospec=True,
     ):
         yield app
 
 
 @pytest.fixture
 async def async_client(test_app: FastAPI, mock_registry) -> AsyncClient:
-    """Create async HTTP client for testing."""
+    """Create async HTTP client for testing.
+
+    get_detector_registry is already patched (same registry) for the life
+    of test_app; re-patching it here was redundant, and mock refuses to
+    spec an object that is currently a Mock (InvalidSpecError).
+    """
     transport = ASGITransport(app=test_app)
-    with patch(
-        "backend.api.routes.detector.get_detector_registry",
-        return_value=mock_registry,
-    ):
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            yield client
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
 
 
 # =============================================================================
@@ -106,6 +108,8 @@ class TestGetDetectors:
         self, async_client: AsyncClient, mock_registry
     ):
         """Test listing all registered detectors."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -125,6 +129,8 @@ class TestGetDetectors:
         self, async_client: AsyncClient, mock_registry
     ):
         """Test that detector list includes all required fields."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -146,6 +152,8 @@ class TestGetDetectors:
         self, async_client: AsyncClient, mock_registry
     ):
         """Test that the active detector is correctly identified."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -168,6 +176,8 @@ class TestGetActiveDetector:
     @pytest.mark.asyncio
     async def test_get_active_detector(self, async_client: AsyncClient, mock_registry):
         """Test getting the currently active detector."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -187,6 +197,8 @@ class TestGetActiveDetector:
         self, async_client: AsyncClient, mock_registry
     ):
         """Test that active detector response includes full configuration."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -217,6 +229,8 @@ class TestSwitchDetector:
             )
         )
 
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -234,6 +248,8 @@ class TestSwitchDetector:
     @pytest.mark.asyncio
     async def test_switch_detector_invalid_type(self, async_client: AsyncClient, mock_registry):
         """Test switching to an invalid detector type returns 400."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -253,6 +269,8 @@ class TestSwitchDetector:
         self, async_client: AsyncClient, mock_registry
     ):
         """Test switching to a disabled detector returns 400."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -268,6 +286,8 @@ class TestSwitchDetector:
     @pytest.mark.asyncio
     async def test_switch_detector_with_force(self, async_client: AsyncClient, mock_registry):
         """Test force switching bypasses health check."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -282,6 +302,8 @@ class TestSwitchDetector:
     @pytest.mark.asyncio
     async def test_switch_detector_validates_body(self, async_client: AsyncClient, mock_registry):
         """Test that switch endpoint validates request body."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -301,6 +323,8 @@ class TestGetDetectorConfig:
     @pytest.mark.asyncio
     async def test_get_detector_config(self, async_client: AsyncClient, mock_registry):
         """Test getting configuration for a specific detector."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -318,6 +342,8 @@ class TestGetDetectorConfig:
     @pytest.mark.asyncio
     async def test_get_detector_config_not_found(self, async_client: AsyncClient, mock_registry):
         """Test getting config for unknown detector returns 404."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -343,6 +369,8 @@ class TestDetectorHealth:
             )
         )
 
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,
@@ -359,6 +387,8 @@ class TestDetectorHealth:
     @pytest.mark.asyncio
     async def test_get_detector_health_unknown_type(self, async_client: AsyncClient, mock_registry):
         """Test health check for unknown detector returns 404."""
+        # (no autospec: the test_app fixture already patches this target;
+        #  nested autospec is refused. See async_client docstring.)
         with patch(
             "backend.api.routes.detector.get_detector_registry",
             return_value=mock_registry,

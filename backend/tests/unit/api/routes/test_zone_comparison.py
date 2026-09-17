@@ -48,13 +48,15 @@ class TestCompareZones:
         ]
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=mock_zones_data)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[1, 2],
@@ -91,13 +93,15 @@ class TestCompareZones:
         ]
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=mock_zones_data)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[1],
@@ -130,13 +134,15 @@ class TestCompareZones:
         ]
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=mock_zones_data)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[1],
@@ -168,13 +174,15 @@ class TestCompareZones:
         ]
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=mock_zones_data)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[3],
@@ -196,13 +204,15 @@ class TestCompareZones:
         expected_start = now - timedelta(days=7)
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=[])
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[1],
@@ -231,13 +241,15 @@ class TestCompareZones:
         expected_start = now - timedelta(days=30)
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=[])
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[1],
@@ -257,7 +269,7 @@ class TestCompareZones:
 
         now = datetime(2026, 1, 31, 12, 0, 0, tzinfo=UTC)
 
-        with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+        with patch("backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await compare_zones(
                     db=mock_db,
@@ -279,7 +291,7 @@ class TestCompareZones:
 
         now = datetime(2026, 1, 31, 12, 0, 0, tzinfo=UTC)
 
-        with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+        with patch("backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True):
             with pytest.raises(HTTPException) as exc_info:
                 await compare_zones(
                     db=mock_db,
@@ -302,13 +314,15 @@ class TestCompareZones:
         now = datetime(2026, 1, 31, 12, 0, 0, tzinfo=UTC)
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=[])
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[999, 888],
@@ -355,13 +369,15 @@ class TestCompareZones:
         ]
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=mock_zones_data)
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 result = await compare_zones(
                     db=mock_db,
                     zone_ids=[1, 2, 3],
@@ -389,13 +405,15 @@ class TestCompareZones:
         now = datetime(2026, 1, 31, 12, 0, 0, tzinfo=UTC)
 
         with patch(
-            "backend.services.zone_comparison_service.get_zone_comparison_service"
+            "backend.services.zone_comparison_service.get_zone_comparison_service", autospec=True
         ) as mock_get_service:
             mock_service = MagicMock()
             mock_service.compare_zones = AsyncMock(return_value=[])
             mock_get_service.return_value = mock_service
 
-            with patch("backend.api.routes.analytics_zones.utc_now", return_value=now):
+            with patch(
+                "backend.api.routes.analytics_zones.utc_now", return_value=now, autospec=True
+            ):
                 await compare_zones(
                     db=mock_db,
                     zone_ids=[1],

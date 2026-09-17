@@ -36,7 +36,7 @@ class TestGetTrends:
         mock_cache.get.return_value = None
 
         # Mock database response with trend data
-        with patch("backend.api.routes.trends.TrendService") as MockService:
+        with patch("backend.api.routes.trends.TrendService", autospec=True) as MockService:
             mock_service = MockService.return_value
             mock_service.get_trend_data = AsyncMock(
                 return_value={
@@ -84,7 +84,7 @@ class TestGetTrends:
 
         mock_cache.get.return_value = None
 
-        with patch("backend.api.routes.trends.TrendService") as MockService:
+        with patch("backend.api.routes.trends.TrendService", autospec=True) as MockService:
             mock_service = MockService.return_value
             mock_service.get_trend_data = AsyncMock(
                 return_value={
@@ -233,7 +233,7 @@ class TestGetTrends:
 
         mock_cache.get.return_value = None
 
-        with patch("backend.api.routes.trends.TrendService") as MockService:
+        with patch("backend.api.routes.trends.TrendService", autospec=True) as MockService:
             mock_service = MockService.return_value
             mock_service.get_trend_data = AsyncMock(
                 return_value={
@@ -271,7 +271,7 @@ class TestGetTrends:
 
         mock_cache.get.side_effect = Exception("Redis connection failed")
 
-        with patch("backend.api.routes.trends.TrendService") as MockService:
+        with patch("backend.api.routes.trends.TrendService", autospec=True) as MockService:
             mock_service = MockService.return_value
             mock_service.get_trend_data = AsyncMock(
                 return_value={
@@ -297,7 +297,7 @@ class TestGetTrends:
         mock_cache.get.return_value = None
         mock_cache.set.side_effect = Exception("Redis write failed")
 
-        with patch("backend.api.routes.trends.TrendService") as MockService:
+        with patch("backend.api.routes.trends.TrendService", autospec=True) as MockService:
             mock_service = MockService.return_value
             mock_service.get_trend_data = AsyncMock(
                 return_value={
@@ -322,7 +322,7 @@ class TestGetTrends:
 
         mock_cache.get.return_value = None
 
-        with patch("backend.api.routes.trends.TrendService") as MockService:
+        with patch("backend.api.routes.trends.TrendService", autospec=True) as MockService:
             mock_service = MockService.return_value
             mock_service.get_trend_data = AsyncMock(
                 return_value={

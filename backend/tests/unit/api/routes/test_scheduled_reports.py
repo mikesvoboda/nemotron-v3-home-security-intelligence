@@ -73,6 +73,7 @@ class TestCreateScheduledReport:
         with patch(
             "backend.api.routes.scheduled_reports.ScheduledReport",
             return_value=mock_report,
+            autospec=True,
         ):
             result = await create_scheduled_report(
                 report_data=report_data,
@@ -128,6 +129,7 @@ class TestCreateScheduledReport:
         with patch(
             "backend.api.routes.scheduled_reports.ScheduledReport",
             return_value=mock_report,
+            autospec=True,
         ):
             result = await create_scheduled_report(
                 report_data=report_data,
@@ -203,13 +205,19 @@ class TestListScheduledReports:
 
         mock_db.execute.side_effect = [mock_result_list, mock_result_count]
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             # Configure mock_select to return a mock query
             mock_query = MagicMock()
             mock_query.order_by.return_value = mock_query
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
 
+            # No autospec: sqlalchemy's `func` is a _FunctionGenerator whose
+            # accessors (func.count, func.sum) are created lazily through
+            # __getattr__, so a dir()-based autospec has no `count` and
+            # production's func.count(...) dies on the mock, not on reality.
+            # Same class as the smoke_fire YOLO=None case (autospec is
+            # inapplicable to targets that are not ordinary callables).
             with patch("backend.api.routes.scheduled_reports.func"):
                 result = await list_scheduled_reports(
                     enabled=None,
@@ -255,7 +263,7 @@ class TestListScheduledReports:
 
         mock_db.execute.side_effect = [mock_result_list, mock_result_count]
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.order_by.return_value = mock_query
             mock_query.where.return_value = mock_query
@@ -285,7 +293,7 @@ class TestListScheduledReports:
 
         mock_db.execute.side_effect = [mock_result_list, mock_result_count]
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.order_by.return_value = mock_query
             mock_query.where.return_value = mock_query
@@ -339,7 +347,7 @@ class TestGetScheduledReport:
         mock_result.scalar_one_or_none.return_value = mock_report
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -365,7 +373,7 @@ class TestGetScheduledReport:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -421,7 +429,7 @@ class TestUpdateScheduledReport:
 
         update_data = ScheduledReportUpdate(name="Updated Name", enabled=False)
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -454,7 +462,7 @@ class TestUpdateScheduledReport:
 
         update_data = ScheduledReportUpdate(name="Updated Name")
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -502,7 +510,7 @@ class TestUpdateScheduledReport:
         # Only update hour
         update_data = ScheduledReportUpdate(hour=10)
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -541,7 +549,7 @@ class TestDeleteScheduledReport:
         mock_result.scalar_one_or_none.return_value = mock_report
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -568,7 +576,7 @@ class TestDeleteScheduledReport:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -605,7 +613,7 @@ class TestRunScheduledReport:
         mock_result.scalar_one_or_none.return_value = mock_report
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
@@ -633,7 +641,7 @@ class TestRunScheduledReport:
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute.return_value = mock_result
 
-        with patch("backend.api.routes.scheduled_reports.select") as mock_select:
+        with patch("backend.api.routes.scheduled_reports.select", autospec=True) as mock_select:
             mock_query = MagicMock()
             mock_query.where.return_value = mock_query
             mock_select.return_value = mock_query
