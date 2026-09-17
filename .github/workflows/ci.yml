@@ -159,10 +159,13 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        # WP3.2: cache-suffix "backend-deps" put this pre-warm in a namespace
+        # none of the 13 downstream backend jobs read (they all use setup-uv's
+        # default cache key). Dropped rather than mirrored onto 13 jobs —
+        # one shared namespace, one line, no drift risk.
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-          cache-suffix: backend-deps
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
