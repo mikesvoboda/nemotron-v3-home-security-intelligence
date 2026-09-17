@@ -462,13 +462,20 @@ jobs:
   # Integration tests split into 4 domain-based parallel jobs for faster execution
   # Each job runs tests for a specific domain with within-shard parallelization
   integration-tests-api:
-    name: Integration Tests (API) - Python ${{ matrix.python-version }}
+    name: Integration Tests (API shard ${{ matrix.shard }}/2) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.14']
+        # WP3.7: 2-way split of the DAG's long pole. Measured (run
+        # 35178314774, post-WP3.5 so queueing doesn't confound): single job
+        # compute 1437s, completing +24.8 min after run start while every
+        # other path finished <= +10.1 min. junit sum 2721s over 883 cases;
+        # pytest-split count-balances (unit tier's evidence: its 4 shards
+        # land within +/-6% under the same no-.test_durations fallback).
+        shard: [1, 2]
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -509,7 +516,9 @@ jobs:
       LOG_DB_ENABLED: 'false'
       ENVIRONMENT: development # Avoid production password validation in CI
       CI: 'true'
-      FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api.jsonl
+      # WP3.7: shard in the filename (the unit tier's convention) so the two
+      # shards' tracking files can't clobber each other under merge-multiple.
+      FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api-shard-${{ matrix.shard }}.jsonl
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -546,11 +555,12 @@ jobs:
             -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
             -n auto \
             --timeout=30 \
+            --splits 2 --group ${{ matrix.shard }} \
             --cov=backend \
             --cov-fail-under=0 \
-            --cov-report=xml:coverage-integration-api.xml \
+            --cov-report=xml:coverage-integration-api-${{ matrix.shard }}.xml \
             --cov-report=term-missing \
-            --junit-xml=test-results-integration-api.xml \
+            --junit-xml=test-results-integration-api-${{ matrix.shard }}.xml \
             --durations=20 \
             -v 2>&1 | tee test-output.log; then
             END_TIME=$(date +%s)
@@ -565,18 +575,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: test-results-integration-api-py${{ matrix.python-version }}
+          name: test-results-integration-api-${{ matrix.shard }}-py${{ matrix.python-version }}
           path: |
-            test-results-integration-api.xml
-            flaky-test-tracking-integration-api.jsonl
+            test-results-integration-api-${{ matrix.shard }}.xml
+            flaky-test-tracking-integration-api-shard-${{ matrix.shard }}.jsonl
           retention-days: 7
 
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: coverage-integration-api-py${{ matrix.python-version }}
-          path: coverage-integration-api.xml
+          name: coverage-integration-api-${{ matrix.shard }}-py${{ matrix.python-version }}
+          path: coverage-integration-api-${{ matrix.shard }}.xml
           retention-days: 7
 
   integration-tests-websocket:
