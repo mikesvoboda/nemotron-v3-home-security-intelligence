@@ -157,6 +157,21 @@ jobs:
       - name: CI job-graph invariant (WP0.6)
         run: uv run python scripts/test_ci_job_graph.py
 
+      # WP0.5's gate test — also script-style, also never invoked until now.
+      # Proves audit-test-durations.py is an honest GATE at the owner-ruled
+      # thresholds: an empty results dir FAILS rather than passing vacuously,
+      # and a tracked-slow test that blows the 60s cap still bites (7 cases).
+      - name: Test Performance Audit gate test (WP0.5)
+        run: bash scripts/test_audit_gate.sh
+
+      # NOT WIRED YET, deliberately, so this reads as a decision and not an
+      # oversight: scripts/test_pre_push_gate.sh (WP0.1) is RED against the
+      # shipped hook. WP2.4 rewrote pre-push-tests.sh and dropped two legacy
+      # fallbacks the test pins (pytest rc=5 -> import check; vitest rc=127 ->
+      # tsc check). 9 of its 11 cases pass; the 2 that fail are a behaviour
+      # question -- is failing closed there correct? -- not a test bug. It is
+      # wired the moment that is ruled on.
+
   # Backend Jobs
 
   # Shared backend dependencies - built once, used by all backend jobs

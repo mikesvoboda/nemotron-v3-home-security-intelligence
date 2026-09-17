@@ -123,8 +123,8 @@ reset_sandbox
 run_direct
 expect_zero "healthy"
 expect_line "healthy" "[1] API Types Contract: PASSED"
-expect_line "healthy" "[2] Backend Smoke Tests: PASSED"
-expect_line "healthy" "[3] Frontend Smoke Tests: PASSED"
+expect_line "healthy" "[2] Backend Selected Tier: PASSED"
+expect_line "healthy" "[3] Frontend Selected Tier: PASSED"
 expect_no_call "healthy" "npx tsc"        # healthy path must not hide behind a compile check
 expect_no_call "healthy" "from backend.main import"
 
@@ -133,7 +133,7 @@ reset_sandbox
 touch "$ROOT/broken_backend"
 run_direct
 expect_nonzero "broken-backend"
-expect_line "broken-backend" "[2] Backend Smoke Tests: FAILED"
+expect_line "broken-backend" "[2] Backend Selected Tier: FAILED"
 expect_no_call "broken-backend" "from backend.main import"
 
 echo "[3] broken frontend test: hook fails even though tsc is clean"
@@ -141,7 +141,7 @@ reset_sandbox
 touch "$ROOT/broken_frontend"
 run_direct
 expect_nonzero "broken-frontend"
-expect_line "broken-frontend" "[3] Frontend Smoke Tests: FAILED"
+expect_line "broken-frontend" "[3] Frontend Selected Tier: FAILED"
 
 echo "[4] broken types contract: hook fails (pins job 1, which never lied)"
 reset_sandbox
