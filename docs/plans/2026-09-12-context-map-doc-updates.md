@@ -4355,3 +4355,47 @@ harness exists for Actions behavior; verification is YAML safe_load +
 structural asserts (34 jobs parse; concurrency blocks top-level with
 cancel-in-progress) now, and the pushed run's Jobs API (same protocol as
 the before-numbers) when it settles.
+
+## TEST PERFORMANCE AUDIT INTEGRATION FAILURES ARE FIXTURE-ATTRIBUTED, NOT TESTS (2026-09-17, PRE-EXISTING class; STOP-AND-ASK packet -- gate semantics touch WP0.5 owner ruling)
+
+MEASURE (full forensics on the 6550/main audit reds -- both red at
+03:07Z, different shards, zero code delta: 6550 = workflow YAML+docs only):
+
+1. What actually exceeds 10.0s is the clean_tables FIXTURE, not tests. CI
+   durations table (job 105055840438): teardowns at 10.02/10.03/10.04/
+   10.05/10.09s -- the fixture's own asyncio.wait_for(timeout=10.0) CEILING
+   (conftest ~:1165); its timeout warning is logger-only, invisible for
+   passing tests. Tracker-vs-junit join (same artifacts): calls are
+   0.01-0.22s while junit totals hit 18.79s -- a 100% fixture-attributed
+   "test exceeded time limit".
+2. Environment-amplified, not seed/order: SAME shard, SAME seed
+   1832612646 -> 835s on CI vs 184s local (rc=0, 359 passed). Three CI
+   runs three seeds: green 3775116578 / red 1832612646 / red 3289037533,
+   different test sets; main-head red alone in the API shard
+   (test_get_detection_success 10.04s). CPU-load replay 92->123s
+   (amplifies, not to CI magnitude); cgroup io.max write permission-denied
+   in sandbox, so runner-storage stall is consistent-but-not-locally-proven
+   -- honest limit.
+3. RETRO-CORRECTION: the 04a86cc9 red (test*audit_stats_with_invalid_date*
+   range 10.70s) was logged earlier as "n=1 boundary jitter, no fix no
+   allowlist" -- it is the SAME class (fixture teardown at ceiling read as
+   test duration), which recurred twice more this window. Record corrected.
+4. Structural pairing defect: fixture timeout (10.0s) == integration
+   threshold (10.0s), so ANY teardown that reaches its ceiling lands AT the
+   audit threshold; junit time= bills setup+call+teardown to one "test".
+
+OWNER DECISION REQUIRED (audit semantics = WP0.5 ruling; stop-and-ask):
+(a) audit measures CALL time where available (flake-tracker artifact
+carries it; junit fallback otherwise) -- same thresholds, attribution
+fix, fixture slowness then gets its own explicit signal;
+(b) keep junit totals, lower the fixture's internal timeout so ceiling
+hits are impossible (10->5s) -- REJECTED-AS-MINE because it launders
+the number (fixture gives up earlier = test "faster"); owner may still
+choose it;
+(c) treat fixture-dominated junit time as ground truth and FIX the
+fixture's CI-path cost (lock-wait or runner-storage sensitivity --
+deeper investigation, no cheap lever found).
+NOT TAKEN: threshold edits, SLOW_TEST_PATTERNS widening, fixture timeout
+lowering, audit semantics change -- all owner or laundering territory.
+#6550 (WP3.2/3.3/3.4, all pre-merge-green otherwise: 64 pass) stays OPEN
+red on this pre-existing gate; main is red on it independently.
