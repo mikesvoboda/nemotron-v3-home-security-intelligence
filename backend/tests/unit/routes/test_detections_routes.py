@@ -541,7 +541,7 @@ async def test_get_detection_image_with_existing_thumbnail(
     image_data = b"\xff\xd8\xff\xe0fake_jpeg_data"
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
@@ -591,7 +591,7 @@ async def test_get_detection_image_generate_thumbnail_on_fly(
         return path == generated_thumbnail_path
 
     with (
-        patch("os.path.exists", side_effect=path_exists),
+        patch("os.path.exists", side_effect=path_exists, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(
@@ -623,7 +623,10 @@ async def test_get_detection_image_source_not_found(
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     # Both thumbnail and source image don't exist
-    with patch("os.path.exists", return_value=False), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch("os.path.exists", return_value=False, autospec=True),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await detections_routes.get_detection_image(detection_id=2, full=False, db=mock_db_session)
 
     assert exc_info.value.status_code == 404
@@ -647,7 +650,7 @@ async def test_get_detection_image_thumbnail_generation_fails(
         return path == mock_detection_no_thumbnail.file_path
 
     with (
-        patch("os.path.exists", side_effect=path_exists),
+        patch("os.path.exists", side_effect=path_exists, autospec=True),
         pytest.raises(HTTPException) as exc_info,
     ):
         await detections_routes.get_detection_image(
@@ -668,8 +671,8 @@ async def test_get_detection_image_read_error(
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     with (
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", side_effect=OSError("Permission denied")),
+        patch("os.path.exists", return_value=True, autospec=True),
+        patch("builtins.open", side_effect=OSError("Permission denied"), autospec=True),
         pytest.raises(HTTPException) as exc_info,
     ):
         await detections_routes.get_detection_image(detection_id=1, full=False, db=mock_db_session)
@@ -709,7 +712,7 @@ async def test_get_detection_image_thumbnail_path_exists_but_file_missing(
         return path == generated_thumbnail_path
 
     with (
-        patch("os.path.exists", side_effect=path_exists),
+        patch("os.path.exists", side_effect=path_exists, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(
@@ -743,7 +746,7 @@ async def test_get_detection_image_verifies_detection_data_for_thumbnail(
         return path == generated_thumbnail_path
 
     with (
-        patch("os.path.exists", side_effect=path_exists),
+        patch("os.path.exists", side_effect=path_exists, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         await detections_routes.get_detection_image(
@@ -774,7 +777,7 @@ async def test_get_detection_image_cache_header(
     image_data = b"\xff\xd8\xff\xe0fake_jpeg_data"
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
@@ -935,7 +938,7 @@ async def test_get_detection_image_with_none_thumbnail_path(mock_db_session: Asy
         return path == generated_path
 
     with (
-        patch("os.path.exists", side_effect=path_exists),
+        patch("os.path.exists", side_effect=path_exists, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(
@@ -1132,7 +1135,7 @@ async def test_get_detection_image_full_returns_original_image(
     original_image_data = b"\xff\xd8\xff\xe0original_image_data"
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=original_image_data)),
     ):
         result = await detections_routes.get_detection_image(
@@ -1162,7 +1165,7 @@ async def test_get_detection_image_full_skips_thumbnail_generation(
     mock_thumbnail_gen = MagicMock()
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=original_image_data)),
     ):
         result = await detections_routes.get_detection_image(
@@ -1184,7 +1187,10 @@ async def test_get_detection_image_full_source_not_found(
     mock_result.scalar_one_or_none.return_value = mock_detection
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
-    with patch("os.path.exists", return_value=False), pytest.raises(HTTPException) as exc_info:
+    with (
+        patch("os.path.exists", return_value=False, autospec=True),
+        pytest.raises(HTTPException) as exc_info,
+    ):
         await detections_routes.get_detection_image(detection_id=1, full=True, db=mock_db_session)
 
     assert exc_info.value.status_code == 404
@@ -1203,7 +1209,7 @@ async def test_get_detection_image_full_false_returns_thumbnail(
     thumbnail_data = b"\xff\xd8\xff\xe0thumbnail_data"
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=thumbnail_data)),
     ):
         result = await detections_routes.get_detection_image(
@@ -1226,7 +1232,7 @@ async def test_get_detection_image_default_returns_thumbnail(
     thumbnail_data = b"\xff\xd8\xff\xe0thumbnail_data"
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=thumbnail_data)),
     ):
         # No full parameter - should default to thumbnail
@@ -1246,8 +1252,8 @@ async def test_get_detection_image_full_read_error(
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     with (
-        patch("os.path.exists", return_value=True),
-        patch("builtins.open", side_effect=OSError("Permission denied")),
+        patch("os.path.exists", return_value=True, autospec=True),
+        patch("builtins.open", side_effect=OSError("Permission denied"), autospec=True),
         pytest.raises(HTTPException) as exc_info,
     ):
         await detections_routes.get_detection_image(detection_id=1, full=True, db=mock_db_session)
@@ -1269,7 +1275,7 @@ async def test_get_detection_image_full_cache_header(
     image_data = b"\xff\xd8\xff\xe0image_data"
 
     with (
-        patch("os.path.exists", return_value=True),
+        patch("os.path.exists", return_value=True, autospec=True),
         patch("builtins.open", mock_open(read_data=image_data)),
     ):
         result = await detections_routes.get_detection_image(

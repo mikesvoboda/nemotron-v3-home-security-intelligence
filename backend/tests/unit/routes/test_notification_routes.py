@@ -116,10 +116,12 @@ class TestGetNotificationConfig:
             patch(
                 "backend.api.routes.notification.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             response = client.get("/api/notification/config")
@@ -151,10 +153,12 @@ class TestGetNotificationConfig:
             patch(
                 "backend.api.routes.notification.get_settings",
                 return_value=settings,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             response = client.get("/api/notification/config")
@@ -190,10 +194,12 @@ class TestTestNotification:
             patch(
                 "backend.api.routes.notification.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.AuditService.log_action", new_callable=AsyncMock
@@ -227,10 +233,12 @@ class TestTestNotification:
             patch(
                 "backend.api.routes.notification.get_settings",
                 return_value=settings,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             response = client.post(
@@ -259,10 +267,12 @@ class TestTestNotification:
             patch(
                 "backend.api.routes.notification.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.AuditService.log_action", new_callable=AsyncMock
@@ -293,10 +303,12 @@ class TestTestNotification:
             patch(
                 "backend.api.routes.notification.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.api.routes.notification.get_notification_service",
                 return_value=mock_notification_service,
+                autospec=True,
             ),
         ):
             response = client.post(

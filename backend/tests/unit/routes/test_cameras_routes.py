@@ -799,7 +799,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(tmp_path / "foscam")
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 404
@@ -844,7 +846,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera_uuid}/snapshot")
 
         # Should succeed using fallback path
@@ -890,7 +894,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera_uuid}/snapshot")
 
         # Should succeed using fallback by folder name (extracted from stored path)
@@ -921,7 +927,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 404
@@ -954,7 +962,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 404
@@ -996,7 +1006,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 200
@@ -1032,7 +1044,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 200
@@ -1067,7 +1081,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 200
@@ -1104,7 +1120,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         assert response.status_code == 200
@@ -1138,7 +1156,9 @@ class TestGetCameraSnapshot:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
         # Note: The rglob pattern is case-sensitive, so this should return 404
@@ -1776,7 +1796,9 @@ class TestValidateCameraPaths:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get("/api/cameras/validation/paths")
 
         assert response.status_code == 200
@@ -1812,7 +1834,9 @@ class TestValidateCameraPaths:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get("/api/cameras/validation/paths")
 
         assert response.status_code == 200
@@ -1847,7 +1871,9 @@ class TestValidateCameraPaths:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get("/api/cameras/validation/paths")
 
         assert response.status_code == 200
@@ -1880,7 +1906,9 @@ class TestValidateCameraPaths:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get("/api/cameras/validation/paths")
 
         assert response.status_code == 200
@@ -1924,7 +1952,9 @@ class TestValidateCameraPaths:
         mock_settings = MagicMock()
         mock_settings.foscam_base_path = str(foscam_root)
 
-        with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.api.routes.cameras.get_settings", return_value=mock_settings, autospec=True
+        ):
             response = client.get("/api/cameras/validation/paths")
 
         assert response.status_code == 200

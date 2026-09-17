@@ -67,7 +67,7 @@ def mock_ai_health_settings():
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
-    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+    with patch.object(system_routes, "get_settings", return_value=mock_settings, autospec=True):
         yield mock_settings
 
 
@@ -1380,11 +1380,13 @@ async def test_get_health_all_healthy() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
@@ -1427,11 +1429,13 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
@@ -1468,11 +1472,13 @@ async def test_get_health_unhealthy_when_database_down() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
@@ -1508,11 +1514,13 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
@@ -1548,11 +1556,13 @@ async def test_get_health_redis_none() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         response = await system_routes.get_health(mock_response, db, None)
@@ -1631,7 +1641,7 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
-        patch.object(system_routes, "AuditService") as mock_audit,
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
         response = await system_routes.patch_config(
@@ -1673,7 +1683,7 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
-        patch.object(system_routes, "AuditService") as mock_audit,
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
         response = await system_routes.patch_config(
@@ -1714,7 +1724,7 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
-        patch.object(system_routes, "AuditService") as mock_audit,
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
         response = await system_routes.patch_config(
@@ -1755,7 +1765,7 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
-        patch.object(system_routes, "AuditService") as mock_audit,
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
         response = await system_routes.patch_config(
@@ -1797,7 +1807,7 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
-        patch.object(system_routes, "AuditService") as mock_audit,
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
         response = await system_routes.patch_config(
@@ -1844,7 +1854,7 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
 
     with (
         patch.object(system_routes, "get_settings", mock_get_settings),
-        patch.object(system_routes, "AuditService") as mock_audit,
+        patch.object(system_routes, "AuditService", autospec=True) as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
         response = await system_routes.patch_config(
@@ -1959,7 +1969,7 @@ async def test_record_stage_latency_invalid_stage() -> None:
     redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock()
 
-    with patch.object(system_routes.logger, "warning") as mock_warning:
+    with patch.object(system_routes.logger, "warning", autospec=True) as mock_warning:
         await system_routes.record_stage_latency(redis, "invalid_stage", 10.5)  # type: ignore[arg-type]
 
     mock_warning.assert_called_once()
@@ -1973,7 +1983,7 @@ async def test_record_stage_latency_exception_handling() -> None:
     redis = AsyncMock(spec=RedisClient)
     redis.add_to_queue_safe = AsyncMock(side_effect=ConnectionError("redis error"))
 
-    with patch.object(system_routes.logger, "warning") as mock_warning:
+    with patch.object(system_routes.logger, "warning", autospec=True) as mock_warning:
         await system_routes.record_stage_latency(redis, "detect", 15.0)  # type: ignore[arg-type]
 
     mock_warning.assert_called_once()
@@ -2154,7 +2164,7 @@ async def test_get_latency_stats_exception_handling() -> None:
     redis = AsyncMock(spec=RedisClient)
     redis.peek_queue = AsyncMock(side_effect=ConnectionError("redis error"))
 
-    with patch.object(system_routes.logger, "warning") as mock_warning:
+    with patch.object(system_routes.logger, "warning", autospec=True) as mock_warning:
         result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
 
     assert result is None
@@ -2192,7 +2202,7 @@ async def test_get_telemetry_queue_depth_exception() -> None:
     redis.get_queue_length = AsyncMock(side_effect=ConnectionError("redis error"))
     redis.peek_queue = AsyncMock(return_value=[])
 
-    with patch.object(system_routes.logger, "warning"):
+    with patch.object(system_routes.logger, "warning", autospec=True):
         response = await system_routes.get_telemetry(redis)  # type: ignore[arg-type]
 
     assert isinstance(response, TelemetryResponse)
@@ -2273,11 +2283,13 @@ async def test_check_ai_services_health() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -2446,7 +2458,7 @@ async def test_record_stage_latency_expire_failure_logs_warning() -> None:
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock(side_effect=ConnectionError("redis expire error"))
 
-    with patch.object(system_routes.logger, "warning") as mock_warning:
+    with patch.object(system_routes.logger, "warning", autospec=True) as mock_warning:
         await system_routes.record_stage_latency(redis, "analyze", 200.0)  # type: ignore[arg-type]
 
     # Should have logged a warning about the failure
@@ -2524,6 +2536,7 @@ async def test_trigger_cleanup_success() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
     ):
         response = await system_routes.trigger_cleanup()
@@ -2563,6 +2576,7 @@ async def test_trigger_cleanup_uses_retention_from_settings() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ) as mock_cleanup_class,
     ):
         response = await system_routes.trigger_cleanup()
@@ -2599,6 +2613,7 @@ async def test_trigger_cleanup_zero_deletions() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
     ):
         response = await system_routes.trigger_cleanup()
@@ -2627,6 +2642,7 @@ async def test_trigger_cleanup_exception_propagates() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
         pytest.raises(RuntimeError, match="Database connection failed"),
     ):
@@ -2656,6 +2672,7 @@ async def test_trigger_cleanup_does_not_delete_images_by_default() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ) as mock_cleanup_class,
     ):
         response = await system_routes.trigger_cleanup()
@@ -2690,8 +2707,9 @@ async def test_trigger_cleanup_logs_operation() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
-        patch.object(system_routes.logger, "info") as mock_logger,
+        patch.object(system_routes.logger, "info", autospec=True) as mock_logger,
     ):
         await system_routes.trigger_cleanup()
 
@@ -2709,7 +2727,7 @@ async def test_trigger_cleanup_logs_operation() -> None:
 @pytest.mark.asyncio
 async def test_check_yolo26_health_success() -> None:
     """Test YOLO26 health check returns healthy when service responds."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
@@ -2724,7 +2742,9 @@ async def test_check_yolo26_health_success() -> None:
 @pytest.mark.asyncio
 async def test_check_yolo26_health_connection_refused() -> None:
     """Test YOLO26 health check handles connection refused error."""
-    with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused"), autospec=True
+    ):
         is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
@@ -2735,7 +2755,9 @@ async def test_check_yolo26_health_connection_refused() -> None:
 @pytest.mark.asyncio
 async def test_check_yolo26_health_timeout() -> None:
     """Test YOLO26 health check handles timeout error."""
-    with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout"), autospec=True
+    ):
         is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
@@ -2746,7 +2768,7 @@ async def test_check_yolo26_health_timeout() -> None:
 @pytest.mark.asyncio
 async def test_check_yolo26_health_http_error() -> None:
     """Test YOLO26 health check handles HTTP error status."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -2764,7 +2786,9 @@ async def test_check_yolo26_health_http_error() -> None:
 @pytest.mark.asyncio
 async def test_check_yolo26_health_unexpected_error() -> None:
     """Test YOLO26 health check handles unexpected error."""
-    with patch("httpx.AsyncClient.get", side_effect=OSError("Unexpected network error")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=OSError("Unexpected network error"), autospec=True
+    ):
         is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
@@ -2775,7 +2799,7 @@ async def test_check_yolo26_health_unexpected_error() -> None:
 @pytest.mark.asyncio
 async def test_check_nemotron_health_success() -> None:
     """Test Nemotron health check returns healthy when service responds."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
@@ -2790,7 +2814,9 @@ async def test_check_nemotron_health_success() -> None:
 @pytest.mark.asyncio
 async def test_check_nemotron_health_connection_refused() -> None:
     """Test Nemotron health check handles connection refused error."""
-    with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused"), autospec=True
+    ):
         is_healthy, error = await system_routes._check_nemotron_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
@@ -2801,7 +2827,9 @@ async def test_check_nemotron_health_connection_refused() -> None:
 @pytest.mark.asyncio
 async def test_check_nemotron_health_timeout() -> None:
     """Test Nemotron health check handles timeout error."""
-    with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout"), autospec=True
+    ):
         is_healthy, error = await system_routes._check_nemotron_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
@@ -2812,7 +2840,7 @@ async def test_check_nemotron_health_timeout() -> None:
 @pytest.mark.asyncio
 async def test_check_nemotron_health_http_error() -> None:
     """Test Nemotron health check handles HTTP error status."""
-    with patch("httpx.AsyncClient.get") as mock_get:
+    with patch("httpx.AsyncClient.get", autospec=True) as mock_get:
         mock_response = MagicMock(spec=httpx.Response(status_code=200))
         mock_response.status_code = 503
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
@@ -2830,7 +2858,7 @@ async def test_check_nemotron_health_http_error() -> None:
 @pytest.mark.asyncio
 async def test_check_nemotron_health_unexpected_error() -> None:
     """Test Nemotron health check handles unexpected error."""
-    with patch("httpx.AsyncClient.get", side_effect=RuntimeError("Unexpected")):
+    with patch("httpx.AsyncClient.get", side_effect=RuntimeError("Unexpected"), autospec=True):
         is_healthy, error = await system_routes._check_nemotron_health("http://localhost:8091", 3.0)
 
         assert is_healthy is False
@@ -2852,11 +2880,13 @@ async def test_check_ai_services_health_both_healthy() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -2882,11 +2912,13 @@ async def test_check_ai_services_health_yolo26_down() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(False, "YOLO26 service returned HTTP 500"),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -2915,11 +2947,13 @@ async def test_check_ai_services_health_nemotron_down() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(False, "Nemotron service returned HTTP 500"),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -2948,11 +2982,13 @@ async def test_check_ai_services_health_both_down() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(False, "YOLO26 service returned HTTP 500"),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(False, "Nemotron service returned HTTP 503"),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -2988,11 +3024,13 @@ async def test_check_ai_services_health_returns_details() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(False, "YOLO26 connection refused"),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(False, "Nemotron connection refused"),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -3006,16 +3044,22 @@ async def test_check_ai_services_health_returns_details() -> None:
 async def test_check_ai_services_health_uses_config_urls() -> None:
     """Test that AI services health check uses config URLs."""
     with (
+        # No autospec: the autouse mock_ai_health_settings fixture already
+        # patches this target (with signature enforcement for the test's
+        # whole life); nested autospec is refused by mock. This inner patch
+        # overrides the return_value with the custom URLs this test needs.
         patch.object(system_routes, "get_settings") as mock_settings,
         patch.object(
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ) as mock_yolo26,
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ) as mock_nemotron,
     ):
         mock_settings.return_value.yolo26_url = "http://custom-yolo26:9000"
@@ -3141,7 +3185,7 @@ async def test_check_yolo26_health_with_circuit_breaker_makes_call_when_closed()
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
 
     with patch.object(
-        system_routes, "_check_yolo26_health", return_value=(True, None)
+        system_routes, "_check_yolo26_health", return_value=(True, None), autospec=True
     ) as mock_check:
         is_healthy, error = await system_routes._check_yolo26_health_with_circuit_breaker(
             "http://localhost:8090", 3.0
@@ -3178,7 +3222,10 @@ async def test_circuit_breaker_records_failure_on_health_check_error() -> None:
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
 
     with patch.object(
-        system_routes, "_check_yolo26_health", return_value=(False, "Connection refused")
+        system_routes,
+        "_check_yolo26_health",
+        return_value=(False, "Connection refused"),
+        autospec=True,
     ):
         await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
         await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
@@ -3195,7 +3242,9 @@ async def test_circuit_breaker_records_success_on_health_check_success() -> None
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
     system_routes._health_circuit_breaker.record_failure("yolo26", "Previous error")
 
-    with patch.object(system_routes, "_check_yolo26_health", return_value=(True, None)):
+    with patch.object(
+        system_routes, "_check_yolo26_health", return_value=(True, None), autospec=True
+    ):
         await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
 
     # Failure count should be reset to 0
@@ -3395,6 +3444,7 @@ async def test_trigger_cleanup_dry_run_returns_stats_without_deleting() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
     ):
         response = await system_routes.trigger_cleanup(dry_run=True)
@@ -3439,6 +3489,7 @@ async def test_trigger_cleanup_dry_run_false_performs_actual_deletion() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
     ):
         response = await system_routes.trigger_cleanup(dry_run=False)
@@ -3474,6 +3525,7 @@ async def test_trigger_cleanup_default_dry_run_is_false() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
     ):
         # Call without specifying dry_run
@@ -3500,6 +3552,7 @@ async def test_trigger_cleanup_dry_run_exception_propagates() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
         pytest.raises(RuntimeError, match="Database query failed"),
     ):
@@ -3529,8 +3582,9 @@ async def test_trigger_cleanup_dry_run_logs_operation() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
-        patch.object(system_routes.logger, "info") as mock_logger,
+        patch.object(system_routes.logger, "info", autospec=True) as mock_logger,
     ):
         await system_routes.trigger_cleanup(dry_run=True)
 
@@ -3563,6 +3617,7 @@ async def test_trigger_cleanup_dry_run_uses_retention_from_settings() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ) as mock_cleanup_class,
     ):
         response = await system_routes.trigger_cleanup(dry_run=True)
@@ -3600,6 +3655,7 @@ async def test_trigger_cleanup_dry_run_zero_counts() -> None:
         patch(
             "backend.services.cleanup_service.CleanupService",
             return_value=mock_cleanup_service,
+            autospec=True,
         ),
     ):
         response = await system_routes.trigger_cleanup(dry_run=True)
@@ -4068,11 +4124,13 @@ async def test_check_ai_services_health_uses_bounded_checks() -> None:
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
+            autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
@@ -4250,7 +4308,7 @@ async def test_get_pipeline_latency_history_with_data() -> None:
     # Mock time to control bucket placement
     current_time = time.time()
 
-    with patch.object(tracker, "_time") as mock_time:
+    with patch.object(tracker, "_time", autospec=True) as mock_time:
         mock_time.time.return_value = current_time
 
         # Add some samples
@@ -4307,7 +4365,7 @@ async def test_get_pipeline_latency_history_stage_stats_format() -> None:
 
     current_time = time.time()
 
-    with patch.object(tracker, "_time") as mock_time:
+    with patch.object(tracker, "_time", autospec=True) as mock_time:
         mock_time.time.return_value = current_time
 
         # Add multiple samples to get meaningful stats
