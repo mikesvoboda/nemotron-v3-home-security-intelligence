@@ -1051,7 +1051,7 @@ class TestSchemaValidation:
             "license_plates": [{"confidence": 1.5}],  # Over 1.0
         }
 
-        with patch("backend.api.helpers.enrichment_transformers.logger"):
+        with patch("backend.api.helpers.enrichment_transformers.logger", autospec=True):
             result = transformer.transform(
                 detection_id=1,
                 enrichment_data=data,
