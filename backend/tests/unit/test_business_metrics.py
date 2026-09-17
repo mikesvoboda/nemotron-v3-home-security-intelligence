@@ -192,7 +192,7 @@ class TestFlorenceClientInstrumentation:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings for FlorenceClient."""
-        with patch("backend.services.florence_client.get_settings") as mock:
+        with patch("backend.services.florence_client.get_settings", autospec=True) as mock:
             mock.return_value.florence_url = "http://localhost:8092"
             mock.return_value.ai_connect_timeout = 10.0
             mock.return_value.ai_health_timeout = 5.0
@@ -225,7 +225,9 @@ class TestFlorenceClientInstrumentation:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.florence_client.record_florence_task") as mock_record:
+            with patch(
+                "backend.services.florence_client.record_florence_task", autospec=True
+            ) as mock_record:
                 await client.extract(sample_image, "<CAPTION>")
                 mock_record.assert_called_once_with("caption")
         finally:
@@ -250,7 +252,9 @@ class TestFlorenceClientInstrumentation:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.florence_client.record_florence_task") as mock_record:
+            with patch(
+                "backend.services.florence_client.record_florence_task", autospec=True
+            ) as mock_record:
                 await client.ocr(sample_image)
                 mock_record.assert_called_once_with("ocr")
         finally:
@@ -275,7 +279,9 @@ class TestFlorenceClientInstrumentation:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.florence_client.record_florence_task") as mock_record:
+            with patch(
+                "backend.services.florence_client.record_florence_task", autospec=True
+            ) as mock_record:
                 await client.detect(sample_image)
                 mock_record.assert_called_once_with("detect")
         finally:
@@ -302,7 +308,9 @@ class TestFlorenceClientInstrumentation:
         client._http_client = mock_http
 
         try:
-            with patch("backend.services.florence_client.record_florence_task") as mock_record:
+            with patch(
+                "backend.services.florence_client.record_florence_task", autospec=True
+            ) as mock_record:
                 await client.dense_caption(sample_image)
                 mock_record.assert_called_once_with("dense_caption")
         finally:
@@ -324,9 +332,9 @@ class TestEnrichmentPipelineInstrumentation:
 
         with (
             patch(
-                "backend.services.enrichment_pipeline.record_enrichment_model_call"
+                "backend.services.enrichment_pipeline.record_enrichment_model_call", autospec=True
             ) as mock_record,
-            patch.object(EnrichmentPipeline, "_detect_violence") as mock_detect,
+            patch.object(EnrichmentPipeline, "_detect_violence", autospec=True) as mock_detect,
         ):
             # Set up the mock to call record_enrichment_model_call
             async def side_effect(*args, **kwargs):
