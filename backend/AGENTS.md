@@ -125,7 +125,6 @@ backend/
   - `jobs` - Background job management
   - `llm_reasoning` - LLM reasoning inspection
   - `logs` - Log querying and frontend log ingestion
-  - `materialized_views` - Materialized view management
   - `media` - Secure file serving for images/videos
   - `metrics` - Prometheus metrics endpoint
   - `model_management` - AI model management
@@ -150,7 +149,6 @@ backend/
   - `webhooks` - Webhook management
   - `websocket` - Real-time event streaming
   - `zone_anomalies` - Zone anomaly detection
-  - `zone_baselines` - Zone baseline management
   - `zone_household` - Zone-household configuration
   - `zones` - Zone management for camera areas
 - Database and Redis initialization
@@ -419,22 +417,21 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ### System and Infrastructure Routes
 
-| Route                   | Prefix                    | Description                               |
-| ----------------------- | ------------------------- | ----------------------------------------- |
-| `system.py`             | `/api/system`             | Health checks, GPU stats, pipeline status |
-| `services.py`           | `/api/system/services`    | Service management and control            |
-| `metrics.py`            | `/api`                    | Prometheus metrics endpoint               |
-| `dlq.py`                | `/api/dlq`                | Dead-letter queue management              |
-| `admin.py`              | `/api/admin`              | Admin operations and cache management     |
-| `debug.py`              | `/api/debug`              | Debug endpoints for development           |
-| `gpu_config.py`         | `/api/gpu-config`         | GPU configuration management              |
-| `health_ai_services.py` | `/api/health/ai`          | AI service health checks                  |
-| `hierarchy.py`          | `/api/hierarchy`          | Hierarchical organization                 |
-| `jobs.py`               | `/api/jobs`               | Background job management                 |
-| `materialized_views.py` | `/api/materialized-views` | Materialized view management              |
-| `queues.py`             | `/api/queues`             | Queue status and management               |
-| `settings_api.py`       | `/api/settings`           | Application settings API                  |
-| `system_settings.py`    | `/api/system-settings`    | System-wide settings                      |
+| Route                   | Prefix                 | Description                               |
+| ----------------------- | ---------------------- | ----------------------------------------- |
+| `system.py`             | `/api/system`          | Health checks, GPU stats, pipeline status |
+| `services.py`           | `/api/system/services` | Service management and control            |
+| `metrics.py`            | `/api`                 | Prometheus metrics endpoint               |
+| `dlq.py`                | `/api/dlq`             | Dead-letter queue management              |
+| `admin.py`              | `/api/admin`           | Admin operations and cache management     |
+| `debug.py`              | `/api/debug`           | Debug endpoints for development           |
+| `gpu_config.py`         | `/api/gpu-config`      | GPU configuration management              |
+| `health_ai_services.py` | `/api/health/ai`       | AI service health checks                  |
+| `hierarchy.py`          | `/api/hierarchy`       | Hierarchical organization                 |
+| `jobs.py`               | `/api/jobs`            | Background job management                 |
+| `queues.py`             | `/api/queues`          | Queue status and management               |
+| `settings_api.py`       | `/api/settings`        | Application settings API                  |
+| `system_settings.py`    | `/api/system-settings` | System-wide settings                      |
 
 ### Media and Logging Routes
 
@@ -472,7 +469,6 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 | `household_matcher.py` | `/api/household-matcher` | Household matching operations |
 | `plate_reads.py`       | `/api/plate-reads`       | License plate read queries    |
 | `zone_anomalies.py`    | `/api/zone-anomalies`    | Zone anomaly detection        |
-| `zone_baselines.py`    | `/api/zone-baselines`    | Zone baseline management      |
 | `zone_household.py`    | `/api/zone-household`    | Zone-household configuration  |
 
 ### Integration Routes

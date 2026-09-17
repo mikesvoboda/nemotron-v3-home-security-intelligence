@@ -23,13 +23,7 @@ import type React from 'react';
  * Recognized job statuses for styling
  */
 export type JobStatus =
-  | 'pending'
-  | 'queued'
-  | 'processing'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+  'pending' | 'queued' | 'processing' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 /**
  * Props for the StatusDot component

@@ -2,12 +2,12 @@
 # Format: <path>  # <tracking-ref> — one id per line; '#' starts the tracking-ref
 # comment. Entries are REAL findings exempted at first registration with a
 # tracking ref; remediation (write / rename / revive / delete) is queued, not
-# waived. All 7 registered against: R-M2-COLLECTION-FINDINGS (FCL ledger,
+# waived. Registered at first sweep against R-M2-COLLECTION-FINDINGS
+# (FCL ledger) — two since REMOVED 2026-09-16 (contracts schemathesis stub:
+# deleted; tests/test_utils.py: renamed testing_utils.py — R-M2 fast-tier fixes,
 # .superpowers/sdd/2026-09-12-fast-confidence-loop/progress.md).
 
 backend/tests/integration/test_helpers.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — misnamed test-infra module (no test functions); rename breaking (imported by siblings), rename queued M2
-backend/tests/test_utils.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — misnamed test-infra module (no test functions); rename breaking (imported by siblings), rename queued M2
-backend/tests/contracts/test_schemathesis_contracts.py  # R-M2-COLLECTION-FINDINGS (FCL ledger) — genuinely disabled (Schemathesis 4.x API break, documented in its docstring); revive-or-delete queued M2
 frontend/src/components/events/TimeGroupedEvents.simple.test.tsx  # R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation = FCL frontend-repair task (Task 3)
 frontend/src/components/system/SystemHealthIndicator.test.tsx  # R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation = FCL frontend-repair task (Task 3)
 frontend/src/components/zones/ZoneTimelineScrubber.test.tsx  # R-FCL-T1-TRIO (M1 ledger) — zero-byte frontend test file; quarantined in vite.config.ts:374-376; remediation = M1 frontend-repair task (Task 3)

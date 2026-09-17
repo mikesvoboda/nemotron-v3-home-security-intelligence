@@ -34,14 +34,7 @@
  * and SLOW_RENDER from React Profiler performance tracking.
  */
 export type WebVitalName =
-  | 'LCP'
-  | 'FID'
-  | 'INP'
-  | 'CLS'
-  | 'TTFB'
-  | 'FCP'
-  | 'PAGE_LOAD_TIME'
-  | 'SLOW_RENDER';
+  'LCP' | 'FID' | 'INP' | 'CLS' | 'TTFB' | 'FCP' | 'PAGE_LOAD_TIME' | 'SLOW_RENDER';
 
 /**
  * Rating values returned by web-vitals library.
@@ -331,8 +324,7 @@ function collectPageLoadTime(rum: RUM): void {
   // Wait for the load event to complete
   const reportPageLoadTime = () => {
     const navigation = performance.getEntriesByType('navigation')[0] as
-      | PerformanceNavigationTiming
-      | undefined;
+      PerformanceNavigationTiming | undefined;
 
     if (navigation && navigation.loadEventEnd > 0) {
       const loadTime = navigation.loadEventEnd - navigation.startTime;

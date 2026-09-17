@@ -241,8 +241,8 @@ export function createMockWebSocketWithMessage(
  * });
  * ```
  */
-export const mockUseWebSocket = vi.fn(
-  (_options?: WebSocketOptions): MockWebSocketReturn => createMockWebSocket()
+export const mockUseWebSocket = vi.fn((_options?: WebSocketOptions): MockWebSocketReturn =>
+  createMockWebSocket()
 );
 
 // =============================================================================

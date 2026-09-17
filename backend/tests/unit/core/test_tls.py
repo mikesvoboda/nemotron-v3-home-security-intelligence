@@ -792,6 +792,38 @@ class TestValidateCertificate:
         assert "serial_number" in result
         assert result["days_remaining"] > 0
 
+    def test_name_attribute_text_decodes_all_declared_types(self):
+        """cryptography 49 declares NameAttribute.value as TypeVar(str | bytes).
+
+        validate_certificate interpolates it into the subject/issuer strings,
+        so f-stringing a bytes value would render "b'...'" into an API-facing
+        string. The helper must return clean text for str, utf-8 bytes, and
+        non-utf-8 bytes alike.
+        """
+        from backend.core.tls import _name_attribute_text
+
+        assert _name_attribute_text("wp02.local") == "wp02.local"
+        assert _name_attribute_text(b"wp02.local") == "wp02.local"
+        assert _name_attribute_text("café.example".encode()) == "café.example"
+        # Non-utf-8 bytes must not crash and must not leak the b'' repr.
+        weird = _name_attribute_text(b"\xff\xfe")
+        assert isinstance(weird, str) and not weird.startswith("b'")
+
+    def test_validate_certificate_subject_is_plain_text(self, tmp_path):
+        """The subject/issuer fields stay plain text (no b'' repr artifacts)."""
+        from backend.core.tls import validate_certificate
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+        generate_self_signed_certificate(
+            cert_path=str(cert_path), key_path=str(key_path), hostname="wp02.test", validity_days=30
+        )
+
+        result = validate_certificate(cert_path)
+        assert "b'" not in result["subject"]
+        assert "b'" not in result["issuer"]
+        assert "commonName=wp02.test" in result["subject"]
+
     def test_validate_certificate_not_found(self, tmp_path):
         """Test validating a non-existent certificate."""
         from backend.core.tls import CertificateNotFoundError, validate_certificate

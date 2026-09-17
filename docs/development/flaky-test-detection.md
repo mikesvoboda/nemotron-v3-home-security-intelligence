@@ -66,7 +66,7 @@ gh run download <run-id> --dir test-results/run2
 # Analyze for flaky patterns
 python scripts/analyze-flaky-tests.py test-results/ \
   --output flaky-report.json \
-  --quarantine-file backend/tests/flaky_tests.txt
+  --allowlist-file .github/flake-allowlist.yml
 ```
 
 ### Configuration
@@ -141,42 +141,36 @@ graph TD
     F --> G[Weekly Analysis Aggregates Data]
 ```
 
-## Quarantine System
+## Quarantine System (governed — WP0.8)
 
-### Marking Tests as Flaky
+There is exactly one sanctioned quarantine: an entry in
+[`.github/flake-allowlist.yml`](../.github/flake-allowlist.yml) with a Linear
+tracking ref and an ISO expiry. `scripts/check-flake-allowlist.py` fails CI on
+missing refs and on expired entries (expiry is revocation).
 
-When a test is confirmed flaky, quarantine it:
+Registering a flake makes the integration jobs rerun the registered ids
+(`scripts/flake-k-filter.py` feeds them to pytest via `-k`):
 
-```python
-import pytest
-
-@pytest.mark.flaky
-def test_sometimes_fails():
-    """Test with known flakiness - quarantined."""
-    # Test implementation
-    pass
+```yaml
+# .github/flake-allowlist.yml
+flakes:
+  - id: test_websocket_reconnect_race
+    tracking: NEM-0000
+    expires: 2026-12-31
+    note: one line on root cause or investigation link
 ```
 
-Quarantined tests:
+`@pytest.mark.flaky` remains as the opt-in that routes a failure through the
+conftest failure→skip conversion — but **collection fails if a marked test has
+no allowlist entry** (`backend/tests/conftest.py`, `_enforce_flaky_registration`).
+The bare marker as ungoverned quarantine is retired: it was the pre-WP0.8 state
+where any marked test's permanent failure hid as a skip with no owner, no
+expiry, no review.
 
-- Failures don't block CI
-- Are reported as "xfail" (expected failure)
-- Remain tracked for analysis
-- Should be fixed, not permanently quarantined
-
-### Quarantine File
-
-Maintain a list of quarantined tests:
-
-```
-# backend/tests/flaky_tests.txt
-
-# Database connection pool exhaustion under load
-backend/tests/integration/test_concurrent_queries.py::test_parallel_writes
-
-# Race condition in WebSocket broadcast
-backend/tests/integration/test_websocket_api.py::test_multiple_clients
-```
+The legacy free-form manifest `backend/tests/flaky_tests.txt` (auto-appended by
+`analyze-flaky-tests.py --update-quarantine`, no owner/expiry) was deleted in
+WP0.8; the analyzer now reports "handled" only for ids registered in the
+governed allowlist.
 
 ## Reports
 
@@ -285,7 +279,7 @@ When a test is flagged as flaky:
 
 5. **Remove Quarantine**
    - Remove `@pytest.mark.flaky` decorator
-   - Remove from quarantine file
+   - Remove the entry from `.github/flake-allowlist.yml`
    - Monitor in next flaky detection run
 
 ### Prevention

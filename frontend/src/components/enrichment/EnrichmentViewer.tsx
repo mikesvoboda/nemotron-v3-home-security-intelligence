@@ -62,13 +62,7 @@ export interface EnrichmentViewerProps {
 }
 
 type SectionId =
-  | 'vehicle'
-  | 'pet'
-  | 'person'
-  | 'pose'
-  | 'license-plate'
-  | 'weather'
-  | 'image-quality';
+  'vehicle' | 'pet' | 'person' | 'pose' | 'license-plate' | 'weather' | 'image-quality';
 
 interface SectionConfig {
   id: SectionId;

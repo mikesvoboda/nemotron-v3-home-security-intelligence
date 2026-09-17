@@ -13,12 +13,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 export type OfflineIndicatorPosition =
-  | 'top-left'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-right'
-  | 'top'
-  | 'bottom';
+  'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top' | 'bottom';
 
 export type OfflineIndicatorVariant = 'banner' | 'badge' | 'minimal';
 

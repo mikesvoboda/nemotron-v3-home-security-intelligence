@@ -40,7 +40,7 @@ import pytest
 import xdist
 from sqlalchemy import inspect
 
-from backend.tests.test_utils import (
+from backend.tests.testing_utils import (
     check_tcp_connection,
     wait_for_postgres_container,
     wait_for_redis_container,
@@ -258,7 +258,7 @@ DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
 def _check_local_postgres() -> bool:
     """Check if local PostgreSQL is running on port 5432.
 
-    Uses shared check_tcp_connection from backend.tests.test_utils.
+    Uses shared check_tcp_connection from backend.tests.testing_utils.
     """
     return check_tcp_connection("localhost", 5432)
 
@@ -266,7 +266,7 @@ def _check_local_postgres() -> bool:
 def _check_local_redis() -> bool:
     """Check if local Redis is running on port 6379.
 
-    Uses shared check_tcp_connection from backend.tests.test_utils.
+    Uses shared check_tcp_connection from backend.tests.testing_utils.
     """
     return check_tcp_connection("localhost", 6379)
 

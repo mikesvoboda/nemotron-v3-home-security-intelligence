@@ -83,7 +83,9 @@ jobs:
   collection-sanity:
     name: Collection Sanity (zero-byte / zero-test tracked files)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 10 -> 15 (WP0.8): the gate-test step now collects the whole unit tier
+    # (the governance test's real-tree sweep), which imports every module.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -91,6 +93,54 @@ jobs:
         run: uv run --no-project python scripts/check-test-collection.py backend frontend
       - name: Flake allowlist hygiene
         run: uv run --no-project python scripts/check-flake-allowlist.py
+      # WP1.1: the escape-hatch census, measured on every CI run. The
+      # --expect literal is the ratchet's seed value: the exact baseline the
+      # spec records AND that this tree reproduces (verified equal to a
+      # census of origin/main itself, and stable across consecutive runs).
+      # CI failing here means either the census drifted from the measured
+      # tree or a suppression changed without the baseline being adjudicated
+      # — WP1.3's ratchet turns this from a stability check into a
+      # counts-may-only-fall gate.
+      - name: Suppression census (baseline stable)
+        run: >-
+          uv run python scripts/suppression-census.py --expect
+          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4}'
+      # WP1.3: the ratchet. The --expect above says "the census must not
+      # drift"; this says "counts may only FALL" — an unregistered
+      # @pytest.mark.skip (or any new suppression of any category) fails CI
+      # naming its id, and a registry entry whose site vanished goes stale.
+      # Baseline: .github/suppression-baseline.json; decreases lower via
+      # `ratchet-check.py --update`, an increase needs registry entries AND a
+      # hand-raised baseline in the same reviewed commit.
+      - name: Suppression ratchet (counts may only fall)
+        run: uv run python scripts/ratchet-check.py
+      # WP0.7: the two gates above are themselves tested; the suites sit
+      # outside testpaths on purpose (no self-collection) — run explicitly.
+      # A regression in either gate script fails here (scripts/test_*.py).
+      # WP0.9 added the coverage-diff gate's own tests to the same list;
+      # the pre-push timeout checker's contract tests joined after its
+      # chaos-comment repair; the WP1.1 census tests joined with the census
+      # itself (a gate with no CI is a gate that rots). Phase 2: the fast
+      # tier's own tests (selector + manifest contract) joined with the
+      # deleted-test phantom fix — the same doctrine, one tier later.
+      - name: Run the anti-rot gates' own tests
+        run: >-
+          uv run python -m pytest
+          scripts/test_check_test_collection.py
+          scripts/test_check_flake_allowlist.py
+          scripts/test_check_coverage_diff.py
+          scripts/test_check_gate_changed_files.py
+          scripts/test_check_test_timeouts.py
+          scripts/test_suppression_census.py
+          scripts/test_ratchet_check.py
+          scripts/test_fast_select.py
+          scripts/test_fast_runners_manifest.py
+          scripts/test_precommit_config.py
+          -q
+      # WP0.8: standalone gate test (no pytest cases — invoked as a script,
+      # NOT added to the pytest list above, which would collect zero).
+      - name: Flaky-marker governance gate test
+        run: uv run python scripts/test_flaky_marker_governance.py
 
   # Backend Jobs
 
@@ -329,6 +379,7 @@ jobs:
         run: find coverage-reports/ -name "*.xml" | head -20
 
       - name: Combine and check coverage threshold
+        id: combine
         run: |
           # List available coverage files
           echo "Available coverage files:"
@@ -339,12 +390,39 @@ jobs:
             uv run coverage combine --data-file=.coverage
             uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null
             echo "Coverage merged successfully"
+            # WP0.9: publish a machine-readable baseline from REAL merged data
+            # only. The else-branch `touch .coverage` vacuous fill (logged as a
+            # residual in the WP0.6 ledger row) must never mint a baseline —
+            # merged=true is set exclusively on this path.
+            # --fail-under=0 here is number EXTRACTION, not a floor change:
+            # [tool.coverage.report] fail_under=85 would make this command exit
+            # 1 and redden the job (and drop the codecov artifact) exactly when
+            # coverage moves. The 85% floor lives in the diff gate (WP0.9) and
+            # the ci-gate checks — same rationale as the shard jobs'
+            # --cov-fail-under=0.
+            total="$(uv run coverage report \
+              --data-file=.coverage --format=total --fail-under=0)"
+            printf '{"percent_covered": %s, "source": "ci.yml unit-tests-coverage-merge @ %s"}\n' \
+              "$total" "${GITHUB_SHA}" > coverage-baseline.json
+            cat coverage-baseline.json
+            echo "merged=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::No coverage files found to merge"
             # Create empty coverage files to prevent downstream failures
             touch .coverage
             touch coverage-unit.xml
           fi
+
+      # WP0.9: main-only. test-coverage-gate.yml fetches this artifact from the
+      # latest successful main run as COVERAGE_BASE_JSON, so PRs diff against
+      # main's real merged number without re-running the suite on base.
+      - name: Publish coverage baseline (main)
+        if: steps.combine.outputs.merged == 'true' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: coverage-baseline
+          path: coverage-baseline.json
+          retention-days: 30
 
       - name: Upload merged unit test coverage
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
@@ -1944,18 +2022,39 @@ jobs:
             echo "Created new issue"
           fi
   # Test Performance Audit Job (main-only)
+  # WP0.5 (owner ruling 2026-09-16: "gate at raised thresholds"): this job was
+  # main-only, red-and-advisory forever (46 rows over the 1.0s unit threshold).
+  # It now GATES: raised thresholds (unit 4.0s / integration 10.0s, measured
+  # from the main-run distribution — see ledger WP0.5 row) that the honest
+  # baseline passes with zero laundering (replay of main run 35049640472
+  # artifacts: FAIL(46) -> PASS), the 2 residual >4s outliers tracked in
+  # audit-test-durations.py's SLOW_TEST_PATTERNS (60s cap), the job runs on
+  # PRs under unit-tests' own trigger (a gate main-only is a post-merge
+  # reporter), and missing test data FAILS the job — never a vacuous pass.
   test-performance-audit:
     name: Test Performance Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
     needs:
+      - detect-changes
+      - lint
+      - build-backend-deps
       - unit-tests
       - integration-tests-api
       - integration-tests-websocket
       - integration-tests-services
       - integration-tests-models
       - frontend-e2e
+    # Mirrors unit-tests' availability exactly: when unit-tests was skipped
+    # (frontend/docs-only PR, lint red), the audit has no data by design and
+    # must SKIP honestly; when the tier ran, its artifacts are here (uploaded
+    # if: always()) and zero XML is a pipeline break -> fail.
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.lint.result != 'failure' &&
+      needs.build-backend-deps.result != 'failure'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1999,22 +2098,22 @@ jobs:
           fi
 
       - name: Analyze test durations
-        run: |
-          if [ -d "test-results/" ] && [ -n "$(find test-results/ -type f -name '*.xml' 2>/dev/null)" ]; then
-            uv run python scripts/audit-test-durations.py test-results/
-          else
-            echo "⚠️ No test results found - skipping performance audit"
-            echo "This may indicate that test jobs did not complete or upload artifacts"
-            exit 0
-          fi
+        # WP0.5: no more "skip + exit 0" on missing data — the audit only runs
+        # when its tier ran (job `if:`), so zero XML is a pipeline break and
+        # the script fails it. Thresholds are the owner-ruled raised pair;
+        # distribution evidence + tracked-slow list in the ledger WP0.5 row.
+        run: uv run python scripts/audit-test-durations.py test-results/
         env:
-          UNIT_TEST_THRESHOLD: '1.0'
-          INTEGRATION_TEST_THRESHOLD: '5.0'
+          UNIT_TEST_THRESHOLD: '4.0'
+          INTEGRATION_TEST_THRESHOLD: '10.0'
           E2E_TEST_THRESHOLD: '10.0'
+          SLOW_TEST_THRESHOLD: '60.0'
           WARN_THRESHOLD_PERCENT: '80'
 
       - name: Create Linear issue on failure
-        if: failure()
+        # WP0.5: the job now gates PRs too — a PR failure is a red check the
+        # author sees inline; only post-merge main failures file the follow-up.
+        if: failure() && github.ref == 'refs/heads/main'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2223,62 +2322,13 @@ jobs:
           fi
 
   # Security Scanning Jobs (Matrix Strategy for Parallelization)
-
-  # Consolidated Trivy scans using matrix for parallel execution
-  trivy-scan:
-    name: Trivy Scan (${{ matrix.target.name }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - name: backend-deps
-            scan-type: fs
-            scan-ref: '.'
-            skip-dirs: 'frontend,node_modules,.git'
-            is-dockerfile: false
-          - name: backend-dockerfile
-            scan-type: config
-            scan-ref: 'backend/Dockerfile'
-            skip-dirs: ''
-            is-dockerfile: true
-          - name: frontend-deps
-            scan-type: fs
-            scan-ref: 'frontend'
-            skip-dirs: ''
-            is-dockerfile: false
-          - name: frontend-dockerfile
-            scan-type: config
-            scan-ref: 'frontend/Dockerfile'
-            skip-dirs: ''
-            is-dockerfile: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Run Trivy vulnerability scanner
-        if: ${{ !matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          scan-type: ${{ matrix.target.scan-type }}
-          scan-ref: ${{ matrix.target.scan-ref }}
-          scanners: 'vuln'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-          ignore-unfixed: true
-          format: 'table'
-          skip-dirs: ${{ matrix.target.skip-dirs }}
-
-      - name: Run Trivy config scanner
-        if: ${{ matrix.target.is-dockerfile }}
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          scan-type: ${{ matrix.target.scan-type }}
-          scan-ref: ${{ matrix.target.scan-ref }}
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-          format: 'table'
+  # WP0.3: the duplicate `trivy-scan` matrix job was REMOVED here. Two Trivy
+  # pipelines scanned overlapping targets on every push/PR; the standalone
+  # .github/workflows/trivy.yml survives as the single Trivy home — it is a
+  # strict superset (fs scan of '.' with .trivyignore, config scan of '.'
+  # covering both Dockerfiles + all IaC, image scans, SARIF upload, SBOM,
+  # and .trivyignore expiry checks). Surface-equivalence proof and rationale:
+  # ledger 2026-09-12-context-map-doc-updates.md, WP0.3 row.
 
   npm-audit:
     name: npm Audit (Frontend)
@@ -2378,114 +2428,6 @@ jobs:
             --tb=short \
             -k "production or blocked"
 
-  # TDD Compliance Tracking (PR-only, non-blocking)
-  # Analyzes commit patterns to detect TDD practice compliance
-  # Reports warnings for potential test-after-implementation patterns
-  tdd-compliance:
-    name: TDD Compliance Tracking
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event_name == 'pull_request'
-    continue-on-error: true
-    permissions:
-      pull-requests: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-
-      - name: Analyze TDD compliance
-        id: tdd-analysis
-        run: |
-          echo "## TDD Compliance Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get base and head commits for PR
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-
-          # Count commits in PR
-          COMMIT_COUNT=$(git rev-list --count $BASE_SHA..$HEAD_SHA)
-          echo "**PR Commits:** $COMMIT_COUNT" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Analyze each commit for test vs implementation file changes
-          echo "### Commit Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          TDD_COMPLIANT=0
-          TDD_WARNING=0
-          MIXED_COMMITS=0
-
-          for commit in $(git rev-list $BASE_SHA..$HEAD_SHA); do
-            COMMIT_MSG=$(git log -1 --pretty=format:"%s" $commit)
-            COMMIT_SHORT=$(git rev-parse --short $commit)
-
-            # Get changed files in commit
-            TEST_FILES=$(git diff-tree --no-commit-id --name-only -r $commit | grep -E "(test_|\.test\.|\.spec\.)" | wc -l)
-            IMPL_FILES=$(git diff-tree --no-commit-id --name-only -r $commit | grep -v -E "(test_|\.test\.|\.spec\.)" | grep -E "\.(py|ts|tsx)$" | wc -l)
-
-            # Determine pattern
-            if [ "$TEST_FILES" -gt 0 ] && [ "$IMPL_FILES" -eq 0 ]; then
-              echo "✅ **$COMMIT_SHORT**: Tests only - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-              TDD_COMPLIANT=$((TDD_COMPLIANT + 1))
-            elif [ "$TEST_FILES" -gt 0 ] && [ "$IMPL_FILES" -gt 0 ]; then
-              echo "⚠️  **$COMMIT_SHORT**: Mixed (tests: $TEST_FILES, impl: $IMPL_FILES) - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-              MIXED_COMMITS=$((MIXED_COMMITS + 1))
-            elif [ "$TEST_FILES" -eq 0 ] && [ "$IMPL_FILES" -gt 0 ]; then
-              echo "⚠️  **$COMMIT_SHORT**: Implementation only - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-              TDD_WARNING=$((TDD_WARNING + 1))
-            else
-              echo "ℹ️  **$COMMIT_SHORT**: Other changes - \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Test-only commits: $TDD_COMPLIANT" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚠️  Mixed commits: $MIXED_COMMITS" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚠️  Implementation-only commits: $TDD_WARNING" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Calculate test-to-implementation ratio
-          TOTAL_TEST_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA | grep -E "(test_|\.test\.|\.spec\.)" | wc -l)
-          TOTAL_IMPL_FILES=$(git diff --name-only $BASE_SHA...$HEAD_SHA | grep -v -E "(test_|\.test\.|\.spec\.)" | grep -E "\.(py|ts|tsx)$" | wc -l)
-
-          echo "### PR File Changes" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Test files changed: $TOTAL_TEST_FILES" >> $GITHUB_STEP_SUMMARY
-          echo "- Implementation files changed: $TOTAL_IMPL_FILES" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$TOTAL_IMPL_FILES" -gt 0 ]; then
-            RATIO=$(awk "BEGIN {printf \"%.2f\", $TOTAL_TEST_FILES / $TOTAL_IMPL_FILES}")
-            echo "- Test-to-implementation ratio: **${RATIO}:1**" >> $GITHUB_STEP_SUMMARY
-
-            if (( $(echo "$RATIO < 0.5" | bc -l) )); then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "⚠️  **Warning**: Low test-to-implementation ratio. Consider adding more test coverage." >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### TDD Best Practices Reminder" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. **RED**: Write failing tests first" >> $GITHUB_STEP_SUMMARY
-          echo "2. **GREEN**: Implement minimum code to pass tests" >> $GITHUB_STEP_SUMMARY
-          echo "3. **REFACTOR**: Improve code while keeping tests green" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Mixed commits (tests + implementation) may indicate test-after-implementation." >> $GITHUB_STEP_SUMMARY
-          echo "Consider separate commits for test creation and implementation phases." >> $GITHUB_STEP_SUMMARY
-
-          # Output for comment
-          echo "tdd_compliant=$TDD_COMPLIANT" >> $GITHUB_OUTPUT
-          echo "tdd_warning=$TDD_WARNING" >> $GITHUB_OUTPUT
-          echo "mixed_commits=$MIXED_COMMITS" >> $GITHUB_OUTPUT
-          echo "test_files=$TOTAL_TEST_FILES" >> $GITHUB_OUTPUT
-          echo "impl_files=$TOTAL_IMPL_FILES" >> $GITHUB_OUTPUT
-
   # Version Consistency - every runtime-version declaration must agree with
   # .nvmrc / .python-version (kills the "label said 3.11, uv ran 3.14" class)
   version-consistency:
@@ -2501,6 +2443,9 @@ jobs:
 
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
+  # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
+  # converges here, or it cannot go red on PR/push, or its red is triaged at
+  # runtime (Linear step / schedule-only), or it is coverage plumbing.
   # Use this as the required check in branch protection to simplify configuration.
   # Non-blocking workflows can use workflow_run trigger on CI completion.
   # Note: Jobs may be skipped based on changed files (detect-changes job)
@@ -2520,6 +2465,20 @@ jobs:
       - frontend-e2e-summary
       - api-types-check
       - version-consistency
+      # WP0.6: every job that can go red on a PR/push converges here. The
+      # 2026-09-16 main baseline sat red on Dead Code / Test Performance Audit
+      # / Trivy x2 while CI Gate reported SUCCESS — the WP0.2 invisibility
+      # class, one layer up. Jobs gated here that only run on main
+      # (contract-tests, dead-code, build-*) arrive as `skipped` on PRs,
+      # which check_job treats as OK.
+      - contract-tests
+      - dead-code
+      - security-tests
+      - api-coverage
+      - npm-audit
+      - build-backend
+      - build-frontend
+      - test-performance-audit
     if: always()
     steps:
       - name: Check required job results
@@ -2551,6 +2510,14 @@ jobs:
           check_job "E2E Tests (Chromium)" "${{ needs.frontend-e2e-summary.result }}"
           check_job "API Types Contract Check" "${{ needs.api-types-check.result }}"
           check_job "Version Consistency" "${{ needs.version-consistency.result }}"
+          check_job "Contract Tests (API Schema)" "${{ needs.contract-tests.result }}"
+          check_job "Dead Code Detection" "${{ needs.dead-code.result }}"
+          check_job "Security Test Suite" "${{ needs.security-tests.result }}"
+          check_job "API Endpoint Coverage" "${{ needs.api-coverage.result }}"
+          check_job "npm Audit (Frontend)" "${{ needs.npm-audit.result }}"
+          check_job "Build Docker (backend)" "${{ needs.build-backend.result }}"
+          check_job "Build Docker (frontend)" "${{ needs.build-frontend.result }}"
+          check_job "Test Performance Audit" "${{ needs.test-performance-audit.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

@@ -528,6 +528,36 @@ async def test_subscribe_topic(mqtt_client, mock_aiomqtt_client):
 
 
 @pytest.mark.asyncio
+async def test_subscribe_starts_message_pump(mqtt_client, mock_aiomqtt_client):
+    """R-T9-MQTTPUMP regression lock: subscribe() must start the pump that
+    feeds registered callbacks. Before the fix, _message_processing_loop had
+    zero callers — subscribe() registered callbacks that could never fire
+    (the disconnect() cancel-path was dead plumbing for a task never born).
+
+    Rides the shared aiomqtt fake; its AsyncMock .messages keeps the pump
+    parked on a non-terminating iterator, so the asserts are race-free and
+    the fixture teardown (disconnect) is what proves the cancel-path leak
+    check — a live task surviving disconnect would fail the final assert.
+    """
+
+    async def cb(topic: str, payload: dict) -> None:  # pragma: no cover - never fires
+        pass
+
+    assert mqtt_client._message_task is None  # no pump before subscribe
+
+    with patch("backend.services.mqtt_client.aiomqtt.Client", return_value=mock_aiomqtt_client):
+        await mqtt_client.connect()
+        await mqtt_client.subscribe("commands/pump-probe", cb)
+
+        task = mqtt_client._message_task
+        assert task is not None, "subscribe() started no message pump (R-T9-MQTTPUMP)"
+        assert not task.done()
+
+        await mqtt_client.disconnect()
+        assert mqtt_client._message_task is None  # cancel-path ran, no leaked task
+
+
+@pytest.mark.asyncio
 async def test_subscribe_wildcard(mqtt_client, mock_aiomqtt_client):
     """Test subscribing to wildcard topic patterns.
 

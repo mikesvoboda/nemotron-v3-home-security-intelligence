@@ -40,6 +40,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from backend.core.logging import get_logger
 
@@ -757,8 +758,12 @@ class ExportService:
         if self._db is None:
             raise ValueError("Database session required for export_events_with_progress")
 
-        # Build query
-        query = select(Event).where(Event.deleted_at.is_(None))
+        # Build query — undefer(Event.reasoning): the column is deferred() on
+        # the model (memory for list queries) and reading it on an ORM row is
+        # a SYNC lazy load — inside this async job that raised MissingGreenlet
+        # and failed EVERY non-empty export (R-T9-EXPORTDEFER). Precedent:
+        # event_service.py:200-210, background_evaluator.py:322-324.
+        query = select(Event).options(undefer(Event.reasoning)).where(Event.deleted_at.is_(None))
 
         if camera_id is not None:
             query = query.where(Event.camera_id == camera_id)
@@ -981,8 +986,12 @@ class ExportService:
                 }
             )
 
-            # Build query
-            query = select(Event).where(Event.deleted_at.is_(None))
+            # Build query — undefer(Event.reasoning); zero production callers
+            # today, fixed in the same commit as the progress variant (same
+            # cause, R-T9-EXPORTDEFER).
+            query = (
+                select(Event).options(undefer(Event.reasoning)).where(Event.deleted_at.is_(None))
+            )
 
             if camera_id is not None:
                 query = query.where(Event.camera_id == camera_id)

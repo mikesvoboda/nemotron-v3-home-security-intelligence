@@ -73,7 +73,6 @@ from backend.api.routes import (
     jobs,
     llm_reasoning,
     logs,
-    materialized_views,
     media,
     metrics,
     model_management,
@@ -1485,7 +1484,6 @@ app.include_router(inbound_webhooks.router)
 app.include_router(jobs.router)
 app.include_router(llm_reasoning.router)
 app.include_router(logs.router)
-app.include_router(materialized_views.router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(model_management.router)

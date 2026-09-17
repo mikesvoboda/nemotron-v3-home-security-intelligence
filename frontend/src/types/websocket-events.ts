@@ -836,10 +836,7 @@ export interface AlertResolvedPayload {
  * - camera.updated: Camera configuration was updated
  */
 export type CameraEventType =
-  | 'camera.online'
-  | 'camera.offline'
-  | 'camera.error'
-  | 'camera.updated';
+  'camera.online' | 'camera.offline' | 'camera.error' | 'camera.updated';
 
 /**
  * Camera status values.

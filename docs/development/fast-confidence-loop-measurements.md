@@ -98,6 +98,81 @@ Footer contract check (plan T13 Step 3, exercised by `--fast` after rows land):
 `SELECTED: n files total` + loud `FAST TIER — no coverage proof; full gate still
 required before merge.` + NO `VALIDATION SUCCESSFUL` string on the --fast path.
 
+### Row F3 — WP2.5 playbook: 7 transitive cases + measured bound (2026-09-16)
+
+`scripts/fast-validation-playbook.sh` gains seven TRANSITIVE cases (plan
+asked ≥3) and the wall retargets 600 s → 900 s = the WP2.4 measured budget
+(p50 428 s / p95 513 s, n=20, ledger WP2.4 row; owner ruling tiered). Wall
+time alone cannot tell a closure selection from an accidental full run, so
+the new cases additionally assert WHICH files the selector chose
+(REQUIRED / FORBIDDEN / exact TOTAL) against the raw `--list-out` —
+before the tier filter. The backend RUN list is the same WP2.4 f4 tier
+filter the pre-push hook applies, so the playbook certifies the tier the
+hook ships; the two integration-tier proofs (x2/x4) assert on the raw
+selection and are excluded from the run by contract, not by accident.
+
+Every REQUIRED was probe-verified against the shipped selector at 515a4810
+(one behavior-neutral comment appended, `--base HEAD`, why-lines read).
+Two reconciliation calls, both from evidence: the plan-era draft probe for
+x1 (`alert_service.py` → `test_alerts.py`) reaches its target only through
+the routes-package `__init__` hub, so it became its own case (x1b) labelled
+for what it actually proves, and event_broadcaster.py — whose hop to
+test_alerts runs through an UNTOUCHED intermediate — carries the x1 claim;
+a "narrower" x4 candidate (`schemas/jobs` → `test_jobs.py`) was rejected
+because `test_jobs.py` references `schemas.jobs` DIRECTLY (depth 0 masquerading
+as a chain proof).
+
+Run history (the quotable run is the one from the SHIPPED script, whole):
+
+- Run 1 (pre-defect-fixes, killed at 7/12): the record the three defect
+  commits cite — route(alerts) 78 s **rc=1 MANIFEST CANNOT-RUN** naming the
+  schemathesis stub (→ delete commit), the census it triggered (→ test_utils
+  rename), and the deletion-planning blocker (→ deleted-test phantom fix).
+  x1-intm green at 467 s/633 files — first proof the hub shape fits 900 s.
+  Its verdict for x2 read "OK" while rc=1-era bugs hid a non-run: the
+  rc-blind-fold lesson that put rc into the verdict line.
+- Run 2 (defect fixes landed; 10/12 green): every executed case green with
+  assertions folded — x1/x1b/x3/x5/x6 OK, incl. x6's FORBIDDEN prefixes and
+  x3's TOTAL=1. x2/x4 died rc=2 BEFORE running: their names contain `/` and
+  the log path `$LOGDIR/$NAME.log` resolved into a nonexistent directory
+  (dash: `cannot create ... Directory nonexistent`) — zero signal, zero run.
+  (This retroactively explains Run 1's same "0 s rc=2" row, misdiagnosed at
+  the time as a pkill artifact.) Fix: log filenames go through
+  `tr / _` (the human table keeps the readable name); the in-file comment
+  carries the failure quote as the guard's proof.
+- Run 3 (post-fix, BASE=HEAD): the quotable table below.
+
+| Change                                 | Selection proof                                                                                                                                                         | Selected (raw/in-tier)                                       | Wall  | rc  | verdict |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----- | --- | ------- |
+| route(alerts.py)                       | baseline (no assertion)                                                                                                                                                 | in-tier 144 (Run 1: 145; −1 = stub gone)                     | 79 s  | 0   | OK      |
+| service(alert_service.py)              | baseline                                                                                                                                                                | in-tier 145 (bit-identical Run 1→3 — api policy never fires) | 77 s  | 0   | OK      |
+| component(ActionableInsights.tsx)      | baseline                                                                                                                                                                | fe 1                                                         | 23 s  | 0   | OK      |
+| hook(useAlertsQuery.ts)                | baseline                                                                                                                                                                | fe 20                                                        | 193 s | 0   | OK      |
+| config(vite.config.ts)                 | guard-notice case (Tier-0 fallback by design)                                                                                                                           | fe 0 + 796 NOT-SELECTED manifest                             | 0 s   | 0   | OK      |
+| x1-intm(event_broadcaster.py)          | REQUIRED unit/api/routes/test_alerts.py — depth-1 hop through UNTOUCHED routes/alerts.py                                                                                | 824 / 633                                                    | 465 s | 0   | OK      |
+| x1b-pkghub(alert_service.py)           | REQUIRED same file — depth-2 via routes/`__init__` re-export                                                                                                            | 193 / 145                                                    | 79 s  | 0   | OK      |
+| x2-reexport(models/alert.py)           | REQUIRED integration repositories/test_alert_repository.py — bare `backend.models` ref + `models/__init__` re-export (assert-on-selection; out of run by tier contract) | 826 / 635                                                    | 465 s | 0   | OK      |
+| x3-selfselect(unit/.../test_alerts.py) | TOTAL=1 exact — changed test selects ONLY itself                                                                                                                        | 1 / 1                                                        | 7 s   | 0   | OK      |
+| x4-depth2(schemas/queue.py)            | REQUIRED integration test_api_error_scenarios.py — chain queue ← pipeline_workers ← routes/system                                                                       | 411 / 284 (in-tier −1 vs probe = stub)                       | 193 s | 0   | OK      |
+| x5-fixtureind(main.py)                 | REQUIRED unit/api/routes/test_rum.py — zero prod refs; conftest fixture hop (unit/conftest.py:136)                                                                      | 68 / 35                                                      | 27 s  | 0   | OK      |
+| x6-conftest-tree(unit/conftest.py)     | REQUIRED unit/api/middleware/test_accept_header.py; FORBIDDEN contracts/ + integration/ prefixes (0 hits — a violation prints `assert:forbidden:`, not OK)              | 674 / 674 (pure unit tree)                                   | 484 s | 0   | OK      |
+
+Counts: raw = fast_select's own `--list-out` (assertions grade this list,
+pre-tier-filter; frozen at the 515a4810 probe), in-tier = the runner's
+SELECTED line after the f4 filter. The two −1 cells vs probe/Run-1 are the
+deleted schemathesis stub: it entered the selection ONLY when the diff
+touches backend/api/\*\* (route in-tier 145→144 across runs; x4 285→284 vs
+probe) and every non-api case is bit-identical (x1-intm 633, x1b 145, x2
+635, service 145 both runs) — the arithmetic corroboration that the
+directory-policy deletion removed exactly the defect and nothing else.
+
+Summary: **12/12 cases green** — every wall ≤ 900 s (max 484 s, the 674-file
+conftest-tree case; hub-class x1/x2 at 465 s), every assertion folded into
+its OK verdict, playbook rc=0 (/tmp/wp25/pb-run3.log; per-case logs
+trap-wiped at exit). Total battery wall 2092 s across 12 full tier runs —
+the WP2.4 bound certified against the mechanism it protects, not just its
+clock.
+
 ### Row H1 — honesty acceptance (spec §6.4)
 
 | Probe                                                | Expected     | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                       |

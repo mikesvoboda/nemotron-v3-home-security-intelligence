@@ -151,7 +151,13 @@ nemo = [
     # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
     # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
     # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
-    "data-designer>=0.7.0",
+    # WP0.2 raises 0.7.0 -> 0.9.2: engine 0.7.0 caps cryptography<47, which is
+    # what held the runtime at 46.0.7 through GHSA-537c-gmf6-5ccf (fixed 48.0.1).
+    # 0.9.2 requires cryptography>=48.0.1,<=49 and pyarrow>=24,<25 (clears
+    # CVE-2026-25087, fixed 23.0.1) with NO opentelemetry pins, so it cannot
+    # regress the runtime otel set. dependency-audit.yml's 2026-09-15 review note
+    # named exactly this unblock ("revisit when data-designer supports otel 1.44").
+    "data-designer>=0.9.2",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",
@@ -273,7 +279,9 @@ nemo = [
     # stale caps leak into the runtime+dev resolution, holding click at 8.3.0
     # and cryptography at 46.x despite open advisories (PYSEC-2026-2132,
     # PYSEC-2026-3552/3553/3554). 0.7+ moves click/cryptography forward.
-    "data-designer>=0.7.0",
+    # WP0.2: 0.9.2 clears GHSA-537c-gmf6-5ccf (needs cryptography>=48.0.1) and
+    # CVE-2026-25087 (needs pyarrow>=23) — see the optional-dependencies note.
+    "data-designer>=0.9.2",
     "pandas>=2.0.0",
     "pyarrow>=14.0.0",
     "numpy>=1.24.0",

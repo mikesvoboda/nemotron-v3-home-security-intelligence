@@ -28,12 +28,7 @@ export type DetectionFeedbackType = 'correct' | 'incorrect' | 'unsure';
  * Predefined reasons for marking a detection as incorrect
  */
 export type IncorrectReason =
-  | 'shadow'
-  | 'reflection'
-  | 'animal'
-  | 'weather'
-  | 'wrong_label'
-  | 'other';
+  'shadow' | 'reflection' | 'animal' | 'weather' | 'wrong_label' | 'other';
 
 /**
  * Display labels for incorrect reasons

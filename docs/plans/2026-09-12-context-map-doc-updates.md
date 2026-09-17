@@ -1535,7 +1535,7 @@ real files. Wave N next: 27 files (23 run-9-reds fixed after the run +
 4 re-scores: detections_api, audit, export_api, mqtt_integration with the
 new timeout markers).
 
-**[VERIFIED totals, re-read from /tmp/waveM-out/*.log same turn]** 1765
+**[VERIFIED totals, re-read from /tmp/waveM-out/\*.log same turn]** 1765
 passed, 42 skipped, 0 failed across the 79 scored files.
 
 ## M3 T8 prep — Part 4 clusters re-verified by AST (audit [REPORTED] counts drifted) (2026-09-14)
@@ -2963,3 +2963,1359 @@ that FAILS on disagreement. What landed:
 
 Meta point: the gate caught a bug in its own first draft (truth-equal pins
 flagged as drift) before commit — dogfooding works.
+
+## WP0.1 MEASUREMENT — repaired pre-push gate against feat/phase2 @2764c854 (2026-09-16)
+
+Hook = `scripts/pre-push-tests.sh` after the pipefail/RC repair (`set -eo pipefail`;
+runner output to full logs, no `| head` in any verdict path; backend import-check
+fallback now fires ONLY on pytest rc 5; frontend tsc fallback ONLY on npm rc 127).
+Gate test: `scripts/test_pre_push_gate.sh` — 11 cases, all green (red first: 11
+assertion failures against the old script, including 2 real `git push` blocks).
+
+| Job                   | Result on this tree | Wall       | Notes                                                                                                                                     |
+| --------------------- | ------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 API types contract  | PASSED              | 7.8s solo  | bites: injected 1-line drift into `frontend/src/types/generated/api.ts` → hook rc=1, job FAILED; restored                                 |
+| 2 backend smoke       | PASSED              | 11.8s solo | **109 selected = 109 run, 0 skipped** (zero-env-skip property holds); serial rc identical to `-n 8` rc                                    |
+| 3 frontend smoke      | PASSED              | 13.6s solo | **first genuine run in vitest-4 history** — old jest-only flags made vitest exit at CLI parse, every historical "pass" was tsc pretending |
+| hook total (parallel) | rc=0                | **14.5s**  | piped-through (git-like) stdout; no fd leak                                                                                               |
+
+**Real failures surfaced: 0.** Consistent with SPEC "the test suite is green"; the
+lie was never about the suite, it was about the verdict channel.
+
+**Defects found by repairing (all fixed in the WP0.1 commit):**
+
+1. `| head` masked verdicts (the SPEC-named bug, both jobs) — pipefail + full-logs.
+2. `pytest | head -50` + pipefail would SIGPIPE-killed green runs at >50 lines (rc 141) — truncation moved to the DISPLAY side.
+3. jest flags `--testPathPattern`/`--passWithNoTests` → vitest 4 parse error → vacuous tsc fallback (npm mangles `App\.(test|spec)` to `App/.(test|spec)`; exact path `src/App.test.tsx` used, loud-fail on rename).
+4. NEW leak, older than this WP and found by measuring: `( sleep 60 ) &` watchers can't be reaped — bash's `$!` for `( … ) &` is a transient wrapper pid (proved by /proc probe; the watcher reparents to init), so EVERY historical run left a `sleep 60` orphan, and with inherited stdout each push blocked ~60s on EOF (measured hook wall = 60.0s pre-fix vs 14.5s post). Replaced by a self-exec under `timeout --kill-after=10s 60s` (hung run → rc 124 → push blocked; zero leftovers proven).
+5. Import-check fallback converted genuine failures (rc 1) to passes via `import backend.main` — pinned by gate test cases [2]/[6].
+
+## WP0.2 MEASUREMENT — CVE patch pass against feat/phase2 (2026-09-16)
+
+| CVE                 | Package                   | Was                                    | Now        | Status                                                                                                                                 |
+| ------------------- | ------------------------- | -------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| GHSA-537c-gmf6-5ccf | cryptography              | 46.0.7 (cap `data-designer-engine<47`) | **49.0.0** | PATCHED (fix 48.0.1; OSV-verified fixed_in=48.0.1)                                                                                     |
+| CVE-2026-25087      | pyarrow                   | 22.0.0 (nemo floor 14; engine cap)     | **24.0.0** | PATCHED (fix 23.0.1; nemo extra now `data-designer>=0.9.2` whose config/engine pin pyarrow>=24,<25)                                    |
+| GHSA-5c6j-r48x-rmvq | serialize-javascript      | 7.1.1                                  | 7.1.1      | ALREADY FIXED by the Sep-15 npm sweep (`npm audit` proves, spec's "unpatched" row stale)                                               |
+| CVE-2026-27606      | rollup 4 (path traversal) | 4.63.3                                 | 4.63.3     | NOT AFFECTED — shipped rollup is 6 minor versions past the affected window (affected tops out ~4.58.0/4.57.x per OSV); npm audit clean |
+
+Mechanism: `pyproject.toml` nemo extra/group `data-designer>=0.7.0 → >=0.9.2` (the only structural edit; the engine 0.7.0 cap `cryptography<47` was the entire blocker the dependency-audit 2026-09-15 review note described). `uv lock` + `uv sync` + `uv export` regenerated `requirements-audit.txt`.
+
+Collateral (recorded, accepted): otel runtime 1.44.0→1.43.0 + instruments 0.65b0→0.64b0 + `+opentelemetry-exporter-prometheus 0.64b0` — these are data-designer 0.9.2's meta pins (`sdk<1.44,>=1.43`, `exporter-prometheus<0.65,>=0.64b0`), a required pairing, not resolver drift; pyproject floors (>=1.23.0/>=0.44b0) stay satisfied. The audit note's "revisit when data-designer supports otel 1.44" MISSES by one minor: 0.9.2 supports 1.43. `email-validator`/`dnspython` left the tree (were pydantic[email] optionals, zero importers — grep-verified). jose/jwt ES256 round-trip verified against cryptography 49 (the runtime crypto surface; pyjwt lives in a non-default group, never in this venv).
+
+Suppression debt (Phase 1 material, not papered over here): `dependency-audit.yml` still passes `--ignore-vuln GHSA-537c-gmf6-5ccf PYSEC-2026-3553/3554` — inert now (IDs no longer reported; pip-audit accepts unknown ignores), and 3552 (pkcs7 Bleichenbacher oracle) STILL applies at 49.0.0 (fix 50.0.0 > engine cap 49) — the ignore's "pkcs7 APIs unused" rationale holds and its OpenSSL-3.2 implicit-rejection argument strengthened. WP1.2 registry should adopt the whole `dependency-audit.yml` ignore list + `.trivyignore` REVIEW-BY set (several dates expired 2026-04-05) with owners/expiries.
+
+Trivy done-when: no trivy binary in-sandbox (CI installs v0.68.2); pip-audit re-run is the local proxy — GHSA-537c and CVE-2026-25087 no longer reported; backend-deps Trivy job goes green on push (CI), frontend-deps already clear.
+
+## WP0.3 MEASUREMENT + DECIDE — Trivy pipeline collapse (2026-09-16, commit 85596599)
+
+BEFORE baseline (saved /tmp/wp03-trivy-baseline.txt): ci.yml matrix job = {fs '.', fs 'frontend', config backend/Dockerfile, config frontend/Dockerfile}, all exit-code:1, ignore-unfixed:true, NO .trivyignore param on config scans. trivy.yml = {fs '.' exit1 + SARIF fs exit0 MEDIUM, config '.' exit1 + SARIF, SBOM×2, expiry-check job, backend image scan, frontend image scan}, all with trivyignores=.trivyignore, fs scan WITHOUT ignore-unfixed.
+
+AFTER: ci.yml job deleted (grep-verified zero `needs:` dependents first). trivy.yml unchanged except push trigger +frontend/package-lock.json + frontend/bun.lock.
+
+Surface diff: every ci.yml target is covered by a trivy.yml scan of equal-or-greater strictness — scan-config '.' is a strict superset of the two per-Dockerfile config scans AND fails on findings; scan-filesystem '.' covers both fs scans and honors .trivyignore (ci's job relied on root auto-find anyway). One trigger nuance: ci.yml fired on every push (unfiltered) while trivy.yml's push filter is dep-path-filtered — the WP's own DECIDE ("standalone workflow is the more natural home") accepts this; the schedule (weekly Mon) + PR filter + lockfile additions keep the dep-drift window bounded. CI post-push = final proof (WP0.6).
+
+CI truth at DECIDE time (main run 35049640472): red jobs were exactly `Trivy Scan (backend-deps)`, `Trivy Scan (frontend-deps)` — the CVEs 938d158f patches — plus Dead Code Detection (WP0.4) and Test Performance Audit (WP0.5). trivy.yml's own fs-scan failure (30 HIGH lockfile findings it scans without ignore-unfixed) and Check CVE Review Dates (every .trivyignore REVIEW BY 2026-04/06 expired) are honest signals WP0.2's ledger row already logged as WP0.8/WP1.2 work — NOT reintroduced here.
+
+## Prettier drift repair — chore 3021e853 (pre-existing, surfaced by WP0.2's deeper validate)
+
+Sep-15 npm sweep (228647d7) pinned prettier 3.9.6 in package-lock.json; committed src/ files were formatted under the previous tool and 24 of them fail `prettier --check` with the installed one. Shipped tool = contract → `npm run format` (3.9.6). `-w` diff proves formatting-only (3.9 fit-out collapses union types). MEASURE: check 24 fail → "All matched files use Prettier code style". Full vitest re-verification (2026-09-16, verbose+file-logged on the post-reformat tree at 3021e853): **rc=0 — 446 test files, 5968 tests passed, 0 failed, 13.8 min wall.** The reformat is behaviorally inert; zero pre-existing failures surfaced.
+
+## WP0.4 MEASUREMENT — vulture whitelist (2026-09-16)
+
+Baseline: `uv run vulture backend/ vulture_whitelist.py --config pyproject.toml` → 26 findings, rc≠0: clean_tracker ×8 (test_jobs_api.py), real_session_store ×11 (test_auth_flow.py), mock_run_sudo ×5 (test_deploy_phases.py) — pytest fixtures requested for side effects; approximate ×1 (test_pipeline_e2e.py:163 `_xadd_impl` mirrors redis-py's xadd signature). All 100% confidence, all the whitelisted idiom, zero genuine dead code in the report.
+
+WHITELISTED (vulture*whitelist.py, +4 names, job NOT silenced, fixtures NOT renamed): *.clean*tracker, *.real*session_store, *.mock*run_sudo (side-effect fixture group); *.approximate (mock-signature group — required by the xadd interface).
+
+Done-when half 2 (still reports genuine dead code) — planted probes:
+
+- `import difflib` (globally common name): package scan did NOT report it at 80%; direct single-file scan did (90%). Mechanism pinned: vulture's unused-import rule skips names used ANYWHERE in the scanned tree (backend/ has ~90 difflib users) — a real vulture semantic, not a config bug.
+- Globally-unique probe `import xmlrpc.client as wp04_unique_alias_xyz` in backend/core/: package scan reports it at 90% confidence ✓. (Note: the CI gate command exits 0 even while printing findings — the job's `|| true` sibling in weekly-audit vs ci.yml:1059 bare command is why the gate verdict itself deserves WP0.6 scrutiny.)
+  After whitelist: 0 findings, rc=0. Genuine-dead-code bite: proven via unique-name probe (rm'd after).
+
+## WP0.5 MEASUREMENT + RULING + IMPLEMENTATION — Test Performance Audit (2026-09-16)
+
+MEASURE (main run 35049640472, thresholds unit=1.0s/integration=5.0s/e2e=10.0s):
+FAIL — 46 rows exceeded = **37 unit / 9 integration** (~30 distinct tests; shard
+duplicates inflate rows). Unit worst 16.12s (test_timestamp_auto_generated),
+6.00s (test_connection_timeout RTSP); majority of the 3.xs cluster are
+Hypothesis property tests (multi-second by design). Integration worst 9.01s
+(openapi schema) + 5.16–5.83s auth-flow API-key cluster. Job was main-only,
+nothing `needs:` it → purely advisory red.
+
+RULING (owner, 2026-09-16, AskUserQuestion): "Gate at raised thresholds" —
+keep the job, make it gate, thresholds from the measured distribution so the
+honest baseline passes but NEW slow tests bite; the >cap outliers become a
+tracked list for Phase 2's p50/p95 backlog (WP2.4), not a 46-test fix project.
+
+IMPLEMENTATION + MEASURE (replay = ground truth):
+
+- New thresholds unit 4.0s / integration 10.0s / e2e 10.0s / slow-cap 60.0s.
+- Replayed the ACTUAL main-run artifacts (9 JUnit XMLs downloaded via gh)
+  through the modified gate: **FAIL(46) → PASS with 3 warnings, 224 known-slow
+  tracked, 0 failures, rc=0.** Zero laundering: exactly 2 tests remain >4s and
+  are added to SLOW_TEST_PATTERNS with provenance comments (error_handler
+  timestamp 16.1s, rtsp connection_timeout 6.0s); a tracked test at 61s still
+  fails (gate test case 5).
+- Vacuous-pass hole closed: `audit-test-durations.py` now FAILS on a results
+  dir with zero XML (was: warning + exit 0). ci.yml's "skip + exit 0" branch
+  deleted.
+- The gate now runs on PRs too (mirrors unit-tests' exact availability
+  `if:` — skips honestly on frontend/docs-only PRs, which have no data by
+  design, never passes vacuously). Linear-issue step scoped main-only.
+- TDD: scripts/test_audit_gate.sh, 7 cases, red 3 → green 7 (new 4.5s unit
+  bites; 3.5s passes raised gate; int 9.5 pass/12 fail; tracked 16s pass /
+  61s bite; empty dir FAILS; benchmarks stay excluded).
+
+## WP0.6 MEASUREMENT + DECIDE — workflow conclusion equals gate conclusion (2026-09-16)
+
+MEASURE (main run 35049640472 + graph enumeration, 35 jobs): `ci-gate` needs 11
+direct / 20 transitive; **the four permanently-red main jobs — Trivy×2 (WP0.3,
+deleted), Dead Code (WP0.4), Test Performance Audit (WP0.5) — all sat outside
+ci-gate's reach while `CI Gate` reported SUCCESS.** That is the WP0.2
+invisibility class one layer up: the workflow's _conclusion_ (green gate) lied
+about its _verdict_ (red jobs). Branch protection requires exactly one context
+(`CI Gate (Required Checks)`, API-verified) — so ci-gate's needs list IS the
+merge gate, and anything outside it is decoration.
+
+Classes that satisfy "a job either gates merges or its red is actionable"
+(codified in scripts/test_ci_job_graph.py, which enumerates every job and FAILs
+on an unclassified one — red on 4 jobs pre-edit, green post-edit, 34 jobs /
+gate reach 28 after):
+
+- **GATE** — transitively reachable from ci-gate.
+- **PLUMB** — coverage-merge jobs (artifact-only, cannot produce a verdict);
+  names enumerated in the test so a rename forces an honest edit.
+- **TRIAGE** — red is actioned at runtime: own `Create Linear issue on failure`
+  step (contract-tests, dead-code, build-backend, build-frontend), or
+  schedule/dispatch-only (frontend-e2e-secondary, test-count-verification —
+  a nightly red gets triaged, never merge-ignored).
+- **NEVER-RED** — jobs with no failing exit path (advisory summary writers).
+
+PER-JOB DECIDE (the jobs outside the gate pre-edit):
+
+- contract-tests / dead-code / build-backend / build-frontend: **PROMOTE** into
+  ci-gate needs + `check_job`. They already carry Linear triage, but that only
+  files an issue — it does not stop the merge; dead-code was RED on main for
+  weeks with a green gate (WP0.4 proved it was real findings whitelisted, not
+  noise). On PRs they arrive `skipped` (main-only `if:`) = OK, unchanged.
+- security-tests / npm-audit / api-coverage: **PROMOTE.** All three run on
+  every PR and can genuinely go red (real suites / `npm audit
+--audit-level=high` / `check-api-coverage.sh` exit 1) yet converged nowhere —
+  exactly the WP0.2 pattern for the CVEs. api-coverage's allowlist is reviewed
+  in WP0.8/WP0.9 territory; promoting it now is what makes that review urgent
+  rather than optional.
+- test-performance-audit: **PROMOTE.** WP0.5 made it an honest gate at
+  owner-ruled thresholds; a gate nothing needs is the "red-and-advisory"
+  costume the WP0.5 ruling rejected. Its `if:` mirrors unit-tests' availability
+  so it cannot block frontend/docs PRs where it legitimately never ran.
+- tdd-compliance: **DELETE.** PR-only analytics with job-level
+  `continue-on-error: true` — it can NEVER go red, so the invariant is
+  technically satisfied; what it is instead is a 100-line git-log report with a
+  `## TDD Compliance` header in pull_request_template.md as its only consumer,
+  consuming a runner slot per PR. TDD enforcement in this repo is the commit
+  discipline + gate tests, not a summary table. (grep-verified: no workflow,
+  script, or branch-protection context reads its outputs;
+  `continue-on-error: true` confirmed at ci.yml:2361 pre-delete.)
+- coverage-merge ×3 + summary jobs + detect-changes / collection-sanity:
+  **PLUMB / already GATE** — no change.
+
+Residual known gap logged, not hidden: coverage-merge jobs can `touch
+.coverage` on combine-failure and the 85%/83% floors are enforced nowhere in CI
+— that is WP0.9's named target, and the graph test deliberately classifies them
+PLUMB rather than pretend they gate.
+
+Done-when: "concludes green on main" = proven by the next main CI run — the red
+set WP0.3/0.4/0.5 fixed is exactly the set that was red in 35049640472.
+"deliberately broken test turns it red" = WP0.1's end-to-end gate proof still
+holds: the broken test fails unit-tests → unit-tests-summary → ci-gate
+`check_job` exit 1 (summary→gate edge untouched by this WP, graph test asserts
+the edge exists).
+
+## WP0.7 MEASUREMENT — the anti-rot gates' own tests run in CI (2026-09-16)
+
+MEASURE (baseline): `scripts/test_check_test_collection.py` (17 cases) +
+`scripts/test_check_flake_allowlist.py` (6 cases) = 23 items, all pass locally
+(2.4s), referenced by NO workflow and outside `testpaths` (pyproject.toml:480 —
+correctly, they drive subprocesses; self-collection would make the gate test
+the gate). Running-where: nowhere. A regression in `check-test-collection.py`
+or `check-flake-allowlist.py` was invisible.
+
+IMPLEMENTATION: `collection-sanity` job (already WP0.6-verified GATE-reachable
+via unit-tests-summary/integration-tests-summary) gains "Run the anti-rot
+gates' own tests" — explicit `pytest scripts/test_check_*.py -q`, the plan's
+"invoke them explicitly instead".
+
+DONE-WHEN PROOF ("a regression in either gate script fails CI"): injected the
+WP0.5-class lie itself into each script in turn (vacuous `sys.exit(0)` in
+main()) and ran the EXACT step command: check-test-collection regression → 7
+cases fail, rc=1; check-flake-allowlist regression → 3 cases fail, rc=1. Both
+scripts restored byte-clean (git status empty) after each. CI-side enforcement
+is the collection-sanity→summary→ci-gate edge WP0.6's graph test pins.
+(Measurement bug caught in-flight: `pytest … | tail -1` reports TAIL's rc —
+re-ran redirecting to a file to capture pytest's real 1.)
+
+## WP0.8 MEASUREMENT + DECIDE — close the ungoverned quarantine (2026-09-16)
+
+MEASURE (baseline census): the plan said "the 5 @pytest.mark.flaky call sites";
+the tree has **3**: module-level pytestmark on test_transaction_rollback.py:36
+and test_api_error_scenarios.py:35, decorator on
+test_enrichment_parallelization.py:330. (Plan-vs-census: 3 is right today —
+grep across all workflows/paths; the conftest failure→skip machinery at
+makereport is the harm multiplier for ALL marked items.) The governed parallel
+mechanism — .github/flake-allowlist.yml (tracking ref + expiry, enforced by
+check-flake-allowlist.py on every push, feeds reruns via flake-k-filter.py -k) —
+carried `flakes: []`. flaky_tests.txt: header + commented-out NEM-5851 entries
+whose fixes (8d70481b, a00a378e) shipped in-file — zero live rows.
+
+LIVENESS AUDIT (the DECIDE's ground truth): 8 recent main runs × ALL shards of
+the integration artifacts = **517/517 passes across the two marked modules' 67
+tests, zero failures, zero quarantined skips**; unit timing test 6/6 pass at
+75–93ms vs its 250ms assertion (marked Feb 25 in 3396d3ef-era runs at 605ms —
+the pipeline-optimization wave fixed the timing, not the mark). The quarantine
+hid no live flake; it guaranteed future failures in 68 tests would hide.
+
+DECIDE per plan branch: the plan offered "migrate the call sites into the
+allowlist" — REJECTED on evidence: the allowlist's own header requires "a real
+flake and a Linear issue"; registering 3 dormant marks manufactures fake
+registrations (and the sandbox has no /linear-python skill — no real ref could
+be minted honestly this window). **All 3 marks DELETED** with evidence
+comments; if any flake returns it bites honestly, then gets a real registration.
+
+IMPLEMENTATION:
+
+- backend/tests/conftest.py: `_enforce_flaky_registration` in
+  pytest_collection_modifyitems — any collected item with @pytest.mark.flaky
+  and no UNEXPIRED allowlist entry (id-in-nodeid = the shipped -k semantics)
+  fails collection naming every offender + the fix. FLAKE_ALLOWLIST_FILE is the
+  test seam. Expired entry = revocation (case 3b).
+- scripts/test_flaky_marker_governance.py (NEW): 4 subprocess cases (unreg fails
+  collection naming it / registered collects / typo'd id still fails / EXPIRED
+  entry still fails) + real-tree sweep over the whole unit tier. TDD: red 3
+  (toothless) → green 4+sweep. Wired into collection-sanity as its OWN step —
+  standalone script, NOT appended to the WP0.7 pytest list (pytest would
+  collect zero cases from it: silent no-op avoided).
+- flaky-test-detection.yml:371 recommendation now says register in the
+  allowlist; analyzer `--quarantine-file/--update-quarantine` (the auto-append
+  ungoverned path) REPLACED by `--allowlist-file` — [QUARANTINED] means
+  registered-unexpired. Smoke: 3-run fixture → registered flake reports
+  QUARANTINED, unregistered reports NEW.
+- backend/tests/flaky_tests.txt DELETED (plan's "confirm first": only readers
+  were the analyzer arg — rewired — and docs; zero code refs after).
+- Docs updated: flaky-test-detection.md quarantine section rewritten to the
+  governed model; AGENTS.md marker table + example annotated.
+
+DONE-WHEN PROOF: "a @pytest.mark.flaky test with no allowlist entry fails
+collection" — governance gate case 1 does exactly this in a scratch file
+against the real conftest, and the sweep case proves the shipped tree passes.
+
+## PRE-EXISTING (surfaced by WP0.5 honest gate) — gpu_config concurrent-apply guard + redis worker-global leak (2026-09-16)
+
+MEASURE: the WP0.5-era validate.sh unit tier red ONE test —
+`test_apply_gpu_config_rejects_concurrent_applies` answered 500, contract says
+409 — at `--randomly-seed=1556902420`, worker gw2, at 61%. gw2's recorded history
+in the log (`grep '\[gw2\]' | tail`) showed the failure arriving with NO
+gpu_config-adjacent redis usage on that worker beforehand: the residue came from
+an earlier module sharing the worker, which is why the failure is seed-dependent
+and survived every prior quieted run.
+
+ROOT CAUSE (two independent defects, both PRE-EXISTING, one commit each):
+
+1. **Production lie** (`gpu_config.py`, commit 8861a6e4): NEM-3547's in-memory
+   `_apply_state_fallback` stands in for Redis ABSENCE only. But
+   `_get_current_operation_id()` swallowed redis READ ERRORS → returned None →
+   the 409 guard read "no apply running" → a transient Redis failure silently
+   permitted a concurrent apply: the exact race the guard exists to prevent.
+   The fallback dict cannot rescue that path (while redis is present the dict
+   mirrors only the last COMPLETED apply — never updated mid-operation), so
+   "unknown" had no safe optimistic value.
+
+2. **Test-isolation leak** (`backend/tests/unit/conftest.py`, commit 2):
+   `backend.core.redis._redis_client` is a module global that persists for an
+   xdist worker's WHOLE life, across modules. A lifespan-bearing test (real app
+   lifespan → `init_redis()`, main.py:761) leaving it set hands the next module a
+   client bound to a closed loop → `redis.get` raises "Event loop is closed"
+   mid-request → defect 1 turned that into the 500.
+
+DECIDE — guard semantics: FAIL CLOSED with 503, not fall back to the dict.
+Rejected (a) "return the fallback dict on read error" — while redis is present
+the dict is provably stale (last completed apply), so it would return a
+confidently-wrong None and keep the race open; rejected (b) "treat read error as
+in-progress → 409" — a Redis outage would then block every legitimate apply with
+a misleading conflict. 503 is the honest answer: state unverifiable, retry.
+Scope held to what the gate surfaced: the GET status endpoint's own swallow
+(`get_operation_status` → None on error) degrades the same way but was NOT red
+here — logged as a follow-up candidate, not scope-crept in.
+
+IMPLEMENTATION: `raise_on_error=True` at the apply guard's call site → 503;
+autouse conftest sweep of both redis globals before AND after every unit test
+(entry blocks leak-in, the observed direction; exit blocks leak-out;
+unconditional — no unit test relies on the global persisting).
+
+DONE-WHEN PROOF: (a) regression test red-first — stale-loop client → apply →
+expected 503, red as 500/200 leak against pre-fix production, green after;
+(b) fixture necessity proven by injection — dead-loop client left in the global
+reds the shipped 409 test (`assert 503 == 409`) in a same-worker `-n0` run
+without the fixture, green with it; (c) the exact original condition — full unit
+tier in validate.sh's own shape at `--randomly-seed=1556902420` — re-run green.
+NOTE for readers: `-n 8` split the probe files across workers and gave a
+false-green necessity check; load-bearing proof requires same-worker `-n0`.
+
+## WP0.9 MEASUREMENT + DECIDE — make the two coverage gates bite (2026-09-16)
+
+MEASURE (baseline census): `check-integration-tests` ran with
+`continue-on-error: true` (test-coverage-gate.yml:116) — structurally unable to
+redden the workflow; summary job read only test-coverage-gate's result.
+`check_coverage_diff()` (check-test-coverage-gate.py:221) never compared against
+a base: it unconditionally returned `(True, "Current coverage: X%")`, and its
+`base_branch` param was used ONLY by the requirement loop. Two more vacuous exits
+found in the same family (WP0.7 taxonomy): `if not changes: return 0` skipped the
+diff on empty-diff/shallow-checkout, and the old code read repo-root `.coverage`/
+`coverage.json` by absolute path while running pytest with cwd=repo root (fixture
+incapable AND CI-path-wrong). Proof-before-fix: scripts/test_check_coverage_diff.py
+against the old function = 7 failed (drop passes, equal/increase trigger a live
+FULL-SUITE run, skip cases fake passes).
+CI truth: Test Coverage Gate workflow green on recent PRs (35046691534 all jobs
+`success`) — so enabling the check flips nothing today; the gate stays green
+until a real violation.
+
+DECIDE (plan branch): REAL diff, not a rename — the plan states a real diff is
+higher-value; the misleading name was the defect. Base source = main's published
+baseline ARTIFACT, not a base-branch re-run: the gate job has no DB services, a
+re-run costs +9 min on every PR, and `coverage report --format=total
+--fail-under=0` gives the merged number without re-collection (the
+fail-under=0 is extraction, not a floor: [tool.coverage.report]
+fail_under=85 would make the number-extraction call exit 1 and redden the
+merge job exactly when coverage moves — same rationale as the shard jobs'
+--cov-fail-under=0). Publisher added to ci.yml unit-tests-
+coverage-merge, main-only (the job also runs on PRs; only main publishes), set
+behind `merged=true` so the `touch .coverage` vacuous-fill branch — WP0.6
+residual — can never mint a baseline. Fetcher scans the newest completed main
+runs for the artifact: artifact EXISTENCE is the trust marker (never minted
+vacuously), so no run-conclusion filter — main is currently red fleet-wide on
+Trivy, and a successful-run-only filter would skip baselines for weeks
+(main's last green ci.yml predates the retention window). Absent everywhere =
+the script's honest skip, never a faked pass.
+Collection fallback kept for the classic no-seam CI call (gate job collects the
+unit tier inline — DB-less unit tier passes: probes 30/30 without
+TEST_DATABASE_URL); an explicit-but-unreadable seam skips instead of
+collect-over-the-top. Threshold = ANY drop (floors 85/83 untouched — not a floor
+change, a diff mechanism). Summary job now gates on coverage-gate AND
+check-integration-tests results; api-test-generation stays advisory (its own
+step is `|| true` + continue-on-error = explicitly NEVER-RED triage).
+
+IMPLEMENTATION: check_coverage_diff rewritten (seams: explicit args /
+COVERAGE_JSON / COVERAGE_BASE_JSON / git-shipped coverage-baseline.json
+fallback); NEW scripts/test_check_coverage_diff.py (7 cases, added to the WP0.7
+anti-rot pytest list — real pytest file, unlike WP0.8's standalone script);
+test-coverage-gate.yml (fetch step + env + continue-on-error removed + summary
+gates both verdicts); ci.yml (baseline writer + main-only upload).
+
+DONE-WHEN PROOF: "a PR that drops coverage fails" — test_coverage_drop_fails +
+test_cli_exit_code_on_drop (rc=1 AND stdout names DROPPED — distinguishes the
+drop verdict from the collection-failure branch that shares the exit code);
+collection-sanity list 30 passed in CI shape (-n 8 worksteal).
+RESIDUAL: branch protection requires exactly one context ("CI Gate (Required
+Checks)", API-verified) — this workflow's verdict is visible and real but not
+merge-blocking; routing it through ci-gate is the owner's branch-protection
+surface, flagged for the WP close-out (no plan WP owns it).
+
+## PRE-EXISTING (surfaced by WP0.1 gate, first full-tree pre-push) — dead zone-baseline placeholder family (2026-09-16)
+
+MEASURE: pushing feat/phase2 for the first time makes the pre-push range every
+file; check-integration-tests.py went red on zone_baselines.py "requires
+integration tests". Census (git ls-tree -l size column): the whole family is
+0-byte blobs in HEAD — api/routes/zone_baselines.py, api/schemas/zone_baseline.py,
+jobs/compute_baselines.py, tests/matchers.py. Zero importers (grep across
+backend/ ai/ scripts/ frontend/src; only docs hit). Never mounted: main.py
+mounts by explicit import and this isn't among them; /api/zone-baselines absent
+from api.ts + OpenAPI. The "missing" test was itself a 0-byte stub shipped in
+d54f28ed and gone at the #6538 squash (no deletion commit exists) — restore was
+never an option. test-suite-audit-2026-09-13.md §1.2 independently verified the
+same family and prescribed populate-or-delete.
+
+DECIDE: DELETE + doc corrections, not populate — a never-mounted API has no
+shipped contract to test; populating would manufacture scope. The real Zone
+Intelligence (models/zone_baseline.py, zone_baseline_service.py, zone_anomalies
+route) is alive with real coverage. docs/components/AGENTS.md (also 0-byte) left
+alone: AGENTS.md is the docs-navigation convention, blocks no gate.
+
+DONE-WHEN PROOF: full-tree check-integration-tests.py (278 files, the exact
+new-branch shape that went red) exits 0; backend.main imports clean; api.ts
+regeneration byte-identical (contract unchanged). backend/AGENTS.md +
+docs/research/01-backend-api-inventory.md no longer claim the phantom route.
+
+## PRE-EXISTING (surfaced by WP0.1 gate, first full-tree pre-push) — chaos-test sleep comments vs check-test-timeouts contract (2026-09-16)
+
+MEASURE: the same first full-tree pre-push run took check-test-timeouts.py rc=1
+on 12 sites in backend/tests/chaos/test_worker_chaos.py — every line carried
+"# chaos test - mocked" / "# chaos test timing - mocked". The checker's
+contract (its own help text: "Add comment: # mocked, # patched, # cancelled";
+SAFE_COMMENTS substring test) does NOT match the hyphenated variant — the
+author annotated to the documented intent, the checker demands the token. The
+file predates the hook (d5eb7b54/#3181) and no push ever ran the hook over it.
+
+DECIDE: align COMMENTS to the shipped checker ("# mocked: chaos test[ timing]"),
+not the checker to the comments — production/contract discipline applies to
+gates too; widening SAFE_COMMENTS to swallow " - mocked" would loosen the
+contract for every future file to satisfy twelve annotations of one legacy
+file. The token's substring position doesn't matter ("# mocked: …" passes),
+so the author's context survives verbatim behind it. Chaos sleeps are
+intentional (real worker lifecycle timing under mocked redis/detector) — the
+existing annotation was right in kind, wrong in spelling.
+
+IMPLEMENTATION + PROOF: 12 sites rewritten (grep 12 "mocked: chaos test");
+full-tree re-run rc=0. NEW scripts/test_check_test_timeouts.py (4 cases) pins
+both readings so neither side can silently drift: documented token passes;
+unannotated long sleep STILL bites (no laundering); the shipped
+"# mocked: chaos test" form passes; the old hyphenated variant is pinned as a
+CORRECT flag (the checker was not bent). RED-first evidence = the captured
+pre-edit full-tree run (rc=1, exactly 12 findings). Wired into the WP0.7
+collection-sanity anti-rot pytest list (CI shape re-verified: 34 passed);
+graph test still green (34 jobs, gate reaches 28).
+
+## PRE-EXISTING (surfaced by WP0.1 gate, first full-tree pre-push) — get_changed_files parsed nothing: git's --name-status/--numstat mutual exclusion (2026-09-16)
+
+MEASURE: the full-tree pre-push ran scripts/check-test-coverage-gate.py as the
+'check-new-files-have-tests' hook over 68 changed files and printed "No
+changed files detected" — get_changed_files() returned [] for every diff.
+Mechanism: `git diff --name-status --numstat` is NOT a combined format — git
+gives --name-status precedence and emits `M\tpath` 2-field lines; the parser
+required >=3 fields and skipped every line. Blind from birth: the pre-WP0.9
+`if not changes: return 0` vacuous exit made even the emptiness invisible;
+WP0.9's honest skip exposed it. Requirement half of the gate — file→test
+matching, 85/80 thresholds — had never actually checked anything.
+
+FIX + PROOF: scripts/test_check_gate_changed_files.py (4 cases, RED first:
+3 parser drops + rename; scratch repos use REAL git so the parser is pinned
+against git's actual output, not a guess of it). Rewritten as two separate
+diff runs (name-status for status, numstat for counts) joined on the new path,
+with rename `{old => new}` rendering resolved to the new path. Real tree after
+fix: 68 files parsed (was 0); the hook shape now reports per-file ✓/✗ verdicts.
+
+## WP0.9 FOLLOW-UP (same first full-tree pre-push) — collect-then-skip ordering + fail_under trap in the fallback collection (2026-09-16)
+
+MEASURE: the same hook step took 98.62s and rc=1: base was unresolvable
+(origin/main has no coverage-baseline.json — correct honest skip), but the
+function collected the FULL unit tier FIRST (93.6s), and the collection
+exited 1 because pytest-cov applies pyproject fail_under=85 to the run while
+unit-tier-only coverage is 84.39% (validate's 87.99% includes contracts+
+security). Two defects, both in code WP0.9 shipped 2 commits ago:
+(a) skip-before-collect ordering — the diff skipped for want of a base AFTER
+spending 90s+ to learn it; (b) the extraction-not-floor rule was applied to
+the ci.yml coverage-report call and MISSED on the pytest fallback — same trap,
+same family (the spec's vacuous-exit taxonomy runs adjacent to it: a gate that
+fails for the wrong reason is as rot-prone as one that vacuously passes).
+Also: collection failures printed an EMPTY detail (pytest findings go to
+stdout; only stderr was captured).
+
+FIX + PROOF: base resolution moved FIRST (skip before any collection);
+fallback gets --cov-fail-under=0 (extraction, not a floor — the 85% floor
+lives in the diff verdict and ci.yml's floors, untouched); failure detail now
+spans stdout+stderr with rc. Hook-shape re-run on this exact tree: 0.09s
+(was 98.6s), rc=0, message "No base coverage available (no
+coverage-baseline.json at origin/main), skipping diff". test*check_coverage*
+diff.py 7 cases + new changed-files 4 cases green together (11 passed).
+Wiring: changed-files test joined the collection-sanity anti-rot list in the
+parser-fix commit; the coverage-diff file has been on it since WP0.9.
+
+## WP1.1 MEASUREMENT — escape-hatch census: every spec baseline reproduces exactly (2026-09-16)
+
+MEASURE (against main, per the WP): a detached worktree of origin/main
+(dbd65324) censused to {collection_allowlist 6, flake_allowlist 0,
+frontend_quarantine 16, pytest_skip 32, pytest_skipif 63, pytest_xfail 4,
+pytest_skip_imperative 94, frontend_skip 54, frontend_only 0, frontend_todo
+0, excluded_test_trees 4, coverage_omit 5} — EVERY spec escape-hatch number
+reproduces exactly. No baseline adjudication needed: the tree moved
+(22+ WP0 commits) but no suppression did. Output also verified byte-stable
+across consecutive runs (the done-when) and equal between main and HEAD.
+
+CENSUS: scripts/suppression-census.py, 12 categories, JSON to stdout,
+--expect JSON exits 1 naming each MISMATCHed category. Definitions the spec's
+raw grep counts papered over, each pinned by a fixture decoy: the vite
+quarantine is the exclude array that SPREADS configDefaults.exclude (three
+exclude arrays exist; a decoy optimizeDeps one does not count) and its
+glob-tree entries (tests/e2e/**, tests/contract/**) are structural, not
+quarantines; frontend .skip/.only/.todo counts the VITEST tree only
+(frontend/src) — Playwright e2e suppression is the excluded-trees
+category's job (decoy spec file must not count, else the baseline reads 232);
+decorator spellings (@pytest.mark.skip and bare @mark.skip, called or bare)
+all count; coverage_omit counts concrete backend/ production modules only
+(wildcards are plumbing; backend/main.py is app wiring exercised as the ASGI
+app in integration — the spec's 5 is the modules under the suppression
+comments).
+
+DECIDE (mechanism, not numbers): the census is the ratchet's measuring stick,
+so its own tests join the collection-sanity anti-rot list AND a --expect step
+pins the measured baseline in ci.yml — a suppression that moves a number must
+first adjudicate the baseline. Two definition bugs found and killed by fixture
+decoys before green: regex search hit the optimizeDeps exclude array
+(quarantine read 1); .skip counted the Playwright tree (skip read 232). Both
+boundaries now have fixture cases that fail if someone "simplifies" them back
+away.
+
+## WP0.6 CI TRUTH (PR #6549) — first real workflow run on the repaired gates, 4 failures triaged (2026-09-16)
+
+MEASURE: the PR to main ran the real workflows. 4 failed, 3 pre-existing/
+expected, 1 MY REGRESSION:
+(a) REGRESSION (fixed here): WP0.9's gate script used PEP 758 bare
+`except OSError, ValueError:` — valid on this box (3.14) and ruff-clean, but
+CI invokes it as BARE `python3` = the runner's 3.12 → SyntaxError, the gate
+could not even start. Lesson pinned: scripts invoked by workflows under
+plain `python3` must stay parseable below requires-python; uv-run scripts
+need not. (test-coverage-gate.yml runs it bare; ci.yml runs its scripts via
+`uv run` — only the bare-invoked files are affected.) Deeper trap found
+mid-fix: parenthesizing (`except (A, B):`) does NOT survive pre-commit —
+ruff format at target py314 STRIPS the parens back to the bare form, so the
+formatter would silently resurrect the SyntaxError. Shipped form: module-
+level exception TUPLES (`_READ_ERRORS = (OSError, ValueError)`) — formatter-
+inert and parseable on every Python. The parseability test proves the rule
+bites (feature_version=(3,12) on the real file + the bare shape asserted
+REJECTED).
+(b) STRICT GATE NOW FINDS REAL GAPS: once parseable, --strict honestly
+reports useDateRangeState.ts + useHouseholdApi.ts MISSING TESTS — shipped on
+main pre-WP0.1 (the parser's congenital blindness meant the requirement half
+never checked anything). Gate failing FOR THE RIGHT REASON; the hooks need
+unit tests, not a widened gate. Follow-up commit.
+(c) TRIVY FILESYSTEM SCAN: cryptography 49.0.0 (this branch's uv.lock bump)
+hits CVE-2026-69247 (fixed 50.0.0) — branch-caused, lock bump follow-up.
+(d) CVE REVIEW DATES: 6 .trivyignore review dates expired April/May on main
+(pre-existing hygiene; job fires on PRs because scan-filesystem has a PR
+trigger while the schedule-success on main predates nothing — the check
+simply fails on main too when invoked).
+Also: the gate's "Comment PR on failures" step 403s (workflow token lacks
+issues:write) — it masked (a)'s real verdict behind a flood of octokit
+headers. Pre-existing; the verdict is readable in the job log.
+
+## WP0.6 CI TRUTH — follow-up: (b) repaired, (c)/(d) adjudicated (2026-09-16)
+
+(b) RESOLVED (f6f8f0f9): 45 unit cases added for the two flagged hooks —
+useDateRangeState (URL round-trip incl. garbage/empty/partial-custom
+fallbacks, setPreset('custom') shipped no-op, param preservation,
+persistToUrl=false read+write silence, custom urlParam key, PRESET_LABELS
+incl. NEM-3646 'yesterday', UTC preset math on a pinned clock) and
+useHouseholdApi (query-key hierarchy, endpoint/method contract, 204->
+undefined, detail-vs-HTTP-line error extraction, detections param mapping,
+invalidation observed at the FETCH layer — isFetching races waitFor's first
+poll — failed mutation without invalidation). Test client pins retry +
+refetchOnWindowFocus OFF; production policies re-issue fetches and drain
+mock queues (observed 3 GETs where the contract has 2). No production bent,
+no gate widened. The gate's own find_test_file matcher now resolves both
+files.
+
+DISCOVERY during (b): a .test.ts + .test.tsx sharing one stem in the same
+directory is a SILENT SHADOWING TRAP. TypeScript's include-glob resolves
+`.ts` first, so the legacy useDateRangeState.test.tsx fell OUT of the
+project program: the commit-time "TypeScript Type Check" hook passed while
+NEVER SEEING the file, and typescript-eslint's projectService then refused
+to lint it ("not found by the project service") — full `eslint src` was
+red on MAIN for it (pre-existing, invisible while the suite still ran:
+vitest globs DO match both). Legacy suite's unique cases (PRESET_LABELS
+table, empty/partial-custom fallbacks, reset clearing dates, custom
+placeholder) transplanted into the .ts before the .tsx was removed; 75 ->
+consolidated suites keep every assertion. The new .test.tsx pattern should
+be banned-by-convention: hooks with JSX wrappers get `.test.tsx` ONLY.
+
+(c) ADJUDICATED: cryptography cannot move past 49.0.0 — data-designer-
+engine 0.9.2 pins cryptography>=48.0.1,<=49 and 0.9.2 IS data-designer's
+latest PyPI release (uv lock --upgrade-package cryptography resolves to
+50.0.1 then backtracks to the cap). Fixing CVE-2026-69247 therefore needs
+either a pyproject edit (drop/replace the data-designer extra = STOP AND
+ASK category: pyproject edits outside a WP's named files) or upstream's
+next release. RECORDED AS OWNER DEBT, not bypassed: the trivy failure
+stands as a visible signal (never re-quieled per S2), .trivyignore NOT
+extended to hide it. RULING REQUESTED (see R-TRIVY-CRYPTO below).
+
+(d) ADJUDICATED: the 6 expired .trivyignore review dates (CVE-2026-22695,
+CVE-2026-22801, CVE-2024-23342, CVE-2026-23949, CVE-2026-24049,
+CVE-2026-0994; file footer says reviewed 2026-01-24 / next 2026-04-24) are
+PRE-EXISTING main hygiene — reproduced locally via
+check-trivyignore-expiry.sh --warn-days 14. They fail CI naming the file;
+the honest repair is a real re-review + date bump, which is security-
+judgment work outside any WP's named files. RECORDED; bundled with (c)
+into the ruling request rather than date-bumped blind (blind bump =
+widening an allowlist to pass a gate).
+
+R-TRIVY-CRYPTO (RULING REQUESTED): cryptography 49.0.0 ceiling + 6
+expired trivyignore review dates both need decisions that touch files no
+WP names (pyproject to lift the data-designer cap; .trivyignore to
+re-review). Options: (1) accept owner-debt records, keep the CI signal
+red-but-triaged until upstream moves; (2) authorize a pyproject edit to
+drop the data-designer extra (removes the cap → 50.0.0, scan goes green);
+(3) authorize a genuine .trivyignore re-review commit. Default held: (1),
+nothing bypassed.
+
+## WP0.6 CI TRUTH — gate verdict on head 5e860d98: Test Coverage Gate GREEN under --strict (2026-09-16)
+
+The repaired gate chain is now proven in CI end to end: parse fix +
+hook tests + test-file exemption → "Test Coverage Gate pass 59s", its log
+shows the --strict invocation printing "All test coverage checks passed"
+(0 MISSING findings). Check Integration Test Requirements + Test Coverage
+Summary + every previously-green job hold green.
+
+Remaining PR failures are ONLY the two adjudicated ones: Check CVE Review
+Dates (d, expired .trivyignore dates) and Filesystem Vulnerability Scan
+(c, cryptography 49.0.0 ceiling) — both recorded owner debt awaiting the
+R-TRIVY-CRYPTO ruling; the signals stay red-but-triaged per S2 (never
+re-quieled).
+
+Merge-gate context "CI Gate (Required Checks)" carries NO status on any
+SHA yet (no status/checks API entry, suite list shows it never published)
+— it has never reported, so "green on main" is pending the first ci.yml
+completion on this head (run 35110543303, in flight). Not a check I can
+fabricate; it publishes when ci.yml concludes.
+
+WP1.2 groundwork finding: census --locations minted FIVE fake suppressions
+on real main (2 x .only from `{...onlyErrorsProps}` spread shorthand, 3 x
+.odo from `draft.todos` property accesses) — the locations regex lacked
+the count pass's \b guard. Registry keys built on it would have registered
+nonexistent entries; word-boundary fix + noise fixture landed (5 passed,
+both passes now agree: 54/0/0).
+
+## WP1.2 registry migration — DECIDE (kind vocabulary, expiry dates, classification method)
+
+**MEASURE:** census `--locations` yields 278 individually-keyed suppressions across
+12 categories (6/0/16/32/63/4/94/54/0/0/4/5 — census counts unchanged by WP1.2;
+only measurement bugs fixed en route: `\b` word-boundary in the frontend
+locations regex [7ccc27ca], module-constant reason resolution [246e2582]).
+All 278 now have registry entries; `suppression-registry-gen.py --check` green.
+
+**DECIDE — kind vocabulary (7 kinds, spec §escape-hatches's owner+expiry intent
+made machine-checkable):** `environment` (guard at the site proves an
+environment prerequisite; spec-EXEMPT: tracking null, expires null — these are
+the hatches the spec allows to survive, but ONLY where a guard read at the site
+proves it) · `scoped` (whole test trees on their own schedule; EXEMPT, tracking
+= nightly-full-gate.yml — counted by the ratchet so a NEW tree silently scoped
+out of validate.sh fails) · `todo` (permanent unimplemented surface; requires a
+tracking value — real findings without Linear issues get explicit
+`UNTRACKED:<family>` markers (ONVIF-SUITES 26, FRONTEND-SKIPS 54, COVERAGE-OMIT 5,
+AUTH-ROUTE, SOFT-DELETE, WEBSOCKET-TOKEN-REFRESH, SESSION-INVALIDATION,
+RATE-LIMIT-SPEC, DWELL, APPINIT, MODEL-MANAGEMENT-MOVED, SETUPGUARD-MOCK-MISMATCH)
+rather than blanks — the registry's job is to make the untracked VISIBLE, not to
+fabricate tickets) · `quarantine` (16 vite-exclude holds → R-T7-VITEST,
+2026-12-31) · `flaky` (7 recorded flakes in pytest_skip → 2026-10-15, the
+flake-allowlist's half-done mechanism made real when WP1.4 enforces expiry) ·
+`retired` (delete-by 2026-12-31: collection_allowlist 6 (all ledgered R-M2/R-FCL),
+15 pytest_skip sites whose subject moved/was renamed/zero-byte) · `defect`
+(7 skipif sites carrying R-T9-MQTTPUMP×6 + R-T9-EXPORTDEFER×1 shipped-defect
+reasons, expires 2026-10-15 = the ruling deadline; WP1.4 fails CI naming the
+owner when it lapses. These 7 are WHY WP1.2 exists — invisible to the registry
+until the census learned to resolve reason=CONST).
+
+**DECIDE — classification is generated, not hand-tended:** the generator
+(scripts/suppression-registry-gen.py) derives kind from reason-regex + per-category
+defaults, with the handful of genuinely-ambiguous sites adjudicated by reading
+the GUARD at each site and encoding the verdict as a rule (the 94 imperative
+sites: exactly 2 permanent TODOs — test_auth_routes.py, test_preview_api.py —
+the other 92 carry environment guards: lib availability, Windows perms,
+TEST_DATABASE_URL reachability [notable against S1's zero-env-skips pledge —
+these skip on UNSET, not on a dead host DB]; skipif 30 env / 7 defect / 26
+ONVIF-family todo; skip 15 retired / 10 todo / 7 flaky; xfail 2 todo / 2 retired).
+CI can regenerate and semantically diff (`--check` compares parsed YAML, because
+pre-commit's prettier hook owns YAML byte formatting). One category per commit
+(8 commits c5f30ede…3a56401c) so any misclassification is bisectable to its
+category.
+
+**RULING-ADJACENT:** the `environment` exemptions here are the census's, not new
+quarantines — zero entries added to any allowlist/quarantine; WP1.3's ratchet
+may only ever LOWER counts from this baseline.
+
+## WP1.3–1.5 ratchet + expiry + route-mounts — MEASURE & DECIDE
+
+**MEASURE (WP1.3):** baseline seeded from the live census at
+6/0/16/32/63/4/94/54/0/0/4/5 (=278, matching the spec table — the ratchet's
+`--expect` literal in collection-sanity and the census agree by construction).
+The ratchet's own census self-check found a REAL defect on its first run:
+`file::method` ids collide — test_system_models.py attaches BOTH the
+"Moved to…" and "Flaky…" decorators to the same 7 defs (stacked) and repeats
+7 method names across classes; the registry's rows were overwriting each
+other (32 sites → 25 unique ids). Census ids now mirror pytest node identity:
+`file::Class::method` + `#2` for stacked decorators; counts UNCHANGED
+(32/63/4/94 — the count pass always saw both decorators; only identity was
+lossy). Registry regenerated; registry --check + ratchet green on HEAD.
+
+**DECIDE (WP1.3):** an increase needs registry entries AND a hand-raised
+baseline in the same commit; `--update` REFUSES to raise (adjudication must be
+a human's diff). STALE entries (site gone, entry stays) fail too — a zombie
+launders the next re-addition. Both pair-sides pinned by fixtures
+(test_increase_without_registry_entry_fails IS the done-when;
+test_real_tree_ratchet_is_green keeps HEAD's license honest every CI run).
+
+**DECIDE (WP1.4):** expiry < today FAILS naming owner+tracking ("does not
+warn, does not silently lapse"); boundary inclusive (2026-10-15 green ON the
+15th — the R-T9 deadline seam is deterministic); non-exempt kinds REQUIRE an
+ISO expires and an unparseable date is itself a failure (a date that can't be
+compared can't be enforced); exemption integrity — environment requires NULL
+tracking+expires, scoped requires null expires (its tracking names the
+schedule). `--today` exists for tests/drills; CI runs the real clock, so
+test_real_tree_ratchet_is_green doubles as "zero entries expired today".
+
+**MEASURE (WP1.5):** 61 route modules define 65 module-level APIRouters;
+main.py mounts 65 — allowlist EMPTY (every router mounted today; the test
+guards tomorrow). Attribution must be AST-based: an APIRouter instance
+reports `__module__=="fastapi.routing"`, so introspection cannot separate
+defined from re-exported (a first-pass introspective version silently passed
+by skipping ALL 65 — caught before commit by counting what it skipped).
+Done-when verified on the real file: `# app.include_router(backup.router)`
+→ suite fails naming backup.router; git checkout → 4 passed.
+
+## WP1.3–1.5 CI TRUTH — head 6c712f4e (ratchet live in CI) — IN PROGRESS
+
+Verified green on the pushed head (separate workflows, job logs/API):
+Test Coverage Gate, AGENTS.md Validation, Dependency Audit, Secret Detection,
+SAST, Documentation Drift, PR Review Bot. In flight at write-time: the main
+CI run (Collection Sanity = ratchet + census + gate self-tests incl. new
+test_ratchet_check.py, lint, typecheck, unit, 4 integration tiers, frontend)
+— all jobs queued/starting. Known reds: the two PRE-EXISTING adjudicated
+security signals only (Check CVE Review Dates — 6 stale .trivyignore dates;
+Filesystem Vulnerability Scan — cryptography 49.0.0 ceiling via
+data-designer-engine; R-TRIVY-CRYPTO ruling open, default (1) owner-debt).
+The unit-tests/… SUCCESS claims here were written from the PREVIOUS head's
+results, not this one — retracted until the CI run on 6c712f4e concludes
+(honesty rule: a verdict needs THIS head's job log).
+
+## WP1.3–1.5 CI TRUTH — head 2ab3ec33, CI run 3449 — VERDICT (2026-09-16)
+
+The queued run on 6c712f4e (3448) was superseded by 3449 when this head
+pushed (ci.yml cancel-in-progress) — same CI content (head delta is docs
+only), so 3449's job logs ARE the verdict for both heads. All from THIS
+run's job records, per the honesty rule that governs this section.
+
+GREEN (success): Collection Sanity — THE Phase-1 pin: `uv run python
+scripts/ratchet-check.py` step executed 15:37:23→15:37:50 and the pytest
+step now includes scripts/test_ratchet_check.py, both green. Backend Unit
+(4 shards + unsharded + coverage), Backend Lint, Mypy, Integration API/
+Models/Services/WebSocket, E2E Chromium (6 shards), Frontend Vitest (16
+shards) + lint + tsc, API Types, Version Consistency, npm Audit, Security
+Test Suite, API Endpoint Coverage, Merge Coverage jobs, Build Backend
+Dependencies, Detect Changed Files. Separate workflows: Test Coverage
+Gate (--strict), SAST, Secret Detection, Dependency Audit, AGENTS.md
+Validation, Documentation Drift, PR Review Bot — all green on the head.
+
+RED (1 of 2 is new-to-this-path, pre-existing in substance):
+
+1. Test Performance Audit — FAIL: 1 test over the 4.0s unit limit:
+   `setup_lib.test_podman_install.TestPromptAndInstallPodman::
+test_user_accepts_install_success` at 23.57s. This is the WP0.5-repaired
+   gate (main-only → PR-gated, thresholds raised 1.0→4.0s) running on a PR
+   for the FIRST time; the offender predates Phase 0 (test landed with the
+   cdb6dc92 setup robustness pass) → PRE-EXISTING SURFACED BY REPAIRED
+   GATE → its own commit per the program rule. MECHANISM (read of test +
+   production): the test patches is_podman_installed/install_podman/
+   get_podman_version/configure_rootless_cgroups but NOT the post-install
+   path's `_verify_podman_operational`, `_install_host_tools`,
+   `install_podman_compose`, `upgrade_podman_to_4x`, or
+   `_install_podman5_dependencies` (the sibling already-installed test
+   patches all of them) — so the "unit" test executes REAL apt/podman
+   subprocesses on the runner. Fix aligns the test to the shipped contract
+   (mock the unpatched calls). CI Gate (Required Checks) fails only as its
+   consequence.
+2. Advisory security reds (unchanged, adjudicated): Check CVE Review Dates
+   (6 stale .trivyignore dates), Filesystem Vulnerability Scan
+   (cryptography ceiling; R-TRIVY-CRYPTO ruling open, default (1)
+   owner-debt), Trivy: neutral.
+
+VERDICT: every Phase 1 gate is green in CI on this head (ratchet included,
+proven by job log). Phase 1 closes on CI. Remaining required-check red is
+one pre-existing slow-test offender surfaced by the WP0.5 repair — owned by
+the repair's own rule (separate fix commit), not a Phase-1 regression.
+
+## WP2.3 manifest contract — MEASURE (fake-seam verification; 2026-09-16)
+
+Both fast-tier runners now end EVERY exit path with the manifest: NOT-SELECTED
+(named, green — the normal state), CANNOT-RUN (defect, forces non-zero),
+ZERO-RELATED (green zero-run, named — never silence), FAILING (a real failing
+test under its own name, not relabelled a selection defect). Contract bugs the
+fake-driven probes caught BEFORE the pytest suite ran: (1) the frontend runner
+printed ZERO-RELATED and CANNOT-RUN together on a crash run — a crash is never
+also "normal zero selection"; fixed and pinned by assertion. (2) Backend draft
+`sh -c "$CMD" sh "$@"` never appended the selected files to the command. (3)
+Both drafts self-cd'd to the repo root, hijacking fixture-cwd runs into the
+REAL repo (printed the real 796-file universe from a 5-file fixture).
+
+MEASURE: scripts/test_fast_runners_manifest.py — 7 tests, 7 passed, 0.47s
+(first real run; fake pytest/vitest via the runners' PYTEST_CMD/VITEST_CMD
+seams; runs 15 subprocess shells/case max, box-safe during the bake-off).
+The suite's first run caught the third contract bug: file NAMES printed as
+indented prose, invisible to a `grep '^MANIFEST'` consumer — names now ride
+`MANIFEST NOT-SELECTED-FILE:` lines (5b43a198, suite re-run 7/7).
+
+DEFERRED HONESTLY: the manifest suite verifies runner BEHAVIOR (contract +
+exit codes) against canned runner output — real pytest/vitest integration is
+WP2.4's job when the fast tier gets wired into pre-push (the runners' real
+invocations are the same lines the playbook already exercised in run 1).
+Commits: e1c1acda (contract), 5b43a198 (machine-visible names).
+
+## OWNER RULINGS 2026-09-16 (batch, asked pre-Phase-3 to unblock the queue)
+
+- **WP3.6 GB300 trust boundary — DEFERRED ENTIRELY.** Owner chose neither offered
+  trust arrangement: no GB300 registration this program; Phase 3 stays on the
+  hosted x86 runners. The plan's "confirm the arrangement with the owner before
+  enabling" is now answered as "do not enable." arm64 CI remains a backlog item,
+  not a WP. Removes the last standing STOP-AND-ASK from Phase 3.
+- **R-T9-EXPORTDEFER / R-T9-MQTTPUMP / R-T9-MVSOURCE — FIXES FOLD INTO THE
+  PROGRAM SCHEDULE** (supersedes "parked; tickets later"). Each is a production
+  bugfix with its own commit, slotted AFTER Phase 2 closes and BEFORE WP3.1
+  (they are not sizing work, so WP3.1-before-sizing still holds; test alignment
+  already landed in waves K-1R/K-2 — these commits fix production to make the
+  honest skips collectable-as-passing). Sequence: EXPORTDEFER (every non-empty
+  export fails — worst user-visible), MQTTPUMP (pump never starts), MVSOURCE
+  (DDL source missing since 6d7ae425 — restore or consciously retire the views;
+  that sub-choice surfaces at the WP, evidence first).
+- **Trivy advisory reds — ONE-SHOT REVIEW-DATE TRIAGE COMMIT**, scheduled after
+  the Phase 2 push + CI-truth verdict, before Phase 3 kickoff. Honest per-CVE
+  review (upstream-fix-status check), refresh dates only where defensible;
+  anything genuinely unfixable gets surfaced, not blanket-ignored.
+- **#6549 merge mechanics — re-arm auto-squash after the Phase 2 push**
+  (owner pressed auto-squash once at 15:26Z; gate failure disarmed it). Once
+  the push's CI Gate goes green, #6549 squash-merges itself into main.
+
+## WP2.1 SELECTOR BAKE-OFF — MEASURE + DECIDE (2026-09-16)
+
+- Protocol v3, 20 sampled commits, two ground-truth arms, strict-serial
+  worktrees. Full dossier: docs/development/selector-evaluation.md (incl. the
+  4-item harness-defect ledger: v1 parser FAILED-truncation, comm -3 tab
+  prefix, db-recycle guard, `-m` deactivation claim disproven).
+- MEASURE (corrected derive backfill + frozen-list rebench):
+  outcome arm recall — shipped fast_select 6/15 (40%), testmon 14/16 (93%),
+  WP2.2 closure 15/15 (100%).
+  fault arm recall (12 injectable cases, 8 NO_PY_TARGET recorded) — shipped
+  75/136 (55%), testmon 92/136 (68%), closure 136/136 (100%).
+  selection time 0-2s (closure) vs 6-17s (testmon); testmon cold cost = full
+  parent run 82-165s every push; stale-db fallback = large sets (71-109s rows).
+  fast_select over-selection recorded per case (fs_out_of_tier); never
+  under-runs.
+- DECIDE — KEEP fast_select (+WP2.2 closure), DEMOTE testmon to advisory:
+  (1) closure dominates both arms at 100% while warm testmon misses 44/136
+  fault files — transitive-by-construction != complete-at-selection-time;
+  (2) 0-2s stateless vs ~90-180s warm-then-6-17s-select (pre-push budget
+  arithmetic leaves no contest); (3) pure-function-of-tree+diff determinism,
+  no .testmondata to warm/share/stale in worktrees+CI; (4) demote-not-delete
+  because coverage-ACTUAL is a distinct measurement the static graph cannot
+  make — testmon keeps the offline-auditor role, docs/development/testing.md
+  demoted to advisory box, never a CI selector.
+
+## PLAN AMENDMENT 2026-09-16 — WP2.6–2.9 added from today's artifacts (draft WPs)
+
+Owner-directed fold-in of the session's improvement findings. Each traces to
+a named today-artifact; the goal prompt's "31 WP" census now reads 35 (4
+drafts; WP2.9 gates itself out with a trigger grep if the class is
+compose-only).
+
+- WP2.6 fixture-provider edges: closes the closure's last structural class
+  (bare-fixture-name consumers; today's conftest rule requires a textual
+  conftest reference — 100% recall was a corpus property, not a guarantee).
+- WP2.7 measurement harnesses carry verification gates + bake-off tooling
+  moves /tmp/wp21 -> scripts/dev/bakeoff/ (both bake-off lies were
+  measurement-layer and silent for hours; derive-from-raw-logs becomes the
+  named standard).
+- WP2.8 unit tests may not execute real system commands: ratchet-style AST
+  check; podman_install executed real apt-get/podman before 403bdf69 —
+  destructive-on-dev-box class with no existing gate.
+- WP2.9 data-file dependency declaration (compose rule generalized; scoped
+  narrow today because basename-matching over-selects; trigger-gated).
+
+Parked with evidence, NOT drafted: hub-module import-cost diet (speed lever
+via duration-audit import column — only if the raised budget stings), test-
+side fixture-name edge (WP2.6 absorbs it), versioning of pre-push hook
+itself (WP0.1/WP2.4 history in-file already).
+
+## WP2.4 PRE-PUSH WIRING — MEASURE + DECIDE (2026-09-16)
+
+- MEASURE — wired-shape replay, 20 bake-off commits, serial detached worktrees,
+  wall = max(backend, frontend) per case (pre-push runs them parallel; measured
+  separately on a serial box; harness /tmp/wp21/prepush-time.sh, tsv same dir):
+  **p50 = 428s, p95 = 513s, max = 3014s (n=20)**.
+  Case shapes: hub-module commits (core/config.py, main.py) honestly select
+  627-679 unit+contracts files and run 416-513s; ZERO-in-tier commits (79284117
+  ci.yml+scripts only; 40cf2ba4 integration-tests only) cost 0-2s — honest
+  cheap green, not vacuous (fast_select printed the full NOT-SELECTED manifest;
+  zero Python files changed). The max row 978bb04c is the MEGA-squash class:
+  679 backend files (pre-existing baseline failures at that old head) AND 781
+  vitest-related files; its fe=3014s is REAL run time (vitest finished green on
+  ~500 touched frontend files), not a hang. a4507909 fe_rc=1: pre-existing
+  frontend failure at that old head (bake-off corpus, not this branch).
+  Interpretation notes: (i) be_rc=1 rows carry PRE-EXISTING failures at the
+  sampled old commit — bake-off truth.txt lists 11 baseline-failing nodes per
+  hub case; small-sel forensics corroborate (42acc048 selected 3 files, 2 of
+  them baseline-red; 18984662 selected 1, baseline-red). NOT selector
+  regressions. (ii) Harness quirk: be_sel column for empty-tier rows shows the
+  stale SELECTED line from the previous case's log (the runner never executes
+  on empty selection) — selection truth there is fast_select's own output,
+  verified by re-derivation.
+- DECIDE — budget 300 -> 900s, TIERED (owner ruling 2026-09-16). p95 513s
+  exceeds the plan's 300s target, so per spec the budget RAISES and the trade
+  is recorded: 900 = p95 + ~75% margin covers typical+hub diffs with room; a
+  MEGA diff (978bb04c class: hundreds of frontend files) exceeds any sane
+  budget and gets the budget-timeout path — rc 124 plus a LOUD handoff notice
+  naming the wide-diff cause and the options (split push / raise budget /
+  FULL_TESTS=1). Narrowing selection to hit 300s is explicitly rejected (the
+  spec: narrowing selection to hit a time target is how tests stop running);
+  the timeout bounds wall time only, never the selection.
+- REVIEW FOLD-IN (adversarial pre-commit review, same commit): f1 six temps
+  moved BELOW the budget self-exec into one TMPD dir (bash 5.3.9 verified exec
+  skips EXIT traps — the old order leaked 6 files per push); f2 base
+  resolution now prefers `PRE_COMMIT_FROM_REF` — the stdin read is dead code
+  under pre-commit (it consumes git's stdin and spawns hooks with /dev/null:
+  `hook_impl.py:32`, `util.py:178`; env export `run.py:386-392`) — without this fix
+  EVERY real push silently fell to merge-base, making first-push-of-branch a
+  909-file guaranteed blowout; f3 loud notice when staged-but-uncommitted
+  changes mean the tested tree != pushed tree; f4 unmarked top-level
+  `test*\*.py` join the tier (fast_select's changed-test self-selection must not
+  be silently dropped) + OUT-OF-TIER files named on green runs (WP2.3 named-
+  never-silence); f7 FAST_PREPUSH_BUDGET validated digits-only (typo'd value
+  bricked every push with unattributable rc 125). Behavioral proof: 6 stub-
+  sandbox scenarios green (pre-commit path / legacy / budget validation /
+  staged notice / Z40 fall-through / budget-timeout notice @ rc 124).
+
+## PRE-EXISTING (found while preparing the WP2.5 measured run) — deleted test files identity-selected: the gate could not ship its own corrections (2026-09-16)
+
+The WP2.5 measured run demanded deleting the schemathesis stub (row below);
+planning that deletion surfaced the blocker first: fast_select's changed-test
+IDENTITY rule (bake-off 18984662 class — a test-only commit must run its own
+edits) selected every changed test path, and `git diff` lists DELETIONS too.
+A deleted test riding the selection routes straight into fast-backend-runner
+detector 1 (CANNOT-RUN: file missing, rc=1) — so ANY push pruning a test
+(retired stub, pruned flake) would block itself, and --no-verify is forbidden
+by repo rule. Identity selection needs a subject that EXISTS.
+
+Fix (e4414bca): `(root / f).exists()` precondition on the identity branch —
+only the phantom self-selection goes; a deleted test's REFERRERS still fail
+collection and the runner names those ERRORs. Red-first test
+test_fast_select.py::test_deleted_test_file_is_not_selected (git rm a fixture
+test + stage a live prod change; deleted path absent, live selection intact).
+Same commit: test_fast_select.py + test_fast_runners_manifest.py joined
+ci.yml's anti-rot list — WP0.7's own doctrine (a gate with no CI is a gate
+that rots) and both files had NEVER run in CI.
+
+## PRE-EXISTING (surfaced by WP2.5 playbook Run 1) — retired schemathesis stub CANNOT-RUNs every API-touching push (2026-09-16)
+
+MEASURE (Run 1, case route(alerts)): 78 s wall, rc=1 — MANIFEST CANNOT-RUN:
+backend/tests/contracts/test_schemathesis_contracts.py — "defines no test
+functions or Test classes" (WP2.3 manifest detector 1). Trigger: fast_select's
+directory policy adds ALL of backend/tests/contracts/ on any backend/api/\*\*
+change, so EVERY API-touching push inherits this contribution at the fast
+tier. Run 2 (post-delete, same case): 78 s rc=0, raw selection 145 -> 144 —
+exactly the stub's departure; the service case (no backend/api change, policy
+never fires) stayed 145 both runs — the count arithmetic corroborates.
+
+DECIDE — DELETE, not revive. Evidence: (1) the file is a 36-line docstring
+stub, zero tests, Schemathesis 4.x broke its API (docstring says so);
+(2) collection-sanity-allowlist R-M2-COLLECTION-FINDINGS already classified
+it "genuinely disabled ... revive-or-delete queued M2"; registry kind=
+`retired` = "superseded/dead test kept in the tree. Delete-by expiry";
+(3) the revive half requires a pyproject pin (schemathesis<4.0) — outside
+the program's named files (STOP-AND-ASK category), so delete is both the
+queued remediation and the scope-respecting choice. The M1-era allowance was
+honest for its gate (collection-sanity reads the allowlist); the WP2.3
+manifest has NO allowlist by design ("cannot render alike"), so the
+allowance went stale the moment WP2.1 promoted the selector to a gate —
+fast_select's own header said over-selection is "harmless under an advisory
+tier"; it isn't under a gate.
+
+PREVENTION: scripts/test_fast_select.py guard (real-tree): every file the
+contracts directory-policy contributes must define tests — regex mirrors
+detector 1 verbatim. Red-first PROVEN (executed against the tree:
+missing=[the stub] pre-delete, [] post-delete). Allowlist line + registry
+entry drop with the file (generator re-run); fast_select docstring era-fixed;
+tests/AGENTS.md + contracts/AGENTS.md mentions updated.
+
+## PRE-EXISTING (same census as the stub) — test*utils.py: shared helper wearing a test* name, one edit from CANNOT-RUN (2026-09-16)
+
+Census (mirroring manifest detector 1 over all tracked test\_\*.py) found 8
+zero-test-name files; 6 are integration-tier (never in-tier); 2 reachable:
+the stub (row above) and backend/tests/test_utils.py — a 256-line shared
+HELPER module imported at runtime by integration/conftest.py:43, kept
+IN-TIER by the f4 filter's top-level class. fast_select's changed-test rule
+selects it the moment anyone edits it -> CANNOT-RUN -> any push touching
+shared test helpers would block the fast tier. Latent (no selection in any
+WP2.4 replay row or playbook case contains it — all verified).
+
+DECIDE — execute M2's queued rename (registry already says "rename queued
+M2", fe646612): git mv -> backend/tests/testing*utils.py (does not match
+pytest python_files=test*\*.py by construction; location and package
+unchanged). One runtime importer (integration/conftest.py:43);
+docs/conftest-docstring/f4-comment follow. The f4 filter KEEPS its top-level
+class — test_db_isolation.py and future top-level test files are its real
+constituency. Guard (stub commit's) widens to the full f4 in-tier class
+(contracts dir + top-level), red-first on this file, green after the rename.
+
+## WP2.5 PLAYBOOK TRANSITIVE CASES + MEASURED BOUND — MEASURE + DECIDE (2026-09-16)
+
+- MEASURE — playbook Run 3 (BASE=HEAD one-file probe diffs, 12/12 green, rc=0
+  — the quotable run, executed from the SHIPPED script byte-identical to the
+  committed file): max wall 484 s (x6, 674-file conftest tree), hub-class
+  x1-intm/x2 465 s (633/635 in-tier), 900 s bound certified with ~46%
+  headroom on the heaviest shapes; every selection count reproduces the
+  frozen 515a4810 probe lists, with exactly -1 on the two backend/api/\*\*-
+  touching cases (route in-tier 145->144 across runs; x4 285->284) = the
+  deleted stub, and bit-identical non-api counts (x1 633, x1b 145, x2 635) —
+  arithmetic corroboration of the stub commit's directory-policy claim.
+  Full case table: Row F3, docs/development/fast-confidence-loop-
+  measurements.md. Run history: Run 1 (killed 7/12, pre-fix) is the evidence
+  record the three PRE-EXISTING repair commits cite (rows above); Run 2
+  (10/12) proved those fixes green and exposed the slash-in-NAME log-path
+  death (x2/x4 died rc=2 before running — zero log, zero signal; retroactively
+  explains Run 1's same row, misread then as a pkill artifact).
+- DECIDE — wall 600 -> 900 s. The playbook certifies the SAME tier the
+  pre-push hook ships, so it shares WP2.4's measured budget exactly (p50 428
+  / p95 513, owner tiered ruling); the 600 s spec-era guess predates any
+  measurement. Selection never narrows to fit the wall.
+- DECIDE — assertions grade the RAW selector list (sel.txt, pre-tier-filter),
+  the RUN uses the WP2.4 f4 filter: the two integration-tier transitive proofs
+  (x2 models re-export, x4 depth-2 chain) assert on selection where they
+  exist and are excluded from the run by tier contract — running 191 serial
+  -n0 integration files here would blow the wall for the wrong reason.
+  Verdict folds rc + wall + assertion (Run 1 proof: route(alerts) printed
+  "OK" at rc=1 while the manifest CANNOT-RUN'd — rc-blind verdicts launder
+  red tiers).
+- RECONCILIATION (both evidence-forced, in-file): the plan-era x1 draft probe
+  (alert_service.py -> test_alerts.py) reaches its target ONLY through the
+  routes-package **init** hub, so it became its own case x1b and the x1 claim
+  moved to event_broadcaster.py (hop through an UNTOUCHED intermediate — the
+  bake-off 09872e45 class); a "narrower" x4 candidate (schemas/jobs) was
+  probe-REJECTED: test_jobs.py references schemas.jobs directly (a depth-0
+  case masquerading as a chain proof). No --closure-depth flag exists
+  (depth=4 at the call-site) — the closure is pinned by asserting the
+  selection, never by a flag.
+
+## PRE-EXISTING (surfaced by validate.sh at WP2.5 close) — prettier-frontend hook was a VACUOUS GATE: filenames never reached prettier, every pass meaningless (2026-09-16)
+
+validate.sh's frontend prettier check (runs the whole tree; CI has NO
+format:check step) died on src/hooks/{useDateRangeState,useHouseholdApi}.
+test.ts — files landed by f6f8f0f9 with zero gate ever having looked at
+them. Live proof of the mechanism: `.venv/bin/pre-commit run
+prettier-frontend --files <known-drifting-file>` printed "Passed" and left
+the file UNTOUCHED. The hook entry was `bash -c '...npx prettier --write
+--ignore-unknown'` with pass_filenames: true — pre-commit APPENDS the
+selected filenames after the command string, and `bash -c` binds the first
+appended word to $0, so the command saw ZERO filenames; prettier with no
+paths reads nothing and exits 0. WP0.1's defect class (a gate reporting
+success while doing nothing) reborn one file over. Second door of the same
+class found by audit: pass_filenames paths are REPO-ROOT-relative, so a
+hook that `cd frontend` resolves frontend/src/... against frontend/ and
+matches nothing — --ignore-unknown turns even THAT into a silent 0.
+
+Fix: entry rebases and receives (${@#frontend/} + trailing `bash` sentinel
+so every name lands in $@); scripts/test\*precommit_config.py guards BOTH
+doors as text (no PyYAML: undeclared + uv sync demonstrably prunes
+undeclared — a guard that dies on a prune goes red for the wrong reason),
+and joins CI's anti-rot list (WP0.7 doctrine). Red-first PROVEN: guard RED
+on the shipped config (named prettier-frontend), GREEN after; hook live-
+verified formatting the drifting files through the real pre-commit path.
+SCOPE DECIDED: only the two validate-scope files reformatted (validate
+gates src/\*\*); the hook-scope superset audit found 155 more drifters
+(e2e/tests/\_.md/docs-class) — NOT mass-formatted here: noise commit for a
+set no gate checks; when someone widens validate's scope, the fixed hook
+formats touched files onward and the debt burns per-touch. Related standing
+quirk recorded, NOT touched: docs/\*.md ride the OTHER prettier block
+(mirrors-prettier v3.1.0 pinned prettier@3.2.4) vs frontend's 3.9.6 — the
+version split width-measures the same table lines differently, source of
+this session's commit-hook flip-flops (adopt-the-hook's-output cycle);
+unifying pins is a reflow-every-docs-file change, its own conversation.
+
+## OUR PUSH INTRODUCED (surfaced by CI at Phase-2-close) — removal commits left the census mirrors stale: collection-sanity red on the head (2026-09-16)
+
+CI on head 91e3ee54 went red at the WP1.1 census step (Suppression census
+(baseline stable)) — `--expect` said `collection_allowlist` 6, the tree
+reproduced 4. Not drift the wrong way: 97153cbb DELETED the schemathesis stub
+and fe646612 RENAMED test*utils.py, and each removal correctly deleted its
+line from scripts/collection-sanity-allowlist.txt — 6→4 is exactly the
+counts-may-only-fall direction. The defect is that the THREE hand-maintained
+mirrors of that count were not updated in the same commits: the ci.yml
+`--expect` literal, .github/suppression-baseline.json, and
+test_real_tree_matches_spec_baselines in scripts/test_suppression_census.py.
+How it hid: the 18 commits rode one push, so CI ran only at the head (per-
+commit CI would have caught each removal at its own commit); and validate.sh
+never runs the census/ratchet steps — a CI-only mirror set is WP0.7 doctrine
+in reverse: the gate has CI, but the LOCAL green devs trust doesn't include
+it, so a "VALIDATION SUCCESSFUL" tree pushed a red collection-sanity.
+RED-FIRST proof: `pytest scripts/test_suppression_census.py` → 1 failed
+(census=4 spec=6) / 4 passed on HEAD before any edit. GREEN after: full CI
+collection-sanity replay (check-test-collection 3647 files, flake-allowlist,
+census --expect at the new literal, ratchet) + the CI step-8 anti-rot list,
+86 passed. ADJUDICATED: `ratchet-check.py --update` lowered baseline.json
+6→4 (refuses to RAISE — decreases are its one sanctioned write); test mirror
+and ci.yml literal edited to 4 with the provenance recorded in the test
+docstring; registry needed no edit (gen already carried exactly the 4
+survivors — no zombie entries). Historical ledger mentions of the count 6
+(WP1.1 MEASURE, WP1.2 adjudication) stay untouched — point-in-time records.
+Follow-up worth a future WP, NOT taken here: validate.sh gains the CI-only
+gate steps (census --expect, ratchet, the `scripts/test*\*.py` list) so local green
+means CI green for this job too — the mirror-set class of staleness is
+exactly what a pre-push replay would have made impossible.
+
+## R-T9-EXPORTDEFER — FIXED (2026-09-16, owner ruling: fold after Phase 2, first of the three)
+
+**[RED-FIRST + production fix, same commit]** The 2026-09-14 row above stands
+as the original record; this is its closure. Chosen fix = the plan's option
+A (undefer at the QUERY site): `select(Event).options(undefer(Event.reasoning))`
+at both export query builds — export_service.py's progress method (the live
+path, ~:761) and the zero-production-caller websocket variant (same cause,
+cleaned in the same commit). The rejected alternative (un-defer on the model)
+stays rejected — it regresses every list query to the large-text load — and
+the unit lock's side 1 fails if anyone makes that move. Repo precedent for
+options-at-build: event_service.py:200-210, background_evaluator.py.
+
+RED evidence before the fix: new integration
+TestExportDeferredReasoning::test_nonempty_export_completes failed with
+exactly the shipped traceback (MissingGreenlet via await_only, job row
+FAILED, error_message cites it); both unit mechanism locks
+(TestExportDeferredColumns, export-service unit file) failed on the compiled
+fetch text lacking events.reasoning. GREEN after: 22/22 integration module
+(incl. TestExportDownload re-enabled — its poll loops now break on the first
+tick) + 297/297 export-tier unit tests.
+
+Unit lock, corrected mechanism: the plan drafted `_compile_state_options`
+introspection (à la a remembered test_search trick); neither exists —
+probed empirically instead: a plain deferred select OMITS events.reasoning
+from compiled text, undefer renders it, and the count-over-subquery renders
+ALL columns either way, so the locks assert presence on the fetch stmt (2nd
+execute) only, plus model-side "bare select still defers". Same commit per
+the suppression-platform contract: skipped-by-constant module skip dropped
+(TestExportDownload), PENDING/FAILED defect tolerances at both lifecycle
+sites tightened to COMPLETED, module comment rewritten, EXPORTDEFER_REASON
+retired, registry regen removed the TestExportDownload defect entry (the
+only semantic diff — prettier adopt-cycle kept the 8-line removal minimal),
+and the skipif mirror triple followed the census: baseline 63→62 via
+ratchet --update, ci.yml --expect + test mirror at 62. Census replay green.
+Follow-up ticket noted by the plan, NOT taken here: frontend/src/types/
+export.ts lacks the 'cancelled' status the backend schema + cancel route can
+emit (pre-existing frontend/backend enum drift).
+
+## R-T9-MQTTPUMP — FIXED (2026-09-16, owner ruling: fold after Phase 2, second of the three)
+
+**[RED-FIRST + production fix, same commit]** Closure of the 2026-09-14 row
+and its K-2 addendum. subscribe() broker-subscribed, registered callbacks,
+and never started the pump — `_message_processing_loop` had zero callers and
+disconnect()'s cancel-path was dead plumbing for a task never born. LATENT
+today (no production module instantiates MQTTClient yet — NEM-5069 lifespan
+wiring is the future consumer); the fix makes the class honest before that.
+
+Fix = one guarded spawn inside subscribe()'s try, after the metrics/log:
+`if self._message_task is None: self._message_task = asyncio.create_task(
+`\_message_processing_loop(), name="mqtt-message-pump")` — idempotent via the
+is-None guard, disconnect() already cancels+nulls, the loop wrapper survives
+aiomqtt iterator death on reconnect. Pattern precedent: background_evaluator.
+py:507, cleanup_service.py:599, degradation_manager.py:1070.
+
+RED evidence: new unit test_subscribe_starts_message_pump failed at
+`assert task is not None` on unfixed code; GREEN after: 33/33 unit file (the
+11 subscribe-calling tests spawn real pumps on the shared fake — parked on
+its non-terminating AsyncMock .messages, cancelled by disconnect, no hangs)
+
+- 19/19 integration module (six delivery tests unskipped: full pub-sub flow,
+  QoS 0/1/2, wildcard, retained — real broker via the module-scoped mosquitto
+  testcontainer, which works on this S1 boot — 54h-old gate containers
+  disproved the sandbox-docker-cannot-run assumption for testcontainers
+  specifically: DockerContainer.start() succeeds here). Same-commit platform
+  alignment: MQTT_PUMP_REASON block retired, six skipif(True) decorators
+  deleted, registry regen dropped exactly the six R-T9-MQTTPUMP defect entries
+  (48-line diff, prettier adopt held it minimal), skipif mirror trio followed:
+  baseline --update 62→56, ci.yml --expect + real-tree mirror at 56. Blast
+  radius: mqtt_command_handler 28/28, frigate_integration + ha_discovery 80/80
+  — the pump's first consumers stay green.
+
+## R-T9-MVSOURCE — RETIRED (2026-09-16, owner ruling pre-authorized the sub-choice; DECIDE-on-evidence here, third of the three)
+
+**[RED-FIRST + delete, same commit]** Closure of the 2026-09-14 phantom-DDL
+row. DECIDE rationale (why retire beats restore, on evidence): the six
+materialized views + five SQL functions have had NO shipped DDL since
+6d7ae425 deleted the MV migrations without carrying them into the
+consolidated initial schema (and f1e0ea9e deleted the whole alembic tree —
+now test-extra-only); none of the three schema paths can emit them
+(create_all only). Meanwhile: every aggregate getter had ZERO callers across
+all git history (`git log --all -S`), the sole EnrichmentQueryService
+consumer had zero importers, the scheduler was never wired to lifespan, the
+frontend never called the admin endpoints, ROADMAP has zero MV mentions, and
+the payoff they existed for (dashboard aggregates) is ALREADY shipped inline
+in analytics.py — the dashboard never failed (the original row's claim
+"dashboard fails" was overstated; verified: charts read `/api/analytics/*`,
+the admin MV router just degraded silently). Restore cost: DO-block-guarded
+CREATE MV IF NOT EXISTS in all three schema paths + a refresh-stale second
+copy of live inline aggregates + no alembic chain to hang a revision on.
+RESTORE would be building a second source of truth for a single-user local
+deploy. Retirement also removes the four admin endpoints that lacked auth
+dependencies (CLAUDE.md admin-protection rule) — folded in, per the plan.
+
+RED-FIRST: backend/tests/unit/api/test_materialized_views_retired.py failed
+6/6 pre-delete (routes mounted in app.openapi(), all five modules
+importable). Fix = 6-hunk delete: services/materialized_views.py (547L),
+materialized_view_scheduler.py, api/routes/materialized_views.py,
+api/schemas/materialized_views.py, services/enrichment_queries.py; main.py
+import (:76) + include_router (:1488); five test files deleted (incl. the
+integration test whose pytestmark skipped every MV-object assertion since
+the loss — its reason text cited this ruling: now moot); backend/AGENTS.md
+route rows (2) removed. openapi.json + api.ts regenerate via the commit
+hooks; contracts/test_openapi_schema_validation.py guards drift, no Zod
+mirror (admin-only surface). Lock GREEN after: 10/10 with
+test_route_mounting. Suppression platform: registry regen dropped exactly
+the migration file's one entry (pytest_skip_imperative 94→93 — the MV skip
+lived in pytestmark FORM, which the census never saw: decorator-AST blind
+spot, noted not widened); baseline --update, ci.yml --expect + real-tree
+mirror at 93. Optional hygiene hunk (DROP MV/FUNCTION IF EXISTS for pre-
+f1e0ea9e deployments) NOT taken: this deploy's DB was built by create_all
+after the loss — no orphan MVs exist here, and shipping cleanup DDL for
+hypothetical external deployments without evidence of any is its own
+conversation. If a future owner restores the feature properly (real DDL +
+auth deps + callers), the retirement lock rewrites to assert the shipped
+contract — it is the tripwire, not an obstacle.
+
+## PRE-EXISTING SECURITY GATES — CVE Review Dates + Filesystem Vulnerability Scan FIXED (2026-09-16, owner request "fix the pre-existing issues"; NOT program work — dependency-vuln gates, red before the program existed)
+
+**[REAL REMEDIATION + evidence-backed review — no allowlist widening anywhere]**
+Two red gates on every recent head. ROOT-CAUSE SPLIT:
+
+1. _Check CVE Review Dates_ (scripts/check-trivyignore-expiry.sh): all 34
+   REVIEW BY dates expired Apr-Jun 2026. Fixed by the file's own on-review
+   protocol, run as a real pass: OSV-queried every Python entry against the
+   LOCKED uv.lock version; Debian security-tracker checked every base-image
+   entry; the two vendored-jar entries verified by reading setuptools 84.0.0's
+   dist-info in .venv. RESULT: 5 entries REMOVED for cause (jinja2 3.1.6
+   OSV-clean; setuptools 84 vendors jaraco.context 6.1.0 + wheel 0.46.3;
+   protobuf 7.36.1 OSV-clean), 28 KEPT with evidence re-stated inline (ecdsa
+   Minerva still UNFIXED at 0.19.2 per OSV; mbedcrypto 2.28.3-1 bookworm still
+   (unfixed) per tracker) and dates extended 18 months; several bookworm
+   point-release fixes NOW EXIST (libsqlite3 deb12u2, libpng deb12u2, glibc
+   deb12u14...) but stay listed HONESTLY — the image's apt versions are only
+   provable by the push-main image rebuild + scan, so each carries "remove at
+   the rebuild that proves it," not a calendar lie. One entry ADDED with full
+   rationale: CVE-2026-69247 (cryptography 49.0.0, fixed 50.0.0 but
+   UNREACHABLE — data-designer-engine 0.9.2 latest pins <=49; PKCS7 grep zero;
+   OSV shows 50.0.0 flagged ONLY by this CVE; revisit trigger recorded).
+   Gate local: exit 1 (34 expired) -> exit 0 (29 tracked, clean).
+
+2. _Filesystem Vulnerability Scan_: 12 HIGH in frontend/bun.lock + 1 HIGH in
+   uv.lock. bun.lock was the ONLY stale lock (npm's package-lock.json had all
+   fixed versions; bun.lock predated the dependency team's 09-15 lockfile
+   refresh). Serialized remediation AFTER the MVSOURCE push (one-heavy-job
+   rule): `bun update` within existing package.json ranges — package.json
+   restored afterward so the lock diff stays minimal and the
+   package-lock.json↔package.json pair stays untouched. All 12 packages land
+   fixed (serialize-javascript 6.0.2->7.1.1 via workbox-build 7.4.1 ->
+   @rollup/plugin-terser 1.0.0; react-router 7.18.4 matches npm's lock;
+   rollup 4.63.3; postcss/nanoid/fast-uri/... all past fixed).
+   cryptography 49.0.0: NOT a lockfile problem — the resolver is at maximum
+   (engine cap <=49 is why), hence the accepted-risk entry above, not a
+   --no-extra hack (uv has no such lock flag anyway).
+   VERIFICATION: trivy 0.74.0 (=workflow @master) fs scan, CI flags, local
+   tree minus gitignored dirs: all three lockfiles 0 vulns, exit 0.
+   `bun install --frozen-lockfile` clean; eslint max-warnings 0 + tsc --noEmit
+   green; vitest suite green twice (20,239 passed, identical totals with and
+   without --coverage); production vite build green
+   (PWA precache 187 entries). BUNDLE-SIZE side-note (main-only workflow,
+   continue-on-error — NOT a PR check): its real gate step pipes size-limit
+   through `|| true`, swallowing the exit, and recent main runs report green
+   while the advisory raw sums in the SAME job exceed the configured
+   thresholds (local post-upgrade build: JS sum 4,304,751 B vs the 512,000 B
+   sum check; the workflow's own .size-limit.json path globs + non-gzipped
+   limits measure the same sums). Whether the upgrade widened the gap is
+   undeterminable without a pre-upgrade build; flagged for owner as separate
+   hygiene, NOT chased here (workflow files sit outside both this request and
+   the program's named scope).
+
+HONEST LIMITS: local trivy ran on a FRESH vuln DB, CI @master ran hours
+earlier — the CI snapshot could still show nothing NEW, but a fresh DB could
+also add findings between runs; that churn is inherent to @master pinning
+(noted, workflow change out of scope). Container-image gates (scan-backend/
+frontend, main-only) were NOT rebuilt/scanned here — the Debian entries above
+are tracker-verified only. The stale `.claude/worktrees/wf_*` +
+`docs/superpowers/staged/` trees hold old lockfiles and pollute any UNfiltered
+local fs scan (gitignored, invisible to CI) — future local replays must skip
+them.
+
+## FRONTEND COVERAGE THRESHOLD IS UNENFORCED + REAL TREE IS BELOW IT (2026-09-16, PRE-EXISTING — surfaced by the bun.lock refresh's verification measurement, not caused by it)
+
+MEASURE: first fresh full-suite coverage run in recent history (vite.config.ts
+thresholds 83/77/81/84 stmts/branch/func/lines, hand-set "2026-01-02 after UI
+audit"): actual 79.97 / 74.60 / 78.44 / 80.93 — ALL FOUR below threshold.
+Suite itself green twice (20,239 passed, identical totals with and without
+--coverage — the delta is instrumentation attribution, not behavior).
+
+WHY NOTHING CAUGHT IT: the threshold has no enforcer. PR CI deliberately runs
+vitest shards WITHOUT --coverage (ci.yml:1414 comment: per-shard threshold
+misfires); test-coverage-gate.yml's frontend row is a hand-maintained display
+table; validate.sh --frontend runs bare vitest. A threshold no gate checks is
+the quiet-signal class this whole program exists to kill — same shape as the
+vacuous prettier hook (91e3ee54) and the unconditional pre-push jobs (WP0.1).
+
+ATTRIBUTION: pre-existing drift. CI installs frontend from
+package-lock.json (npm ci; vitest 4.1.11 there = same as my post-refresh
+bun.lock), and today's nightly failures are backend-only. The refresh moved
+local vitest 4.0.18->4.1.11 (bun had the older pair; npm's 09-15 refresh had
+already moved), which can shift v8 attribution by a point or so — but the gap
+is 3-6 points wide, larger than any plausible version delta, and the same-
+version comparison CI-vs-mine cannot be adjudicated here without a 1.5h
+old-lock rerun. NOT taken: lowering any threshold (goal rule: floors never
+lowered to pass); adding --coverage to CI shards (the misfire the comment
+records). OWNER CALL, not mine: (a) write tests to close 3-6 points, or
+(b) re-set thresholds to measured reality WITH a gate that enforces them, or
+(c) keep the display-table regime and delete the dead config so it stops
+lying. Row lands PRE-EXISTING style: measurement, no silent fix.
+
+## WP3.1 CONCURRENCY CAP CONFIRMED — 20, MEASURED (2026-09-17, Phase 3 first step per PLAN "do this first")
+
+MEASURE (three independent lines, all agreeing):
+
+1. OWNER EVIDENCE (billing screen, 2026-09-17): GitHub Free + Actions
+   metered-use $96.15 consumed / $96.16 discounts / $0 billable, "0 min used
+   / 2,000 min included". The plan's minute pool and its private-repo job cap
+   are UNUSED and DO NOT APPLY: the repo is PUBLIC, hosted Linux minutes are
+   free/unmetered, and the discounts ARE the public-repo policy. The spec's
+   guessed mechanism (Free-plan 20-job entitlement) was the wrong model.
+2. LIVE MEASUREMENT (push 3fcffd8d, all 9 workflow runs = 73 jobs, Jobs API
+   timestamps, 15s-bucket occupancy): peak concurrency exactly 20; 3.0 of the
+   7.5-minute window spent AT 20, 3.5 min >=15; job starts arrive in cap-sated
+   waves (12+4 in the first minute, then 26 in ~60s at 01:27, second wave 14).
+   That is a scheduler ceiling, not fair-use slop: the platform refills to 20
+   and holds.
+3. SPEC POLICY: public repos have no plan-level hosted-runner cap at all —
+   nothing in Settings would have shown a number; only measurement could.
+
+DECIDE: Phase 3 sizes against MEASURED 20 (recorded in the spec's evidence
+section, replacing the inferred claim). Consequences: WP3.5 stays valuable
+(less churn = fewer cap-hours and lower wall clock; the duplicate trivy/
+dependency-audit scans the same push runs 5× burn cap-hours for free —
+WP3.4+WP3.5 remove them), but "get fan-out under the cap" reframes as
+"cut cap-hours and queue stalls", and WP3.7's re-measurement is un-confounded.
+
+NOT TAKEN: extrapolating 20 into a hard SLA (clamp was 95% of busy window —
+brief headroom exists above 20); treating the non-reproducing 10-min
+build-backend-deps stall as disproving queueing (first-wave queue ~1 min this
+run vs completed-job queue-sum 39.3 min overall — queue is real, its shape
+varies run to run). Measurement artifacts disclosed honestly: an early
+mid-run snapshot showed run-538-only peak 28 — an artifact of jobs still
+"pending" at snapshot time having started with completed_at=None retroactive
+timestamps; both corrected snapshots (run-only and cross-run) independently
+give 20. Data: /tmp/wp25/final-jobs.tsv + python 15s histogram (this row's
+commit body cites the method).
+
+## REPLAY TESTS MASKED A BROKEN INNER HOP -- TEST PERFORMANCE AUDIT UNIT FAILURE FIXED (2026-09-17, PRE-EXISTING class: surfaced by the WP0.5-repaired gate going live on PRs, first PR-caught catch)
+
+MEASURE: run 35170392538 (head 3fcffd8d) Test Performance Audit red --
+test_replay_request_with_query_params 15.04s vs the owner-ruled 4.0s unit
+threshold (WP0.5: "gate at raised thresholds"). Root cause: replay_request
+executes its INNER hop with a real httpx.AsyncClient against
+request.base_url ("http://test" under ASGITransport) = a real DNS lookup on
+CI (~15s with proxy/search-domain sweep; ~2.9s local nxdomain). The layer
+that hid it for months: the endpoint CATCHES the httpx error and answers 200
+with replay_status_code=500, while the tests asserted only the outer
+envelope -- "success" never verified a replay. test_replay_request_success
+targeted /api/system/health (DB-backed; unit tier has no DB), so its
+recorded inner failure was literally "Database not initialized", swallowed.
+
+FIX (align tests to shipped contract; production untouched): autouse fixture
+forces the endpoint's hop through ASGITransport(app) -- deterministic and
+the hop now genuinely runs. TDD red first: the new inner
+replay_status_code==200 assertion failed pre-fix, passes post. rec-1's
+recording retargeted to /api/debug/recordings (fully mock-covered endpoint).
+AFTER: call times 2.96s -> 0.09-0.10s; file 35/35 green twice under
+different seeds; worst remaining duration is the 2.7s module fixture setup,
+not a call.
+
+SIBLING RECORDED NOT TOUCHED: the 04a86cc9 audit red was a DIFFERENT test
+(integration test_audit_stats_with_invalid_date_range 10.70s vs 10.0s) that
+did not recur at 3fcffd8d -- n=1 boundary jitter: no fix, no
+SLOW_TEST_PATTERNS widening (allowlist-for-green is explicitly not-taken);
+its own row if it recurs. CI Gate (Required Checks) fails only as the
+rollup of this audit.

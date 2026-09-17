@@ -200,7 +200,13 @@ repos:
     hooks:
       - id: prettier-frontend
         name: Prettier (Frontend)
-        entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown'
+        # "$@" + trailing `bash` sentinel: pre-commit APPENDS filenames after
+        # this string, and `bash -c` binds the first appended word to $0 —
+        # without a sentinel the command string saw ZERO filenames and
+        # prettier exited 0 formatting nothing (every pass here was vacuous
+        # until 2026-09-16; scripts/test_precommit_config.py guards it).
+        # ${@#frontend/} rebases repo-root-relative names onto this cd.
+        entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown ${@#frontend/}' bash
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx|css|json|md)$
         exclude: package-lock\.json$
@@ -259,16 +265,19 @@ repos:
         always_run: true
         stages: [pre-push]
 
-      # Parallel test runner - runs 5 jobs concurrently to minimize push time
-      # Job 1: Backend unit tests with 85% coverage (pytest) - ~2-3 min
-      # Job 2: E2E + Accessibility tests (Playwright Chromium) - ~30-60s
-      # Job 3: API types contract check (openapi-typescript) - ~10-20s
-      # Job 4: Backend integration tests (subset for speed) - ~30-60s
-      # Job 5: Frontend unit tests (vitest with coverage) - ~10-30s
-      # Total time: max(job1, job2, job3, job4, job5) instead of sum (~60-70% faster)
-      # Skip with: SKIP=parallel-tests git push
+      # WP2.4 fast-tier pre-push - 3 jobs concurrently, SELECTED for the pushed diff
+      # Job 1: API types contract check (openapi-typescript) - ~10-20s
+      # Job 2: SELECTED backend tier (fast_select -> unit+contracts -> runner)
+      # Job 3: SELECTED frontend tier (vitest --related via fast-frontend-runner)
+      # Budget: FAST_PREPUSH_BUDGET (default 900s). MEASURED wired-shape
+      # p50 428s p95 513s max 3014s (n=20, ledger WP2.4 row + commit body):
+      # the 300s plan target RAISED (tiered, owner ruling 2026-09-16); mega
+      # diffs hit the budget and get a loud handoff notice, never a narrowed
+      # selection - the timeout bounds wall time only.
+      # Selection-driven: no fixed smoke set; integration keeps its own -n0 gate.
+      # Skip with: SKIP=parallel-tests git push  (repo rule: never actually do)
       - id: parallel-tests
-        name: Parallel Tests (Unit + Integration + E2E + Frontend + API Types)
+        name: Fast Pre-Push Tier (API Types + Selected Backend + Selected Frontend)
         entry: ./scripts/pre-push-tests.sh
         language: script
         pass_filenames: false

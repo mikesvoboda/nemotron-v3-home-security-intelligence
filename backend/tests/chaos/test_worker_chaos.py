@@ -256,7 +256,7 @@ class TestWorkerCrashMidTask:
 
         # Act: Start worker and let it process
         await detection_worker.start()
-        await asyncio.sleep(2.0)  # chaos test timing - mocked
+        await asyncio.sleep(2.0)  # mocked: chaos test timing
 
         # Assert: Worker should still be running despite error
         assert detection_worker.running is True
@@ -310,7 +310,7 @@ class TestWorkerCrashMidTask:
 
         # Act: Start worker and let it process
         await analysis_worker.start()
-        await asyncio.sleep(1.5)  # chaos test - mocked
+        await asyncio.sleep(1.5)  # mocked: chaos test
 
         # Assert: Worker should still be running despite error
         assert analysis_worker.running is True
@@ -411,7 +411,7 @@ class TestWorkerTimeoutScenarios:
 
         # Act: Start worker and let it process
         await detection_worker.start()
-        await asyncio.sleep(1.5)  # chaos test - mocked
+        await asyncio.sleep(1.5)  # mocked: chaos test
 
         # Assert: Worker handled timeout and continues
         assert detection_worker.running is True
@@ -449,7 +449,7 @@ class TestWorkerTimeoutScenarios:
 
         # Act: Start worker and let it process
         await analysis_worker.start()
-        await asyncio.sleep(1.5)  # chaos test - mocked
+        await asyncio.sleep(1.5)  # mocked: chaos test
 
         # Assert: Worker handled timeout and continues
         assert analysis_worker.running is True
@@ -476,7 +476,7 @@ class TestWorkerTimeoutScenarios:
         assert detection_worker.running is True
 
         # Act: Wait for worker to handle empty queue timeouts
-        await asyncio.sleep(2.0)  # chaos test - mocked
+        await asyncio.sleep(2.0)  # mocked: chaos test
 
         # Assert: Worker should still be running and checking queue
         assert detection_worker.running is True
@@ -542,7 +542,7 @@ class TestMultipleWorkersCompetition:
                 await worker.start()
 
             # Wait for processing
-            await asyncio.sleep(3.0)  # chaos test - mocked
+            await asyncio.sleep(3.0)  # mocked: chaos test
 
             # Assert: All jobs processed exactly once
             total_processed = sum(w.stats.items_processed for w in workers)
@@ -610,7 +610,7 @@ class TestMultipleWorkersCompetition:
             await worker2.start()
 
             # Wait for processing
-            await asyncio.sleep(2.0)  # chaos test - mocked
+            await asyncio.sleep(2.0)  # mocked: chaos test
 
             # Assert: Job processed by exactly one worker
             total_processed = worker1.stats.items_processed + worker2.stats.items_processed
@@ -672,7 +672,7 @@ class TestWorkerRestartRecovery:
         await mock_redis.add_to_queue(DETECTION_QUEUE, detection_payload)
 
         # Wait for processing
-        await asyncio.sleep(1.5)  # chaos test - mocked
+        await asyncio.sleep(1.5)  # mocked: chaos test
 
         # Assert: Worker processed the job
         assert detection_worker.stats.items_processed > 0
@@ -777,7 +777,7 @@ class TestOrphanedJobDetection:
 
         # Act: Start a new worker to process orphaned jobs
         await detection_worker.start()
-        await asyncio.sleep(2.0)  # chaos test - mocked
+        await asyncio.sleep(2.0)  # mocked: chaos test
 
         # Assert: Orphaned jobs were processed
         assert detection_worker.stats.items_processed == job_count
@@ -859,7 +859,7 @@ class TestQueueBackpressure:
 
         # Act: Start worker to drain queue
         await detection_worker.start()
-        await asyncio.sleep(3.0)  # chaos test - mocked
+        await asyncio.sleep(3.0)  # mocked: chaos test
 
         # Assert: Worker processed some/all jobs without crashing
         assert detection_worker.running is True
@@ -987,7 +987,7 @@ class TestQueueBackpressure:
                 await worker.start()
 
             # Wait for processing
-            await asyncio.sleep(3.0)  # chaos test - mocked
+            await asyncio.sleep(3.0)  # mocked: chaos test
 
             # Assert: All jobs processed by the workers
             total_processed = sum(w.stats.items_processed for w in workers)
@@ -1062,7 +1062,7 @@ class TestPipelineWorkerManagerChaos:
             await mock_redis.add_to_queue(DETECTION_QUEUE, detection_payload)
 
             # Wait for processing
-            await asyncio.sleep(2.0)  # chaos test - mocked
+            await asyncio.sleep(2.0)  # mocked: chaos test
 
             # Assert: Detection worker logged error but still running
             assert manager.detection_worker.running is True

@@ -155,8 +155,7 @@ export interface UseOffsetPaginationStateReturn {
  * Return type union for the hook.
  */
 export type UsePaginationStateReturn =
-  | UseCursorPaginationStateReturn
-  | UseOffsetPaginationStateReturn;
+  UseCursorPaginationStateReturn | UseOffsetPaginationStateReturn;
 
 /**
  * Default parameter names for URL query parameters.

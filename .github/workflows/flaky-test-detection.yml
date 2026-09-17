@@ -234,7 +234,7 @@ jobs:
           # Run the flaky test analysis script
           python3 scripts/analyze-flaky-tests.py test-results/ \
             --output flaky-test-report.json \
-            --quarantine-file backend/tests/flaky_tests.txt
+            --allowlist-file .github/flake-allowlist.yml
         env:
           FLAKY_THRESHOLD: '0.9' # Tests with <90% pass rate are flaky
           MIN_RUNS: '3' # Require at least 3 runs to flag as flaky
@@ -368,7 +368,7 @@ jobs:
 
             body += `\n### Recommended Actions\n\n`;
             body += `1. **Investigate Root Causes**: Review test implementation for race conditions, timing issues, or external dependencies\n`;
-            body += `2. **Add Quarantine Markers**: Use \`@pytest.mark.flaky\` decorator on confirmed flaky tests\n`;
+            body += `2. **Register in the Flake Allowlist**: Add an entry to \`.github/flake-allowlist.yml\` with a Linear tracking ref and an expiry (WP0.8 — a bare \`@pytest.mark.flaky\` without an entry now fails collection; only registered flakes are rerun/queried)\n`;
             body += `3. **Improve Test Isolation**: Ensure tests don't share state or depend on execution order\n`;
             body += `4. **Check Resource Contention**: Tests with high timing variance may have resource issues\n`;
             body += `5. **Review Test Data**: Ensure test fixtures are deterministic\n\n`;

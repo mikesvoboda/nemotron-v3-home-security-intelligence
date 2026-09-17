@@ -220,12 +220,7 @@ export interface SystemStatusMessage {
  * Container service status values from the orchestrator.
  */
 export type ContainerStatus =
-  | 'running'
-  | 'starting'
-  | 'unhealthy'
-  | 'stopped'
-  | 'error'
-  | 'unknown';
+  'running' | 'starting' | 'unhealthy' | 'stopped' | 'error' | 'unknown';
 
 /**
  * Service status data for a single AI service.
@@ -428,10 +423,7 @@ export type EventsChannelMessage = EventMessage | HeartbeatMessage | ErrorMessag
  * Use this type when handling messages from the detections WebSocket.
  */
 export type DetectionsChannelMessage =
-  | DetectionNewMessage
-  | DetectionBatchMessage
-  | HeartbeatMessage
-  | ErrorMessage;
+  DetectionNewMessage | DetectionBatchMessage | HeartbeatMessage | ErrorMessage;
 
 // ============================================================================
 // Discriminated Union - System Channel
@@ -442,10 +434,7 @@ export type DetectionsChannelMessage =
  * Use this type when handling messages from the system WebSocket.
  */
 export type SystemChannelMessage =
-  | SystemStatusMessage
-  | ServiceStatusMessage
-  | HeartbeatMessage
-  | ErrorMessage;
+  SystemStatusMessage | ServiceStatusMessage | HeartbeatMessage | ErrorMessage;
 
 // ============================================================================
 // Job Message Types

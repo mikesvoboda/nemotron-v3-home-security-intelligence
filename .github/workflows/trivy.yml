@@ -10,6 +10,8 @@ on:
       - 'backend/requirements.txt'
       - 'backend/requirements-prod.txt'
       - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/bun.lock'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.trivyignore'

@@ -29,15 +29,7 @@ import { useSearchParams } from 'react-router-dom';
  * - 'custom': User-specified start and end dates
  */
 export type DateRangePreset =
-  | '1h'
-  | '24h'
-  | 'today'
-  | 'yesterday'
-  | '7d'
-  | '30d'
-  | '90d'
-  | 'all'
-  | 'custom';
+  '1h' | '24h' | 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'all' | 'custom';
 
 /**
  * Date range with start and end dates.

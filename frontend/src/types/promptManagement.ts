@@ -66,11 +66,7 @@ export interface FashionClipConfig {
  * Union type for all model configurations.
  */
 export type ModelConfig =
-  | NemotronConfig
-  | Florence2Config
-  | YoloWorldConfig
-  | XClipConfig
-  | FashionClipConfig;
+  NemotronConfig | Florence2Config | YoloWorldConfig | XClipConfig | FashionClipConfig;
 
 // ============================================================================
 // Request/Response Types

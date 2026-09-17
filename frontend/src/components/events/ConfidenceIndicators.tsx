@@ -25,15 +25,7 @@ export interface ConfidenceIndicatorsProps {
 }
 
 type IndicatorValue =
-  | 'good'
-  | 'none'
-  | 'full'
-  | 'fair'
-  | 'minor'
-  | 'partial'
-  | 'poor'
-  | 'significant'
-  | 'minimal';
+  'good' | 'none' | 'full' | 'fair' | 'minor' | 'partial' | 'poor' | 'significant' | 'minimal';
 
 /**
  * Get icon for indicator value

@@ -7,7 +7,13 @@ CI runs and identifies tests that exhibit flaky behavior (inconsistent pass/fail
 Usage:
     python scripts/analyze-flaky-tests.py <results-dir>
     python scripts/analyze-flaky-tests.py <results-dir> --output flaky-report.json
-    python scripts/analyze-flaky-tests.py <results-dir> --quarantine-file flaky_tests.txt
+    python scripts/analyze-flaky-tests.py <results-dir> --allowlist-file .github/flake-allowlist.yml
+
+WP0.8: "already handled" means REGISTERED in .github/flake-allowlist.yml
+(Linear tracking ref + expiry, enforced by scripts/check-flake-allowlist.py).
+The legacy `--quarantine-file flaky_tests.txt` free-form manifest — which this
+script used to auto-append on `--update-quarantine`, with no owner and no
+expiry — was retired with that file; registration is now a reviewed edit.
 
 Environment variables:
     FLAKY_THRESHOLD: Pass rate below which a test is considered flaky (default: 0.9)
@@ -181,45 +187,54 @@ def detect_flaky_tests(aggregated: dict, config: dict) -> list[dict]:
     return flaky_tests
 
 
-def load_quarantine_file(filepath: Path) -> set[str]:
-    """Load test node IDs from quarantine file."""
-    if not filepath.exists():
-        return set()
+def load_allowlist_ids(path: Path, today: datetime | None = None) -> set[str]:
+    """Return the active (unexpired) ids registered in the flake allowlist.
 
-    quarantined = set()
-    with filepath.open() as f:
-        for raw_line in f:
-            stripped_line = raw_line.strip()
-            # Skip comments and empty lines
-            if not stripped_line or stripped_line.startswith("#"):
-                continue
-            quarantined.add(stripped_line)
-    return quarantined
+    Same 15-line flat-list parse as scripts/check-flake-allowlist.py and
+    scripts/flake-k-filter.py — the zero-coupling convention those two share
+    deliberately, so this analysis script runs anywhere (the nightly workflow
+    invokes it with bare `python3`, before any dependency install).
 
-
-def update_quarantine_file(
-    filepath: Path, flaky_tests: list[dict], dry_run: bool = True
-) -> list[str]:
-    """Update quarantine file with newly detected flaky tests.
-
-    Returns list of tests that would be/were added.
+    A registered id is a substring of the pytest nodeid, matching the -k
+    semantics flake-k-filter.py ships, so `--allowlist-file` and the rerun
+    wiring agree about which tests are covered.
     """
-    existing = load_quarantine_file(filepath)
-    new_tests = []
+    if not path.is_file():
+        return set()
+    import re
 
-    for test in flaky_tests:
-        nodeid = test["nodeid"]
-        if nodeid not in existing:
-            new_tests.append(nodeid)
+    entry_re = re.compile(r"^\s*-\s+id:\s*(\S+)")
+    field_re = re.compile(r"^\s+(tracking|expires):\s*(.+?)\s*$")
+    entries: list[dict[str, str]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        m = entry_re.match(line)
+        if m:
+            entries.append({"id": m.group(1)})
+            continue
+        if entries:
+            fm = field_re.match(line)
+            if fm:
+                entries[-1][fm.group(1)] = fm.group(2).strip("'\"")
 
-    if not dry_run and new_tests:
-        with filepath.open("a") as f:
-            timestamp = datetime.now(UTC).isoformat()
-            f.write(f"\n# Added by analyze-flaky-tests.py on {timestamp}\n")
-            for nodeid in new_tests:
-                f.write(f"{nodeid}\n")
+    cutoff = (today or datetime.now(UTC)).date()
+    active = set()
+    for e in entries:
+        try:
+            if datetime.fromisoformat(e.get("expires", "")).date() < cutoff:
+                continue
+        except ValueError:
+            continue
+        active.add(e["id"])
+    return active
 
-    return new_tests
+
+def registered_ids(nodeids: list[str], allowlist_ids: set[str]) -> set[str]:
+    """Map allowlist ids onto the nodeids they cover (substring = -k semantics)."""
+    covered = set()
+    for nodeid in nodeids:
+        if any(flake_id in nodeid for flake_id in allowlist_ids):
+            covered.add(nodeid)
+    return covered
 
 
 def print_console_report(flaky_tests: list[dict], config: dict, quarantined: set[str]) -> None:
@@ -269,6 +284,10 @@ def write_github_summary(flaky_tests: list[dict], quarantined: set[str]) -> None
     if not summary_file:
         return
 
+    # GITHUB_STEP_SUMMARY is set by the Actions runner to a per-job path, never
+    # by user input (same idiom as coverage-analysis.py; surfaced now because
+    # WP0.8 re-scanned this file)
+    # nosemgrep: path-traversal-open - runner-owned path, not user input
     with open(summary_file, "a") as f:
         f.write("## Flaky Test Report\n\n")
 
@@ -303,8 +322,10 @@ def write_github_summary(flaky_tests: list[dict], quarantined: set[str]) -> None
             f.write(
                 "New flaky tests detected. Consider:\n"
                 "1. Investigating the root cause of flakiness\n"
-                "2. Adding `@pytest.mark.flaky` decorator to quarantine\n"
-                "3. Adding to `flaky_tests.txt` for tracking\n"
+                "2. Registering the flake in `.github/flake-allowlist.yml` with a\n"
+                "   Linear tracking ref and an expiry (the ONLY sanctioned\n"
+                "   quarantine — a bare `@pytest.mark.flaky` without an entry\n"
+                "   fails collection; see WP0.8)\n"
             )
 
 
@@ -329,15 +350,10 @@ def main() -> int:
     parser.add_argument("results_dir", type=Path, help="Directory containing test result files")
     parser.add_argument("--output", "-o", type=Path, help="Output JSON report file")
     parser.add_argument(
-        "--quarantine-file",
+        "--allowlist-file",
         type=Path,
-        default=Path("flaky_tests.txt"),
-        help="Path to quarantine manifest file",
-    )
-    parser.add_argument(
-        "--update-quarantine",
-        action="store_true",
-        help="Add newly detected flaky tests to quarantine file",
+        default=Path(".github/flake-allowlist.yml"),
+        help="Governed flake allowlist; registered (unexpired) ids are reported as handled",
     )
 
     args = parser.parse_args()
@@ -347,9 +363,6 @@ def main() -> int:
         return 1
 
     config = get_config()
-
-    # Load existing quarantine
-    quarantined = load_quarantine_file(args.quarantine_file)
 
     # Aggregate test data from all result files
     aggregated = aggregate_test_data(args.results_dir)
@@ -361,6 +374,11 @@ def main() -> int:
     # Detect flaky tests
     flaky_tests = detect_flaky_tests(aggregated, config)
 
+    # "Handled" = registered in the governed allowlist (WP0.8): tracking ref
+    # + expiry, reviewed by hand, enforced by check-flake-allowlist.py.
+    allowlist_ids = load_allowlist_ids(args.allowlist_file)
+    quarantined = registered_ids([t["nodeid"] for t in flaky_tests], allowlist_ids)
+
     # Print console report
     print_console_report(flaky_tests, config, quarantined)
 
@@ -371,13 +389,7 @@ def main() -> int:
     if args.output:
         write_json_report(flaky_tests, args.output)
 
-    # Update quarantine file if requested
-    if args.update_quarantine and flaky_tests:
-        new_tests = update_quarantine_file(args.quarantine_file, flaky_tests, dry_run=False)
-        if new_tests:
-            print(f"\nAdded {len(new_tests)} test(s) to quarantine file")
-
-    # Return non-zero if new (non-quarantined) flaky tests detected
+    # Return non-zero if new (unregistered) flaky tests detected
     new_flaky = [t for t in flaky_tests if t["nodeid"] not in quarantined]
     if new_flaky:
         print(f"\nWARNING: {len(new_flaky)} new flaky test(s) detected")

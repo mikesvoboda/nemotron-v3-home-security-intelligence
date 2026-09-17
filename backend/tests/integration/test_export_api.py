@@ -30,19 +30,15 @@ if TYPE_CHECKING:
 # Skip all tests if running without proper database setup
 pytestmark = pytest.mark.integration
 
-# R-T9-EXPORTDEFER (owner ruling pending): export_service.py:824 reads the
-# deferred() Event.reasoning column inside the async background job, which
-# raises MissingGreenlet — EVERY non-empty export job therefore ends in the
-# 'failed' state; 'completed' is unreachable while any events exist. M3 scope
-# is test-only, so the production fix is not ours to make; tests whose
-# premise requires a completed export skip citing this ref instead of
-# poll-looping for a state that can never arrive (that poll-loop is what
-# blew past the conftest timeout stamp and killed whole sessions in
-# waves I/J). See docs/plans/2026-09-12-context-map-doc-updates.md.
-EXPORTDEFER_REASON = (
-    "shipped defect R-T9-EXPORTDEFER: non-empty export always fails via "
-    "deferred Event.reasoning read in async job (owner ruling pending)"
-)
+# R-T9-EXPORTDEFER: FIXED 2026-09-16 (owner ruling — fold after Phase 2).
+# The deferred() Event.reasoning column was read synchronously inside the
+# async export job (MissingGreenlet), so every non-empty export landed
+# 'failed'; export_service now undefer()s it at both query builds. Historical
+# note: while the defect stood, the unreachable 'completed' state was pinned
+# by skipif + PENDING/FAILED tolerances (waves I/J poll-loop kills motivated
+# the skipif) — the module-wide skip is gone with the fix;
+# TestExportDeferredReasoning locks the regression, unit
+# TestExportDeferredColumns locks the mechanism.
 
 
 # =============================================================================
@@ -202,11 +198,10 @@ class TestExportCreation:
             assert job.export_type == "events"
             assert job.export_format == "csv"
             # Under httpx ASGITransport the POST's background export runs
-            # inside the request cycle, so by re-read time the row has moved
-            # past PENDING — and shipped R-T9-EXPORTDEFER means the inline run
-            # lands FAILED, never completed. Revisit with the owner's ruling
-            # on that ref (module comment above).
-            assert job.status in (ExportJobStatus.PENDING, ExportJobStatus.FAILED)
+            # inside the request cycle, so by re-read time the row is
+            # terminal — and with R-T9-EXPORTDEFER fixed, terminal for a
+            # non-empty export means COMPLETED.
+            assert job.status == ExportJobStatus.COMPLETED
 
     async def test_create_export_with_camera_filter(
         self, client: AsyncClient, sample_export_events, sample_export_camera, clean_exports
@@ -373,6 +368,57 @@ class TestExportFormats:
 
 
 # =============================================================================
+# Deferred-Reasoning Regression (R-T9-EXPORTDEFER)
+# =============================================================================
+
+
+class TestExportDeferredReasoning:
+    """A non-empty export must COMPLETE — R-T9-EXPORTDEFER regression lock.
+
+    The defect: Event.reasoning is deferred() (models/event.py:70) and the
+    export query built it without undefer(), so the row-materialization read
+    at export_service.py fired a sync lazy-load inside the async job →
+    MissingGreenlet → EVERY non-empty export landed FAILED (the empty-export
+    branch was unaffected, which is why it read as intermittent). This class
+    POSTs a real non-empty export and asserts the shipped happy path:
+    completed + reasoning payload present in the CSV.
+    """
+
+    @pytest.mark.timeout(30)
+    async def test_nonempty_export_completes(
+        self, client: AsyncClient, sample_export_events, clean_exports, ensure_export_dir
+    ):
+        """POST → inline run → the row must be COMPLETED with the reasoning text.
+
+        No poll loop: under httpx ASGITransport the POST's BackgroundTasks
+        run inside the request cycle, so by GET time the job is terminal —
+        asserting the terminal state directly (wave K-1R finding).
+        """
+        response = await client.post(
+            "/api/exports",
+            json={"export_type": "events", "export_format": "csv"},
+        )
+        assert response.status_code == 202
+        job_id = response.json()["job_id"]
+
+        status_response = await client.get(f"/api/exports/{job_id}")
+        assert status_response.status_code == 200
+        status_data = status_response.json()
+        # RED today: status == "failed" with error_message containing
+        # "greenlet" — the deferred reasoning read inside the async job.
+        assert status_data["status"] == "completed", status_data.get("error_message")
+        assert status_data["result"] is not None
+        assert status_data["result"]["event_count"] == 3
+
+        download = await client.get(f"/api/exports/{job_id}/download")
+        assert download.status_code == 200
+        # The deferred payload itself: if reasoning were read via a greenlet-
+        # safe path but silently swallowed, the status could pass while the
+        # column went empty — pin the actual text from sample_export_events.
+        assert "Delivery person at front door" in download.text
+
+
+# =============================================================================
 # Export Lifecycle Tests
 # =============================================================================
 
@@ -407,10 +453,10 @@ class TestExportLifecycle:
             result = await db.execute(select(ExportJob).where(ExportJob.id == data["job_id"]))
             job = result.scalar_one_or_none()
             assert job is not None
-            # Same shipped behavior as test_create_export_with_date_range_filter:
-            # the ASGITransport POST runs the export inline and R-T9-EXPORTDEFER
-            # fails it, so PENDING is only observable if the runner defers.
-            assert job.status in (ExportJobStatus.PENDING, ExportJobStatus.FAILED)
+            # Same inline-run shape as test_create_export_with_date_range_filter:
+            # terminal at re-read time, and R-T9-EXPORTDEFER-fixed means the
+            # non-empty export's terminal state is COMPLETED.
+            assert job.status == ExportJobStatus.COMPLETED
 
     @pytest.mark.timeout(30)
     async def test_export_job_completion(
@@ -500,15 +546,14 @@ class TestExportLifecycle:
 # =============================================================================
 
 
-@pytest.mark.skipif(True, reason=EXPORTDEFER_REASON)
 class TestExportDownload:
     """Tests for downloading completed export files.
 
-    Skipped while R-T9-EXPORTDEFER stands: their poll loops wait for
-    'completed', which no non-empty export can reach, so the loop runs past
-    the conftest timeout stamp and the thread-kill ends the whole session
-    (waves I-5/J-6 evidence). Re-enable with the owner's ruling on the
-    deferred-column fix in export_service.py:824.
+    Re-enabled 2026-09-16 with the R-T9-EXPORTDEFER fix: 'completed' is
+    reachable again, so these poll loops terminate on the first tick (the
+    inline run finishes inside the POST). While the defect stood this class
+    was skipif'd — its loops waited for a state nothing could reach and blew
+    past the conftest timeout stamp, killing whole sessions (waves I-5/J-6).
     """
 
     async def test_download_completed_export_file(

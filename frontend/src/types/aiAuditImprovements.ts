@@ -26,11 +26,7 @@ export const CONSISTENCY_THRESHOLD = 10;
  * Categories of improvements that can be suggested.
  */
 export type ImprovementCategory =
-  | 'missing_context'
-  | 'confusing_sections'
-  | 'unused_data'
-  | 'format_suggestions'
-  | 'model_gaps';
+  'missing_context' | 'confusing_sections' | 'unused_data' | 'format_suggestions' | 'model_gaps';
 
 /**
  * All improvement categories in display order.

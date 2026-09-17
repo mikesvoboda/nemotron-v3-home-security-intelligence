@@ -198,9 +198,7 @@ export type EnrichmentEndpoint = `/api/detections/${NumericId}/enrichment`;
  * - `/api/alerts/rules/:id/test` - Test alert rule
  */
 export type AlertRuleEndpoint =
-  | '/api/alerts/rules'
-  | `/api/alerts/rules/${StringId}`
-  | `/api/alerts/rules/${StringId}/test`;
+  '/api/alerts/rules' | `/api/alerts/rules/${StringId}` | `/api/alerts/rules/${StringId}/test`;
 
 // ============================================================================
 // Zone Endpoints
@@ -213,8 +211,7 @@ export type AlertRuleEndpoint =
  * - `/api/cameras/:cameraId/zones/:zoneId` - Get zone
  */
 export type ZoneEndpoint =
-  | `/api/cameras/${StringId}/zones`
-  | `/api/cameras/${StringId}/zones/${StringId}`;
+  `/api/cameras/${StringId}/zones` | `/api/cameras/${StringId}/zones/${StringId}`;
 
 // ============================================================================
 // Audit Endpoints
@@ -284,8 +281,7 @@ export type AiAuditEndpoint =
  * Media API endpoints
  */
 export type MediaEndpoint =
-  | `/api/media/cameras/${StringId}/${StringId}`
-  | `/api/media/thumbnails/${StringId}`;
+  `/api/media/cameras/${StringId}/${StringId}` | `/api/media/thumbnails/${StringId}`;
 
 // ============================================================================
 // Scene Change Endpoints

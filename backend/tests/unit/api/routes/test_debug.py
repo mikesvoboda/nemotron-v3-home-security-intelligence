@@ -57,6 +57,41 @@ def debug_settings() -> Settings:
     )
 
 
+@pytest.fixture(autouse=True)
+def _replay_hop_stays_in_process():
+    """Keep the replay endpoint's INNER httpx hop inside the ASGI app.
+
+    replay_request() (backend/api/routes/debug.py) opens a real
+    httpx.AsyncClient against request.base_url — "http://test" under
+    ASGITransport. That is a real network call: DNS for host "test" plus
+    proxy/search-domain sweep stalls ~15s on CI runners, which blew the
+    4.0s unit threshold in Test Performance Audit (run 35170392538:
+    test_replay_request_with_query_params at 15.04s). The endpoint used
+    to swallow the httpx error into replay_status_code=500, so the
+    outer-only assertions never noticed the hop never executed. With the
+    hop forced through ASGITransport(app) the replay genuinely runs
+    in-process; an unpatched call would now fail loudly because the
+    replay tests assert an inner 200.
+    """
+    import httpx
+    from httpx import ASGITransport
+
+    from backend.main import app
+
+    real_cls = httpx.AsyncClient
+
+    def _asgi_client(*args, **kwargs):
+        # Only inject when the caller asked for a real-network client
+        # (transport unset); the test-side helper passes its own transport.
+        if kwargs.get("transport") is None:
+            kwargs["transport"] = ASGITransport(app=app)
+            kwargs.setdefault("base_url", "http://replay.internal")
+        return real_cls(*args, **kwargs)
+
+    with patch("httpx.AsyncClient", side_effect=_asgi_client):
+        yield
+
+
 async def _mock_redis_dependency(mock_redis: MagicMock):
     """Generator that yields the mock Redis client."""
     yield mock_redis
@@ -1018,7 +1053,12 @@ class TestRecordingEndpoints:
             "recording_id": "test-rec-1",
             "timestamp": "2023-01-01T00:00:00Z",
             "method": "GET",
-            "path": "/api/system/health",
+            # /api/debug/recordings, not /api/system/health: the health
+            # endpoint needs an initialized DB the unit tier has never had,
+            # so this test's "success" was the endpoint's swallowed httpx
+            # failure (see the autouse fixture). Target the endpoint the
+            # mocks DO fully cover and assert the inner hop executed.
+            "path": "/api/debug/recordings",
             "headers": {"content-type": "application/json"},
             "query_params": {},
             "body": None,
@@ -1044,6 +1084,8 @@ class TestRecordingEndpoints:
                 assert data["original_status_code"] == 200
                 assert "replay_status_code" in data
                 assert "replay_response" in data
+                # Inner hop actually executed against the patched directory.
+                assert data["replay_status_code"] == 200
             finally:
                 app.dependency_overrides.clear()
 
@@ -1132,6 +1174,11 @@ class TestRecordingEndpoints:
                 assert response.status_code == 200
                 data = response.json()
                 assert data["recording_id"] == "test-rec-3"
+                # The CI-failing assertion (run 35170392538): the inner replay
+                # hop must ACTUALLY execute. Without it the endpoint catches
+                # the httpx error, returns 200 + replay_status_code 500, and
+                # the outer assert "recording_id" can never tell.
+                assert data["replay_status_code"] == 200
             finally:
                 app.dependency_overrides.clear()
 

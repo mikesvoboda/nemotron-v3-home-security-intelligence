@@ -57,13 +57,7 @@ export type VehicleType = 'car' | 'truck' | 'motorcycle' | 'suv' | 'van' | 'othe
  * Day of week for schedule.
  */
 export type DayOfWeek =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 /**
  * Weekly schedule structure - maps day names to arrays of allowed hours (0-23).

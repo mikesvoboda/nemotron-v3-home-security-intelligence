@@ -502,6 +502,21 @@ def generate_self_signed_certificate(
 # =============================================================================
 
 
+def _name_attribute_text(value: str | bytes) -> str:
+    """Render an x509 NameAttribute value as plain text.
+
+    cryptography 49 declares ``NameAttribute.value`` as a TypeVar over
+    ``str | bytes``, so interpolating it directly trips mypy's
+    ``str-bytes-safe`` rule (and would embed a ``b'...'`` repr in an
+    API-facing string if a bytes value ever reached us). Current
+    cryptography enforces ``str`` at construction time, but decoding
+    defensively costs nothing and keeps the contract explicit.
+    """
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 def validate_certificate(cert_path: Path) -> dict[str, Any]:
     """Validate a certificate and return its details.
 
@@ -542,12 +557,12 @@ def validate_certificate(cert_path: Path) -> dict[str, Any]:
     # Extract subject and issuer as strings
     subject_parts = []
     for attr in cert.subject:
-        subject_parts.append(f"{attr.oid._name}={attr.value}")
+        subject_parts.append(f"{attr.oid._name}={_name_attribute_text(attr.value)}")
     subject_str = ", ".join(subject_parts)
 
     issuer_parts = []
     for attr in cert.issuer:
-        issuer_parts.append(f"{attr.oid._name}={attr.value}")
+        issuer_parts.append(f"{attr.oid._name}={_name_attribute_text(attr.value)}")
     issuer_str = ", ".join(issuer_parts)
 
     return {

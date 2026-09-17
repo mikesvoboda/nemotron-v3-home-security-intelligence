@@ -228,6 +228,14 @@ SLOW_TEST_PATTERNS = [
     r"test_detection.*TestDetectionProperties.*test_required_fields_roundtrip",
     # Hypothesis vehicle detection format tests - generation overhead
     r"test_hypothesis_strategies.*test_example_vehicle_detection_format",
+    # WP0.5 (2026-09-16 owner ruling "gate at raised thresholds"): the honest
+    # baseline at unit=4.0s/integration=10.0s had exactly TWO tests still
+    # above 4s. They are tracked here (60s slow cap) instead of loosening the
+    # gate further; Phase 2's p50/p95 work owns shrinking them.
+    # 16.1s — timestamp assertion drives a real wall-clock wait loop
+    r"test_error_handler.*test_timestamp_auto_generated",
+    # 6.0s — RTSP connection-timeout test exercises the real timeout window
+    r"test_rtsp_test_service.*test_connection_timeout",
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely
@@ -462,6 +470,18 @@ def main() -> int:
     results_dir = Path(sys.argv[1])
     if not results_dir.exists():
         print(f"Error: Directory not found: {results_dir}", file=sys.stderr)
+        return 1
+
+    # WP0.5: a gate with no test data must FAIL, not vacuously pass. The job
+    # only runs when its tier actually ran (ci.yml `if:` mirrors unit-tests'
+    # own trigger), so zero XML here means the pipeline broke — exactly the
+    # class of silent lie the pre-push gate repair (WP0.1) pinned.
+    if not list(results_dir.glob("**/*.xml")):
+        print(
+            f"Error: no JUnit XML found under {results_dir} — the audit job "
+            "ran with no test data; failing rather than passing vacuously.",
+            file=sys.stderr,
+        )
         return 1
 
     failures, warnings, slow_tests, benchmark_tests = analyze_tests(results_dir)

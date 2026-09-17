@@ -12,6 +12,8 @@ Usage:
 """
 
 import json
+import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -69,6 +71,22 @@ class TestRequirement:
     test_files: list[str]
 
 
+def _numstat_new_path(p: str) -> str:
+    """Resolve numstat's path column to the file's NEW name.
+
+    Rename detection renders paths as `old => new` or `dir/{old => new}.py`;
+    the requirement checks care about the new path.
+    """
+    if " => " in p:
+        if "{" in p and "}" in p:
+            pre, rest = p.split("{", 1)
+            mid, post = rest.split("}", 1)
+            _old, new_part = mid.split(" => ", 1)
+            return pre + new_part + post
+        return p.split(" => ", 1)[1]
+    return p
+
+
 def get_changed_files(base_branch: str = "origin/main") -> list[FileChange]:
     """Get list of changed files in the PR.
 
@@ -83,42 +101,55 @@ def get_changed_files(base_branch: str = "origin/main") -> list[FileChange]:
             stderr=subprocess.DEVNULL,
         ).strip()
 
-        # Get diff stats
-        diff_output = subprocess.check_output(
-            ["git", "diff", "--name-status", "--numstat", f"{merge_base}...HEAD"],
+        # PRE-EXISTING parser bug fixed: git does NOT combine --name-status
+        # with --numstat — name-status wins and lines come out `M\tpath`
+        # (2 fields), which the old 3-field parser dropped wholesale: every
+        # diff read as zero changes. Run the two formats separately and join
+        # on the new path (WP0.1's first full-tree pre-push surfaced this).
+        status_output = subprocess.check_output(
+            ["git", "diff", "--name-status", f"{merge_base}...HEAD"],
             text=True,
         )
-
-        changes = []
-        for line in diff_output.strip().split("\n"):
-            if not line:
-                continue
-
-            parts = line.split("\t")
-            if len(parts) < 3:
-                continue
-
-            status = parts[0]
-            additions = int(parts[1]) if parts[1].isdigit() else 0
-            deletions = int(parts[2]) if parts[2].isdigit() else 0
-            path = parts[3] if len(parts) > 3 else parts[2]
-
-            # Map git status codes to our status names
-            status_map = {
-                "A": "added",
-                "M": "modified",
-                "D": "deleted",
-                "R": "renamed",
-                "C": "copied",
-            }
-            status = status_map.get(status[0], "modified")
-
-            changes.append(FileChange(path, status, additions, deletions))
-
-        return changes
+        numstat_output = subprocess.check_output(
+            ["git", "diff", "--numstat", f"{merge_base}...HEAD"],
+            text=True,
+        )
     except subprocess.CalledProcessError as e:
         print(f"Error getting changed files: {e}", file=sys.stderr)
         return []
+
+    counts: dict[str, tuple[int, int]] = {}
+    for line in numstat_output.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        # Binary files report "-" instead of counts.
+        additions = int(parts[0]) if parts[0].isdigit() else 0
+        deletions = int(parts[1]) if parts[1].isdigit() else 0
+        counts[_numstat_new_path(parts[2])] = (additions, deletions)
+
+    status_map = {
+        "A": "added",
+        "M": "modified",
+        "D": "deleted",
+        "R": "renamed",
+        "C": "copied",
+    }
+    changes = []
+    for line in status_output.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split("\t")
+        code = parts[0][0]
+        status = status_map.get(code, "modified")
+        # R/C lines carry old AND new path; the new path is the last field.
+        path = parts[-1]
+        additions, deletions = counts.get(path, (0, 0))
+        changes.append(FileChange(path, status, additions, deletions))
+
+    return changes
 
 
 def find_test_file(source_file: str) -> str | None:
@@ -164,6 +195,23 @@ def find_test_file(source_file: str) -> str | None:
     return None
 
 
+_TEST_FILE_MARKER = re.compile(
+    r"(^|/)(test_[^/]+|[^/]+[._](test|spec)\.(tsx?|jsx?))$|(^|/)(tests?|__tests__)/"
+)
+
+
+def _is_test_file(path: str) -> bool:
+    """Whether a path IS a test (test files carry no test requirement).
+
+    WP0.6 CI truth: once get_changed_files actually parsed, the gate flagged
+    the very test files it had demanded — a *.test.ts under frontend/src/
+    hooks/ matches the Hook requirement, and find_test_file has nothing to
+    resolve for it. The gate then fails a PR for OBEYING it. Test sources
+    are exempt by kind, the same way deleted files are.
+    """
+    return bool(_TEST_FILE_MARKER.search(path))
+
+
 def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
     """Check if a changed file has test requirements.
 
@@ -177,6 +225,9 @@ def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
 
     # Only check added/modified files with substantial changes
     if file_change.status == "deleted" or (file_change.additions + file_change.deletions) < 5:
+        return None
+
+    if _is_test_file(file_path):
         return None
 
     # Match against requirement patterns
@@ -218,58 +269,184 @@ def check_file_requirements(file_change: FileChange) -> TestRequirement | None:
     return None
 
 
-def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
-    """Check if coverage has decreased.
+BASELINE_FILENAME = "coverage-baseline.json"
 
-    Args:
-        base_branch: Base branch to compare against
+# Exception tuples, not parenthesized except clauses: this file is invoked as
+# BARE python3 by test-coverage-gate.yml (runner interpreter, 3.12-era), and
+# ruff format at target py314 STRIPS `except (A, B):` parens back to the
+# PEP-758 bare form — which is a SyntaxError below 3.14 (PR #6549's first
+# real gate run died exactly there). A tuple reference parses on every
+# Python and the formatter never touches it.
+_READ_ERRORS = (OSError, ValueError)
+_GIT_ERRORS = (subprocess.CalledProcessError, OSError)
+
+
+def _read_percent(path: Path) -> float | None:
+    """Read a coverage percentage from a coverage.json report or a baseline file.
+
+    Accepts both shapes: coverage's own report nests the number under
+    "totals" ({"totals": {"percent_covered": ...}}) while a committed baseline
+    file is the flat {"percent_covered": ...} it was written from. Returns None
+    for absent/unparseable input so the caller can apply skip semantics.
+    """
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except _READ_ERRORS:
+        return None
+    if not isinstance(data, dict):
+        return None
+    if isinstance(data.get("totals"), dict):
+        value = data["totals"].get("percent_covered")
+    else:
+        value = data.get("percent_covered")
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def _current_via_seam() -> tuple[bool, float | None]:
+    """(seam_present, percent) for the working tree.
+
+    Seam = COVERAGE_JSON env (explicit, e.g. CI that collected coverage in an
+    earlier step) or ./coverage.json. A SET-but-UNREADABLE seam is an honest
+    "no data" answer — skip, never collect over the top of a caller's explicit
+    choice. Only when NO seam exists (classic CI invocation: the gate job
+    collects inline) does the caller fall through to collection.
+    """
+    env_path = os.environ.get("COVERAGE_JSON")
+    if env_path:
+        return True, _read_percent(Path(env_path))
+    path = Path("coverage.json")
+    if path.is_file():
+        return True, _read_percent(path)
+    return False, None
+
+
+def _base_percent_from_git(base_branch: str) -> tuple[float | None, str]:
+    """Base coverage from the baseline file committed at the base ref.
+
+    Returns (percent, note). This is the mechanism that makes the gate work in
+    CI without running the suite twice: `main` publishes
+    coverage-baseline.json, so the PR side only needs its own number.
+    """
+    try:
+        raw = subprocess.check_output(
+            ["git", "show", f"{base_branch}:{BASELINE_FILENAME}"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except _GIT_ERRORS:
+        return None, f"no {BASELINE_FILENAME} at {base_branch}"
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None, f"{BASELINE_FILENAME} at {base_branch} is not valid JSON"
+    value = data.get("percent_covered") if isinstance(data, dict) else None
+    if not isinstance(value, (int, float)):
+        return None, f"{BASELINE_FILENAME} at {base_branch} has no percent_covered"
+    return float(value), f"baseline from {base_branch}:{BASELINE_FILENAME}"
+
+
+def check_coverage_diff(
+    base_branch: str = "origin/main",
+    current_percent: float | None = None,
+    base_percent: float | None = None,
+) -> tuple[bool, str]:
+    """Fail when coverage has DROPPED relative to the base branch.
+
+    The name is now the contract. Pre-WP0.9 this ran the suite and reported
+    `True, "Current coverage: X%"` for every input, so no drop could ever be
+    detected — the spec's "misleading name is the actual defect".
+
+    Resolution order, base side first: explicit `base_percent`, then
+    COVERAGE_BASE_JSON, then `git show <base_branch>:coverage-baseline.json`.
+    An unresolvable base skips BEFORE any collection — the old order ran the
+    full suite and only then discovered there was nothing to diff against.
+    Current side: explicit `current_percent`, then the coverage.json seam
+    (COVERAGE_JSON env, else ./coverage.json), then a full suite run that
+    generates the report (the classic no-seam call, where the gate collects
+    inline; never vacuous in production).
+
+    Skip semantics are genuine, not vacuous: an explicit seam that points at
+    nothing (coverage never collected) or an unpublished baseline skips with a
+    message saying so. What it can never do again is see both numbers
+    and still pass a drop.
 
     Returns:
         Tuple of (passed, message)
     """
-    project_root = Path(__file__).parent.parent
+    if base_percent is None:
+        env_base = os.environ.get("COVERAGE_BASE_JSON")
+        if env_base:
+            base_percent = _read_percent(Path(env_base))
+            base_note = f"base from COVERAGE_BASE_JSON={env_base}"
+        else:
+            base_percent, base_note = _base_percent_from_git(base_branch)
+    else:
+        base_note = "explicit base"
 
-    try:
-        # Run coverage for current branch
-        subprocess.run(
-            [
-                "uv",
-                "run",
-                "pytest",
-                "backend/tests/unit/",
-                "--cov=backend",
-                "--cov-report=json",
-            ],
-            cwd=project_root,
-            check=True,
-            capture_output=True,
-        )
+    if base_percent is None:
+        # Skip BEFORE collecting: no baseline exists to diff against, so the
+        # 90s+ suite run would buy nothing (the first full-tree pre-push
+        # proved it — collection ran, then the diff skipped for want of a base).
+        return True, f"No base coverage available ({base_note}), skipping diff"
 
-        coverage_file = project_root / ".coverage"
-        if not coverage_file.exists():
-            # Coverage not available, skip check
-            return True, "Coverage file not found, skipping coverage diff check"
+    if current_percent is None:
+        seam, seam_percent = _current_via_seam()
+        if seam:
+            if seam_percent is None:
+                return True, "Coverage seam present but unreadable/empty, skipping coverage diff"
+            current_percent = seam_percent
+        else:
+            # Nothing collected yet (classic invocation): collect once inline,
+            # anchored at the repo root like the pre-WP0.9 code (the script may
+            # be invoked from any directory). --cov-fail-under=0 because this
+            # call EXISTS to extract the number: pytest-cov would otherwise
+            # apply pyproject's fail_under=85 to the run, and unit-tier-only
+            # coverage (84.4% measured) would exit 1 and fail the gate for the
+            # wrong reason — collection, not diff (same extraction-not-floor
+            # rationale as the ci.yml shard jobs).
+            project_root = Path(__file__).resolve().parent.parent
+            try:
+                proc = subprocess.run(
+                    [
+                        "uv",
+                        "run",
+                        "pytest",
+                        "backend/tests/unit/",
+                        "--cov=backend",
+                        "--cov-report=json",
+                        "--cov-fail-under=0",
+                        "-q",
+                    ],
+                    cwd=project_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                # pytest writes findings to stdout; reporting only stderr gave
+                # a useless empty "collection failed:" detail on the first
+                # real occurrence. Report whichever side has content.
+                detail = ((e.stderr or "") + "\n" + (e.stdout or "")).strip()[-300:]
+                return False, f"Coverage collection failed (rc={e.returncode}): {detail}"
+            except OSError as e:
+                return False, f"Coverage collection failed to launch: {e}"
+            current_percent = _read_percent(project_root / "coverage.json")
+            if current_percent is None:
+                return True, "No coverage data collected, skipping coverage diff check"
 
-        # Parse coverage JSON (--cov-report=json generates coverage.json)
-        coverage_json = project_root / "coverage.json"
-        if coverage_json.exists():
-            # Resolve to absolute path for security
-            resolved_path = coverage_json.resolve()
-            with open(resolved_path) as f:  # nosemgrep: path-traversal-open
-                current_coverage = json.load(f)
-                current_percentage = current_coverage.get("totals", {}).get("percent_covered", 0)
-
-                return True, f"Current coverage: {current_percentage:.1f}%"
-
-        return True, "Unable to parse coverage data"
-
-    except subprocess.CalledProcessError as e:
-        stderr_msg = e.stderr.decode()[:500] if e.stderr else ""
-        stdout_msg = e.stdout.decode()[-500:] if e.stdout else ""
+    if current_percent < base_percent:
         return (
             False,
-            f"Coverage check failed: {e!s}\nSTDERR: {stderr_msg}\nSTDOUT (last 500): {stdout_msg}",
+            f"Coverage DROPPED {base_percent:.1f}% -> {current_percent:.1f}% "
+            f"(-{base_percent - current_percent:.1f}pp; {base_note})",
         )
+
+    return (
+        True,
+        f"Coverage {current_percent:.1f}% vs base {base_percent:.1f}% (+{current_percent - base_percent:.1f}pp)",
+    )
 
 
 def main() -> int:
@@ -295,11 +472,13 @@ def main() -> int:
 
     print("Checking test coverage requirements...\n")
 
-    # Get changed files
+    # Get changed files. An empty change list must NOT short-circuit the
+    # coverage diff below — that early return was a second vacuous exit: a
+    # shallow checkout or an unresolvable base ref yields no changes and would
+    # have skipped the drop check entirely (same bug family WP0.7 catalogued).
     changes = get_changed_files(args.base_branch)
     if not changes:
-        print("No changes detected")
-        return 0
+        print("No changed files detected (requirement checks skipped)")
 
     # Check requirements for each file
     requirements = []

@@ -10,6 +10,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The "Comment PR on failures" step posts with GITHUB_TOKEN; with no explicit
+# grant this workflow ran under the repo's read-only default and every
+# comment attempt 403'd ("Resource not accessible by integration") — and the
+# octokit exception dump buried the ACTUAL step verdict under pages of
+# headers (PR #6549: a SyntaxError in the gate script was readable only in
+# raw job logs). Scope the grant to what the job actually does.
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   PYTHON_VERSION: '3.14'
   NODE_VERSION: '24'
@@ -41,7 +51,44 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
+      # WP0.9: fetch main's published coverage baseline as the diff base.
+      # ci.yml's unit-tests-coverage-merge job publishes coverage-baseline.json
+      # (flat {percent_covered, source}) on every main run; here we take it from
+      # the latest completed main run and point COVERAGE_BASE_JSON at it.
+      # Absent (never published yet / gh failure) = honest skip inside the
+      # script, never a faked pass — the drop verdict only comes from real
+      # numbers on both sides.
+      - name: Fetch coverage baseline from main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # Newest-first completed main runs; take the first that HAS the
+          # artifact. The artifact's existence is the trust marker: ci.yml only
+          # publishes it when coverage genuinely merged (never from the
+          # `touch .coverage` vacuous-fill branch), so no run-conclusion filter
+          # is wanted — a run red on Trivy still carries a valid unit-coverage
+          # baseline. Absent everywhere (e.g. until the first main run after
+          # this ships) = the script's honest skip, never a faked pass.
+          for run_id in $(gh run list --workflow ci.yml --branch main --limit 10 \
+            --json databaseId,status --jq \
+            '.[] | select(.status=="completed") | .databaseId'); do
+            if gh run download "$run_id" -n coverage-baseline -D . ; then
+              echo "Coverage baseline fetched from main run $run_id:"
+              cat coverage-baseline.json
+              exit 0
+            fi
+          done
+          echo "::warning::No coverage-baseline artifact on recent main runs; coverage diff will skip"
+          rm -f coverage-baseline.json
+
       - name: Check test coverage requirements
+        env:
+          # WP0.9: base percent comes from main's published coverage baseline
+          # (artifact of the latest successful main ci.yml run, fetched by the
+          # step above). Genuinely absent file = honest skip inside the script;
+          # a PRESENT-but-drop verdict now fails this step.
+          COVERAGE_BASE_JSON: coverage-baseline.json
         run: |
           python3 scripts/check-test-coverage-gate.py \
             --base-branch origin/${{ github.base_ref }} \
@@ -49,7 +96,10 @@ jobs:
         id: coverage-gate
 
       - name: Comment PR on failures
-        if: failure()
+        # workflow_dispatch has no PR context — context.issue.number would be
+        # undefined and the step would throw AFTER a real verdict (same
+        # wrong-reason failure class the WP0.x audit catalogued).
+        if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -110,10 +160,13 @@ jobs:
 
       - name: Check for integration tests
         if: steps.changed-files.outputs.any_changed == 'true'
+        # WP0.9: continue-on-error REMOVED — it made this job unable to fail
+        # the workflow (spec §toothless-gates #9). The checker already exits 1
+        # only on genuine missing-integration-test findings; the summary job
+        # below now gates on this result for real.
         run: |
           python3 scripts/check-integration-tests.py \
             ${{ steps.changed-files.outputs.all_changed_files }}
-        continue-on-error: true
 
   # ============================================================================
   # API Test Generation Check
@@ -165,11 +218,23 @@ jobs:
     steps:
       - name: Check test coverage gate result
         run: |
-          if [ "${{ needs.test-coverage-gate.result }}" == "failure" ]; then
-            echo "⚠️ Test coverage gate failed - review requirements above"
-            exit 1
-          fi
-          echo "✓ Test coverage requirements met"
+          # WP0.9: gates on EVERY verdict-producing job now, not just the
+          # coverage gate. check-integration-tests lost continue-on-error
+          # above, so its result is a real verdict worth gating on;
+          # api-test-generation stays advisory (its own step is `|| true` +
+          # continue-on-error, i.e. an explicitly NEVER-RED triage job, so
+          # "cancelled"/"failure" here would only ever be a plumbing signal).
+          rc=0
+          for pair in "coverage gate:${{ needs.test-coverage-gate.result }}" \
+                      "integration tests:${{ needs.check-integration-tests.result }}"; do
+            name="${pair%%:*}"; result="${pair#*:}"
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "X $name job result = $result - review requirements above"
+              rc=1
+            fi
+          done
+          [ "$rc" -eq 0 ] && echo "OK Test coverage requirements met"
+          exit "$rc"
 
       - name: Summary
         run: |
