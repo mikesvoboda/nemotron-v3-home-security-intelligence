@@ -237,8 +237,8 @@ def security_client() -> Generator[AuthenticatedTestClient]:
 
     with (
         patch("backend.core.redis._redis_client", mock_redis_singleton),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_singleton),
-        patch("backend.core.redis.close_redis", return_value=None),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_singleton, autospec=True),
+        patch("backend.core.redis.close_redis", return_value=None, autospec=True),
         patch("backend.main.init_db", mock_init_db),
         patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
         patch(
@@ -247,12 +247,20 @@ def security_client() -> Generator[AuthenticatedTestClient]:
         ),
         patch("backend.main.init_redis", mock_init_redis),
         patch("backend.main.get_broadcaster", mock_get_broadcaster),
-        patch("backend.main.FileWatcher", return_value=mocks["file_watcher"]),
+        patch("backend.main.FileWatcher", return_value=mocks["file_watcher"], autospec=True),
         patch("backend.main.get_pipeline_manager", mock_get_pipeline_manager),
-        patch("backend.main.get_system_broadcaster", return_value=mocks["system_broadcaster"]),
-        patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"]),
-        patch("backend.main.CleanupService", return_value=mocks["cleanup_service"]),
-        patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"]),
+        patch(
+            "backend.main.get_system_broadcaster",
+            return_value=mocks["system_broadcaster"],
+            autospec=True,
+        ),
+        patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"], autospec=True),
+        patch("backend.main.CleanupService", return_value=mocks["cleanup_service"], autospec=True),
+        patch(
+            "backend.main.ServiceHealthMonitor",
+            return_value=mocks["service_health_monitor"],
+            autospec=True,
+        ),
         TestClient(app, raise_server_exceptions=False) as client,
     ):
         # Wrap client with AuthenticatedTestClient to auto-add API key header

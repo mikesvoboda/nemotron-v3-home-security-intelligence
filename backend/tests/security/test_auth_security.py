@@ -220,7 +220,9 @@ class TestConstantTimeComparison:
         middleware = AuthMiddleware(app=None, valid_key_hashes={valid_hash})
 
         # Test with matching hash
-        with patch("backend.api.middleware.auth.hmac.compare_digest") as mock_compare:
+        with patch(
+            "backend.api.middleware.auth.hmac.compare_digest", autospec=True
+        ) as mock_compare:
             mock_compare.return_value = True
             result = middleware._validate_key_hash(valid_hash)
 
@@ -239,7 +241,9 @@ class TestConstantTimeComparison:
         middleware = AuthMiddleware(app=None, valid_key_hashes={valid_hash})
 
         # Test with non-matching hash
-        with patch("backend.api.middleware.auth.hmac.compare_digest") as mock_compare:
+        with patch(
+            "backend.api.middleware.auth.hmac.compare_digest", autospec=True
+        ) as mock_compare:
             mock_compare.return_value = False
             result = middleware._validate_key_hash(invalid_hash)
 
@@ -257,7 +261,9 @@ class TestConstantTimeComparison:
         valid_hashes = {valid_hash}
 
         # Test with matching hash
-        with patch("backend.api.middleware.auth.hmac.compare_digest") as mock_compare:
+        with patch(
+            "backend.api.middleware.auth.hmac.compare_digest", autospec=True
+        ) as mock_compare:
             mock_compare.return_value = True
             result = _validate_key_hash_constant_time(valid_hash, valid_hashes)
 
@@ -285,7 +291,9 @@ class TestConstantTimeComparison:
 
         test_hash = _hash_key("key2")  # This matches hash2
 
-        with patch("backend.api.middleware.auth.hmac.compare_digest") as mock_compare:
+        with patch(
+            "backend.api.middleware.auth.hmac.compare_digest", autospec=True
+        ) as mock_compare:
             # Simulate: returns True for hash2, False for others
             def side_effect(a, b):
                 return a == b
