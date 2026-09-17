@@ -125,7 +125,7 @@ def disable_redis_streams(request):
         yield
         return
 
-    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+    with patch("backend.services.file_watcher.get_settings", autospec=True) as mock_settings:
         settings = MagicMock()
         settings.use_redis_streams = False
         settings.file_watcher_max_concurrent_queue = 20
@@ -162,21 +162,19 @@ def mock_redis_client():
 
 @pytest.fixture
 def file_watcher(temp_camera_root, mock_redis_client):
-    """Create FileWatcher instance with mocked dependencies."""
-    with patch("backend.services.file_watcher.get_settings") as mock_settings:
-        mock_settings_instance = MagicMock()
-        mock_settings_instance.file_watcher_max_concurrent_queue = 20
-        mock_settings_instance.file_watcher_queue_delay_ms = 0  # No delay in tests
-        mock_settings_instance.file_watcher_polling = False
-        mock_settings_instance.file_watcher_polling_interval = 1.0
-        mock_settings.return_value = mock_settings_instance
+    """Create FileWatcher instance with mocked dependencies.
 
-        watcher = FileWatcher(
-            camera_root=str(temp_camera_root),
-            redis_client=mock_redis_client,
-            debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
-            stability_time=0.1,  # Very short stability time for fast tests
-        )
+    get_settings is already patched by the autouse disable_redis_streams
+    fixture with the same settings values; re-patching the same target in
+    the constructor was redundant, and under autospec mock refuses to
+    spec an attribute it has already mocked out (InvalidSpecError).
+    """
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
+        stability_time=0.1,  # Very short stability time for fast tests
+    )
     return watcher
 
 
@@ -314,8 +312,12 @@ def test_is_valid_image_permission_error_retry_succeeds(tmp_path):
         # Second call succeeds (delegating to real implementation)
         return _validate_image_sync(path)
 
-    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
-        with patch("backend.services.file_watcher.time.sleep") as mock_sleep:
+    with patch(
+        "backend.services.file_watcher._validate_image_sync",
+        side_effect=mock_validate,
+        autospec=True,
+    ):
+        with patch("backend.services.file_watcher.time.sleep", autospec=True) as mock_sleep:
             result = is_valid_image(str(image_path))
 
     assert result is True
@@ -335,8 +337,12 @@ def test_is_valid_image_permission_error_retry_fails(tmp_path):
     def mock_validate(path):
         raise PermissionError(13, "Permission denied", path)
 
-    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
-        with patch("backend.services.file_watcher.time.sleep"):
+    with patch(
+        "backend.services.file_watcher._validate_image_sync",
+        side_effect=mock_validate,
+        autospec=True,
+    ):
+        with patch("backend.services.file_watcher.time.sleep", autospec=True):
             result = is_valid_image(str(image_path))
 
     assert result is False
@@ -361,7 +367,11 @@ async def test_is_valid_image_async_permission_error_retry_succeeds(tmp_path):
             raise PermissionError(13, "Permission denied", path)
         return _validate_image_sync(path)
 
-    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+    with patch(
+        "backend.services.file_watcher._validate_image_sync",
+        side_effect=mock_validate,
+        autospec=True,
+    ):
         with patch(
             "backend.services.file_watcher.asyncio.sleep", new_callable=AsyncMock
         ) as mock_sleep:
@@ -383,7 +393,11 @@ async def test_is_valid_image_async_permission_error_retry_fails(tmp_path):
     def mock_validate(path):
         raise PermissionError(13, "Permission denied", path)
 
-    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+    with patch(
+        "backend.services.file_watcher._validate_image_sync",
+        side_effect=mock_validate,
+        autospec=True,
+    ):
         with patch("backend.services.file_watcher.asyncio.sleep", new_callable=AsyncMock):
             result = await is_valid_image_async(str(image_path))
 
@@ -406,7 +420,11 @@ def test_is_valid_image_oserror_no_retry(tmp_path):
         call_count += 1
         raise OSError("image file is truncated")
 
-    with patch("backend.services.file_watcher._validate_image_sync", side_effect=mock_validate):
+    with patch(
+        "backend.services.file_watcher._validate_image_sync",
+        side_effect=mock_validate,
+        autospec=True,
+    ):
         result = is_valid_image(str(image_path))
 
     assert result is False
@@ -706,7 +724,7 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
 @pytest.mark.asyncio
 async def test_start_watcher(file_watcher):
     """Test starting the file watcher."""
-    with patch.object(file_watcher.observer, "start") as mock_start:
+    with patch.object(file_watcher.observer, "start", autospec=True) as mock_start:
         await file_watcher.start()
 
         assert file_watcher.running is True
@@ -717,13 +735,13 @@ async def test_start_watcher(file_watcher):
 async def test_stop_watcher(file_watcher):
     """Test stopping the file watcher."""
     # First start it
-    with patch.object(file_watcher.observer, "start"):
+    with patch.object(file_watcher.observer, "start", autospec=True):
         await file_watcher.start()
 
     # Then stop it
     with (
-        patch.object(file_watcher.observer, "stop") as mock_stop,
-        patch.object(file_watcher.observer, "join") as mock_join,
+        patch.object(file_watcher.observer, "stop", autospec=True) as mock_stop,
+        patch.object(file_watcher.observer, "join", autospec=True) as mock_join,
     ):
         await file_watcher.stop()
 
@@ -740,14 +758,17 @@ async def test_stop_watcher_cancels_pending_tasks(file_watcher, temp_camera_root
     create_valid_test_image(image_path)
 
     # Start watcher
-    with patch.object(file_watcher.observer, "start"):
+    with patch.object(file_watcher.observer, "start", autospec=True):
         await file_watcher.start()
 
     # Schedule file processing
     await file_watcher._schedule_file_processing(str(image_path))
 
     # Stop immediately (before debounce completes)
-    with patch.object(file_watcher.observer, "stop"), patch.object(file_watcher.observer, "join"):
+    with (
+        patch.object(file_watcher.observer, "stop", autospec=True),
+        patch.object(file_watcher.observer, "join", autospec=True),
+    ):
         await file_watcher.stop()
 
     # Wait a bit to ensure task was cancelled
@@ -760,7 +781,7 @@ async def test_stop_watcher_cancels_pending_tasks(file_watcher, temp_camera_root
 @pytest.mark.asyncio
 async def test_double_start_is_idempotent(file_watcher):
     """Test starting watcher twice doesn't cause issues."""
-    with patch.object(file_watcher.observer, "start") as mock_start:
+    with patch.object(file_watcher.observer, "start", autospec=True) as mock_start:
         await file_watcher.start()
         await file_watcher.start()
 
@@ -772,7 +793,7 @@ async def test_double_start_is_idempotent(file_watcher):
 @pytest.mark.asyncio
 async def test_stop_without_start(file_watcher):
     """Test stopping watcher that was never started."""
-    with patch.object(file_watcher.observer, "stop") as _mock_stop:
+    with patch.object(file_watcher.observer, "stop", autospec=True) as _mock_stop:
         await file_watcher.stop()
 
         # Should not crash
@@ -797,7 +818,9 @@ async def test_event_handler_on_created(file_watcher, temp_camera_root):
 
     event = FileCreatedEvent(str(image_path))
 
-    with patch.object(file_watcher._event_handler, "_schedule_async_task") as mock_schedule:
+    with patch.object(
+        file_watcher._event_handler, "_schedule_async_task", autospec=True
+    ) as mock_schedule:
         file_watcher._event_handler.on_created(event)
         mock_schedule.assert_called_once_with(str(image_path))
 
@@ -817,7 +840,9 @@ async def test_event_handler_on_modified(file_watcher, temp_camera_root):
 
     event = FileModifiedEvent(str(image_path))
 
-    with patch.object(file_watcher._event_handler, "_schedule_async_task") as mock_schedule:
+    with patch.object(
+        file_watcher._event_handler, "_schedule_async_task", autospec=True
+    ) as mock_schedule:
         file_watcher._event_handler.on_modified(event)
         mock_schedule.assert_called_once_with(str(image_path))
 
@@ -833,7 +858,7 @@ def test_event_handler_ignores_directories(file_watcher, temp_camera_root):
 
     event = DirCreatedEvent(str(subdir))
 
-    with patch.object(file_watcher, "_schedule_file_processing") as mock_schedule:
+    with patch.object(file_watcher, "_schedule_file_processing", autospec=True) as mock_schedule:
         file_watcher._event_handler.on_created(event)
         mock_schedule.assert_not_called()
 
@@ -968,8 +993,10 @@ async def test_start_without_event_loop(tmp_path):
 
     # Mock get_running_loop to raise RuntimeError
     with (
-        patch("asyncio.get_running_loop", side_effect=RuntimeError("No running loop")),
-        patch.object(watcher.observer, "start"),
+        patch(
+            "asyncio.get_running_loop", side_effect=RuntimeError("No running loop"), autospec=True
+        ),
+        patch.object(watcher.observer, "start", autospec=True),
     ):
         # Should raise RuntimeError when no event loop is available
         with pytest.raises(RuntimeError, match="MUST be started within an async context"):
@@ -992,7 +1019,7 @@ async def test_start_creates_missing_camera_root(temp_camera_root):
         debounce_delay=0.1,
     )
 
-    with patch.object(watcher.observer, "start"):
+    with patch.object(watcher.observer, "start", autospec=True):
         await watcher.start()
 
         # Should create the directory
@@ -1669,14 +1696,14 @@ async def test_stop_uses_executor_for_blocking_join(file_watcher):
     2. For hash_executor.shutdown() (blocking executor shutdown)
     """
     # Start watcher
-    with patch.object(file_watcher.observer, "start"):
+    with patch.object(file_watcher.observer, "start", autospec=True):
         await file_watcher.start()
 
     # Mock observer methods
     with (
-        patch.object(file_watcher.observer, "stop") as mock_stop,
-        patch.object(file_watcher.observer, "join") as mock_join,
-        patch("asyncio.get_running_loop") as mock_get_loop,
+        patch.object(file_watcher.observer, "stop", autospec=True) as mock_stop,
+        patch.object(file_watcher.observer, "join", autospec=True) as mock_join,
+        patch("asyncio.get_running_loop", autospec=True) as mock_get_loop,
     ):
         mock_loop = AsyncMock()
         mock_get_loop.return_value = mock_loop
@@ -1907,8 +1934,12 @@ async def test_wait_for_file_stability_file_becomes_stable(file_watcher, temp_ca
         return simulated_time[0]
 
     with (
-        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
-        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep, autospec=True),
+        patch(
+            "backend.services.file_watcher.time.monotonic",
+            side_effect=fake_monotonic,
+            autospec=True,
+        ),
     ):
         # File should become stable since it's not being modified
         result = await file_watcher._wait_for_file_stability(str(image_path), stability_time=0.2)
@@ -1960,8 +1991,12 @@ async def test_wait_for_file_stability_file_never_stabilizes(temp_camera_root, m
         return original_stat(self)
 
     with (
-        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
-        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep, autospec=True),
+        patch(
+            "backend.services.file_watcher.time.monotonic",
+            side_effect=fake_monotonic,
+            autospec=True,
+        ),
         patch.object(Path, "stat", mock_stat),
     ):
         # File should never stabilize because it keeps changing
@@ -1993,8 +2028,12 @@ async def test_wait_for_file_stability_file_deleted_during_check(file_watcher, t
         return simulated_time[0]
 
     with (
-        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
-        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep, autospec=True),
+        patch(
+            "backend.services.file_watcher.time.monotonic",
+            side_effect=fake_monotonic,
+            autospec=True,
+        ),
     ):
         # File should return False because it was deleted
         result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=1.0)
@@ -2030,8 +2069,12 @@ async def test_wait_for_file_stability_custom_stability_time(file_watcher, temp_
         return simulated_time[0]
 
     with (
-        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
-        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep, autospec=True),
+        patch(
+            "backend.services.file_watcher.time.monotonic",
+            side_effect=fake_monotonic,
+            autospec=True,
+        ),
     ):
         # With custom stability time, should still complete successfully
         result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.1)
@@ -2069,8 +2112,14 @@ async def test_wait_for_file_stability_default_stability_time(temp_camera_root, 
         return simulated_time[0]
 
     with (
-        patch("backend.services.file_watcher.asyncio.sleep", side_effect=tracking_sleep),
-        patch("backend.services.file_watcher.time.monotonic", side_effect=mock_monotonic),
+        patch(
+            "backend.services.file_watcher.asyncio.sleep", side_effect=tracking_sleep, autospec=True
+        ),
+        patch(
+            "backend.services.file_watcher.time.monotonic",
+            side_effect=mock_monotonic,
+            autospec=True,
+        ),
     ):
         result = await watcher._wait_for_file_stability(str(file_path))
 
@@ -2183,8 +2232,12 @@ async def test_stability_check_file_grows_then_stabilizes(file_watcher, temp_cam
         return simulated_time[0]
 
     with (
-        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep),
-        patch("backend.services.file_watcher.time.monotonic", side_effect=fake_monotonic),
+        patch("backend.services.file_watcher.asyncio.sleep", side_effect=fake_sleep, autospec=True),
+        patch(
+            "backend.services.file_watcher.time.monotonic",
+            side_effect=fake_monotonic,
+            autospec=True,
+        ),
     ):
         # Should detect stability after simulated upload completes
         result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.5)

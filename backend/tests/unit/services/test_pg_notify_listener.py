@@ -177,8 +177,12 @@ class TestPgNotifyListenerConnection:
         mock_connection = AsyncMock()
 
         with (
-            patch("backend.services.pg_notify_listener.asyncpg.connect") as mock_connect,
-            patch("backend.services.pg_notify_listener.get_settings") as mock_settings,
+            patch(
+                "backend.services.pg_notify_listener.asyncpg.connect", autospec=True
+            ) as mock_connect,
+            patch(
+                "backend.services.pg_notify_listener.get_settings", autospec=True
+            ) as mock_settings,
         ):
             mock_settings.return_value.database_url = "postgresql+asyncpg://user:pass@localhost/db"  # pragma: allowlist secret  # pragma: allowlist secret
             mock_connect.return_value = mock_connection
@@ -210,9 +214,12 @@ class TestPgNotifyListenerConnection:
             patch(
                 "backend.services.pg_notify_listener.asyncpg.connect",
                 side_effect=connect_with_failures,
+                autospec=True,
             ),
-            patch("backend.services.pg_notify_listener.get_settings") as mock_settings,
-            patch("asyncio.sleep") as mock_sleep,
+            patch(
+                "backend.services.pg_notify_listener.get_settings", autospec=True
+            ) as mock_settings,
+            patch("asyncio.sleep", autospec=True) as mock_sleep,
         ):
             mock_settings.return_value.database_url = (
                 "postgresql+asyncpg://user:pass@localhost/db"  # pragma: allowlist secret
@@ -235,9 +242,12 @@ class TestPgNotifyListenerConnection:
             patch(
                 "backend.services.pg_notify_listener.asyncpg.connect",
                 side_effect=ConnectionError("Connection refused"),
+                autospec=True,
             ),
-            patch("backend.services.pg_notify_listener.get_settings") as mock_settings,
-            patch("asyncio.sleep"),
+            patch(
+                "backend.services.pg_notify_listener.get_settings", autospec=True
+            ) as mock_settings,
+            patch("asyncio.sleep", autospec=True),
         ):
             mock_settings.return_value.database_url = (
                 "postgresql+asyncpg://user:pass@localhost/db"  # pragma: allowlist secret
@@ -263,7 +273,7 @@ class TestPgNotifyListenerStartStop:
         """Test successful listener start."""
         listener = PgNotifyListener()
 
-        with patch.object(listener, "_connect") as mock_connect:
+        with patch.object(listener, "_connect", autospec=True) as mock_connect:
             await listener.start()
 
             assert listener._is_running is True
@@ -279,7 +289,7 @@ class TestPgNotifyListenerStartStop:
         listener = PgNotifyListener()
         listener._is_running = True
 
-        with patch.object(listener, "_connect") as mock_connect:
+        with patch.object(listener, "_connect", autospec=True) as mock_connect:
             await listener.start()
 
             mock_connect.assert_not_called()
@@ -339,7 +349,9 @@ class TestPgNotifyListenerHandlers:
             },
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await listener._handle_event_new(payload)
@@ -374,7 +386,9 @@ class TestPgNotifyListenerHandlers:
             },
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await listener._handle_event_update(payload)
@@ -400,7 +414,9 @@ class TestPgNotifyListenerHandlers:
             data={"id": 1, "risk_score": 85},
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             # Should not raise, just log the error
@@ -425,7 +441,9 @@ class TestPgNotifyListenerHandlers:
             },
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await listener._handle_detection_new(payload)
@@ -453,7 +471,9 @@ class TestPgNotifyListenerHandlers:
             data={"id": 100, "camera_id": "back_yard"},
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             # Should not raise, just log the error
@@ -478,7 +498,9 @@ class TestPgNotifyListenerHandlers:
             },
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             await listener._handle_alert_new(payload)
@@ -505,7 +527,9 @@ class TestPgNotifyListenerHandlers:
             data={"id": "alert-uuid-123", "event_id": 1},
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             # Should not raise, just log the error
@@ -540,7 +564,9 @@ class TestPgNotifyListenerHandlers:
             data={"id": 1},
         )
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             # Should not raise, just log the error
@@ -571,7 +597,7 @@ class TestPgNotifyListenerHandlers:
 
         payload_json = json.dumps({"operation": "INSERT", "table": "events", "data": {"id": 1}})
 
-        with patch.object(listener, "_handle_event_new") as mock_handler:
+        with patch.object(listener, "_handle_event_new", autospec=True) as mock_handler:
             await listener._handle_notification(PgNotifyChannel.EVENTS_NEW.value, payload_json)
 
             mock_handler.assert_called_once()
@@ -585,7 +611,7 @@ class TestPgNotifyListenerHandlers:
 
         payload_json = json.dumps({"operation": "UPDATE", "table": "events", "data": {"id": 1}})
 
-        with patch.object(listener, "_handle_event_update") as mock_handler:
+        with patch.object(listener, "_handle_event_update", autospec=True) as mock_handler:
             await listener._handle_notification(PgNotifyChannel.EVENTS_UPDATE.value, payload_json)
 
             mock_handler.assert_called_once()
@@ -599,7 +625,7 @@ class TestPgNotifyListenerHandlers:
 
         payload_json = json.dumps({"operation": "INSERT", "table": "detections", "data": {"id": 1}})
 
-        with patch.object(listener, "_handle_detection_new") as mock_handler:
+        with patch.object(listener, "_handle_detection_new", autospec=True) as mock_handler:
             await listener._handle_notification(PgNotifyChannel.DETECTIONS_NEW.value, payload_json)
 
             mock_handler.assert_called_once()
@@ -615,7 +641,7 @@ class TestPgNotifyListenerHandlers:
             {"operation": "INSERT", "table": "alerts", "data": {"id": "uuid-123"}}
         )
 
-        with patch.object(listener, "_handle_alert_new") as mock_handler:
+        with patch.object(listener, "_handle_alert_new", autospec=True) as mock_handler:
             await listener._handle_notification(PgNotifyChannel.ALERTS_NEW.value, payload_json)
 
             mock_handler.assert_called_once()
@@ -629,7 +655,9 @@ class TestPgNotifyListenerHandlers:
 
         payload_json = json.dumps({"operation": "INSERT", "table": "events", "data": {"id": 1}})
 
-        with patch.object(listener, "_handle_event_new", side_effect=RuntimeError("Handler error")):
+        with patch.object(
+            listener, "_handle_event_new", side_effect=RuntimeError("Handler error"), autospec=True
+        ):
             # Should not raise, just log the error
             await listener._handle_notification(PgNotifyChannel.EVENTS_NEW.value, payload_json)
 
@@ -649,7 +677,7 @@ class TestPgNotifyListenerCallback:
         mock_connection = MagicMock()
         payload = json.dumps({"operation": "INSERT", "table": "events", "data": {"id": 1}})
 
-        with patch("asyncio.create_task") as mock_create_task:
+        with patch("asyncio.create_task", autospec=True) as mock_create_task:
             listener._notification_callback(mock_connection, 12345, "events_new", payload)
 
             mock_create_task.assert_called_once()
@@ -735,7 +763,7 @@ class TestPgNotifyListenerLoop:
         async def cancel_after_sleep(*args):
             raise asyncio.CancelledError()
 
-        with patch("asyncio.sleep", side_effect=cancel_after_sleep):
+        with patch("asyncio.sleep", side_effect=cancel_after_sleep, autospec=True):
             # Should not raise
             await listener._listen_loop()
 
@@ -759,8 +787,8 @@ class TestPgNotifyListenerLoop:
             listener._is_running = False  # Stop loop after reconnect
 
         with (
-            patch.object(listener, "_connect", side_effect=mock_connect),
-            patch("asyncio.sleep"),
+            patch.object(listener, "_connect", side_effect=mock_connect, autospec=True),
+            patch("asyncio.sleep", autospec=True),
         ):
             await listener._listen_loop()
 
@@ -783,8 +811,8 @@ class TestPgNotifyListenerLoop:
             listener._is_running = False  # Stop loop
 
         with (
-            patch.object(listener, "_connect", side_effect=mock_connect),
-            patch("asyncio.sleep"),
+            patch.object(listener, "_connect", side_effect=mock_connect, autospec=True),
+            patch("asyncio.sleep", autospec=True),
         ):
             await listener._listen_loop()
 
@@ -813,7 +841,7 @@ class TestPgNotifyListenerLoop:
         mock_connection.is_closed.side_effect = is_closed_raises
         listener._connection = mock_connection
 
-        with patch("asyncio.sleep") as mock_sleep:
+        with patch("asyncio.sleep", autospec=True) as mock_sleep:
             await listener._listen_loop()
 
             # Should have marked unhealthy
@@ -840,7 +868,7 @@ class TestPgNotifyListenerLoop:
         mock_connection.is_closed.side_effect = is_closed_raises
         listener._connection = mock_connection
 
-        with patch("asyncio.sleep") as mock_sleep:
+        with patch("asyncio.sleep", autospec=True) as mock_sleep:
             await listener._listen_loop()
 
             # Should have stopped after max attempts
@@ -932,7 +960,9 @@ class TestPgNotifyListenerIntegration:
         }
         payload_json = json.dumps(payload_data)
 
-        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+        with patch(
+            "backend.services.pg_notify_listener.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_event_channel = "security_events"
 
             # Simulate notification callback

@@ -918,6 +918,7 @@ class TestGlobalRegistry:
         with patch(
             "backend.core.redis.init_redis",
             return_value=mock_redis,
+            autospec=True,
         ):
             registry = await get_service_registry()
             assert isinstance(registry, ServiceRegistry)

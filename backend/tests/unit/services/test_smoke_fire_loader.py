@@ -104,6 +104,12 @@ class TestLoadSmokeFireModel:
         """Test that load_smoke_fire_model returns a model instance."""
         from backend.services.smoke_fire_loader import load_smoke_fire_model
 
+        # No autospec: the module-level YOLO this patches is a *None*
+        # placeholder at import time (real class bound lazily) — autospec
+        # of a None target yields a NonCallableMagicMock and the loader's
+        # yolo_class(...) call dies. The None-vs-import branch is the
+        # production contract here; a plain MagicMock is the only usable
+        # stand-in.
         with patch("backend.services.smoke_fire_loader.YOLO") as mock_yolo:
             mock_model = MagicMock()
             mock_yolo.return_value = mock_model

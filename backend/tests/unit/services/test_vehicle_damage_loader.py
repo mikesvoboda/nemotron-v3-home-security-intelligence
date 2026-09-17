@@ -307,8 +307,8 @@ class TestLoadVehicleDamageModel:
         mock_model.names = {0: "crack", 1: "dent", 2: "glass_shatter"}
 
         # Patch YOLO where it's imported (inside the function)
-        with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=True):
+        with patch("ultralytics.YOLO", return_value=mock_model, autospec=True):
+            with patch("torch.cuda.is_available", return_value=True, autospec=True):
                 model = await load_vehicle_damage_model(model_path)
 
                 assert model is not None
@@ -347,8 +347,8 @@ class TestLoadVehicleDamageModel:
         mock_model.model.parameters.return_value = iter([])
 
         # Patch YOLO where it's imported
-        with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=True):
+        with patch("ultralytics.YOLO", return_value=mock_model, autospec=True):
+            with patch("torch.cuda.is_available", return_value=True, autospec=True):
                 # The model should load without raising — no meta tensors on this mock
                 model = await load_vehicle_damage_model(model_path)
 
@@ -384,11 +384,12 @@ class TestLoadVehicleDamageModel:
         mock_model.names = {0: "crack", 1: "dent", 2: "glass_shatter"}
         mock_model.model = mock_inner_model
 
-        with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=True):
+        with patch("ultralytics.YOLO", return_value=mock_model, autospec=True):
+            with patch("torch.cuda.is_available", return_value=True, autospec=True):
                 with patch(
                     "backend.services.vehicle_damage_loader._materialize_meta_tensors",
                     return_value=mock_inner_model,
+                    autospec=True,
                 ) as mock_materialize:
                     model = await load_vehicle_damage_model(model_path)
 
@@ -414,7 +415,7 @@ class TestLoadVehicleDamageModel:
         mock_yolo_class = MagicMock(return_value=mock_model)
 
         with patch("ultralytics.YOLO", mock_yolo_class):
-            with patch("torch.cuda.is_available", return_value=True):
+            with patch("torch.cuda.is_available", return_value=True, autospec=True):
                 await load_vehicle_damage_model(model_path)
 
                 # Verify YOLO was called with the correct weights path
@@ -448,13 +449,14 @@ class TestLoadVehicleDamageModel:
         mock_model.names = {0: "crack", 1: "dent"}
         mock_model.model = mock_inner_model
 
-        with patch("ultralytics.YOLO", return_value=mock_model):
-            with patch("torch.cuda.is_available", return_value=True):
+        with patch("ultralytics.YOLO", return_value=mock_model, autospec=True):
+            with patch("torch.cuda.is_available", return_value=True, autospec=True):
                 # Simulate _materialize_meta_tensors failing — on CUDA the loader
                 # falls back to warmup inference via model.predict()
                 with patch(
                     "backend.services.vehicle_damage_loader._materialize_meta_tensors",
                     side_effect=RuntimeError("materialization failed"),
+                    autospec=True,
                 ):
                     model = await load_vehicle_damage_model(model_path)
 

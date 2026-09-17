@@ -44,7 +44,11 @@ async def read_through_cache(mock_settings, mock_redis):
             return {"id": "existing", "name": "Existing Item"}
         return None
 
-    with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.read_through_cache.get_settings",
+        return_value=mock_settings,
+        autospec=True,
+    ):
         cache = ReadThroughCache(
             cache_prefix="test",
             loader=mock_loader,
@@ -86,7 +90,11 @@ class TestReadThroughCache:
 
     def test_make_cache_key(self, mock_settings):
         """Test cache key generation."""
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="cameras",
                 loader=AsyncMock(),
@@ -97,7 +105,11 @@ class TestReadThroughCache:
 
     def test_make_lock_key(self, mock_settings):
         """Test lock key generation for stampede protection."""
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="cameras",
                 loader=AsyncMock(),
@@ -158,7 +170,11 @@ class TestReadThroughCache:
         # First request gets lock (returns True), second request doesn't (returns False)
         mock_redis.set.side_effect = [True, True]  # nx=True returns True on first call
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=counting_loader,
@@ -180,7 +196,11 @@ class TestReadThroughCache:
 
         mock_redis.get.return_value = None
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=simple_loader,
@@ -203,7 +223,11 @@ class TestReadThroughCache:
 
         mock_redis.get.side_effect = RedisConnectionError("Connection refused")
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=fallback_loader,
@@ -258,7 +282,11 @@ class TestPreConfiguredCaches:
         """Test camera cache is a singleton."""
         await reset_read_through_caches()
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache1 = await get_camera_read_through_cache()
             cache2 = await get_camera_read_through_cache()
 
@@ -270,7 +298,11 @@ class TestPreConfiguredCaches:
         """Test camera cache uses correct prefix."""
         await reset_read_through_caches()
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = await get_camera_read_through_cache()
 
         assert cache._prefix == "cameras"
@@ -290,7 +322,11 @@ class TestStampedeProtection:
         async def slow_loader(key: str) -> dict:
             return {"id": key}
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=slow_loader,
@@ -321,7 +357,11 @@ class TestStampedeProtection:
         async def quick_loader(key: str) -> dict:
             return {"id": key}
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=quick_loader,
@@ -356,8 +396,14 @@ class TestReadThroughCacheErrorHandling:
     @pytest.mark.asyncio
     async def test_get_redis_initialization(self, mock_settings):
         """Test that _get_redis initializes Redis client."""
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
-            with patch("backend.services.read_through_cache.init_redis") as mock_init:
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
+            with patch(
+                "backend.services.read_through_cache.init_redis", autospec=True
+            ) as mock_init:
                 mock_redis_client = AsyncMock()
                 mock_init.return_value = mock_redis_client
 
@@ -378,7 +424,11 @@ class TestReadThroughCacheErrorHandling:
         async def simple_loader(key: str) -> dict:
             return {"id": key}
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=simple_loader,
@@ -400,7 +450,11 @@ class TestReadThroughCacheErrorHandling:
         async def simple_loader(key: str) -> dict:
             return {"id": key}
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=simple_loader,
@@ -427,7 +481,11 @@ class TestReadThroughCacheErrorHandling:
         mock_redis.get.return_value = None  # Cache still empty after double-check
         mock_redis.delete.return_value = 1
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=slow_loader,
@@ -461,7 +519,11 @@ class TestReadThroughCacheErrorHandling:
         mock_redis.get.return_value = None
         mock_redis.delete.return_value = 1
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=none_loader,
@@ -493,7 +555,11 @@ class TestReadThroughCacheErrorHandling:
         mock_redis.get.return_value = None
         mock_redis.delete.return_value = 1
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=failing_loader,
@@ -522,7 +588,11 @@ class TestReadThroughCacheErrorHandling:
 
         mock_redis.delete.side_effect = RedisTimeoutError("Timeout")
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=simple_loader,
@@ -544,7 +614,11 @@ class TestReadThroughCacheErrorHandling:
         # Lock not acquired (another request holds it)
         mock_redis.set.return_value = False
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = ReadThroughCache(
                 cache_prefix="test",
                 loader=simple_loader,
@@ -553,7 +627,7 @@ class TestReadThroughCacheErrorHandling:
             cache._redis = mock_redis
 
             # Mock _wait_for_cache to return immediately
-            with patch.object(cache, "_wait_for_cache") as mock_wait:
+            with patch.object(cache, "_wait_for_cache", autospec=True) as mock_wait:
                 mock_wait.return_value = ReadThroughResult(
                     value={"id": "key1"},
                     from_cache=True,
@@ -582,7 +656,11 @@ class TestPreConfiguredCachesExtended:
 
         await reset_read_through_caches()
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache1 = await get_event_read_through_cache()
             cache2 = await get_event_read_through_cache()
 
@@ -596,7 +674,11 @@ class TestPreConfiguredCachesExtended:
 
         await reset_read_through_caches()
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache1 = await get_alert_read_through_cache()
             cache2 = await get_alert_read_through_cache()
 
@@ -610,7 +692,11 @@ class TestPreConfiguredCachesExtended:
 
         await reset_read_through_caches()
 
-        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.read_through_cache.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             cache = await get_event_read_through_cache()
 
         assert cache._ttl == 60  # Short TTL from settings
@@ -621,7 +707,7 @@ class TestPreConfiguredCachesExtended:
         """Test _load_camera returns None for nonexistent camera."""
         from backend.services.read_through_cache import _load_camera
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -641,7 +727,7 @@ class TestPreConfiguredCachesExtended:
 
         from backend.services.read_through_cache import _load_camera
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_camera = MagicMock()
             mock_camera.id = "cam1"
             mock_camera.name = "Front Door"
@@ -669,7 +755,7 @@ class TestPreConfiguredCachesExtended:
         from backend.services.read_through_cache import _load_event
 
         # Mock get_session to avoid database initialization
-        with patch("backend.core.database.get_session"):
+        with patch("backend.core.database.get_session", autospec=True):
             result = await _load_event("not-a-uuid")
 
         assert result is None
@@ -684,7 +770,7 @@ class TestPreConfiguredCachesExtended:
 
         event_id = str(uuid4())
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_event = MagicMock()
             mock_event.id = uuid4()
             mock_event.camera_id = "cam1"
@@ -714,7 +800,7 @@ class TestPreConfiguredCachesExtended:
         from backend.services.read_through_cache import _load_alert_rule
 
         # Mock get_session to avoid database initialization
-        with patch("backend.core.database.get_session"):
+        with patch("backend.core.database.get_session", autospec=True):
             result = await _load_alert_rule("not-a-uuid")
 
         assert result is None
@@ -729,7 +815,7 @@ class TestPreConfiguredCachesExtended:
 
         alert_id = str(uuid4())
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_severity = MagicMock()
             mock_severity.value = "high"
 
@@ -759,7 +845,7 @@ class TestPreConfiguredCachesExtended:
         """Test _load_camera handles None created_at."""
         from backend.services.read_through_cache import _load_camera
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_camera = MagicMock()
             mock_camera.id = "cam1"
             mock_camera.name = "Front Door"
@@ -789,7 +875,7 @@ class TestPreConfiguredCachesExtended:
 
         event_id = str(uuid4())
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_event = MagicMock()
             mock_event.id = uuid4()
             mock_event.camera_id = "cam1"
@@ -822,7 +908,7 @@ class TestPreConfiguredCachesExtended:
 
         alert_id = str(uuid4())
 
-        with patch("backend.core.database.get_session") as mock_get_session:
+        with patch("backend.core.database.get_session", autospec=True) as mock_get_session:
             mock_alert = MagicMock()
             mock_alert.id = uuid4()
             mock_alert.name = "Test Alert"

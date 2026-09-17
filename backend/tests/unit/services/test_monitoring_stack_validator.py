@@ -60,6 +60,7 @@ def validator(mock_settings: MagicMock) -> MonitoringStackValidator:
     with patch(
         "backend.services.monitoring_stack_validator.get_settings",
         return_value=mock_settings,
+        autospec=True,
     ):
         return MonitoringStackValidator()
 
@@ -204,6 +205,7 @@ class TestMonitoringStackValidatorInit:
         with patch(
             "backend.services.monitoring_stack_validator.get_settings",
             return_value=mock_settings,
+            autospec=True,
         ):
             validator = MonitoringStackValidator()
             assert validator._prometheus_url == "http://prometheus:9090"
@@ -241,7 +243,9 @@ class TestPrometheusValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_prometheus()
 
         assert result.healthy is True
@@ -260,7 +264,9 @@ class TestPrometheusValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_prometheus()
 
         assert result.healthy is False
@@ -279,7 +285,9 @@ class TestPrometheusValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_prometheus()
 
         assert result.healthy is False
@@ -304,7 +312,9 @@ class TestScrapeTargetsValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             targets = await validator.get_scrape_targets()
 
         assert len(targets) == 2
@@ -328,7 +338,9 @@ class TestScrapeTargetsValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             targets = await validator.get_scrape_targets()
 
         assert len(targets) == 0
@@ -343,7 +355,9 @@ class TestScrapeTargetsValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             targets = await validator.get_scrape_targets()
 
         assert len(targets) == 0
@@ -371,7 +385,9 @@ class TestAlertingRulesValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_alerting_rules()
 
         assert result.loaded is True
@@ -391,7 +407,9 @@ class TestAlertingRulesValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_alerting_rules()
 
         assert result.loaded is True
@@ -407,7 +425,9 @@ class TestAlertingRulesValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_alerting_rules()
 
         assert result.loaded is False
@@ -440,7 +460,9 @@ class TestGrafanaValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_grafana()
 
         assert result.healthy is True
@@ -459,7 +481,9 @@ class TestGrafanaValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_grafana()
 
         assert result.healthy is False
@@ -479,7 +503,9 @@ class TestGrafanaValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_grafana()
 
         assert result.healthy is False
@@ -504,7 +530,9 @@ class TestDashboardValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             dashboards = await validator.get_dashboards()
 
         assert len(dashboards) == 2
@@ -522,7 +550,9 @@ class TestDashboardValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             dashboards = await validator.get_dashboards()
 
         assert len(dashboards) == 0
@@ -537,7 +567,9 @@ class TestDashboardValidation:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             dashboards = await validator.get_dashboards()
 
         assert len(dashboards) == 0
@@ -577,9 +609,13 @@ class TestCombinedHealthCheck:
         )
 
         with (
-            patch.object(validator, "check_prometheus", return_value=prometheus_status),
-            patch.object(validator, "check_grafana", return_value=grafana_status),
-            patch.object(validator, "check_alerting_rules", return_value=alerting_status),
+            patch.object(
+                validator, "check_prometheus", return_value=prometheus_status, autospec=True
+            ),
+            patch.object(validator, "check_grafana", return_value=grafana_status, autospec=True),
+            patch.object(
+                validator, "check_alerting_rules", return_value=alerting_status, autospec=True
+            ),
         ):
             result = await validator.check_health()
 
@@ -614,9 +650,13 @@ class TestCombinedHealthCheck:
         )
 
         with (
-            patch.object(validator, "check_prometheus", return_value=prometheus_status),
-            patch.object(validator, "check_grafana", return_value=grafana_status),
-            patch.object(validator, "check_alerting_rules", return_value=alerting_status),
+            patch.object(
+                validator, "check_prometheus", return_value=prometheus_status, autospec=True
+            ),
+            patch.object(validator, "check_grafana", return_value=grafana_status, autospec=True),
+            patch.object(
+                validator, "check_alerting_rules", return_value=alerting_status, autospec=True
+            ),
         ):
             result = await validator.check_health()
 
@@ -648,9 +688,13 @@ class TestCombinedHealthCheck:
         )
 
         with (
-            patch.object(validator, "check_prometheus", return_value=prometheus_status),
-            patch.object(validator, "check_grafana", return_value=grafana_status),
-            patch.object(validator, "check_alerting_rules", return_value=alerting_status),
+            patch.object(
+                validator, "check_prometheus", return_value=prometheus_status, autospec=True
+            ),
+            patch.object(validator, "check_grafana", return_value=grafana_status, autospec=True),
+            patch.object(
+                validator, "check_alerting_rules", return_value=alerting_status, autospec=True
+            ),
         ):
             result = await validator.check_health()
 
@@ -682,9 +726,13 @@ class TestCombinedHealthCheck:
         )
 
         with (
-            patch.object(validator, "check_prometheus", return_value=prometheus_status),
-            patch.object(validator, "check_grafana", return_value=grafana_status),
-            patch.object(validator, "check_alerting_rules", return_value=alerting_status),
+            patch.object(
+                validator, "check_prometheus", return_value=prometheus_status, autospec=True
+            ),
+            patch.object(validator, "check_grafana", return_value=grafana_status, autospec=True),
+            patch.object(
+                validator, "check_alerting_rules", return_value=alerting_status, autospec=True
+            ),
         ):
             result = await validator.check_health()
 
@@ -856,7 +904,9 @@ class TestErrorHandling:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_prometheus()
 
         assert result.healthy is False
@@ -875,7 +925,9 @@ class TestErrorHandling:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_grafana()
 
         assert result.healthy is False
@@ -895,7 +947,9 @@ class TestErrorHandling:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_prometheus()
 
         assert result.healthy is False
@@ -944,7 +998,9 @@ class TestIntegrationLike:
         async def get_mock_client() -> MagicMock:
             return mock_http_client
 
-        with patch.object(validator, "_get_http_client", side_effect=get_mock_client):
+        with patch.object(
+            validator, "_get_http_client", side_effect=get_mock_client, autospec=True
+        ):
             result = await validator.check_health()
 
         # Verify result structure

@@ -75,8 +75,14 @@ def client(mock_settings: MagicMock) -> EnrichmentClient:
     mock_health_client.aclose = AsyncMock()
 
     with (
-        patch("backend.services.enrichment_client.get_settings", return_value=mock_settings),
-        patch("httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client]),
+        patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ),
+        patch(
+            "httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client], autospec=True
+        ),
     ):
         client = EnrichmentClient()
         # Ensure the mocked clients are properly attached
@@ -95,14 +101,22 @@ class TestCircuitBreakerInitialization:
 
     def test_circuit_breaker_initialized_on_client_creation(self, mock_settings: MagicMock) -> None:
         """Test that circuit breaker is initialized when client is created."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert hasattr(client, "_circuit_breaker")
             assert client._circuit_breaker is not None
 
     def test_circuit_breaker_uses_config_values(self, mock_settings: MagicMock) -> None:
         """Test that circuit breaker uses configuration values."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             cb = client._circuit_breaker
             assert cb._failure_threshold == 3
@@ -111,19 +125,31 @@ class TestCircuitBreakerInitialization:
 
     def test_circuit_breaker_initial_state_is_closed(self, mock_settings: MagicMock) -> None:
         """Test that circuit breaker starts in CLOSED state."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert client._circuit_breaker.get_state() == CircuitState.CLOSED
 
     def test_circuit_breaker_name_is_enrichment(self, mock_settings: MagicMock) -> None:
         """Test that circuit breaker has correct service name."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert client._circuit_breaker._name == "enrichment_unified"
 
     def test_per_endpoint_breakers_initialized(self, mock_settings: MagicMock) -> None:
         """Test that per-endpoint breakers are initialized."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             client = EnrichmentClient()
             assert "vehicle" in client._breakers
             assert "clothing" in client._breakers
@@ -195,7 +221,7 @@ class TestCircuitBreakerStateTransitions:
         original_monotonic = time.monotonic
         mock_time = original_monotonic() + 35.0  # Beyond recovery timeout (30s)
 
-        with patch("time.monotonic", return_value=mock_time):
+        with patch("time.monotonic", return_value=mock_time, autospec=True):
             # allow_request should transition to HALF_OPEN
             assert client._breakers["vehicle"].allow_request() is True
             assert client._breakers["vehicle"].get_state() == CircuitState.HALF_OPEN
@@ -212,7 +238,7 @@ class TestCircuitBreakerStateTransitions:
         # Mock time to trigger HALF_OPEN
         original_time = time.monotonic()
 
-        with patch("time.monotonic", return_value=original_time + 35.0):
+        with patch("time.monotonic", return_value=original_time + 35.0, autospec=True):
             # Transition to HALF_OPEN
             client._breakers["vehicle"].allow_request()
             assert client._breakers["vehicle"].get_state() == CircuitState.HALF_OPEN
@@ -531,7 +557,9 @@ class TestGracefulDegradation:
         for _ in range(3):
             client._breakers["vehicle"].record_failure()
 
-        with patch("backend.services.enrichment_client.record_pipeline_error") as mock_record:
+        with patch(
+            "backend.services.enrichment_client.record_pipeline_error", autospec=True
+        ) as mock_record:
             with pytest.raises(EnrichmentUnavailableError):
                 await client.classify_vehicle(sample_image)
 

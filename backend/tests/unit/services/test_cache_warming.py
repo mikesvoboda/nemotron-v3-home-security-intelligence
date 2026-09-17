@@ -150,7 +150,9 @@ class TestCacheWarmer:
         """Test warming is skipped when disabled."""
         mock_settings.cache_warming_enabled = False
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer = CacheWarmer()
             report = await warmer.warm_all()
 
@@ -172,7 +174,9 @@ class TestCacheWarmer:
             await asyncio.sleep(0.01)
             return 10
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer = CacheWarmer(strategy=WarmingStrategy.PARALLEL)
             warmer.register_warmer("cache1", warmer1)
             warmer.register_warmer("cache2", warmer2)
@@ -198,7 +202,9 @@ class TestCacheWarmer:
             call_order.append("warmer2_end")
             return 10
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer = CacheWarmer(strategy=WarmingStrategy.SEQUENTIAL)
             warmer.register_warmer("cache1", warmer1)
             warmer.register_warmer("cache2", warmer2)
@@ -218,7 +224,9 @@ class TestCacheWarmer:
         async def failing_warmer():
             raise ValueError("Test error")
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer = CacheWarmer(strategy=WarmingStrategy.PARALLEL)
             warmer.register_warmer("success", success_warmer)
             warmer.register_warmer("failure", failing_warmer)
@@ -238,7 +246,9 @@ class TestCacheWarmer:
             await asyncio.sleep(10)  # Will timeout
             return 5
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer = CacheWarmer(strategy=WarmingStrategy.PARALLEL, timeout_seconds=0.1)
             warmer.register_warmer("slow", slow_warmer)
             report = await warmer.warm_all()
@@ -257,7 +267,9 @@ class TestGetCacheWarmer:
         """Test cache warmer singleton is created."""
         await reset_cache_warmer()
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer1 = await get_cache_warmer()
             warmer2 = await get_cache_warmer()
 
@@ -269,7 +281,9 @@ class TestGetCacheWarmer:
         """Test cache warmer singleton can be reset."""
         await reset_cache_warmer()
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer1 = await get_cache_warmer()
             await reset_cache_warmer()
             warmer2 = await get_cache_warmer()
@@ -287,7 +301,9 @@ class TestWarmCachesOnStartup:
         await reset_cache_warmer()
         mock_settings.cache_warming_enabled = False  # Skip actual warming
 
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             report = await warm_caches_on_startup()
 
         assert isinstance(report, WarmingReport)
@@ -300,7 +316,9 @@ class TestDefaultWarmers:
     @pytest.mark.asyncio
     async def test_register_default_warmers(self, mock_settings):
         """Test default warmers are registered."""
-        with patch("backend.services.cache_warming.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cache_warming.get_settings", return_value=mock_settings, autospec=True
+        ):
             warmer = CacheWarmer()
             warmer._register_default_warmers()
 
@@ -334,11 +352,16 @@ class TestDefaultWarmers:
         mock_session_cm.__aexit__.return_value = None
 
         with (
-            patch("backend.services.cache_warming.get_settings", return_value=mock_settings),
-            patch("backend.core.database.get_session", return_value=mock_session_cm),
+            patch(
+                "backend.services.cache_warming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch("backend.core.database.get_session", return_value=mock_session_cm, autospec=True),
             patch(
                 "backend.services.cache_service.get_cache_service",
                 return_value=mock_cache,
+                autospec=True,
             ),
         ):
             warmer = CacheWarmer()
@@ -353,10 +376,15 @@ class TestDefaultWarmers:
         mock_cache = AsyncMock()
 
         with (
-            patch("backend.services.cache_warming.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.cache_warming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
             patch(
                 "backend.services.cache_service.get_cache_service",
                 return_value=mock_cache,
+                autospec=True,
             ),
         ):
             warmer = CacheWarmer()

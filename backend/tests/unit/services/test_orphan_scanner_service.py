@@ -191,6 +191,7 @@ class TestScannerInitialization:
         with patch(
             "backend.services.orphan_scanner_service.get_settings",
             return_value=mock_settings,
+            autospec=True,
         ):
             scanner = OrphanedFileScanner()
 
@@ -265,7 +266,9 @@ class TestFileListing:
 
     def test_list_files_permission_error(self, tmp_path, scanner):
         """Test listing handles permission errors gracefully."""
-        with patch("pathlib.Path.rglob", side_effect=PermissionError("Access denied")):
+        with patch(
+            "pathlib.Path.rglob", side_effect=PermissionError("Access denied"), autospec=True
+        ):
             files = scanner._list_files(tmp_path)
         assert files == []
 

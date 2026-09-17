@@ -36,7 +36,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = True
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-gateway:8090/clip"
@@ -46,7 +50,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = True
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/"
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-gateway:8090/clip"
@@ -56,7 +64,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = False
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-clip:8093"
@@ -66,7 +78,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = True
         _base_mock_settings.ai_gateway_url = None
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-clip:8093"
@@ -76,7 +92,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = True
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient(base_url="http://custom-clip:9999/")
 
         assert client._base_url == "http://custom-clip:9999"
@@ -88,7 +108,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = False
         _base_mock_settings.ai_gateway_url = None
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient(base_url="http://custom-clip:9999")
 
         assert client._base_url == "http://custom-clip:9999"
@@ -99,7 +123,11 @@ class TestCLIPClientGatewayRouting:
         del _base_mock_settings.use_ai_gateway
         del _base_mock_settings.ai_gateway_url
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-clip:8093"
@@ -109,7 +137,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.use_ai_gateway = True
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/v1"
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-gateway:8090/v1/clip"
@@ -120,7 +152,11 @@ class TestCLIPClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = None
         _base_mock_settings.clip_url = "http://ai-clip:8093/"
 
-        with patch("backend.services.clip_client.get_settings", return_value=_base_mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
+        ):
             client = CLIPClient()
 
         assert client._base_url == "http://ai-clip:8093"

@@ -42,7 +42,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -56,7 +58,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -68,7 +72,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -81,7 +87,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -94,7 +102,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = None
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -107,7 +117,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient(base_url="http://custom-enrichment:9999/")
 
@@ -123,7 +135,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient(light_base_url="http://custom-light:9998/")
 
@@ -137,7 +151,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient(
                 base_url="http://custom-heavy:9999",
@@ -153,7 +169,9 @@ class TestEnrichmentClientGatewayRouting:
         del _base_mock_settings.ai_gateway_url
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -166,7 +184,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/v1"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 
@@ -183,7 +203,9 @@ class TestEnrichmentClientGatewayRouting:
         _base_mock_settings.enrichment_light_url = "http://ai-enrichment-light:8096/"
 
         with patch(
-            "backend.services.enrichment_client.get_settings", return_value=_base_mock_settings
+            "backend.services.enrichment_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = EnrichmentClient()
 

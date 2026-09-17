@@ -26,7 +26,9 @@ class TestDetectorClientSegmentation:
     @pytest.fixture
     def detector_client(self, mock_http_client):
         """Create a DetectorClient with mocked HTTP client."""
-        with patch.object(DetectorClient, "_get_semaphore", return_value=AsyncMock()):
+        with patch.object(
+            DetectorClient, "_get_semaphore", return_value=AsyncMock(), autospec=True
+        ):
             client = DetectorClient()
             client._http_client = mock_http_client
             return client

@@ -435,7 +435,7 @@ class TestModelManager:
                     raise ImportError("No module named 'torch'")
                 return original_import(name, *args, **kwargs)
 
-            with patch("builtins.__import__", side_effect=mock_import):
+            with patch("builtins.__import__", side_effect=mock_import, autospec=True):
                 # This should not raise even when torch is not installed
                 async with manager.load("yolo11-license-plate"):
                     pass
@@ -1209,6 +1209,7 @@ class TestModelZooLoadFunctions:
                 patch(
                     "builtins.__import__",
                     side_effect=ImportError("No module named 'ultralytics'"),
+                    autospec=True,
                 ),
                 pytest.raises(ImportError),
             ):
@@ -1243,6 +1244,7 @@ class TestModelZooLoadFunctions:
             patch(
                 "backend.services.model_zoo._is_paddleocr_available",
                 return_value=False,
+                autospec=True,
             ),
             pytest.raises(RuntimeError, match="paddleocr package not installed"),
         ):
@@ -1263,6 +1265,7 @@ class TestModelZooLoadFunctions:
             patch(
                 "backend.services.model_zoo._is_paddleocr_available",
                 return_value=True,
+                autospec=True,
             ),
             patch.dict("sys.modules", {"paddleocr": mock_paddleocr_module}),
             pytest.raises(RuntimeError, match="Failed to load PaddleOCR"),
@@ -1278,7 +1281,7 @@ class TestPaddleocrAvailability:
         from backend.services.model_zoo import _is_paddleocr_available
 
         # Mock find_spec to return None (module not found)
-        with patch("importlib.util.find_spec", return_value=None):
+        with patch("importlib.util.find_spec", return_value=None, autospec=True):
             assert _is_paddleocr_available() is False
 
     def test_is_paddleocr_available_when_installed(self) -> None:
@@ -1287,7 +1290,7 @@ class TestPaddleocrAvailability:
 
         # Mock find_spec to return a spec (module found)
         mock_spec = MagicMock()
-        with patch("importlib.util.find_spec", return_value=mock_spec):
+        with patch("importlib.util.find_spec", return_value=mock_spec, autospec=True):
             assert _is_paddleocr_available() is True
 
     def test_is_paddleocr_available_handles_import_error(self) -> None:
@@ -1295,7 +1298,7 @@ class TestPaddleocrAvailability:
         from backend.services.model_zoo import _is_paddleocr_available
 
         # Mock find_spec to raise ImportError
-        with patch("importlib.util.find_spec", side_effect=ImportError("test")):
+        with patch("importlib.util.find_spec", side_effect=ImportError("test"), autospec=True):
             assert _is_paddleocr_available() is False
 
 
@@ -1322,6 +1325,7 @@ class TestOptionalDependencyHandling:
             patch(
                 "backend.services.model_zoo._is_paddleocr_available",
                 return_value=False,
+                autospec=True,
             ),
             pytest.raises(RuntimeError, match="paddleocr package not installed"),
         ):
@@ -1471,6 +1475,7 @@ class TestYoloWorldLoader:
             patch(
                 "builtins.__import__",
                 side_effect=ImportError("No module named 'ultralytics'"),
+                autospec=True,
             ),
             pytest.raises(ImportError, match="ultralytics"),
         ):
@@ -1505,7 +1510,7 @@ class TestYoloWorldLoader:
         mock_ultralytics.YOLOWorld = mock_yolo_world_class
 
         with patch.dict("sys.modules", {"ultralytics": mock_ultralytics}):
-            with patch("torch.cuda.is_available", return_value=True):
+            with patch("torch.cuda.is_available", return_value=True, autospec=True):
                 result = await load_yolo_world_model("yolov8s-worldv2.pt")
 
             assert result is mock_model
@@ -1778,6 +1783,7 @@ class TestDepthAnythingLoader:
             patch(
                 "builtins.__import__",
                 side_effect=ImportError("No module named 'transformers'"),
+                autospec=True,
             ),
             pytest.raises(ImportError),
         ):
@@ -2337,6 +2343,7 @@ class TestViTPoseLoaderFunctions:
                 patch(
                     "builtins.__import__",
                     side_effect=ImportError("No module named 'transformers'"),
+                    autospec=True,
                 ),
                 pytest.raises(ImportError),
             ):

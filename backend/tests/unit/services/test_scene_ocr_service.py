@@ -518,7 +518,7 @@ class TestSceneOCRService:
             ]
         }
 
-        with patch.object(service, "_get_client") as mock_get_client:
+        with patch.object(service, "_get_client", autospec=True) as mock_get_client:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -546,7 +546,7 @@ class TestSceneOCRService:
             ]
         }
 
-        with patch.object(service, "_get_client") as mock_get_client:
+        with patch.object(service, "_get_client", autospec=True) as mock_get_client:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -568,7 +568,7 @@ class TestSceneOCRService:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch.object(service, "_get_client") as mock_get_client:
+        with patch.object(service, "_get_client", autospec=True) as mock_get_client:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -599,7 +599,7 @@ class TestSceneOCRService:
         mock_response.status_code = 200
         mock_response.json.return_value = {"regions": []}
 
-        with patch.object(service, "_get_client") as mock_get_client:
+        with patch.object(service, "_get_client", autospec=True) as mock_get_client:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -631,7 +631,7 @@ class TestSceneOCRService:
             ]
         }
 
-        with patch.object(service, "_get_client") as mock_get_client:
+        with patch.object(service, "_get_client", autospec=True) as mock_get_client:
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_response
             mock_get_client.return_value = mock_client
@@ -817,7 +817,7 @@ class TestSceneOCRService:
             ]
         }
 
-        with patch.object(service, "_get_client") as mock_get_client:
+        with patch.object(service, "_get_client", autospec=True) as mock_get_client:
             mock_client = AsyncMock()
             # Default to frame_response, the first call is always the frame OCR
             mock_client.post.return_value = frame_response

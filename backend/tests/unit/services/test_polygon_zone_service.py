@@ -177,7 +177,7 @@ class TestCreateZone:
         sample_zone_create: PolygonZoneCreate,
     ) -> None:
         """Test zone creation logs the event."""
-        with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch("backend.services.polygon_zone_service.logger", autospec=True) as mock_logger:
             await polygon_zone_service.create_zone("backyard", sample_zone_create)
 
             mock_logger.info.assert_called_once()
@@ -352,7 +352,9 @@ class TestUpdateZone:
     ) -> None:
         """Test updating zone name."""
         # Mock get_zone to return the sample zone
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone) as mock_get:
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ) as mock_get:
             data = PolygonZoneUpdate(name="Updated Pool Area")
 
             result = await polygon_zone_service.update_zone(1, data)
@@ -370,7 +372,9 @@ class TestUpdateZone:
         sample_zone: PolygonZone,
     ) -> None:
         """Test updating zone with enum zone_type."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             data = PolygonZoneUpdate(zone_type=PolygonZoneType.MONITORED)
 
             result = await polygon_zone_service.update_zone(1, data)
@@ -386,7 +390,9 @@ class TestUpdateZone:
         sample_zone: PolygonZone,
     ) -> None:
         """Test updating multiple zone fields."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             data = PolygonZoneUpdate(
                 name="Updated Zone",
                 alert_threshold=5,
@@ -409,7 +415,7 @@ class TestUpdateZone:
         mock_session: AsyncMock,
     ) -> None:
         """Test updating non-existent zone returns None."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=None):
+        with patch.object(polygon_zone_service, "get_zone", return_value=None, autospec=True):
             data = PolygonZoneUpdate(name="Test")
 
             result = await polygon_zone_service.update_zone(999, data)
@@ -425,8 +431,12 @@ class TestUpdateZone:
         sample_zone: PolygonZone,
     ) -> None:
         """Test zone update logs the event."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
+            with patch(
+                "backend.services.polygon_zone_service.logger", autospec=True
+            ) as mock_logger:
                 data = PolygonZoneUpdate(name="Updated")
 
                 await polygon_zone_service.update_zone(1, data)
@@ -452,7 +462,9 @@ class TestDeleteZone:
         sample_zone: PolygonZone,
     ) -> None:
         """Test successful zone deletion."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             result = await polygon_zone_service.delete_zone(1)
 
             assert result is True
@@ -466,7 +478,7 @@ class TestDeleteZone:
         mock_session: AsyncMock,
     ) -> None:
         """Test deleting non-existent zone returns False."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=None):
+        with patch.object(polygon_zone_service, "get_zone", return_value=None, autospec=True):
             result = await polygon_zone_service.delete_zone(999)
 
             assert result is False
@@ -480,8 +492,12 @@ class TestDeleteZone:
         sample_zone: PolygonZone,
     ) -> None:
         """Test zone deletion logs the event."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
+            with patch(
+                "backend.services.polygon_zone_service.logger", autospec=True
+            ) as mock_logger:
                 await polygon_zone_service.delete_zone(1)
 
                 mock_logger.info.assert_called_once()
@@ -505,7 +521,9 @@ class TestUpdateCount:
         sample_zone: PolygonZone,
     ) -> None:
         """Test successful count update."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             await polygon_zone_service.update_count(1, count=5)
 
             assert sample_zone.current_count == 5
@@ -521,7 +539,9 @@ class TestUpdateCount:
         """Test updating count to zero."""
         sample_zone.current_count = 10
 
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             await polygon_zone_service.update_count(1, count=0)
 
             assert sample_zone.current_count == 0
@@ -545,8 +565,10 @@ class TestUpdateCount:
         mock_session: AsyncMock,
     ) -> None:
         """Test updating count for non-existent zone logs warning."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=None):
-            with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch.object(polygon_zone_service, "get_zone", return_value=None, autospec=True):
+            with patch(
+                "backend.services.polygon_zone_service.logger", autospec=True
+            ) as mock_logger:
                 await polygon_zone_service.update_count(999, count=5)
 
                 mock_logger.warning.assert_called_once()
@@ -560,8 +582,12 @@ class TestUpdateCount:
         sample_zone: PolygonZone,
     ) -> None:
         """Test count update logs debug message."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
+            with patch(
+                "backend.services.polygon_zone_service.logger", autospec=True
+            ) as mock_logger:
                 await polygon_zone_service.update_count(1, count=3)
 
                 mock_logger.debug.assert_called_once()
@@ -587,7 +613,9 @@ class TestSetActive:
         """Test enabling a zone."""
         sample_zone.is_active = False
 
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             result = await polygon_zone_service.set_active(1, is_active=True)
 
             assert result is not None
@@ -603,7 +631,9 @@ class TestSetActive:
         sample_zone: PolygonZone,
     ) -> None:
         """Test disabling a zone."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
             result = await polygon_zone_service.set_active(1, is_active=False)
 
             assert result is not None
@@ -616,7 +646,7 @@ class TestSetActive:
         mock_session: AsyncMock,
     ) -> None:
         """Test setting active for non-existent zone returns None."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=None):
+        with patch.object(polygon_zone_service, "get_zone", return_value=None, autospec=True):
             result = await polygon_zone_service.set_active(999, is_active=True)
 
             assert result is None
@@ -630,8 +660,12 @@ class TestSetActive:
         sample_zone: PolygonZone,
     ) -> None:
         """Test set_active logs the event."""
-        with patch.object(polygon_zone_service, "get_zone", return_value=sample_zone):
-            with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch.object(
+            polygon_zone_service, "get_zone", return_value=sample_zone, autospec=True
+        ):
+            with patch(
+                "backend.services.polygon_zone_service.logger", autospec=True
+            ) as mock_logger:
                 await polygon_zone_service.set_active(1, is_active=False)
 
                 mock_logger.info.assert_called_once()
@@ -670,7 +704,9 @@ class TestResetAllCounts:
             current_count=10,
         )
 
-        with patch.object(polygon_zone_service, "get_zones_by_camera", return_value=[zone1, zone2]):
+        with patch.object(
+            polygon_zone_service, "get_zones_by_camera", return_value=[zone1, zone2], autospec=True
+        ):
             result = await polygon_zone_service.reset_all_counts("cam1")
 
             assert result == 2
@@ -685,7 +721,9 @@ class TestResetAllCounts:
         mock_session: AsyncMock,
     ) -> None:
         """Test resetting counts for camera with no zones."""
-        with patch.object(polygon_zone_service, "get_zones_by_camera", return_value=[]):
+        with patch.object(
+            polygon_zone_service, "get_zones_by_camera", return_value=[], autospec=True
+        ):
             result = await polygon_zone_service.reset_all_counts("empty_camera")
 
             assert result == 0
@@ -702,8 +740,12 @@ class TestResetAllCounts:
             id=1, camera_id="cam1", name="Zone", polygon=[[0, 0], [1, 1], [1, 0]], current_count=5
         )
 
-        with patch.object(polygon_zone_service, "get_zones_by_camera", return_value=[zone]):
-            with patch("backend.services.polygon_zone_service.logger") as mock_logger:
+        with patch.object(
+            polygon_zone_service, "get_zones_by_camera", return_value=[zone], autospec=True
+        ):
+            with patch(
+                "backend.services.polygon_zone_service.logger", autospec=True
+            ) as mock_logger:
                 await polygon_zone_service.reset_all_counts("cam1")
 
                 mock_logger.info.assert_called_once()

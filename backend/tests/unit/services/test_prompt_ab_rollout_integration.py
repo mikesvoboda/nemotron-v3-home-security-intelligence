@@ -126,18 +126,22 @@ class TestNemotronAnalyzerABRolloutIntegration:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -166,18 +170,22 @@ class TestNemotronAnalyzerABRolloutIntegration:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -212,18 +220,22 @@ class TestNemotronAnalyzerABRolloutIntegration:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -354,18 +366,22 @@ class TestRollbackTriggerDuringAnalysis:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -398,18 +414,22 @@ class TestRollbackTriggerDuringAnalysis:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -466,18 +486,22 @@ class TestExperimentMetricsSummary:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -530,18 +554,22 @@ class TestPromptVersionSelection:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -575,18 +603,22 @@ class TestPromptVersionSelection:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service

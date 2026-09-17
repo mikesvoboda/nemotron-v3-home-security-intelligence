@@ -429,7 +429,7 @@ class TestCheckDuplicate:
         mock_session.execute.return_value = mock_result
 
         service = AlertDeduplicationService(mock_session)
-        with patch("backend.services.alert_dedup.datetime") as mock_datetime:
+        with patch("backend.services.alert_dedup.datetime", autospec=True) as mock_datetime:
             mock_datetime.now.return_value = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -1240,7 +1240,7 @@ class TestAlertCreationErrorHandling:
 
         service = AlertDeduplicationService(mock_session)
 
-        with patch("backend.services.alert_dedup.logger") as mock_logger:
+        with patch("backend.services.alert_dedup.logger", autospec=True) as mock_logger:
             with pytest.raises(AlertCreationError):
                 await service.create_alert_if_not_duplicate(
                     event_id=42,

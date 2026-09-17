@@ -669,7 +669,7 @@ class TestCLIPLoaderLoad:
 
         # When torch import fails during device move the loader may raise ImportError
         # or RuntimeError — both are acceptable outcomes of a missing torch dep.
-        with patch.object(builtins, "__import__", side_effect=mock_import):
+        with patch.object(builtins, "__import__", side_effect=mock_import, autospec=True):
             try:
                 result = await loader.load(device="cpu")
                 assert "model" in result
@@ -807,7 +807,7 @@ class TestCLIPLoaderUnload:
                 raise ImportError("No module named 'torch'")
             return original_import(name, *args, **kwargs)
 
-        with patch.object(builtins, "__import__", side_effect=mock_import):
+        with patch.object(builtins, "__import__", side_effect=mock_import, autospec=True):
             # Should not raise - ImportError is caught gracefully
             await loader.unload()
 

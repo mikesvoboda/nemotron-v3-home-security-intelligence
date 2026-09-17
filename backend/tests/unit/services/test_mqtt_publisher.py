@@ -514,7 +514,7 @@ class TestMQTTPublisherMetrics:
         self, publisher: MQTTPublisher, mock_mqtt_client: AsyncMock
     ) -> None:
         """Test successful publish increments counter."""
-        with patch.object(publisher, "_increment_publish_counter") as mock_counter:
+        with patch.object(publisher, "_increment_publish_counter", autospec=True) as mock_counter:
             await publisher.publish_event(
                 "alert.created", {"type": "alert.created", "data": {"severity": "high"}}
             )
@@ -527,7 +527,7 @@ class TestMQTTPublisherMetrics:
         """Test publish error increments error counter."""
         mock_mqtt_client.publish.side_effect = Exception("Publish failed")
 
-        with patch.object(publisher, "_increment_publish_counter") as mock_counter:
+        with patch.object(publisher, "_increment_publish_counter", autospec=True) as mock_counter:
             await publisher.publish_event(
                 "alert.created", {"type": "alert.created", "data": {"severity": "high"}}
             )

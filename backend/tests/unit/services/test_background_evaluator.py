@@ -281,7 +281,9 @@ class TestEvaluationProcessing:
 
         mock_evaluation_queue.dequeue.return_value = 123
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.execute = AsyncMock()
             mock_session.expunge = MagicMock()  # expunge is sync
@@ -328,7 +330,9 @@ class TestEvaluationProcessing:
         """Test handling when event no longer exists in database."""
         mock_evaluation_queue.dequeue.return_value = 999  # Event ID
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None  # Event not found
@@ -350,7 +354,9 @@ class TestEvaluationProcessing:
         """Test handling when audit record is missing."""
         mock_evaluation_queue.dequeue.return_value = 123
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_event = MagicMock()
             mock_event.id = 123
@@ -391,7 +397,9 @@ class TestEvaluationProcessing:
         mock_audit.id = 1
         mock_audit.event_id = 123
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.expunge = MagicMock()  # expunge is sync
 
@@ -809,7 +817,9 @@ class TestProcessingLoop:
         mock_audit.event_id = 123
         mock_audit.overall_quality_score = 85.0
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.expunge = MagicMock()  # expunge is sync
             mock_session.merge = AsyncMock(return_value=mock_audit)
@@ -968,7 +978,9 @@ class TestJobTrackingIntegration:
         """Test that process_one creates a job when tracker is configured."""
         mock_evaluation_queue.dequeue.return_value = 123
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -1004,7 +1016,9 @@ class TestJobTrackingIntegration:
         mock_audit.event_id = 123
         mock_audit.overall_quality_score = 85.0
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.expunge = MagicMock()  # expunge is sync
             mock_session.merge = AsyncMock(return_value=mock_audit)
@@ -1047,7 +1061,9 @@ class TestJobTrackingIntegration:
         mock_audit.id = 1
         mock_audit.event_id = 123
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.expunge = MagicMock()  # expunge is sync
 
@@ -1077,7 +1093,9 @@ class TestJobTrackingIntegration:
         mock_evaluation_queue.dequeue.return_value = 123
         mock_job_tracker.is_cancelled.return_value = True  # Simulate cancellation
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None
@@ -1101,7 +1119,9 @@ class TestJobTrackingIntegration:
         """Test that process_one completes job when event is not found."""
         mock_evaluation_queue.dequeue.return_value = 999
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_result = MagicMock()
             mock_result.scalar_one_or_none.return_value = None  # Event not found
@@ -1197,7 +1217,9 @@ class TestDeferredColumnAccess:
 
         mock_audit_service.run_evaluation_llm_calls.side_effect = mock_run_evaluation
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.expunge = MagicMock()  # expunge is sync
             mock_session.merge = AsyncMock(return_value=mock_audit)
@@ -1242,7 +1264,9 @@ class TestDeferredColumnAccess:
         mock_audit.id = 1
         mock_audit.event_id = 123
 
-        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+        with patch(
+            "backend.services.background_evaluator.get_session", autospec=True
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_session.expunge = MagicMock()
             mock_session.merge = AsyncMock(return_value=mock_audit)

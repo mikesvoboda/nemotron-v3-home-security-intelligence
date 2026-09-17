@@ -91,7 +91,7 @@ def test_clip_generator_initialization(temp_clips_dir):
 
 def test_clip_generator_default_values():
     """Test ClipGenerator uses settings defaults."""
-    with patch("backend.services.clip_generator.get_settings") as mock_settings:
+    with patch("backend.services.clip_generator.get_settings", autospec=True) as mock_settings:
         mock_settings.return_value.clips_directory = "custom/clips"
         mock_settings.return_value.clip_pre_roll_seconds = 8
         mock_settings.return_value.clip_post_roll_seconds = 12
@@ -222,7 +222,9 @@ def test_delete_clip_error_handling(clip_generator, temp_clips_dir, mock_event):
     clip_file = temp_clips_dir / f"{mock_event.id}_clip.mp4"
     clip_file.touch()
 
-    with patch.object(Path, "unlink", side_effect=PermissionError("Permission denied")):
+    with patch.object(
+        Path, "unlink", side_effect=PermissionError("Permission denied"), autospec=True
+    ):
         result = clip_generator.delete_clip(mock_event.id)
 
     # Should return False on error (but file still exists)
@@ -267,7 +269,9 @@ async def test_generate_clip_from_video_success(
     # Create the expected output file
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+    with patch(
+        "asyncio.create_subprocess_exec", return_value=mock_process, autospec=True
+    ) as mock_exec:
         # Create the output file when ffmpeg "runs"
         expected_output.touch()
 
@@ -294,7 +298,7 @@ async def test_generate_clip_from_video_ffmpeg_error(clip_generator, mock_event,
     mock_process.returncode = 1
     mock_process.communicate = AsyncMock(return_value=(b"", b"FFmpeg error message"))
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         with pytest.raises(ClipGenerationError) as exc_info:
             await clip_generator.generate_clip_from_video(mock_event, video_path)
 
@@ -310,6 +314,7 @@ async def test_generate_clip_from_video_ffmpeg_not_found(clip_generator, mock_ev
     with patch(
         "asyncio.create_subprocess_exec",
         side_effect=FileNotFoundError("ffmpeg not found"),
+        autospec=True,
     ):
         result = await clip_generator.generate_clip_from_video(mock_event, video_path)
 
@@ -330,7 +335,9 @@ async def test_generate_clip_from_video_custom_pre_post_roll(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+    with patch(
+        "asyncio.create_subprocess_exec", return_value=mock_process, autospec=True
+    ) as mock_exec:
         expected_output.touch()
 
         await clip_generator.generate_clip_from_video(
@@ -393,7 +400,9 @@ async def test_generate_clip_from_images_success_mp4(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+    with patch(
+        "asyncio.create_subprocess_exec", return_value=mock_process, autospec=True
+    ) as mock_exec:
         expected_output.touch()
 
         result = await clip_generator.generate_clip_from_images(
@@ -426,7 +435,9 @@ async def test_generate_clip_from_images_success_gif(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.gif"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+    with patch(
+        "asyncio.create_subprocess_exec", return_value=mock_process, autospec=True
+    ) as mock_exec:
         expected_output.touch()
 
         result = await clip_generator.generate_clip_from_images(
@@ -460,7 +471,7 @@ async def test_generate_clip_from_images_skips_invalid(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         expected_output.touch()
 
         result = await clip_generator.generate_clip_from_images(mock_event, images)
@@ -479,7 +490,7 @@ async def test_generate_clip_from_images_ffmpeg_error(clip_generator, mock_event
     mock_process.communicate = AsyncMock(return_value=(b"", b"FFmpeg error"))
 
     with (
-        patch("asyncio.create_subprocess_exec", return_value=mock_process),
+        patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
         pytest.raises(ClipGenerationError),
     ):
         await clip_generator.generate_clip_from_images(mock_event, [str(img_path)])
@@ -518,7 +529,7 @@ async def test_generate_clip_for_event_with_video(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         expected_output.touch()
 
         result = await clip_generator.generate_clip_for_event(
@@ -545,7 +556,7 @@ async def test_generate_clip_for_event_with_images(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         expected_output.touch()
 
         result = await clip_generator.generate_clip_for_event(mock_event, image_paths=images)
@@ -570,7 +581,9 @@ async def test_generate_clip_for_event_video_preferred_over_images(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
+    with patch(
+        "asyncio.create_subprocess_exec", return_value=mock_process, autospec=True
+    ) as mock_exec:
         expected_output.touch()
 
         await clip_generator.generate_clip_for_event(
@@ -627,7 +640,7 @@ async def test_generate_clip_from_video_no_end_time(
 
     expected_output = temp_clips_dir / f"{mock_event_no_end.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         expected_output.touch()
 
         result = await clip_generator.generate_clip_from_video(mock_event_no_end, video_path)
@@ -652,7 +665,7 @@ async def test_generate_clip_from_video_path_object(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         expected_output.touch()
 
         # Pass as Path object, not string
@@ -678,7 +691,7 @@ async def test_generate_clip_from_images_path_objects(
 
     expected_output = temp_clips_dir / f"{mock_event.id}_clip.mp4"
 
-    with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+    with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
         expected_output.touch()
 
         result = await clip_generator.generate_clip_from_images(mock_event, images)
@@ -969,7 +982,9 @@ class TestEdgeCasesAndErrorHandling:
         clips_dir = tmp_path / "no_permission_clips"
 
         # Use a more specific patch that targets the instance method
-        with patch("pathlib.Path.mkdir", side_effect=PermissionError("Permission denied")):
+        with patch(
+            "pathlib.Path.mkdir", side_effect=PermissionError("Permission denied"), autospec=True
+        ):
             with pytest.raises(PermissionError, match="Permission denied"):
                 ClipGenerator(clips_directory=str(clips_dir))
 
@@ -978,7 +993,7 @@ class TestEdgeCasesAndErrorHandling:
         clips_dir = tmp_path / "os_error_clips"
 
         # Use a more specific patch that targets the instance method
-        with patch("pathlib.Path.mkdir", side_effect=OSError("Disk full")):
+        with patch("pathlib.Path.mkdir", side_effect=OSError("Disk full"), autospec=True):
             with pytest.raises(OSError, match="Disk full"):
                 ClipGenerator(clips_directory=str(clips_dir))
 
@@ -987,7 +1002,9 @@ class TestEdgeCasesAndErrorHandling:
         clips_dir = tmp_path / "error_clips"
 
         # Test with a generic RuntimeError to ensure exception handling works
-        with patch("pathlib.Path.mkdir", side_effect=RuntimeError("Unexpected error")):
+        with patch(
+            "pathlib.Path.mkdir", side_effect=RuntimeError("Unexpected error"), autospec=True
+        ):
             with pytest.raises(RuntimeError, match="Unexpected error"):
                 ClipGenerator(clips_directory=str(clips_dir))
 
@@ -1075,7 +1092,7 @@ class TestEdgeCasesAndErrorHandling:
         mock_process.returncode = 0
         mock_process.communicate = AsyncMock(return_value=(b"", b""))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
             # Don't create the output file
             result = await clip_generator.generate_clip_from_video(mock_event, video_path)
 
@@ -1093,6 +1110,7 @@ class TestEdgeCasesAndErrorHandling:
         with patch(
             "asyncio.create_subprocess_exec",
             side_effect=RuntimeError("Unexpected error"),
+            autospec=True,
         ):
             result = await clip_generator.generate_clip_from_video(mock_event, video_path)
 
@@ -1113,7 +1131,7 @@ class TestEdgeCasesAndErrorHandling:
         mock_process.returncode = 0
         mock_process.communicate = AsyncMock(return_value=(b"", b""))
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
             result = await clip_generator._run_ffmpeg_for_images(
                 mock_event.id, list_file, output_path, "mp4", 2
             )
@@ -1138,8 +1156,8 @@ class TestEdgeCasesAndErrorHandling:
         mock_process.communicate = AsyncMock(return_value=(b"", b""))
 
         with (
-            patch("asyncio.create_subprocess_exec", return_value=mock_process),
-            patch.object(Path, "unlink", side_effect=OSError("Cannot delete")),
+            patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True),
+            patch.object(Path, "unlink", side_effect=OSError("Cannot delete"), autospec=True),
         ):
             result = await clip_generator._run_ffmpeg_for_images(
                 mock_event.id, list_file, output_path, "mp4", 2
@@ -1159,6 +1177,7 @@ class TestEdgeCasesAndErrorHandling:
         with patch(
             "asyncio.create_subprocess_exec",
             side_effect=FileNotFoundError("ffmpeg not found"),
+            autospec=True,
         ):
             result = await clip_generator.generate_clip_from_images(mock_event, [str(img_path)])
 
@@ -1177,6 +1196,7 @@ class TestEdgeCasesAndErrorHandling:
             clip_generator,
             "_create_concat_file",
             side_effect=RuntimeError("Unexpected error"),
+            autospec=True,
         ):
             result = await clip_generator.generate_clip_from_images(mock_event, [str(img_path)])
 
@@ -1328,7 +1348,7 @@ class TestClipGeneratorIntegrationScenarios:
 
         expected_output = temp_clips_dir / f"{event.id}_clip.mp4"
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
             expected_output.touch()
 
             result = await clip_generator.generate_clip_from_video(event, video_path)
@@ -1354,7 +1374,7 @@ class TestClipGeneratorIntegrationScenarios:
 
         expected_output = temp_clips_dir / f"{event.id}_clip.mp4"
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_process, autospec=True):
             expected_output.touch()
 
             result = await clip_generator.generate_clip_from_images(event, [str(img_path)])

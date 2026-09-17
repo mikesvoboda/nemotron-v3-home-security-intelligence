@@ -19,7 +19,9 @@ class TestAIInferenceSemaphoreConfiguration:
 
     def test_default_max_concurrent_inferences_from_settings(self):
         """Test that default max concurrent inferences is read from settings."""
-        with patch("backend.services.inference_semaphore.get_settings") as mock_settings:
+        with patch(
+            "backend.services.inference_semaphore.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.ai_max_concurrent_inferences = 4
 
             from backend.services.inference_semaphore import (
@@ -37,7 +39,9 @@ class TestAIInferenceSemaphoreConfiguration:
 
     def test_custom_max_concurrent_inferences(self):
         """Test that custom max concurrent inferences can be configured."""
-        with patch("backend.services.inference_semaphore.get_settings") as mock_settings:
+        with patch(
+            "backend.services.inference_semaphore.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.ai_max_concurrent_inferences = 8
 
             from backend.services.inference_semaphore import (
@@ -88,8 +92,16 @@ class TestDetectorClientConcurrencyLimits:
         reset_inference_semaphore()
 
         with (
-            patch("backend.services.detector_client.get_settings", return_value=mock_settings),
-            patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.detector_client.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.inference_semaphore.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
         ):
             from backend.services.detector_client import DetectorClient
             from backend.services.inference_semaphore import get_inference_semaphore
@@ -135,13 +147,16 @@ class TestDetectorClientConcurrencyLimits:
             mock_baseline.update_baseline = AsyncMock()
 
             with (
-                patch("pathlib.Path.exists", return_value=True),
-                patch("pathlib.Path.read_bytes", return_value=b"fake_image_data"),
-                patch("httpx.AsyncClient.post", side_effect=mock_post),
-                patch.object(client, "_validate_image_for_detection", return_value=True),
+                patch("pathlib.Path.exists", return_value=True, autospec=True),
+                patch("pathlib.Path.read_bytes", return_value=b"fake_image_data", autospec=True),
+                patch("httpx.AsyncClient.post", side_effect=mock_post, autospec=True),
+                patch.object(
+                    client, "_validate_image_for_detection", return_value=True, autospec=True
+                ),
                 patch(
                     "backend.services.detector_client.get_baseline_service",
                     return_value=mock_baseline,
+                    autospec=True,
                 ),
             ):
                 # Launch 5 concurrent detection requests
@@ -165,8 +180,16 @@ class TestDetectorClientConcurrencyLimits:
         reset_inference_semaphore()
 
         with (
-            patch("backend.services.detector_client.get_settings", return_value=mock_settings),
-            patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.detector_client.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.inference_semaphore.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
         ):
             from backend.services.detector_client import DetectorClient
             from backend.services.inference_semaphore import get_inference_semaphore
@@ -191,13 +214,16 @@ class TestDetectorClientConcurrencyLimits:
             mock_baseline.update_baseline = AsyncMock()
 
             with (
-                patch("pathlib.Path.exists", return_value=True),
-                patch("pathlib.Path.read_bytes", return_value=b"fake_image_data"),
-                patch("httpx.AsyncClient.post", return_value=mock_response),
-                patch.object(client, "_validate_image_for_detection", return_value=True),
+                patch("pathlib.Path.exists", return_value=True, autospec=True),
+                patch("pathlib.Path.read_bytes", return_value=b"fake_image_data", autospec=True),
+                patch("httpx.AsyncClient.post", return_value=mock_response, autospec=True),
+                patch.object(
+                    client, "_validate_image_for_detection", return_value=True, autospec=True
+                ),
                 patch(
                     "backend.services.detector_client.get_baseline_service",
                     return_value=mock_baseline,
+                    autospec=True,
                 ),
             ):
                 await client.detect_objects("/img.jpg", "camera1", mock_session)
@@ -214,8 +240,16 @@ class TestDetectorClientConcurrencyLimits:
         reset_inference_semaphore()
 
         with (
-            patch("backend.services.detector_client.get_settings", return_value=mock_settings),
-            patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.detector_client.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.inference_semaphore.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
         ):
             from backend.services.detector_client import DetectorClient, DetectorUnavailableError
             from backend.services.inference_semaphore import get_inference_semaphore
@@ -231,15 +265,20 @@ class TestDetectorClientConcurrencyLimits:
             mock_baseline.update_baseline = AsyncMock()
 
             with (
-                patch("pathlib.Path.exists", return_value=True),
-                patch("pathlib.Path.read_bytes", return_value=b"fake_image_data"),
+                patch("pathlib.Path.exists", return_value=True, autospec=True),
+                patch("pathlib.Path.read_bytes", return_value=b"fake_image_data", autospec=True),
                 patch(
-                    "httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")
+                    "httpx.AsyncClient.post",
+                    side_effect=httpx.ConnectError("Connection refused"),
+                    autospec=True,
                 ),
-                patch.object(client, "_validate_image_for_detection", return_value=True),
+                patch.object(
+                    client, "_validate_image_for_detection", return_value=True, autospec=True
+                ),
                 patch(
                     "backend.services.detector_client.get_baseline_service",
                     return_value=mock_baseline,
+                    autospec=True,
                 ),
                 pytest.raises(DetectorUnavailableError),
             ):
@@ -290,11 +329,25 @@ class TestNemotronAnalyzerConcurrencyLimits:
         reset_token_counter()
 
         with (
-            patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-            patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
-            patch("backend.services.severity.get_settings", return_value=mock_settings),
-            patch("backend.services.token_counter.get_settings", return_value=mock_settings),
-            patch("backend.core.config.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.inference_semaphore.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
+            ),
+            patch(
+                "backend.services.token_counter.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
         ):
             from backend.services.nemotron_analyzer import NemotronAnalyzer
 
@@ -326,7 +379,7 @@ class TestNemotronAnalyzerConcurrencyLimits:
                 }
                 return response
 
-            with patch("httpx.AsyncClient.post", side_effect=mock_post):
+            with patch("httpx.AsyncClient.post", side_effect=mock_post, autospec=True):
                 # Launch 5 concurrent LLM calls
                 tasks = [
                     analyzer._call_llm(
@@ -358,9 +411,19 @@ class TestNemotronAnalyzerConcurrencyLimits:
         reset_severity_service()
 
         with (
-            patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
-            patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
-            patch("backend.services.severity.get_settings", return_value=mock_settings),
+            patch(
+                "backend.services.nemotron_analyzer.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.inference_semaphore.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
+            ),
         ):
             from backend.services.inference_semaphore import get_inference_semaphore
             from backend.services.nemotron_analyzer import NemotronAnalyzer
@@ -377,7 +440,9 @@ class TestNemotronAnalyzerConcurrencyLimits:
 
             with (
                 patch(
-                    "httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")
+                    "httpx.AsyncClient.post",
+                    side_effect=httpx.ConnectError("Connection refused"),
+                    autospec=True,
                 ),
                 pytest.raises(AnalyzerUnavailableError),
             ):
@@ -397,7 +462,9 @@ class TestInferenceSemaphoreModule:
 
     def test_get_inference_semaphore_returns_singleton(self):
         """Test that get_inference_semaphore returns the same instance."""
-        with patch("backend.services.inference_semaphore.get_settings") as mock_settings:
+        with patch(
+            "backend.services.inference_semaphore.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.ai_max_concurrent_inferences = 4
 
             from backend.services.inference_semaphore import (
@@ -415,7 +482,9 @@ class TestInferenceSemaphoreModule:
 
     def test_reset_inference_semaphore_clears_singleton(self):
         """Test that reset_inference_semaphore clears the singleton."""
-        with patch("backend.services.inference_semaphore.get_settings") as mock_settings:
+        with patch(
+            "backend.services.inference_semaphore.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.ai_max_concurrent_inferences = 4
 
             from backend.services.inference_semaphore import (
@@ -438,7 +507,9 @@ class TestInferenceSemaphoreModule:
     @pytest.mark.asyncio
     async def test_semaphore_limits_concurrent_operations(self):
         """Test that semaphore actually limits concurrent operations."""
-        with patch("backend.services.inference_semaphore.get_settings") as mock_settings:
+        with patch(
+            "backend.services.inference_semaphore.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.ai_max_concurrent_inferences = 2
 
             from backend.services.inference_semaphore import (
@@ -481,7 +552,9 @@ class TestQueueingBehavior:
     @pytest.mark.asyncio
     async def test_requests_queue_when_limit_reached(self):
         """Test that requests properly queue when semaphore limit is reached."""
-        with patch("backend.services.inference_semaphore.get_settings") as mock_settings:
+        with patch(
+            "backend.services.inference_semaphore.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.ai_max_concurrent_inferences = 1  # Only 1 at a time
 
             from backend.services.inference_semaphore import (

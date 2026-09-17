@@ -1622,8 +1622,8 @@ class TestMemoryQueueOverflowLogging:
         manager = DegradationManager(redis_client=None, max_memory_queue_size=2)
 
         with (
-            patch.object(manager, "_memory_queue") as mock_queue,
-            patch("backend.services.degradation_manager.logger") as mock_logger,
+            patch.object(manager, "_memory_queue", autospec=True) as mock_queue,
+            patch("backend.services.degradation_manager.logger", autospec=True) as mock_logger,
         ):
             # Set up mock to simulate queue at capacity
             mock_queue.__len__ = lambda _self: 2

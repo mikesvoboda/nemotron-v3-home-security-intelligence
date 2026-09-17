@@ -689,6 +689,7 @@ class TestEnrichMethod:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             context = await enricher.enrich(
@@ -718,7 +719,9 @@ class TestEnrichMethod:
         enricher = ContextEnricher()
 
         # Should not call get_session when session is provided
-        with patch("backend.services.context_enricher.get_session") as mock_get_session:
+        with patch(
+            "backend.services.context_enricher.get_session", autospec=True
+        ) as mock_get_session:
             await enricher.enrich(
                 batch_id="batch-1",
                 camera_id="test",
@@ -747,7 +750,11 @@ class TestEnrichMethod:
 
         enricher = ContextEnricher()
 
-        with patch("backend.services.context_enricher.get_session", return_value=mock_get_session):
+        with patch(
+            "backend.services.context_enricher.get_session",
+            return_value=mock_get_session,
+            autospec=True,
+        ):
             context = await enricher.enrich(
                 batch_id="batch-1",
                 camera_id="test_camera",
@@ -999,6 +1006,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1044,6 +1052,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1089,6 +1098,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1129,6 +1139,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1165,6 +1176,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1208,6 +1220,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1244,6 +1257,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1284,6 +1298,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1327,6 +1342,7 @@ class TestGetBaselineContext:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1666,6 +1682,7 @@ class TestEdgeCases:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             context = await enricher.enrich(
@@ -1708,6 +1725,7 @@ class TestEdgeCases:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1763,6 +1781,7 @@ class TestEdgeCases:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(
@@ -1970,6 +1989,7 @@ class TestErrorHandling:
         with patch(
             "backend.services.context_enricher.get_baseline_service",
             return_value=mock_baseline_service,
+            autospec=True,
         ):
             enricher = ContextEnricher()
             baseline = await enricher._get_baseline_context(

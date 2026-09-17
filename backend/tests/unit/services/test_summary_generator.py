@@ -141,8 +141,12 @@ class TestHourlySummaryGeneration:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks
@@ -184,8 +188,12 @@ class TestHourlySummaryGeneration:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks - no high/critical events
@@ -231,8 +239,12 @@ class TestHourlySummaryGeneration:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks - return both high and low risk events
@@ -275,8 +287,12 @@ class TestDailySummaryGeneration:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mocks
@@ -324,8 +340,12 @@ class TestDailySummaryGeneration:
         captured_end = None
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Capture the time window arguments
@@ -379,8 +399,12 @@ class TestGenerateAllSummaries:
         daily_summary.content = "Daily summary content"
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
@@ -424,8 +448,12 @@ class TestFallbackBehavior:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
@@ -459,8 +487,12 @@ class TestFallbackBehavior:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
@@ -493,8 +525,12 @@ class TestFallbackBehavior:
         generator = SummaryGenerator(llm_url="http://localhost:8091")
 
         with (
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             mock_event_repo = MagicMock()
@@ -640,7 +676,7 @@ class TestNemotronCall:
         mock_response.json.return_value = {"content": "Generated summary text here."}
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -680,7 +716,7 @@ class TestNemotronCall:
         mock_response.json.return_value = {"content": ""}
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -706,7 +742,7 @@ class TestNemotronCall:
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("httpx.AsyncClient", autospec=True) as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -782,9 +818,15 @@ class TestSessionManagement:
         mock_summary.content = "Hourly summary"
 
         with (
-            patch("backend.services.summary_generator.get_session") as mock_get_session,
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.get_session", autospec=True
+            ) as mock_get_session,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mock session context manager
@@ -822,9 +864,15 @@ class TestSessionManagement:
         mock_summary.content = "Daily summary"
 
         with (
-            patch("backend.services.summary_generator.get_session") as mock_get_session,
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.get_session", autospec=True
+            ) as mock_get_session,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mock session context manager
@@ -866,9 +914,15 @@ class TestSessionManagement:
         mock_daily_summary.content = "Daily summary"
 
         with (
-            patch("backend.services.summary_generator.get_session") as mock_get_session,
-            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
-            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch(
+                "backend.services.summary_generator.get_session", autospec=True
+            ) as mock_get_session,
+            patch(
+                "backend.services.summary_generator.EventRepository", autospec=True
+            ) as mock_event_repo_cls,
+            patch(
+                "backend.services.summary_generator.SummaryRepository", autospec=True
+            ) as mock_summary_repo_cls,
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Setup mock session context manager

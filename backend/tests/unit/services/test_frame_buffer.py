@@ -580,10 +580,13 @@ class TestEnrichmentPipelineFrameBufferIntegration:
         buffer = FrameBuffer()
 
         # Should not raise
-        with patch("backend.services.enrichment_pipeline.get_model_manager"):
-            with patch("backend.services.enrichment_pipeline.get_vision_extractor"):
-                with patch("backend.services.enrichment_pipeline.get_reid_service"):
-                    with patch("backend.services.enrichment_pipeline.get_scene_change_detector"):
+        with patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True):
+            with patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True):
+                with patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True):
+                    with patch(
+                        "backend.services.enrichment_pipeline.get_scene_change_detector",
+                        autospec=True,
+                    ):
                         pipeline = EnrichmentPipeline(frame_buffer=buffer)
 
         assert pipeline._frame_buffer is buffer
@@ -592,10 +595,13 @@ class TestEnrichmentPipelineFrameBufferIntegration:
         """EnrichmentPipeline should have None frame_buffer by default."""
         from backend.services.enrichment_pipeline import EnrichmentPipeline
 
-        with patch("backend.services.enrichment_pipeline.get_model_manager"):
-            with patch("backend.services.enrichment_pipeline.get_vision_extractor"):
-                with patch("backend.services.enrichment_pipeline.get_reid_service"):
-                    with patch("backend.services.enrichment_pipeline.get_scene_change_detector"):
+        with patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True):
+            with patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True):
+                with patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True):
+                    with patch(
+                        "backend.services.enrichment_pipeline.get_scene_change_detector",
+                        autospec=True,
+                    ):
                         pipeline = EnrichmentPipeline()
 
         assert pipeline._frame_buffer is None

@@ -206,7 +206,11 @@ class TestCleanupServiceInitialization:
         mock_settings = MagicMock()
         mock_settings.retention_days = 30  # Default from Settings class
 
-        with patch("backend.services.cleanup_service.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.cleanup_service.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             service = CleanupService()
 
         assert service.cleanup_time == "03:00"
@@ -323,7 +327,7 @@ class TestNextCleanupCalculation:
         mock_now = datetime(2025, 12, 23, 10, 0, 0)  # 10:00 AM
         future_time = "14:00"  # 2:00 PM - still 4 hours away
 
-        with patch("backend.services.cleanup_service.datetime") as mock_datetime:
+        with patch("backend.services.cleanup_service.datetime", autospec=True) as mock_datetime:
             mock_datetime.now.return_value = mock_now
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 
@@ -345,7 +349,7 @@ class TestNextCleanupCalculation:
         # Mock datetime to ensure the test time is well past the cleanup time
         fixed_now = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
 
-        with patch("backend.services.cleanup_service.datetime") as mock_datetime:
+        with patch("backend.services.cleanup_service.datetime", autospec=True) as mock_datetime:
             mock_datetime.now.return_value = fixed_now
             # Pass through timedelta calls
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -417,7 +421,9 @@ class TestFileDeletion:
         service = CleanupService()
 
         # Mock unlink to raise permission error
-        with patch.object(Path, "unlink", side_effect=PermissionError("Access denied")):
+        with patch.object(
+            Path, "unlink", side_effect=PermissionError("Access denied"), autospec=True
+        ):
             result = service._delete_file(str(test_file))
 
         assert result is False
@@ -578,8 +584,8 @@ async def test_cleanup_loop_runs_scheduled():
         return CleanupStats()
 
     with (
-        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait),
-        patch.object(service, "run_cleanup", side_effect=mock_cleanup),
+        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait, autospec=True),
+        patch.object(service, "run_cleanup", side_effect=mock_cleanup, autospec=True),
     ):
         # Start service
         await service.start()
@@ -634,9 +640,13 @@ async def test_cleanup_loop_handles_errors():
             await original_sleep(seconds)
 
     with (
-        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait),
-        patch.object(service, "run_cleanup", side_effect=mock_cleanup_with_error),
-        patch("backend.services.cleanup_service.asyncio.sleep", side_effect=patched_sleep),
+        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait, autospec=True),
+        patch.object(service, "run_cleanup", side_effect=mock_cleanup_with_error, autospec=True),
+        patch(
+            "backend.services.cleanup_service.asyncio.sleep",
+            side_effect=patched_sleep,
+            autospec=True,
+        ),
     ):
         # Start service
         await service.start()
@@ -823,7 +833,7 @@ async def test_run_cleanup_basic():
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "cleanup_old_logs", return_value=50),
+        patch.object(service, "cleanup_old_logs", return_value=50, autospec=True),
     ):
         stats = await service.run_cleanup()
 
@@ -873,7 +883,7 @@ async def test_run_cleanup_with_thumbnail_files(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "cleanup_old_logs", return_value=0),
+        patch.object(service, "cleanup_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.run_cleanup()
 
@@ -922,7 +932,7 @@ async def test_run_cleanup_with_image_files_enabled(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "cleanup_old_logs", return_value=0),
+        patch.object(service, "cleanup_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.run_cleanup()
 
@@ -981,7 +991,7 @@ async def test_run_cleanup_with_none_rowcount():
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "cleanup_old_logs", return_value=0),
+        patch.object(service, "cleanup_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.run_cleanup()
 
@@ -1030,7 +1040,7 @@ async def test_dry_run_cleanup_basic():
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_count_old_logs", return_value=25),
+        patch.object(service, "_count_old_logs", return_value=25, autospec=True),
     ):
         stats = await service.dry_run_cleanup()
 
@@ -1087,7 +1097,7 @@ async def test_dry_run_cleanup_with_files(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_count_old_logs", return_value=0),
+        patch.object(service, "_count_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.dry_run_cleanup()
 
@@ -1137,7 +1147,7 @@ async def test_dry_run_cleanup_file_stat_error(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_count_old_logs", return_value=0),
+        patch.object(service, "_count_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.dry_run_cleanup()
 
@@ -1196,7 +1206,7 @@ async def test_dry_run_cleanup_oserror_on_stat(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_count_old_logs", return_value=0),
+        patch.object(service, "_count_old_logs", return_value=0, autospec=True),
         patch.object(Path, "stat", mock_stat),
     ):
         stats = await service.dry_run_cleanup()
@@ -1265,7 +1275,7 @@ async def test_dry_run_cleanup_delete_images_disabled(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_count_old_logs", return_value=0),
+        patch.object(service, "_count_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.dry_run_cleanup()
 
@@ -1434,7 +1444,7 @@ async def test_cleanup_loop_cancelled():
             raise asyncio.CancelledError()
         await asyncio.sleep(0.01)
 
-    with patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait):
+    with patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait, autospec=True):
         service.running = True
         # Run the cleanup loop directly
         await service._cleanup_loop()
@@ -1461,8 +1471,8 @@ async def test_cleanup_loop_stops_before_cleanup():
         return CleanupStats()
 
     with (
-        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait),
-        patch.object(service, "run_cleanup", side_effect=mock_cleanup),
+        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait, autospec=True),
+        patch.object(service, "run_cleanup", side_effect=mock_cleanup, autospec=True),
     ):
         service.running = True
         await service._cleanup_loop()
@@ -1521,7 +1531,7 @@ async def test_run_cleanup_missing_thumbnail_file(tmp_path):
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "cleanup_old_logs", return_value=0),
+        patch.object(service, "cleanup_old_logs", return_value=0, autospec=True),
     ):
         stats = await service.run_cleanup()
 
@@ -1568,8 +1578,10 @@ async def test_run_cleanup_with_redis_job_tracking():
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_get_job_status_service", return_value=mock_job_service),
-        patch.object(service, "cleanup_old_logs", return_value=10),
+        patch.object(
+            service, "_get_job_status_service", return_value=mock_job_service, autospec=True
+        ),
+        patch.object(service, "cleanup_old_logs", return_value=10, autospec=True),
     ):
         stats = await service.run_cleanup()
 
@@ -1602,7 +1614,9 @@ async def test_run_cleanup_with_redis_job_tracking_failure():
 
     with (
         patch("backend.services.cleanup_service.get_session", mock_get_session),
-        patch.object(service, "_get_job_status_service", return_value=mock_job_service),
+        patch.object(
+            service, "_get_job_status_service", return_value=mock_job_service, autospec=True
+        ),
         pytest.raises(Exception, match="Database error"),
     ):
         await service.run_cleanup()
@@ -1627,7 +1641,7 @@ def test_get_job_status_service_with_redis():
 
     mock_job_service = MagicMock()
 
-    with patch("backend.services.job_status.get_job_status_service") as mock_get:
+    with patch("backend.services.job_status.get_job_status_service", autospec=True) as mock_get:
         mock_get.return_value = mock_job_service
 
         result = service._get_job_status_service()
@@ -1643,7 +1657,7 @@ def test_get_job_status_service_caching():
 
     mock_job_service = MagicMock()
 
-    with patch("backend.services.job_status.get_job_status_service") as mock_get:
+    with patch("backend.services.job_status.get_job_status_service", autospec=True) as mock_get:
         mock_get.return_value = mock_job_service
 
         # First call
@@ -1886,7 +1900,9 @@ def test_orphaned_file_cleanup_initialization():
     mock_settings.video_thumbnails_dir = "/data/thumbnails"
     mock_settings.clips_directory = "/data/clips"
 
-    with patch("backend.services.cleanup_service.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.cleanup_service.get_settings", return_value=mock_settings, autospec=True
+    ):
         cleanup = OrphanedFileCleanup()
 
     assert "/data/thumbnails" in cleanup._storage_paths
@@ -2045,7 +2061,9 @@ async def test_orphaned_file_cleanup_run_dry_run(tmp_path):
     async def mock_get_referenced():
         return {str(referenced.resolve())}
 
-    with patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced):
+    with patch.object(
+        cleanup, "_get_referenced_files", side_effect=mock_get_referenced, autospec=True
+    ):
         stats = await cleanup.run_cleanup(dry_run=True)
 
     # Should identify orphaned files
@@ -2078,7 +2096,9 @@ async def test_orphaned_file_cleanup_run_delete(tmp_path):
     async def mock_get_referenced():
         return {str(referenced.resolve())}
 
-    with patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced):
+    with patch.object(
+        cleanup, "_get_referenced_files", side_effect=mock_get_referenced, autospec=True
+    ):
         stats = await cleanup.run_cleanup(dry_run=False)
 
     # Should identify and delete orphaned files
@@ -2108,7 +2128,9 @@ async def test_orphaned_file_cleanup_with_job_tracker(tmp_path):
     async def mock_get_referenced():
         return set()
 
-    with patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced):
+    with patch.object(
+        cleanup, "_get_referenced_files", side_effect=mock_get_referenced, autospec=True
+    ):
         stats = await cleanup.run_cleanup(dry_run=True)
 
     # Verify job tracker calls
@@ -2134,7 +2156,9 @@ async def test_orphaned_file_cleanup_exception_handling():
         raise Exception("Database error")
 
     with (
-        patch.object(cleanup, "_get_referenced_files", side_effect=mock_get_referenced_error),
+        patch.object(
+            cleanup, "_get_referenced_files", side_effect=mock_get_referenced_error, autospec=True
+        ),
         pytest.raises(Exception, match="Database error"),
     ):
         await cleanup.run_cleanup(dry_run=True)
@@ -2196,7 +2220,7 @@ def test_orphaned_file_cleanup_delete_orphaned_files_with_error(tmp_path):
     cleanup = OrphanedFileCleanup(storage_paths=[str(tmp_path)])
 
     # Mock unlink to raise error
-    with patch.object(Path, "unlink", side_effect=OSError("Permission denied")):
+    with patch.object(Path, "unlink", side_effect=OSError("Permission denied"), autospec=True):
         orphaned_files = [(str(file1), 100)]
         deleted_count = cleanup._delete_orphaned_files(orphaned_files)
 

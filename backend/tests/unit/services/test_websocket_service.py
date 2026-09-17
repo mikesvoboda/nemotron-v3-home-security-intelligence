@@ -216,7 +216,9 @@ class TestWebSocketShardedService:
         """Service uses default shard count from settings."""
         redis = _FakeRedis()
 
-        with patch("backend.services.websocket_service.get_settings") as mock_settings:
+        with patch(
+            "backend.services.websocket_service.get_settings", autospec=True
+        ) as mock_settings:
             mock_settings.return_value.redis_pubsub_shard_count = 16
             service = WebSocketShardedService(redis)
 

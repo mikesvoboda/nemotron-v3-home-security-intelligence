@@ -37,7 +37,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 
@@ -49,7 +51,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/"
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 
@@ -61,7 +65,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 
@@ -73,7 +79,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = None
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 
@@ -85,7 +93,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090"
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient(base_url="http://custom-florence:9999/")
 
@@ -99,7 +109,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = None
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient(base_url="http://custom-florence:9999")
 
@@ -111,7 +123,9 @@ class TestFlorenceClientGatewayRouting:
         del _base_mock_settings.ai_gateway_url
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 
@@ -123,7 +137,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.ai_gateway_url = "http://ai-gateway:8090/v1"
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 
@@ -136,7 +152,9 @@ class TestFlorenceClientGatewayRouting:
         _base_mock_settings.florence_url = "http://ai-florence:8092/"
 
         with patch(
-            "backend.services.florence_client.get_settings", return_value=_base_mock_settings
+            "backend.services.florence_client.get_settings",
+            return_value=_base_mock_settings,
+            autospec=True,
         ):
             client = FlorenceClient()
 

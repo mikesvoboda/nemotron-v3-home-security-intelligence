@@ -416,8 +416,10 @@ class TestGpuDetectionPynvml:
         """Test that service falls back to nvidia-smi when pynvml init fails."""
         with (
             patch.dict(sys.modules, {"pynvml": mock_pynvml_init_fails}),
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -445,8 +447,10 @@ class TestGpuDetectionNvidiaSmi:
     ) -> None:
         """Test detecting GPUs via nvidia-smi when pynvml unavailable."""
         with (
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -471,8 +475,10 @@ class TestGpuDetectionNvidiaSmi:
     ) -> None:
         """Test detecting single GPU via nvidia-smi."""
         with (
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -491,7 +497,7 @@ class TestGpuDetectionNvidiaSmi:
     async def test_detect_gpus_nvidia_smi_not_found(self, service_reset: None) -> None:
         """Test that empty list returned when nvidia-smi not found."""
         with (
-            patch("shutil.which", return_value=None),
+            patch("shutil.which", return_value=None, autospec=True),
             patch.dict(sys.modules, {}),
         ):
             service = GpuDetectionService()
@@ -505,8 +511,10 @@ class TestGpuDetectionNvidiaSmi:
     async def test_detect_gpus_nvidia_smi_returns_error(self, service_reset: None) -> None:
         """Test graceful handling when nvidia-smi returns error."""
         with (
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_result = MagicMock()
             mock_result.returncode = 1
@@ -525,8 +533,10 @@ class TestGpuDetectionNvidiaSmi:
     async def test_detect_gpus_nvidia_smi_timeout(self, service_reset: None) -> None:
         """Test graceful handling when nvidia-smi times out."""
         with (
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_run.side_effect = subprocess.TimeoutExpired(cmd="nvidia-smi", timeout=5)
 
@@ -599,8 +609,10 @@ class TestGpuUtilizationQueries:
     ) -> None:
         """Test getting GPU utilization via nvidia-smi fallback."""
         with (
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -711,7 +723,7 @@ class TestErrorHandling:
 
         with (
             patch.dict(sys.modules, {"pynvml": mock_nvml}),
-            patch("shutil.which", return_value=None),  # No nvidia-smi fallback
+            patch("shutil.which", return_value=None, autospec=True),  # No nvidia-smi fallback
         ):
             service = GpuDetectionService()
             service._nvidia_smi_path = None  # Ensure no fallback
@@ -763,7 +775,7 @@ class TestErrorHandling:
     async def test_get_utilization_handles_no_gpu_access(self, service_reset: None) -> None:
         """Test that get_gpu_utilization returns None when no GPU access."""
         with (
-            patch("shutil.which", return_value=None),
+            patch("shutil.which", return_value=None, autospec=True),
         ):
             service = GpuDetectionService()
             service._nvml_available = False
@@ -788,8 +800,10 @@ class TestContainerEnvironment:
         """Test GPU detection works via nvidia-smi in container (no pynvml)."""
         # Simulate container environment: no pynvml but nvidia-smi available
         with (
-            patch("shutil.which", return_value="/usr/bin/nvidia-smi"),
-            patch("backend.services.gpu_detection_service.async_subprocess_run") as mock_run,
+            patch("shutil.which", return_value="/usr/bin/nvidia-smi", autospec=True),
+            patch(
+                "backend.services.gpu_detection_service.async_subprocess_run", autospec=True
+            ) as mock_run,
         ):
             mock_result = MagicMock()
             mock_result.returncode = 0
@@ -809,7 +823,7 @@ class TestContainerEnvironment:
         """Test graceful handling when no GPU in container."""
         # Simulate container with no GPU access at all
         with (
-            patch("shutil.which", return_value=None),
+            patch("shutil.which", return_value=None, autospec=True),
         ):
             service = GpuDetectionService()
             service._nvml_available = False

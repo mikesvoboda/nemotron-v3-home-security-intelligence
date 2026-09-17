@@ -470,7 +470,7 @@ class TestEnrichmentTokenEstimation:
 class TestMetricsIntegration:
     """Tests for Prometheus metrics integration."""
 
-    @patch("backend.core.metrics.observe_context_utilization")
+    @patch("backend.core.metrics.observe_context_utilization", autospec=True)
     def test_validation_records_utilization_metric(self, mock_observe, token_counter):
         """Test that validation records context utilization metric."""
         prompt = "Test prompt for metrics"

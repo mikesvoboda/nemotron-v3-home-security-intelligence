@@ -43,7 +43,7 @@ def reset_semaphore():
 @pytest.fixture
 def mock_settings():
     """Mock settings with default concurrent inference limit."""
-    with patch("backend.services.inference_semaphore.get_settings") as mock:
+    with patch("backend.services.inference_semaphore.get_settings", autospec=True) as mock:
         settings = MagicMock()
         settings.ai_max_concurrent_inferences = 4
         mock.return_value = settings

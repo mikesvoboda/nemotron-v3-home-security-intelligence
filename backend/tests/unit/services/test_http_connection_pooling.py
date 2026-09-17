@@ -40,7 +40,11 @@ class TestDetectorClientConnectionPooling:
 
     def test_init_creates_http_client(self, mock_settings):
         """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch("backend.services.detector_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.detector_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.detector_client import DetectorClient
 
             client = DetectorClient()
@@ -51,7 +55,11 @@ class TestDetectorClientConnectionPooling:
 
     def test_init_configures_connection_limits(self, mock_settings):
         """Test that __init__ configures proper connection limits."""
-        with patch("backend.services.detector_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.detector_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.detector_client import DetectorClient
 
             client = DetectorClient()
@@ -63,7 +71,11 @@ class TestDetectorClientConnectionPooling:
 
     def test_init_configures_timeout(self, mock_settings):
         """Test that __init__ configures timeout on the persistent client."""
-        with patch("backend.services.detector_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.detector_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.detector_client import DetectorClient
 
             client = DetectorClient()
@@ -75,7 +87,11 @@ class TestDetectorClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_close_method_exists_and_works(self, mock_settings):
         """Test that close() method properly closes the HTTP client."""
-        with patch("backend.services.detector_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.detector_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.detector_client import DetectorClient
 
             client = DetectorClient()
@@ -93,7 +109,11 @@ class TestDetectorClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_health_check_reuses_http_client(self, mock_settings):
         """Test that health_check reuses the persistent HTTP client."""
-        with patch("backend.services.detector_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.detector_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.detector_client import DetectorClient
 
             client = DetectorClient()
@@ -144,7 +164,9 @@ class TestCLIPClientConnectionPooling:
 
     def test_init_creates_http_client(self, mock_settings):
         """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
+        ):
             from backend.services.clip_client import CLIPClient
 
             client = CLIPClient()
@@ -155,7 +177,9 @@ class TestCLIPClientConnectionPooling:
 
     def test_init_configures_connection_limits(self, mock_settings):
         """Test that __init__ configures proper connection limits."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
+        ):
             from backend.services.clip_client import CLIPClient
 
             client = CLIPClient()
@@ -168,7 +192,9 @@ class TestCLIPClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_close_method_exists_and_works(self, mock_settings):
         """Test that close() method properly closes the HTTP client."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
+        ):
             from backend.services.clip_client import CLIPClient
 
             client = CLIPClient()
@@ -186,7 +212,9 @@ class TestCLIPClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_embed_reuses_http_client(self, mock_settings, sample_image):
         """Test that embed() reuses the persistent HTTP client."""
-        with patch("backend.services.clip_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.clip_client.get_settings", return_value=mock_settings, autospec=True
+        ):
             from backend.services.clip_client import EMBEDDING_DIMENSION, CLIPClient
 
             client = CLIPClient()
@@ -235,7 +263,11 @@ class TestFlorenceClientConnectionPooling:
 
     def test_init_creates_http_client(self, mock_settings):
         """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch("backend.services.florence_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.florence_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.florence_client import FlorenceClient
 
             client = FlorenceClient()
@@ -246,7 +278,11 @@ class TestFlorenceClientConnectionPooling:
 
     def test_init_configures_connection_limits(self, mock_settings):
         """Test that __init__ configures proper connection limits."""
-        with patch("backend.services.florence_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.florence_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.florence_client import FlorenceClient
 
             client = FlorenceClient()
@@ -259,7 +295,11 @@ class TestFlorenceClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_close_method_exists_and_works(self, mock_settings):
         """Test that close() method properly closes the HTTP client."""
-        with patch("backend.services.florence_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.florence_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.florence_client import FlorenceClient
 
             client = FlorenceClient()
@@ -277,7 +317,11 @@ class TestFlorenceClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_extract_reuses_http_client(self, mock_settings, sample_image):
         """Test that extract() reuses the persistent HTTP client."""
-        with patch("backend.services.florence_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.florence_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.florence_client import FlorenceClient
 
             client = FlorenceClient()
@@ -330,7 +374,11 @@ class TestEnrichmentClientConnectionPooling:
 
     def test_init_creates_http_client(self, mock_settings):
         """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.enrichment_client import EnrichmentClient
 
             client = EnrichmentClient()
@@ -341,7 +389,11 @@ class TestEnrichmentClientConnectionPooling:
 
     def test_init_configures_connection_limits(self, mock_settings):
         """Test that __init__ configures proper connection limits."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.enrichment_client import EnrichmentClient
 
             client = EnrichmentClient()
@@ -354,7 +406,11 @@ class TestEnrichmentClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_close_method_exists_and_works(self, mock_settings):
         """Test that close() method properly closes the HTTP client."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.enrichment_client import EnrichmentClient
 
             client = EnrichmentClient()
@@ -372,7 +428,11 @@ class TestEnrichmentClientConnectionPooling:
     @pytest.mark.asyncio
     async def test_classify_vehicle_reuses_http_client(self, mock_settings, sample_image):
         """Test that classify_vehicle() reuses the persistent HTTP client."""
-        with patch("backend.services.enrichment_client.get_settings", return_value=mock_settings):
+        with patch(
+            "backend.services.enrichment_client.get_settings",
+            return_value=mock_settings,
+            autospec=True,
+        ):
             from backend.services.enrichment_client import EnrichmentClient
 
             client = EnrichmentClient()
@@ -412,7 +472,7 @@ class TestGlobalClientCleanup:
     @pytest.mark.asyncio
     async def test_clip_client_cleanup_on_reset(self):
         """Test that reset_clip_client properly cleans up resources."""
-        with patch("backend.services.clip_client.get_settings") as mock_get_settings:
+        with patch("backend.services.clip_client.get_settings", autospec=True) as mock_get_settings:
             mock_get_settings.return_value = MagicMock(
                 clip_url="http://test:8093",
                 ai_connect_timeout=10.0,
@@ -440,7 +500,9 @@ class TestGlobalClientCleanup:
     @pytest.mark.asyncio
     async def test_florence_client_cleanup_on_reset(self):
         """Test that reset_florence_client properly cleans up resources."""
-        with patch("backend.services.florence_client.get_settings") as mock_get_settings:
+        with patch(
+            "backend.services.florence_client.get_settings", autospec=True
+        ) as mock_get_settings:
             mock_get_settings.return_value = MagicMock(
                 florence_url="http://test:8092",
                 ai_connect_timeout=10.0,
@@ -471,7 +533,9 @@ class TestGlobalClientCleanup:
     @pytest.mark.asyncio
     async def test_enrichment_client_cleanup_on_reset(self):
         """Test that reset_enrichment_client properly cleans up resources."""
-        with patch("backend.services.enrichment_client.get_settings") as mock_get_settings:
+        with patch(
+            "backend.services.enrichment_client.get_settings", autospec=True
+        ) as mock_get_settings:
             mock_get_settings.return_value = MagicMock(
                 enrichment_url="http://test:8094",
                 ai_connect_timeout=10.0,

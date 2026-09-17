@@ -628,7 +628,7 @@ async def test_get_cache_service_returns_singleton():
     # Reset singleton before test
     await reset_cache_service()
 
-    with patch("backend.services.cache_service.init_redis") as mock_init:
+    with patch("backend.services.cache_service.init_redis", autospec=True) as mock_init:
         mock_redis = AsyncMock()
         mock_init.return_value = mock_redis
 
@@ -648,7 +648,7 @@ async def test_get_cache_service_initializes_redis():
     """Test get_cache_service initializes Redis connection."""
     await reset_cache_service()
 
-    with patch("backend.services.cache_service.init_redis") as mock_init:
+    with patch("backend.services.cache_service.init_redis", autospec=True) as mock_init:
         mock_redis = AsyncMock()
         mock_init.return_value = mock_redis
 
@@ -666,7 +666,7 @@ async def test_get_cache_service_initializes_redis():
 async def test_reset_cache_service_clears_singleton():
     """Test reset_cache_service clears the singleton instance."""
     # First create a service
-    with patch("backend.services.cache_service.init_redis") as mock_init:
+    with patch("backend.services.cache_service.init_redis", autospec=True) as mock_init:
         mock_redis = AsyncMock()
         mock_init.return_value = mock_redis
 
@@ -830,7 +830,7 @@ async def test_cache_get_records_hit_metric(cache_service, mock_redis_client):
     """Test cache get records hit metric when key exists."""
     mock_redis_client.get.return_value = {"data": "cached"}
 
-    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+    with patch("backend.services.cache_service.record_cache_hit", autospec=True) as mock_hit:
         await cache_service.get("cameras:list")
 
     mock_hit.assert_called_once_with("cameras")
@@ -841,7 +841,7 @@ async def test_cache_get_records_miss_metric(cache_service, mock_redis_client):
     """Test cache get records miss metric when key doesn't exist."""
     mock_redis_client.get.return_value = None
 
-    with patch("backend.services.cache_service.record_cache_miss") as mock_miss:
+    with patch("backend.services.cache_service.record_cache_miss", autospec=True) as mock_miss:
         await cache_service.get("cameras:list")
 
     mock_miss.assert_called_once_with("cameras")
@@ -852,7 +852,7 @@ async def test_cache_get_records_miss_on_error(cache_service, mock_redis_client)
     """Test cache get records miss metric on Redis error."""
     mock_redis_client.get.side_effect = RedisError("Redis error")
 
-    with patch("backend.services.cache_service.record_cache_miss") as mock_miss:
+    with patch("backend.services.cache_service.record_cache_miss", autospec=True) as mock_miss:
         await cache_service.get("cameras:list")
 
     mock_miss.assert_called_once_with("cameras")
@@ -863,7 +863,7 @@ async def test_cache_get_infers_event_stats_type(cache_service, mock_redis_clien
     """Test cache get infers 'event_stats' type from stats:events: prefix."""
     mock_redis_client.get.return_value = {"stats": "data"}
 
-    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+    with patch("backend.services.cache_service.record_cache_hit", autospec=True) as mock_hit:
         await cache_service.get("stats:events:2024-01-01:2024-01-31")
 
     mock_hit.assert_called_once_with("event_stats")
@@ -874,7 +874,7 @@ async def test_cache_get_infers_system_type(cache_service, mock_redis_client):
     """Test cache get infers 'system' type from system: prefix."""
     mock_redis_client.get.return_value = {"status": "healthy"}
 
-    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+    with patch("backend.services.cache_service.record_cache_hit", autospec=True) as mock_hit:
         await cache_service.get("system:status")
 
     mock_hit.assert_called_once_with("system")
@@ -885,7 +885,7 @@ async def test_cache_get_with_explicit_cache_type(cache_service, mock_redis_clie
     """Test cache get uses explicit cache_type for metrics."""
     mock_redis_client.get.return_value = {"data": "value"}
 
-    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+    with patch("backend.services.cache_service.record_cache_hit", autospec=True) as mock_hit:
         await cache_service.get("custom:key", cache_type="custom_type")
 
     mock_hit.assert_called_once_with("custom_type")
@@ -896,7 +896,7 @@ async def test_cache_get_defaults_to_other_type(cache_service, mock_redis_client
     """Test cache get defaults to 'other' for unknown prefixes."""
     mock_redis_client.get.return_value = {"data": "value"}
 
-    with patch("backend.services.cache_service.record_cache_hit") as mock_hit:
+    with patch("backend.services.cache_service.record_cache_hit", autospec=True) as mock_hit:
         await cache_service.get("unknown:key")
 
     mock_hit.assert_called_once_with("other")
@@ -924,7 +924,9 @@ async def test_invalidate_pattern_records_invalidation_metric(cache_service, moc
     mock_redis_client._ensure_connected.return_value = mock_client
     mock_redis_client.delete.return_value = 1
 
-    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+    with patch(
+        "backend.services.cache_service.record_cache_invalidation", autospec=True
+    ) as mock_invalidation:
         await cache_service.invalidate_pattern(
             "cameras:*", reason=CacheInvalidationReason.CAMERA_UPDATED
         )
@@ -943,7 +945,9 @@ async def test_invalidate_pattern_no_metric_when_no_keys(cache_service, mock_red
     mock_client.scan_iter.return_value = mock_scan_iter
     mock_redis_client._ensure_connected.return_value = mock_client
 
-    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+    with patch(
+        "backend.services.cache_service.record_cache_invalidation", autospec=True
+    ) as mock_invalidation:
         await cache_service.invalidate_pattern("nonexistent:*")
 
     mock_invalidation.assert_not_called()
@@ -984,7 +988,9 @@ async def test_invalidate_event_stats_with_custom_reason(cache_service, mock_red
     mock_redis_client._ensure_connected.return_value = mock_client
     mock_redis_client.delete.return_value = 1
 
-    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+    with patch(
+        "backend.services.cache_service.record_cache_invalidation", autospec=True
+    ) as mock_invalidation:
         await cache_service.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_DELETED)
 
     mock_invalidation.assert_called_once_with("event_stats", "event_deleted")
@@ -1034,7 +1040,9 @@ async def test_invalidate_cameras_with_custom_reason(cache_service, mock_redis_c
     mock_redis_client._ensure_connected.return_value = mock_client
     mock_redis_client.delete.return_value = 1
 
-    with patch("backend.services.cache_service.record_cache_invalidation") as mock_invalidation:
+    with patch(
+        "backend.services.cache_service.record_cache_invalidation", autospec=True
+    ) as mock_invalidation:
         await cache_service.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_DELETED)
 
     mock_invalidation.assert_called_once_with("cameras", "camera_deleted")
@@ -1106,7 +1114,9 @@ async def test_cached_decorator_returns_cached_value():
         call_count += 1
         return {"fresh": True}
 
-    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+    with patch(
+        "backend.services.cache_service.get_cache_service", return_value=mock_cache, autospec=True
+    ):
         result = await test_function()
 
     assert result == {"cached": True}
@@ -1128,7 +1138,9 @@ async def test_cached_decorator_calls_function_on_miss():
         call_count += 1
         return {"fresh": True}
 
-    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+    with patch(
+        "backend.services.cache_service.get_cache_service", return_value=mock_cache, autospec=True
+    ):
         result = await test_function()
 
     assert result == {"fresh": True}
@@ -1146,7 +1158,9 @@ async def test_cached_decorator_with_callable_key():
     async def get_item(item_id: str):
         return {"id": item_id}
 
-    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+    with patch(
+        "backend.services.cache_service.get_cache_service", return_value=mock_cache, autospec=True
+    ):
         result = await get_item("123")
 
     assert result == {"cached": True}
@@ -1164,7 +1178,9 @@ async def test_cached_decorator_with_kwargs():
     async def get_stats(start=None, end=None):
         return {"start": start, "end": end}
 
-    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+    with patch(
+        "backend.services.cache_service.get_cache_service", return_value=mock_cache, autospec=True
+    ):
         result = await get_stats(start="2024-01-01", end="2024-01-31")
 
     assert result == {"start": "2024-01-01", "end": "2024-01-31"}
@@ -1181,7 +1197,9 @@ async def test_cached_decorator_passes_cache_type_to_get():
     async def get_event_stats():
         return {"stats": "data"}
 
-    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+    with patch(
+        "backend.services.cache_service.get_cache_service", return_value=mock_cache, autospec=True
+    ):
         await get_event_stats()
 
     mock_cache.get.assert_awaited_once_with("event_stats:key", cache_type="event_stats")
@@ -1201,7 +1219,9 @@ async def test_cached_decorator_falls_back_on_cache_error():
         call_count += 1
         return {"fresh": True}
 
-    with patch("backend.services.cache_service.get_cache_service", return_value=mock_cache):
+    with patch(
+        "backend.services.cache_service.get_cache_service", return_value=mock_cache, autospec=True
+    ):
         result = await test_function()
 
     assert result == {"fresh": True}

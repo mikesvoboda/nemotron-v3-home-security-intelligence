@@ -92,6 +92,7 @@ class TestAlertServiceWebhookIntegration:
         with patch(
             "backend.services.alert_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             service = AlertService(mock_session, mock_emitter)
 
@@ -125,6 +126,7 @@ class TestAlertServiceWebhookIntegration:
         with patch(
             "backend.services.alert_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             service = AlertService(mock_session, mock_emitter)
 
@@ -154,6 +156,7 @@ class TestAlertServiceWebhookIntegration:
         with patch(
             "backend.services.alert_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             service = AlertService(mock_session, mock_emitter)
 
@@ -183,6 +186,7 @@ class TestAlertServiceWebhookIntegration:
         with patch(
             "backend.services.alert_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             service = AlertService(mock_session, mock_emitter)
 
@@ -218,6 +222,7 @@ class TestAlertEngineWebhookIntegration:
         with patch(
             "backend.services.alert_engine.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             engine = AlertRuleEngine(mock_session)
 
@@ -285,6 +290,7 @@ class TestEntityClusteringWebhookIntegration:
         with patch(
             "backend.services.entity_clustering_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             service = EntityClusteringService(entity_repository=mock_repo)
 
@@ -333,6 +339,7 @@ class TestEntityClusteringWebhookIntegration:
         with patch(
             "backend.services.entity_clustering_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             service = EntityClusteringService(entity_repository=mock_repo)
 
@@ -366,6 +373,7 @@ class TestTriggerWebhookBackground:
         with patch(
             "backend.services.webhook_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             await trigger_webhook_background(
                 db=mock_session,
@@ -395,6 +403,7 @@ class TestTriggerWebhookBackground:
         with patch(
             "backend.services.webhook_service.get_webhook_service",
             return_value=mock_webhook_service,
+            autospec=True,
         ):
             # Should not raise even though service failed
             await trigger_webhook_background(

@@ -104,7 +104,7 @@ def test_cache_initialization(mock_config):
 
 def test_cache_initialization_default_config():
     """Test TranscodeCache uses default config when none provided."""
-    with patch("backend.core.config.get_settings") as mock_settings:
+    with patch("backend.core.config.get_settings", autospec=True) as mock_settings:
         mock_transcode_config = TranscodeCacheSettings()
         mock_settings.return_value.transcode_cache = mock_transcode_config
         cache = TranscodeCache()
@@ -593,7 +593,7 @@ async def test_get_transcode_cache_returns_singleton():
     """Test get_transcode_cache returns singleton instance."""
     await reset_transcode_cache()
 
-    with patch("backend.services.transcode_cache.TranscodeCache") as MockCache:
+    with patch("backend.services.transcode_cache.TranscodeCache", autospec=True) as MockCache:
         mock_instance = AsyncMock()
         mock_instance.initialize = AsyncMock()
         MockCache.return_value = mock_instance
@@ -613,7 +613,7 @@ async def test_reset_transcode_cache_clears_singleton():
     """Test reset_transcode_cache clears the singleton."""
     await reset_transcode_cache()
 
-    with patch("backend.services.transcode_cache.TranscodeCache") as MockCache:
+    with patch("backend.services.transcode_cache.TranscodeCache", autospec=True) as MockCache:
         mock_instance = AsyncMock()
         mock_instance.initialize = AsyncMock()
         MockCache.return_value = mock_instance

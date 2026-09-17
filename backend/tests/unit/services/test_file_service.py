@@ -174,7 +174,9 @@ class TestFileServiceScheduleDeletion:
         """Test that schedule_deletion returns None when Redis unavailable."""
         service = FileService(redis_client=None)
 
-        with patch("backend.services.file_service.get_redis_client_sync", return_value=None):
+        with patch(
+            "backend.services.file_service.get_redis_client_sync", return_value=None, autospec=True
+        ):
             job_id = await service.schedule_deletion(
                 file_paths=["/tmp/test.jpg"],
                 event_id=123,

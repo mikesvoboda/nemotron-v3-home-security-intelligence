@@ -285,7 +285,7 @@ class TestGetZoneApproachVectors:
         service = ApproachVectorService(mock_db)
 
         # Mock _get_zone to return None
-        with patch.object(service, "_get_zone", return_value=None):
+        with patch.object(service, "_get_zone", return_value=None, autospec=True):
             vectors = await service.get_zone_approach_vectors(zone_id=999)
 
         assert vectors == []
@@ -300,7 +300,7 @@ class TestGetZoneApproachVectors:
         mock_zone.polygon = [[0, 0]]  # Only 1 point - invalid
         mock_zone.camera_id = "test_camera"
 
-        with patch.object(service, "_get_zone", return_value=mock_zone):
+        with patch.object(service, "_get_zone", return_value=mock_zone, autospec=True):
             vectors = await service.get_zone_approach_vectors(zone_id=1)
 
         assert vectors == []
@@ -316,9 +316,11 @@ class TestGetZoneApproachVectors:
         mock_zone.camera_id = "test_camera"
 
         with (
-            patch.object(service, "_get_zone", return_value=mock_zone),
-            patch.object(service, "_get_active_dweller_track_ids", return_value=set()),
-            patch.object(service, "_get_recent_detections", return_value=[]),
+            patch.object(service, "_get_zone", return_value=mock_zone, autospec=True),
+            patch.object(
+                service, "_get_active_dweller_track_ids", return_value=set(), autospec=True
+            ),
+            patch.object(service, "_get_recent_detections", return_value=[], autospec=True),
         ):
             vectors = await service.get_zone_approach_vectors(zone_id=1)
 
@@ -346,11 +348,13 @@ class TestGetZoneApproachVectors:
         detection.object_type = "person"
 
         with (
-            patch.object(service, "_get_zone", return_value=mock_zone),
+            patch.object(service, "_get_zone", return_value=mock_zone, autospec=True),
             patch.object(
-                service, "_get_active_dweller_track_ids", return_value={42}
+                service, "_get_active_dweller_track_ids", return_value={42}, autospec=True
             ),  # track 42 is in zone
-            patch.object(service, "_get_recent_detections", return_value=[detection]),
+            patch.object(
+                service, "_get_recent_detections", return_value=[detection], autospec=True
+            ),
         ):
             vectors = await service.get_zone_approach_vectors(zone_id=1)
 

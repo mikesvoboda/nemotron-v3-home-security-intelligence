@@ -218,9 +218,15 @@ class TestCallLLMStreaming:
         mock_client.stream = MagicMock(return_value=MockStreamCM())
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
+            patch(
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
         ):
             # Setup semaphore mock
             mock_semaphore.return_value = AsyncMock()
@@ -273,9 +279,15 @@ class TestCallLLMStreaming:
         mock_client.stream = MagicMock(return_value=MockStreamCM())
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
+            patch(
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
         ):
             mock_semaphore.return_value = AsyncMock()
             mock_semaphore.return_value.__aenter__ = AsyncMock()
@@ -328,9 +340,15 @@ class TestCallLLMStreaming:
         mock_client.stream = MagicMock(return_value=MockStreamCM())
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
+            patch(
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
         ):
             mock_semaphore.return_value = AsyncMock()
             mock_semaphore.return_value.__aenter__ = AsyncMock()
@@ -381,9 +399,15 @@ class TestCallLLMStreaming:
         mock_client.stream = MagicMock(return_value=MockStreamCM())
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
+            patch(
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
         ):
             mock_semaphore.return_value = AsyncMock()
             mock_semaphore.return_value.__aenter__ = AsyncMock()
@@ -431,12 +455,20 @@ class TestCallLLMStreaming:
         mock_client.stream = MagicMock(return_value=MockStreamCM())
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
-            patch("backend.services.prompt_sanitizer.sanitize_camera_name") as mock_sanitize_camera,
             patch(
-                "backend.services.prompt_sanitizer.sanitize_detection_description"
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
+            patch(
+                "backend.services.prompt_sanitizer.sanitize_camera_name", autospec=True
+            ) as mock_sanitize_camera,
+            patch(
+                "backend.services.prompt_sanitizer.sanitize_detection_description", autospec=True
             ) as mock_sanitize_detection,
         ):
             mock_semaphore.return_value = AsyncMock()
@@ -494,9 +526,15 @@ class TestCallLLMStreaming:
         enrichment_result = EnrichmentResult()  # Use defaults, it's a dataclass
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
+            patch(
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
         ):
             mock_semaphore.return_value = AsyncMock()
             mock_semaphore.return_value.__aenter__ = AsyncMock()
@@ -553,9 +591,15 @@ class TestCallLLMStreaming:
         mock_client.stream = MagicMock(return_value=MockStreamCM())
 
         with (
-            patch("backend.services.nemotron_streaming.get_settings", return_value=mock_settings),
-            patch("backend.services.nemotron_streaming.get_inference_semaphore") as mock_semaphore,
-            patch("httpx.AsyncClient") as mock_httpx,
+            patch(
+                "backend.services.nemotron_streaming.get_settings",
+                return_value=mock_settings,
+                autospec=True,
+            ),
+            patch(
+                "backend.services.nemotron_streaming.get_inference_semaphore", autospec=True
+            ) as mock_semaphore,
+            patch("httpx.AsyncClient", autospec=True) as mock_httpx,
         ):
             mock_semaphore.return_value = AsyncMock()
             mock_semaphore.return_value.__aenter__ = AsyncMock()
@@ -676,7 +720,11 @@ class TestAnalyzeBatchStreaming:
         mock_result.scalar_one_or_none = MagicMock(return_value=None)
         mock_session.execute.return_value = mock_result
 
-        with patch("backend.services.nemotron_streaming.get_session", return_value=mock_session):
+        with patch(
+            "backend.services.nemotron_streaming.get_session",
+            return_value=mock_session,
+            autospec=True,
+        ):
             events = []
             async for event in analyze_batch_streaming(
                 analyzer=mock_analyzer,
@@ -710,10 +758,15 @@ class TestAnalyzeBatchStreaming:
         mock_session.refresh = AsyncMock()
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
-                return_value=[],  # No detections found
+                return_value=[],  # No detections found,
+                autospec=True,
             ),
         ):
             events = []
@@ -746,14 +799,20 @@ class TestAnalyzeBatchStreaming:
         mock_session.execute = AsyncMock(return_value=mock_camera_result)
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=httpx.TimeoutException("Timeout"),
+                autospec=True,
             ),
         ):
             events = []
@@ -788,14 +847,20 @@ class TestAnalyzeBatchStreaming:
         mock_session.execute = AsyncMock(return_value=mock_camera_result)
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=httpx.ConnectError("Connection failed"),
+                autospec=True,
             ),
         ):
             events = []
@@ -828,14 +893,20 @@ class TestAnalyzeBatchStreaming:
         mock_session.execute = AsyncMock(return_value=mock_camera_result)
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=RuntimeError("Unexpected error"),
+                autospec=True,
             ),
         ):
             events = []
@@ -895,19 +966,25 @@ class TestAnalyzeBatchStreaming:
             yield " analysis"
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=mock_llm_stream,
+                autospec=True,
             ),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration"),
-            patch("backend.services.nemotron_streaming.observe_stage_duration"),
-            patch("backend.services.nemotron_streaming.record_event_created"),
-            patch("backend.services.nemotron_streaming.record_event_by_camera"),
+            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
         ):
             events = []
             async for event in analyze_batch_streaming(
@@ -981,19 +1058,25 @@ class TestAnalyzeBatchStreaming:
             yield " analysis"
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=mock_llm_stream,
+                autospec=True,
             ),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration"),
-            patch("backend.services.nemotron_streaming.observe_stage_duration"),
-            patch("backend.services.nemotron_streaming.record_event_created"),
-            patch("backend.services.nemotron_streaming.record_event_by_camera"),
+            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
         ):
             events = []
             async for event in analyze_batch_streaming(
@@ -1048,19 +1131,25 @@ class TestAnalyzeBatchStreaming:
             yield " JSON"
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=mock_llm_stream,
+                autospec=True,
             ),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration"),
-            patch("backend.services.nemotron_streaming.observe_stage_duration"),
-            patch("backend.services.nemotron_streaming.record_event_created"),
-            patch("backend.services.nemotron_streaming.record_event_by_camera"),
+            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
         ):
             events = []
             async for event in analyze_batch_streaming(
@@ -1114,19 +1203,25 @@ class TestAnalyzeBatchStreaming:
             yield "Test"
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=sample_detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=mock_llm_stream,
+                autospec=True,
             ),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration"),
-            patch("backend.services.nemotron_streaming.observe_stage_duration"),
-            patch("backend.services.nemotron_streaming.record_event_created"),
-            patch("backend.services.nemotron_streaming.record_event_by_camera"),
+            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
         ):
             events = []
             async for event in analyze_batch_streaming(
@@ -1191,19 +1286,25 @@ class TestAnalyzeBatchStreaming:
             yield "Result"
 
         with (
-            patch("backend.services.nemotron_streaming.get_session", return_value=mock_session),
+            patch(
+                "backend.services.nemotron_streaming.get_session",
+                return_value=mock_session,
+                autospec=True,
+            ),
             patch(
                 "backend.services.nemotron_streaming.batch_fetch_detections",
                 return_value=detections,
+                autospec=True,
             ),
             patch(
                 "backend.services.nemotron_streaming.call_llm_streaming",
                 side_effect=mock_llm_stream,
+                autospec=True,
             ),
-            patch("backend.services.nemotron_streaming.observe_ai_request_duration"),
-            patch("backend.services.nemotron_streaming.observe_stage_duration"),
-            patch("backend.services.nemotron_streaming.record_event_created"),
-            patch("backend.services.nemotron_streaming.record_event_by_camera"),
+            patch("backend.services.nemotron_streaming.observe_ai_request_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.observe_stage_duration", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_created", autospec=True),
+            patch("backend.services.nemotron_streaming.record_event_by_camera", autospec=True),
         ):
             events = []
             async for event in analyze_batch_streaming(

@@ -127,7 +127,7 @@ class TestBroadcastWithRetry:
         mock_func = AsyncMock(side_effect=[Exception("Fail 1"), 5])
         metrics = BroadcastRetryMetrics()
 
-        with patch("backend.services.event_broadcaster.asyncio.sleep") as mock_sleep:
+        with patch("backend.services.event_broadcaster.asyncio.sleep", autospec=True) as mock_sleep:
             result = await broadcast_with_retry(
                 mock_func,
                 message_type="test_event",
@@ -155,7 +155,7 @@ class TestBroadcastWithRetry:
         )
         metrics = BroadcastRetryMetrics()
 
-        with patch("backend.services.event_broadcaster.asyncio.sleep"):
+        with patch("backend.services.event_broadcaster.asyncio.sleep", autospec=True):
             result = await broadcast_with_retry(
                 mock_func,
                 message_type="test_event",
@@ -174,7 +174,7 @@ class TestBroadcastWithRetry:
         mock_func = AsyncMock(side_effect=Exception("Persistent failure"))
         metrics = BroadcastRetryMetrics()
 
-        with patch("backend.services.event_broadcaster.asyncio.sleep"):
+        with patch("backend.services.event_broadcaster.asyncio.sleep", autospec=True):
             with pytest.raises(Exception, match="Persistent failure"):
                 await broadcast_with_retry(
                     mock_func,
@@ -205,6 +205,7 @@ class TestBroadcastWithRetry:
         with patch(
             "backend.services.event_broadcaster.asyncio.sleep",
             side_effect=capture_sleep,
+            autospec=True,
         ):
             await broadcast_with_retry(
                 mock_func,
@@ -232,6 +233,7 @@ class TestBroadcastWithRetry:
         with patch(
             "backend.services.event_broadcaster.asyncio.sleep",
             side_effect=capture_sleep,
+            autospec=True,
         ):
             await broadcast_with_retry(
                 mock_func,
@@ -312,7 +314,7 @@ class TestBroadcastAlertWithRetryBackground:
         alert_data = {"id": "test-123", "severity": "high"}
 
         # Should not raise
-        with patch("backend.services.event_broadcaster.asyncio.sleep"):
+        with patch("backend.services.event_broadcaster.asyncio.sleep", autospec=True):
             await broadcast_alert_with_retry_background(
                 mock_broadcaster,
                 alert_data,
@@ -333,7 +335,7 @@ class TestBroadcastAlertWithRetryBackground:
         metrics = BroadcastRetryMetrics()
         alert_data = {"id": "test-123", "severity": "high"}
 
-        with patch("backend.services.event_broadcaster.asyncio.sleep"):
+        with patch("backend.services.event_broadcaster.asyncio.sleep", autospec=True):
             await broadcast_alert_with_retry_background(
                 mock_broadcaster,
                 alert_data,

@@ -88,7 +88,9 @@ class TestStateTransitions:
         # Use mocked time to control recovery timeout
         mock_time = 1000.0  # Starting time
 
-        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+        with patch(
+            "backend.core.websocket_circuit_breaker.time.monotonic", autospec=True
+        ) as mock_monotonic:
             mock_monotonic.return_value = mock_time
 
             # Open the circuit
@@ -111,7 +113,9 @@ class TestStateTransitions:
         # Use mocked time to control recovery timeout
         mock_time = 1000.0  # Starting time
 
-        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+        with patch(
+            "backend.core.websocket_circuit_breaker.time.monotonic", autospec=True
+        ) as mock_monotonic:
             mock_monotonic.return_value = mock_time
 
             # Open the circuit
@@ -138,7 +142,9 @@ class TestStateTransitions:
         # Use mocked time to control recovery timeout
         mock_time = 1000.0  # Starting time
 
-        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+        with patch(
+            "backend.core.websocket_circuit_breaker.time.monotonic", autospec=True
+        ) as mock_monotonic:
             mock_monotonic.return_value = mock_time
 
             # Open the circuit
@@ -185,7 +191,9 @@ class TestIsCallPermitted:
         # Use mocked time to control recovery timeout
         mock_time = 1000.0  # Starting time
 
-        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+        with patch(
+            "backend.core.websocket_circuit_breaker.time.monotonic", autospec=True
+        ) as mock_monotonic:
             mock_monotonic.return_value = mock_time
 
             # Open the circuit
@@ -417,7 +425,9 @@ class TestRecoveryBehavior:
         # Use mocked time to control recovery timeout
         mock_time = 1000.0  # Starting time
 
-        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+        with patch(
+            "backend.core.websocket_circuit_breaker.time.monotonic", autospec=True
+        ) as mock_monotonic:
             mock_monotonic.return_value = mock_time
 
             breaker.record_failure()
@@ -439,7 +449,9 @@ class TestRecoveryBehavior:
         # Use mocked time to control recovery timeout
         mock_time = 1000.0  # Starting time
 
-        with patch("backend.core.websocket_circuit_breaker.time.monotonic") as mock_monotonic:
+        with patch(
+            "backend.core.websocket_circuit_breaker.time.monotonic", autospec=True
+        ) as mock_monotonic:
             mock_monotonic.return_value = mock_time
 
             # Open the circuit

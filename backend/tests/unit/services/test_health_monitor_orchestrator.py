@@ -252,7 +252,9 @@ class TestCheckHttpHealth:
     @pytest.mark.asyncio
     async def test_http_health_check_success(self) -> None:
         """Test HTTP health check returns True on 200 status."""
-        with patch("backend.services.health_monitor_orchestrator.httpx.AsyncClient") as mock_client:
+        with patch(
+            "backend.services.health_monitor_orchestrator.httpx.AsyncClient", autospec=True
+        ) as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_client_instance = AsyncMock()
@@ -267,7 +269,9 @@ class TestCheckHttpHealth:
     @pytest.mark.asyncio
     async def test_http_health_check_failure_non_200(self) -> None:
         """Test HTTP health check returns False on non-200 status."""
-        with patch("backend.services.health_monitor_orchestrator.httpx.AsyncClient") as mock_client:
+        with patch(
+            "backend.services.health_monitor_orchestrator.httpx.AsyncClient", autospec=True
+        ) as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 503
             mock_client_instance = AsyncMock()
@@ -284,7 +288,9 @@ class TestCheckHttpHealth:
         """Test HTTP health check returns False on timeout."""
         import httpx
 
-        with patch("backend.services.health_monitor_orchestrator.httpx.AsyncClient") as mock_client:
+        with patch(
+            "backend.services.health_monitor_orchestrator.httpx.AsyncClient", autospec=True
+        ) as mock_client:
             mock_client_instance = AsyncMock()
             mock_client_instance.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
             mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
@@ -299,7 +305,9 @@ class TestCheckHttpHealth:
         """Test HTTP health check returns False on connection error."""
         import httpx
 
-        with patch("backend.services.health_monitor_orchestrator.httpx.AsyncClient") as mock_client:
+        with patch(
+            "backend.services.health_monitor_orchestrator.httpx.AsyncClient", autospec=True
+        ) as mock_client:
             mock_client_instance = AsyncMock()
             mock_client_instance.get = AsyncMock(
                 side_effect=httpx.RequestError("Connection refused")
@@ -829,7 +837,7 @@ class TestHealthMonitorStartStop:
             check_count += 1
             return True
 
-        with patch.object(monitor, "check_service_health", side_effect=mock_check):
+        with patch.object(monitor, "check_service_health", side_effect=mock_check, autospec=True):
             await monitor.start()
             await asyncio.sleep(0.5)  # Let it run a few cycles (increased for CI)
             await monitor.stop()

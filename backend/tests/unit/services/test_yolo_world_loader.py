@@ -273,7 +273,7 @@ async def test_load_yolo_world_model_success(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
 
-    with patch("torch.cuda.is_available", return_value=True):
+    with patch("torch.cuda.is_available", return_value=True, autospec=True):
         result = await load_yolo_world_model("yolov8s-worldv2.pt")
 
     assert result is mock_model
@@ -295,7 +295,7 @@ async def test_load_yolo_world_model_sets_default_prompts(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
 
-    with patch("torch.cuda.is_available", return_value=True):
+    with patch("torch.cuda.is_available", return_value=True, autospec=True):
         await load_yolo_world_model("yolov8s-worldv2.pt")
 
     # Verify set_classes was called with SECURITY_PROMPTS

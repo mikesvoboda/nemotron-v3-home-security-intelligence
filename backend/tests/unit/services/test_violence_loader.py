@@ -129,7 +129,10 @@ class TestClassifyViolence:
         mock_logits = MagicMock()
 
         # Import torch for tensor mocking
-        with patch("torch.no_grad"), patch("torch.nn.functional.softmax") as mock_softmax:
+        with (
+            patch("torch.no_grad", autospec=True),
+            patch("torch.nn.functional.softmax", autospec=True) as mock_softmax,
+        ):
             # Mock softmax to return high violent score
             mock_probs = MagicMock()
             mock_probs.__getitem__ = lambda _self, _idx: MagicMock(

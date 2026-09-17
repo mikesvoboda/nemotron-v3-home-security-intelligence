@@ -742,7 +742,7 @@ class TestContextManagerRealBehavior:
         from backend.services.gpu_monitor import GPUMonitor
 
         # Mock database operations and pynvml (imported dynamically inside methods)
-        with patch("backend.services.gpu_monitor.get_session"):
+        with patch("backend.services.gpu_monitor.get_session", autospec=True):
             monitor = GPUMonitor()
 
             assert not monitor.running

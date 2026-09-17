@@ -286,7 +286,9 @@ class TestContainerOrchestratorStart:
         """Test start() verifies Docker connection."""
         mock_docker_client.connect.return_value = True
 
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         mock_docker_client.connect.assert_called_once()
@@ -316,6 +318,7 @@ class TestContainerOrchestratorStart:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -329,7 +332,9 @@ class TestContainerOrchestratorStart:
         mock_docker_client.connect.return_value = True
 
         with (
-            patch.object(orchestrator._discovery_service, "discover_all", return_value=[]),
+            patch.object(
+                orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+            ),
             patch.object(
                 orchestrator._registry, "load_all_state", new_callable=AsyncMock
             ) as mock_load,
@@ -351,6 +356,7 @@ class TestContainerOrchestratorStart:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -363,7 +369,9 @@ class TestContainerOrchestratorStart:
         """Test start() sets is_running to True."""
         mock_docker_client.connect.return_value = True
 
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         assert orchestrator.is_running is True
@@ -375,7 +383,9 @@ class TestContainerOrchestratorStart:
         """Test start() is idempotent."""
         mock_docker_client.connect.return_value = True
 
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
             await orchestrator.start()  # Second call should be no-op
 
@@ -404,7 +414,9 @@ class TestContainerOrchestratorStop:
         """Test stop() stops the health monitor."""
         mock_docker_client.connect.return_value = True
 
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         health_monitor = orchestrator._health_monitor
@@ -428,6 +440,7 @@ class TestContainerOrchestratorStop:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -444,7 +457,9 @@ class TestContainerOrchestratorStop:
         """Test stop() sets is_running to False."""
         mock_docker_client.connect.return_value = True
 
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         await orchestrator.stop()
@@ -480,6 +495,7 @@ class TestGetAllServices:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -516,6 +532,7 @@ class TestGetService:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -594,7 +611,9 @@ class TestEnableService:
 
         # Create lifecycle manager so enable_service can delegate to it
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         result = await orchestrator.enable_service("ai-yolo26")
@@ -619,7 +638,9 @@ class TestEnableService:
 
         # Create lifecycle manager so enable_service can delegate to it
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         await orchestrator.enable_service("ai-yolo26")
@@ -642,7 +663,9 @@ class TestEnableService:
 
         # Create lifecycle manager so enable_service can delegate to it
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         await orchestrator.enable_service("ai-yolo26")
@@ -676,7 +699,9 @@ class TestDisableService:
 
         # Create lifecycle manager so disable_service can delegate to it
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         result = await orchestrator.disable_service("ai-yolo26")
@@ -700,7 +725,9 @@ class TestDisableService:
 
         # Create lifecycle manager so disable_service can delegate to it
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         await orchestrator.disable_service("ai-yolo26")
@@ -802,7 +829,9 @@ class TestHealthChangeCallback:
 
         # Create lifecycle manager so health change handler can delegate to it
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         await orchestrator._on_health_change(managed_service, False)
@@ -1068,11 +1097,15 @@ class TestRestartServiceAdvanced:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager restart to succeed
-        with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True):
+        with patch.object(
+            orchestrator._lifecycle_manager, "restart_service", return_value=True, autospec=True
+        ):
             result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
@@ -1094,11 +1127,15 @@ class TestRestartServiceAdvanced:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager restart to fail
-        with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=False):
+        with patch.object(
+            orchestrator._lifecycle_manager, "restart_service", return_value=False, autospec=True
+        ):
             result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is False
@@ -1176,11 +1213,15 @@ class TestStartServiceAdvanced:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager start to succeed
-        with patch.object(orchestrator._lifecycle_manager, "start_service", return_value=True):
+        with patch.object(
+            orchestrator._lifecycle_manager, "start_service", return_value=True, autospec=True
+        ):
             result = await orchestrator.start_service("ai-yolo26")
 
         assert result is True
@@ -1201,11 +1242,15 @@ class TestStartServiceAdvanced:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager start to fail
-        with patch.object(orchestrator._lifecycle_manager, "start_service", return_value=False):
+        with patch.object(
+            orchestrator._lifecycle_manager, "start_service", return_value=False, autospec=True
+        ):
             result = await orchestrator.start_service("ai-yolo26")
 
         assert result is False
@@ -1275,7 +1320,9 @@ class TestHealthChangeCallbackAdvanced:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager handle_stopped
@@ -1302,7 +1349,9 @@ class TestHealthChangeCallbackAdvanced:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager handle_unhealthy
@@ -1355,6 +1404,7 @@ class TestStopHealthMonitorCleanup:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -1422,7 +1472,9 @@ class TestBroadcastEdgeCases:
                 return original_get(name)
             return None
 
-        with patch.object(orchestrator._registry, "get", side_effect=mock_get_none_second_call):
+        with patch.object(
+            orchestrator._registry, "get", side_effect=mock_get_none_second_call, autospec=True
+        ):
             result = await orchestrator.enable_service("ai-yolo26")
 
         # Should still return True (operation succeeded)
@@ -1453,7 +1505,9 @@ class TestBroadcastEdgeCases:
                 return original_get(name)
             return None
 
-        with patch.object(orchestrator._registry, "get", side_effect=mock_get_none_second_call):
+        with patch.object(
+            orchestrator._registry, "get", side_effect=mock_get_none_second_call, autospec=True
+        ):
             result = await orchestrator.disable_service("ai-yolo26")
 
         assert result is True
@@ -1472,7 +1526,9 @@ class TestBroadcastEdgeCases:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock lifecycle manager restart to succeed, but service becomes None afterward
@@ -1490,8 +1546,12 @@ class TestBroadcastEdgeCases:
             return None
 
         with (
-            patch.object(orchestrator._registry, "get", side_effect=mock_get_for_restart),
-            patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True),
+            patch.object(
+                orchestrator._registry, "get", side_effect=mock_get_for_restart, autospec=True
+            ),
+            patch.object(
+                orchestrator._lifecycle_manager, "restart_service", return_value=True, autospec=True
+            ),
         ):
             result = await orchestrator.restart_service("ai-yolo26")
 
@@ -1523,7 +1583,9 @@ class TestBroadcastEdgeCases:
                 return original_get(name)
             return None
 
-        with patch.object(orchestrator._registry, "get", side_effect=mock_get_for_fallback):
+        with patch.object(
+            orchestrator._registry, "get", side_effect=mock_get_for_fallback, autospec=True
+        ):
             result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
@@ -1541,7 +1603,9 @@ class TestBroadcastEdgeCases:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Mock get to return None after start
@@ -1558,8 +1622,12 @@ class TestBroadcastEdgeCases:
             return None
 
         with (
-            patch.object(orchestrator._registry, "get", side_effect=mock_get_for_start),
-            patch.object(orchestrator._lifecycle_manager, "start_service", return_value=True),
+            patch.object(
+                orchestrator._registry, "get", side_effect=mock_get_for_start, autospec=True
+            ),
+            patch.object(
+                orchestrator._lifecycle_manager, "start_service", return_value=True, autospec=True
+            ),
         ):
             result = await orchestrator.start_service("ai-yolo26")
 
@@ -1591,7 +1659,9 @@ class TestBroadcastEdgeCases:
                 return original_get(name)
             return None
 
-        with patch.object(orchestrator._registry, "get", side_effect=mock_get_for_fallback_start):
+        with patch.object(
+            orchestrator._registry, "get", side_effect=mock_get_for_fallback_start, autospec=True
+        ):
             result = await orchestrator.start_service("ai-yolo26")
 
         assert result is True
@@ -1629,6 +1699,7 @@ class TestStopPersistStateIteration:
             orchestrator._discovery_service,
             "discover_all",
             return_value=[discovered_service, service2],
+            autospec=True,
         ):
             await orchestrator.start()
 
@@ -1685,14 +1756,18 @@ class TestRestartFailureBroadcasts:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Clear previous broadcast calls
         mock_broadcast_fn.reset_mock()
 
         # Mock lifecycle manager restart to fail
-        with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=False):
+        with patch.object(
+            orchestrator._lifecycle_manager, "restart_service", return_value=False, autospec=True
+        ):
             result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is False
@@ -1742,7 +1817,9 @@ class TestRestartFailureBroadcasts:
 
         # Create lifecycle manager
         mock_docker_client.connect.return_value = True
-        with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
+        with patch.object(
+            orchestrator._discovery_service, "discover_all", return_value=[], autospec=True
+        ):
             await orchestrator.start()
 
         # Clear previous calls
@@ -1761,8 +1838,12 @@ class TestRestartFailureBroadcasts:
             return None
 
         with (
-            patch.object(orchestrator._registry, "get", side_effect=mock_get_with_removal),
-            patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True),
+            patch.object(
+                orchestrator._registry, "get", side_effect=mock_get_with_removal, autospec=True
+            ),
+            patch.object(
+                orchestrator._lifecycle_manager, "restart_service", return_value=True, autospec=True
+            ),
         ):
             result = await orchestrator.restart_service("ai-yolo26")
 
@@ -1798,7 +1879,9 @@ class TestRestartFailureBroadcasts:
                 return original_get(name)
             return None
 
-        with patch.object(orchestrator._registry, "get", side_effect=mock_get_fallback_removal):
+        with patch.object(
+            orchestrator._registry, "get", side_effect=mock_get_fallback_removal, autospec=True
+        ):
             result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True

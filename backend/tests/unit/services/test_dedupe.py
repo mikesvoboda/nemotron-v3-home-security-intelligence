@@ -386,35 +386,35 @@ class TestDedupeServiceInit:
 
     def test_init_with_redis_client(self, mock_redis_client: AsyncMock) -> None:
         """Test initialization with Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock()
             service = DedupeService(redis_client=mock_redis_client)
             assert service._redis_client == mock_redis_client
 
     def test_init_without_redis_client(self) -> None:
         """Test initialization without Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock()
             service = DedupeService()
             assert service._redis_client is None
 
     def test_init_default_ttl(self) -> None:
         """Test initialization with default TTL."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])  # No dedupe_ttl_seconds
             service = DedupeService()
             assert service._ttl_seconds == DEFAULT_DEDUPE_TTL_SECONDS
 
     def test_init_custom_ttl_from_parameter(self) -> None:
         """Test initialization with custom TTL from parameter."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(ttl_seconds=600)
             assert service._ttl_seconds == 600
 
     def test_init_ttl_from_settings(self) -> None:
         """Test initialization with TTL from settings."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(dedupe_ttl_seconds=900)
             service = DedupeService()
             assert service._ttl_seconds == 900
@@ -425,7 +425,7 @@ class TestGetRedisKey:
 
     def test_get_redis_key_format(self) -> None:
         """Test that Redis key follows expected format."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             key = service._get_redis_key("abc123")
@@ -433,7 +433,7 @@ class TestGetRedisKey:
 
     def test_get_redis_key_with_long_hash(self) -> None:
         """Test Redis key with full SHA256 hash."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             long_hash = "a" * 64
@@ -457,7 +457,7 @@ class TestIsDuplicate:
         mock_redis_client.exists.return_value = 1
         mock_redis_client._client.ttl.return_value = 300
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate(temp_file, "known_hash")
@@ -472,7 +472,7 @@ class TestIsDuplicate:
         """Test checking duplicate with precomputed hash not in Redis."""
         mock_redis_client.exists.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate(temp_file, "known_hash")
@@ -487,7 +487,7 @@ class TestIsDuplicate:
         """Test that hash is computed if not provided."""
         mock_redis_client.exists.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate(temp_file)
@@ -501,7 +501,7 @@ class TestIsDuplicate:
         self, mock_redis_client: AsyncMock
     ) -> None:
         """Test that is_duplicate returns (False, None) when hash computation fails."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate("/nonexistent/file.jpg")
@@ -512,7 +512,7 @@ class TestIsDuplicate:
     @pytest.mark.asyncio
     async def test_is_duplicate_without_redis_client(self, temp_file: str) -> None:
         """Test is_duplicate without Redis client (fail-open behavior)."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()  # No Redis client
             is_dup, file_hash = await service.is_duplicate(temp_file)
@@ -528,7 +528,7 @@ class TestIsDuplicate:
         """Test is_duplicate handles Redis errors gracefully."""
         mock_redis_client.exists.side_effect = Exception("Redis connection failed")
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate(temp_file, "known_hash")
@@ -552,7 +552,7 @@ class TestCheckRedis:
         mock_redis_client.exists.return_value = 1
         mock_redis_client._client.ttl.return_value = 300
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service._check_redis("test_hash")
@@ -565,7 +565,7 @@ class TestCheckRedis:
         """Test _check_redis when key does not exist."""
         mock_redis_client.exists.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service._check_redis("test_hash")
@@ -575,7 +575,7 @@ class TestCheckRedis:
     @pytest.mark.asyncio
     async def test_check_redis_no_client(self) -> None:
         """Test _check_redis returns None when no Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             result = await service._check_redis("test_hash")
@@ -587,7 +587,7 @@ class TestCheckRedis:
         """Test _check_redis handles exceptions."""
         mock_redis_client.exists.side_effect = Exception("Connection error")
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service._check_redis("test_hash")
@@ -609,7 +609,7 @@ class TestMarkProcessed:
         self, mock_redis_client: AsyncMock, temp_file: str
     ) -> None:
         """Test marking file as processed with precomputed hash."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.mark_processed(temp_file, "known_hash")
@@ -625,7 +625,7 @@ class TestMarkProcessed:
         self, mock_redis_client: AsyncMock, temp_file: str
     ) -> None:
         """Test mark_processed computes hash if not provided."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.mark_processed(temp_file)
@@ -638,7 +638,7 @@ class TestMarkProcessed:
         self, mock_redis_client: AsyncMock
     ) -> None:
         """Test mark_processed returns False when hash computation fails."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.mark_processed("/nonexistent/file.jpg")
@@ -649,7 +649,7 @@ class TestMarkProcessed:
     @pytest.mark.asyncio
     async def test_mark_processed_without_redis_client(self, temp_file: str) -> None:
         """Test mark_processed without Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()  # No Redis client
             result = await service.mark_processed(temp_file)
@@ -664,7 +664,7 @@ class TestMarkProcessed:
         """Test mark_processed handles Redis errors."""
         mock_redis_client.set.side_effect = Exception("Redis error")
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.mark_processed(temp_file, "known_hash")
@@ -676,7 +676,7 @@ class TestMarkProcessed:
         self, mock_redis_client: AsyncMock, temp_file: str
     ) -> None:
         """Test mark_processed uses custom TTL."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client, ttl_seconds=600)
             await service.mark_processed(temp_file, "known_hash")
@@ -700,7 +700,7 @@ class TestIsDuplicateAndMark:
         """Test atomic check and mark for new file."""
         mock_redis_client.exists.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate_and_mark(temp_file)
@@ -723,7 +723,7 @@ class TestIsDuplicateAndMark:
         """
         mock_redis_client.exists.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate_and_mark(temp_file)
@@ -749,7 +749,7 @@ class TestIsDuplicateAndMark:
         mock_redis_client.exists.return_value = 1
         mock_redis_client._client.ttl.return_value = 300
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate_and_mark(temp_file)
@@ -762,7 +762,7 @@ class TestIsDuplicateAndMark:
     @pytest.mark.asyncio
     async def test_is_duplicate_and_mark_hash_fails(self, mock_redis_client: AsyncMock) -> None:
         """Test atomic check returns (False, None) when hash fails."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate_and_mark("/nonexistent/file.jpg")
@@ -784,7 +784,7 @@ class TestClearHash:
         """Test successfully clearing a hash."""
         mock_redis_client.delete.return_value = 1
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.clear_hash("test_hash")
@@ -797,7 +797,7 @@ class TestClearHash:
         """Test clearing a hash that doesn't exist."""
         mock_redis_client.delete.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.clear_hash("nonexistent_hash")
@@ -807,7 +807,7 @@ class TestClearHash:
     @pytest.mark.asyncio
     async def test_clear_hash_without_redis(self) -> None:
         """Test clearing hash without Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             result = await service.clear_hash("test_hash")
@@ -819,7 +819,7 @@ class TestClearHash:
         """Test clearing hash when Redis fails."""
         mock_redis_client.delete.side_effect = Exception("Redis error")
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.clear_hash("test_hash")
@@ -838,7 +838,7 @@ class TestCleanupOrphanedKeys:
     @pytest.mark.asyncio
     async def test_cleanup_orphans_no_redis_client(self) -> None:
         """Test cleanup returns 0 when no Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             count = await service.cleanup_orphaned_keys()
@@ -849,7 +849,7 @@ class TestCleanupOrphanedKeys:
         """Test cleanup returns 0 when underlying client is None."""
         mock_redis_client._client = None
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             count = await service.cleanup_orphaned_keys()
@@ -869,7 +869,7 @@ class TestCleanupOrphanedKeys:
         mock_redis_client._client.ttl = AsyncMock(return_value=-1)
         mock_redis_client._client.expire = AsyncMock(return_value=True)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             count = await service.cleanup_orphaned_keys()
@@ -891,7 +891,7 @@ class TestCleanupOrphanedKeys:
         mock_redis_client._client.ttl = AsyncMock(side_effect=[300, -1])
         mock_redis_client._client.expire = AsyncMock(return_value=True)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             count = await service.cleanup_orphaned_keys()
@@ -914,7 +914,7 @@ class TestCleanupOrphanedKeys:
         mock_redis_client._client.ttl = AsyncMock(return_value=-2)
         mock_redis_client._client.expire = AsyncMock()
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             count = await service.cleanup_orphaned_keys()
@@ -935,7 +935,7 @@ class TestCleanupOrphanedKeys:
         mock_redis_client._client.ttl = AsyncMock(side_effect=[Exception("Error"), -1])
         mock_redis_client._client.expire = AsyncMock(return_value=True)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             count = await service.cleanup_orphaned_keys()
@@ -958,7 +958,7 @@ class TestCleanupOrphanedKeys:
 
         mock_redis_client._client.scan_iter = MagicMock(return_value=ErrorAsyncIterator())
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             count = await service.cleanup_orphaned_keys()
@@ -977,7 +977,7 @@ class TestCleanupOrphanedKeys:
         mock_redis_client._client.ttl = AsyncMock(return_value=-1)
         mock_redis_client._client.expire = AsyncMock(return_value=True)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             await service.cleanup_orphaned_keys()
@@ -998,7 +998,7 @@ class TestEnsureKeyHasTtl:
     @pytest.mark.asyncio
     async def test_ensure_ttl_no_redis_client(self) -> None:
         """Test ensure_key_has_ttl returns False without Redis client."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             result = await service.ensure_key_has_ttl("test_hash")
@@ -1009,7 +1009,7 @@ class TestEnsureKeyHasTtl:
         """Test ensure_key_has_ttl returns False without underlying client."""
         mock_redis_client._client = None
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.ensure_key_has_ttl("test_hash")
@@ -1020,7 +1020,7 @@ class TestEnsureKeyHasTtl:
         """Test ensure_key_has_ttl when key already has TTL."""
         mock_redis_client._client.ttl = AsyncMock(return_value=300)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.ensure_key_has_ttl("test_hash")
@@ -1034,7 +1034,7 @@ class TestEnsureKeyHasTtl:
         mock_redis_client._client.ttl = AsyncMock(return_value=-1)
         mock_redis_client._client.expire = AsyncMock(return_value=True)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client, ttl_seconds=600)
             result = await service.ensure_key_has_ttl("test_hash")
@@ -1050,7 +1050,7 @@ class TestEnsureKeyHasTtl:
         """Test ensure_key_has_ttl handles errors."""
         mock_redis_client._client.ttl = AsyncMock(side_effect=Exception("Redis error"))
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             result = await service.ensure_key_has_ttl("test_hash")
@@ -1068,7 +1068,7 @@ class TestGetDedupeService:
 
     def test_get_dedupe_service_creates_singleton(self) -> None:
         """Test that get_dedupe_service creates a singleton."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service1 = get_dedupe_service()
             service2 = get_dedupe_service()
@@ -1076,7 +1076,7 @@ class TestGetDedupeService:
 
     def test_get_dedupe_service_with_redis_client(self, mock_redis_client: AsyncMock) -> None:
         """Test get_dedupe_service uses provided Redis client on first call."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = get_dedupe_service(redis_client=mock_redis_client)
             assert service._redis_client == mock_redis_client
@@ -1087,7 +1087,7 @@ class TestResetDedupeService:
 
     def test_reset_dedupe_service_clears_singleton(self) -> None:
         """Test that reset_dedupe_service clears the singleton."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service1 = get_dedupe_service()
             reset_dedupe_service()
@@ -1133,7 +1133,7 @@ class TestEdgeCases:
 
         mock_redis_client.exists.return_value = 0
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
 
@@ -1154,7 +1154,7 @@ class TestEdgeCases:
         """Test handling of very long file paths."""
         long_path = "/very/long/path/" + "x" * 1000 + ".jpg"
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate(long_path)
@@ -1185,7 +1185,7 @@ class TestEdgeCases:
 
         mock_redis_client.exists.side_effect = TimeoutError("Redis timeout")
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis_client)
             is_dup, file_hash = await service.is_duplicate(temp_file, "known_hash")
@@ -1315,7 +1315,7 @@ class TestDedupeProperties:
     @hypothesis_settings(max_examples=50)
     def test_redis_key_format_consistent(self, file_hash: str) -> None:
         """Property: Redis keys always follow the prefix:hash format."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
             key = service._get_redis_key(file_hash)
@@ -1328,7 +1328,7 @@ class TestDedupeProperties:
     @hypothesis_settings(max_examples=30)
     def test_redis_key_is_unique_per_hash(self, file_hash: str) -> None:
         """Property: Each file hash produces a unique Redis key."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
 
@@ -1348,7 +1348,7 @@ class TestDedupeProperties:
         if hash1 == hash2:
             return
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()
 
@@ -1379,7 +1379,7 @@ class TestDedupeProperties:
         mock_redis._client = AsyncMock()
         mock_redis._client.ttl = AsyncMock(return_value=300)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis)
 
@@ -1403,7 +1403,7 @@ class TestDedupeProperties:
     @hypothesis_settings(max_examples=20)
     def test_ttl_configuration_respected(self, ttl: int) -> None:
         """Property: Custom TTL values are properly stored."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(ttl_seconds=ttl)
             assert service._ttl_seconds == ttl
@@ -1427,7 +1427,7 @@ class TestDedupeProperties:
         mock_redis._client = AsyncMock()
         mock_redis._client.ttl = AsyncMock(return_value=300)
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis)
 
@@ -1470,7 +1470,7 @@ class TestDedupeProperties:
         mock_redis = AsyncMock()
         mock_redis.exists = AsyncMock(side_effect=Exception("Redis unavailable"))
 
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService(redis_client=mock_redis)
 
@@ -1492,7 +1492,7 @@ class TestDedupeProperties:
     @pytest.mark.asyncio
     async def test_no_redis_allows_processing(self, content: bytes) -> None:
         """Property: Without Redis, all files are allowed to process."""
-        with patch("backend.services.dedupe.get_settings") as mock_settings:
+        with patch("backend.services.dedupe.get_settings", autospec=True) as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])
             service = DedupeService()  # No Redis client
 

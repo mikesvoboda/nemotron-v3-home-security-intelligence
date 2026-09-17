@@ -878,6 +878,7 @@ class TestGlobalRegistry:
         with patch(
             "backend.core.redis.init_redis",
             side_effect=mock_init_redis,
+            autospec=True,
         ):
             registry1 = await get_service_registry()
             registry2 = await get_service_registry()
@@ -894,6 +895,7 @@ class TestGlobalRegistry:
         with patch(
             "backend.core.redis.init_redis",
             side_effect=mock_init_redis,
+            autospec=True,
         ):
             registry1 = await get_service_registry()
             reset_service_registry()

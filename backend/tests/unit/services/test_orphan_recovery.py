@@ -52,6 +52,7 @@ class TestRecoverOrphanedDetections:
         with patch(
             "backend.core.database.get_session",
             return_value=_mock_session_ctx(mock_session),
+            autospec=True,
         ):
             count = await recover_orphaned_detections(mock_aggregator)
 
@@ -78,6 +79,7 @@ class TestRecoverOrphanedDetections:
         with patch(
             "backend.core.database.get_session",
             return_value=_mock_session_ctx(mock_session),
+            autospec=True,
         ):
             count = await recover_orphaned_detections(mock_aggregator)
 
@@ -113,6 +115,7 @@ class TestRecoverOrphanedDetections:
         with patch(
             "backend.core.database.get_session",
             return_value=_mock_session_ctx(mock_session),
+            autospec=True,
         ):
             count = await recover_orphaned_detections(mock_aggregator)
 
@@ -132,6 +135,7 @@ class TestRecoverOrphanedDetections:
         with patch(
             "backend.core.database.get_session",
             return_value=mock_ctx,
+            autospec=True,
         ):
             count = await recover_orphaned_detections(mock_aggregator)
 

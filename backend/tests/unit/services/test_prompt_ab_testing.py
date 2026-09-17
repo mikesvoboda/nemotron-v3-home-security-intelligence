@@ -127,13 +127,13 @@ class TestTrafficSplitting:
         tester = PromptABTester(ab_test_config)
 
         # Force control selection (500/1000 = 0.5 > 0.1)
-        with patch("secrets.randbelow", return_value=500):
+        with patch("secrets.randbelow", return_value=500, autospec=True):
             version, is_treatment = tester.select_prompt_version()
             assert version == 1  # control_version
             assert is_treatment is False
 
         # Force treatment selection (50/1000 = 0.05 <= 0.1)
-        with patch("secrets.randbelow", return_value=50):
+        with patch("secrets.randbelow", return_value=50, autospec=True):
             version, is_treatment = tester.select_prompt_version()
             assert version == 2  # treatment_version
             assert is_treatment is True
@@ -318,7 +318,7 @@ class TestPromptPerformanceMetrics:
         )
         tester = PromptABTester(config)
 
-        with patch("backend.core.metrics.record_prompt_latency") as mock_record:
+        with patch("backend.core.metrics.record_prompt_latency", autospec=True) as mock_record:
             # Simulate running a prompt
             await tester.record_prompt_execution(
                 version=1,
@@ -687,18 +687,22 @@ class TestNemotronAnalyzerABIntegration:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -722,18 +726,22 @@ class TestNemotronAnalyzerABIntegration:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
         ):
             from backend.services.severity import reset_severity_service
@@ -819,20 +827,26 @@ class TestMetricsCollectionDuringAnalysis:
             patch(
                 "backend.services.nemotron_analyzer.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.severity.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.services.token_counter.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
             patch(
                 "backend.core.config.get_settings",
                 return_value=mock_settings,
+                autospec=True,
             ),
-            patch("backend.core.metrics.record_prompt_latency") as mock_record_latency,
+            patch(
+                "backend.core.metrics.record_prompt_latency", autospec=True
+            ) as mock_record_latency,
         ):
             from backend.services.severity import reset_severity_service
             from backend.services.token_counter import reset_token_counter

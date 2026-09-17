@@ -53,7 +53,11 @@ def mock_settings():
 @pytest.fixture
 def memory_service(mock_redis_client, mock_settings):
     """Create RedisMemoryService with mocked dependencies."""
-    with patch("backend.services.redis_memory_service.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.redis_memory_service.get_settings",
+        return_value=mock_settings,
+        autospec=True,
+    ):
         service = RedisMemoryService(mock_redis_client)
         return service
 
@@ -77,7 +81,11 @@ async def test_configure_memory_limits_skipped_when_disabled(mock_redis_client, 
     """Test configuration is skipped when apply_on_startup is False."""
     mock_settings.redis_memory_apply_on_startup = False
 
-    with patch("backend.services.redis_memory_service.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.redis_memory_service.get_settings",
+        return_value=mock_settings,
+        autospec=True,
+    ):
         service = RedisMemoryService(mock_redis_client)
         result = await service.configure_memory_limits()
 
@@ -91,7 +99,11 @@ async def test_configure_memory_limits_no_limit_when_zero(mock_redis_client, moc
     """Test no memory limit is set when configured as 0."""
     mock_settings.redis_memory_limit_mb = 0
 
-    with patch("backend.services.redis_memory_service.get_settings", return_value=mock_settings):
+    with patch(
+        "backend.services.redis_memory_service.get_settings",
+        return_value=mock_settings,
+        autospec=True,
+    ):
         service = RedisMemoryService(mock_redis_client)
         result = await service.configure_memory_limits()
 
