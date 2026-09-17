@@ -1347,17 +1347,13 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Restore npm cache with fallback
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
-        with:
-          path: |
-            ~/.npm
-            node_modules
-          key: npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            npm-${{ runner.os }}-node-${{ env.NODE_VERSION }}-
-            npm-${{ runner.os }}-
-
+      # WP3.3: a previous "Restore npm cache with fallback" actions/cache step
+      # here cached root node_modules alongside ~/.npm. Root node_modules is
+      # never read by this job (npm ci runs in frontend/ and, being npm not
+      # bun, deletes and reinstalls whatever is at its own target), and this
+      # repo commits no root package-lock.json -- so the step could never
+      # restore or save anything real. setup-node's cache: 'npm' (above) is
+      # the one that actually works and stays.
       - name: Install dependencies with retry
         # npm ci can fail due to network issues, add retry logic for resilience
         run: |
