@@ -341,7 +341,7 @@ class TestShadowModeMetricsRecording:
         )
 
         # Should not raise
-        with patch("backend.core.metrics.record_shadow_comparison") as mock_metric:
+        with patch("backend.core.metrics.record_shadow_comparison", autospec=True) as mock_metric:
             record_shadow_mode_comparison(result)
             mock_metric.assert_called_once()
 
@@ -351,7 +351,7 @@ class TestShadowModeMetricsRecording:
 
         # Should not raise and should record metric
         # Patch at the import location in the function
-        with patch("backend.core.metrics.record_prompt_latency") as mock_record:
+        with patch("backend.core.metrics.record_prompt_latency", autospec=True) as mock_record:
             record_latency_warning(
                 camera_id="front_door",
                 control_latency_ms=100.0,
@@ -606,7 +606,7 @@ class TestShadowModeStatsTracker:
             timestamp=datetime.now(UTC).isoformat(),
         )
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             tracker.record(result1)
             tracker.record(result2)
 
@@ -665,7 +665,7 @@ class TestShadowModeStatsTracker:
             timestamp=datetime.now(UTC).isoformat(),
         )
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             tracker.record(lower_result)
             tracker.record(higher_result)
             tracker.record(same_result)
@@ -709,7 +709,7 @@ class TestShadowModeStatsTracker:
             timestamp=datetime.now(UTC).isoformat(),
         )
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             tracker.record(result_with_warning)
             tracker.record(result_no_warning)
 
@@ -754,7 +754,7 @@ class TestShadowModeStatsTracker:
             treatment_error="Parse error",
         )
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             tracker.record(control_error)
             tracker.record(treatment_error)
 
@@ -784,7 +784,7 @@ class TestShadowModeStatsTracker:
             timestamp=datetime.now(UTC).isoformat(),
         )
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             tracker.record(result)
 
         # Verify not empty
@@ -819,7 +819,7 @@ class TestShadowModeStatsTracker:
             timestamp=datetime.now(UTC).isoformat(),
         )
 
-        with patch("backend.core.metrics.update_shadow_avg_risk_score"):
+        with patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True):
             tracker.record(result)
 
         stats = tracker.get_stats()
@@ -933,13 +933,19 @@ class TestEnhancedShadowModeMetricsRecording:
         )
 
         with (
-            patch("backend.core.metrics.record_shadow_comparison") as mock_comparison,
-            patch("backend.core.metrics.record_shadow_risk_score") as mock_risk_score,
-            patch("backend.core.metrics.record_shadow_risk_score_diff") as mock_diff,
-            patch("backend.core.metrics.record_shadow_risk_level_shift") as mock_shift,
-            patch("backend.core.metrics.record_shadow_latency_diff") as mock_latency,
-            patch("backend.core.metrics.record_shadow_comparison_error"),
-            patch("backend.core.metrics.record_shadow_latency_warning"),
+            patch(
+                "backend.core.metrics.record_shadow_comparison", autospec=True
+            ) as mock_comparison,
+            patch(
+                "backend.core.metrics.record_shadow_risk_score", autospec=True
+            ) as mock_risk_score,
+            patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True) as mock_diff,
+            patch(
+                "backend.core.metrics.record_shadow_risk_level_shift", autospec=True
+            ) as mock_shift,
+            patch("backend.core.metrics.record_shadow_latency_diff", autospec=True) as mock_latency,
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
         ):
             record_shadow_mode_comparison(result)
 
@@ -980,13 +986,15 @@ class TestEnhancedShadowModeMetricsRecording:
         )
 
         with (
-            patch("backend.core.metrics.record_shadow_comparison"),
-            patch("backend.core.metrics.record_shadow_risk_score"),
-            patch("backend.core.metrics.record_shadow_risk_score_diff"),
-            patch("backend.core.metrics.record_shadow_risk_level_shift"),
-            patch("backend.core.metrics.record_shadow_latency_diff"),
-            patch("backend.core.metrics.record_shadow_comparison_error"),
-            patch("backend.core.metrics.record_shadow_latency_warning") as mock_warning,
+            patch("backend.core.metrics.record_shadow_comparison", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_level_shift", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+            patch(
+                "backend.core.metrics.record_shadow_latency_warning", autospec=True
+            ) as mock_warning,
         ):
             record_shadow_mode_comparison(result)
 
@@ -1016,9 +1024,11 @@ class TestEnhancedShadowModeMetricsRecording:
         )
 
         with (
-            patch("backend.core.metrics.record_shadow_comparison"),
-            patch("backend.core.metrics.record_shadow_comparison_error") as mock_error,
-            patch("backend.core.metrics.record_shadow_latency_warning"),
+            patch("backend.core.metrics.record_shadow_comparison", autospec=True),
+            patch(
+                "backend.core.metrics.record_shadow_comparison_error", autospec=True
+            ) as mock_error,
+            patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
         ):
             record_shadow_mode_comparison(result)
 
@@ -1049,14 +1059,14 @@ class TestEnhancedShadowModeMetricsRecording:
         )
 
         with (
-            patch("backend.core.metrics.record_shadow_comparison"),
-            patch("backend.core.metrics.record_shadow_risk_score"),
-            patch("backend.core.metrics.record_shadow_risk_score_diff"),
-            patch("backend.core.metrics.record_shadow_risk_level_shift"),
-            patch("backend.core.metrics.record_shadow_latency_diff"),
-            patch("backend.core.metrics.record_shadow_comparison_error"),
-            patch("backend.core.metrics.record_shadow_latency_warning"),
-            patch("backend.core.metrics.update_shadow_avg_risk_score"),
+            patch("backend.core.metrics.record_shadow_comparison", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_score_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_risk_level_shift", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_diff", autospec=True),
+            patch("backend.core.metrics.record_shadow_comparison_error", autospec=True),
+            patch("backend.core.metrics.record_shadow_latency_warning", autospec=True),
+            patch("backend.core.metrics.update_shadow_avg_risk_score", autospec=True),
         ):
             record_and_track_shadow_comparison(result)
 
