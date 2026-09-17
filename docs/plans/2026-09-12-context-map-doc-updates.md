@@ -4449,3 +4449,45 @@ so after-numbers come from that run, same protocol. Expected signature:
 Vitest/E2E shard queues collapse toward the 16–90s background level while
 per-shard compute doubles; if queues do NOT collapse, the 20-ceiling is
 not what bound this fan-out and this row carries that finding instead.
+
+## WP3.5 AFTER-NUMBERS: THE DECIDE HELD (`35178314774`, head `65ec9afb`)
+
+MEASURE-again, same Jobs-API protocol, queue/compute separated:
+
+| family (before→after)       | n    | queue-med     | compute-med   |
+| --------------------------- | ---- | ------------- | ------------- |
+| Vitest shards 16→8          | 16→8 | 573s → **2s** | 204s → 348s   |
+| E2E shards 6→3              | 6→3  | 386s → **2s** | 66s → 63s     |
+| Backend Unit (unchanged)    | 4    | 508s → 2s     | 190s → 206s   |
+| Integration API (unchanged) | 1    | 16s → 3s      | 1467s → 1437s |
+
+Run-level: wall 31.2 → 26.0 min; **queue sum 260.1 → 1.4 min** (the whole
+point); Vitest-path completion +22.2 → +10.1 min from run start; E2E
++17.8 → +4.5. Peak _running_ concurrency went UP (15→18) — the honest
+reading: before, queueing starved the box; now the granted slots actually
+do work. The predicted signature (queues collapse to the 16–90s
+background; per-shard compute doubles) arrived sharper than predicted —
+2s background, compute 204→348s (sub-doubling; xdist-free vitest
+sequential files amortize fixed per-file startup across more files).
+
+Confounds recorded: this run had the 20-ceiling to itself (stale runs
+manually cancelled first, single run in flight), while the before-run
+competed with 8 sibling workflow runs — the queue-sum drop is the
+fan-out fix AND the no-competing-runs day; the WP3.1 wave analysis says
+fan-out is the larger term, and the 573s→2s per-shard result is the
+direct confirmation. Integration Services compute 946→368s is the same
+fixture-ceiling class breathing easier, not a WP3.5 effect.
+
+AUDIT STILL RED, MEMBERSHIP CHANGED — forensics packet data-point: the
+after-run's audit flagged ONE test, a UNIT case
+(`test_crop_to_bbox_error_returns_none`, 5.25s vs 4.0s limit; second at
+3.55s warned). Local replay: call 0.01s, setup 0.03s — same CI-only
+billing amplification, but the unit tier has no `clean_tables` fixture,
+so the ceiling mechanism there is NOT the integration pairing; the
+overhead-billed-as-test-time problem is broader than the conftest
+fixture. Owner packet (a) — audit the CALL time where artifacts carry
+it — covers this class at both tiers; recorded, gate semantics untouched.
+
+WP3.7 precondition now TRUE: queueing no longer confounds the API job
+(1437s compute, 3s queue) — it is the DAG long pole (+24.8 min done) and
+its rebalance is the next commit.
