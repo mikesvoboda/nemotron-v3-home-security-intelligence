@@ -4543,3 +4543,161 @@ Phase 4 (WP4.1 autospec sweep) is the next work package; Phase 3's
 Done-when (measured wall-clock reduction, queue reported separately) is
 met: 31.2 → 26.0 (WP3.5) → 15.7 (WP3.7) min, queue sums 260.1 → 1.4 →
 2.7 min reported throughout.
+
+## WP4.1 AUTOSPEC SWEEP — TOOL + 20 BATCHES, 4 PRODUCTION DEFECTS (`51e84e82`..`f3d9bcdd`; integration `4e9a9e83`..`a51fa206`)
+
+Pre-sweep census (the tool IS the census; AST over backend/tests):
+sites=7,513 speced=190 skipped-na=953 -> adoption 2.5%. The spec's
+grep-era baseline (7,493/190) is the same verdict with a different
+denominator; the AST count is the one that governs (it's what the sweep
+acts on, and CI can reproduce it).
+
+| family (batch)                                              | sites | converted | first-red  | class of reds                                 |
+| ----------------------------------------------------------- | ----- | --------- | ---------- | --------------------------------------------- |
+| 0 tool+tests+CI wiring                                      | —     | —         | 11 red TDD | refusal tests (can't pass vacuously)          |
+| 1 unit/api/middleware                                       | 191   | 191       | 0          | —                                             |
+| 2 unit/core                                                 | 662   | 662       | 1          | vacuous test (real repair)                    |
+| 3 unit/services                                             | 2,873 | 2,720     | 156        | all four classes below (kept 2,860)           |
+| 4 unit/api/routes                                           | 1,154 | 1,154     | 3F+14E     | nested (14) + non-callable (3); kept 1,136    |
+| 5 unit/setup_lib                                            | 1,091 | 1,091     | 5          | arg-shift                                     |
+| 6 unit/routes                                               | 234   | 222       | 32         | nested get_settings autouse; kept 202         |
+| 7 unit/api top-level                                        | 78    | 78        | 0          | —                                             |
+| 8 unit/ top-level                                           | 96    | 96        | 0          | — (whole unit tier green)                     |
+| 9-15 config/models/jobs/scripts/eval/api-helpers/middleware | 83    | 83        | 0          | —                                             |
+| 16 tests/security                                           | 16    | 16        | 0          | — (CI later 52E: annotation hazard, class 4b) |
+| 17 integration top-level                                    | 497   | 497->269  | ~16%-dead  | class 5 conftest-poison chain                 |
+| 18 integration/services                                     | 60    | 59        | 1F         | class 1 at module granularity                 |
+| 19 integration/api/routes                                   | 4     | 4         | 0          | —                                             |
+| + annotation repairs (3 prod, 1 test)                       | —     | —         | CI-only    | class 4b on 3.14.2, invisible 3.14.4          |
+
+DEFECT COUNT (PLAN MEASURE): **4 production defects** — (1) ONVIFCamera
+constructed with (self, device_url) where onvif-zeep wants
+(host, port, user, passwd) at 5 sites in onvif_service.py; the TypeError
+was swallowed by debug-level except handlers, so rtsp_urls/capabilities
+were silently NEVER populated in shipped behavior. Fixed in `dd845630`
+with a TDD contract test (red-verified against HEAD's production).
+(2,3,4) THE ANNOTATION HAZARD, found only on CI: three production
+modules annotated params with names imported only under
+`if TYPE_CHECKING`, UNQUOTED — gpu_monitor `_calculate_inference_fps
+(session: AsyncSession)`, nemotron_streaming `call_llm_streaming
+(enriched_context: EnrichedContext|None)`, detector_client
+`__init__(frame_buffer: FrameBuffer|None)`. PEP 649 evaluates those
+annotations ON DEMAND against module globals; CI's Python 3.14.2 mock
+calls inspect.signature WITHOUT annotation_format, so the evaluation
+RAISES (NameError) at create_autospec — 52 security errors + 12 unit
+shard failures on CI. The sandbox's 3.14.4 stdlib mock passes
+annotation_format=Format.FORWARDREF (mock.py:123), tolerating it, so
+every local run said green while CI burned. Fixed with `from __future__
+import annotations` (PEP 563) per module — quoted params are NOT
+durable here, the repo's own ruff UP037 strips them (proved: the first
+fix attempt was undone by the commit hook). Fourth member telemetry's
+crash sits inside third-party OTel annotations, so it is repaired
+test-side: Resource autospec'd after every target that specs it
+(`a51fa206`; fresh-interpreter permutations pin the order rule).
+The version skew — `.python-version` says "3.14", CI resolves 3.14.2,
+the sandbox image carries 3.14.4 — is the reason local green stopped
+meaning CI green for introspection-dependent code; WP4.2's gate should
+pin or reproduce the runner interpreter.
+Everything else the sweep surfaced was a LYING TEST: 1 vacuous test
+(batch 2, asserted a mock's own return value), arg-shift asserts that
+were untestable-lies under plain mocks (batch 5), nested/redundant
+re-patches (batches 3/4/6 — the inner patch was redundant even before
+the sweep; autospec's refusal is what made the redundancy visible).
+
+FAILURE TAXONOMY (reusable — feeds WP4.2's gate design):
+
+1. NESTED/REDUNDANT AUTOSPEC — an outer fixture/autouse already patched
+   the target; mock refuses to spec an attr that is currently a Mock.
+   Fix: drop the inner autospec (outer keeps enforcement) or delete the
+   inner patch where it was same-object redundant anyway.
+2. ARG-SHIFT — autospec patches the class-level function, so calls
+   record the instance as args[0]; `call_args[0][0]` / `assert_any_call
+(kwonly)` asserts and arity-tight side_effects must shift by one.
+   Verified empirically, not inferred.
+3. NON-CALLABLE TARGET — autospec is semantically inapplicable to
+   lazy-import placeholders (YOLO=None) and attr-fabricating objects
+   (sqlalchemy func/\_FunctionGenerator: dir()-spec has no `count`,
+   production's func.count dies ON THE MOCK). Revert with rationale.
+4. PRODUCTION DRIFT — the mock was lying in a way that hid a real
+   production bug. This is the one the sweep exists for. Two members:
+   (a) the ONVIF constructor-signature defect; (b) the ANNOTATION
+   HAZARD — unquoted TYPE_CHECKING-only annotation names break
+   inspect.signature on Python 3.14.2 (CI) while 3.14.4 (sandbox)
+   tolerates it via mock's FORWARDREF; three production modules fixed
+   with PEP 563 (`757be8f8` `0f0496d0` `abeb01cf`), one test-side OTel
+   ordering repair (`a51fa206`). CI-vs-sandbox interpreter skew is now
+   a KNOWN failure domain: local green != CI green for anything that
+   introspects annotations.
+5. CONFTEST-POISONS-CONFTEST-POISONS-TESTS (integration tier) — an
+   autospec'd conftest patch makes late `from x import y` bindings copy
+   the autospec WRAPPER (FunctionType with .mock, not a Mock), which
+   then defeats every later create_autospec of that bound attr. The
+   conftest must stay the PLAIN outermost patcher.
+
+DECIDE: unit tiers ran green on both seeds (90210, 4242) after per-batch
+repairs; final whole-tree census 6,773/7,095 speced = 95.5% of sites
+(unit 6,425/6,481 = 99.1%, security 16/16 = 100%, integration
+332/561 = 59.2%, the lower tier ceiling being the fixture-surface
+policy, documented per-site) — the 56-site residual is documented in-test reverts, each
+with its class rationale in a comment (routes 32 nested + api/routes 17
+and services 7). The residual is NOT a coverage gap to chase: it is the
+taxonomy's proof, kept on purpose.
+
+INTEGRATION (separate commits): the sweep exposed the class-1 trap in a
+form the unit tree never showed — a conftest-poisons-conftest-poisons-
+tests chain. The sweep added autospec to the integration conftest's own
+lifecycle patches (`core.redis.init_redis`/`close_redis` in mock_redis).
+backend.main binds `from backend.core.redis import init_redis` at its
+FIRST import, which lands inside a mid-session fixture window — so main
+copied the autospec WRAPPER (a FunctionType carrying .mock, not itself a
+Mock) as its init_redis. Every later test-level autospec of that bound
+attr then dies in create_autospec's inner Mock. Fix policy applied: the
+conftest lifecycle/fixture-surface patches stay PLAIN (they are the
+outermost patchers; autospec there buys nothing and poisons late
+importers), and test-body patches of the fixture-shared surface
+(lifecycle `main.*`/`core.redis.*`, get_settings accessors, httpx.AsyncClient
+where a shared fixture patches it) drop the sweep's autospec — 228
+reverts at the integration top level (497 converted -> 269 kept =
+54.1%), every one an overlap the conftest creates, not an author-chosen
+weakening. Tier totals with services (59/60, one class-1 revert:
+mock_transformers replaces sys.modules[torch], so patching torch.load
+specs a Mock's attr) and api/routes (4/4): 332/561 = 59.2% — the
+fixture-free surface:
+route-local `get_db`/`check\_\*\_health`, frigate logger, smtplib.SMTP,
+OnvifService, shadow metrics, Path.exists/glob, and the
+AsyncClient.post sites in the analyzer/replay files (no shared fixture
+touches them — the blanket sweep of that target was over-conservative
+and is restored). Lower integration ceiling by design: the tier's
+shared-fixture surface is where class 1 always bites; a WP4.2 gate
+should encode "fixture-surface targets exempt", not demand these.
+
+benchmarks/chaos/e2e stay UNSWEPT by decision, recorded: their pre-sweep
+baseline in this sandbox is 34F+5E (no live GPU/camera services) — a
+sweep cannot be validated against a tier that doesn't pass before it.
+security (green in-sandbox) was swept; integration ran against the live
+gate-postgres/gate-redis boot.
+
+GATE COLLATERAL (one commit, `44e7438b`): Collection Sanity pairs
+suppression-registry entries to census sites by file:line; batch 5's
+insertions relocated the test_ssl_certs.py "cryptography not installed"
+skip 880->927 (count 93 unchanged — nothing licensed), turning a live
+entry stale + its site unregistered. Re-key, not widen. Batch 17 causes
+the identical shift at test_preview_api.py 428->472, so that re-key
+rides in batch 17's commit (cause-matched, count still 93).
+
+CENSUS RECONCILIATION (numbers a ledger reader will diff): pre-sweep
+7,513/190/953; HEAD 7,095/6,773/1,365 (95.5%). The na jump +412 is ONE
+tool change, not drift: batch 1's first --fix run hit mock's hard
+"cannot use autospec and new_callable together", so classify() moved
+412 new_callable sites convertible->na (`f10e0699`; tool diff is that
+one clause — the b0 tool rerun on the b0 tree still says 7,513). The
+sites slide 7,513->7,095 is repairs changing patch FORM: b2's vacuous-
+test repair +1 (7,102), batches 3-7's deletions of same-object-redundant
+inner patches -7 (7,095 by b7, stable since). speced is monotone up;
+sites move only where a patch was deleted or split — census honesty is
+per-head, the batch commits each carry their own conversion count.
+
+CI-BEFORE BASELINE for the integration batches: CI's own integration
+matrix on the last pre-sweep head (f3d9bcdd) is green (Services,
+Models, WebSocket done; API shards running) — the sweep's before-state
+for the tier, on the real runner pool.
