@@ -142,6 +142,14 @@ jobs:
       - name: Flaky-marker governance gate test
         run: uv run python scripts/test_flaky_marker_governance.py
 
+      # WP0.6 follow-up (2026-09-17): same script-style shape — the job-graph
+      # invariant shipped with WP0.6 but was never invoked anywhere, so it
+      # could not have reported the two ungated jobs it now catches
+      # (collection-sanity, build-backend-deps). A gate with no CI is a gate
+      # that rots, and this one rotted before its first run.
+      - name: CI job-graph invariant (WP0.6)
+        run: uv run python scripts/test_ci_job_graph.py
+
   # Backend Jobs
 
   # Shared backend dependencies - built once, used by all backend jobs
@@ -2479,6 +2487,22 @@ jobs:
       - build-backend
       - build-frontend
       - test-performance-audit
+      # WP0.6 follow-up (2026-09-17): both of these were reachable from ci-gate
+      # only across `needs:` edges that nobody inspects, so their red could
+      # never arrive here — the same conclusion-vs-verdict lie WP0.6 exists to
+      # kill, one layer further down.
+      #   collection-sanity runs the census, the ratchet, the expiry check and
+      #     the anti-rot gate suites. Its dependents carry `if: always()` and
+      #     read only their own shard results, so a red ratchet left CI Gate
+      #     green and Phase 1 was advisory.
+      #   build-backend-deps gates every backend job through
+      #     `if: needs.build-backend-deps.result != 'failure'`, which SKIPS
+      #     them on failure — and check_job forgives `skipped`. A broken
+      #     `uv sync --frozen` passed the gate.
+      # Direct need + a check_job line below is the only wiring that carries a
+      # red to the verdict. Enforced by scripts/test_ci_job_graph.py.
+      - collection-sanity
+      - build-backend-deps
     if: always()
     steps:
       - name: Check required job results
@@ -2518,6 +2542,8 @@ jobs:
           check_job "Build Docker (backend)" "${{ needs.build-backend.result }}"
           check_job "Build Docker (frontend)" "${{ needs.build-frontend.result }}"
           check_job "Test Performance Audit" "${{ needs.test-performance-audit.result }}"
+          check_job "Collection Sanity" "${{ needs.collection-sanity.result }}"
+          check_job "Build Backend Dependencies" "${{ needs.build-backend-deps.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
