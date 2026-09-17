@@ -739,8 +739,12 @@ class TestOSNetLoaderIntegration:
 
         mock_weights = {"state_dict": {"conv1.weight": MagicMock()}}
         with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.glob", return_value=[MagicMock()]),
+            patch("pathlib.Path.exists", return_value=True, autospec=True),
+            patch("pathlib.Path.glob", return_value=[MagicMock()], autospec=True),
+            # No autospec: the mock_transformers fixture has already replaced
+            # sys.modules["torch"] with a MagicMock, so the patch target's
+            # parent IS a Mock -- create_autospec refuses (InvalidSpecError)
+            # and there is no real signature to enforce anyway.
             patch("torch.load", return_value=mock_weights),
         ):
             result = await load_osnet_model("/tmp/osnet_model")  # noqa: S108
@@ -769,8 +773,8 @@ class TestOSNetLoaderIntegration:
         # Mock Path.glob to return no files and exists to return False
         from unittest.mock import patch
 
-        with patch("pathlib.Path.exists", return_value=False):
-            with patch("pathlib.Path.glob", return_value=[]):
+        with patch("pathlib.Path.exists", return_value=False, autospec=True):
+            with patch("pathlib.Path.glob", return_value=[], autospec=True):
                 with pytest.raises(RuntimeError, match="Failed to load OSNet"):
                     await load_osnet_model("/nonexistent/path")
 
@@ -800,7 +804,7 @@ class TestThreatDetectionLoaderIntegration:
         # Mock Path.exists to return True
         from unittest.mock import patch
 
-        with patch("pathlib.Path.exists", return_value=True):
+        with patch("pathlib.Path.exists", return_value=True, autospec=True):
             result = await load_threat_detection_model("/path/to/model")
 
         assert result is not None
@@ -819,8 +823,8 @@ class TestThreatDetectionLoaderIntegration:
         # Mock Path.glob and exists to return no files
         from unittest.mock import patch
 
-        with patch("pathlib.Path.exists", return_value=False):
-            with patch("pathlib.Path.glob", return_value=[]):
+        with patch("pathlib.Path.exists", return_value=False, autospec=True):
+            with patch("pathlib.Path.glob", return_value=[], autospec=True):
                 with pytest.raises(RuntimeError, match="Failed to load threat detection"):
                     await load_threat_detection_model("/nonexistent/path")
 
