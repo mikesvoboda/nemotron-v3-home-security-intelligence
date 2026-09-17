@@ -96,7 +96,12 @@ class TestDiscoverDevices:
 
     @pytest.mark.asyncio
     async def test_discover_devices_returns_list(
-        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera
+        self,
+        mock_session,
+        mock_redis,
+        mock_wsdiscovery,
+        mock_onvif_camera,
+        mock_onvif_camera_class,
     ):
         """Test discover_devices returns list of discovered devices."""
         # Mock WS-Discovery to return devices
@@ -126,7 +131,7 @@ class TestDiscoverDevices:
 
     @pytest.mark.asyncio
     async def test_discover_devices_filters_non_onvif(
-        self, mock_session, mock_redis, mock_wsdiscovery
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
     ):
         """Test discover_devices filters out non-ONVIF devices."""
         # Create a mix of ONVIF and non-ONVIF devices
@@ -225,7 +230,7 @@ class TestDiscoverDevices:
 
     @pytest.mark.asyncio
     async def test_discover_devices_extracts_manufacturer_from_scopes(
-        self, mock_session, mock_redis, mock_wsdiscovery
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
     ):
         """Test extracting manufacturer and model from device scopes.
 
