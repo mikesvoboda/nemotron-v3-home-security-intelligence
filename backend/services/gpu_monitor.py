@@ -22,6 +22,8 @@ When memory pressure changes, registered callbacks are invoked to allow
 downstream services (like inference_semaphore) to throttle operations.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import shutil
