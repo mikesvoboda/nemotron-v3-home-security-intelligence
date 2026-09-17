@@ -4491,3 +4491,23 @@ it — covers this class at both tiers; recorded, gate semantics untouched.
 WP3.7 precondition now TRUE: queueing no longer confounds the API job
 (1437s compute, 3s queue) — it is the DAG long pole (+24.8 min done) and
 its rebalance is the next commit.
+
+## WP3.7 INTEGRATION-API JOB SPLIT 2-WAY (`3bc419da`)
+
+Precondition held: WP3.5's after-run (35178314774) shows the API job at
+1437s compute / 3s queue, completing +24.8 min — pure compute, now the
+sole long pole (everything else <= +10.1). DECIDE: matrix shard [1,2] +
+`--splits 2 --group N` (pytest-split, the unit tier's own mechanism)
+rather than a hand-cut -k: the selection's trailing bare `test_api`
+substring-matches several modules, so a hand partition risks a silent
+seam double-count or gap. pytest-split partitions the collected list
+mechanically: verified locally 442+441=883 exact count, deterministic
+sort-before-chunk. Honest limit: no CI-persisted per-test durations
+exist (`.test_durations` never uploaded — grep; durations_plugin.py is
+local-analysis only), so balancing rides `duration_based_chunks` — same
+fallback the 4-way unit shards have always used (+/-6% record).
+Artifacts/flaky-jsonl shard-suffixed (unit-tier convention,
+merge-multiple-clobber proof); consumers audited: coverage merge glob +
+Codecov union (unit shards prove the path), audit `**/*.xml` glob +
+missing-data-fails invariant intact. After-numbers (expect longest job
+~12 min, wall follows) from the triggered run.
