@@ -79,16 +79,19 @@ Options:
     -h, --help          Show this help message
     --backend           Run backend mutation tests only (mutmut)
     --frontend          Run frontend mutation tests only (Stryker)
-    --module <path>     Test specific backend module (e.g., backend/services/severity.py)
+    --module <name>     Mutate one backend module by bare name (e.g. severity).
+                        mutmut 3 filters by fnmatch over mutant keys, so the
+                        WP4.3 runner takes the name, not a path.
 
 Examples:
     ./scripts/mutation-test.sh                   # Run all mutation tests
     ./scripts/mutation-test.sh --backend         # Backend only
     ./scripts/mutation-test.sh --frontend        # Frontend only
-    ./scripts/mutation-test.sh --module backend/services/bbox_validation.py
+    ./scripts/mutation-test.sh --module severity
 
 Default Target Modules:
-    Backend:  backend/services/bbox_validation.py, backend/services/severity.py
+    Backend:  the widened WP4.3 set -- everything under backend/services/ and
+              backend/api/routes/ ([tool.mutmut] source_paths)
     Frontend: src/utils/risk.ts, src/utils/time.ts, src/utils/confidence.ts
 
 Mutation Score Interpretation:
@@ -137,72 +140,17 @@ while [ $# -gt 0 ]; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Backend Mutation Testing (mutmut)
+# Backend Mutation Testing (mutmut) -- DELEGATES to scripts/mutation-run.sh
 # ─────────────────────────────────────────────────────────────────────────────
 
 run_backend_mutation() {
+    # WP4.3: the 2.x-era inline mutmut calls (--paths-to-mutate/--tests-dir/
+    # --runner) are dead flags under mutmut 3.8 -- they errored into a
+    # `|| true` and produced nothing. mutmut 3 is config-driven
+    # ([tool.mutmut]); mutation-run.sh is the ONE runner (workflow included),
+    # so call sites cannot rot independently again.
     print_header "Backend Mutation Testing (mutmut)"
-
-    cd "$PROJECT_ROOT"
-
-    # Check for uv
-    if ! command -v uv >/dev/null 2>&1; then
-        print_error "uv not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
-        exit 1
-    fi
-
-    # Sync dependencies if needed
-    print_step "Checking dependencies..."
-    uv sync --extra dev --frozen >/dev/null 2>&1 || true
-
-    # Determine which modules to mutate
-    if [ -n "$BACKEND_MODULE" ]; then
-        PATHS_TO_MUTATE="$BACKEND_MODULE"
-        print_step "Testing specific module: $BACKEND_MODULE"
-    else
-        PATHS_TO_MUTATE="backend/services/bbox_validation.py backend/services/severity.py"
-        print_step "Testing default modules: bbox_validation.py, severity.py"
-    fi
-
-    # Run mutmut with appropriate tests
-    print_step "Running mutation tests (this may take several minutes)..."
-
-    for module_path in $PATHS_TO_MUTATE; do
-        # Extract module name for targeted test discovery
-        module_name=$(basename "$module_path" .py)
-        test_path="backend/tests/unit/services/test_${module_name}.py"
-
-        printf "\n${CYAN}Mutating: %s${NC}\n" "$module_path"
-
-        if [ -f "$test_path" ]; then
-            # Run mutmut with targeted tests for faster execution
-            uv run mutmut run \
-                --paths-to-mutate "$module_path" \
-                --tests-dir "backend/tests/unit/services/" \
-                --runner "python -m pytest $test_path -x -q --tb=no --timeout=5" \
-                || true
-        else
-            print_warning "No dedicated test file found: $test_path"
-            print_step "Running with all unit tests (slower)..."
-            uv run mutmut run \
-                --paths-to-mutate "$module_path" \
-                --tests-dir "backend/tests/unit/" \
-                --runner "python -m pytest backend/tests/unit/ -x -q --tb=no --timeout=5" \
-                || true
-        fi
-    done
-
-    # Show results
-    print_step "Mutation testing results:"
-    uv run mutmut results || true
-
-    print_success "Backend mutation testing complete"
-    echo ""
-    echo "To investigate surviving mutants:"
-    echo "  uv run mutmut show <mutant_id>"
-    echo ""
-    echo "To see HTML report:"
-    echo "  uv run mutmut html && open html/index.html"
+    "$SCRIPT_DIR/mutation-run.sh" ${BACKEND_MODULE:+"$BACKEND_MODULE"}
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

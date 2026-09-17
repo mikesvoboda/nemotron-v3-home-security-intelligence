@@ -5,6 +5,15 @@
  * to verify test effectiveness. Start with pure logic modules that have
  * well-defined inputs/outputs and comprehensive tests.
  *
+ * WP4.3 DECIDE (2026-09-17): the BACKEND set widened to all of
+ * backend/services/ + backend/api/routes/ (that is where the PLAN's risk
+ * concentration sits: the coverage-omit modules and the low-assertion-density
+ * route tree). This frontend set deliberately stays at the three pure
+ * utilities until a mutation baseline exists for a wider frontend set --
+ * widening without a baseline produces an unfalsifiable number. Thresholds
+ * remain informational (break: null) for the same reason the backend score
+ * is a tracked trend, not a merge gate.
+ *
  * Target modules:
  * - src/utils/risk.ts: Risk score to level conversion (mirrors backend severity.py)
  * - src/utils/time.ts: Time formatting utilities
@@ -19,11 +28,7 @@
 /** @type {import('@stryker-mutator/api').PartialStrykerOptions} */
 export default {
   // Target files to mutate (start small with well-tested utility modules)
-  mutate: [
-    'src/utils/risk.ts',
-    'src/utils/time.ts',
-    'src/utils/confidence.ts',
-  ],
+  mutate: ['src/utils/risk.ts', 'src/utils/time.ts', 'src/utils/confidence.ts'],
 
   // Test runner configuration
   testRunner: 'vitest',

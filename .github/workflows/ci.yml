@@ -143,6 +143,10 @@ jobs:
           # WP4.2: the unspecced-mock gate measures through this list's own
           # machinery (its done-when test drives ratchet-check end to end).
           scripts/test_check_mock_spec.py
+          # WP4.3: the mutation scorer pins its verdict table to mutmut's own
+          # imported status map — without CI the pin rots the day mutmut
+          # upgrades, which is exactly when the score would start lying.
+          scripts/test_mutation_score.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).

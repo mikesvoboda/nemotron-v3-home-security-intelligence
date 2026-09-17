@@ -146,3 +146,8 @@ site/
 # staged salvage is branch-local working material only — de-tracked 2026-09-15
 # (build dirs alone cost ~1GB; see ledger). Evidence copy lives outside the repo.
 docs/superpowers/staged/
+
+# WP4.3: mutmut 3 run cache (generated sources + verdict metas). The
+# score HISTORY is committed (.github/mutation-history.json) -- the cache
+# is regenerable; the series is not.
+mutants/

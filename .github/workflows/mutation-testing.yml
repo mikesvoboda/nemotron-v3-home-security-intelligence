@@ -1,14 +1,42 @@
 name: Mutation Testing
 
-# Mutation testing runs as a non-blocking check to verify test effectiveness.
-# It's scheduled weekly and can be triggered manually for on-demand analysis.
+# WP4.3: the weekly run now covers the WIDENED set (backend/services/ +
+# backend/api/routes/, from [tool.mutmut]) and PUBLISHES scores three ways:
+#   1. step summary (immediate visibility),
+#   2. run artifacts (verdict pack + per-module score JSON, 14 days),
+#   3. .github/mutation-history.json committed back to main -- the series is
+#      the "tracked over time" record; a run that measures nothing refuses to
+#      commit (scripts/mutation-score.py rc=1 on an empty cache).
 #
-# Why non-blocking?
-# - Mutation testing is slow (can take 10+ minutes)
+# Why still non-blocking for PRs:
+# - Mutation testing is slow (hours, not minutes, over the widened set)
 # - Not all surviving mutants indicate real problems
 # - 100% mutation score is often impractical
+# The history file's commit lands on main through the normal CI gate; the
+# mutation score itself remains a tracked trend, not a merge blocker.
 #
-# Use the results to identify test gaps, not to block PRs.
+# History rewrite note: the pre-WP4.3 version of this workflow passed mutmut
+# 2.x flags (--paths-to-mutate/--runner) that mutmut 3.8 rejects; every call
+# was `|| true`-shielded, so weekly runs "succeeded" while producing no data.
+# The scripts/mutation-run.sh + scripts/mutation-score.py path replaced the
+# inline flags, and the runner is NOT error-shielded any more.
+#
+# Convergence note (WP4.3): the denominator is ~88k mutants (run5,
+# 2026-09-17) and no single job budget finishes a COLD run -- and a job
+# killed by its own timeout that keeps nothing would restart cold forever.
+# So verdicts ride a cache (actions/cache, few MB of *.py.meta + stats +
+# spans -- mutant copies regenerate with no test execution (~19 min local
+# for 269 files) and the function-hash merge preserves restored verdicts).
+# Projected convergence on run5's cost model: ~24.5% of the denominator per
+# 240-min CI step at 12x, so ~4 weekly runs to a completed point. Early history points are PARTIAL
+# (progress.completed=false): their score is pessimistic BY CONSTRUCTION
+# (unchecked counts as uncaught) and RISES as the cache converges -- read
+# progress.checked/total alongside, and only completed points are
+# comparable as a trend. Torn metas (a budget-kill mid-save) are deleted by
+# the repair step BEFORE the run, because mutmut's own loader crashes on
+# them. The run step is budgeted + continue-on-error so progress always
+# reaches the pack step; it is not a shield -- nothing-measured still exits
+# rc=1 at the score step and the push guard refuses a measurement-less run.
 
 on:
   # Weekly schedule (Sunday at 2 AM UTC)
@@ -28,7 +56,7 @@ on:
         default: 'false'
         type: boolean
       backend_module:
-        description: 'Specific backend module to test (e.g., backend/services/severity.py)'
+        description: 'Mutate only one module (bare name, e.g. severity; empty = full widened set)'
         required: false
         default: ''
         type: string
@@ -45,10 +73,15 @@ jobs:
   backend-mutation:
     name: Backend Mutation Testing
     runs-on: ubuntu-latest
-    # Non-blocking: failures are informational
+    # Non-blocking: failures are informational (score is a trend, not a gate)
     continue-on-error: true
     if: ${{ github.event.inputs.frontend_only != 'true' }}
-    timeout-minutes: 30
+    # Widened set: thousands of mutants, each a single-process pytest boot.
+    # Generous ceiling; last week's wall-clock is a trend line WP4.3 prints.
+    timeout-minutes: 360
+    # history-commit push below (house pattern: semantic-release's bot commit)
+    permissions:
+      contents: write
 
     services:
       postgres:
@@ -86,60 +119,140 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Determine modules to test
-        id: modules
+      # Weekly-convergence contract (WP4.3). The widened denominator is
+      # ~88k mutants (run5 measured the count on 2026-09-17); a COLD job
+      # cannot finish it inside any job budget -- and a timeout-killed job
+      # that saved nothing would never converge, week after week, forever.
+      # mutmut's verdicts are durable per-mutant (_register_mutant_result
+      # saves the .meta on every checked mutant), so the missing piece is
+      # only carrying the verdict state across runs:
+      #   restore (few MB of *.py.meta + mutmut-stats.json) -> repair ->
+      #   budgeted run -> pack (always()) -> score.
+      # Cache content is verdict data ONLY: generation regenerates the
+      # 1.4GB mutant tree without executing any test (~19 min for 269 files
+      # measured locally under mutate_only_covered_lines, run4/run5 -- fits
+      # the CI prep window), and create_mutants_for_file's function-hash
+      # merge preserves restored verdicts while doing it.
+      # mutmut-stats.json also carries the test->function map, so a warm
+      # run skips the full stats pass (only the coverage pass and a
+      # collect-only listing rerun).
+      - name: Restore mutmut verdict cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .mutmut-verdicts.tar.gz
+          key: mutmut-verdicts-${{ github.run_id }}
+          restore-keys: |
+            mutmut-verdicts-
+
+      - name: Unpack verdicts + repair torn metas
         run: |
-          if [ -n "${{ github.event.inputs.backend_module }}" ]; then
-            echo "modules=${{ github.event.inputs.backend_module }}" >> $GITHUB_OUTPUT
+          if [ -f .mutmut-verdicts.tar.gz ]; then
+            tar -xzf .mutmut-verdicts.tar.gz
+            echo "verdict cache restored ($(find mutants -name '*.py.meta' | wc -l) metas)"
           else
-            echo "modules=backend/services/bbox_validation.py backend/services/severity.py" >> $GITHUB_OUTPUT
+            echo "cold cache -- this run starts the convergence series"
           fi
+          # A prior budget-kill can truncate a meta mid-save; mutmut's own
+          # loader crashes on that (guards only FileNotFoundError), so
+          # repair BEFORE the run. rc!=0 here must stop the job loudly.
+          uv run python scripts/mutation-score.py --repair
 
-      - name: Run mutation tests (bbox_validation)
-        if: ${{ contains(steps.modules.outputs.modules, 'bbox_validation') || github.event.inputs.backend_module == '' }}
-        run: |
-          echo "Running mutation tests on bbox_validation.py..."
-          uv run mutmut run \
-            --paths-to-mutate backend/services/bbox_validation.py \
-            --tests-dir backend/tests/unit/services/ \
-            --runner "python -m pytest backend/tests/unit/services/test_bbox_validation.py -x -q --tb=no --timeout=10" \
-            || true
+      - name: Run mutation tests (widened set, config-driven)
+        # NO `|| true` here -- that shield is how the 2.x flag rot stayed
+        # invisible for months. mutmut exits 0 on completion; survivors are
+        # reported data, not a run failure. Real breakage must fail loudly.
+        # Budgeted + continue-on-error is NOT a shield: a killed/broken run
+        # still fails the job via the score step (rc=1 on nothing-measured)
+        # or the push guard -- it just cannot strand the pack step, which is
+        # what makes the weekly series converge instead of restarting cold.
+        # The budget must fire as a STEP kill, not the job timeout: GitHub
+        # caps hosted jobs at 6h and CI prep (coverage pass + clean tests
+        # on a 4-core runner) eats 60-90 min of it, so 240 here is the
+        # largest budget that reliably ends the run while pack + score +
+        # history still get their turns. A week whose prep alone overran the
+        # cap loses nothing: the cache keeps last week's verdicts and the
+        # next run resumes.
+        timeout-minutes: 240
+        continue-on-error: true
+        run: ./scripts/mutation-run.sh "${{ github.event.inputs.backend_module }}"
 
-      - name: Run mutation tests (severity)
-        if: ${{ contains(steps.modules.outputs.modules, 'severity') || github.event.inputs.backend_module == '' }}
-        run: |
-          echo "Running mutation tests on severity.py..."
-          uv run mutmut run \
-            --paths-to-mutate backend/services/severity.py \
-            --tests-dir backend/tests/unit/services/ \
-            --runner "python -m pytest backend/tests/unit/services/test_severity.py -x -q --tb=no --timeout=10" \
-            || true
-
-      - name: Generate results summary
-        run: |
-          echo "## Backend Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          uv run mutmut results 2>&1 | tee -a $GITHUB_STEP_SUMMARY || echo "No results available"
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Generate HTML report
-        run: |
-          uv run mutmut html || true
-          if [ -d "html" ]; then
-            echo "HTML report generated"
-          fi
-
-      - name: Upload mutation report
+      - name: Pack verdict state (always -- a budget-killed run keeps progress)
         if: always()
+        # Verdict data only (metas + stats + spans, ~a few MB): the 1.4GB of
+        # regenerated mutant copies is reproducible and free-tier artifact
+        # storage is capped (500MB Free plan), so the artifact ships THIS
+        # pack + the score JSON, never the whole mutants/ tree.
+        run: |
+          find mutants \( -name '*.py.meta' -o -name '*.py.spans' \
+            -o -name 'mutmut-stats.json' -o -name 'mutmut-cicd-stats.json' \) \
+            -print0 2>/dev/null \
+            | tar --null -czf .mutmut-verdicts.tar.gz --no-recursion -T -
+          ls -la .mutmut-verdicts.tar.gz
+
+      - name: Per-module score + step summary
+        run: |
+          uv run python scripts/mutation-score.py > mutation-score.json
+          {
+            echo "## Backend Mutation Results (WP4.3 widened set)"
+            echo ""
+            jq -r '"**Modules with results**: \(.modules|length) / \(.target_modules|length) targets  ·  **Score (mutmut badge formula)**: \(.totals.score | if . == null then "n/a" else (.*10|round)/10 end)%  ·  killed \(.totals.killed) | survived \(.totals.survived) | timeout \(.totals.timeout) | no-tests \(.totals.no_tests) | skipped \(.totals.skipped) | unchecked \(.totals.not_checked)"' mutation-score.json
+            echo ""
+            echo "### Worst 15 modules (survivors = WP4.4 targets)"
+            echo ""
+            echo "| Score | Module | Survived | Total |"
+            echo "|------:|--------|---------:|------:|"
+            jq -r '.modules | sort_by(.score // 0) | .[:15][] | "| \(if .score == null then "n/a" else (.score * 10 | round) / 10 end)% | \(.module) | \(.survived) | \(.total) |"' mutation-score.json
+            echo ""
+            echo "### Targets with no mutants this run"
+            echo ""
+            echo 'WP4.5 coverage-omitted modules and generation gaps -- surfaced, never hidden:'
+            # NOT `. as {modules, target_modules} | ...` -- bare identifiers are
+            # invalid in a jq destructuring pattern (compile error kills the
+            # step; caught against a fixture before CI found it).
+            jq -r '.target_modules - (.modules | map(.module)) | .[] | "- `\(.)`"' mutation-score.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload score + verdict pack
+        if: always()
+        # The pack is verdict data (metas/stats/spans) + the score JSON --
+        # a few MB, downloadable and `mutmut show`-able after unpacking into
+        # a freshly generated tree. NOT the whole mutants/ tree: 1.4GB x 14
+        # days would blow the free-tier artifact cap (500MB), and the tree
+        # is regenerable from the pack by the next run anyway. The pack
+        # carries no also_copy data (no .env etc. is matched by the find).
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-mutation-report
           path: |
-            html/
-            .mutmut-cache
+            mutation-score.json
+            .mutmut-verdicts.tar.gz
           retention-days: 14
+
+      - name: Append history + push to main (tracked over time)
+        # The series file IS the done-when artifact. Appending happens on
+        # freshly fetched main (never the schedule's snapshot ref) so a
+        # concurrent merge cannot be clobbered; a run whose score step failed
+        # produced no mutants cache -> scorer rc=1 -> nothing appended ->
+        # nothing pushed. A measurement-less run never touches the series.
+        # No [skip ci]: the history commit lands on main and normal CI
+        # validates it like any other commit.
+        if: success()
+        run: |
+          git fetch origin main --quiet
+          git checkout -B main origin/main --quiet
+          uv run python scripts/mutation-score.py \
+            --history .github/mutation-history.json \
+            --date "$(date -u +%F)" > /dev/null
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # stage FIRST: a first-run history file is untracked and `git diff`
+          # is blind to untracked files -- staged-vs-HEAD catches creation too.
+          git add .github/mutation-history.json
+          if git diff --staged --quiet; then
+            echo "history unchanged -- nothing to push"; exit 0
+          fi
+          git commit -m "chore(mutmut): weekly mutation history $(date -u +%F)"
+          git push origin HEAD:main
 
   # ============================================================================
   # Frontend Mutation Testing (Stryker)
