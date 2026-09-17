@@ -4289,3 +4289,33 @@ mid-run snapshot showed run-538-only peak 28 — an artifact of jobs still
 timestamps; both corrected snapshots (run-only and cross-run) independently
 give 20. Data: /tmp/wp25/final-jobs.tsv + python 15s histogram (this row's
 commit body cites the method).
+
+## REPLAY TESTS MASKED A BROKEN INNER HOP -- TEST PERFORMANCE AUDIT UNIT FAILURE FIXED (2026-09-17, PRE-EXISTING class: surfaced by the WP0.5-repaired gate going live on PRs, first PR-caught catch)
+
+MEASURE: run 35170392538 (head 3fcffd8d) Test Performance Audit red --
+test_replay_request_with_query_params 15.04s vs the owner-ruled 4.0s unit
+threshold (WP0.5: "gate at raised thresholds"). Root cause: replay_request
+executes its INNER hop with a real httpx.AsyncClient against
+request.base_url ("http://test" under ASGITransport) = a real DNS lookup on
+CI (~15s with proxy/search-domain sweep; ~2.9s local nxdomain). The layer
+that hid it for months: the endpoint CATCHES the httpx error and answers 200
+with replay_status_code=500, while the tests asserted only the outer
+envelope -- "success" never verified a replay. test_replay_request_success
+targeted /api/system/health (DB-backed; unit tier has no DB), so its
+recorded inner failure was literally "Database not initialized", swallowed.
+
+FIX (align tests to shipped contract; production untouched): autouse fixture
+forces the endpoint's hop through ASGITransport(app) -- deterministic and
+the hop now genuinely runs. TDD red first: the new inner
+replay_status_code==200 assertion failed pre-fix, passes post. rec-1's
+recording retargeted to /api/debug/recordings (fully mock-covered endpoint).
+AFTER: call times 2.96s -> 0.09-0.10s; file 35/35 green twice under
+different seeds; worst remaining duration is the 2.7s module fixture setup,
+not a call.
+
+SIBLING RECORDED NOT TOUCHED: the 04a86cc9 audit red was a DIFFERENT test
+(integration test_audit_stats_with_invalid_date_range 10.70s vs 10.0s) that
+did not recur at 3fcffd8d -- n=1 boundary jitter: no fix, no
+SLOW_TEST_PATTERNS widening (allowlist-for-green is explicitly not-taken);
+its own row if it recurs. CI Gate (Required Checks) fails only as the
+rollup of this audit.
