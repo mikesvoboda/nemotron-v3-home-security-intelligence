@@ -4701,3 +4701,59 @@ CI-BEFORE BASELINE for the integration batches: CI's own integration
 matrix on the last pre-sweep head (f3d9bcdd) is green (Services,
 Models, WebSocket done; API shards running) — the sweep's before-state
 for the tier, on the real runner pool.
+
+## WP4.2 UNSPECCED-MOCK GATE — RATCHET CATEGORY `unspecced_patch`, SEED 322 (rides the WP1.3 machinery, this commit)
+
+MEASURE (the gate IS the measurement — scripts/check-mock-spec.py,
+classifier imported from autospec-sweep.py so gate/sweep/census/ratchet can
+never disagree about "convertible"): whole-tree unspecced-but-convertible
+sites = 322 (unit 56 + integration 229 + benchmarks 23 + chaos 4 + e2e 10),
+re-derived live at this head; `--count` == census == CI --expect literal,
+pinned by test_real_tree_category_is_seeded_and_green.
+
+DECIDE: the gate rides the WP1.3 ratchet exactly as the PLAN demanded
+("wire into the WP1.3 ratchet rather than building a parallel mechanism") —
+one new census category, enforcement unchanged in ratchet-check.py:
+UNREGISTERED + RATCHET unspecced_patch name a new site's id, counts may
+only fall, an increase needs registry rows AND the hand-raised baseline in
+the same commit. Seed adjudication (registry-gen rules, so the 322 rows are
+machine-mintable, --check green): the 285 unit+integration reverts are
+`todo` tracking R-WP4.1-SWEEP-RESIDUAL (the WP4.1 ledger entry adjudicated
+each one's class; todo keeps the ratchet's teeth — kept on purpose is not
+adjudicated-permanent); the 37 sites in the unswept tiers are `scoped`,
+inheriting their tier's existing excluded_test_trees deferral rather than a
+new ruling. ids are `file::scope::kN`, NOT file:line — WP4.1's own gate
+collateral twice saw file:line registry ids rot under batch edits
+(ssl_certs 880->927, preview_api 428->472); a same-scope insertion
+renumbers later kNs and the ratchet surfaces it as STALE+UNREGISTERED
+together, loudly, never silently. The cost is stated where it is paid.
+
+Layering: the pre-commit hook (--staged) checks only ADDED lines of the
+staged diff — the tree legitimately carries 322 licensed sites, so a
+whole-file scan would block every commit touching one; the CI ratchet
+(whole tree) is the completeness layer. The na forms the sweep refuses
+(new=/new_callable=/patch.dict/bare-name/non-str) are deliberately NOT
+sites — licensing them would double-register what the sweep adjudicates.
+
+TDD record: 9 tests in scripts/test_check_mock_spec.py, red-first (the two
+ratchet-connection tests failed before census wiring; 7 measurer/staged-path
+tests pinned the id shape and the added-lines fast path). The PLAN's
+done-when pinned twice: end-to-end through ratchet-check on a minted
+fixture tree (add a plain patch() -> rc=1 naming test_sneaked::k1), and as
+a LIVE hook block — staging an unspecced patch on this branch made the
+real git hook refuse the commit, naming the site id and the licensing path.
+E2E proof of the hook's teeth, not a mocked claim.
+
+Fixture-tree seam: the census's unspecced_patch importer falls back to the
+versioned gate script when root carries no scripts/ copy — the MEASURER is
+code, only what it walks comes from the fixture root (ratchet/census fixture
+tests mint state without shipping a scripts tree). The census fixture's
+EXPECTED dict gained "unspecced_patch": 0 — honest, the fixture carries no
+convertible patch()s.
+
+Collateral: ci.yml's --expect literal grew the 13th category (verified
+rc=0 against the live census); the gate's tests joined ci.yml's anti-rot
+list ("a gate with no CI is a gate that rots"); the registry header now
+documents the kN id shape; suppression-registry.yml regenerated (+322 rows,
+semantic diff for the existing 12 categories = zero, verified before
+writing).

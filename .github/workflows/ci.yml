@@ -104,7 +104,7 @@ jobs:
       - name: Suppression census (baseline stable)
         run: >-
           uv run python scripts/suppression-census.py --expect
-          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4}'
+          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":322}'
       # WP1.3: the ratchet. The --expect above says "the census must not
       # drift"; this says "counts may only FALL" — an unregistered
       # @pytest.mark.skip (or any new suppression of any category) fails CI
@@ -140,6 +140,9 @@ jobs:
           # a gate/tool with no CI is a tool that rots (and whose refusal
           # rules silently stop being true).
           scripts/test_autospec_sweep.py
+          # WP4.2: the unspecced-mock gate measures through this list's own
+          # machinery (its done-when test drives ratchet-check end to end).
+          scripts/test_check_mock_spec.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).

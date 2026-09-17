@@ -298,6 +298,17 @@ repos:
         files: ^backend/tests/.*\.py$
         pass_filenames: true
 
+      - id: check-mock-spec
+        name: Check new mock patches carry autospec (WP4.2 ratchet)
+        # Fast path only: flags unspecced convertible patch() sites on the
+        # ADDED lines of the staged diff (the tree carries 322 licensed
+        # sites; whole-file scanning would block every touch). The ratchet
+        # in CI is the completeness layer -- see scripts/check-mock-spec.py.
+        entry: python3 scripts/check-mock-spec.py --staged
+        language: system
+        files: ^backend/tests/.*\.py$
+        pass_filenames: true
+
       # Validation alignment hook - detects drift between Pydantic and Zod schemas
       # Warns when backend Pydantic schemas are modified to verify frontend Zod alignment
       # This is a warning-only hook - commits are not blocked
