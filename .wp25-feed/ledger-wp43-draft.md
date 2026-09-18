@@ -1,11 +1,11 @@
 ## WP4.3 MUTATION WIDENING — DENOMINATOR `backend/services/` + `backend/api/routes/`, WEEKLY SCHEDULE, HISTORY IN GIT
 
 PARALLEL FEED (same day, while run5/run6 checked; full program post-close-out):
-waves 1-40 triaged 14,597 survivors across 101 modules read-only (detector gate
+waves 1-42 triaged 14,837 survivors across 103 modules read-only (detector gate
 
 > =150 checked & >=100 survivors, tree-canonical dedupe ledger
 > .wp25-feed/triage-waves/dispatched.txt) -> 65% TEST-GAP / 21% EQUIVALENT /
-> 14% LOW-VALUE, 650 drafted UNVERIFIED kill-tests + 8 cross-module fix
+> 14% LOW-VALUE, 662 drafted UNVERIFIED kill-tests + 8 cross-module fix
 > patterns (.wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~22% EQUIVALENT
 > share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container_discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
 > 93%-gap module can shift the survivor-weighted share, and wave 33's
