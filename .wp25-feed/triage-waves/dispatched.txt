@@ -119,3 +119,4 @@ backend/services/thumbnail_generator.py
 backend/services/worker_supervisor.py
 backend/services/dedupe.py
 backend/services/health_monitor.py
+backend/services/bbox_validation.py
