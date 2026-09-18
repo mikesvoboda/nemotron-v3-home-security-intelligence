@@ -5,7 +5,14 @@ MEASURE: the mutation pipeline was DEAD, not narrow. mutmut 3.8 rejects every
 "No such option"), `mutmut html` does not exist in 3.x, and every invocation
 sat behind `|| true` -- the weekly schedule "succeeded" for months producing
 zero data, and the docs' "89.2% Overall Mutation Score" predated the mutmut 3
-migration and was unreproducible. First honest baseline: <BASELINE>.
+migration and was unreproducible. First honest baseline: 54.0% (45,127 killed
++ 2,611 timeout = 47,738 caught / 88,329 checked, 0 unchecked, completed=true;
+40,571 survived = 45.9%, 20 no_tests; 269 targets -> 229 scored, 40
+zero-mutant gaps listed every run -- incl. all four WP4.5 coverage-omit
+modules by design). The old doc's "89.2%" against 54.0% measured: the dead
+pipeline's number was fiction. Nine modules sit at 0% (model loaders
+age/gender/zero_dce = 206 mutants fully surviving; jobs/queues routes); the
+20 no_tests cluster in heatmap_service/stgcn_loader/backup_service.
 
 Generation confirmed the denominator: 269 files mutated in 21s (266 concrete
 + 3 package __init__.py -- mutmut mutates them, so --targets counts them).

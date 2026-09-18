@@ -901,3 +901,33 @@ cover ~50.
 - WP4.4's own commit, separate from WP4.3 (one WP per commit).
 - ~145 still-untriaged targets + the run's last ~80% get triaged from the
   FINAL score JSON with the same detector/wave machinery before WP4.4 closes.
+
+## FINAL-JSON RE-TALLY (2026-09-18, close-out — THIS SECTION IS THE SURVIVOR-COUNT ARBITER)
+
+run6 closed 13:32 UTC at 100% (88,329/88,329 checked, completed=true,
+torn_metas 0). Canonical scores: `/tmp/wp25/final-score.json` (269 targets ->
+229 scored, 40 zero-mutant gap modules). The 122 dossier rows above were frozen
+from run5's PARTIAL cache — mutmut checks estimated-fastest-first, so every
+dossier saw only a slice of its module's checks; run6 completed them. Row
+counts are now known LOWER BOUNDS; the FINAL counts stand:
+
+- 122 triaged modules: row sum 17,719 -> FINAL survivors 35,637 (120/122 rows
+  stem-resolved; `notification` + `household_matcher` prefix-ambiguous, manual
+  resolve at queue rebuild). Per-module growth is worst where run5 was
+  earliest-cut: enrichment_pipeline 162 -> 2,879; nemotron_analyzer 125 ->
+  2,545; enrichment_client 158 -> 1,330; gpu_monitor 194 -> 1,069.
+- ALL 229 scored modules: 40,571 FINAL survivors.
+- Generation-2 work list = 40,571 total, of which (a) 4,934 in the 107
+  never-triaged scored modules, (b) ~17,918 NEW survivors inside already-
+  triaged modules — dossier clusters stay valid (key sets are subsets), but
+  every fold's counts, shares, and drafting coverage need a FINAL pass.
+- Cluster SHARES (62/23/15) were measured on the run5 slices; they are a
+  sample, not the population. The population's shape comes out of the
+  generation-2 waves.
+- Nine modules score 0.0% (age/gender/zero_dce loaders 206 mutants fully
+  surviving, jobs/queues routes); 20 no_tests mutants live in
+  heatmap_service(6)/stgcn_loader(5)/backup_service(2) et al.
+
+Queue rebuild from this JSON (same detector/wave machinery) is the first
+WP4.4 action after close-out; the 122-row table above remains the QUALITATIVE
+map (patterns, defect finds, drafted tests) — only its arithmetic is superseded.

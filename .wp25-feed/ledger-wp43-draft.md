@@ -86,14 +86,31 @@ config carried deprecated 2.x keys that only parsed behind warnings,
 behind `|| true` — so the weekly schedule "succeeded" for months producing
 zero data, and the doc's "Overall Mutation Score: 89.2%" predates the mutmut
 3 migration and was unreproducible. First honest baseline (this commit):
-<BASELINE — filled from the run>.
+54.0% — run6 closed 13:32 UTC clean (rc=0): 88,329/88,329 checked, 0 unchecked,
+torn_metas 0, completed=true (scorer JSON /tmp/wp25/final-score.json). 45,127
+killed + 2,611 timeout = 47,738 caught; 40,571 SURVIVED (45.9%); 20 no_tests;
+269 targets -> 229 scored (40 zero-mutant gap modules printed every run,
+including all four WP4.5 coverage omits by construction). The dead pipeline's
+doc claim was "89.2%"; honest first measurement is 54.0% — the 35pp delta is
+what months of `|| true` were hiding. Floor detail: 9 modules at 0% (three
+model loaders age/gender/zero_dce = 206 mutants, 100% surviving; jobs.py +
+queues.py routes), no_tests concentrated in heatmap_service (6) /
+stgcn_loader (5) / backup_service (2). CROSS-READ to the WP4.4 feed: the 122
+triage dossiers froze survivor sets from run5's PARTIAL cache (mutmut checks
+estimated-fastest-first), so their 17,719 were a known-lower-bound slice — the
+FINAL JSON arbiter (queue index's re-tally appendix) puts the same 122 modules
+at 35,637 survivors and ALL 229 scored modules at 40,571, i.e. the generation-2
+work list is ~2.3x the triaged one; the snapshot-flag fold doctrine is what
+kept that reconciliation mechanical instead of a rewrite. The 62/23/15 shares
+remain the sample's shape; the population's comes out of the FINAL-JSON queue
+rebuild that opens WP4.4 proper.
 
 DECIDE (target set + cadence, PLAN's prioritisation executed): denominator =
 every module under backend/services/ + backend/api/routes/ — 266 concrete
 
 - 3 package `__init__`s = 269 generated (the mutmut baseline confirmed
   should_mutate(init)=True, so the scorer's --targets counts them too:
-  services/**init**.py alone is 703 real lines). Cadence
+  services/`__init__.py` alone is 703 real lines). Cadence
   stays WEEKLY schedule + workflow_dispatch, never per-PR (mutmut is hours, not
   minutes, at this scale). Prioritisation inside the set came from a static
   assertion-density screen (AST, no pytest): 149 modules screened (>=60
@@ -135,7 +152,7 @@ not.
 TDD record: 8 tests scripts/test_mutation_score.py, red-first — formula
 against mutmut's badge math, all-unchecked files excluded (nothing measured !=
 score 0), --targets denominator from the tree (flipped red mid-WP when the
-baseline proved mutmut mutates package **init**.py files — a denominator
+baseline proved mutmut mutates package `__init__.py` files — a denominator
 excluding them would print a false "skipped module" gap), missing cache is
 rc=1 NOT a silent zero report (a 0-module artifact committed as "baseline
 reset" is the failure mode this guards), verdict-pin against the installed
@@ -151,20 +168,20 @@ parents[N]-relative file reads must exist UNDER mutants/. -x made each death
 one-at-a-time; the doctrine became: run the whole selected suite in the
 mutant home once, inventory every failure class, fix in one commit. Round 1:
 ModuleNotFoundError scripts.synthetic (unit/scripts tests resolve the
-first-party package via **file**-relative sys.path arithmetic →
+first-party package via `__file__`-relative sys.path arithmetic →
 mutants/scripts/) and setup_lib (test_deploy_phases top-level). Round 2:
-models.yml — model_zoo.py's Path(**file**).parents[2] read lands on
+models.yml — model_zoo.py's Path(`__file__`).parents[2] read lands on
 mutants/models.yml. A whole-suite inventory pass in the mutant home
 (-n8, 91s) then named the remaining 17 path/read failures -- each would have
 died one-at-a-time under mutmut's -x: 4 infra-exists tests (docker-compose.prod.yml,
 monitoring/, frontend/nginx.conf, docker-entrypoint.sh), 12 version-
 consistency fixtures (the drift gate reads .nvmrc/.python-version/.github/
 workflows/ci.yml/Dockerfiles relative to a tree root = mutants/), one
-introspection artifact: mutmut renames covered methods
-xǁClassǁmethod**mutmut_orig/\_1 inside the mutated class, so
+introspection artifact: mutmut renames covered methods to
+`xǁClassǁmethod__mutmut_orig` / `…__mutmut_N` inside the mutated class, so
 test_mock_system_broadcaster_has_real_public_methods saw harness
 temporaries as "the real API" — the mock-completeness tests now skip names
-marked **mutmut (the real-API comparison is unchanged; 67 tests pass
+marked `__mutmut` (the real-API comparison is unchanged; 67 tests pass
 against the real tree). The final also_copy = the IMPORT/READ set, distinct
 from source_paths' MUTATE set — frontend FILES listed individually because
 copytree would drag node_modules (493MB) and mutmut's file-copy branch
@@ -206,7 +223,7 @@ never re-executes the 27k-test stats pass.
 
 MEASURE (weekly-convergence arithmetic, found while wiring the workflow
 against the run's real numbers): run5's denominator is 88,329 mutants;
-mutmut submits estimated-FASTEST-first (**main**.py:1014, its own comment),
+mutmut submits estimated-FASTEST-first (`__main__.py:1014`, its own comment),
 and the first ~4,000 checked consumed ~2 SECONDS of estimated test time out
 of ~31h total — every mutant pays a fresh pytest boot (~8-9s here, 12
 workers). Boot-bound wall = count/rate: ~18-20h local baseline. The failure
@@ -220,7 +237,7 @@ workers locally, and a 240min@12 CI step projects to ~20,300 mutants ≈ 24.5%
 per week: ~4 weekly runs to convergence, each preserving the prior verdicts.
 The durability
 half was source-verified before designing on it: \_register_mutant_result
-saves the meta on EVERY checked mutant (**main**.py:920); generation
+saves the meta on EVERY checked mutant (`__main__.py:920`); generation
 never touches metas and its hash-merge preserves restored verdicts
 (create_mutants_for_file). Fix = carry verdict state across runs:
 actions/cache of a few-MB pack (metas+stats+spans — measured 2.6 MB /

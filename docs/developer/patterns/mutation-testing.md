@@ -195,7 +195,25 @@ the next run — mutmut's own loader crashes on them.
 
 The pre-WP4.3 "Overall Mutation Score: 89.2%" in this file's history is not
 kept: it predates the mutmut 3 migration, and the pipeline that supposedly
-produced it was dead. WP4.3's baseline run publishes the first honest number.
+produced it was dead.
+
+### First honest baseline (WP4.3, run6 — 2026-09-18)
+
+| Metric                   | Value                                                                 |
+| ------------------------ | --------------------------------------------------------------------- |
+| **Score (mutmut badge)** | **54.0%** — (45,127 killed + 2,611 timeout) / 88,329                  |
+| Survived                 | 40,571 (45.9%)                                                        |
+| no_tests                 | 20 (heatmap_service 6, stgcn_loader 5, backup_service 2, …)           |
+| Checked / completed      | 88,329 / 88,329 — `progress.completed=true`, 0 torn metas             |
+| Denominator              | 269 targets → 229 scored; 40 zero-mutant modules printed as gaps      |
+| Floor                    | 9 modules at 0.0% (age/gender/zero_dce loaders, jobs/queues routes …) |
+
+The dead pipeline's doc claim was 89.2%; the honest first measurement is
+54.0%. This is the first `completed` history point — the trend starts here.
+The 40 zero-mutant gap modules include all four WP4.5 coverage omits by
+construction (their code is never unit-executed, so
+`mutate_only_covered_lines` generates nothing for them — the gap list keeps
+that visible until WP4.5 closes it).
 
 ## Understanding Results
 
