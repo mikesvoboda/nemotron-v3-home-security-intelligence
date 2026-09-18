@@ -1,0 +1,160 @@
+# Reusable integration-API shard tier (slow-runner retry, WP0.5 follow-through).
+#
+# WHY THIS FILE EXISTS (evidence: run 35353201418, commit 4805d98d, 2026-09-18):
+# API shard 1/2 degraded across three full attempts of the SAME commit —
+# 23m54s pass -> per-test pytest-timeout reds -> cancelled at GitHub's 30m0s
+# per-job cap. A retry INSIDE the job cannot recover from that terminal mode:
+# the binding constraint was the job cap the first attempt exhausted, so
+# recovery needs a FRESH JOB with a fresh 30-min budget. GitHub Actions has no
+# step-level job retry; a job calling a reusable workflow CAN be re-invoked by
+# a sibling gated on `result == 'cancelled'` — this file is the shared body so
+# the caller and the retry can never drift apart (the 2.x mutmut flag rot on
+# WP4.3 was exactly "N independent copies of one procedure").
+#
+# RULINGS ENCODED (owner 2026-09-18, extending WP0.5 "runner-job retry of the
+# AUDIT step's inputs, decided then"):
+#   * Only `cancelled` is retried — never `failure`. Retrying genuine test
+#     failures is the retry-mask class. A slow-runner `failure` that is
+#     indistinguishable from a regression stays red and comes back to the owner.
+#   * timeout-minutes stays 30 UNRAISED — raising the cap to pass is widening
+#     a gate, prohibited. scripts/test_shard_retry_wiring.py pins both rulings.
+#
+# NOTE: top-level `env:` from ci.yml does NOT flow into reusable workflows;
+# UV_VERSION below is a mirror of ci.yml's env block — kept honest by
+# scripts/test_shard_retry_wiring.py, not by discipline.
+name: Integration shard (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      shard:
+        description: 'pytest-split group (1-based)'
+        type: number
+        required: true
+      python-version:
+        type: string
+        required: true
+      artifact-suffix:
+        description: "'' for the primary tier; '-retry' for the slow-runner retry"
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  integration-shard:
+    name: Integration Tests (API shard ${{ inputs.shard }}/2${{ inputs.artifact-suffix }}) - Python ${{ inputs.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Run in parallel with lint - dependencies checked in integration-tests-summary
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      UV_VERSION: '0.9.18' # MIRROR of ci.yml env.UV_VERSION (reusable workflows get no top-level env) — pinned equal by test_shard_retry_wiring
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      LOG_DB_ENABLED: 'false'
+      ENVIRONMENT: development # Avoid production password validation in CI
+      CI: 'true'
+      # WP3.7: shard in the filename (the unit tier's convention) so the two
+      # shards' tracking files can't clobber each other under merge-multiple.
+      # The retry suffix keeps the retry pass's tracking separate too — a flake
+      # observed on a degraded runner must not fold as if it came from the
+      # primary tier.
+      FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}.jsonl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ inputs.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run API integration tests
+        # API tests: test_*_api.py files
+        # -n auto enables parallel execution with database-per-worker isolation
+        # Each pytest-xdist worker gets its own database copy via template_database fixture
+        run: |
+          set -euo pipefail
+          START_TIME=$(date +%s)
+          RERUNS=""
+          if [ -f .github/flake-allowlist.yml ]; then
+            RERUNS=$(uv run --no-project python scripts/flake-k-filter.py 2>/dev/null || true)
+          fi
+          if [ -n "$RERUNS" ]; then
+            echo "Rerunning registered flakes: $RERUNS"
+            uv run pytest backend/tests/integration/ -k "$RERUNS" -n0 --timeout=30 \
+              --reruns 2 --reruns-delay 5 || true
+          fi
+          if uv run pytest backend/tests/integration/ \
+            -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
+            -n auto \
+            --timeout=30 \
+            --splits 2 --group ${{ inputs.shard }} \
+            --cov=backend \
+            --cov-fail-under=0 \
+            --cov-report=xml:coverage-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml \
+            --durations=20 \
+            -v 2>&1 | tee test-output.log; then
+            END_TIME=$(date +%s)
+            DURATION=$((END_TIME - START_TIME))
+            WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
+            echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
+            exit 0
+          fi
+          exit 1
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          # SUFFIX IS LOAD-BEARING: artifact names must be unique per run, and
+          # the retry's files must not clobber the primary attempt's evidence.
+          # The suffix keeps the tail, so TPA's `test-results-*` and the
+          # coverage merge's `coverage-integration-*` globs still match.
+          name: test-results-integration-api-${{ inputs.shard }}-py${{ inputs.python-version }}${{ inputs.artifact-suffix }}
+          path: |
+            test-results-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml
+            flaky-test-tracking-integration-api-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}.jsonl
+          retention-days: 7
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: coverage-integration-api-${{ inputs.shard }}-py${{ inputs.python-version }}${{ inputs.artifact-suffix }}
+          path: coverage-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml
+          retention-days: 7

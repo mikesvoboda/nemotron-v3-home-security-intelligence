@@ -1,0 +1,88 @@
+fix(ci): slow-runner retry for the integration API tier + cancelled-is-not-a-verdict summary
+
+MEASURE (run 35353201418, commit 4805d98d, 2026-09-18): API shard 1/2
+degraded across three full attempts of the SAME commit -- attempt 1 passed
+in 23m54s (20% margin under GitHub's 30m job cap), attempt 3 died on per-
+test 30s pytest-timeouts with ~10s uniform teardowns, attempt 4 never even
+red: the job was CANCELLED at 30m0s by the cap. Same tree passed at 12:17
+UTC the same day; main hadn't moved -- runner degradation, not code. Two
+defects came out of one pattern:
+
+  1. INVISIBILITY: integration-tests-summary forgave anything that was not
+     the literal string "failure", so the cap-cancelled shard fell through
+     to "All integration tests passed" and CI Gate -- the repo's ONLY
+     branch-protection context (the other 50+ checks, incl. TPA, are non-
+     required and were green) -- reported SUCCESS with the tier dead.
+     WP0.6's graph test could not catch this: statically the summary DOES
+     read needs.integration-tests-api.result; the sever is the runtime
+     string comparison. A runtime bug no static test can reach -- so the
+     fix ships with the static pins it does have (test_shard_retry_wiring)
+     and this evidence.
+
+  2. NO RECOVERY: a slow-runner cancellation burned the entire attempt.
+
+DECIDE (owner ruling 2026-09-18, extending WP0.5's "if slow-runner reds
+recur as a pattern, the mitigation is runner-job retry of the AUDIT step's
+inputs, decided then"): retry `cancelled` -- NEVER `failure`. A retry that
+absorbs genuine failures is the retry-mask class this repo has ruled
+against twice (validate.sh's own retry-mask comment); a slow-runner
+FAILURE indistinguishable from a regression stays red and comes back to
+the owner. The 30m job cap and the 10s/30s timing ceilings stay UNRAISED
+(raising a ceiling to pass = widening a gate -- prohibited; pinned by
+test). A retry INSIDE the job cannot recover the observed terminal mode --
+the binding constraint was the cap the first attempt exhausted -- so
+recovery is a FRESH JOB with a fresh budget: Actions has no step-level job
+retry, but a caller job calling a reusable workflow can be re-invoked by a
+sibling gated on result == 'cancelled'.
+
+HOW it rides:
+- .github/workflows/integration-shard.yml (new, reusable): the API shard
+  tier moved VERBATIM (pytest cmdline, --timeout=30, --splits 2,
+  flake-k-filter pre-rerun, services, coverage/junit artifacts) with
+  inputs.shard / inputs.artifact-suffix threaded through. Caller + retry
+  are ONE definition -- WP4.3's mutmut 2.x flag rot was what N independent
+  copies of one procedure fester into. The retry passes '-retry' so
+  upload-artifact names stay unique per run and the prior attempt's
+  evidence is never clobbered; the suffix keeps the tail, so TPA's
+  test-results-* and the coverage merge's coverage-integration-* globs
+  still match (pin asserts it). Reusable workflows inherit NO top-level
+  env -- UV_VERSION is mirrored inside and pinned equal to ci.yml's (a
+  drifting mirror = silent version skew in the retry tier only).
+- ci.yml: integration-tests-api becomes the caller; integration-tests-api-
+  retry is the same call gated on needs.integration-tests-api.result ==
+  'cancelled' -- the aggregated matrix result (cancelled outranks success,
+  the same premise WP3.5's unit-summary note operates on), so a cancelled
+  leg re-runs the shard pair: slightly wasteful, never wrong, and a
+  green-parent run cannot trigger it. Residual risk stated honestly: IF
+  GitHub's aggregation ever showed 'success' despite a cancelled leg, the
+  failure mode is today's status quo (invisible cancellation), not a new
+  one -- the next real cancelled attempt is the empirical check. TPA and
+  integration-coverage-merge now need the retry too, so they see the
+  retry's fresh junit/coverage instead of a cancelled parent's partial
+  uploads (the --failed-rerun stale-artifact trap from today's attempts:
+  re-runs are not truth -- check what actually re-executed).
+- integration-tests-summary: cancelled API shard stays RED unless the
+  retry ran and passed; every other job's non-success (cancelled included)
+  is red exactly as before.
+- scripts/test_shard_retry_wiring.py (new gate test, red-first: 12 fails
+  before the wiring, green after): uses/matrix/secrets: inherit, retry
+  fires on 'cancelled' with always() and must NOT contain 'failure',
+  artifact-suffix threading + name glob-survival, reusable job keeps the
+  UNRAISED 30-min cap + services + flake-governance cmdline, UV_VERSION
+  mirror equality, summary reads the retry's result AND handles
+  'cancelled', coverage-merge needs the retry, and the test rides ci.yml's
+  anti-rot steps. test_ci_job_graph.py stays green (35 jobs; the summary
+  reads both results, so retry and api tier both remain gate-reachable).
+
+WHY A SEPARATE PR off main: ci.yml is exactly where PR #6553 (cancel-in-
+progress) collides -- gate-semantics changes get their own review unit
+(same reasoning as keeping 6553 separate from #6552). This branch carries
+ONE ci.yml hunk region; 6552's ci.yml edits are elsewhere (anti-rot list,
+mutation workflow).
+
+NOT included, on purpose: no ceiling/cap changes, no allowlist/quarantine
+changes, no retry of `failure`, no unit-tier retry (the unit tier has a
+15-min cap and has never shown this pattern -- extending recovery without
+evidence is speculative gate-shaping).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
