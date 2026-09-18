@@ -16,6 +16,10 @@ REPO = Path("/agents/agent-nemo2/workspace")
 module_path = sys.argv[1]  # e.g. backend/services/container_discovery.py
 test_path = sys.argv[2]  # e.g. backend/tests/unit/services/test_container_discovery.py
 out_path = Path(sys.argv[3])
+# optional survivor-sharding so big modules can use >1 worker without sharing
+# one JSONL (append-interleave hazard): worker i of n keeps keys i, i+n, ...
+shard_i = int(sys.argv[4]) if len(sys.argv) > 4 else 0
+shard_n = int(sys.argv[5]) if len(sys.argv) > 5 else 1
 
 mod = module_path.replace("/", ".")[:-3]
 meta = json.loads((REPO / "mutants" / (module_path + ".meta")).read_text())
@@ -35,7 +39,7 @@ if out_path.exists():
 
 with out_path.open("a") as out:
     for num, key in survivors:
-        if key in done:
+        if key in done or num % shard_n != shard_i:
             continue
         env = dict(os.environ, MUTANT_UNDER_TEST=key)
         # argv is this CLI's own path args (operator-supplied) never external
@@ -53,6 +57,12 @@ with out_path.open("a") as out:
             "no:randomly",
             "-p",
             "no:cacheprovider",
+            # repo addopts carry -n 8; per-probe xdist clusters = 8 workers x
+            # 8 spawned clusters on 16 CPUs (load 46 measured). One file per
+            # probe: -n 0 keeps verdicts identical (unit tests hermetic) and
+            # cuts the spawn/oversubscription tax.
+            "-n",
+            "0",
         ]  # nosemgrep
         proc = subprocess.run(
             argv,  # nosemgrep

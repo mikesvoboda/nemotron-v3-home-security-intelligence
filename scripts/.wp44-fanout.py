@@ -92,29 +92,40 @@ def main() -> None:
                 time.sleep(30)
             continue
         while queue and len(procs) < max_par:
-            mod = queue.pop(0)
+            spec = queue.pop(0)
+            # "mod#N" = N-way survivor shard (keys i, i+N, ...; disjoint JSONLs
+            # so big modules beat the one-worker-per-module serial tail).
+            # Overshoot of max_par by up to N-1 during the shard burst is fine
+            # at -n 0 per probe; shard workers keep the killpg process-group.
+            mod, _, nsh_s = spec.partition("#")
+            nsh = int(nsh_s) if nsh_s else 1
             tf = test_for(mod)
             if not tf:
                 skipped.append(mod)
                 print(f"SKIP(no test file): {mod}", flush=True)
                 continue
-            out = KILLS / (Path(mod).stem + ".jsonl")
-            logf = (KILLS / (Path(mod).stem + ".log")).open("w")  # Popen holds fd
-            p = subprocess.Popen(
-                [  # venv python direct: no uv resolve/lock contention across workers
+            for i in range(nsh):
+                sfx = f".shard{i}" if nsh > 1 else ""
+                out = KILLS / (Path(mod).stem + sfx + ".jsonl")
+                logf = (KILLS / (Path(mod).stem + sfx + ".log")).open("w")  # Popen holds fd
+                argv = [  # venv python direct: no uv resolve/lock contention
                     str(REPO / ".venv/bin/python"),
                     "scripts/.wp44-killcount.py",
                     mod,
                     tf,
                     str(out),
-                ],
-                cwd=REPO,
-                stdout=logf,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,  # own process group so PAUSE killpg is total
-            )
-            procs[mod] = (p, out)
-            print(f"START {mod} -> {tf} ({out.name})", flush=True)
+                ]
+                if nsh > 1:
+                    argv += [str(i), str(nsh)]
+                p = subprocess.Popen(
+                    argv,
+                    cwd=REPO,
+                    stdout=logf,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,  # own process group so PAUSE killpg is total
+                )
+                procs[mod if nsh == 1 else f"{mod}#{i}"] = (p, out)
+                print(f"START {mod if nsh == 1 else spec} -> {tf} ({out.name})", flush=True)
         time.sleep(20)
         for mod in list(procs):
             p, out = procs[mod]
