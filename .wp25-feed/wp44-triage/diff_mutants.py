@@ -1,48 +1,72 @@
-import re, sys, difflib, json, collections
+import ast, json, sys, re
 
-MUT='/agents/agent-nemo2/workspace/mutants/backend/services/cost_tracker.py'
-SRC=open(MUT).read().split('\n')
+MUT = "/agents/agent-nemo2/workspace/mutants/backend/services/zone_service.py"
+ORIG = "/agents/agent-nemo2/workspace/backend/services/zone_service.py"
 
-# find function blocks: lines starting with 'def ' or indented '    def '
-funcs={}  # full_name -> list of source lines
-cur=None
-start=None
-for i,l in enumerate(SRC):
-    m=re.match(r'^(\s*)(?:async )?def (\S+)\(', l)
-    if m:
-        indent=len(m.group(1))
-        name=m.group(2)
-        if cur is not None:
-            funcs[cur]=(SRC[start:i])
-        cur=name
-        funcs[cur+'__INDENT__']=indent
-        start=i
-if cur is not None:
-    funcs[cur]=SRC[start:]
+mut_src = open(MUT).read()
+orig_src = open(ORIG).read()
+mut_tree = ast.parse(mut_src)
+orig_tree = ast.parse(orig_src)
 
-def body(name):
-    lines=funcs.get(name)
-    if lines is None: return None
-    return lines
+def index(tree):
+    d = {}
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            d[node.name] = node
+    return d
 
-surv=[s.strip() for s in open('/tmp/wp25/wp44-triage/survivor_keys_cost_tracker.txt') if s.strip()]
-out=open('/tmp/wp25/wp44-triage/survivor_diffs.txt','w')
-missing=[]
-for key in surv:
-    tail=key.split('.')[-1]
-    # tail like xǁCostTrackerǁtrack_enrichment_usage__mutmut_2
-    base, idx = tail.rsplit('__mutmut_',1)
-    mutname=base+'__mutmut_'+idx
-    origname=base+'__mutmut_orig'
-    ml=body(mutname); ol=body(origname)
-    if ml is None or ol is None:
-        missing.append(key); continue
-    # strip def-line differences (the clobbered name appears in the def line)
-    ml2=[re.sub(r'__mutmut_\w+','NAME',l) for l in ml]
-    ol2=[re.sub(r'__mutmut_\w+','NAME',l) for l in ol]
-    d=list(difflib.unified_diff(ol2,ml2,lineterm='',n=1))
-    d=[l for l in d if not l.startswith(('---','+++','@@')) ]
-    d=[l for l in d if l.startswith(('-','+'))]
-    out.write(key+' :: '+'\n'.join(d)+'\n----\n')
-out.close()
-print('missing:',missing[:5], 'count', len(missing))
+MF = index(mut_tree)
+OF = index(orig_tree)
+
+def dump(node):
+    if node is None: return None
+    return ast.dump(node, indent="")
+
+def short(node):
+    """body statements as unparse source lines"""
+    if node is None: return []
+    out=[]
+    for s in node.body:
+        try:
+            out.append(ast.unparse(s))
+        except Exception:
+            out.append(ast.dump(s))
+    return out
+
+survivors = [l.strip() for l in open('/tmp/wp25/wp44-triage/survivors.txt') if l.strip()]
+# survivors.txt first line is the count
+if survivors[0].isdigit(): survivors = survivors[1:]
+print("N survivors:", len(survivors))
+
+results = {}
+for key in survivors:
+    mungled_num = key.split('.')[-1]           # x_foo__mutmut_19
+    m = re.match(r'^(.*)__mutmut_(\d+)$', mungled_num)
+    base, num = m.group(1), m.group(2)
+    real = base[1:] if base.startswith('x') else base   # strip single leading 'x'
+    mnode = MF.get(mungled_num)
+    onode = MF.get(base + '__mutmut_orig') or OF.get(real)
+    if mnode is None:
+        print("MISSING MUTANT", key); continue
+    mb = short(mnode); ob = short(onode)
+    diffs = [(i, o, n) for i,(o,n) in enumerate(zip(ob, mb)) if o != n]
+    results[key] = {
+        'func': real,
+        'num': int(num),
+        'orig_body_len': len(ob), 'mut_body_len': len(mb),
+        'diffs': diffs,
+        'mut_body': mb,
+    }
+
+json.dump({k:{kk:vv for kk,vv in v.items()} for k,v in results.items()}, open('/tmp/wp25/wp44-triage/diffs.json','w'), indent=1)
+
+# print compact report
+for key in survivors:
+    r = results[key]
+    print("="*100)
+    print(key, " func=%s"%r['func'], " len orig=%d mut=%d"%(r['orig_body_len'], r['mut_body_len']))
+    if r['orig_body_len'] != r['mut_body_len']:
+        print("  !! STATEMENT COUNT DIFFERS")
+    for i,o,n in r['diffs']:
+        print("  [@%d] ORIG: %s"%(i,o))
+        print("       MUT : %s"%n)
